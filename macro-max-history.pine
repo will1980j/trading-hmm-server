@@ -1,0 +1,122 @@
+//@version=5
+indicator('WJ MACRO', overlay = true, max_lines_count = 500, max_labels_count = 500, max_bars_back=5000, max_boxes_count=500)
+
+// Set max_bars_back for important series - 5000 is the maximum allowed
+max_bars_back(time, 5000)
+max_bars_back(close, 5000)
+max_bars_back(open, 5000)
+max_bars_back(high, 5000)
+max_bars_back(low, 5000)
+
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+// FVG Settings
+group_fvg = 'Fair Value Gap Settings'
+showFVGs = input.bool(true, "Show Fair Value Gaps", group=group_fvg)
+fvgBullishColor = input.color(color.new(color.green, 80), "Bullish FVG Color", group=group_fvg)
+fvgBearishColor = input.color(color.new(color.red, 80), "Bearish FVG Color", group=group_fvg)
+deleteHistoricalFVGs = input.bool(false, "Delete Historical FVGs", group=group_fvg)
+
+// IFVG Settings
+group_ifvg = 'Inversion Fair Value Gap Settings'
+showIFVGs = input.bool(true, "Show Inversion Fair Value Gaps", group=group_ifvg)
+ifvgBullishColor = input.color(color.new(color.lime, 80), "Bullish IFVG Color", group=group_ifvg)
+ifvgBearishColor = input.color(color.new(color.orange, 80), "Bearish IFVG Color", group=group_ifvg)
+deleteHistoricalIFVGs = input.bool(false, "Delete Historical IFVGs", group=group_ifvg)
+
+//-----------------------------------------------------------------------------}
+//Main variables
+//-----------------------------------------------------------------------------{
+// Arrays for FVG tracking
+var array<box> activeFVGBoxes = array.new<box>()
+var array<float> fvgTopPrices = array.new<float>()
+var array<float> fvgBottomPrices = array.new<float>()
+var array<bool> fvgIsBullish = array.new<bool>()
+
+// Arrays for IFVG tracking
+var array<box> activeIFVGBoxes = array.new<box>()
+var array<float> ifvgTopPrices = array.new<float>()
+var array<float> ifvgBottomPrices = array.new<float>()
+var array<bool> ifvgIsBullish = array.new<bool>()
+
+//-----------------------------------------------------------------------------}
+
+// Always detect FVGs
+if showFVGs
+    if low > high[2]  // Bullish FVG
+        fvgBox = box.new(bar_index - 2, high[2], bar_index, low, bgcolor=fvgBullishColor, border_color=color.green, extend=extend.right)
+        array.push(activeFVGBoxes, fvgBox)
+        array.push(fvgTopPrices, low)
+        array.push(fvgBottomPrices, high[2])
+        array.push(fvgIsBullish, true)
+    if high < low[2]  // Bearish FVG
+        fvgBox = box.new(bar_index - 2, low[2], bar_index, high, bgcolor=fvgBearishColor, border_color=color.red, extend=extend.right)
+        array.push(activeFVGBoxes, fvgBox)
+        array.push(fvgTopPrices, low[2])
+        array.push(fvgBottomPrices, high)
+        array.push(fvgIsBullish, false)
+
+// FVG termination
+if array.size(activeFVGBoxes) > 0
+    for i = array.size(activeFVGBoxes) - 1 to 0
+        fvgBox = array.get(activeFVGBoxes, i)
+        topPrice = array.get(fvgTopPrices, i)
+        bottomPrice = array.get(fvgBottomPrices, i)
+        isBullish = array.get(fvgIsBullish, i)
+        
+        // Check termination
+        if (isBullish and close < bottomPrice) or (not isBullish and close > topPrice)
+            // Handle FVG based on delete setting
+            if deleteHistoricalFVGs
+                box.delete(fvgBox)
+            else
+                box.set_extend(fvgBox, extend.none)
+                box.set_right(fvgBox, bar_index)
+            
+            // Create IFVG when FVG terminates
+            if showIFVGs
+                leftBar = box.get_left(fvgBox)
+                if isBullish  // Bullish FVG becomes Bearish IFVG
+                    ifvgBox = box.new(leftBar, bottomPrice, bar_index, topPrice, bgcolor=ifvgBearishColor, border_color=color.orange, extend=extend.right)
+                    array.push(activeIFVGBoxes, ifvgBox)
+                    array.push(ifvgTopPrices, topPrice)
+                    array.push(ifvgBottomPrices, bottomPrice)
+                    array.push(ifvgIsBullish, false)
+                else  // Bearish FVG becomes Bullish IFVG
+                    ifvgBox = box.new(leftBar, bottomPrice, bar_index, topPrice, bgcolor=ifvgBullishColor, border_color=color.lime, extend=extend.right)
+                    array.push(activeIFVGBoxes, ifvgBox)
+                    array.push(ifvgTopPrices, topPrice)
+                    array.push(ifvgBottomPrices, bottomPrice)
+                    array.push(ifvgIsBullish, true)
+            
+            // Remove terminated FVG from arrays
+            array.remove(activeFVGBoxes, i)
+            array.remove(fvgTopPrices, i)
+            array.remove(fvgBottomPrices, i)
+            array.remove(fvgIsBullish, i)
+
+// IFVG termination
+if array.size(activeIFVGBoxes) > 0
+    for i = array.size(activeIFVGBoxes) - 1 to 0
+        ifvgBox = array.get(activeIFVGBoxes, i)
+        topPrice = array.get(ifvgTopPrices, i)
+        bottomPrice = array.get(ifvgBottomPrices, i)
+        isBullish = array.get(ifvgIsBullish, i)
+        
+        // Check termination
+        if (isBullish and close < bottomPrice) or (not isBullish and close > topPrice)
+            // Handle IFVG based on delete setting
+            if deleteHistoricalIFVGs
+                box.delete(ifvgBox)
+            else
+                box.set_extend(ifvgBox, extend.none)
+                box.set_right(ifvgBox, bar_index)
+            
+            // Remove terminated IFVG from arrays
+            array.remove(activeIFVGBoxes, i)
+            array.remove(ifvgTopPrices, i)
+            array.remove(ifvgBottomPrices, i)
+            array.remove(ifvgIsBullish, i)
+
+//-----------------------------------------------------------------------------}

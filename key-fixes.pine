@@ -1,0 +1,26 @@
+// 1. Fix the is_time function
+is_time(h, m, tz_offset) =>
+    // Apply user-defined timezone offset
+    adjusted_hour = (h + tz_offset) % 24
+    
+    // Simple time comparison - just check if hour and minute match
+    hour == adjusted_hour and minute == m
+
+// 2. Fix the overlapping macros issue in the macro start section
+// Replace this line:
+// macro.end_bar := bar_index + 20
+// With this code:
+if tf_m == 1
+    macro.end_bar := bar_index + 20
+else if tf_m == 3
+    macro.end_bar := bar_index + 7
+else if tf_m == 5
+    macro.end_bar := bar_index + 4
+else
+    macro.end_bar := bar_index + math.round(20 / tf_m)
+
+// 3. Update all calls to is_time to include the timezone_offset parameter
+// Change this:
+// if macro.enabled and is_time(macro.hour, macro.minute)
+// To this:
+if macro.enabled and is_time(macro.hour, macro.minute, timezone_offset)

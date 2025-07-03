@@ -1,0 +1,641 @@
+//@version=5
+indicator('WJ MACRO', overlay = true, max_lines_count = 500, max_labels_count = 100, max_bars_back=5000)
+
+// Set max_bars_back for important series
+max_bars_back(time, 5000)
+max_bars_back(close, 5000)
+max_bars_back(open, 5000)
+
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+group_ln     = 'London Time Settings'
+lnSummerTime = input.bool(true , 'London Daylight Saving Time (DST)', group = group_ln, tooltip = 'London : Daylight Saving Time (DST)\n - DST Start : Last Sunday in March at 1:00 UTC\n - DST End   : Last Sunday in October at 1:00 UTC')
+
+// Time zone settings
+group_tz = 'Time Zone Settings'
+timezone_offset = input.int(1, 'Chart to NY Time Offset (hours)', minval=-12, maxval=12, group=group_tz, tooltip='Adjust if your macros appear at wrong times. Positive if your chart time is ahead of NY, negative if behind.')
+// Debug setting to help troubleshoot time issues
+show_debug = input.bool(true, 'Show Time Debug Info', group=group_tz)
+
+// FVG Settings
+group_fvg = 'Fair Value Gap Settings'
+showFVGs = input.bool(true, "Show Fair Value Gaps", group=group_fvg)
+extendFVGs = input.bool(true, "Extend FVGs Until Filled", group=group_fvg)
+fvgBullishColor = input.color(color.new(color.green, 80), "Bullish FVG Color", group=group_fvg)
+fvgBearishColor = input.color(color.new(color.red, 80), "Bearish FVG Color", group=group_fvg)
+fvgBorderWidth = input.int(0, "FVG Border Width", minval=0, maxval=3, group=group_fvg)
+deleteHistoricalFVGs = input.bool(false, "Delete Historical FVGs", group=group_fvg)
+
+// IFVG Settings
+group_ifvg = 'Inversion Fair Value Gap Settings'
+showIFVGs = input.bool(true, "Show Inversion Fair Value Gaps", group=group_ifvg)
+extendIFVGs = input.bool(true, "Extend IFVGs Until Filled", group=group_ifvg)
+ifvgBullishColor = input.color(color.new(color.lime, 80), "Bullish IFVG Color", group=group_ifvg)
+ifvgBearishColor = input.color(color.new(color.orange, 80), "Bearish IFVG Color", group=group_ifvg)
+ifvgBorderWidth = input.int(0, "IFVG Border Width", minval=0, maxval=3, group=group_ifvg)
+deleteHistoricalIFVGs = input.bool(false, "Delete Historical IFVGs", group=group_ifvg)
+
+group_m02 = 'London 02:33 AM 03:00 Macro'
+m02330300 = input.bool(false, '02:33 AM 03:00', group = group_m02)
+m02_top   = input.bool(true, 'Top Line', inline = 'mc02', group = group_m02)
+m02_mid   = input.bool(true, 'Mid Line', inline = 'mc02', group = group_m02)
+m02_bot   = input.bool(true, 'Bottom Line', inline = 'mc02', group = group_m02)
+m02_ext   = input.bool(true, 'Extending Lines', inline = 'mc02', group = group_m02)
+
+group_m04 = 'London 04:03 AM 04:30 Macro'
+m04030430 = input.bool(false, '04:03 AM 04:30', group = group_m04)
+m04_top   = input.bool(true, 'Top Line', inline = 'mc04', group = group_m04)
+m04_mid   = input.bool(true, 'Mid Line', inline = 'mc04', group = group_m04)
+m04_bot   = input.bool(true, 'Bottom Line', inline = 'mc04', group = group_m04)
+m04_ext   = input.bool(true, 'Extending Lines', inline = 'mc04', group = group_m04)
+
+group_ny     = 'New York Time Settings'
+// Auto-detect DST based on date
+is_ny_dst() =>
+    y = year(timenow)
+    // Second Sunday in March
+    dst_start_month = 3  // March
+    dst_start_day = 1    // Start from day 1
+    while dayofweek(timestamp(y, dst_start_month, dst_start_day)) != dayofweek.sunday or dst_start_day <= 7
+        dst_start_day += 1
+    dst_start_day += 7   // Second Sunday
+    
+    // First Sunday in November
+    dst_end_month = 11   // November
+    dst_end_day = 1      // Start from day 1
+    while dayofweek(timestamp(y, dst_end_month, dst_end_day)) != dayofweek.sunday
+        dst_end_day += 1
+    
+    dst_start = timestamp(y, dst_start_month, dst_start_day)
+    dst_end = timestamp(y, dst_end_month, dst_end_day)
+    
+    timenow >= dst_start and timenow < dst_end
+
+nySummerTime = is_ny_dst()
+
+group_m08 = 'New York 08:50 AM 09:10 Macro'
+m08500910 = input.bool(false, '08:50 AM 09:10', group = group_m08)
+m08_top   = input.bool(true, 'Top Line', inline = 'mc08', group = group_m08)
+m08_mid   = input.bool(true, 'Mid Line', inline = 'mc08', group = group_m08)
+m08_bot   = input.bool(true, 'Bottom Line', inline = 'mc08', group = group_m08)
+m08_ext   = input.bool(true, 'Extending Lines', inline = 'mc08', group = group_m08)
+
+group_m09 = 'New York 09:50 AM 10:10 Macro'
+m09501010 = input.bool(true , '09:50 AM 10:10', group = group_m09)
+m09_top   = input.bool(true, 'Top Line', inline = 'mc09', group = group_m09)
+m09_mid   = input.bool(true, 'Mid Line', inline = 'mc09', group = group_m09)
+m09_bot   = input.bool(true, 'Bottom Line', inline = 'mc09', group = group_m09)
+m09_ext   = input.bool(true, 'Extending Lines', inline = 'mc09', group = group_m09)
+
+group_m10 = 'New York 10:50 AM 11:10 Macro'
+m10501110 = input.bool(true , '10:50 AM 11:10', group = group_m10)
+m10_top   = input.bool(true, 'Top Line', inline = 'mc10', group = group_m10)
+m10_mid   = input.bool(true, 'Mid Line', inline = 'mc10', group = group_m10)
+m10_bot   = input.bool(true, 'Bottom Line', inline = 'mc10', group = group_m10)
+m10_ext   = input.bool(true, 'Extending Lines', inline = 'mc10', group = group_m10)
+
+group_m11 = 'New York 11:50 AM 12:10 Launch Macro'
+m11501210 = input.bool(false, '11:50 AM 12:10', group = group_m11)
+m11_top   = input.bool(true, 'Top Line', inline = 'mc11', group = group_m11)
+m11_mid   = input.bool(true, 'Mid Line', inline = 'mc11', group = group_m11)
+m11_bot   = input.bool(true, 'Bottom Line', inline = 'mc11', group = group_m11)
+m11_ext   = input.bool(true, 'Extending Lines', inline = 'mc11', group = group_m11)
+
+group_m13 = 'New York 13:10 PM 13:40 Macro'
+m13101340 = input.bool(true , '13:10 PM 13:40', group = group_m13)
+m13_top   = input.bool(true, 'Top Line', inline = 'mc13', group = group_m13)
+m13_mid   = input.bool(true, 'Mid Line', inline = 'mc13', group = group_m13)
+m13_bot   = input.bool(true, 'Bottom Line', inline = 'mc13', group = group_m13)
+m13_ext   = input.bool(true, 'Extending Lines', inline = 'mc13', group = group_m13)
+
+group_m15 = 'New York 15:15 PM 15:45 Macro'
+m15151545 = input.bool(true , '15:15 PM 15:45', group = group_m15)
+m15_top   = input.bool(true, 'Top Line', inline = 'mc15', group = group_m15)
+m15_mid   = input.bool(true, 'Mid Line', inline = 'mc15', group = group_m15)
+m15_bot   = input.bool(true, 'Bottom Line', inline = 'mc15', group = group_m15)
+m15_ext   = input.bool(true, 'Extending Lines', inline = 'mc15', group = group_m15)
+
+// Add these input groups for new hourly macros
+group_hourly = 'Hourly Macros'
+m1650_1710 = input.bool(true, '16:50-17:10', group = group_hourly)
+m1750_1810 = input.bool(true, '17:50-18:10', group = group_hourly)
+m1850_1910 = input.bool(true, '18:50-19:10', group = group_hourly)
+m1950_2010 = input.bool(true, '19:50-20:10', group = group_hourly)
+m2050_2110 = input.bool(true, '20:50-21:10', group = group_hourly)
+m2150_2210 = input.bool(true, '21:50-22:10', group = group_hourly)
+m2250_2310 = input.bool(true, '22:50-23:10', group = group_hourly)
+m2350_0010 = input.bool(true, '23:50-00:10', group = group_hourly)
+m0050_0110 = input.bool(true, '00:50-01:10', group = group_hourly)
+m0150_0210 = input.bool(true, '01:50-02:10', group = group_hourly)
+m0250_0310 = input.bool(true, '02:50-03:10', group = group_hourly)
+m0350_0410 = input.bool(true, '03:50-04:10', group = group_hourly)
+m0450_0510 = input.bool(true, '04:50-05:10', group = group_hourly)
+m0550_0610 = input.bool(true, '05:50-06:10', group = group_hourly)
+m0650_0710 = input.bool(true, '06:50-07:10', group = group_hourly)
+m0750_0810 = input.bool(true, '07:50-08:10', group = group_hourly)
+m0850_0910 = input.bool(true, '08:50-09:10', group = group_hourly)
+m0950_1010 = input.bool(true, '09:50-10:10', group = group_hourly)
+m1020_1040 = input.bool(true, '10:20-10:40', group = group_hourly)
+m1050_1110 = input.bool(true, '10:50-11:10', group = group_hourly)
+m1150_1210 = input.bool(true, '11:50-12:10', group = group_hourly)
+m1250_1310 = input.bool(true, '12:50-13:10', group = group_hourly)
+m1350_1410 = input.bool(true, '13:50-14:10', group = group_hourly)
+m1450_1510 = input.bool(true, '14:50-15:10', group = group_hourly)
+
+// Special macros
+group_special = 'Special Macros'
+m1515_1545 = input.bool(true, '15:15-15:45 Final Hour', group = group_special)
+m1545_1600 = input.bool(true, '15:45-16:00 MOC', group = group_special)
+
+group_c   = 'Macro Classification'
+pLen      = input.int(13, 'Length', minval = 5, maxval = 20, group = group_c)
+pLoc      = input.string('Body', 'Swing Area', options = ['Wick', 'Body'], group = group_c)
+
+aColor    = input.color(color.gray, 'Accumulation', group = group_c)
+mColor    = input.color(color.red , 'Manipulation', group = group_c)
+eColor    = input.color(color.blue, 'Expansion'   , group = group_c)
+
+group_bg = 'Background & Line Colors'
+enableCustomColors = input.bool(false, 'Enable Custom Colors', group = group_bg)
+bgTransparency = input.int(90, 'Background Transparency', minval = 0, maxval = 100, group = group_bg)
+topLineColor = input.color(color.green, 'Top Line Color', group = group_bg)
+botLineColor = input.color(color.red, 'Bottom Line Color', group = group_bg)
+midLineColor = input.color(color.yellow, 'Mid Line Color', group = group_bg)
+bgColor = input.color(color.blue, 'Background Color', group = group_bg)
+
+mcText    = input.string('Small', "Macro Texts", options=['Tiny', 'Small', 'Normal', 'None'])
+showMacroType = input.bool(true, "Show Macro Type (A/M/E)", group = group_c)
+
+mcSize = switch mcText
+    'Tiny'   => size.tiny
+    'Small'  => size.small
+    'Normal' => size.normal
+    => size.tiny
+
+mcAlert    = input.bool(true, 'Alert Macro Times in Advance (Minutes)', inline = 'alert', tooltip = 'Enabling the option will plot a vertical line for the next macro time prior to the specified minutes\n\nNote: for alert configuration if not on 1 min chart please use round numbers')
+mcAlertM   = input.int(30, '', minval = 5, maxval = 60, step = 5, inline = 'alert')
+
+// Macro line termination settings
+group_term = 'Macro Line Termination'
+lineTerminationType = input.string("Wick", "Line Termination Type", options=["Wick", "Close"], group=group_term)
+macroLineWidth = input.int(3, "Macro Line Width", minval=1, maxval=5, group=group_term)
+
+//-----------------------------------------------------------------------------}
+//Main variables
+//-----------------------------------------------------------------------------{
+tf_m = timeframe.multiplier
+bi   = bar_index
+
+// Macro structure
+type MacroData
+    int id
+    bool enabled
+    bool show_top
+    bool show_mid
+    bool show_bot
+    bool show_ext
+    int hour
+    int minute
+    string label_text
+    float top_price
+    float bot_price
+    float mid_price
+    int start_time
+    int start_bar
+    int end_bar
+    int top_bar
+    int bot_bar
+    line top_line
+    line bot_line
+    line mid_line
+    linefill fill
+    string type // "accumulation", "manipulation", or "expansion"
+
+// Create array of macro data
+var MacroData[] macros = array.new<MacroData>()
+
+// Arrays for macro high/low lines
+var array<line> macroHighLines = array.new<line>()
+var array<line> macroLowLines = array.new<line>()
+var array<float> macroHighPrices = array.new<float>()
+var array<float> macroLowPrices = array.new<float>()
+
+// Arrays for FVG tracking
+var array<box> activeFVGBoxes = array.new<box>()
+var array<float> fvgTopPrices = array.new<float>()
+var array<float> fvgBottomPrices = array.new<float>()
+var array<bool> fvgIsBullish = array.new<bool>()
+
+// Arrays for IFVG tracking
+var array<box> activeIFVGBoxes = array.new<box>()
+var array<float> ifvgTopPrices = array.new<float>()
+var array<float> ifvgBottomPrices = array.new<float>()
+var array<bool> ifvgIsBullish = array.new<bool>()
+
+// Initialize macros array
+if barstate.isfirst
+    // London macros
+    array.push(macros, MacroData.new(0, m02330300, m02_top, m02_mid, m02_bot, m02_ext, 2, 33, '02:33 AM - 03:00', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(1, m04030430, m04_top, m04_mid, m04_bot, m04_ext, 4, 3, '04:03 AM - 04:30', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    
+    // New York macros
+    array.push(macros, MacroData.new(2, m08500910, m08_top, m08_mid, m08_bot, m08_ext, 8, 50, '08:50 AM - 09:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(3, m09501010, m09_top, m09_mid, m09_bot, m09_ext, 9, 50, '09:50 AM - 10:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(4, m10501110, m10_top, m10_mid, m10_bot, m10_ext, 10, 50, '10:50 AM - 11:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(5, m11501210, m11_top, m11_mid, m11_bot, m11_ext, 11, 50, '11:50 AM - 12:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(6, m13101340, m13_top, m13_mid, m13_bot, m13_ext, 13, 10, '01:10 PM - 01:40', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(7, m15151545, m15_top, m15_mid, m15_bot, m15_ext, 15, 15, '03:15 PM - 03:45', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    
+    // Hourly macros
+    array.push(macros, MacroData.new(8, m1650_1710, true, true, true, true, 16, 50, '04:50 PM - 05:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(9, m1750_1810, true, true, true, true, 17, 50, '05:50 PM - 06:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(10, m1850_1910, true, true, true, true, 18, 50, '06:50 PM - 07:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(11, m1950_2010, true, true, true, true, 19, 50, '07:50 PM - 08:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(12, m2050_2110, true, true, true, true, 20, 50, '08:50 PM - 09:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(13, m2150_2210, true, true, true, true, 21, 50, '09:50 PM - 10:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(14, m2250_2310, true, true, true, true, 22, 50, '10:50 PM - 11:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(15, m2350_0010, true, true, true, true, 23, 50, '11:50 PM - 12:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(16, m0050_0110, true, true, true, true, 0, 50, '12:50 AM - 01:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(17, m0150_0210, true, true, true, true, 1, 50, '01:50 AM - 02:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(18, m0250_0310, true, true, true, true, 2, 50, '02:50 AM - 03:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(19, m0350_0410, true, true, true, true, 3, 50, '03:50 AM - 04:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(20, m0450_0510, true, true, true, true, 4, 50, '04:50 AM - 05:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(21, m0550_0610, true, true, true, true, 5, 50, '05:50 AM - 06:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(22, m0650_0710, true, true, true, true, 6, 50, '06:50 AM - 07:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(23, m0750_0810, true, true, true, true, 7, 50, '07:50 AM - 08:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(24, m0850_0910, true, true, true, true, 8, 50, '08:50 AM - 09:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(25, m0950_1010, true, true, true, true, 9, 50, '09:50 AM - 10:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(26, m1020_1040, true, true, true, true, 10, 20, '10:20 AM - 10:40', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(27, m1050_1110, true, true, true, true, 10, 50, '10:50 AM - 11:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(28, m1150_1210, true, true, true, true, 11, 50, '11:50 AM - 12:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(29, m1250_1310, true, true, true, true, 12, 50, '12:50 PM - 01:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(30, m1350_1410, true, true, true, true, 13, 50, '01:50 PM - 02:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(31, m1450_1510, true, true, true, true, 14, 50, '02:50 PM - 03:10', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    
+    // Special macros
+    array.push(macros, MacroData.new(32, m1515_1545, true, true, true, true, 15, 15, '03:15 PM - 03:45 Final Hour', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(33, m1545_1600, true, true, true, true, 15, 45, '03:45 PM - 04:00 MOC', na, na, na, na, na, na, na, na, na, na, na, na, "accumulation"))
+
+//-----------------------------------------------------------------------------}
+// Function to check if current bar is at a specific hour and minute
+//-----------------------------------------------------------------------------{
+is_time(h, m) =>
+    // Apply user-defined timezone offset
+    adjusted_hour = (h + timezone_offset) % 24
+    
+    // Check if hour and minute match
+    hour == adjusted_hour and minute == m
+
+//-----------------------------------------------------------------------------}
+// Process macros if on supported timeframe
+//-----------------------------------------------------------------------------{
+// Show debug info if enabled
+if show_debug and barstate.islast
+    // Get the current bar's time components
+    current_hour = hour
+    current_minute = minute
+    
+    // Calculate bar start and end minutes
+    bar_start_minute = 0
+    bar_end_minute = 0
+    
+    if timeframe.period == "5"
+        bar_start_minute := math.floor(current_minute / 5) * 5
+        bar_end_minute := bar_start_minute + 4
+    else if timeframe.period == "3"
+        bar_start_minute := math.floor(current_minute / 3) * 3
+        bar_end_minute := bar_start_minute + 2
+    else
+        bar_start_minute := current_minute
+        bar_end_minute := current_minute
+    
+    var table debug_table = table.new(position.top_right, 3, 6)
+    table.cell(debug_table, 0, 0, "Symbol:", text_color=color.white)
+    table.cell(debug_table, 1, 0, syminfo.ticker, text_color=color.yellow)
+    table.cell(debug_table, 0, 1, "Current Hour:", text_color=color.white)
+    table.cell(debug_table, 1, 1, str.tostring(current_hour), text_color=color.yellow)
+    table.cell(debug_table, 0, 2, "Current Minute:", text_color=color.white)
+    table.cell(debug_table, 1, 2, str.tostring(current_minute), text_color=color.yellow)
+    table.cell(debug_table, 0, 3, "Bar Minutes Range:", text_color=color.white)
+    table.cell(debug_table, 1, 3, str.tostring(bar_start_minute) + "-" + str.tostring(bar_end_minute), text_color=color.yellow)
+    table.cell(debug_table, 0, 4, "Timeframe:", text_color=color.white)
+    table.cell(debug_table, 1, 4, timeframe.period, text_color=color.yellow)
+    table.cell(debug_table, 0, 5, "Total Macros:", text_color=color.white)
+    table.cell(debug_table, 1, 5, str.tostring(array.size(macros)), text_color=color.yellow)
+    
+    // Count active macros
+    int active_count = 0
+    for i = 0 to array.size(macros) - 1
+        macro = array.get(macros, i)
+        if not na(macro.fill)
+            active_count += 1
+    
+    var table active_table = table.new(position.top_left, 2, 1)
+    table.cell(active_table, 0, 0, "Active Macros:", text_color=color.white)
+    table.cell(active_table, 1, 0, str.tostring(active_count), text_color=color.yellow)
+
+if tf_m <= 5 or timeframe.isseconds
+    // Process all macros
+    for i = 0 to array.size(macros) - 1
+        macro = array.get(macros, i)
+        
+        // Start of macro period
+        if macro.enabled and is_time(macro.hour, macro.minute)
+            
+            macro.top_price := high
+            macro.bot_price := low
+            macro.mid_price := math.avg(macro.top_price, macro.bot_price)
+            macro.start_time := time
+            macro.top_bar := bar_index
+            macro.bot_bar := bar_index
+            // Adjust end_bar based on timeframe and macro duration
+            int macro_duration = 20  // Default 20 minutes
+            if macro.hour == 15 and macro.minute == 15
+                macro_duration := 30  // 15:15-15:45 is 30 minutes
+            else if macro.hour == 15 and macro.minute == 45
+                macro_duration := 15  // 15:45-16:00 is 15 minutes
+            else if macro.hour == 13 and macro.minute == 10
+                macro_duration := 30  // 13:10-13:40 is 30 minutes
+            
+            if timeframe.period == "1"
+                macro.end_bar := bar_index + macro_duration
+            else if timeframe.period == "3"
+                macro.end_bar := bar_index + math.ceil(macro_duration / 3)
+            else if timeframe.period == "5"
+                macro.end_bar := bar_index + math.ceil(macro_duration / 5)
+            else if timeframe.period == "15S"
+                macro.end_bar := bar_index + (macro_duration * 4)
+            else if timeframe.period == "5S"
+                macro.end_bar := bar_index + (macro_duration * 12)
+            else
+                macro.end_bar := bar_index + 4  // Default to 4 bars for other timeframes
+            
+            // Determine macro type based on price action
+            var float prev_close = close[1]
+            var float prev_open = open[1]
+            
+            // Default to accumulation
+            macro.type := "accumulation"
+            
+            // Check for manipulation (strong directional move)
+            if math.abs(close - open) > math.abs(prev_close - prev_open) * 1.5
+                macro.type := "manipulation"
+            
+            // Check for expansion (increased volatility)
+            if high - low > (high[1] - low[1]) * 1.3
+                macro.type := "expansion"
+            
+            // Set colors based on macro type
+            color line_color = aColor
+            if macro.type == "manipulation"
+                line_color := mColor
+            else if macro.type == "expansion"
+                line_color := eColor
+                
+            // Use custom colors if enabled
+            if enableCustomColors
+                if macro.show_top
+                    macro.top_line := line.new(bar_index, macro.top_price, macro.end_bar, macro.top_price, color=topLineColor, width=2)
+                if macro.show_bot
+                    macro.bot_line := line.new(bar_index, macro.bot_price, macro.end_bar, macro.bot_price, color=botLineColor, width=2)
+                if macro.show_mid
+                    macro.mid_line := line.new(bar_index, macro.mid_price, macro.end_bar, macro.mid_price, color=midLineColor, style=line.style_dotted)
+            else
+                if macro.show_top
+                    macro.top_line := line.new(bar_index, macro.top_price, macro.end_bar, macro.top_price, color=line_color, width=2)
+                if macro.show_bot
+                    macro.bot_line := line.new(bar_index, macro.bot_price, macro.end_bar, macro.bot_price, color=line_color, width=2)
+                if macro.show_mid
+                    macro.mid_line := line.new(bar_index, macro.mid_price, macro.end_bar, macro.mid_price, color=line_color, style=line.style_dotted)
+            
+            if mcText != 'None'
+                string labelText = "MACRO\n" + macro.label_text
+                if showMacroType
+                    labelText := labelText + "\n" + macro.type
+                label.new(bar_index, macro.top_price, labelText, style=label.style_label_down, 
+                         color=color.new(color.black, 80), textcolor=color.white, size=mcSize)
+            
+            if macro.show_top and macro.show_bot
+                if enableCustomColors
+                    macro.fill := linefill.new(macro.top_line, macro.bot_line, color.new(bgColor, bgTransparency))
+                else
+                    macro.fill := linefill.new(macro.top_line, macro.bot_line, color.new(line_color, 90))
+            
+            // Store start bar for line creation when macro completes
+            macro.start_bar := bar_index
+            
+            array.set(macros, i, macro)
+        
+        // During macro period - update lines to expand with price
+        else if not na(macro.start_time) and time > macro.start_time and bar_index <= macro.end_bar
+            // Update macro type based on ongoing price action
+            if math.abs(close - open) > math.abs(close[1] - open[1]) * 1.5
+                macro.type := "manipulation"
+            
+            if high - low > (high[1] - low[1]) * 1.3
+                macro.type := "expansion"
+            
+            // Set colors based on current macro type
+            color line_color = aColor
+            if macro.type == "manipulation"
+                line_color := mColor
+            else if macro.type == "expansion"
+                line_color := eColor
+            
+            if high > macro.top_price and not na(macro.top_line) and macro.show_top
+                macro.top_price := high
+                macro.top_bar := bar_index
+                macro.top_line.set_y1(macro.top_price)
+                macro.top_line.set_y2(macro.top_price)
+                if not enableCustomColors
+                    macro.top_line.set_color(line_color)
+            
+            if low < macro.bot_price and not na(macro.bot_line) and macro.show_bot
+                macro.bot_price := low
+                macro.bot_bar := bar_index
+                macro.bot_line.set_y1(macro.bot_price)
+                macro.bot_line.set_y2(macro.bot_price)
+                if not enableCustomColors
+                    macro.bot_line.set_color(line_color)
+            
+            if (high > macro.top_price or low < macro.bot_price) and not na(macro.mid_line) and macro.show_mid
+                macro.mid_price := math.avg(macro.top_price, macro.bot_price)
+                macro.mid_line.set_y1(macro.mid_price)
+                macro.mid_line.set_y2(macro.mid_price)
+                if not enableCustomColors
+                    macro.mid_line.set_color(line_color)
+                
+            if not na(macro.fill)
+                if enableCustomColors
+                    macro.fill.set_color(color.new(bgColor, bgTransparency))
+                else
+                    macro.fill.set_color(color.new(line_color, 90))
+            
+            array.set(macros, i, macro)
+        
+        // End of macro period
+        else if bar_index == macro.end_bar
+            label.new(bar_index, high, "END", color=color.yellow, textcolor=color.black, size=size.small)
+            
+            // Add extending lines if enabled
+            if macro.show_ext
+                color line_color = aColor
+                if macro.type == "manipulation"
+                    line_color := mColor
+                else if macro.type == "expansion"
+                    line_color := eColor
+                    
+                int ext_length = timeframe.isseconds ? 20 : 50
+                
+                if not na(macro.top_line) and macro.show_top
+                    color top_color = enableCustomColors ? topLineColor : line_color
+                    line.new(macro.end_bar, macro.top_price, macro.end_bar + ext_length, macro.top_price, 
+                          color=top_color, style=line.style_dotted)
+                
+                if not na(macro.bot_line) and macro.show_bot
+                    color bot_color = enableCustomColors ? botLineColor : line_color
+                    line.new(macro.end_bar, macro.bot_price, macro.end_bar + ext_length, macro.bot_price, 
+                          color=bot_color, style=line.style_dotted)
+                
+                if not na(macro.mid_line) and macro.show_mid
+                    color mid_color = enableCustomColors ? midLineColor : line_color
+                    line.new(macro.end_bar, macro.mid_price, macro.end_bar + ext_length, macro.mid_price, 
+                          color=mid_color, style=line.style_dotted)
+else
+    if barstate.islast
+        var table tf_note = table.new(position.bottom_right, 1, 1)
+        table.cell(tf_note, 0, 0, 'ICT Macros are supported on:\n 5sec, 15sec, 1min, 3min and 5min charts\n\nCurrent timeframe: ' + timeframe.period, text_size=size.small, text_color=chart.fg_color)
+
+// Create macro lines when macros end - works on all timeframes
+for i = 0 to array.size(macros) - 1
+    macro = array.get(macros, i)
+    if bar_index == macro.end_bar and not na(macro.top_bar) and not na(macro.bot_bar)
+        highLine = line.new(macro.top_bar, macro.top_price, macro.top_bar + 1, macro.top_price, color=color.red, width=macroLineWidth, extend=extend.right)
+        lowLine = line.new(macro.bot_bar, macro.bot_price, macro.bot_bar + 1, macro.bot_price, color=color.blue, width=macroLineWidth, extend=extend.right)
+        
+        label.new(macro.top_bar, macro.top_price, "Buy Side Liquidity", style=label.style_label_down, color=color.new(color.black, 100), textcolor=color.white, size=size.small)
+        label.new(macro.bot_bar, macro.bot_price, "Sell Side Liquidity", style=label.style_label_up, color=color.new(color.black, 100), textcolor=color.white, size=size.small)
+        
+        array.push(macroHighLines, highLine)
+        array.push(macroLowLines, lowLine)
+        array.push(macroHighPrices, macro.top_price)
+        array.push(macroLowPrices, macro.bot_price)
+
+// Terminate lines when price breaks through
+if array.size(macroHighLines) > 0
+    for i = array.size(macroHighLines) - 1 to 0
+        line_obj = array.get(macroHighLines, i)
+        if high > line.get_y1(line_obj)
+            line.set_x2(line_obj, bar_index)
+            line.set_extend(line_obj, extend.none)
+            array.remove(macroHighLines, i)
+            array.remove(macroHighPrices, i)
+
+if array.size(macroLowLines) > 0
+    for i = array.size(macroLowLines) - 1 to 0
+        line_obj = array.get(macroLowLines, i)
+        if low < line.get_y1(line_obj)
+            line.set_x2(line_obj, bar_index)
+            line.set_extend(line_obj, extend.none)
+            array.remove(macroLowLines, i)
+            array.remove(macroLowPrices, i)
+
+// FVG Detection during macro periods
+if showFVGs
+    for i = 0 to array.size(macros) - 1
+        macro = array.get(macros, i)
+        if not na(macro.start_time) and time > macro.start_time and bar_index <= macro.end_bar
+            if low > high[2]  // Bullish FVG
+                borderColor = fvgBorderWidth > 0 ? color.green : color.new(color.green, 100)
+                fvgBox = box.new(bar_index - 2, high[2], bar_index, low, bgcolor=fvgBullishColor, border_color=borderColor, border_width=fvgBorderWidth, extend=extendFVGs ? extend.right : extend.none)
+                if extendFVGs
+                    array.push(activeFVGBoxes, fvgBox)
+                    array.push(fvgTopPrices, low)
+                    array.push(fvgBottomPrices, high[2])
+                    array.push(fvgIsBullish, true)
+            if high < low[2]  // Bearish FVG
+                borderColor = fvgBorderWidth > 0 ? color.red : color.new(color.red, 100)
+                fvgBox = box.new(bar_index - 2, low[2], bar_index, high, bgcolor=fvgBearishColor, border_color=borderColor, border_width=fvgBorderWidth, extend=extendFVGs ? extend.right : extend.none)
+                if extendFVGs
+                    array.push(activeFVGBoxes, fvgBox)
+                    array.push(fvgTopPrices, low[2])
+                    array.push(fvgBottomPrices, high)
+                    array.push(fvgIsBullish, false)
+
+// Process FVGs - check for termination and IFVG creation
+if array.size(activeFVGBoxes) > 0
+    for i = array.size(activeFVGBoxes) - 1 to 0
+        fvgBox = array.get(activeFVGBoxes, i)
+        topPrice = array.get(fvgTopPrices, i)
+        bottomPrice = array.get(fvgBottomPrices, i)
+        isBullish = array.get(fvgIsBullish, i)
+        
+        // Simple termination check
+        terminated = false
+        if isBullish and close < bottomPrice
+            terminated := true
+        else if not isBullish and close > topPrice
+            terminated := true
+            
+        if terminated
+            // Handle FVG termination
+            if deleteHistoricalFVGs
+                box.delete(fvgBox)
+            else
+                box.set_extend(fvgBox, extend.none)
+                box.set_right(fvgBox, bar_index)
+            
+            // Create IFVG when FVG terminates
+            if showIFVGs and extendIFVGs
+                if isBullish  // Bullish FVG becomes Bearish IFVG
+                    borderColor = ifvgBorderWidth > 0 ? color.orange : color.new(color.orange, 100)
+                    ifvgBox = box.new(box.get_left(fvgBox), bottomPrice, bar_index, topPrice, bgcolor=ifvgBearishColor, border_color=borderColor, border_width=ifvgBorderWidth, extend=extend.right)
+                    array.push(activeIFVGBoxes, ifvgBox)
+                    array.push(ifvgTopPrices, topPrice)
+                    array.push(ifvgBottomPrices, bottomPrice)
+                    array.push(ifvgIsBullish, false)
+                else  // Bearish FVG becomes Bullish IFVG
+                    borderColor = ifvgBorderWidth > 0 ? color.lime : color.new(color.lime, 100)
+                    ifvgBox = box.new(box.get_left(fvgBox), bottomPrice, bar_index, topPrice, bgcolor=ifvgBullishColor, border_color=borderColor, border_width=ifvgBorderWidth, extend=extend.right)
+                    array.push(activeIFVGBoxes, ifvgBox)
+                    array.push(ifvgTopPrices, topPrice)
+                    array.push(ifvgBottomPrices, bottomPrice)
+                    array.push(ifvgIsBullish, true)
+            
+            // Remove from FVG arrays
+            array.remove(activeFVGBoxes, i)
+            array.remove(fvgTopPrices, i)
+            array.remove(fvgBottomPrices, i)
+            array.remove(fvgIsBullish, i)
+
+// Process IFVGs - check for termination
+if array.size(activeIFVGBoxes) > 0
+    for i = array.size(activeIFVGBoxes) - 1 to 0
+        ifvgBox = array.get(activeIFVGBoxes, i)
+        topPrice = array.get(ifvgTopPrices, i)
+        bottomPrice = array.get(ifvgBottomPrices, i)
+        isBullish = array.get(ifvgIsBullish, i)
+        
+        // Simple termination check
+        terminated = false
+        if isBullish and close < bottomPrice
+            terminated := true
+        else if not isBullish and close > topPrice
+            terminated := true
+            
+        if terminated
+            // Handle IFVG termination
+            if deleteHistoricalIFVGs
+                box.delete(ifvgBox)
+            else
+                box.set_extend(ifvgBox, extend.none)
+                box.set_right(ifvgBox, bar_index)
+            
+            // Remove from IFVG arrays
+            array.remove(activeIFVGBoxes, i)
+            array.remove(ifvgTopPrices, i)
+            array.remove(ifvgBottomPrices, i)
+            array.remove(ifvgIsBullish, i)
+
+//-----------------------------------------------------------------------------}

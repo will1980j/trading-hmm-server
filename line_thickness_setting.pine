@@ -1,0 +1,18 @@
+// Add this to the Macro Line Termination settings section:
+macroLineWidth = input.int(3, "Macro Line Width", minval=1, maxval=5, group=group_term)
+
+// Replace the line creation section with this:
+// Create macro lines when macros end - works on all timeframes
+for i = 0 to array.size(macros) - 1
+    macro = array.get(macros, i)
+    if bar_index == macro.end_bar and not na(macro.top_bar) and not na(macro.bot_bar)
+        highLine = line.new(macro.top_bar, macro.top_price, macro.top_bar + 1, macro.top_price, color=color.red, width=macroLineWidth, extend=extend.right)
+        lowLine = line.new(macro.bot_bar, macro.bot_price, macro.bot_bar + 1, macro.bot_price, color=color.blue, width=macroLineWidth, extend=extend.right)
+        
+        label.new(macro.top_bar, macro.top_price, "Buy Side Liquidity", style=label.style_label_down, color=color.new(color.black, 100), textcolor=color.white, size=size.small)
+        label.new(macro.bot_bar, macro.bot_price, "Sell Side Liquidity", style=label.style_label_up, color=color.new(color.black, 100), textcolor=color.white, size=size.small)
+        
+        array.push(macroHighLines, highLine)
+        array.push(macroLowLines, lowLine)
+        array.push(macroHighPrices, macro.top_price)
+        array.push(macroLowPrices, macro.bot_price)

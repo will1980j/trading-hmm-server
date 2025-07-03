@@ -1,0 +1,16 @@
+// Create array of macro data
+var MacroData[] macros = array.new<MacroData>()
+
+// Initialize macros array
+if barstate.isfirst
+    // London macros
+    array.push(macros, MacroData.new(0, m02330300, m02_top, m02_mid, m02_bot, m02_ext, 2, 33, '02:33 AM - 03:00', na, na, na, na, na, na, na, na, na, "accumulation", false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>(), false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>()))
+    array.push(macros, MacroData.new(1, m04030430, m04_top, m04_mid, m04_bot, m04_ext, 4, 3, '04:03 AM - 04:30', na, na, na, na, na, na, na, na, na, "accumulation", false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>(), false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>()))
+    
+    // New York macros
+    array.push(macros, MacroData.new(2, m08500910, m08_top, m08_mid, m08_bot, m08_ext, 8, 50, '08:50 AM - 09:10', na, na, na, na, na, na, na, na, na, "accumulation", false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>(), false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>()))
+    array.push(macros, MacroData.new(3, m09501010, m09_top, m09_mid, m09_bot, m09_ext, 9, 50, '09:50 AM - 10:10', na, na, na, na, na, na, na, na, na, "accumulation", false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>(), false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>()))
+    array.push(macros, MacroData.new(4, m10501110, m10_top, m10_mid, m10_bot, m10_ext, 10, 50, '10:50 AM - 11:10', na, na, na, na, na, na, na, na, na, "accumulation", false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>(), false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>()))
+    array.push(macros, MacroData.new(5, m11501210, m11_top, m11_mid, m11_bot, m11_ext, 11, 50, '11:50 AM - 12:10', na, na, na, na, na, na, na, na, na, "accumulation", false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>(), false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>()))
+    array.push(macros, MacroData.new(6, m13101340, m13_top, m13_mid, m13_bot, m13_ext, 13, 10, '01:10 PM - 01:40', na, na, na, na, na, na, na, na, na, "accumulation", false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>(), false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>()))
+    array.push(macros, MacroData.new(7, m15151545, m15_top, m15_mid, m15_bot, m15_ext, 15, 15, '03:15 PM - 03:45', na, na, na, na, na, na, na, na, na, "accumulation", false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>(), false, array.new<float>(), array.new<float>(), array.new<line>(), array.new<line>()))

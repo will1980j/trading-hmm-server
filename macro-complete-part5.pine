@@ -1,0 +1,58 @@
+// === Variables for Pivot Lines ===
+var array<line> highLines = array.new<line>()
+var array<float> highPivots = array.new<float>()
+var array<int> highPivotTimes = array.new<int>()
+
+var array<line> lowLines = array.new<line>()
+var array<float> lowPivots = array.new<float>()
+var array<int> lowPivotTimes = array.new<int>()
+
+// === Variables for HTF Pivot Lines ===
+var array<line> htfHighLines = array.new<line>()
+var array<float> htfHighPivots = array.new<float>()
+var array<int> htfHighPivotTimes = array.new<int>()
+
+var array<line> htfLowLines = array.new<line>()
+var array<float> htfLowPivots = array.new<float>()
+var array<int> htfLowPivotTimes = array.new<int>()
+
+var int lastHTFPivotTime = 0
+
+// Helper function for line termination
+lineBroken(float price, bool isHigh) =>
+    if terminationType == "Wicks"
+        isHigh ? (high >= price) : (low <= price)
+    else
+        isHigh ? (math.max(open, close) >= price) : (math.min(open, close) <= price)
+
+// Macro structure
+type MacroData
+    int id
+    bool enabled
+    bool show_top
+    bool show_mid
+    bool show_bot
+    bool show_ext
+    int hour
+    int minute
+    string label_text
+    float top_price
+    float bot_price
+    float mid_price
+    int start_time
+    int end_bar
+    line top_line
+    line bot_line
+    line mid_line
+    linefill fill
+    string type // "accumulation", "manipulation", or "expansion"
+    bool in_macro_period
+    array<float> macro_high_pivots
+    array<float> macro_low_pivots
+    array<line> macro_high_lines
+    array<line> macro_low_lines
+    bool htf_active
+    array<float> htf_high_pivots
+    array<float> htf_low_pivots
+    array<line> htf_high_lines
+    array<line> htf_low_lines

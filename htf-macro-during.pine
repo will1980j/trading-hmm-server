@@ -1,0 +1,56 @@
+// Process HTF pivots during macro period
+if showHTFPivots and macro.htf_active
+    // Check for breaks of existing HTF pivot lines
+    if array.size(macro.htf_high_lines) > 0
+        for j = array.size(macro.htf_high_lines) - 1 to 0
+            float pivotLevel = array.get(macro.htf_high_pivots, j)
+            line currentLine = array.get(macro.htf_high_lines, j)
+            if lineBroken(pivotLevel, true)
+                line.set_x2(currentLine, bar_index)
+            else
+                line.set_x2(currentLine, macro.end_bar)
+    
+    if array.size(macro.htf_low_lines) > 0
+        for j = array.size(macro.htf_low_lines) - 1 to 0
+            float pivotLevel = array.get(macro.htf_low_pivots, j)
+            line currentLine = array.get(macro.htf_low_lines, j)
+            if lineBroken(pivotLevel, false)
+                line.set_x2(currentLine, bar_index)
+            else
+                line.set_x2(currentLine, macro.end_bar)
+    
+    // Check for new HTF pivots during macro period
+    if not na(htfPivotHigh) and htfPivotTime != lastHTFPivotTime
+        lineH = line.new(bar_index, htfPivotHigh, macro.end_bar, htfPivotHigh, 
+                        color=highLineColor, width=lineWidth, style=line.style_dashed)
+        array.push(htfHighLines, lineH)
+        array.push(htfHighPivots, htfPivotHigh)
+        array.push(htfHighPivotTimes, bar_index)
+        
+        // Track this HTF pivot in the macro's own arrays
+        array.push(macro.htf_high_pivots, htfPivotHigh)
+        array.push(macro.htf_high_lines, lineH)
+        
+        if showLabels
+            label.new(bar_index, htfPivotHigh + (10 * syminfo.mintick), "Buy Side Liquidity", 
+                    color=color.new(color.black, 100), textcolor=color.white, 
+                    style=label.style_label_down, xloc=xloc.bar_index)
+    
+    if not na(htfPivotLow) and htfPivotTime != lastHTFPivotTime
+        lineL = line.new(bar_index, htfPivotLow, macro.end_bar, htfPivotLow, 
+                        color=lowLineColor, width=lineWidth, style=line.style_dashed)
+        array.push(htfLowLines, lineL)
+        array.push(htfLowPivots, htfPivotLow)
+        array.push(htfLowPivotTimes, bar_index)
+        
+        // Track this HTF pivot in the macro's own arrays
+        array.push(macro.htf_low_pivots, htfPivotLow)
+        array.push(macro.htf_low_lines, lineL)
+        
+        if showLabels
+            label.new(bar_index, htfPivotLow - (10 * syminfo.mintick), "Sell Side Liquidity", 
+                    color=color.new(color.black, 100), textcolor=color.white, 
+                    style=label.style_label_up, xloc=xloc.bar_index)
+    
+    if not na(htfPivotHigh) or not na(htfPivotLow)
+        lastHTFPivotTime := htfPivotTime

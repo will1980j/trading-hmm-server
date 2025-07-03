@@ -1,0 +1,80 @@
+// Add these settings to your FVG Settings section (replace the existing FVG section):
+// FVG Settings
+group_fvg = 'Fair Value Gap Settings'
+showFVGs = input.bool(true, "Show Fair Value Gaps", group=group_fvg)
+extendFVGs = input.bool(true, "Extend FVGs Until Filled", group=group_fvg)
+fvgBullishColor = input.color(color.new(color.green, 80), "Bullish FVG Color", group=group_fvg)
+fvgBearishColor = input.color(color.new(color.red, 80), "Bearish FVG Color", group=group_fvg)
+fvgBorderWidth = input.int(0, "FVG Border Width", minval=0, maxval=3, group=group_fvg)
+
+// Add this to your Macro Line Termination section:
+macroLineWidth = input.int(3, "Macro Line Width", minval=1, maxval=5, group=group_term)
+
+// Add these arrays after your existing macro arrays:
+var array<box> activeFVGBoxes = array.new<box>()
+var array<float> fvgTopPrices = array.new<float>()
+var array<float> fvgBottomPrices = array.new<float>()
+var array<bool> fvgIsBullish = array.new<bool>()
+
+// Replace your line creation section with this:
+// Create macro lines when macros end - works on all timeframes
+for i = 0 to array.size(macros) - 1
+    macro = array.get(macros, i)
+    if bar_index == macro.end_bar and not na(macro.top_bar) and not na(macro.bot_bar)
+        highLine = line.new(macro.top_bar, macro.top_price, macro.top_bar + 1, macro.top_price, color=color.red, width=macroLineWidth, extend=extend.right)
+        lowLine = line.new(macro.bot_bar, macro.bot_price, macro.bot_bar + 1, macro.bot_price, color=color.blue, width=macroLineWidth, extend=extend.right)
+        
+        label.new(macro.top_bar, macro.top_price, "Buy Side Liquidity", style=label.style_label_down, color=color.new(color.black, 100), textcolor=color.white, size=size.small)
+        label.new(macro.bot_bar, macro.bot_price, "Sell Side Liquidity", style=label.style_label_up, color=color.new(color.black, 100), textcolor=color.white, size=size.small)
+        
+        array.push(macroHighLines, highLine)
+        array.push(macroLowLines, lowLine)
+        array.push(macroHighPrices, macro.top_price)
+        array.push(macroLowPrices, macro.bot_price)
+
+// Replace your FVG Detection section with this:
+// FVG Detection during macro periods
+if showFVGs
+    for i = 0 to array.size(macros) - 1
+        macro = array.get(macros, i)
+        if not na(macro.start_time) and time > macro.start_time and bar_index <= macro.end_bar
+            if low > high[2]  // Bullish FVG
+                borderColor = fvgBorderWidth > 0 ? color.green : color.new(color.green, 100)
+                fvgBox = box.new(bar_index - 2, high[2], bar_index, low, bgcolor=fvgBullishColor, border_color=borderColor, border_width=fvgBorderWidth, extend=extendFVGs ? extend.right : extend.none)
+                if extendFVGs
+                    array.push(activeFVGBoxes, fvgBox)
+                    array.push(fvgTopPrices, low)
+                    array.push(fvgBottomPrices, high[2])
+                    array.push(fvgIsBullish, true)
+            if high < low[2]  // Bearish FVG
+                borderColor = fvgBorderWidth > 0 ? color.red : color.new(color.red, 100)
+                fvgBox = box.new(bar_index - 2, low[2], bar_index, high, bgcolor=fvgBearishColor, border_color=borderColor, border_width=fvgBorderWidth, extend=extendFVGs ? extend.right : extend.none)
+                if extendFVGs
+                    array.push(activeFVGBoxes, fvgBox)
+                    array.push(fvgTopPrices, low[2])
+                    array.push(fvgBottomPrices, high)
+                    array.push(fvgIsBullish, false)
+
+// Add this FVG termination logic at the very end:
+// Terminate FVGs when filled
+if extendFVGs and array.size(activeFVGBoxes) > 0
+    for i = array.size(activeFVGBoxes) - 1 to 0
+        fvgBox = array.get(activeFVGBoxes, i)
+        topPrice = array.get(fvgTopPrices, i)
+        bottomPrice = array.get(fvgBottomPrices, i)
+        isBullish = array.get(fvgIsBullish, i)
+        
+        // Check for termination
+        terminated = false
+        if isBullish and close < bottomPrice  // Bullish FVG filled by close below
+            terminated := true
+        else if not isBullish and close > topPrice  // Bearish FVG filled by close above
+            terminated := true
+            
+        if terminated
+            box.set_extend(fvgBox, extend.none)
+            box.set_right(fvgBox, bar_index)
+            array.remove(activeFVGBoxes, i)
+            array.remove(fvgTopPrices, i)
+            array.remove(fvgBottomPrices, i)
+            array.remove(fvgIsBullish, i)

@@ -1,0 +1,41 @@
+group_m08 = 'New York 08:50 AM 09:10 Macro'
+m08500910 = input.bool(false, '08:50 AM 09:10', group = group_m08)
+m08_top   = input.bool(true, 'Top Line', inline = 'mc08', group = group_m08)
+m08_mid   = input.bool(true, 'Mid Line', inline = 'mc08', group = group_m08)
+m08_bot   = input.bool(true, 'Bottom Line', inline = 'mc08', group = group_m08)
+m08_ext   = input.bool(true, 'Extending Lines', inline = 'mc08', group = group_m08)
+
+group_m09 = 'New York 09:50 AM 10:10 Macro'
+m09501010 = input.bool(true , '09:50 AM 10:10', group = group_m09)
+m09_top   = input.bool(true, 'Top Line', inline = 'mc09', group = group_m09)
+m09_mid   = input.bool(true, 'Mid Line', inline = 'mc09', group = group_m09)
+m09_bot   = input.bool(true, 'Bottom Line', inline = 'mc09', group = group_m09)
+m09_ext   = input.bool(true, 'Extending Lines', inline = 'mc09', group = group_m09)
+
+group_m10 = 'New York 10:50 AM 11:10 Macro'
+m10501110 = input.bool(true , '10:50 AM 11:10', group = group_m10)
+m10_top   = input.bool(true, 'Top Line', inline = 'mc10', group = group_m10)
+m10_mid   = input.bool(true, 'Mid Line', inline = 'mc10', group = group_m10)
+m10_bot   = input.bool(true, 'Bottom Line', inline = 'mc10', group = group_m10)
+m10_ext   = input.bool(true, 'Extending Lines', inline = 'mc10', group = group_m10)
+
+group_m11 = 'New York 11:50 AM 12:10 Launch Macro'
+m11501210 = input.bool(false, '11:50 AM 12:10', group = group_m11)
+m11_top   = input.bool(true, 'Top Line', inline = 'mc11', group = group_m11)
+m11_mid   = input.bool(true, 'Mid Line', inline = 'mc11', group = group_m11)
+m11_bot   = input.bool(true, 'Bottom Line', inline = 'mc11', group = group_m11)
+m11_ext   = input.bool(true, 'Extending Lines', inline = 'mc11', group = group_m11)
+
+group_m13 = 'New York 13:10 PM 13:40 Macro'
+m13101340 = input.bool(true , '13:10 PM 13:40', group = group_m13)
+m13_top   = input.bool(true, 'Top Line', inline = 'mc13', group = group_m13)
+m13_mid   = input.bool(true, 'Mid Line', inline = 'mc13', group = group_m13)
+m13_bot   = input.bool(true, 'Bottom Line', inline = 'mc13', group = group_m13)
+m13_ext   = input.bool(true, 'Extending Lines', inline = 'mc13', group = group_m13)
+
+group_m15 = 'New York 15:15 PM 15:45 Macro'
+m15151545 = input.bool(true , '15:15 PM 15:45', group = group_m15)
+m15_top   = input.bool(true, 'Top Line', inline = 'mc15', group = group_m15)
+m15_mid   = input.bool(true, 'Mid Line', inline = 'mc15', group = group_m15)
+m15_bot   = input.bool(true, 'Bottom Line', inline = 'mc15', group = group_m15)
+m15_ext   = input.bool(true, 'Extending Lines', inline = 'mc15', group = group_m15)

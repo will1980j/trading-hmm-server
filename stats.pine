@@ -1,0 +1,1930 @@
+//@version=5
+indicator("All Patterns Complete with Markov Chain", overlay = true, max_bars_back = 5000, max_labels_count = 500)
+
+// Check timeframe
+timeframe_minutes = timeframe.in_seconds() / 60
+
+// Inputs
+data_timeframe = input.timeframe("1D", "Data Timeframe", group="Data Source", tooltip="Use 15m/1H for frequent signals, 4H/1D for major signals")
+show_ebp = input.bool(true, "EBP Sweep", group="Patterns")
+show_inside = input.bool(true, "Inside Bar Breakout", group="Patterns")
+show_engulf = input.bool(true, "Engulfing", group="Patterns")
+show_gap = input.bool(true, "Gap Fill Reversal", group="Patterns")
+show_hammer = input.bool(true, "Hammer/Shooting Star", group="Patterns")
+show_three = input.bool(true, "Three Bar Pattern", group="Patterns")
+
+bull_label_bg = input.color(color.green, "Bullish Label Background", group="Label Style")
+bear_label_bg = input.color(color.red, "Bearish Label Background", group="Label Style")
+label_text_color = input.color(color.white, "Label Text Color", group="Label Style")
+
+// Display options
+show_candle_coloring = input.bool(true, "Show Candle Coloring", group="Display")
+show_success_markers = input.bool(true, "Show Success Markers", group="Display")
+show_pattern_labels = input.bool(true, "Show Pattern Labels", group="Display")
+
+// Timeframe Signal Controls
+show_15m_signals = input.bool(true, "Show 15m Signals", group="Timeframe Signals")
+show_30m_signals = input.bool(true, "Show 30m Signals", group="Timeframe Signals")
+show_1h_signals = input.bool(true, "Show 1h Signals", group="Timeframe Signals")
+show_2h_signals = input.bool(true, "Show 2h Signals", group="Timeframe Signals")
+show_4h_signals = input.bool(true, "Show 4h Signals", group="Timeframe Signals")
+show_6h_signals = input.bool(true, "Show 6h Signals", group="Timeframe Signals")
+show_8h_signals = input.bool(true, "Show 8h Signals", group="Timeframe Signals")
+show_12h_signals = input.bool(true, "Show 12h Signals", group="Timeframe Signals")
+show_1d_signals = input.bool(true, "Show 1D Signals", group="Timeframe Signals")
+show_higher_signals = input.bool(true, "Show Higher TF Signals", group="Timeframe Signals")
+
+// Dynamic Table Toggles
+show_stats_section = input.bool(true, "📈 Show Stats Section", group="Dynamic Table")
+show_opportunity_section = input.bool(true, "🎯 Show Opportunity Section", group="Dynamic Table")
+show_markov_section = input.bool(true, "🤖 Show Markov Section", group="Dynamic Table")
+show_sequences_section = input.bool(true, "🔄 Show Sequences Section", group="Dynamic Table")
+show_combinations_section = input.bool(false, "🔗 Show Combinations Section", group="Dynamic Table")
+table_position = input.string("Right", "Table Position", options=["Right", "Left", "Center"], group="Dynamic Table")
+table_font_size = input.string("Small", "Universal Table Font Size", options=["Tiny", "Small", "Normal", "Large"], group="Dynamic Table")
+min_success_rate = input.float(0, "Minimum Success Rate %", minval=0, maxval=100, group="Dynamic Table")
+min_occurrences = input.int(1, "Minimum Occurrences", minval=1, group="Dynamic Table")
+
+// Dark Theme Table Colors
+stats_bg_color = input.color(color.new(color.black, 10), "Table Background", group="Dark Theme Colors")
+stats_header_color = input.color(color.new(color.gray, 70), "Header Background", group="Dark Theme Colors")
+stats_text_color = input.color(color.new(color.white, 5), "Text Color", group="Dark Theme Colors")
+stats_bull_color = input.color(color.new(color.lime, 20), "Bull Text Color", group="Dark Theme Colors")
+stats_bear_color = input.color(color.new(color.red, 20), "Bear Text Color", group="Dark Theme Colors")
+stats_timeframe_color = input.color(color.new(color.blue, 60), "Timeframe Background", group="Dark Theme Colors")
+
+// Opportunity Colors
+opp_bg_color = input.color(color.new(color.black, 10), "Opportunity Background", group="Dark Theme Colors")
+opp_header_color = input.color(color.new(color.blue, 50), "Opportunity Header", group="Dark Theme Colors")
+opp_subheader_color = input.color(color.new(color.gray, 70), "Opportunity Subheader", group="Dark Theme Colors")
+opp_summary_color = input.color(color.new(color.purple, 60), "Opportunity Summary", group="Dark Theme Colors")
+opp_text_color = input.color(color.new(color.white, 5), "Opportunity Text", group="Dark Theme Colors")
+opp_success_color = input.color(color.new(color.lime, 10), "Success Color", group="Dark Theme Colors")
+opp_fail_color = input.color(color.new(color.orange, 20), "Fail Color", group="Dark Theme Colors")
+opp_pending_color = input.color(color.new(color.yellow, 20), "Pending Color", group="Dark Theme Colors")
+opp_profit_color = input.color(color.new(color.lime, 10), "Profit Color", group="Dark Theme Colors")
+opp_loss_color = input.color(color.new(color.red, 20), "Loss Color", group="Dark Theme Colors")
+
+
+
+// Markov Chain Enhancement
+use_markov_enhancement = input.bool(true, "Use Markov Chain Enhancement", group="Markov Chain")
+regime_sensitivity = input.float(1.0, "Regime Detection Sensitivity", minval=0.5, maxval=2.0, group="Markov Chain")
+sequence_lookback = input.int(3, "Pattern Sequence Length", minval=2, maxval=5, group="Markov Chain")
+show_regime_info = input.bool(true, "Show Regime Information", group="Markov Chain")
+show_enhanced_probabilities = input.bool(true, "Show Enhanced Probabilities", group="Markov Chain")
+avoid_transition_trades = input.bool(true, "Avoid Transition Regime Trades", group="Markov Chain")
+
+// Hidden Markov Model - Proper Implementation
+use_hmm = input.bool(true, "Enable Hidden Markov Model", group="Hidden Markov Model")
+hmm_lookback = input.int(20, "HMM Observation Window", minval=10, maxval=50, group="Hidden Markov Model")
+hmm_learning_rate = input.float(0.1, "HMM Learning Rate", minval=0.01, maxval=0.5, group="Hidden Markov Model")
+show_hmm_states = input.bool(true, "Show HMM State Labels", group="Hidden Markov Model")
+hmm_entry_threshold = input.float(0.75, "HMM Entry Threshold", minval=0.5, maxval=0.95, group="Hidden Markov Model")
+
+// 1M Entry Signals
+use_1m_signals = input.bool(true, "Enable 1M Entry Signals", group="1M Entry Signals")
+show_entry_labels = input.bool(true, "Show Entry Signal Labels", group="1M Entry Signals")
+entry_signal_sensitivity = input.float(0.7, "Entry Signal Sensitivity", minval=0.5, maxval=0.95, group="1M Entry Signals")
+use_python_server = input.bool(false, "Use Python Server (Advanced)", group="1M Entry Signals")
+
+// Pattern functions - Correct EBP Logic
+isBullishSweep() => 
+    low < low[1] and close > open[1] and close > close[1]
+
+isBearishSweep() => 
+    high > high[1] and close < open[1] and close < close[1]
+isInsideBar() => high[1] < high[2] and low[1] > low[2]
+bullishInsideBreak() => isInsideBar()[1] and high > high[2]
+bearishInsideBreak() => isInsideBar()[1] and low < low[2]
+bullishEngulf() => close > open and open < close[1] and close > open[1] and open[1] > close[1]
+bearishEngulf() => close < open and open > close[1] and close < open[1] and open[1] < close[1]
+gapUp() => low > high[1]
+gapDown() => high < low[1]
+bullishGapFill() => gapDown()[1] and high >= low[1] and close > open
+bearishGapFill() => gapUp()[1] and low <= high[1] and close < open
+bodySize = math.abs(close - open)
+upperWick = high - math.max(close, open)
+lowerWick = math.min(close, open) - low
+isHammer() => lowerWick > bodySize * 2 and upperWick < bodySize
+isShootingStar() => upperWick > bodySize * 2 and lowerWick < bodySize
+bullishThreeBar() => low[2] > low[1] and low[1] > low and close > close[2]
+bearishThreeBar() => high[2] < high[1] and high[1] < high and close < close[2]
+
+// Only show signals when on the selected data timeframe
+data_tf_minutes = timeframe.in_seconds(data_timeframe) / 60
+show_current_tf_signals = (timeframe_minutes == data_tf_minutes) and 
+                         ((timeframe_minutes == 15 and show_15m_signals) or 
+                          (timeframe_minutes == 30 and show_30m_signals) or 
+                          (timeframe_minutes == 60 and show_1h_signals) or 
+                          (timeframe_minutes == 120 and show_2h_signals) or 
+                          (timeframe_minutes == 240 and show_4h_signals) or 
+                          (timeframe_minutes == 360 and show_6h_signals) or 
+                          (timeframe_minutes == 480 and show_8h_signals) or 
+                          (timeframe_minutes == 720 and show_12h_signals) or 
+                          (timeframe_minutes == 1440 and show_1d_signals) or 
+                          (timeframe_minutes > 1440 and show_higher_signals))
+
+// Get pattern data from selected timeframe for tables
+ebp_bull_htf = request.security(syminfo.tickerid, data_timeframe, isBullishSweep(), lookahead=barmerge.lookahead_off)
+ebp_bear_htf = request.security(syminfo.tickerid, data_timeframe, isBearishSweep(), lookahead=barmerge.lookahead_off)
+inside_bull_htf = request.security(syminfo.tickerid, data_timeframe, bullishInsideBreak(), lookahead=barmerge.lookahead_off)
+inside_bear_htf = request.security(syminfo.tickerid, data_timeframe, bearishInsideBreak(), lookahead=barmerge.lookahead_off)
+engulf_bull_htf = request.security(syminfo.tickerid, data_timeframe, bullishEngulf(), lookahead=barmerge.lookahead_off)
+engulf_bear_htf = request.security(syminfo.tickerid, data_timeframe, bearishEngulf(), lookahead=barmerge.lookahead_off)
+gap_bull_htf = request.security(syminfo.tickerid, data_timeframe, bullishGapFill(), lookahead=barmerge.lookahead_off)
+gap_bear_htf = request.security(syminfo.tickerid, data_timeframe, bearishGapFill(), lookahead=barmerge.lookahead_off)
+hammer_bull_htf = request.security(syminfo.tickerid, data_timeframe, isHammer() and close > open, lookahead=barmerge.lookahead_off)
+hammer_bear_htf = request.security(syminfo.tickerid, data_timeframe, isShootingStar() and close < open, lookahead=barmerge.lookahead_off)
+three_bull_htf = request.security(syminfo.tickerid, data_timeframe, bullishThreeBar(), lookahead=barmerge.lookahead_off)
+three_bear_htf = request.security(syminfo.tickerid, data_timeframe, bearishThreeBar(), lookahead=barmerge.lookahead_off)
+
+// Individual patterns for current timeframe signals - use confirmed bars only
+ebp_bull = isBullishSweep()
+ebp_bear = isBearishSweep()
+inside_bull = bullishInsideBreak()
+inside_bear = bearishInsideBreak()
+engulf_bull = bullishEngulf()
+engulf_bear = bearishEngulf()
+gap_bull = bullishGapFill()
+gap_bear = bearishGapFill()
+hammer_bull = isHammer() and close > open
+hammer_bear = isShootingStar() and close < open
+three_bull = bullishThreeBar()
+three_bear = bearishThreeBar()
+
+// Basic patterns from selected timeframe for tables
+bull_close_above_htf = request.security(syminfo.tickerid, data_timeframe, close > high[1], lookahead=barmerge.lookahead_off)
+bear_close_below_htf = request.security(syminfo.tickerid, data_timeframe, close < low[1], lookahead=barmerge.lookahead_off)
+bull_sweep_htf = request.security(syminfo.tickerid, data_timeframe, low < low[1] and open >= low[1] and open <= high[1] and close > low[1], lookahead=barmerge.lookahead_off)
+bear_sweep_htf = request.security(syminfo.tickerid, data_timeframe, high > high[1] and open >= low[1] and open <= high[1] and close < high[1], lookahead=barmerge.lookahead_off)
+
+// Basic patterns for current timeframe signals - use confirmed bars only
+bull_close_above = close > high[1]
+bear_close_below = close < low[1]
+bull_sweep = low < low[1] and open >= low[1] and open <= high[1] and close > low[1]
+bear_sweep = high > high[1] and open >= low[1] and open <= high[1] and close < high[1]
+
+// FVG patterns for tracking
+bull_fvg = low > high[2]
+bear_fvg = low[2] > high
+bull_fvg_htf = request.security(syminfo.tickerid, data_timeframe, low > high[2], lookahead=barmerge.lookahead_off)
+bear_fvg_htf = request.security(syminfo.tickerid, data_timeframe, low[2] > high, lookahead=barmerge.lookahead_off)
+
+// Statistics arrays - persistent storage
+var array<int> signals = array.new<int>(106, 0)
+var array<int> success = array.new<int>(106, 0)
+
+// Markov Chain Variables
+var array<string> pattern_sequence = array.new<string>()
+var array<float> regime_history = array.new<float>()
+var array<float> success_rate_history = array.new<float>()
+var int current_regime = 0  // 0=Ranging, 1=Trending, 2=Transition
+var float regime_confidence = 0.0
+var float regime_score = 0.0
+var array<float> sequence_multipliers = array.new<float>()
+var array<float> regime_multipliers = array.new<float>()
+var bool avoid_trading = false
+var string current_pattern = ""
+var float regime_stability = 0.0
+var bool regime_changed = false
+var color candle_color = na
+
+// HMM Core Variables - Proper Mathematical Implementation
+var array<float> hmm_observations = array.new<float>()  // Observation sequence O_t
+var array<int> hmm_state_sequence = array.new<int>()    // Decoded state sequence
+var int current_hmm_state = 0  // Current most likely state
+var float hmm_confidence = 0.0 // State confidence
+var bool hmm_state_changed = false
+var string hmm_state_name = "Ranging"  // Current state name
+
+// 1M Entry Signal Variables
+var string current_entry_signal = "NO_ENTRY"
+var float entry_confidence = 0.0
+var float target_price = 0.0
+var float stop_price = 0.0
+var float risk_reward_ratio = 0.0
+var bool entry_signal_active = false
+
+// HMM Parameters - 4 States: 0=Ranging, 1=Accumulation, 2=Markup, 3=Distribution
+// Flattened matrices: A[i*4+j] = P(S_t+1=j | S_t=i)
+var array<float> transition_matrix = array.new<float>()  // 16 elements: A[4][4] flattened
+var array<float> emission_matrix = array.new<float>()     // 64 elements: B[4][16] flattened
+var array<float> initial_probs = array.new<float>()       // 4 elements: π[i] = P(S_1=i)
+
+// Forward Algorithm Variables - Flattened
+var array<float> alpha_current = array.new<float>()       // Current forward probabilities
+var array<float> alpha_previous = array.new<float>()      // Previous forward probabilities
+
+
+// Viterbi Algorithm Variables - Flattened
+var array<float> delta_current = array.new<float>()       // Current Viterbi probabilities
+var array<float> delta_previous = array.new<float>()      // Previous Viterbi probabilities
+var array<int> psi_current = array.new<int>()             // Current backtrack pointers
+
+// Observation Encoding (0-15 for different market conditions)
+var int current_observation = 0
+var float log_likelihood = 0.0
+
+// Enhanced Multi-Outcome Sequence Tracking
+var array<string> sequence_keys = array.new<string>()     // 1st order: "0-1"
+var array<int> sequence_signals = array.new<int>()
+var array<int> sequence_high_hit = array.new<int>()       // High target hit
+var array<int> sequence_low_hit = array.new<int>()        // Low target hit  
+var array<int> sequence_both_hit = array.new<int>()       // Both targets hit
+var array<int> sequence_neither_hit = array.new<int>()    // Neither target hit
+var string last_sequence_key = ""
+
+// 2nd Order Markov Chains
+var array<string> markov2_keys = array.new<string>()      // 2nd order: "0-1-2"
+var array<int> markov2_signals = array.new<int>()
+var array<int> markov2_success = array.new<int>()
+var string last_markov2_key = ""
+
+// Bayesian Prior/Posterior Tracking
+var array<float> pattern_priors = array.new<float>(16, 0.5)  // Base success rates
+var array<float> pattern_posteriors = array.new<float>(16, 0.5)  // Updated probabilities
+var array<int> pattern_observations = array.new<int>(16, 0)  // Observation count for Bayesian updates
+
+// Dynamic Full Combination Tracking
+var array<string> full_combo_keys = array.new<string>()  // "0+1+2", "14+15", etc.
+var array<int> full_combo_signals = array.new<int>()
+var array<int> full_combo_success = array.new<int>()
+var string last_full_combo_key = ""
+
+// Initialize Markov chain arrays if needed
+if barstate.isfirst
+    array.clear(pattern_sequence)
+    array.clear(regime_history)
+    array.clear(success_rate_history)
+    array.clear(sequence_multipliers)
+    array.clear(regime_multipliers)
+    current_regime := 0
+    regime_confidence := 0.0
+    regime_score := 0.0
+    avoid_trading := false
+    current_pattern := ""
+    regime_stability := 0.0
+    regime_changed := false
+    
+    // Initialize HMM Parameters inline
+    // Initialize Transition Matrix A[4][4] flattened to A[16]
+    array.clear(transition_matrix)
+    // Ranging state (i=0): A[0-3]
+    array.push(transition_matrix, 0.7)   // Stay ranging
+    array.push(transition_matrix, 0.15)  // To accumulation
+    array.push(transition_matrix, 0.10)  // To markup
+    array.push(transition_matrix, 0.05)  // To distribution
+    // Accumulation state (i=1): A[4-7]
+    array.push(transition_matrix, 0.2)   // To ranging
+    array.push(transition_matrix, 0.5)   // Stay accumulation
+    array.push(transition_matrix, 0.25)  // To markup
+    array.push(transition_matrix, 0.05)  // To distribution
+    // Markup state (i=2): A[8-11]
+    array.push(transition_matrix, 0.1)   // To ranging
+    array.push(transition_matrix, 0.05)  // To accumulation
+    array.push(transition_matrix, 0.7)   // Stay markup
+    array.push(transition_matrix, 0.15)  // To distribution
+    // Distribution state (i=3): A[12-15]
+    array.push(transition_matrix, 0.3)   // To ranging
+    array.push(transition_matrix, 0.1)   // To accumulation
+    array.push(transition_matrix, 0.05)  // To markup
+    array.push(transition_matrix, 0.55)  // Stay distribution
+    
+    // Initialize Emission Matrix B[4][16] flattened to B[64]
+    array.clear(emission_matrix)
+    for i = 0 to 3
+        for j = 0 to 15
+            emission_prob = 0.04  // Default probability
+            if i == 0  // Ranging state - higher prob for inside patterns
+                emission_prob := j == 1 or j == 7 ? 0.15 : j == 12 or j == 13 ? 0.1 : 0.04
+            else if i == 1  // Accumulation - higher prob for sweep patterns
+                emission_prob := j == 0 or j == 14 ? 0.2 : j == 4 or j == 5 ? 0.15 : 0.03
+            else if i == 2  // Markup - higher prob for engulf/gap patterns
+                emission_prob := j == 2 or j == 3 ? 0.2 : j == 12 ? 0.15 : 0.04
+            else  // Distribution - higher prob for bear patterns
+                emission_prob := j == 6 or j == 8 ? 0.15 : j == 13 or j == 15 ? 0.1 : 0.04
+            array.push(emission_matrix, emission_prob)  // B[i*16+j]
+    
+    // Initialize Initial State Probabilities π[4]
+    array.clear(initial_probs)
+    array.push(initial_probs, 0.4)  // Start ranging
+    array.push(initial_probs, 0.3)  // Start accumulation
+    array.push(initial_probs, 0.2)  // Start markup
+    array.push(initial_probs, 0.1)  // Start distribution
+
+// HMM State Names for Display
+hmm_state_name := current_hmm_state == 0 ? "Ranging" : current_hmm_state == 1 ? "Accumulation" : current_hmm_state == 2 ? "Markup" : "Distribution"
+
+
+// REAL HMM STATE CALCULATION
+if use_hmm
+    // Encode current observation (0-15 based on active patterns)
+    current_observation := 0
+    if ebp_bull_htf
+        current_observation := 0
+    else if inside_bull_htf
+        current_observation := 1
+    else if engulf_bull_htf
+        current_observation := 2
+    else if gap_bull_htf
+        current_observation := 3
+    else if hammer_bull_htf
+        current_observation := 4
+    else if three_bull_htf
+        current_observation := 5
+    else if ebp_bear_htf
+        current_observation := 6
+    else if inside_bear_htf
+        current_observation := 7
+    else if engulf_bear_htf
+        current_observation := 8
+    else if gap_bear_htf
+        current_observation := 9
+    else if hammer_bear_htf
+        current_observation := 10
+    else if three_bear_htf
+        current_observation := 11
+    else if bull_close_above_htf
+        current_observation := 12
+    else if bear_close_below_htf
+        current_observation := 13
+    else if bull_sweep_htf
+        current_observation := 14
+    else if bear_sweep_htf
+        current_observation := 15
+    
+    // Add observation to sequence
+    array.push(hmm_observations, float(current_observation))
+    if array.size(hmm_observations) > hmm_lookback
+        array.shift(hmm_observations)
+    
+    // RUN REAL HMM ALGORITHMS
+    if array.size(hmm_observations) >= 3
+        // Calculate state probabilities using emission matrix
+        array.clear(alpha_current)
+        total_prob = 0.0
+        
+        for i = 0 to 3
+            init_prob = array.get(initial_probs, i)
+            emission_prob = array.get(emission_matrix, i * 16 + current_observation)
+            state_prob = init_prob * emission_prob
+            array.push(alpha_current, state_prob)
+            total_prob += state_prob
+        
+        // Normalize probabilities
+        if total_prob > 0
+            for i = 0 to 3
+                array.set(alpha_current, i, array.get(alpha_current, i) / total_prob)
+        
+        // Find most likely state using REAL HMM math
+        max_prob = 0.0
+        best_state = 0
+        for i = 0 to 3
+            prob = array.get(alpha_current, i)
+            if prob > max_prob
+                max_prob := prob
+                best_state := i
+        
+        // Update HMM state using mathematical model
+        hmm_state_changed := current_hmm_state != best_state
+        current_hmm_state := best_state
+        hmm_confidence := max_prob
+        
+        // Send HMM data to Python server
+        if use_python_server and hmm_state_changed
+            hmm_webhook_data = '{"pattern_strength":' + str.tostring(max_prob) + 
+                              ',"volume_ratio":' + str.tostring(volume / math.max(ta.sma(volume, 20), 1)) + 
+                              ',"price_momentum":' + str.tostring((close - close[5]) / close[5] * 100) + 
+                              ',"volatility_ratio":' + str.tostring(ta.atr(14) / math.max(ta.atr(50), 0.0001)) + 
+                              ',"rsi_momentum":' + str.tostring((ta.rsi(close, 14) - 50) / 50) + 
+                              ',"current_observation":' + str.tostring(current_observation) + '}'
+            
+            alert('HMM Training Data: ' + hmm_webhook_data, alert.freq_once_per_bar)
+    
+    // Update state name
+    hmm_state_name := current_hmm_state == 0 ? "Ranging" : current_hmm_state == 1 ? "Accumulation" : current_hmm_state == 2 ? "Markup" : "Distribution"
+
+// 1M Entry Signal Detection with Python Server Integration
+if use_1m_signals and barstate.isconfirmed
+    // Calculate 1M market structure
+    current_vol_ratio = volume / math.max(ta.sma(volume, 20), 1)
+    price_momentum_1m = (close - close[5]) / close[5] * 100
+    
+    // Better support and resistance levels for proper R:R
+    recent_high = ta.highest(high, 50)
+    recent_low = ta.lowest(low, 50)
+    atr_value = ta.atr(14)
+    pullback_level = close < ta.sma(close, 10) ? ta.sma(close, 10) : recent_low
+    
+    // Enhanced bias calculation with timing
+    simple_bias = 0.0
+    timing_score = 0.0
+    
+    // Market structure timing
+    london_session = (hour >= 7 and hour < 12)
+    ny_session = (hour >= 13 and hour <= 17)
+    overlap_session = (hour >= 13 and hour < 16)
+    
+    // Volume profile timing
+    vol_increasing = volume > volume[1] and volume[1] > volume[2]
+    vol_spike = current_vol_ratio > 1.5
+    
+    // Calculate bias with timing multiplier
+    if ebp_bull_htf[1] or inside_bull_htf[1] or engulf_bull_htf[1] or hammer_bull_htf[1] or three_bull_htf[1] or bull_close_above_htf[1] or bull_sweep_htf[1]
+        simple_bias := 75.0
+        timing_score := (london_session or ny_session ? 1.2 : 1.0) * (vol_spike ? 1.3 : 1.0)
+    else if ebp_bear_htf[1] or inside_bear_htf[1] or engulf_bear_htf[1] or hammer_bear_htf[1] or three_bear_htf[1] or bear_close_below_htf[1] or bear_sweep_htf[1]
+        simple_bias := -75.0
+        timing_score := (london_session or ny_session ? 1.2 : 1.0) * (vol_spike ? 1.3 : 1.0)
+    
+    // Apply timing multiplier
+    simple_bias := simple_bias * timing_score
+    
+    // Calculate advanced features for HMM
+    trend_strength = ta.sma(close, 20) > ta.sma(close, 50) ? (close - ta.sma(close, 20)) / ta.sma(close, 20) * 100 : (close - ta.sma(close, 20)) / ta.sma(close, 20) * -100
+    support_distance = (close - recent_low) / recent_low * 100
+    resistance_distance = (recent_high - close) / close * 100
+    pattern_sequence_score = array.size(pattern_sequence) > 0 ? (array.size(sequence_multipliers) > 0 ? array.get(sequence_multipliers, 0) : 1.0) : 1.0
+    market_regime_score = current_regime == 1 ? 1.0 : current_regime == 0 ? 0.0 : -1.0
+    volatility_percentile = ta.percentrank(ta.atr(14), 50)
+    volume_profile = ta.sma(volume, 5) / ta.sma(volume, 20)
+    price_position = (close - ta.lowest(low, 20)) / (ta.highest(high, 20) - ta.lowest(low, 20))
+    momentum_divergence = ta.rsi(close, 14) > 70 and close < close[5] ? -1.0 : ta.rsi(close, 14) < 30 and close > close[5] ? 1.0 : 0.0
+    
+    // Send comprehensive data to Python server
+    if use_python_server
+        webhook_data = '{"current_price":' + str.tostring(close) + 
+                      ',"volume_ratio":' + str.tostring(current_vol_ratio) + 
+                      ',"price_momentum":' + str.tostring(price_momentum_1m) + 
+                      ',"daily_bias":"' + (simple_bias > 0 ? 'BULLISH' : 'BEARISH') + '"' + 
+                      ',"bias_score":' + str.tostring(simple_bias) + 
+                      ',"time_of_day":' + str.tostring(hour) + 
+                      ',"day_of_week":' + str.tostring(dayofweek) + 
+                      ',"trend_strength":' + str.tostring(trend_strength) + 
+                      ',"support_distance":' + str.tostring(support_distance) + 
+                      ',"resistance_distance":' + str.tostring(resistance_distance) + 
+                      ',"pattern_sequence_score":' + str.tostring(pattern_sequence_score) + 
+                      ',"market_regime_score":' + str.tostring(market_regime_score) + 
+                      ',"volatility_percentile":' + str.tostring(volatility_percentile) + 
+                      ',"volume_profile":' + str.tostring(volume_profile) + 
+                      ',"price_position":' + str.tostring(price_position) + 
+                      ',"momentum_divergence":' + str.tostring(momentum_divergence) + 
+                      ',"atr_value":' + str.tostring(atr_value) + '}'
+        
+        alert('Python Server Data: ' + webhook_data, alert.freq_once_per_bar)
+    
+    // Reset entry signal
+    current_entry_signal := "NO_ENTRY"
+    entry_confidence := 0.0
+    entry_signal_active := false
+    
+    // BULLISH Entry Conditions (when daily bias is bullish)
+    daily_bullish = ebp_bull_htf[1] or inside_bull_htf[1] or engulf_bull_htf[1] or hammer_bull_htf[1] or three_bull_htf[1] or bull_close_above_htf[1] or bull_sweep_htf[1]
+    
+    if daily_bullish and current_hmm_state == 1  // BACK TO PROPER HMM LOGIC
+        // Simplified conditions - more realistic
+        volume_spike = current_vol_ratio > 1.0  // Lower threshold
+        momentum_positive = price_momentum_1m > 0.05  // Lower threshold
+        pullback_zone = close <= pullback_level
+        
+        if volume_spike and momentum_positive
+            if pullback_zone
+                current_entry_signal := "PULLBACK_LONG"
+                entry_confidence := math.min(0.75 * current_vol_ratio, 0.90)
+            else
+                current_entry_signal := "MOMENTUM_LONG"
+                entry_confidence := math.min(0.65 * current_vol_ratio, 0.85)
+            
+            target_price := recent_high
+            stop_price := recent_low
+            entry_signal_active := true
+    
+    // BEARISH Entry Conditions (when daily bias is bearish)
+    daily_bearish = ebp_bear_htf[1] or inside_bear_htf[1] or engulf_bear_htf[1] or hammer_bear_htf[1] or three_bear_htf[1] or bear_close_below_htf[1] or bear_sweep_htf[1]
+    
+    if daily_bearish and current_hmm_state == 1  // BACK TO PROPER HMM LOGIC
+        // Simplified conditions - more realistic
+        volume_spike = current_vol_ratio > 1.0  // Lower threshold
+        momentum_negative = price_momentum_1m < -0.05  // Lower threshold
+        rally_zone = close >= pullback_level
+        
+        if volume_spike and momentum_negative
+            if rally_zone
+                current_entry_signal := "RALLY_SHORT"
+                entry_confidence := math.min(0.75 * current_vol_ratio, 0.90)
+            else
+                current_entry_signal := "MOMENTUM_SHORT"
+                entry_confidence := math.min(0.65 * current_vol_ratio, 0.85)
+            
+            target_price := recent_low
+            stop_price := recent_high
+            entry_signal_active := true
+    
+    // Calculate Risk/Reward
+    if target_price != 0 and stop_price != 0
+        risk = math.abs(close - stop_price)
+        reward = math.abs(target_price - close)
+        risk_reward_ratio := reward / risk
+    
+    // Debug removed - clean chart
+    
+    // Clean entry signals - small and simple
+    if show_entry_labels and entry_signal_active and entry_confidence >= entry_signal_sensitivity
+        signal_color = str.contains(current_entry_signal, "LONG") ? color.green : color.red
+        signal_text = str.contains(current_entry_signal, "LONG") ? "L" : "S"
+        
+        if str.contains(current_entry_signal, "LONG")
+            label.new(bar_index, low, signal_text, style=label.style_label_up, color=signal_color, textcolor=color.white, size=size.tiny)
+        else
+            label.new(bar_index, high, signal_text, style=label.style_label_down, color=signal_color, textcolor=color.white, size=size.tiny)
+
+// Markov Chain Enhancement Logic
+if use_markov_enhancement
+    // TRUE MARKOV REGIME DETECTION - Based on Pattern Statistics
+    recent_success_rate = 0.0
+    recent_pattern_count = 0
+    pattern_variance = 0.0
+    transition_strength = 0.0
+    
+    // Calculate recent pattern performance (last 10 patterns)
+    success_rates = array.new<float>()
+    for i = 0 to 15
+        total = array.get(signals, i)
+        if total >= 3  // Only patterns with enough data
+            rate = (array.get(success, i) / total) * 100
+            array.push(success_rates, rate)
+            recent_success_rate += rate
+            recent_pattern_count += 1
+    
+    if recent_pattern_count > 0
+        recent_success_rate := recent_success_rate / recent_pattern_count
+        
+        // Calculate variance in success rates (regime stability indicator)
+        variance_sum = 0.0
+        for i = 0 to array.size(success_rates) - 1
+            diff = array.get(success_rates, i) - recent_success_rate
+            variance_sum += diff * diff
+        pattern_variance := recent_pattern_count > 1 ? math.sqrt(variance_sum / (recent_pattern_count - 1)) : 0
+    
+    // Calculate sequence transition strength
+    strong_sequences = 0
+    total_sequences = 0
+    if array.size(sequence_keys) > 0
+        for i = 0 to array.size(sequence_keys) - 1
+            seq_count = array.get(sequence_signals, i)
+            if seq_count >= 3
+                seq_rate = (array.get(sequence_high_hit, i) + array.get(sequence_low_hit, i) + array.get(sequence_both_hit, i)) / seq_count * 100
+                total_sequences += 1
+                if seq_rate > 70 or seq_rate < 30  // Strong directional bias
+                    strong_sequences += 1
+    
+    transition_strength := total_sequences > 0 ? (strong_sequences / total_sequences) * 100 : 50  // Default to neutral
+    
+    // MARKOV REGIME CLASSIFICATION
+    // TRENDING: High success rates + low variance + strong transitions
+    // RANGING: Moderate success rates + high variance + weak transitions  
+    // TRANSITION: Low success rates + high variance + mixed transitions
+    
+    regime_score := (recent_success_rate * 0.4 + (100 - pattern_variance) * 0.3 + transition_strength * 0.3) / 100
+    
+    new_regime = 0  // Default to ranging
+    if recent_success_rate > 65 and pattern_variance < 15 and transition_strength > 60
+        new_regime := 1  // TRENDING: Patterns working well consistently
+    else if recent_success_rate < 45 or pattern_variance > 25
+        new_regime := 2  // TRANSITION: Patterns failing or inconsistent
+    else
+        new_regime := 0  // RANGING: Moderate performance
+    
+    regime_confidence := math.abs(recent_success_rate - 50) / 50  // Distance from random (50%)
+    
+    // Detect regime changes
+    regime_changed := current_regime != new_regime
+    current_regime := new_regime
+    
+    // Store regime history
+    array.push(regime_history, regime_score)
+    if array.size(regime_history) > 50
+        array.shift(regime_history)
+    
+    // Calculate regime stability based on pattern consistency
+    regime_stability := pattern_variance / 100  // Convert to 0-1 scale
+    
+    // Pattern sequence tracking - Include combinations as single sequence elements
+    current_pattern_key = ""
+    active_patterns = array.new<int>()
+    pattern_checks = array.from(ebp_bull_htf, inside_bull_htf, engulf_bull_htf, gap_bull_htf, hammer_bull_htf, three_bull_htf,
+                               ebp_bear_htf, inside_bear_htf, engulf_bear_htf, gap_bear_htf, hammer_bear_htf, three_bear_htf,
+                               bull_close_above_htf, bear_close_below_htf, bull_sweep_htf, bear_sweep_htf)
+    
+    for i = 0 to 15
+        if array.get(pattern_checks, i)
+            array.push(active_patterns, i)
+    
+    if array.size(active_patterns) > 0
+        // Create pattern key (single pattern or combination)
+        for i = 0 to array.size(active_patterns) - 1
+            current_pattern_key += (i > 0 ? "+" : "") + str.tostring(array.get(active_patterns, i))
+    
+    current_pattern := current_pattern_key
+    
+    // Update pattern sequence with pattern keys (including combinations)
+    if current_pattern_key != ""
+        should_add = false
+        if array.size(pattern_sequence) == 0
+            should_add := true
+        else if str.tostring(array.get(pattern_sequence, array.size(pattern_sequence) - 1)) != current_pattern_key
+            should_add := true
+        
+        if should_add
+            // Store pattern key as string in sequence
+            array.push(pattern_sequence, current_pattern_key)
+            if array.size(pattern_sequence) > sequence_lookback
+                array.shift(pattern_sequence)
+    
+    // Enhanced Markov Chain Tracking
+    if current_pattern_key != "" and array.size(pattern_sequence) >= 1
+        prev_pattern_key = str.tostring(array.get(pattern_sequence, array.size(pattern_sequence) - 1))
+        current_sequence_key = prev_pattern_key + "-" + current_pattern_key
+        
+        // 1st Order Markov
+        sequence_index = -1
+        if array.size(sequence_keys) > 0
+            for i = 0 to array.size(sequence_keys) - 1
+                if array.get(sequence_keys, i) == current_sequence_key
+                    sequence_index := i
+                    break
+        
+        if sequence_index == -1
+            array.push(sequence_keys, current_sequence_key)
+            array.push(sequence_signals, 1)
+            array.push(sequence_high_hit, 0)
+            array.push(sequence_low_hit, 0)
+            array.push(sequence_both_hit, 0)
+            array.push(sequence_neither_hit, 0)
+        else
+            array.set(sequence_signals, sequence_index, array.get(sequence_signals, sequence_index) + 1)
+        
+        last_sequence_key := current_sequence_key
+        
+        // 2nd Order Markov
+        if array.size(pattern_sequence) >= 2
+            prev2_pattern_key = str.tostring(array.get(pattern_sequence, array.size(pattern_sequence) - 2))
+            markov2_key = prev2_pattern_key + "-" + prev_pattern_key + "-" + current_pattern_key
+            
+            markov2_index = -1
+            if array.size(markov2_keys) > 0
+                for i = 0 to array.size(markov2_keys) - 1
+                    if array.get(markov2_keys, i) == markov2_key
+                        markov2_index := i
+                        break
+            
+            if markov2_index == -1
+                array.push(markov2_keys, markov2_key)
+                array.push(markov2_signals, 1)
+                array.push(markov2_success, 0)
+            else
+                array.set(markov2_signals, markov2_index, array.get(markov2_signals, markov2_index) + 1)
+            
+            last_markov2_key := markov2_key
+        
+        // Bayesian Update for individual patterns
+        if str.contains(current_pattern_key, "+")
+            // Handle combinations
+            combo_parts = str.split(current_pattern_key, "+")
+            for i = 0 to array.size(combo_parts) - 1
+                pattern_idx = int(str.tonumber(array.get(combo_parts, i)))
+                if pattern_idx >= 0 and pattern_idx < 16
+                    obs_count = array.get(pattern_observations, pattern_idx) + 1
+                    array.set(pattern_observations, pattern_idx, obs_count)
+        else
+            // Single pattern
+            pattern_idx = int(str.tonumber(current_pattern_key))
+            if pattern_idx >= 0 and pattern_idx < 16
+                obs_count = array.get(pattern_observations, pattern_idx) + 1
+                array.set(pattern_observations, pattern_idx, obs_count)
+        
+        // Track ALL pattern combinations dynamically
+        active_now = array.new<int>()
+        current_patterns_check = array.from(ebp_bull_htf, inside_bull_htf, engulf_bull_htf, gap_bull_htf, hammer_bull_htf, three_bull_htf,
+                                           ebp_bear_htf, inside_bear_htf, engulf_bear_htf, gap_bear_htf, hammer_bear_htf, three_bear_htf,
+                                           bull_close_above_htf, bear_close_below_htf, bull_sweep_htf, bear_sweep_htf)
+        for i = 0 to 15
+            if array.get(current_patterns_check, i)
+                array.push(active_now, i)
+        
+        if array.size(active_now) > 1  // Only track actual combinations (2+ patterns)
+            combo_key = ""
+            for i = 0 to array.size(active_now) - 1
+                combo_key += (i > 0 ? "+" : "") + str.tostring(array.get(active_now, i))
+            
+            // Check if exists
+            combo_index = -1
+            if array.size(full_combo_keys) > 0
+                for i = 0 to array.size(full_combo_keys) - 1
+                    if array.get(full_combo_keys, i) == combo_key
+                        combo_index := i
+                        break
+            
+            if combo_index == -1
+                array.push(full_combo_keys, combo_key)
+                array.push(full_combo_signals, 1)
+                array.push(full_combo_success, 0)
+                combo_index := array.size(full_combo_keys) - 1
+            else
+                array.set(full_combo_signals, combo_index, array.get(full_combo_signals, combo_index) + 1)
+            
+            last_full_combo_key := combo_key
+        else
+            last_full_combo_key := ""  // Clear if no combo
+    
+    // Calculate sequence multipliers (keep existing logic for now)
+    array.clear(sequence_multipliers)
+    if array.size(pattern_sequence) >= 2
+        last_two = str.tostring(array.get(pattern_sequence, array.size(pattern_sequence) - 2)) + "-" + str.tostring(array.get(pattern_sequence, array.size(pattern_sequence) - 1))
+        sequence_mult = switch last_two
+            "0-1" => 1.15  // EBP -> Inside
+            "0-2" => 1.10  // EBP -> Engulf
+            "1-2" => 1.20  // Inside -> Engulf
+            "2-0" => 0.95  // Engulf -> EBP
+            "4-5" => 1.25  // Hammer -> 3Bar
+            => 1.0
+        array.push(sequence_multipliers, sequence_mult)
+    else
+        array.push(sequence_multipliers, 1.0)
+    
+    // Calculate regime multipliers
+    array.clear(regime_multipliers)
+    regime_mult = switch current_regime
+        0 => 0.85  // Ranging - patterns less reliable
+        1 => 1.25  // Trending - patterns more reliable
+        2 => 0.70  // Transition - patterns unreliable
+        => 1.0
+    array.push(regime_multipliers, regime_mult)
+    
+    // Determine if should avoid trading
+    avoid_trading := avoid_transition_trades and (current_regime == 2 or regime_stability > 0.3 or regime_changed)
+
+// HTF combinations for table data
+combo_1_htf = ebp_bull_htf and inside_bull_htf
+combo_2_htf = ebp_bull_htf and engulf_bull_htf
+combo_3_htf = ebp_bull_htf and gap_bull_htf
+combo_4_htf = ebp_bull_htf and hammer_bull_htf
+combo_5_htf = ebp_bull_htf and three_bull_htf
+combo_6_htf = inside_bull_htf and engulf_bull_htf
+combo_7_htf = inside_bull_htf and gap_bull_htf
+combo_8_htf = inside_bull_htf and hammer_bull_htf
+combo_9_htf = inside_bull_htf and three_bull_htf
+combo_10_htf = engulf_bull_htf and gap_bull_htf
+combo_11_htf = engulf_bull_htf and hammer_bull_htf
+combo_12_htf = engulf_bull_htf and three_bull_htf
+combo_13_htf = gap_bull_htf and hammer_bull_htf
+combo_14_htf = gap_bull_htf and three_bull_htf
+combo_15_htf = hammer_bull_htf and three_bull_htf
+combo_16_htf = ebp_bear_htf and inside_bear_htf
+combo_17_htf = ebp_bear_htf and engulf_bear_htf
+combo_18_htf = ebp_bear_htf and gap_bear_htf
+combo_19_htf = ebp_bear_htf and hammer_bear_htf
+combo_20_htf = ebp_bear_htf and three_bear_htf
+
+// Count signals and success
+patterns = array.from(ebp_bull_htf, inside_bull_htf, engulf_bull_htf, gap_bull_htf, hammer_bull_htf, three_bull_htf,
+                     ebp_bear_htf, inside_bear_htf, engulf_bear_htf, gap_bear_htf, hammer_bear_htf, three_bear_htf,
+                     bull_close_above_htf, bear_close_below_htf, bull_sweep_htf, bear_sweep_htf,
+                     combo_1_htf, combo_2_htf, combo_3_htf, combo_4_htf, combo_5_htf, combo_6_htf, combo_7_htf, combo_8_htf, combo_9_htf, combo_10_htf,
+                     combo_11_htf, combo_12_htf, combo_13_htf, combo_14_htf, combo_15_htf, combo_16_htf, combo_17_htf, combo_18_htf, combo_19_htf, combo_20_htf)
+
+// Always count signals but only when patterns change - Debug version
+for i = 0 to 35
+    if array.get(patterns, i) and not array.get(patterns, i)[1]
+        array.set(signals, i, array.get(signals, i) + 1)
+        // Remove debug code
+
+// Check success on next bar
+// Get HTF success data
+htf_high_data = request.security(syminfo.tickerid, data_timeframe, high, lookahead=barmerge.lookahead_off)
+htf_low_data = request.security(syminfo.tickerid, data_timeframe, low, lookahead=barmerge.lookahead_off)
+htf_high_prev = request.security(syminfo.tickerid, data_timeframe, high[1], lookahead=barmerge.lookahead_off)
+htf_low_prev = request.security(syminfo.tickerid, data_timeframe, low[1], lookahead=barmerge.lookahead_off)
+htf_open_data = request.security(syminfo.tickerid, data_timeframe, open, lookahead=barmerge.lookahead_off)
+
+patterns_prev = array.from(ebp_bull_htf[1], inside_bull_htf[1], engulf_bull_htf[1], gap_bull_htf[1], hammer_bull_htf[1], three_bull_htf[1],
+                          ebp_bear_htf[1], inside_bear_htf[1], engulf_bear_htf[1], gap_bear_htf[1], hammer_bear_htf[1], three_bear_htf[1],
+                          bull_close_above_htf[1], bear_close_below_htf[1], bull_sweep_htf[1], bear_sweep_htf[1],
+                          combo_1_htf[1], combo_2_htf[1], combo_3_htf[1], combo_4_htf[1], combo_5_htf[1], combo_6_htf[1], combo_7_htf[1], combo_8_htf[1], combo_9_htf[1], combo_10_htf[1],
+                          combo_11_htf[1], combo_12_htf[1], combo_13_htf[1], combo_14_htf[1], combo_15_htf[1], combo_16_htf[1], combo_17_htf[1], combo_18_htf[1], combo_19_htf[1], combo_20_htf[1])
+
+// Always check success - Debug version
+for i = 0 to 35
+    if array.get(patterns_prev, i)
+        // Success conditions - all patterns need high > high[1] for bull success, low < low[1] for bear success
+        success_condition = false
+        
+        // Bull patterns (indices 0-5, 12, 14, 16-25) - success when high > high[1]
+        if i < 6 or i == 12 or i == 14 or (i >= 16 and i <= 25)
+            success_condition := htf_high_data > htf_high_prev
+        // Bear patterns (indices 6-11, 13, 15, 26-35) - success when low < low[1]  
+        else if (i >= 6 and i <= 11) or i == 13 or i == 15 or (i >= 26 and i <= 35)
+            success_condition := htf_low_data < htf_low_prev
+        
+        if success_condition
+            array.set(success, i, array.get(success, i) + 1)
+            
+            // Debug: Force update Bayesian for individual patterns
+            if i < 16
+                current_total = array.get(signals, i)
+                current_success = array.get(success, i)
+                if current_total > 0
+                    prior = array.get(pattern_priors, i)
+                    likelihood = float(current_success) / float(current_total)
+                    prior_weight = 10.0
+                    data_weight = float(current_total)
+                    posterior = (prior * prior_weight + likelihood * data_weight) / (prior_weight + data_weight)
+                    array.set(pattern_posteriors, i, posterior)
+            
+            // Remove duplicate sequence success tracking - handled below
+
+// Enhanced Success Tracking with Bayesian Updates
+if last_full_combo_key != "" and str.contains(last_full_combo_key, "+")
+    combo_parts = str.split(last_full_combo_key, "+")
+    last_pattern_num = str.tonumber(array.get(combo_parts, array.size(combo_parts) - 1))
+    
+    combo_success = false
+    if last_pattern_num < 6 or last_pattern_num == 12 or last_pattern_num == 14
+        combo_success := htf_high_data > htf_high_prev
+    else if (last_pattern_num >= 6 and last_pattern_num <= 11) or last_pattern_num == 13 or last_pattern_num == 15
+        combo_success := htf_low_data < htf_low_prev
+    
+    if combo_success
+        for j = 0 to array.size(full_combo_keys) - 1
+            if array.get(full_combo_keys, j) == last_full_combo_key
+                array.set(full_combo_success, j, array.get(full_combo_success, j) + 1)
+                break
+
+// MULTI-OUTCOME Sequence Tracking
+if last_sequence_key != ""
+    // Track 4 outcomes: High Hit, Low Hit, Both Hit, Neither Hit
+    high_hit = htf_high_data > htf_high_prev
+    low_hit = htf_low_data < htf_low_prev
+    
+    for j = 0 to array.size(sequence_keys) - 1
+        if array.get(sequence_keys, j) == last_sequence_key
+            if high_hit and low_hit
+                array.set(sequence_both_hit, j, array.get(sequence_both_hit, j) + 1)
+            else if high_hit and not low_hit
+                array.set(sequence_high_hit, j, array.get(sequence_high_hit, j) + 1)
+            else if low_hit and not high_hit
+                array.set(sequence_low_hit, j, array.get(sequence_low_hit, j) + 1)
+            else
+                array.set(sequence_neither_hit, j, array.get(sequence_neither_hit, j) + 1)
+            break
+
+// Remove obsolete markov2 success tracking - replaced by multi-outcome system
+
+// Bayesian Posterior Updates
+for i = 0 to 15
+    obs_count = array.get(pattern_observations, i)
+    if obs_count > 0
+        pattern_total = array.get(signals, i)
+        pattern_successes = array.get(success, i)
+        
+        if pattern_total > 0
+            // Bayesian update: posterior = (prior * prior_weight + likelihood * data_weight) / total_weight
+            prior = array.get(pattern_priors, i)
+            likelihood = pattern_successes / pattern_total
+            prior_weight = 10.0  // Equivalent to 10 observations
+            data_weight = float(pattern_total)
+            
+            posterior = (prior * prior_weight + likelihood * data_weight) / (prior_weight + data_weight)
+            array.set(pattern_posteriors, i, posterior)
+            
+
+
+// Get Multi-Outcome Sequence Rates
+getSequenceOutcomes(sequence_key) =>
+    high_rate = 0.0
+    low_rate = 0.0
+    both_rate = 0.0
+    neither_rate = 0.0
+    total_count = 0
+    
+    if sequence_key != ""
+        for i = 0 to array.size(sequence_keys) - 1
+            if array.get(sequence_keys, i) == sequence_key
+                total_count := array.get(sequence_signals, i)
+                if total_count > 0
+                    high_rate := (array.get(sequence_high_hit, i) / total_count) * 100
+                    low_rate := (array.get(sequence_low_hit, i) / total_count) * 100
+                    both_rate := (array.get(sequence_both_hit, i) / total_count) * 100
+                    neither_rate := (array.get(sequence_neither_hit, i) / total_count) * 100
+                break
+    
+    [high_rate, low_rate, both_rate, neither_rate, total_count]
+
+// Last Completed Candle Analysis
+getLastCandleAnalysis() =>
+    last_patterns = ""
+    last_success_rate = 0.0
+    last_occurrences = 0
+    target_hit = false
+    target_distance = 0.0
+    
+    // Check patterns on previous bar
+    pattern_count = 0
+    total_signals = 0
+    total_success = 0
+    is_bull_pattern = false
+    
+    if ebp_bull_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "EBP-Bull"
+        total_signals += array.get(signals, 0)
+        total_success += array.get(success, 0)
+        pattern_count += 1
+        is_bull_pattern := true
+    if inside_bull_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "Inside-Bull"
+        total_signals += array.get(signals, 1)
+        total_success += array.get(success, 1)
+        pattern_count += 1
+        is_bull_pattern := true
+    if engulf_bull_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "Engulf-Bull"
+        total_signals += array.get(signals, 2)
+        total_success += array.get(success, 2)
+        pattern_count += 1
+        is_bull_pattern := true
+    if gap_bull_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "Gap-Bull"
+        total_signals += array.get(signals, 3)
+        total_success += array.get(success, 3)
+        pattern_count += 1
+        is_bull_pattern := true
+    if hammer_bull_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "Hammer-Bull"
+        total_signals += array.get(signals, 4)
+        total_success += array.get(success, 4)
+        pattern_count += 1
+        is_bull_pattern := true
+    if three_bull_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "3Bar-Bull"
+        total_signals += array.get(signals, 5)
+        total_success += array.get(success, 5)
+        pattern_count += 1
+        is_bull_pattern := true
+    if ebp_bear_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "EBP-Bear"
+        total_signals += array.get(signals, 6)
+        total_success += array.get(success, 6)
+        pattern_count += 1
+    if inside_bear_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "Inside-Bear"
+        total_signals += array.get(signals, 7)
+        total_success += array.get(success, 7)
+        pattern_count += 1
+    if engulf_bear_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "Engulf-Bear"
+        total_signals += array.get(signals, 8)
+        total_success += array.get(success, 8)
+        pattern_count += 1
+    if gap_bear_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "Gap-Bear"
+        total_signals += array.get(signals, 9)
+        total_success += array.get(success, 9)
+        pattern_count += 1
+    if hammer_bear_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "Hammer-Bear"
+        total_signals += array.get(signals, 10)
+        total_success += array.get(success, 10)
+        pattern_count += 1
+    if three_bear_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "3Bar-Bear"
+        total_signals += array.get(signals, 11)
+        total_success += array.get(success, 11)
+        pattern_count += 1
+    if bull_close_above_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "Close-Above"
+        total_signals += array.get(signals, 12)
+        total_success += array.get(success, 12)
+        pattern_count += 1
+        is_bull_pattern := true
+    if bear_close_below_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "Close-Below"
+        total_signals += array.get(signals, 13)
+        total_success += array.get(success, 13)
+        pattern_count += 1
+    if bull_sweep_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "Bull-Sweep"
+        total_signals += array.get(signals, 14)
+        total_success += array.get(success, 14)
+        pattern_count += 1
+        is_bull_pattern := true
+    if bear_sweep_htf[1]
+        last_patterns += (pattern_count > 0 ? "+" : "") + "Bear-Sweep"
+        total_signals += array.get(signals, 15)
+        total_success += array.get(success, 15)
+        pattern_count += 1
+    
+    if pattern_count > 0
+        last_success_rate := total_signals > 0 ? (total_success / total_signals) * 100 : 0
+        last_occurrences := total_signals
+        target_hit := is_bull_pattern ? htf_high_data > htf_high_prev : htf_low_data < htf_low_prev
+        target_distance := is_bull_pattern ? (htf_high_data - htf_high_prev) / syminfo.mintick : (htf_low_prev - htf_low_data) / syminfo.mintick
+    
+    [last_patterns, last_success_rate, last_occurrences, target_hit, target_distance]
+
+// Enhanced Trading Prep Analysis
+getTradingPrepAnalysis() =>
+    // 1. Most recent closed candle pattern(s)
+    recent_pattern_key = ""
+    recent_patterns = array.new<int>()
+    recent_checks = array.from(ebp_bull_htf[1], inside_bull_htf[1], engulf_bull_htf[1], gap_bull_htf[1], hammer_bull_htf[1], three_bull_htf[1],
+                              ebp_bear_htf[1], inside_bear_htf[1], engulf_bear_htf[1], gap_bear_htf[1], hammer_bear_htf[1], three_bear_htf[1],
+                              bull_close_above_htf[1], bear_close_below_htf[1], bull_sweep_htf[1], bear_sweep_htf[1])
+    
+    for i = 0 to 15
+        if array.get(recent_checks, i)
+            array.push(recent_patterns, i)
+    
+    if array.size(recent_patterns) > 0
+        for i = 0 to array.size(recent_patterns) - 1
+            recent_pattern_key += (i > 0 ? "+" : "") + str.tostring(array.get(recent_patterns, i))
+    
+    // 2. Prior candle pattern(s)
+    prior_pattern_key = ""
+    prior_patterns = array.new<int>()
+    prior_checks = array.from(ebp_bull_htf[2], inside_bull_htf[2], engulf_bull_htf[2], gap_bull_htf[2], hammer_bull_htf[2], three_bull_htf[2],
+                             ebp_bear_htf[2], inside_bear_htf[2], engulf_bear_htf[2], gap_bear_htf[2], hammer_bear_htf[2], three_bear_htf[2],
+                             bull_close_above_htf[2], bear_close_below_htf[2], bull_sweep_htf[2], bear_sweep_htf[2])
+    
+    for i = 0 to 15
+        if array.get(prior_checks, i)
+            array.push(prior_patterns, i)
+    
+    if array.size(prior_patterns) > 0
+        for i = 0 to array.size(prior_patterns) - 1
+            prior_pattern_key += (i > 0 ? "+" : "") + str.tostring(array.get(prior_patterns, i))
+    
+    // 3. Find sequence success rate
+    sequence_key = prior_pattern_key != "" and recent_pattern_key != "" ? prior_pattern_key + "-" + recent_pattern_key : ""
+    sequence_success_rate = 0.0
+    sequence_occurrences = 0
+    
+    if sequence_key != ""
+        for i = 0 to array.size(sequence_keys) - 1
+            if array.get(sequence_keys, i) == sequence_key
+                signals_count = array.get(sequence_signals, i)
+                high_count = array.get(sequence_high_hit, i)
+                low_count = array.get(sequence_low_hit, i)
+                both_count = array.get(sequence_both_hit, i)
+                neither_count = array.get(sequence_neither_hit, i)
+                // Count as success if ANY outcome occurred (not neither)
+                success_count = signals_count - neither_count
+                sequence_occurrences := signals_count
+                // Count as success if ANY outcome occurred (not neither)
+                total_success = signals_count - neither_count
+                sequence_success_rate := signals_count > 0 ? (total_success / signals_count) * 100 : 0
+                break
+    
+    // 4. Target hit status
+    is_bull = false
+    if array.size(recent_patterns) > 0
+        for i = 0 to array.size(recent_patterns) - 1
+            pattern_num = array.get(recent_patterns, i)
+            if pattern_num < 6 or pattern_num == 12 or pattern_num == 14
+                is_bull := true
+                break
+    
+    target_hit = is_bull ? htf_high_data > htf_high_prev : htf_low_data < htf_low_prev
+    target_distance = is_bull ? (htf_high_data - htf_high_prev) / syminfo.mintick : (htf_low_prev - htf_low_data) / syminfo.mintick
+    
+    [recent_pattern_key, sequence_key, sequence_success_rate, sequence_occurrences, target_hit, target_distance]
+
+// Enhanced Markov Prediction with 2nd Order and Bayesian
+getEnhancedMarkovPrediction() =>
+    predicted_pattern = -1
+    prediction_confidence = 0.0
+    prediction_method = ""
+    
+    if use_markov_enhancement and array.size(pattern_sequence) >= 1
+        current_pattern_key = array.get(pattern_sequence, array.size(pattern_sequence) - 1)
+        
+        // Try 2nd Order Markov first (more accurate)
+        if array.size(pattern_sequence) >= 2
+            prev_pattern_key = array.get(pattern_sequence, array.size(pattern_sequence) - 2)
+            search_prefix = prev_pattern_key + "-" + current_pattern_key + "-"
+            
+            best_count_2nd = 0
+            total_following_2nd = 0
+            
+            for i = 0 to array.size(markov2_keys) - 1
+                markov2_key = array.get(markov2_keys, i)
+                if str.startswith(markov2_key, search_prefix)
+                    count = array.get(markov2_signals, i)
+                    success_rate = count > 0 ? 50.0 : 0  // Placeholder since markov2_success tracking removed
+                    
+                    // Weight by success rate
+                    weighted_count = int(count * (success_rate / 100))
+                    total_following_2nd += weighted_count
+                    
+                    if weighted_count > best_count_2nd
+                        best_count_2nd := weighted_count
+                        // Extract predicted pattern
+                        parts = str.split(markov2_key, "-")
+                        if array.size(parts) == 3
+                            third_key = array.get(parts, 2)
+                            third_parts = str.split(third_key, "+")
+                            if array.size(third_parts) > 0
+                                predicted_pattern := int(str.tonumber(array.get(third_parts, 0)))
+                                prediction_method := "2nd Order"
+            
+            if total_following_2nd > 0 and best_count_2nd > 0
+                base_conf = float(best_count_2nd) / float(total_following_2nd) * 100
+                
+                // Bayesian enhancement
+                if predicted_pattern >= 0 and predicted_pattern < 16
+                    bayesian_prob = array.get(pattern_posteriors, predicted_pattern) * 100
+                    base_conf := (base_conf + bayesian_prob) / 2
+                
+                regime_mult = current_regime == 1 ? 1.3 : current_regime == 0 ? 1.0 : 0.7
+                prediction_confidence := math.min(base_conf * regime_mult, 95.0)
+        
+        // Fallback to 1st Order if 2nd Order insufficient
+        if prediction_confidence < 30.0
+            best_count_1st = 0
+            total_following_1st = 0
+            
+            for i = 0 to array.size(sequence_keys) - 1
+                seq_key = array.get(sequence_keys, i)
+                seq_parts = str.split(seq_key, "-")
+                if array.size(seq_parts) == 2
+                    first_key = array.get(seq_parts, 0)
+                    second_key = array.get(seq_parts, 1)
+                    
+                    if first_key == current_pattern_key
+                        count = array.get(sequence_signals, i)
+                        success_rate = count > 0 ? ((array.get(sequence_high_hit, i) + array.get(sequence_low_hit, i) + array.get(sequence_both_hit, i)) / count) * 100 : 0
+                        weighted_count = int(count * (success_rate / 100))
+                        total_following_1st += weighted_count
+                        
+                        if weighted_count > best_count_1st
+                            best_count_1st := weighted_count
+                            second_parts = str.split(second_key, "+")
+                            if array.size(second_parts) > 0
+                                predicted_pattern := int(str.tonumber(array.get(second_parts, 0)))
+                                prediction_method := "1st Order"
+            
+            if total_following_1st > 0 and best_count_1st > 0
+                base_conf = float(best_count_1st) / float(total_following_1st) * 100
+                
+                if predicted_pattern >= 0 and predicted_pattern < 16
+                    bayesian_prob = array.get(pattern_posteriors, predicted_pattern) * 100
+                    base_conf := (base_conf + bayesian_prob) / 2
+                
+                regime_mult = current_regime == 1 ? 1.2 : current_regime == 0 ? 1.0 : 0.8
+                prediction_confidence := math.min(base_conf * regime_mult, 90.0)
+    
+    [predicted_pattern, prediction_confidence, prediction_method]
+
+// Enhanced Probability Calculation Function
+getEnhancedProbability(base_rate, pattern_index) =>
+    if not use_markov_enhancement or base_rate == 0
+        base_rate
+    else
+        // Get current sequence rate if available
+        current_sequence = array.size(pattern_sequence) >= 2 ? str.tostring(array.get(pattern_sequence, array.size(pattern_sequence) - 2)) + "-" + str.tostring(array.get(pattern_sequence, array.size(pattern_sequence) - 1)) : ""
+        [seq_high, seq_low, seq_both, seq_neither, seq_count] = getSequenceOutcomes(current_sequence)
+        sequence_rate = seq_high + seq_low  // Combined success rate for compatibility
+        
+        // Use sequence rate if we have enough data (>5 occurrences), otherwise use enhanced base rate
+        if sequence_rate > 0 and current_sequence != ""
+            sequence_signals_count = 0
+            for i = 0 to array.size(sequence_keys) - 1
+                if array.get(sequence_keys, i) == current_sequence
+                    sequence_signals_count := array.get(sequence_signals, i)
+                    break
+            
+            if sequence_signals_count >= 5
+                // Use actual sequence success rate with regime adjustment
+                regime_mult = array.size(regime_multipliers) > 0 ? array.get(regime_multipliers, 0) : 1.0
+                enhanced_rate = sequence_rate * math.min(math.max(regime_mult, 0.9), 1.1)
+                math.min(enhanced_rate, 95.0)
+        
+        // Fallback to original enhancement
+        sequence_mult = array.size(sequence_multipliers) > 0 ? array.get(sequence_multipliers, 0) : 1.0
+        regime_mult = array.size(regime_multipliers) > 0 ? array.get(regime_multipliers, 0) : 1.0
+        total_mult = math.min(math.max(sequence_mult * regime_mult, 0.8), 1.2)
+        enhanced_rate = base_rate * total_mult
+        math.min(enhanced_rate, 95.0)
+
+// Pattern names
+names = array.from("EBP-Bull", "Inside-Bull", "Engulf-Bull", "Gap-Bull", "Hammer-Bull", "3-Bar-Bull",
+                  "EBP-Bear", "Inside-Bear", "Engulf-Bear", "Gap-Bear", "Hammer-Bear", "3-Bar-Bear",
+                  "Close-Above", "Close-Below", "Bull-Sweep", "Bear-Sweep",
+                  "EBP+Inside", "EBP+Engulf", "EBP+Gap", "EBP+Hammer", "EBP+3Bar", "Inside+Engulf", "Inside+Gap", "Inside+Hammer", "Inside+3Bar", "Engulf+Gap",
+                  "Engulf+Hammer", "Engulf+3Bar", "Gap+Hammer", "Gap+3Bar", "Hammer+3Bar", "EBP-Bear+Inside-Bear", "EBP-Bear+Engulf-Bear", "EBP-Bear+Gap-Bear", "EBP-Bear+Hammer-Bear", "EBP-Bear+3Bar-Bear")
+
+// Unified Dynamic Table
+var table unified_table = na
+if barstate.islast
+    // Calculate total rows needed for unified table
+    total_rows = 1  // Header
+    
+    // Stats section rows
+    stats_rows = 0
+    if show_stats_section
+        pattern_enabled = array.from(show_ebp, show_inside, show_engulf, show_gap, show_hammer, show_three, true, true, true, true)
+        for i = 0 to 9
+            if array.get(pattern_enabled, i)
+                stats_rows += 1
+        stats_rows += 2  // Header + timeframe row
+        total_rows += stats_rows
+    
+    // Opportunity section rows
+    opp_rows = 0
+    if show_opportunity_section
+        opp_rows := 5  // Estimated
+        total_rows += opp_rows
+    
+    // Markov section rows
+    markov_rows = 0
+    if show_markov_section and use_markov_enhancement
+        markov_rows := 6
+        total_rows += markov_rows
+    
+    // Sequences section rows
+    seq_rows = 0
+    if show_sequences_section and use_markov_enhancement
+        seq_rows := math.min(array.size(sequence_keys), 10) + 1
+        total_rows += seq_rows
+    
+    // Dynamic combinations section rows
+    combo_rows = 0
+    if show_combinations_section
+        for i = 0 to array.size(full_combo_keys) - 1
+            total = array.get(full_combo_signals, i)
+            rate = total > 0 ? (array.get(full_combo_success, i) / total) * 100 : 0
+            if total >= min_occurrences and rate >= min_success_rate
+                combo_rows += 1
+        combo_rows += 1  // Header
+        total_rows += combo_rows
+    
+    // Create unified table
+    table_pos = switch table_position
+        "Left" => position.top_left
+        "Center" => position.top_center
+        => position.top_right
+    
+    unified_table := table.new(table_pos, 4, total_rows, bgcolor=stats_bg_color, border_width=1)
+    current_row = 0
+    
+    // Main header
+    table.cell(unified_table, 0, current_row, "📊 TRADING DASHBOARD", text_color=color.white, bgcolor=color.new(color.black, 5), text_size=size.normal)
+    table.cell(unified_table, 1, current_row, "", text_color=color.white, bgcolor=color.new(color.black, 5), text_size=size.normal)
+    table.cell(unified_table, 2, current_row, "", text_color=color.white, bgcolor=color.new(color.black, 5), text_size=size.normal)
+    table.cell(unified_table, 3, current_row, "", text_color=color.white, bgcolor=color.new(color.black, 5), text_size=size.normal)
+    current_row += 1
+    
+    universal_font_size = switch table_font_size
+        "Tiny" => size.tiny
+        "Small" => size.small
+        "Normal" => size.normal
+        "Large" => size.large
+        => size.small
+    
+    // STATS SECTION REMOVED - TOO CLUTTERED
+    if false  // Disabled
+        // Stats section header
+        table.cell(unified_table, 0, current_row, "📈 PATTERN STATISTICS", text_color=stats_text_color, bgcolor=stats_header_color, text_size=universal_font_size)
+        table.cell(unified_table, 1, current_row, "Bull %", text_color=stats_text_color, bgcolor=stats_header_color, text_size=universal_font_size)
+        table.cell(unified_table, 2, current_row, "Bear %", text_color=stats_text_color, bgcolor=stats_header_color, text_size=universal_font_size)
+        table.cell(unified_table, 3, current_row, "Total", text_color=stats_text_color, bgcolor=stats_header_color, text_size=universal_font_size)
+        current_row += 1
+        
+        pattern_enabled = array.from(show_ebp, show_inside, show_engulf, show_gap, show_hammer, show_three, true, true, true, true)
+        individual_names = array.from("EBP", "Inside", "Engulf", "Gap", "Hammer", "3-Bar", "Close-Above", "Close-Below", "Bull-Sweep", "Bear-Sweep")
+        
+        for i = 0 to 9
+            if array.get(pattern_enabled, i)
+                if i < 6
+                    bull_total = array.get(signals, i)
+                    bear_total = array.get(signals, i + 6)
+                    bull_rate = bull_total > 0 ? (array.get(success, i) / bull_total) * 100 : 0
+                    bear_rate = bear_total > 0 ? (array.get(success, i + 6) / bear_total) * 100 : 0
+                    
+                    enhanced_bull_rate = use_markov_enhancement and show_enhanced_probabilities ? getEnhancedProbability(bull_rate, i) : bull_rate
+                    enhanced_bear_rate = use_markov_enhancement and show_enhanced_probabilities ? getEnhancedProbability(bear_rate, i + 6) : bear_rate
+                    
+                    bull_display = show_enhanced_probabilities and use_markov_enhancement ? str.tostring(enhanced_bull_rate, "#.#") + "%" + (enhanced_bull_rate != bull_rate ? "*" : "") : str.tostring(bull_rate, "#.#") + "%"
+                    bear_display = show_enhanced_probabilities and use_markov_enhancement ? str.tostring(enhanced_bear_rate, "#.#") + "%" + (enhanced_bear_rate != bear_rate ? "*" : "") : str.tostring(bear_rate, "#.#") + "%"
+                    
+                    table.cell(unified_table, 0, current_row, array.get(individual_names, i), text_color=stats_text_color, text_size=universal_font_size)
+                    table.cell(unified_table, 1, current_row, bull_display, text_color=stats_bull_color, text_size=universal_font_size)
+                    table.cell(unified_table, 2, current_row, bear_display, text_color=stats_bear_color, text_size=universal_font_size)
+                    table.cell(unified_table, 3, current_row, str.tostring(bull_total + bear_total), text_color=stats_text_color, text_size=universal_font_size)
+                else
+                    pattern_index = i + 6
+                    pattern_total = array.get(signals, pattern_index)
+                    pattern_rate = pattern_total > 0 ? (array.get(success, pattern_index) / pattern_total) * 100 : 0
+                    enhanced_pattern_rate = use_markov_enhancement and show_enhanced_probabilities ? getEnhancedProbability(pattern_rate, pattern_index) : pattern_rate
+                    pattern_display = show_enhanced_probabilities and use_markov_enhancement ? str.tostring(enhanced_pattern_rate, "#.#") + "%" + (enhanced_pattern_rate != pattern_rate ? "*" : "") : str.tostring(pattern_rate, "#.#") + "%"
+                    
+                    table.cell(unified_table, 0, current_row, array.get(individual_names, i), text_color=stats_text_color, text_size=universal_font_size)
+                    if i == 6 or i == 8
+                        table.cell(unified_table, 1, current_row, pattern_display, text_color=stats_bull_color, text_size=universal_font_size)
+                        table.cell(unified_table, 2, current_row, "-", text_color=stats_text_color, text_size=universal_font_size)
+                    else
+                        table.cell(unified_table, 1, current_row, "-", text_color=stats_text_color, text_size=universal_font_size)
+                        table.cell(unified_table, 2, current_row, pattern_display, text_color=stats_bear_color, text_size=universal_font_size)
+                    table.cell(unified_table, 3, current_row, str.tostring(pattern_total), text_color=stats_text_color, text_size=universal_font_size)
+                current_row += 1
+        
+        table.cell(unified_table, 0, current_row, "Data: " + data_timeframe, text_color=stats_text_color, bgcolor=stats_timeframe_color, text_size=universal_font_size)
+        table.cell(unified_table, 1, current_row, "", text_color=stats_text_color, bgcolor=stats_timeframe_color, text_size=universal_font_size)
+        table.cell(unified_table, 2, current_row, "", text_color=stats_text_color, bgcolor=stats_timeframe_color, text_size=universal_font_size)
+        table.cell(unified_table, 3, current_row, "", text_color=stats_text_color, bgcolor=stats_timeframe_color, text_size=universal_font_size)
+        current_row += 1
+    // MARKOV SECTION REMOVED - TOO CLUTTERED  
+    if false  // Disabled
+        regime_name = switch current_regime
+            0 => "RANGING"
+            1 => "TRENDING"
+            2 => "TRANSITION"
+            => "UNKNOWN"
+        regime_color = current_regime == 0 ? color.orange : current_regime == 1 ? color.green : current_regime == 2 ? color.red : color.gray
+        
+        table.cell(unified_table, 0, current_row, "🤖 MARKOV STATUS", text_color=color.white, bgcolor=color.new(color.purple, 60), text_size=universal_font_size)
+        table.cell(unified_table, 1, current_row, "Regime", text_color=color.white, bgcolor=color.new(color.purple, 60), text_size=universal_font_size)
+        table.cell(unified_table, 2, current_row, "Confidence", text_color=color.white, bgcolor=color.new(color.purple, 60), text_size=universal_font_size)
+        table.cell(unified_table, 3, current_row, "Status", text_color=color.white, bgcolor=color.new(color.purple, 60), text_size=universal_font_size)
+        current_row += 1
+        
+        table.cell(unified_table, 0, current_row, "Current", text_color=stats_text_color, text_size=universal_font_size)
+        table.cell(unified_table, 1, current_row, regime_name, text_color=color.white, bgcolor=regime_color, text_size=universal_font_size)
+        current_row += 1
+        
+        // HMM STATE ROW
+        if use_hmm
+            hmm_state_color = current_hmm_state == 0 ? color.orange : current_hmm_state == 1 ? color.blue : current_hmm_state == 2 ? color.green : color.red
+            table.cell(unified_table, 0, current_row, "🤖 HMM STATE", text_color=color.white, bgcolor=color.new(color.purple, 60), text_size=universal_font_size)
+            table.cell(unified_table, 1, current_row, hmm_state_name, text_color=color.white, bgcolor=hmm_state_color, text_size=universal_font_size)
+            table.cell(unified_table, 2, current_row, str.tostring(hmm_confidence, "#.##"), text_color=color.white, text_size=universal_font_size)
+            table.cell(unified_table, 3, current_row, hmm_state_changed ? "🔄 CHANGED" : "➡️ STABLE", text_color=hmm_state_changed ? color.yellow : color.white, text_size=universal_font_size)
+        table.cell(unified_table, 2, current_row, str.tostring(regime_confidence, "#.##"), text_color=stats_text_color, text_size=universal_font_size)
+        table.cell(unified_table, 3, current_row, avoid_trading ? "⚠️ AVOID" : "✅ TRADE", text_color=color.white, bgcolor=avoid_trading ? color.red : color.green, text_size=universal_font_size)
+        current_row += 1
+    
+    // SEQUENCES SECTION REMOVED - TOO CLUTTERED
+    if false  // Disabled
+        table.cell(unified_table, 0, current_row, "🔄 SEQUENCES", text_color=color.white, bgcolor=color.new(color.purple, 50), text_size=universal_font_size)
+        table.cell(unified_table, 1, current_row, "Success %", text_color=color.white, bgcolor=color.new(color.purple, 50), text_size=universal_font_size)
+        table.cell(unified_table, 2, current_row, "Count", text_color=color.white, bgcolor=color.new(color.purple, 50), text_size=universal_font_size)
+        table.cell(unified_table, 3, current_row, "Status", text_color=color.white, bgcolor=color.new(color.purple, 50), text_size=universal_font_size)
+        current_row += 1
+        
+        // Filter and sort sequences by reliability
+        reliable_sequences = array.new<int>()
+        for i = 0 to array.size(sequence_keys) - 1
+            seq_signals = array.get(sequence_signals, i)
+            if seq_signals >= 10  // Minimum 10 occurrences for reliability
+                seq_key = array.get(sequence_keys, i)
+                // Exclude self-confirming sequences from display
+                if not (str.contains(seq_key, "12-12") or str.contains(seq_key, "13-13") or str.contains(seq_key, "14-14") or str.contains(seq_key, "15-15"))
+                    array.push(reliable_sequences, i)
+        
+        display_count = math.min(array.size(reliable_sequences), 5)
+        for idx = 0 to display_count - 1
+            i = array.get(reliable_sequences, idx)
+            seq_key = array.get(sequence_keys, i)
+            seq_signals = array.get(sequence_signals, i)
+            seq_high = array.get(sequence_high_hit, i)
+            seq_low = array.get(sequence_low_hit, i)
+            seq_both = array.get(sequence_both_hit, i)
+            seq_neither = array.get(sequence_neither_hit, i)
+            // Count as success if ANY outcome occurred (not neither)
+            seq_success = seq_signals - seq_neither
+            seq_rate = seq_signals > 0 ? math.min((seq_success / seq_signals) * 100, 100.0) : 0.0
+            
+            seq_parts = str.split(seq_key, "-")
+            if array.size(seq_parts) == 2
+                // Handle combination patterns in sequences
+                first_key = array.get(seq_parts, 0)
+                second_key = array.get(seq_parts, 1)
+                
+                // Convert first pattern (may be combination like "0+1")
+                first_pattern = ""
+                if str.contains(first_key, "+")
+                    first_parts = str.split(first_key, "+")
+                    for j = 0 to array.size(first_parts) - 1
+                        pattern_name = switch array.get(first_parts, j)
+                            "0" => "EBP-B"
+                            "1" => "Ins-B"
+                            "2" => "Eng-B"
+                            "3" => "Gap-B"
+                            "4" => "Ham-B"
+                            "5" => "3B-B"
+                            "6" => "EBP-b"
+                            "7" => "Ins-b"
+                            "8" => "Eng-b"
+                            "9" => "Gap-b"
+                            "10" => "Ham-b"
+                            "11" => "3B-b"
+                            "12" => "ClsA"
+                            "13" => "ClsB"
+                            "14" => "SwpB"
+                            "15" => "SwpB"
+                            => "?"
+                        first_pattern += (j > 0 ? "+" : "") + pattern_name
+                else
+                    first_pattern := switch first_key
+                        "0" => "EBP-Bull"
+                        "1" => "Inside-Bull"
+                        "2" => "Engulf-Bull"
+                        "3" => "Gap-Bull"
+                        "4" => "Hammer-Bull"
+                        "5" => "3Bar-Bull"
+                        "6" => "EBP-Bear"
+                        "7" => "Inside-Bear"
+                        "8" => "Engulf-Bear"
+                        "9" => "Gap-Bear"
+                        "10" => "Hammer-Bear"
+                        "11" => "3Bar-Bear"
+                        "12" => "Close-Above"
+                        "13" => "Close-Below"
+                        "14" => "Bull-Sweep"
+                        "15" => "Bear-Sweep"
+                        => "?"
+                
+                // Convert second pattern (may be combination)
+                second_pattern = ""
+                if str.contains(second_key, "+")
+                    second_parts = str.split(second_key, "+")
+                    for j = 0 to array.size(second_parts) - 1
+                        pattern_name = switch array.get(second_parts, j)
+                            "0" => "EBP-B"
+                            "1" => "Ins-B"
+                            "2" => "Eng-B"
+                            "3" => "Gap-B"
+                            "4" => "Ham-B"
+                            "5" => "3B-B"
+                            "6" => "EBP-b"
+                            "7" => "Ins-b"
+                            "8" => "Eng-b"
+                            "9" => "Gap-b"
+                            "10" => "Ham-b"
+                            "11" => "3B-b"
+                            "12" => "ClsA"
+                            "13" => "ClsB"
+                            "14" => "SwpB"
+                            "15" => "SwpB"
+                            => "?"
+                        second_pattern += (j > 0 ? "+" : "") + pattern_name
+                else
+                    second_pattern := switch second_key
+                        "0" => "EBP-Bull"
+                        "1" => "Inside-Bull"
+                        "2" => "Engulf-Bull"
+                        "3" => "Gap-Bull"
+                        "4" => "Hammer-Bull"
+                        "5" => "3Bar-Bull"
+                        "6" => "EBP-Bear"
+                        "7" => "Inside-Bear"
+                        "8" => "Engulf-Bear"
+                        "9" => "Gap-Bear"
+                        "10" => "Hammer-Bear"
+                        "11" => "3Bar-Bear"
+                        "12" => "Close-Above"
+                        "13" => "Close-Below"
+                        "14" => "Bull-Sweep"
+                        "15" => "Bear-Sweep"
+                        => "?"
+                
+                readable_seq = first_pattern + "→" + second_pattern
+                status_text = seq_signals >= 5 ? "RELIABLE" : "LEARNING"
+                status_color = seq_signals >= 5 ? (seq_rate > 60 ? color.green : color.orange) : color.gray
+                
+                table.cell(unified_table, 0, current_row, readable_seq, text_color=color.white, text_size=universal_font_size)
+                table.cell(unified_table, 1, current_row, str.tostring(seq_rate, "#.#") + "%", text_color=seq_rate > 60 ? color.lime : color.orange, text_size=universal_font_size)
+                table.cell(unified_table, 2, current_row, str.tostring(seq_signals), text_color=color.white, text_size=universal_font_size)
+                table.cell(unified_table, 3, current_row, status_text, text_color=color.white, bgcolor=status_color, text_size=universal_font_size)
+                current_row += 1
+    
+    // COMBINATIONS SECTION REMOVED - TOO CLUTTERED
+    if false  // Disabled
+        table.cell(unified_table, 0, current_row, "🔗 ALL COMBINATIONS", text_color=stats_text_color, bgcolor=color.new(color.green, 50), text_size=universal_font_size)
+        table.cell(unified_table, 1, current_row, "Success %", text_color=stats_text_color, bgcolor=color.new(color.green, 50), text_size=universal_font_size)
+        table.cell(unified_table, 2, current_row, "Total", text_color=stats_text_color, bgcolor=color.new(color.green, 50), text_size=universal_font_size)
+        table.cell(unified_table, 3, current_row, "Patterns", text_color=stats_text_color, bgcolor=color.new(color.green, 50), text_size=universal_font_size)
+        current_row += 1
+        
+        for i = 0 to math.min(array.size(full_combo_keys) - 1, 20)
+            total = array.get(full_combo_signals, i)
+            success_count = math.min(array.get(full_combo_success, i), total)
+            rate = total > 0 ? (success_count / total) * 100 : 0
+            if total >= min_occurrences and rate >= min_success_rate
+                combo_key = array.get(full_combo_keys, i)
+                pattern_indices = str.split(combo_key, "+")
+                
+                // Convert numbers to names
+                readable_combo = ""
+                for j = 0 to array.size(pattern_indices) - 1
+                    pattern_num = str.tonumber(array.get(pattern_indices, j))
+                    pattern_name = switch pattern_num
+                        0 => "EBP-Bull"
+                        1 => "Inside-Bull"
+                        2 => "Engulf-Bull"
+                        3 => "Gap-Bull"
+                        4 => "Hammer-Bull"
+                        5 => "3Bar-Bull"
+                        6 => "EBP-Bear"
+                        7 => "Inside-Bear"
+                        8 => "Engulf-Bear"
+                        9 => "Gap-Bear"
+                        10 => "Hammer-Bear"
+                        11 => "3Bar-Bear"
+                        12 => "Close-Above"
+                        13 => "Close-Below"
+                        14 => "Bull-Sweep"
+                        15 => "Bear-Sweep"
+                        => "?"
+                    readable_combo += (j > 0 ? "+" : "") + pattern_name
+                
+                table.cell(unified_table, 0, current_row, readable_combo, text_color=stats_text_color, text_size=universal_font_size)
+                table.cell(unified_table, 1, current_row, str.tostring(rate, "#.#") + "% (" + str.tostring(success_count) + "/" + str.tostring(total) + ")", text_color=rate > 50 ? stats_bull_color : stats_bear_color, text_size=universal_font_size)
+                table.cell(unified_table, 2, current_row, str.tostring(total), text_color=stats_text_color, text_size=universal_font_size)
+                table.cell(unified_table, 3, current_row, str.tostring(array.size(pattern_indices)), text_color=stats_text_color, text_size=universal_font_size)
+                current_row += 1
+    
+    // OPPORTUNITY SECTION - Enhanced with Previous Day Analysis
+    if show_opportunity_section
+        // SIMPLIFIED TRADING DASHBOARD - 3 ROWS ONLY
+        table.cell(unified_table, 0, current_row, "🎯 TRADING DASHBOARD", text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.normal)
+        table.cell(unified_table, 1, current_row, "Signal", text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.normal)
+        table.cell(unified_table, 2, current_row, "Confidence", text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.normal)
+        table.cell(unified_table, 3, current_row, "Action", text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.normal)
+        current_row += 1
+        
+        // Simplified - no complex analysis needed
+        
+        // Simple bias calculation
+        biasScore = 0.0
+        biasLabel = "⏳ No Clear Bias"
+        
+        if ebp_bull_htf[1] or inside_bull_htf[1] or engulf_bull_htf[1] or hammer_bull_htf[1] or three_bull_htf[1] or bull_close_above_htf[1] or bull_sweep_htf[1]
+            biasScore := 75.0
+            biasLabel := "👍 BULLISH BIAS"
+        else if ebp_bear_htf[1] or inside_bear_htf[1] or engulf_bear_htf[1] or hammer_bear_htf[1] or three_bear_htf[1] or bear_close_below_htf[1] or bear_sweep_htf[1]
+            biasScore := -75.0
+            biasLabel := "👎 BEARISH BIAS"
+        
+        // Get current combination (from last 2-3 completed candles)
+        current_combo = ""
+        current_combo_rate = 0.0
+        current_combo_count = 0
+        
+        // Check last 3 COMPLETED bars for active patterns (excluding current bar)
+        active_combo_patterns = array.new<int>()
+        
+        // Check patterns from last 3 completed bars [1], [2], [3] - NOT current [0]
+        if ebp_bull_htf[1] or ebp_bull_htf[2] or ebp_bull_htf[3]
+            array.push(active_combo_patterns, 0)
+        if inside_bull_htf[1] or inside_bull_htf[2] or inside_bull_htf[3]
+            array.push(active_combo_patterns, 1)
+        if engulf_bull_htf[1] or engulf_bull_htf[2] or engulf_bull_htf[3]
+            array.push(active_combo_patterns, 2)
+        if gap_bull_htf[1] or gap_bull_htf[2] or gap_bull_htf[3]
+            array.push(active_combo_patterns, 3)
+        if hammer_bull_htf[1] or hammer_bull_htf[2] or hammer_bull_htf[3]
+            array.push(active_combo_patterns, 4)
+        if three_bull_htf[1] or three_bull_htf[2] or three_bull_htf[3]
+            array.push(active_combo_patterns, 5)
+        if ebp_bear_htf[1] or ebp_bear_htf[2] or ebp_bear_htf[3]
+            array.push(active_combo_patterns, 6)
+        if inside_bear_htf[1] or inside_bear_htf[2] or inside_bear_htf[3]
+            array.push(active_combo_patterns, 7)
+        if engulf_bear_htf[1] or engulf_bear_htf[2] or engulf_bear_htf[3]
+            array.push(active_combo_patterns, 8)
+        if gap_bear_htf[1] or gap_bear_htf[2] or gap_bear_htf[3]
+            array.push(active_combo_patterns, 9)
+        if hammer_bear_htf[1] or hammer_bear_htf[2] or hammer_bear_htf[3]
+            array.push(active_combo_patterns, 10)
+        if three_bear_htf[1] or three_bear_htf[2] or three_bear_htf[3]
+            array.push(active_combo_patterns, 11)
+        if bull_close_above_htf[1] or bull_close_above_htf[2] or bull_close_above_htf[3]
+            array.push(active_combo_patterns, 12)
+        if bear_close_below_htf[1] or bear_close_below_htf[2] or bear_close_below_htf[3]
+            array.push(active_combo_patterns, 13)
+        if bull_sweep_htf[1] or bull_sweep_htf[2] or bull_sweep_htf[3]
+            array.push(active_combo_patterns, 14)
+        if bear_sweep_htf[1] or bear_sweep_htf[2] or bear_sweep_htf[3]
+            array.push(active_combo_patterns, 15)
+        
+        if array.size(active_combo_patterns) > 1
+            combo_key = ""
+            for i = 0 to array.size(active_combo_patterns) - 1
+                combo_key += (i > 0 ? "+" : "") + str.tostring(array.get(active_combo_patterns, i))
+            
+            // Find this combo in tracking arrays
+            for i = 0 to array.size(full_combo_keys) - 1
+                if array.get(full_combo_keys, i) == combo_key
+                    current_combo_count := array.get(full_combo_signals, i)
+                    combo_success_count = math.min(array.get(full_combo_success, i), current_combo_count)
+                    current_combo_rate := current_combo_count > 0 ? (combo_success_count / current_combo_count) * 100 : 0
+                    
+                    // Convert to readable names
+                    pattern_indices = str.split(combo_key, "+")
+                    for j = 0 to array.size(pattern_indices) - 1
+                        pattern_num = str.tonumber(array.get(pattern_indices, j))
+                        pattern_name = switch pattern_num
+                            0 => "EBP-Bull"
+                            1 => "Inside-Bull"
+                            2 => "Engulf-Bull"
+                            3 => "Gap-Bull"
+                            4 => "Hammer-Bull"
+                            5 => "3Bar-Bull"
+                            6 => "EBP-Bear"
+                            7 => "Inside-Bear"
+                            8 => "Engulf-Bear"
+                            9 => "Gap-Bear"
+                            10 => "Hammer-Bear"
+                            11 => "3Bar-Bear"
+                            12 => "Close-Above"
+                            13 => "Close-Below"
+                            14 => "Bull-Sweep"
+                            15 => "Bear-Sweep"
+                            => "?"
+                        current_combo += (j > 0 ? "+" : "") + pattern_name
+                    break
+        
+        // 1. Most Recent Closed Candle - Debug HTF patterns
+        debug_patterns = ""
+        if ebp_bull_htf[1]
+            debug_patterns += "EBP-Bull+"
+        if inside_bull_htf[1]
+            debug_patterns += "Inside-Bull+"
+        if engulf_bull_htf[1]
+            debug_patterns += "Engulf-Bull+"
+        if gap_bull_htf[1]
+            debug_patterns += "Gap-Bull+"
+        if hammer_bull_htf[1]
+            debug_patterns += "Hammer-Bull+"
+        if three_bull_htf[1]
+            debug_patterns += "3Bar-Bull+"
+        if ebp_bear_htf[1]
+            debug_patterns += "EBP-Bear+"
+        if inside_bear_htf[1]
+            debug_patterns += "Inside-Bear+"
+        if engulf_bear_htf[1]
+            debug_patterns += "Engulf-Bear+"
+        if gap_bear_htf[1]
+            debug_patterns += "Gap-Bear+"
+        if hammer_bear_htf[1]
+            debug_patterns += "Hammer-Bear+"
+        if three_bear_htf[1]
+            debug_patterns += "3Bar-Bear+"
+        if bull_close_above_htf[1]
+            debug_patterns += "Close-Above+"
+        if bear_close_below_htf[1]
+            debug_patterns += "Close-Below+"
+        if bull_sweep_htf[1]
+            debug_patterns += "Bull-Sweep+"
+        if bear_sweep_htf[1]
+            debug_patterns += "Bear-Sweep+"
+        
+        debug_text = debug_patterns != "" ? str.substring(debug_patterns, 0, str.length(debug_patterns) - 1) : "NO PATTERNS"
+        
+        // ENHANCED TRADE DECISION ANALYSIS
+        trade_decision = "NO TRADE"
+        target_direction = ""
+        confidence_level = 0.0
+        
+        // Simple trade decision based on recent patterns
+        if ebp_bull_htf[1] or inside_bull_htf[1] or engulf_bull_htf[1] or hammer_bull_htf[1] or three_bull_htf[1] or bull_close_above_htf[1] or bull_sweep_htf[1]
+            trade_decision := "TRADE BULLISH"
+            target_direction := "🎯 HIGH"
+            confidence_level := 65.0
+        else if ebp_bear_htf[1] or inside_bear_htf[1] or engulf_bear_htf[1] or hammer_bear_htf[1] or three_bear_htf[1] or bear_close_below_htf[1] or bear_sweep_htf[1]
+            trade_decision := "TRADE BEARISH"
+            target_direction := "🎯 LOW"
+            confidence_level := 65.0
+        
+        decision_color = trade_decision == "TRADE BULLISH" ? opp_success_color : trade_decision == "TRADE BEARISH" ? opp_fail_color : trade_decision == "TRADE BOTH" ? color.yellow : color.gray
+        
+        table.cell(unified_table, 0, current_row, "📊 " + trade_decision + " " + target_direction, text_color=decision_color, text_size=universal_font_size)
+        // Get recent patterns for stats lookup
+        recent_patterns_for_stats = array.new<int>()
+        if ebp_bull_htf[1]
+            array.push(recent_patterns_for_stats, 0)
+        if inside_bull_htf[1]
+            array.push(recent_patterns_for_stats, 1)
+        if engulf_bull_htf[1]
+            array.push(recent_patterns_for_stats, 2)
+        if gap_bull_htf[1]
+            array.push(recent_patterns_for_stats, 3)
+        if hammer_bull_htf[1]
+            array.push(recent_patterns_for_stats, 4)
+        if three_bull_htf[1]
+            array.push(recent_patterns_for_stats, 5)
+        if ebp_bear_htf[1]
+            array.push(recent_patterns_for_stats, 6)
+        if inside_bear_htf[1]
+            array.push(recent_patterns_for_stats, 7)
+        if engulf_bear_htf[1]
+            array.push(recent_patterns_for_stats, 8)
+        if gap_bear_htf[1]
+            array.push(recent_patterns_for_stats, 9)
+        if hammer_bear_htf[1]
+            array.push(recent_patterns_for_stats, 10)
+        if three_bear_htf[1]
+            array.push(recent_patterns_for_stats, 11)
+        if bull_close_above_htf[1]
+            array.push(recent_patterns_for_stats, 12)
+        if bear_close_below_htf[1]
+            array.push(recent_patterns_for_stats, 13)
+        if bull_sweep_htf[1]
+            array.push(recent_patterns_for_stats, 14)
+        if bear_sweep_htf[1]
+            array.push(recent_patterns_for_stats, 15)
+        
+        // Use EXACT same enhanced stats as top table
+        if array.size(recent_patterns_for_stats) >= 1
+            pattern_idx = array.get(recent_patterns_for_stats, 0)
+            total = array.get(signals, pattern_idx)
+            success_count = array.get(success, pattern_idx)
+            base_rate = total > 0 ? (success_count / total) * 100 : 0
+            
+            // Apply same enhancement as stats table
+            display_rate = use_markov_enhancement and show_enhanced_probabilities ? getEnhancedProbability(base_rate, pattern_idx) : base_rate
+            rate_suffix = (use_markov_enhancement and show_enhanced_probabilities and display_rate != base_rate) ? "*" : ""
+            
+            table.cell(unified_table, 1, current_row, confidence_level > 0 ? str.tostring(confidence_level, "#.#") + "% Confidence" : "NEW", text_color=confidence_level > 60 ? opp_success_color : confidence_level > 40 ? opp_pending_color : opp_fail_color, text_size=universal_font_size)
+        else
+            table.cell(unified_table, 1, current_row, "NEW", text_color=color.yellow, text_size=universal_font_size)
+        table.cell(unified_table, 2, current_row, array.size(recent_patterns_for_stats) >= 1 ? str.tostring(array.get(signals, array.get(recent_patterns_for_stats, 0))) : "0", text_color=opp_text_color, text_size=universal_font_size)
+        // Check target hit directly
+        direct_target_hit = false
+        direct_target_distance = 0.0
+        if array.size(recent_patterns_for_stats) > 0
+            first_pattern = array.get(recent_patterns_for_stats, 0)
+            is_bull_direct = first_pattern < 6 or first_pattern == 12 or first_pattern == 14
+            direct_target_hit := is_bull_direct ? htf_high_data > htf_high_prev : htf_low_data < htf_low_prev
+            direct_target_distance := is_bull_direct ? (htf_high_data - htf_high_prev) / syminfo.mintick : (htf_low_prev - htf_low_data) / syminfo.mintick
+        
+        table.cell(unified_table, 3, current_row, direct_target_hit ? "✅ HIT (" + str.tostring(math.abs(direct_target_distance), "#.#") + ")" : "⏳ PENDING", text_color=direct_target_hit ? opp_success_color : opp_pending_color, text_size=universal_font_size)
+        current_row += 1
+        
+        // Removed complex sequence analysis
+        
+        // Removed sequence key generation
+        
+        // Removed massive sequence lookup and display logic
+        
+        // Removed complex Bayesian confidence calculation
+        
+        // Removed prediction and Bayesian rows
+        
+        // BIAS SCORE ROW
+        table.cell(unified_table, 0, current_row, "🎯 BIAS SCORE", text_color=color.white, bgcolor=color.new(color.blue, 40), text_size=universal_font_size)
+        table.cell(unified_table, 1, current_row, biasLabel, text_color=color.white, text_size=universal_font_size)
+        table.cell(unified_table, 2, current_row, str.tostring(biasScore, "#.#") + "/100", text_color=color.yellow, text_size=universal_font_size)
+        table.cell(unified_table, 3, current_row, "🧠 Pattern+Markov+Regime", text_color=color.white, text_size=universal_font_size)
+        current_row += 1
+        
+        // TIME FILTERING AND EXECUTION LOGIC
+        // Time filtering (e.g., 7:00–11:30 London, 13:30–17:00 NY in UTC)
+        t = time(timeframe.period, "0000-2359")
+        hour = hour(t)
+        minute = minute(t)
+        inLondonSession = (hour >= 7 and hour < 12)
+        inNYSession = (hour >= 13 and hour <= 17)
+        
+        // Midnight Open logic (optional) - moved outside conditional
+        pullback_into_midnight = (low < htf_open_data and high > htf_open_data)
+        
+        // Final Execution Trigger Conditions
+        execution_ready = biasScore >= 70 and
+                          current_regime != 2 and
+                          (inLondonSession or inNYSession) and
+                          pullback_into_midnight and
+                          barstate.isconfirmed
+        
+        if execution_ready
+            label.new(bar_index, low, "🚀 Execute Bias ➝ " + biasLabel, style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)
+        
+        // Python Server Status Row
+        if use_python_server
+            server_status = "🔗 WEBHOOK MODE"
+            server_color = color.blue
+            table.cell(unified_table, 0, current_row, "🐍 PYTHON SERVER", text_color=color.white, bgcolor=color.new(color.purple, 40), text_size=universal_font_size)
+            table.cell(unified_table, 1, current_row, server_status, text_color=color.white, bgcolor=server_color, text_size=universal_font_size)
+            table.cell(unified_table, 2, current_row, "localhost:80", text_color=color.white, text_size=universal_font_size)
+            table.cell(unified_table, 3, current_row, "Check alerts for data", text_color=color.white, text_size=universal_font_size)
+            current_row += 1
+        
+        // Add 1M Entry Signal to Trading Prep Table
+        if use_1m_signals and entry_signal_active
+            table.cell(unified_table, 0, current_row, "⚡ 1M SIGNAL: " + current_entry_signal, text_color=color.white, bgcolor=str.contains(current_entry_signal, "LONG") ? color.green : color.red, text_size=universal_font_size)
+            table.cell(unified_table, 1, current_row, str.tostring(entry_confidence, "#.##") + " conf", text_color=color.white, text_size=universal_font_size)
+            table.cell(unified_table, 2, current_row, "R:R " + str.tostring(risk_reward_ratio, "#.#"), text_color=color.white, text_size=universal_font_size)
+            table.cell(unified_table, 3, current_row, entry_confidence >= 0.8 ? "🚀 HIGH" : entry_confidence >= 0.65 ? "⚡ MED" : "⚠️ LOW", text_color=color.white, text_size=universal_font_size)
+            current_row += 1
+
+        
+        // Remove combination display - keep only individual pattern stats like top table
+
+// Color candles - only show when on selected data timeframe
+any_bull = ebp_bull or inside_bull or engulf_bull or gap_bull or hammer_bull or three_bull or bull_close_above or bull_sweep
+any_bear = ebp_bear or inside_bear or engulf_bear or gap_bear or hammer_bear or three_bear or bear_close_below or bear_sweep
+
+// Enhanced candle coloring with regime awareness
+candle_color := na
+if show_candle_coloring and show_current_tf_signals
+    if use_markov_enhancement and avoid_trading
+        candle_color := color.gray  // Gray for avoid trading periods
+    else if any_bull
+        candle_color := use_markov_enhancement ? (current_regime == 1 ? color.lime : current_regime == 0 ? color.green : color.olive) : color.green
+    else if any_bear
+        candle_color := use_markov_enhancement ? (current_regime == 1 ? color.fuchsia : current_regime == 0 ? color.red : color.maroon) : color.red
+
+barcolor(candle_color)
+
+// Success/fail markers - only on selected data timeframe
+bull_pattern_prev = ebp_bull[1] or inside_bull[1] or engulf_bull[1] or gap_bull[1] or hammer_bull[1] or three_bull[1] or bull_close_above[1] or bull_sweep[1]
+bear_pattern_prev = ebp_bear[1] or inside_bear[1] or engulf_bear[1] or gap_bear[1] or hammer_bear[1] or three_bear[1] or bear_close_below[1] or bear_sweep[1]
+
+bull_success_mark = show_success_markers and show_current_tf_signals and bull_pattern_prev and high > high[1] and barstate.isconfirmed
+bull_fail_mark = show_success_markers and show_current_tf_signals and bull_pattern_prev and high <= high[1] and barstate.isconfirmed
+bear_success_mark = show_success_markers and show_current_tf_signals and bear_pattern_prev and low < low[1] and barstate.isconfirmed
+bear_fail_mark = show_success_markers and show_current_tf_signals and bear_pattern_prev and low >= low[1] and barstate.isconfirmed
+
+// Offset markers to avoid overlap with labels - only show on allowed timeframes
+plotshape(bull_success_mark and show_current_tf_signals, "Bull Success", shape.triangleup, location.belowbar, color.lime, size=size.tiny, offset=-1)
+plotshape(bull_fail_mark and show_current_tf_signals, "Bull Fail", shape.xcross, location.belowbar, color.orange, size=size.tiny, offset=-1)
+plotshape(bear_success_mark and show_current_tf_signals, "Bear Success", shape.triangledown, location.abovebar, color.lime, size=size.tiny, offset=-1)
+plotshape(bear_fail_mark and show_current_tf_signals, "Bear Fail", shape.xcross, location.abovebar, color.orange, size=size.tiny, offset=-1)
+
+// Pattern labels - only show when on selected data timeframe and bar is confirmed
+if show_pattern_labels and show_current_tf_signals and barstate.isconfirmed
+    bull_label_text = ""
+    bear_label_text = ""
+    
+    if ebp_bull
+        bull_label_text += "EBP\n"
+    if inside_bull
+        bull_label_text += "Inside\n"
+    if engulf_bull
+        bull_label_text += "Engulf\n"
+    if gap_bull
+        bull_label_text += "Gap\n"
+    if hammer_bull
+        bull_label_text += "Hammer\n"
+    if three_bull
+        bull_label_text += "3-Bar\n"
+    if bull_close_above
+        bull_label_text += "Close-Above\n"
+    if bull_sweep
+        bull_label_text += "Bull-Sweep\n"
+    
+    if str.length(bull_label_text) > 0
+        bull_label_text := str.substring(bull_label_text, 0, str.length(bull_label_text) - 1)
+        label.new(bar_index, low * 0.9999, bull_label_text, style=label.style_label_up, color=bull_label_bg, textcolor=label_text_color, size=size.small)
+    
+    if ebp_bear
+        bear_label_text += "EBP\n"
+    if inside_bear
+        bear_label_text += "Inside\n"
+    if engulf_bear
+        bear_label_text += "Engulf\n"
+    if gap_bear
+        bear_label_text += "Gap\n"
+    if hammer_bear
+        bear_label_text += "Shoot\n"
+    if three_bear
+        bear_label_text += "3-Bar\n"
+    if bear_close_below
+        bear_label_text += "Close-Below\n"
+    if bear_sweep
+        bear_label_text += "Bear-Sweep\n"
+    
+    if str.length(bear_label_text) > 0
+        bear_label_text := str.substring(bear_label_text, 0, str.length(bear_label_text) - 1)
+        label.new(bar_index, high * 1.0001, bear_label_text, style=label.style_label_down, color=bear_label_bg, textcolor=label_text_color, size=size.small)
+
+// Markov Chain Alerts and Visualizations
+if use_markov_enhancement
+    // Regime change alerts removed - clean chart
+    
+    // High confidence pattern alerts
+    if show_pattern_labels and show_current_tf_signals and barstate.isconfirmed
+        if any_bull or any_bear
+            seq_mult = array.size(sequence_multipliers) > 0 ? array.get(sequence_multipliers, 0) : 1.0
+            reg_mult = array.size(regime_multipliers) > 0 ? array.get(regime_multipliers, 0) : 1.0
+            pattern_confidence = seq_mult * reg_mult
+            if pattern_confidence > 1.3  // High confidence threshold
+                confidence_text = "HIGH CONF: " + str.tostring(pattern_confidence, "#.##") + "x"
+                label.new(bar_index, low * 0.998, confidence_text, color=color.yellow, textcolor=color.black, style=label.style_label_up, size=size.tiny)
+
+// Current timeframe combinations for visual signals - removed duplicates
+
+// Plot regime score for debugging (optional)
+// plot(use_markov_enhancement ? regime_score : na, title="Regime Score", color=color.blue, display=display.none)
+// plot(use_markov_enhancement ? regime_score : na, title="Regime Score", color=color.blue, display=display.none)

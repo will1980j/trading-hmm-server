@@ -1,0 +1,10 @@
+// Add this FVG detection code to your macro file:
+
+// FVG Detection during macro periods
+for i = 0 to array.size(macros) - 1
+    macro = array.get(macros, i)
+    if not na(macro.start_time) and time > macro.start_time and bar_index <= macro.end_bar
+        if low > high[2]  // Bullish FVG
+            box.new(bar_index - 2, high[2], bar_index, low, bgcolor=color.new(color.green, 80), border_color=color.green)
+        if high < low[2]  // Bearish FVG
+            box.new(bar_index - 2, low[2], bar_index, high, bgcolor=color.new(color.red, 80), border_color=color.red)

@@ -1,0 +1,5 @@
+// Change this:
+if macro.enabled and is_time(macro.hour, macro.minute)
+
+// To this:
+if macro.enabled and is_time(macro.hour, macro.minute, timezone_offset)

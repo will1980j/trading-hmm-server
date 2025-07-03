@@ -1,0 +1,32 @@
+//@version=5
+indicator('WJ MACRO', overlay = true, max_lines_count = 500, max_labels_count = 100, max_bars_back=5000)
+
+// Set max_bars_back for important series
+max_bars_back(time, 5000)
+max_bars_back(close, 5000)
+max_bars_back(open, 5000)
+
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+group_ln     = 'London Time Settings'
+lnSummerTime = input.bool(true , 'London Daylight Saving Time (DST)', group = group_ln, tooltip = 'London : Daylight Saving Time (DST)\n - DST Start : Last Sunday in March at 1:00 UTC\n - DST End   : Last Sunday in October at 1:00 UTC')
+
+// Time zone settings
+group_tz = 'Time Zone Settings'
+timezone_offset = input.int(0, 'Chart to NY Time Offset (hours)', minval=-12, maxval=12, group=group_tz, tooltip='Adjust if your macros appear at wrong times. Positive if your chart time is ahead of NY, negative if behind.')
+// Debug setting to help troubleshoot time issues
+show_debug = input.bool(false, 'Show Time Debug Info', group=group_tz)
+
+// === HTF Pivot Settings ===
+showHTFPivots = input.bool(false, "Show Higher Timeframe Pivots", group="HTF Pivots")
+htf = input.timeframe("15", "Higher Timeframe", options=["5", "15", "30", "45", "60", "120", "180", "240", "D"], group="HTF Pivots")
+lineWidth = input.int(1, "Line Width", minval=1, maxval=4, group="HTF Pivots")
+terminationType = input.string("Wicks", "Line Termination Type", options=["Wicks", "Body"], group="HTF Pivots")
+highLineColor = input.color(color.red, "High Pivot Color", group="HTF Pivots")
+lowLineColor = input.color(color.blue, "Low Pivot Color", group="HTF Pivots")
+showLabels = input.bool(false, "Show Liquidity Labels", group="HTF Pivots")
+
+// === Pivot Lines Settings ===
+showPivotLines = input.bool(false, "Show Pivot Lines during Macros", group="Pivot Lines")
+pivotLength = input.int(500, "Line Extension (bars)", group="Pivot Lines")

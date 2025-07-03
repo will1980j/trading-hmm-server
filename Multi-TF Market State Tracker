@@ -1,0 +1,28 @@
+{{ ... }}
+// Table creation - single line each
+var table stateTableTop = table.new(position=position.top_right, columns=3, rows=7, bgcolor=BG_COLOR, frame_width=2, frame_color=color.new(color.gray, 50), border_width=1)
+var table opportunityTable = table.new(position=position.middle_right, columns=3, rows=6, bgcolor=BG_COLOR, frame_width=2, frame_color=color.new(color.gray, 50), border_width=1)
+var table stateTable = table.new(position.top_right, columns=3, rows=17, bgcolor=BG_COLOR, frame_width=2, frame_color=color.new(color.gray, 50), border_width=1)
+{{ ... }}
+    // 1H-15M
+    h1_15m_signal = getOpportunityStrength(state1H, state15M)
+    if h1_15m_signal != ""
+        table.cell(stateTable, 0, 12, "1H-15M", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_center, text_size=size.normal)
+        table.cell(stateTable, 1, 12, h1_15m_signal, bgcolor=getOpportunityColor(h1_15m_signal), text_color=textColor, text_halign=text.align_center, text_size=size.normal)
+        table.cell(stateTable, 2, 12, getEntryPoint("1H-15M", str.contains(h1_15m_signal, "▲") ? "▲" : "▼"), bgcolor=getOpportunityColor(h1_15m_signal), text_color=textColor, text_halign=text.align_center, text_size=size.normal)
+
+    // Validation Information Headers
+    table.cell(stateTable, 0, 14, "━━━ STATE VALIDATION INFO ━━━", bgcolor=HEADER_BG, text_color=headerTextColor, text_halign=text.align_center, text_size=size.normal)
+    table.cell(stateTable, 1, 14, "", bgcolor=HEADER_BG, text_color=headerTextColor, text_halign=text.align_center, text_size=size.normal)
+    table.cell(stateTable, 2, 14, "", bgcolor=HEADER_BG, text_color=headerTextColor, text_halign=text.align_center, text_size=size.normal)
+
+    // ERL to IRL Validation Info
+    table.cell(stateTable, 0, 15, "ERL to IRL", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_center, text_size=size.normal)
+    table.cell(stateTable, 1, 15, "Timeframe can validate this state by candle closing above or below the high or low of the current range", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_center, text_size=size.normal)
+    table.cell(stateTable, 2, 15, "", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_center, text_size=size.normal)
+
+    // IRL to ERL Validation Info
+    table.cell(stateTable, 0, 16, "IRL to ERL", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_center, text_size=size.normal)
+    table.cell(stateTable, 1, 16, "Timeframe can validate this state by touching an FVG or IFVG within the current range", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_center, text_size=size.normal)
+    table.cell(stateTable, 2, 16, "", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_center, text_size=size.normal)
+{{ ... }}

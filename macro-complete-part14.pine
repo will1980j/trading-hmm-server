@@ -1,0 +1,41 @@
+        // End of macro period - add extending lines if enabled
+        else if bar_index == macro.end_bar
+            // Mark the end of the macro period for pivot tracking
+            if showPivotLines and macro.in_macro_period
+                macro.in_macro_period := false
+                
+            // Mark the end of HTF pivot tracking for this macro
+            if showHTFPivots and macro.htf_active
+                macro.htf_active := false
+            
+            // Add extending lines if enabled
+            if macro.show_ext
+                // Get the appropriate color based on macro type
+                color line_color = aColor
+                if macro.type == "manipulation"
+                    line_color := mColor
+                else if macro.type == "expansion"
+                    line_color := eColor
+                
+                if not na(macro.top_line) and macro.show_top
+                    if enableCustomColors
+                        line.new(macro.end_bar, macro.top_price, macro.end_bar + 50, macro.top_price, color=topLineColor, style=line.style_dotted)
+                    else
+                        line.new(macro.end_bar, macro.top_price, macro.end_bar + 50, macro.top_price, color=line_color, style=line.style_dotted)
+                
+                if not na(macro.bot_line) and macro.show_bot
+                    if enableCustomColors
+                        line.new(macro.end_bar, macro.bot_price, macro.end_bar + 50, macro.bot_price, color=botLineColor, style=line.style_dotted)
+                    else
+                        line.new(macro.end_bar, macro.bot_price, macro.end_bar + 50, macro.bot_price, color=line_color, style=line.style_dotted)
+                
+                if not na(macro.mid_line) and macro.show_mid
+                    if enableCustomColors
+                        line.new(macro.end_bar, macro.mid_price, macro.end_bar + 50, macro.mid_price, color=midLineColor, style=line.style_dotted)
+                    else
+                        line.new(macro.end_bar, macro.mid_price, macro.end_bar + 50, macro.mid_price, color=line_color, style=line.style_dotted)
+else
+    if barstate.islast
+        var table tf_note = table.new(position.bottom_right, 1, 1)
+        table.cell(tf_note, 0, 0, 'ICT Macros are supported on:\n 1 min, 3 mins and 5 mins charts\n\n', text_size=size.small, text_color=chart.fg_color)
+//-----------------------------------------------------------------------------}

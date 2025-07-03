@@ -1,0 +1,9 @@
+// End of macro period
+else if bar_index == macro.end_bar
+    // Mark the end of the macro period for pivot tracking
+    if showPivotLines and macro.in_macro_period
+        macro.in_macro_period := false
+        
+    // Mark the end of HTF pivot tracking for this macro
+    if showHTFPivots and macro.htf_active
+        macro.htf_active := false

@@ -1,0 +1,62 @@
+            // Determine macro type based on price action
+            var float prev_close = close[1]
+            var float prev_open = open[1]
+            
+            // Default to accumulation
+            macro.type := "accumulation"
+            
+            // Check for manipulation (strong directional move)
+            if math.abs(close - open) > math.abs(prev_close - prev_open) * 1.5
+                macro.type := "manipulation"
+            
+            // Check for expansion (increased volatility)
+            if high - low > (high[1] - low[1]) * 1.3
+                macro.type := "expansion"
+            
+            // Set colors based on macro type
+            color line_color = aColor
+            if macro.type == "manipulation"
+                line_color := mColor
+            else if macro.type == "expansion"
+                line_color := eColor
+                
+            // Use custom colors if enabled
+            if enableCustomColors
+                if macro.show_top
+                    macro.top_line := line.new(bar_index, macro.top_price, macro.end_bar, macro.top_price, color=topLineColor, width=2)
+                else
+                    macro.top_line := line.new(bar_index, macro.top_price, macro.end_bar, macro.top_price, color=line_color, width=2)
+                
+                if macro.show_bot
+                    macro.bot_line := line.new(bar_index, macro.bot_price, macro.end_bar, macro.bot_price, color=botLineColor, width=2)
+                else
+                    macro.bot_line := line.new(bar_index, macro.bot_price, macro.end_bar, macro.bot_price, color=line_color, width=2)
+                
+                if macro.show_mid
+                    macro.mid_line := line.new(bar_index, macro.mid_price, macro.end_bar, macro.mid_price, color=midLineColor, style=line.style_dotted)
+                else
+                    macro.mid_line := line.new(bar_index, macro.mid_price, macro.end_bar, macro.mid_price, color=line_color, style=line.style_dotted)
+            else
+                if macro.show_top
+                    macro.top_line := line.new(bar_index, macro.top_price, macro.end_bar, macro.top_price, color=line_color, width=2)
+                
+                if macro.show_bot
+                    macro.bot_line := line.new(bar_index, macro.bot_price, macro.end_bar, macro.bot_price, color=line_color, width=2)
+                
+                if macro.show_mid
+                    macro.mid_line := line.new(bar_index, macro.mid_price, macro.end_bar, macro.mid_price, color=line_color, style=line.style_dotted)
+            
+            if mcText != 'None'
+                string labelText = "MACRO\n" + macro.label_text
+                if showMacroType
+                    labelText := labelText + "\n" + macro.type
+                label.new(bar_index, macro.top_price, labelText, style=label.style_label_down, 
+                         color=color.new(color.black, 80), textcolor=color.white, size=mcSize)
+            
+            if macro.show_top and macro.show_bot
+                if enableCustomColors
+                    macro.fill := linefill.new(macro.top_line, macro.bot_line, color.new(bgColor, bgTransparency))
+                else
+                    macro.fill := linefill.new(macro.top_line, macro.bot_line, color.new(line_color, 90))
+            
+            array.set(macros, i, macro)

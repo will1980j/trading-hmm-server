@@ -1,0 +1,796 @@
+//@version=5
+indicator("SSV6 with ICT Macros", overlay=true, max_lines_count=500, max_boxes_count=500, max_labels_count=100, max_bars_back=5000)
+
+// Set max_bars_back for important series
+max_bars_back(time, 5000)
+max_bars_back(close, 5000)
+max_bars_back(open, 5000)
+
+// === Input Parameters ===
+pivotLength = input.int(500, "Line Extension (bars)")
+useBodyForTermination = input.bool(false, "Use Body for Line Termination")
+showFVG = input.bool(true, "Show FVGs")
+showOB = input.bool(true, "Show Order Blocks")
+filterFVGByPivots = input.bool(false, "Filter FVGs by Pivot Lines")
+showCE = input.bool(false, "Show CE Mid-line")
+
+// Macro Settings
+onlyPivotsInMacros = input.bool(true, 'Only Show Pivots in Macros', group='Pivot Settings')
+
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+group_ln     = 'London Time Settings'
+lnSummerTime = input.bool(true , 'London Daylight Saving Time (DST)', group = group_ln, tooltip = 'London : Daylight Saving Time (DST)\n - DST Start : Last Sunday in March at 1:00 UTC\n - DST End   : Last Sunday in October at 1:00 UTC')
+
+// Time zone settings
+group_tz = 'Time Zone Settings'
+timezone_offset = input.int(1, 'Chart to NY Time Offset (hours)', minval=-12, maxval=12, group=group_tz, tooltip='Adjust if your macros appear at wrong times. Positive if your chart time is ahead of NY, negative if behind.')
+// Debug setting to help troubleshoot time issues
+show_debug = input.bool(true, 'Show Time Debug Info', group=group_tz)
+
+group_m02 = 'London 02:33 AM 03:00 Macro'
+m02330300 = input.bool(false, '02:33 AM 03:00', group = group_m02)
+m02_top   = input.bool(true, 'Top Line', inline = 'mc02', group = group_m02)
+m02_mid   = input.bool(true, 'Mid Line', inline = 'mc02', group = group_m02)
+m02_bot   = input.bool(true, 'Bottom Line', inline = 'mc02', group = group_m02)
+m02_ext   = input.bool(true, 'Extending Lines', inline = 'mc02', group = group_m02)
+
+group_m04 = 'London 04:03 AM 04:30 Macro'
+m04030430 = input.bool(false, '04:03 AM 04:30', group = group_m04)
+m04_top   = input.bool(true, 'Top Line', inline = 'mc04', group = group_m04)
+m04_mid   = input.bool(true, 'Mid Line', inline = 'mc04', group = group_m04)
+m04_bot   = input.bool(true, 'Bottom Line', inline = 'mc04', group = group_m04)
+m04_ext   = input.bool(true, 'Extending Lines', inline = 'mc04', group = group_m04)
+
+group_ny     = 'New York Time Settings'
+// Auto-detect DST based on date
+is_ny_dst() =>
+    y = year(timenow)
+    // Second Sunday in March
+    dst_start_month = 3  // March
+    dst_start_day = 1    // Start from day 1
+    while dayofweek(timestamp(y, dst_start_month, dst_start_day)) != dayofweek.sunday or dst_start_day <= 7
+        dst_start_day += 1
+    dst_start_day += 7   // Second Sunday
+    
+    // First Sunday in November
+    dst_end_month = 11   // November
+    dst_end_day = 1      // Start from day 1
+    while dayofweek(timestamp(y, dst_end_month, dst_end_day)) != dayofweek.sunday
+        dst_end_day += 1
+    
+    dst_start = timestamp(y, dst_start_month, dst_start_day)
+    dst_end = timestamp(y, dst_end_month, dst_end_day)
+    
+    timenow >= dst_start and timenow < dst_end
+
+nySummerTime = is_ny_dst()
+
+group_m08 = 'New York 08:50 AM 09:10 Macro'
+m08500910 = input.bool(false, '08:50 AM 09:10', group = group_m08)
+m08_top   = input.bool(true, 'Top Line', inline = 'mc08', group = group_m08)
+m08_mid   = input.bool(true, 'Mid Line', inline = 'mc08', group = group_m08)
+m08_bot   = input.bool(true, 'Bottom Line', inline = 'mc08', group = group_m08)
+m08_ext   = input.bool(true, 'Extending Lines', inline = 'mc08', group = group_m08)
+
+group_m09 = 'New York 09:50 AM 10:10 Macro'
+m09501010 = input.bool(true , '09:50 AM 10:10', group = group_m09)
+m09_top   = input.bool(true, 'Top Line', inline = 'mc09', group = group_m09)
+m09_mid   = input.bool(true, 'Mid Line', inline = 'mc09', group = group_m09)
+m09_bot   = input.bool(true, 'Bottom Line', inline = 'mc09', group = group_m09)
+m09_ext   = input.bool(true, 'Extending Lines', inline = 'mc09', group = group_m09)
+
+group_m10 = 'New York 10:50 AM 11:10 Macro'
+m10501110 = input.bool(true , '10:50 AM 11:10', group = group_m10)
+m10_top   = input.bool(true, 'Top Line', inline = 'mc10', group = group_m10)
+m10_mid   = input.bool(true, 'Mid Line', inline = 'mc10', group = group_m10)
+m10_bot   = input.bool(true, 'Bottom Line', inline = 'mc10', group = group_m10)
+m10_ext   = input.bool(true, 'Extending Lines', inline = 'mc10', group = group_m10)
+
+group_m11 = 'New York 11:50 AM 12:10 Launch Macro'
+m11501210 = input.bool(false, '11:50 AM 12:10', group = group_m11)
+m11_top   = input.bool(true, 'Top Line', inline = 'mc11', group = group_m11)
+m11_mid   = input.bool(true, 'Mid Line', inline = 'mc11', group = group_m11)
+m11_bot   = input.bool(true, 'Bottom Line', inline = 'mc11', group = group_m11)
+m11_ext   = input.bool(true, 'Extending Lines', inline = 'mc11', group = group_m11)
+
+group_m13 = 'New York 13:10 PM 13:40 Macro'
+m13101340 = input.bool(true , '13:10 PM 13:40', group = group_m13)
+m13_top   = input.bool(true, 'Top Line', inline = 'mc13', group = group_m13)
+m13_mid   = input.bool(true, 'Mid Line', inline = 'mc13', group = group_m13)
+m13_bot   = input.bool(true, 'Bottom Line', inline = 'mc13', group = group_m13)
+m13_ext   = input.bool(true, 'Extending Lines', inline = 'mc13', group = group_m13)
+
+group_m15 = 'New York 15:15 PM 15:45 Macro'
+m15151545 = input.bool(true , '15:15 PM 15:45', group = group_m15)
+m15_top   = input.bool(true, 'Top Line', inline = 'mc15', group = group_m15)
+m15_mid   = input.bool(true, 'Mid Line', inline = 'mc15', group = group_m15)
+m15_bot   = input.bool(true, 'Bottom Line', inline = 'mc15', group = group_m15)
+m15_ext   = input.bool(true, 'Extending Lines', inline = 'mc15', group = group_m15)
+
+// Add these input groups for new hourly macros
+group_hourly = 'Hourly Macros'
+m1650_1710 = input.bool(true, '16:50-17:10', group = group_hourly)
+m1750_1810 = input.bool(true, '17:50-18:10', group = group_hourly)
+m1850_1910 = input.bool(true, '18:50-19:10', group = group_hourly)
+m1950_2010 = input.bool(true, '19:50-20:10', group = group_hourly)
+m2050_2110 = input.bool(true, '20:50-21:10', group = group_hourly)
+m2150_2210 = input.bool(true, '21:50-22:10', group = group_hourly)
+m2250_2310 = input.bool(true, '22:50-23:10', group = group_hourly)
+m2350_0010 = input.bool(true, '23:50-00:10', group = group_hourly)
+m0050_0110 = input.bool(true, '00:50-01:10', group = group_hourly)
+m0150_0210 = input.bool(true, '01:50-02:10', group = group_hourly)
+m0250_0310 = input.bool(true, '02:50-03:10', group = group_hourly)
+m0350_0410 = input.bool(true, '03:50-04:10', group = group_hourly)
+m0450_0510 = input.bool(true, '04:50-05:10', group = group_hourly)
+m0550_0610 = input.bool(true, '05:50-06:10', group = group_hourly)
+m0650_0710 = input.bool(true, '06:50-07:10', group = group_hourly)
+m0750_0810 = input.bool(true, '07:50-08:10', group = group_hourly)
+m0850_0910 = input.bool(true, '08:50-09:10', group = group_hourly)
+m0950_1010 = input.bool(true, '09:50-10:10', group = group_hourly)
+m1020_1040 = input.bool(true, '10:20-10:40', group = group_hourly)
+m1050_1110 = input.bool(true, '10:50-11:10', group = group_hourly)
+m1150_1210 = input.bool(true, '11:50-12:10', group = group_hourly)
+m1250_1310 = input.bool(true, '12:50-13:10', group = group_hourly)
+m1350_1410 = input.bool(true, '13:50-14:10', group = group_hourly)
+m1450_1510 = input.bool(true, '14:50-15:10', group = group_hourly)
+
+// Special macros
+group_special = 'Special Macros'
+m1515_1545 = input.bool(true, '15:15-15:45 Final Hour', group = group_special)
+m1545_1600 = input.bool(true, '15:45-16:00 MOC', group = group_special)
+
+group_c   = 'Macro Classification'
+pLen      = input.int(13, 'Length', minval = 5, maxval = 20, group = group_c)
+pLoc      = input.string('Body', 'Swing Area', options = ['Wick', 'Body'], group = group_c)
+
+aColor    = input.color(color.gray, 'Accumulation', group = group_c)
+mColor    = input.color(color.red , 'Manipulation', group = group_c)
+eColor    = input.color(color.blue, 'Expansion'   , group = group_c)
+
+group_bg = 'Background & Line Colors'
+enableCustomColors = input.bool(false, 'Enable Custom Colors', group = group_bg)
+bgTransparency = input.int(90, 'Background Transparency', minval = 0, maxval = 100, group = group_bg)
+topLineColor = input.color(color.green, 'Top Line Color', group = group_bg)
+botLineColor = input.color(color.red, 'Bottom Line Color', group = group_bg)
+midLineColor = input.color(color.yellow, 'Mid Line Color', group = group_bg)
+bgColor = input.color(color.blue, 'Background Color', group = group_bg)
+
+mcText    = input.string('Small', "Macro Texts", options=['Tiny', 'Small', 'Normal', 'None'])
+showMacroType = input.bool(true, "Show Macro Type (A/M/E)", group = group_c)
+
+mcSize = switch mcText
+    'Tiny'   => size.tiny
+    'Small'  => size.small
+    'Normal' => size.normal
+    => size.tiny
+
+mcAlert    = input.bool(true, 'Alert Macro Times in Advance (Minutes)', inline = 'alert', tooltip = 'Enabling the option will plot a vertical line for the next macro time prior to the specified minutes\n\nNote: for alert configuration if not on 1 min chart please use round numbers')
+mcAlertM   = input.int(30, '', minval = 5, maxval = 60, step = 5, inline = 'alert')
+
+// FVG settings
+bullFVGColor = input.color(color.green, "Bullish FVG Color", group="FVG Settings")
+bearFVGColor = input.color(color.red, "Bearish FVG Color", group="FVG Settings")
+fvgOpacity = input.int(70, "FVG Opacity", minval=0, maxval=100, group="FVG Settings")
+
+// OB settings
+bullOBColor = input.color(color.lime, "Bullish OB Color", group="OB Settings")
+bearOBColor = input.color(color.maroon, "Bearish OB Color", group="OB Settings")
+obOpacity = input.int(70, "OB Opacity", minval=0, maxval=100, group="OB Settings")
+
+// Inactive zones settings
+showInactiveZones = input.bool(true, "Show Inactive Zones", group="Inactive Zones")
+inactiveOpacity = input.int(95, "Inactive Zone Opacity", minval=0, maxval=100, group="Inactive Zones")
+
+fvgLookback = input.int(500, "Zone Extension Bars", minval=20, maxval=1000)
+
+// === Type Definitions ===
+type Zone
+    float price
+    int time
+    box visual
+    bool active
+    float topPrice    
+    float bottomPrice
+    bool isOB
+    line ceLine
+
+// === Variables ===
+var array<line> highLines = array.new<line>()
+var array<float> highPivots = array.new<float>()
+var array<int> highPivotTimes = array.new<int>()
+var array<bool> highPivotHasFVG = array.new<bool>()
+
+var array<line> lowLines = array.new<line>()
+var array<float> lowPivots = array.new<float>()
+var array<int> lowPivotTimes = array.new<int>()
+var array<bool> lowPivotHasFVG = array.new<bool>()
+
+var array<Zone> bullishZones = array.new<Zone>()
+var array<Zone> bearishZones = array.new<Zone>()
+var array<Zone> inactiveBullishZones = array.new<Zone>()
+var array<Zone> inactiveBearishZones = array.new<Zone>()
+
+// Track potential OB candles
+var float lastBearishCandleHigh = na
+var float lastBearishCandleLow = na
+var int lastBearishCandleIdx = na
+var float lastBullishCandleHigh = na
+var float lastBullishCandleLow = na
+var int lastBullishCandleIdx = na
+var int consecutiveBearishCount = 0
+var int consecutiveBullishCount = 0
+
+// State Management Enums
+BULL_ERL_TO_IRL = 1
+BULL_IRL_TO_ERL = 2
+BEAR_ERL_TO_IRL = 3
+BEAR_IRL_TO_ERL = 4
+
+// State Variables
+var int currentState = BULL_ERL_TO_IRL
+
+// Add these variables to track first pivots after breaks
+var bool waitingForBullPivot = false
+var bool waitingForBearPivot = false
+
+// Macro variables
+var bool macro_active = false
+tf_m = timeframe.multiplier
+
+// Macro structure
+type MacroData
+    int id
+    bool enabled
+    bool show_top
+    bool show_mid
+    bool show_bot
+    bool show_ext
+    int hour
+    int minute
+    string label_text
+    float top_price
+    float bot_price
+    float mid_price
+    int start_time
+    int end_bar
+    line top_line
+    line bot_line
+    line mid_line
+    linefill fill
+    string type
+
+// Create array of macro data
+var MacroData[] macros = array.new<MacroData>()
+
+// Initialize macros array
+if barstate.isfirst
+    array.push(macros, MacroData.new(0, m02330300, m02_top, m02_mid, m02_bot, m02_ext, 2, 33, '02:33 AM - 03:00', na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(1, m04030430, m04_top, m04_mid, m04_bot, m04_ext, 4, 3, '04:03 AM - 04:30', na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(2, m08500910, m08_top, m08_mid, m08_bot, m08_ext, 8, 50, '08:50 AM - 09:10', na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(3, m09501010, m09_top, m09_mid, m09_bot, m09_ext, 9, 50, '09:50 AM - 10:10', na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(4, m10501110, m10_top, m10_mid, m10_bot, m10_ext, 10, 50, '10:50 AM - 11:10', na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(5, m11501210, m11_top, m11_mid, m11_bot, m11_ext, 11, 50, '11:50 AM - 12:10', na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(6, m13101340, m13_top, m13_mid, m13_bot, m13_ext, 13, 10, '01:10 PM - 01:40', na, na, na, na, na, na, na, na, na, "accumulation"))
+    array.push(macros, MacroData.new(7, m15151545, m15_top, m15_mid, m15_bot, m15_ext, 15, 15, '03:15 PM - 03:45', na, na, na, na, na, na, na, na, na, "accumulation"))
+// === Functions ===
+createZone(float price, int time, float top, float bottom, bool isOB, color bullZoneColor, color bearZoneColor) =>
+    bool shouldShowZone = (showFVG and not isOB) or (showOB and isOB)
+    color zoneColor = price < close ? bullZoneColor : bearZoneColor
+    int zoneOpacity = isOB ? obOpacity : fvgOpacity
+    
+    box visual = shouldShowZone ? box.new(left=time, top=top, right=bar_index + fvgLookback, bottom=bottom, bgcolor=color.new(zoneColor, zoneOpacity), border_color=na) : na
+    line ceLine = showCE and shouldShowZone ? line.new(time, (top + bottom) / 2, bar_index + fvgLookback, (top + bottom) / 2, color=color.new(zoneColor, 0), width=1, style=line.style_dashed) : na
+    Zone.new(price, time, visual, true, top, bottom, isOB, ceLine)
+
+isBullishFVG(offset) =>
+    low[offset] > high[offset + 2]
+
+isBearishFVG(offset) =>
+    low[offset + 2] > high[offset]
+
+isPriceInZone(float top, float bottom) =>
+    (high > bottom and high < top) or (low > bottom and low < top) or (low < bottom and high > top)
+
+updateState(bool isHighBreak, bool isLowBreak, bool inBullZone, bool inBearZone, bool isConfirmed) =>
+    int newState = currentState
+    
+    if isConfirmed
+        if isHighBreak
+            newState := BULL_ERL_TO_IRL
+        if isLowBreak
+            newState := BEAR_ERL_TO_IRL
+    else
+        if inBullZone and currentState == BULL_ERL_TO_IRL
+            newState := BULL_IRL_TO_ERL
+        if inBearZone and currentState == BEAR_ERL_TO_IRL
+            newState := BEAR_IRL_TO_ERL
+    
+    newState
+
+// Function to find the first high pivot without an FVG
+findFirstHighPivotWithoutFVG() =>
+    int index = -1
+    if filterFVGByPivots and array.size(highPivotHasFVG) > 0
+        for i = 0 to array.size(highPivotHasFVG) - 1
+            if not array.get(highPivotHasFVG, i)
+                index := i
+                break
+    index
+
+// Function to find the first low pivot without an FVG
+findFirstLowPivotWithoutFVG() =>
+    int index = -1
+    if filterFVGByPivots and array.size(lowPivotHasFVG) > 0
+        for i = 0 to array.size(lowPivotHasFVG) - 1
+            if not array.get(lowPivotHasFVG, i)
+                index := i
+                break
+    index
+
+// Macro functions
+is_time(h, m) =>
+    adjusted_hour = (h + timezone_offset) % 24
+    hour == adjusted_hour and minute == m
+
+process_macros() =>
+    bool active = false
+    
+    if tf_m <= 5
+        for i = 0 to array.size(macros) - 1
+            macro = array.get(macros, i)
+            
+            if macro.enabled and is_time(macro.hour, macro.minute)
+                active := true
+                macro.top_price := high
+                macro.bot_price := low
+                macro.mid_price := math.avg(macro.top_price, macro.bot_price)
+                macro.start_time := time
+                
+                if timeframe.period == "1"
+                    macro.end_bar := bar_index + 20
+                else if timeframe.period == "3"
+                    macro.end_bar := bar_index + 7
+                else if timeframe.period == "5"
+                    macro.end_bar := bar_index + 4
+                else
+                    macro.end_bar := bar_index + 4
+                
+                macro.type := "accumulation"
+                if math.abs(close - open) > math.abs(close[1] - open[1]) * 1.5
+                    macro.type := "manipulation"
+                if high - low > (high[1] - low[1]) * 1.3
+                    macro.type := "expansion"
+                
+                color line_color = macro.type == "manipulation" ? mColor : (macro.type == "expansion" ? eColor : aColor)
+                
+                if macro.show_top
+                    macro.top_line := line.new(bar_index, macro.top_price, macro.end_bar, macro.top_price, color=enableCustomColors ? topLineColor : line_color, width=2)
+                if macro.show_bot
+                    macro.bot_line := line.new(bar_index, macro.bot_price, macro.end_bar, macro.bot_price, color=enableCustomColors ? botLineColor : line_color, width=2)
+                if macro.show_mid
+                    macro.mid_line := line.new(bar_index, macro.mid_price, macro.end_bar, macro.mid_price, color=enableCustomColors ? midLineColor : line_color, style=line.style_dotted)
+                
+                if mcText != 'None'
+                    string labelText = "MACRO\n" + macro.label_text
+                    if showMacroType
+                        labelText := labelText + "\n" + macro.type
+                    label.new(bar_index, macro.top_price, labelText, style=label.style_label_down, color=color.new(color.black, 80), textcolor=color.white, size=mcSize)
+                
+                if macro.show_top and macro.show_bot
+                    macro.fill := linefill.new(macro.top_line, macro.bot_line, color.new(enableCustomColors ? bgColor : line_color, bgTransparency))
+                
+                array.set(macros, i, macro)
+            
+            // During macro period
+            else if not na(macro.start_time) and time > macro.start_time and bar_index <= macro.end_bar
+                active := true
+                
+                if math.abs(close - open) > math.abs(close[1] - open[1]) * 1.5
+                    macro.type := "manipulation"
+                if high - low > (high[1] - low[1]) * 1.3
+                    macro.type := "expansion"
+                
+                color line_color = macro.type == "manipulation" ? mColor : (macro.type == "expansion" ? eColor : aColor)
+                
+                if high > macro.top_price and not na(macro.top_line) and macro.show_top
+                    macro.top_price := high
+                    macro.top_line.set_y1(macro.top_price)
+                    macro.top_line.set_y2(macro.top_price)
+                
+                if low < macro.bot_price and not na(macro.bot_line) and macro.show_bot
+                    macro.bot_price := low
+                    macro.bot_line.set_y1(macro.bot_price)
+                    macro.bot_line.set_y2(macro.bot_price)
+                
+                if not na(macro.mid_line) and macro.show_mid
+                    macro.mid_price := math.avg(macro.top_price, macro.bot_price)
+                    macro.mid_line.set_y1(macro.mid_price)
+                    macro.mid_line.set_y2(macro.mid_price)
+                
+                array.set(macros, i, macro)
+            
+            // End of macro period
+            else if bar_index == macro.end_bar and macro.show_ext
+                color line_color = macro.type == "manipulation" ? mColor : (macro.type == "expansion" ? eColor : aColor)
+                
+                if not na(macro.top_line) and macro.show_top
+                    line.new(macro.end_bar, macro.top_price, macro.end_bar + 50, macro.top_price, color=enableCustomColors ? topLineColor : line_color, style=line.style_dotted)
+                if not na(macro.bot_line) and macro.show_bot
+                    line.new(macro.end_bar, macro.bot_price, macro.end_bar + 50, macro.bot_price, color=enableCustomColors ? botLineColor : line_color, style=line.style_dotted)
+                if not na(macro.mid_line) and macro.show_mid
+                    line.new(macro.end_bar, macro.mid_price, macro.end_bar + 50, macro.mid_price, color=enableCustomColors ? midLineColor : line_color, style=line.style_dotted)
+    
+    active
+// === Pivot Detection ===
+// Using TradingView's built-in pivot functions
+// Parameters: (source, leftbars, rightbars)
+pivotHighVal = ta.pivothigh(high, 1, 1)
+pivotLowVal = ta.pivotlow(low, 1, 1)
+
+// Simple pivot detection
+bool isHighPivot = not na(pivotHighVal)
+bool isLowPivot = not na(pivotLowVal)
+
+// Check for breaks of existing pivot lines
+bool highBreakOccurred = false
+bool lowBreakOccurred = false
+
+if array.size(highLines) > 0
+    for i = 0 to array.size(highLines) - 1
+        float pivotLevel = array.get(highPivots, i)
+        if useBodyForTermination ? math.max(open, close) > pivotLevel : high > pivotLevel
+            highBreakOccurred := true
+            break
+
+if array.size(lowLines) > 0
+    for i = 0 to array.size(lowLines) - 1
+        float pivotLevel = array.get(lowPivots, i)
+        if useBodyForTermination ? math.min(open, close) < pivotLevel : low < pivotLevel
+            lowBreakOccurred := true
+            break
+
+// Update potential OB candles
+if close < open
+    // Bearish candle
+    if close[1] < open[1]
+        consecutiveBearishCount := consecutiveBearishCount + 1
+        lastBearishCandleHigh := math.max(lastBearishCandleHigh, high)
+        lastBearishCandleLow := math.min(lastBearishCandleLow, low)
+    else
+        consecutiveBearishCount := 1
+        lastBearishCandleHigh := high
+        lastBearishCandleLow := low
+        lastBearishCandleIdx := bar_index
+    
+    consecutiveBullishCount := 0
+    
+if close > open
+    // Bullish candle
+    if close[1] > open[1]
+        consecutiveBullishCount := consecutiveBullishCount + 1
+        lastBullishCandleHigh := math.max(lastBullishCandleHigh, high)
+        lastBullishCandleLow := math.min(lastBullishCandleLow, low)
+    else
+        consecutiveBullishCount := 1
+        lastBullishCandleHigh := high
+        lastBullishCandleLow := low
+        lastBullishCandleIdx := bar_index
+    
+    consecutiveBearishCount := 0
+
+// Check zones in real-time
+bool currentlyInBullishZone = false
+bool currentlyInBearishZone = false
+
+if array.size(bearishZones) > 0
+    for i = array.size(bearishZones) - 1 to 0
+        Zone currentZone = array.get(bearishZones, i)
+        if currentZone.active
+            if not na(currentZone.visual)
+                box.set_right(currentZone.visual, bar_index + fvgLookback)
+            if not na(currentZone.ceLine)
+                line.set_x2(currentZone.ceLine, bar_index + fvgLookback)
+            if isPriceInZone(currentZone.topPrice, currentZone.bottomPrice)
+                currentlyInBearishZone := true
+
+if array.size(bullishZones) > 0
+    for i = array.size(bullishZones) - 1 to 0
+        Zone currentZone = array.get(bullishZones, i)
+        if currentZone.active
+            if not na(currentZone.visual)
+                box.set_right(currentZone.visual, bar_index + fvgLookback)
+            if not na(currentZone.ceLine)
+                line.set_x2(currentZone.ceLine, bar_index + fvgLookback)
+            if isPriceInZone(currentZone.topPrice, currentZone.bottomPrice)
+                currentlyInBullishZone := true
+
+currentState := updateState(false, false, currentlyInBullishZone, currentlyInBearishZone, false)
+
+// Check if macro is active
+macro_active := process_macros()
+
+if barstate.isconfirmed
+    bool highBreak = false
+    bool lowBreak = false
+
+    // Check for breaks and update lines
+    if array.size(highLines) > 0
+        for i = array.size(highLines) - 1 to 0
+            float pivotLevel = array.get(highPivots, i)
+            // Use body or wick for termination based on user selection
+            if useBodyForTermination ? math.max(open, close) > pivotLevel : high > pivotLevel
+                highBreak := true
+                line currentLine = array.get(highLines, i)
+                line.set_x2(currentLine, bar_index)
+                
+                // Signal waiting for first bull pivot
+                waitingForBullPivot := true
+                waitingForBearPivot := false
+                
+                // Check if breaking candle forms a pivot
+                if isHighPivot
+                    waitingForBullPivot := false
+                
+                // Create Bullish Order Block
+                if not na(lastBearishCandleHigh)
+                    // Calculate the left position for the OB box based on consecutive candles
+                    int obStartIdx = lastBearishCandleIdx - (consecutiveBearishCount > 0 ? consecutiveBearishCount - 1 : 0)
+                    Zone bullOB = createZone(lastBearishCandleLow, 
+                                          obStartIdx, 
+                                          lastBearishCandleHigh, 
+                                          lastBearishCandleLow, 
+                                          true, 
+                                          bullOBColor,
+                                          bearOBColor)
+                    array.push(bullishZones, bullOB)
+                
+                array.remove(highLines, i)
+                array.remove(highPivots, i)
+                array.remove(highPivotTimes, i)
+                array.remove(highPivotHasFVG, i)
+            else
+                line currentLine = array.get(highLines, i)
+                line.set_x2(currentLine, bar_index + pivotLength)
+
+    if array.size(lowLines) > 0
+        for i = array.size(lowLines) - 1 to 0
+            float pivotLevel = array.get(lowPivots, i)
+            // Use body or wick for termination based on user selection
+            if useBodyForTermination ? math.min(open, close) < pivotLevel : low < pivotLevel
+                lowBreak := true
+                line currentLine = array.get(lowLines, i)
+                line.set_x2(currentLine, bar_index)
+                
+                // Signal waiting for first bear pivot
+                waitingForBearPivot := true
+                waitingForBullPivot := false
+                
+                // Check if breaking candle forms a pivot
+                if isLowPivot
+                    waitingForBearPivot := false
+                
+                // Create Bearish Order Block
+                if not na(lastBullishCandleHigh)
+                    // Calculate the left position for the OB box based on consecutive candles
+                    int obStartIdx = lastBullishCandleIdx - (consecutiveBullishCount > 0 ? consecutiveBullishCount - 1 : 0)
+                    Zone bearOB = createZone(lastBullishCandleHigh,
+                                          obStartIdx,
+                                          lastBullishCandleHigh,
+                                          lastBullishCandleLow,
+                                          true,
+                                          bullOBColor,
+                                          bearOBColor)
+                    array.push(bearishZones, bearOB)
+                
+                array.remove(lowLines, i)
+                array.remove(lowPivots, i)
+                array.remove(lowPivotTimes, i)
+                array.remove(lowPivotHasFVG, i)
+            else
+                line currentLine = array.get(lowLines, i)
+                line.set_x2(currentLine, bar_index + pivotLength)
+
+    // Create new pivot lines with filtering - only in macros if enabled
+    if isHighPivot and (not onlyPivotsInMacros or macro_active)
+        if waitingForBullPivot
+            // First high pivot after bullish break
+            waitingForBullPivot := false
+            line newLine = line.new(bar_index - 1, pivotHighVal, bar_index + pivotLength, pivotHighVal, color=color.red, width=1)
+            label.new(bar_index - 1, pivotHighVal + (10 * syminfo.mintick), "Buy Side Liquidity", 
+                     color=color.new(color.black, 100), textcolor=color.white, style=label.style_label_left)
+            array.push(highLines, newLine)
+            array.push(highPivots, pivotHighVal)
+            array.push(highPivotTimes, bar_index - 1)
+            array.push(highPivotHasFVG, false)
+        else if not waitingForBearPivot
+            // Normal behavior outside of filtered period
+            line newLine = line.new(bar_index - 1, pivotHighVal, bar_index + pivotLength, pivotHighVal, color=color.red, width=1)
+            label.new(bar_index - 1, pivotHighVal + (10 * syminfo.mintick), "Buy Side Liquidity", 
+                     color=color.new(color.black, 100), textcolor=color.white, style=label.style_label_left)
+            array.push(highLines, newLine)
+            array.push(highPivots, pivotHighVal)
+            array.push(highPivotTimes, bar_index - 1)
+            array.push(highPivotHasFVG, false)
+
+    if isLowPivot and (not onlyPivotsInMacros or macro_active)
+        if waitingForBearPivot
+            // First low pivot after bearish break
+            waitingForBearPivot := false
+            line newLine = line.new(bar_index - 1, pivotLowVal, bar_index + pivotLength, pivotLowVal, color=color.blue, width=1)
+            label.new(bar_index - 1, pivotLowVal - (15 * syminfo.mintick), "Sell Side Liquidity", 
+                     color=color.new(color.black, 100), textcolor=color.white, style=label.style_label_left)
+            array.push(lowLines, newLine)
+            array.push(lowPivots, pivotLowVal)
+            array.push(lowPivotTimes, bar_index - 1)
+            array.push(lowPivotHasFVG, false)
+        else if not waitingForBullPivot
+            // Normal behavior outside of filtered period
+            line newLine = line.new(bar_index - 1, pivotLowVal, bar_index + pivotLength, pivotLowVal, color=color.blue, width=1)
+            label.new(bar_index - 1, pivotLowVal - (15 * syminfo.mintick), "Sell Side Liquidity", 
+                     color=color.new(color.black, 100), textcolor=color.white, style=label.style_label_left)
+            array.push(lowLines, newLine)
+            array.push(lowPivots, pivotLowVal)
+            array.push(lowPivotTimes, bar_index - 1)
+            array.push(lowPivotHasFVG, false)
+    // Process new FVGs
+    if isBullishFVG(0)
+        float topPrice = low[0]
+        float bottomPrice = high[2]
+        
+        if not filterFVGByPivots
+            // Normal behavior - create all FVGs
+            Zone bullFVG = createZone(bottomPrice,
+                                   bar_index - 1,
+                                   topPrice,
+                                   bottomPrice,
+                                   false,
+                                   bullFVGColor,
+                                   bearFVGColor)
+            array.push(bullishZones, bullFVG)
+        else
+            // Find first low pivot without an FVG
+            int pivotIndex = findFirstLowPivotWithoutFVG()
+            if pivotIndex >= 0
+                // Create FVG and mark pivot as having an FVG
+                Zone bullFVG = createZone(bottomPrice,
+                                       bar_index - 1,
+                                       topPrice,
+                                       bottomPrice,
+                                       false,
+                                       bullFVGColor,
+                                       bearFVGColor)
+                array.push(bullishZones, bullFVG)
+                array.set(lowPivotHasFVG, pivotIndex, true)
+
+    if isBearishFVG(0)
+        float topPrice = low[2]
+        float bottomPrice = high[0]
+        
+        if not filterFVGByPivots
+            // Normal behavior - create all FVGs
+            Zone bearFVG = createZone(topPrice,
+                                   bar_index - 1,
+                                   topPrice,
+                                   bottomPrice,
+                                   false,
+                                   bullFVGColor,
+                                   bearFVGColor)
+            array.push(bearishZones, bearFVG)
+        else
+            // Find first high pivot without an FVG
+            int pivotIndex = findFirstHighPivotWithoutFVG()
+            if pivotIndex >= 0
+                // Create FVG and mark pivot as having an FVG
+                Zone bearFVG = createZone(topPrice,
+                                       bar_index - 1,
+                                       topPrice,
+                                       bottomPrice,
+                                       false,
+                                       bullFVGColor,
+                                       bearFVGColor)
+                array.push(bearishZones, bearFVG)
+                array.set(highPivotHasFVG, pivotIndex, true)
+
+    // Handle zone deactivation
+    if array.size(bearishZones) > 0
+        for i = array.size(bearishZones) - 1 to 0
+            Zone currentZone = array.get(bearishZones, i)
+            if currentZone.active and close >= currentZone.price
+                currentZone.active := false
+                if showInactiveZones
+                    if not na(currentZone.visual)
+                        box.set_right(currentZone.visual, bar_index)
+                        box.set_bgcolor(currentZone.visual, color.new(currentZone.isOB ? bearOBColor : bearFVGColor, inactiveOpacity))
+                    if not na(currentZone.ceLine)
+                        line.set_x2(currentZone.ceLine, bar_index)
+                        line.set_color(currentZone.ceLine, color.new(currentZone.isOB ? bearOBColor : bearFVGColor, inactiveOpacity))
+                    array.push(inactiveBearishZones, currentZone)
+                else
+                    if not na(currentZone.visual)
+                        box.delete(currentZone.visual)
+                    if not na(currentZone.ceLine)
+                        line.delete(currentZone.ceLine)
+                array.remove(bearishZones, i)
+
+    if array.size(bullishZones) > 0
+        for i = array.size(bullishZones) - 1 to 0
+            Zone currentZone = array.get(bullishZones, i)
+            if currentZone.active and close <= currentZone.price
+                currentZone.active := false
+                if showInactiveZones
+                    if not na(currentZone.visual)
+                        box.set_right(currentZone.visual, bar_index)
+                        box.set_bgcolor(currentZone.visual, color.new(currentZone.isOB ? bullOBColor : bullFVGColor, inactiveOpacity))
+                    if not na(currentZone.ceLine)
+                        line.set_x2(currentZone.ceLine, bar_index)
+                        line.set_color(currentZone.ceLine, color.new(currentZone.isOB ? bullOBColor : bullFVGColor, inactiveOpacity))
+                    array.push(inactiveBullishZones, currentZone)
+                else
+                    if not na(currentZone.visual)
+                        box.delete(currentZone.visual)
+                    if not na(currentZone.ceLine)
+                        line.delete(currentZone.ceLine)
+                array.remove(bullishZones, i)
+
+    if highBreak or lowBreak
+        currentState := updateState(highBreak, lowBreak, currentlyInBullishZone, currentlyInBearishZone, true)
+
+// Clean up inactive zones
+if barstate.isconfirmed
+    if array.size(inactiveBearishZones) > 0
+        for i = array.size(inactiveBearishZones) - 1 to 0
+            Zone currentZone = array.get(inactiveBearishZones, i)
+            if (bar_index - currentZone.time) > fvgLookback
+                if not na(currentZone.visual)
+                    box.delete(currentZone.visual)
+                if not na(currentZone.ceLine)
+                    line.delete(currentZone.ceLine)
+                array.remove(inactiveBearishZones, i)
+
+    if array.size(inactiveBullishZones) > 0
+        for i = array.size(inactiveBullishZones) - 1 to 0
+            Zone currentZone = array.get(inactiveBullishZones, i)
+            if (bar_index - currentZone.time) > fvgLookback
+                if not na(currentZone.visual)
+                    box.delete(currentZone.visual)
+                if not na(currentZone.ceLine)
+                    line.delete(currentZone.ceLine)
+                array.remove(inactiveBullishZones, i)
+
+// === State Display Functions ===
+stateToString(int state) =>
+    if state == BULL_ERL_TO_IRL
+        "BULL ERL▼IRL"
+    else if state == BULL_IRL_TO_ERL
+        "BULL IRL▲ERL"
+    else if state == BEAR_ERL_TO_IRL
+        "BEAR ERL▲IRL"
+    else if state == BEAR_IRL_TO_ERL
+        "BEAR IRL▼ERL"
+    else
+        "UNDEFINED"
+
+getStateColor(int state) =>
+    if state == BULL_ERL_TO_IRL or state == BULL_IRL_TO_ERL
+        color.lime
+    else if state == BEAR_ERL_TO_IRL or state == BEAR_IRL_TO_ERL
+        color.red
+    else
+        color.gray
+
+// === Alert Components ===
+alertcondition(currentState != currentState[1] and currentState == BULL_ERL_TO_IRL, title="BULL_ERL_TO_IRL State Change Alert", message="1M State Changed to BULL ERL▼IRL")
+alertcondition(currentState != currentState[1] and currentState == BULL_IRL_TO_ERL, title="BULL_IRL_TO_ERL State Change Alert", message="1M State Changed to BULL IRL▲ERL")
+alertcondition(currentState != currentState[1] and currentState == BEAR_ERL_TO_IRL, title="BEAR_ERL_TO_IRL State Change Alert", message="1M State Changed to BEAR ERL▲IRL")
+alertcondition(currentState != currentState[1] and currentState == BEAR_IRL_TO_ERL, title="BEAR_IRL_TO_ERL State Change Alert", message="1M State Changed to BEAR IRL▼ERL")
+
+// === State Display Table ===
+var table stateTable = table.new(position.bottom_right, 2, 2, bgcolor=color.rgb(0, 0, 0, 80))
+
+if barstate.isconfirmed
+    table.cell(stateTable, 0, 0, "Timeframe", text_color=color.white, text_size=size.normal)
+    table.cell(stateTable, 1, 0, timeframe.period, text_color=color.white, text_size=size.normal)
+    table.cell(stateTable, 0, 1, "State", text_color=color.white, text_size=size.normal)
+    table.cell(stateTable, 1, 1, stateToString(currentState), text_color=getStateColor(currentState), text_size=size.normal)

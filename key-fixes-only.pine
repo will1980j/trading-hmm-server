@@ -1,0 +1,40 @@
+// === FIX 1: Update the is_time function to take timezone_offset as a parameter ===
+// Replace this:
+is_time(h, m) =>
+    // Apply user-defined timezone offset
+    adjusted_hour = (h + timezone_offset) % 24
+    
+    // Simple time comparison - just check if hour and minute match
+    hour == adjusted_hour and minute == m
+
+// With this:
+is_time(h, m, tz_offset) =>
+    // Apply user-defined timezone offset
+    adjusted_hour = (h + tz_offset) % 24
+    
+    // Simple time comparison - just check if hour and minute match
+    hour == adjusted_hour and minute == m
+
+
+// === FIX 2: Update all calls to is_time to include the timezone_offset parameter ===
+// Replace this:
+if macro.enabled and is_time(macro.hour, macro.minute)
+
+// With this:
+if macro.enabled and is_time(macro.hour, macro.minute, timezone_offset)
+
+
+// === FIX 3: Update the macro.end_bar calculation to scale with timeframe ===
+// Replace this:
+macro.end_bar := bar_index + 20
+
+// With this:
+// Adjust end_bar based on timeframe to maintain ~20 minute duration
+if tf_m == 1
+    macro.end_bar := bar_index + 20
+else if tf_m == 3
+    macro.end_bar := bar_index + 7
+else if tf_m == 5
+    macro.end_bar := bar_index + 4
+else
+    macro.end_bar := bar_index + math.round(20 / tf_m)

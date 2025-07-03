@@ -1,0 +1,338 @@
+//@version=5
+indicator('WJ MACRO', overlay = true, max_lines_count = 500, max_labels_count = 100, max_bars_back=5000)
+
+// Set max_bars_back for important series
+max_bars_back(time, 5000)
+max_bars_back(close, 5000)
+max_bars_back(open, 5000)
+
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+group_ln     = 'London Time Settings'
+lnSummerTime = input.bool(true , 'London Daylight Saving Time (DST)', group = group_ln, tooltip = 'London : Daylight Saving Time (DST)\n - DST Start : Last Sunday in March at 1:00 UTC\n - DST End   : Last Sunday in October at 1:00 UTC')
+
+// Time zone settings
+group_tz = 'Time Zone Settings'
+timezone_offset = input.int(0, 'Chart to NY Time Offset (hours)', minval=-12, maxval=12, group=group_tz, tooltip='Adjust if your macros appear at wrong times. Positive if your chart time is ahead of NY, negative if behind.')
+// Debug setting to help troubleshoot time issues
+show_debug = input.bool(false, 'Show Time Debug Info', group=group_tz)
+
+// === HTF Pivot Settings ===
+showHTFPivots = input.bool(false, "Show Higher Timeframe Pivots", group="HTF Pivots")
+htf = input.timeframe("15", "Higher Timeframe", options=["5", "15", "30", "45", "60", "120", "180", "240", "D"], group="HTF Pivots")
+lineWidth = input.int(1, "Line Width", minval=1, maxval=4, group="HTF Pivots")
+terminationType = input.string("Wicks", "Line Termination Type", options=["Wicks", "Body"], group="HTF Pivots")
+highLineColor = input.color(color.red, "High Pivot Color", group="HTF Pivots")
+lowLineColor = input.color(color.blue, "Low Pivot Color", group="HTF Pivots")
+showLabels = input.bool(false, "Show Liquidity Labels", group="HTF Pivots")
+
+// === Pivot Lines Settings ===
+showPivotLines = input.bool(false, "Show Pivot Lines during Macros", group="Pivot Lines")
+pivotLength = input.int(500, "Line Extension (bars)", group="Pivot Lines")
+
+// [Your existing macro settings here]
+
+//-----------------------------------------------------------------------------}
+//Main variables
+//-----------------------------------------------------------------------------{
+tf_m = timeframe.multiplier
+bi   = bar_index
+
+// === Variables for Pivot Lines ===
+var array<line> highLines = array.new<line>()
+var array<float> highPivots = array.new<float>()
+var array<int> highPivotTimes = array.new<int>()
+
+var array<line> lowLines = array.new<line>()
+var array<float> lowPivots = array.new<float>()
+var array<int> lowPivotTimes = array.new<int>()
+
+// === Variables for HTF Pivot Lines ===
+var array<line> htfHighLines = array.new<line>()
+var array<float> htfHighPivots = array.new<float>()
+var array<int> htfHighPivotTimes = array.new<int>()
+
+var array<line> htfLowLines = array.new<line>()
+var array<float> htfLowPivots = array.new<float>()
+var array<int> htfLowPivotTimes = array.new<int>()
+
+var int lastHTFPivotTime = 0
+
+// Helper function for line termination
+lineBroken(float price, bool isHigh) =>
+    if terminationType == "Wicks"
+        isHigh ? (high >= price) : (low <= price)
+    else
+        isHigh ? (math.max(open, close) >= price) : (math.min(open, close) <= price)
+
+// Macro structure
+type MacroData
+    int id
+    bool enabled
+    bool show_top
+    bool show_mid
+    bool show_bot
+    bool show_ext
+    int hour
+    int minute
+    string label_text
+    float top_price
+    float bot_price
+    float mid_price
+    int start_time
+    int end_bar
+    line top_line
+    line bot_line
+    line mid_line
+    linefill fill
+    string type // "accumulation", "manipulation", or "expansion"
+    bool in_macro_period
+    array<float> macro_high_pivots
+    array<float> macro_low_pivots
+    array<line> macro_high_lines
+    array<line> macro_low_lines
+    bool htf_active
+    array<float> htf_high_pivots
+    array<float> htf_low_pivots
+    array<line> htf_high_lines
+    array<line> htf_low_lines
+
+// Create array of macro data
+var MacroData[] macros = array.new<MacroData>()
+
+// Initialize macros array
+if barstate.isfirst
+    // [Your existing macro initialization code here]
+    // Make sure to initialize the htf_active and arrays for each macro
+
+//-----------------------------------------------------------------------------}
+// Function to check if current bar is at a specific hour and minute
+//-----------------------------------------------------------------------------{
+is_time(h, m) =>
+    // Apply user-defined timezone offset
+    adjusted_hour = (h + timezone_offset) % 24
+    
+    // Simple time comparison - just check if hour and minute match
+    hour == adjusted_hour and minute == m
+
+//-----------------------------------------------------------------------------}
+// Process macros if on supported timeframe
+//-----------------------------------------------------------------------------{
+// Function to get HTF pivots
+getPivots() =>
+    float ph = ta.pivothigh(high, 1, 1)
+    float pl = ta.pivotlow(low, 1, 1)
+    int t = time[1]
+    [ph, pl, t]
+
+// Get HTF pivots using request.security
+[htfPivotHigh, htfPivotLow, htfPivotTime] = request.security(syminfo.tickerid, htf, getPivots(), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+if tf_m <= 5
+    // Pivot detection
+    pivotHighVal = ta.pivothigh(high, 1, 1)
+    pivotLowVal = ta.pivotlow(low, 1, 1)
+    
+    bool isHighPivot = not na(pivotHighVal)
+    bool isLowPivot = not na(pivotLowVal)
+    
+    // Process HTF pivots if enabled
+    if showHTFPivots
+        if not na(htfPivotHigh) and htfPivotTime != lastHTFPivotTime
+            lastHTFPivotTime := htfPivotTime
+    
+    // Check for breaks of existing pivot lines
+    if showPivotLines and array.size(highLines) > 0
+        for i = array.size(highLines) - 1 to 0
+            float pivotLevel = array.get(highPivots, i)
+            if high > pivotLevel
+                line currentLine = array.get(highLines, i)
+                line.set_x2(currentLine, bar_index)
+                array.remove(highLines, i)
+                array.remove(highPivots, i)
+                array.remove(highPivotTimes, i)
+            else
+                line currentLine = array.get(highLines, i)
+                line.set_x2(currentLine, bar_index + pivotLength)
+    
+    if showPivotLines and array.size(lowLines) > 0
+        for i = array.size(lowLines) - 1 to 0
+            float pivotLevel = array.get(lowPivots, i)
+            if low < pivotLevel
+                line currentLine = array.get(lowLines, i)
+                line.set_x2(currentLine, bar_index)
+                array.remove(lowLines, i)
+                array.remove(lowPivots, i)
+                array.remove(lowPivotTimes, i)
+            else
+                line currentLine = array.get(lowLines, i)
+                line.set_x2(currentLine, bar_index + pivotLength)
+    
+    // Process all macros
+    for i = 0 to array.size(macros) - 1
+        macro = array.get(macros, i)
+        
+        // Start of macro period
+        if macro.enabled and is_time(macro.hour, macro.minute)
+            macro.top_price := high
+            macro.bot_price := low
+            macro.mid_price := math.avg(macro.top_price, macro.bot_price)
+            macro.start_time := time
+            macro.end_bar := bar_index + 20
+            
+            // Reset pivot tracking for this macro period
+            if showPivotLines
+                macro.in_macro_period := true
+                macro.macro_high_pivots := array.new<float>()
+                macro.macro_low_pivots := array.new<float>()
+                macro.macro_high_lines := array.new<line>()
+                macro.macro_low_lines := array.new<line>()
+            
+            // Add HTF pivots at the start of macro period if enabled
+            if showHTFPivots
+                macro.htf_active := true
+                macro.htf_high_pivots := array.new<float>()
+                macro.htf_low_pivots := array.new<float>()
+                macro.htf_high_lines := array.new<line>()
+                macro.htf_low_lines := array.new<line>()
+                
+                // Check if we have valid HTF pivots to add
+                if not na(htfPivotHigh)
+                    lineH = line.new(bar_index, htfPivotHigh, macro.end_bar, htfPivotHigh, 
+                                    color=highLineColor, width=lineWidth, style=line.style_dashed)
+                    array.push(htfHighLines, lineH)
+                    array.push(htfHighPivots, htfPivotHigh)
+                    array.push(htfHighPivotTimes, bar_index)
+                    
+                    // Track this HTF pivot in the macro's own arrays
+                    array.push(macro.htf_high_pivots, htfPivotHigh)
+                    array.push(macro.htf_high_lines, lineH)
+                    
+                    if showLabels
+                        label.new(bar_index, htfPivotHigh + (10 * syminfo.mintick), "Buy Side Liquidity", 
+                                color=color.new(color.black, 100), textcolor=color.white, 
+                                style=label.style_label_down, xloc=xloc.bar_index)
+                
+                if not na(htfPivotLow)
+                    lineL = line.new(bar_index, htfPivotLow, macro.end_bar, htfPivotLow, 
+                                    color=lowLineColor, width=lineWidth, style=line.style_dashed)
+                    array.push(htfLowLines, lineL)
+                    array.push(htfLowPivots, htfPivotLow)
+                    array.push(htfLowPivotTimes, bar_index)
+                    
+                    // Track this HTF pivot in the macro's own arrays
+                    array.push(macro.htf_low_pivots, htfPivotLow)
+                    array.push(macro.htf_low_lines, lineL)
+                    
+                    if showLabels
+                        label.new(bar_index, htfPivotLow - (10 * syminfo.mintick), "Sell Side Liquidity", 
+                                color=color.new(color.black, 100), textcolor=color.white, 
+                                style=label.style_label_up, xloc=xloc.bar_index)
+            
+            // [Your existing macro initialization code here]
+            
+            array.set(macros, i, macro)
+        
+        // During macro period - update lines to expand with price
+        else if not na(macro.start_time) and time > macro.start_time and bar_index <= macro.end_bar
+            // Process HTF pivots during macro period
+            if showHTFPivots and macro.htf_active
+                // Check for breaks of existing HTF pivot lines
+                if array.size(macro.htf_high_lines) > 0
+                    for j = array.size(macro.htf_high_lines) - 1 to 0
+                        float pivotLevel = array.get(macro.htf_high_pivots, j)
+                        line currentLine = array.get(macro.htf_high_lines, j)
+                        if lineBroken(pivotLevel, true)
+                            line.set_x2(currentLine, bar_index)
+                        else
+                            line.set_x2(currentLine, macro.end_bar)
+                
+                if array.size(macro.htf_low_lines) > 0
+                    for j = array.size(macro.htf_low_lines) - 1 to 0
+                        float pivotLevel = array.get(macro.htf_low_pivots, j)
+                        line currentLine = array.get(macro.htf_low_lines, j)
+                        if lineBroken(pivotLevel, false)
+                            line.set_x2(currentLine, bar_index)
+                        else
+                            line.set_x2(currentLine, macro.end_bar)
+                
+                // Check for new HTF pivots during macro period
+                if not na(htfPivotHigh) and htfPivotTime != lastHTFPivotTime
+                    lineH = line.new(bar_index, htfPivotHigh, macro.end_bar, htfPivotHigh, 
+                                    color=highLineColor, width=lineWidth, style=line.style_dashed)
+                    array.push(htfHighLines, lineH)
+                    array.push(htfHighPivots, htfPivotHigh)
+                    array.push(htfHighPivotTimes, bar_index)
+                    
+                    // Track this HTF pivot in the macro's own arrays
+                    array.push(macro.htf_high_pivots, htfPivotHigh)
+                    array.push(macro.htf_high_lines, lineH)
+                    
+                    if showLabels
+                        label.new(bar_index, htfPivotHigh + (10 * syminfo.mintick), "Buy Side Liquidity", 
+                                color=color.new(color.black, 100), textcolor=color.white, 
+                                style=label.style_label_down, xloc=xloc.bar_index)
+                
+                if not na(htfPivotLow) and htfPivotTime != lastHTFPivotTime
+                    lineL = line.new(bar_index, htfPivotLow, macro.end_bar, htfPivotLow, 
+                                    color=lowLineColor, width=lineWidth, style=line.style_dashed)
+                    array.push(htfLowLines, lineL)
+                    array.push(htfLowPivots, htfPivotLow)
+                    array.push(htfLowPivotTimes, bar_index)
+                    
+                    // Track this HTF pivot in the macro's own arrays
+                    array.push(macro.htf_low_pivots, htfPivotLow)
+                    array.push(macro.htf_low_lines, lineL)
+                    
+                    if showLabels
+                        label.new(bar_index, htfPivotLow - (10 * syminfo.mintick), "Sell Side Liquidity", 
+                                color=color.new(color.black, 100), textcolor=color.white, 
+                                style=label.style_label_up, xloc=xloc.bar_index)
+                
+                if not na(htfPivotHigh) or not na(htfPivotLow)
+                    lastHTFPivotTime := htfPivotTime
+            
+            // Check for new pivot points during macro period
+            if showPivotLines and macro.in_macro_period
+                // Create new pivot lines
+                if isHighPivot
+                    line newLine = line.new(bar_index - 1, pivotHighVal, bar_index + pivotLength, pivotHighVal, color=highLineColor, width=1)
+                    array.push(highLines, newLine)
+                    array.push(highPivots, pivotHighVal)
+                    array.push(highPivotTimes, bar_index - 1)
+                    
+                    // Track this pivot in the macro's own arrays
+                    array.push(macro.macro_high_pivots, pivotHighVal)
+                    array.push(macro.macro_high_lines, newLine)
+                
+                if isLowPivot
+                    line newLine = line.new(bar_index - 1, pivotLowVal, bar_index + pivotLength, pivotLowVal, color=lowLineColor, width=1)
+                    array.push(lowLines, newLine)
+                    array.push(lowPivots, pivotLowVal)
+                    array.push(lowPivotTimes, bar_index - 1)
+                    
+                    // Track this pivot in the macro's own arrays
+                    array.push(macro.macro_low_pivots, pivotLowVal)
+                    array.push(macro.macro_low_lines, newLine)
+            
+            // [Your existing macro update code here]
+            
+            array.set(macros, i, macro)
+        
+        // End of macro period
+        else if bar_index == macro.end_bar
+            // Mark the end of the macro period for pivot tracking
+            if showPivotLines and macro.in_macro_period
+                macro.in_macro_period := false
+                
+            // Mark the end of HTF pivot tracking for this macro
+            if showHTFPivots and macro.htf_active
+                macro.htf_active := false
+            
+            // [Your existing macro end code here]
+else
+    if barstate.islast
+        var table tf_note = table.new(position.bottom_right, 1, 1)
+        table.cell(tf_note, 0, 0, 'ICT Macros are supported on:\n 1 min, 3 mins and 5 mins charts\n\n', text_size=size.small, text_color=chart.fg_color)
+//-----------------------------------------------------------------------------}

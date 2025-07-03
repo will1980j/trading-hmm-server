@@ -1,0 +1,44 @@
+//@version=5
+indicator('WJ MACRO', overlay = true, max_lines_count = 500, max_labels_count = 100, max_bars_back=5000)
+
+// Set max_bars_back for important series
+max_bars_back(time, 5000)
+max_bars_back(close, 5000)
+max_bars_back(open, 5000)
+
+// === HTF Pivot Settings ===
+showHTFPivots = input.bool(false, "Show Higher Timeframe Pivots", group="HTF Pivots")
+htf = input.timeframe("15", "Higher Timeframe", options=["5", "15", "30", "45", "60", "120", "180", "240", "D"], group="HTF Pivots")
+lineWidth = input.int(1, "Line Width", minval=1, maxval=4, group="HTF Pivots")
+terminationType = input.string("Wicks", "Line Termination Type", options=["Wicks", "Body"], group="HTF Pivots")
+highLineColor = input.color(color.red, "High Pivot Color", group="HTF Pivots")
+lowLineColor = input.color(color.blue, "Low Pivot Color", group="HTF Pivots")
+showLabels = input.bool(false, "Show Liquidity Labels", group="HTF Pivots")
+
+// === Variables for HTF Pivot Lines ===
+var array<line> htfHighLines = array.new<line>()
+var array<float> htfHighPivots = array.new<float>()
+var array<int> htfHighPivotTimes = array.new<int>()
+
+var array<line> htfLowLines = array.new<line>()
+var array<float> htfLowPivots = array.new<float>()
+var array<int> htfLowPivotTimes = array.new<int>()
+
+var int lastHTFPivotTime = 0
+
+// Helper function for line termination
+lineBroken(float price, bool isHigh) =>
+    if terminationType == "Wicks"
+        isHigh ? (high >= price) : (low <= price)
+    else
+        isHigh ? (math.max(open, close) >= price) : (math.min(open, close) <= price)
+
+// Function to get HTF pivots
+getPivots() =>
+    float ph = ta.pivothigh(high, 1, 1)
+    float pl = ta.pivotlow(low, 1, 1)
+    int t = time[1]
+    [ph, pl, t]
+
+// Get HTF pivots using request.security
+[htfPivotHigh, htfPivotLow, htfPivotTime] = request.security(syminfo.tickerid, htf, getPivots(), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)

@@ -1,0 +1,8 @@
+// === HTF Pivot Settings ===
+showHTFPivots = input.bool(false, "Show Higher Timeframe Pivots", group="HTF Pivots")
+htf = input.timeframe("15", "Higher Timeframe", options=["5", "15", "30", "45", "60", "120", "180", "240", "D"], group="HTF Pivots")
+lineWidth = input.int(1, "Line Width", minval=1, maxval=4, group="HTF Pivots")
+terminationType = input.string("Wicks", "Line Termination Type", options=["Wicks", "Body"], group="HTF Pivots")
+highLineColor = input.color(color.red, "High Pivot Color", group="HTF Pivots")
+lowLineColor = input.color(color.blue, "Low Pivot Color", group="HTF Pivots")
+showLabels = input.bool(false, "Show Liquidity Labels", group="HTF Pivots")

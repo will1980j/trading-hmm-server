@@ -1,0 +1,9 @@
+// Adjust end_bar based on timeframe to maintain ~20 minute duration
+if tf_m == 1
+    macro.end_bar := bar_index + 20
+else if tf_m == 3
+    macro.end_bar := bar_index + 7
+else if tf_m == 5
+    macro.end_bar := bar_index + 4
+else
+    macro.end_bar := bar_index + math.round(20 / tf_m)

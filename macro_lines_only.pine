@@ -1,0 +1,97 @@
+//@version=5
+indicator('Macro Lines Only', overlay=true, max_lines_count=500)
+
+// Arrays to store lines
+var array<line> highLines = array.new<line>()
+var array<line> lowLines = array.new<line>()
+
+// Track macro highs and lows for each macro
+var array<float> macroHighs = array.new<float>()
+var array<float> macroLows = array.new<float>()
+var array<int> macroHighBars = array.new<int>()
+var array<int> macroLowBars = array.new<int>()
+var array<bool> macroActive = array.new<bool>()
+
+// Initialize arrays for all macros
+if barstate.isfirst
+    for i = 0 to 33
+        array.push(macroHighs, na)
+        array.push(macroLows, na)
+        array.push(macroHighBars, na)
+        array.push(macroLowBars, na)
+        array.push(macroActive, false)
+
+// Macro times (hour, minute)
+macroTimes = array.from<int>(
+  9, 50,   // 09:50
+  10, 50,  // 10:50
+  13, 10,  // 13:10
+  15, 15   // 15:15
+)
+
+// Check if current time matches any macro start
+checkMacroStart() =>
+    for i = 0 to array.size(macroTimes) / 2 - 1
+        h = array.get(macroTimes, i * 2)
+        m = array.get(macroTimes, i * 2 + 1)
+        if hour == h and minute == m
+            return i
+    -1
+
+// Check if we're in any macro window
+inMacroWindow() =>
+    m = minute
+    (m >= 50) or (m <= 10) or (m >= 15 and m <= 45 and hour == 15)
+
+// Process macros
+macroIndex = checkMacroStart()
+
+// Start of macro
+if macroIndex >= 0
+    array.set(macroHighs, macroIndex, high)
+    array.set(macroLows, macroIndex, low)
+    array.set(macroHighBars, macroIndex, bar_index)
+    array.set(macroLowBars, macroIndex, bar_index)
+    array.set(macroActive, macroIndex, true)
+
+// Update during macro
+if inMacroWindow()
+    for i = 0 to array.size(macroActive) - 1
+        if array.get(macroActive, i)
+            if high > array.get(macroHighs, i)
+                array.set(macroHighs, i, high)
+                array.set(macroHighBars, i, bar_index)
+            if low < array.get(macroLows, i)
+                array.set(macroLows, i, low)
+                array.set(macroLowBars, i, bar_index)
+
+// End of macro - create lines
+if not inMacroWindow() and inMacroWindow()[1]
+    for i = 0 to array.size(macroActive) - 1
+        if array.get(macroActive, i)
+            // Create extending lines
+            highLine = line.new(array.get(macroHighBars, i), array.get(macroHighs, i), array.get(macroHighBars, i) + 1, array.get(macroHighs, i), color=color.red, width=2, extend=extend.right)
+            lowLine = line.new(array.get(macroLowBars, i), array.get(macroLows, i), array.get(macroLowBars, i) + 1, array.get(macroLows, i), color=color.blue, width=2, extend=extend.right)
+            
+            array.push(highLines, highLine)
+            array.push(lowLines, lowLine)
+            
+            // Reset macro
+            array.set(macroActive, i, false)
+
+// Terminate lines
+if array.size(highLines) > 0
+    for i = array.size(highLines) - 1 to 0
+        line_obj = array.get(highLines, i)
+        if high > line.get_y1(line_obj)
+            line.set_x2(line_obj, bar_index)
+            line.set_extend(line_obj, extend.none)
+            array.remove(highLines, i)
+
+if array.size(lowLines) > 0
+    for i = array.size(lowLines) - 1 to 0
+        line_obj = array.get(lowLines, i)
+        if low < line.get_y1(line_obj)
+            line.set_x2(line_obj, bar_index)
+            line.set_extend(line_obj, extend.none)
+            array.remove(lowLines, i)
