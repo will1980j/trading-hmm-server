@@ -145,6 +145,21 @@ class TradingHMM:
             if len(self.observation_history) > 1000:
                 self.observation_history = self.observation_history[-500:]
             
+            # Log learning event
+            learning_stats['learning_events'].append({
+                'timestamp': datetime.now().isoformat(),
+                'observation_count': len(self.observation_history),
+                'state_predicted': self.states[state],
+                'confidence': confidence
+            })
+            
+            # Keep only recent learning events
+            if len(learning_stats['learning_events']) > 100:
+                learning_stats['learning_events'] = learning_stats['learning_events'][-50:]
+            
+            # Check for auto-retrain
+            check_auto_retrain()
+            
             return {
                 'state': state,
                 'state_name': self.states[state],
@@ -178,7 +193,8 @@ def save_data():
             'trade_log': trade_log,
             'signal_log': signal_log,
             'performance_stats': performance_stats,
-            'hmm_observations': hmm_engine.observation_history
+            'hmm_observations': hmm_engine.observation_history,
+            'learning_stats': learning_stats
         }
         with open('trading_data.pkl', 'wb') as f:
             pickle.dump(data, f)
@@ -196,6 +212,7 @@ def load_data():
             signal_log = data.get('signal_log', [])
             performance_stats.update(data.get('performance_stats', {}))
             hmm_engine.observation_history = data.get('hmm_observations', [])
+            learning_stats.update(data.get('learning_stats', {}))
             logger.info(f"Loaded {len(trade_log)} trades from storage")
     except Exception as e:
         logger.error(f"Data load error: {e}")
@@ -215,6 +232,46 @@ performance_stats = {
 
 # Load existing data on startup
 load_data()
+
+# Learning monitoring system
+learning_stats = {
+    'last_retrain': None,
+    'retrain_count': 0,
+    'learning_events': [],
+    'model_improvements': []
+}
+
+def check_auto_retrain():
+    """Check if model should be retrained automatically"""
+    obs_count = len(hmm_engine.observation_history)
+    
+    # Auto-retrain every 100 observations or when significant data accumulated
+    should_retrain = False
+    if obs_count >= 100 and obs_count % 50 == 0:  # Every 50 new observations after 100
+        should_retrain = True
+    
+    if should_retrain:
+        old_score = hmm_engine.validation_score if hmm_engine.is_trained else 0
+        success = hmm_engine.train_model(hmm_engine.observation_history)
+        
+        if success:
+            new_score = hmm_engine.validation_score
+            improvement = new_score - old_score
+            
+            learning_stats['last_retrain'] = datetime.now().isoformat()
+            learning_stats['retrain_count'] += 1
+            learning_stats['model_improvements'].append({
+                'timestamp': datetime.now().isoformat(),
+                'old_score': round(old_score, 4),
+                'new_score': round(new_score, 4),
+                'improvement': round(improvement, 4),
+                'observations_used': obs_count
+            })
+            
+            logger.info(f"Auto-retrain completed: {improvement:+.4f} improvement")
+            save_data()
+            return True
+    return False
 
 @app.route('/', methods=['GET'])
 def dashboard():
@@ -900,6 +957,37 @@ def get_model_insights():
         
     except Exception as e:
         logger.error(f"Model insights error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/learning_status', methods=['GET'])
+def learning_status():
+    """Monitor AI learning progress and improvements"""
+    try:
+        # Calculate learning velocity (observations per hour)
+        recent_events = [e for e in learning_stats.get('learning_events', []) 
+                        if (datetime.now() - datetime.fromisoformat(e['timestamp'])).total_seconds() < 3600]
+        learning_velocity = len(recent_events)
+        
+        # Get latest model improvement
+        latest_improvement = None
+        if learning_stats.get('model_improvements'):
+            latest_improvement = learning_stats['model_improvements'][-1]
+        
+        return jsonify({
+            'learning_active': len(hmm_engine.observation_history) > 0,
+            'total_observations': len(hmm_engine.observation_history),
+            'learning_velocity_per_hour': learning_velocity,
+            'retrain_count': learning_stats.get('retrain_count', 0),
+            'last_retrain': learning_stats.get('last_retrain'),
+            'latest_improvement': latest_improvement,
+            'model_trained': hmm_engine.is_trained,
+            'training_score': round(hmm_engine.training_score, 4) if hmm_engine.is_trained else 0,
+            'validation_score': round(hmm_engine.validation_score, 4) if hmm_engine.is_trained else 0,
+            'next_retrain_at': f"{((len(hmm_engine.observation_history) // 50 + 1) * 50)} observations",
+            'learning_progress': min(100, (len(hmm_engine.observation_history) / 100) * 100)
+        })
+    except Exception as e:
+        logger.error(f"Learning status error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
