@@ -1086,23 +1086,70 @@ performance_stats = {
 
 @app.route('/log_trade', methods=['POST'])
 def log_trade():
-    """Log manual trade results for model training"""
+    """Enhanced trade logging with R:R analysis and MAE/MFE tracking"""
     try:
         data = request.json
         if not data:
             return jsonify({'error': 'No trade data provided'}), 400
         
-        # Required fields
+        # Calculate enhanced metrics
+        entry_price = float(data.get('entry_price', 0))
+        exit_price = float(data.get('exit_price', 0))
+        stop_loss = float(data.get('stop_loss', 0))
+        take_profit = float(data.get('take_profit', 0))
+        max_favorable = float(data.get('max_favorable_excursion', exit_price))
+        max_adverse = float(data.get('max_adverse_excursion', entry_price))
+        
+        # Calculate R:R metrics
+        if stop_loss > 0 and take_profit > 0:
+            risk = abs(entry_price - stop_loss)
+            reward = abs(take_profit - entry_price)
+            planned_rr = reward / risk if risk > 0 else 0
+        else:
+            planned_rr = 0
+            
+        actual_pnl = exit_price - entry_price if data.get('direction') == 'LONG' else entry_price - exit_price
+        actual_risk = abs(entry_price - stop_loss) if stop_loss > 0 else abs(actual_pnl)
+        actual_rr = abs(actual_pnl) / actual_risk if actual_risk > 0 else 0
+        
+        # Calculate MAE/MFE
+        if data.get('direction') == 'LONG':
+            mfe = max_favorable - entry_price  # Max Favorable Excursion
+            mae = entry_price - max_adverse    # Max Adverse Excursion
+        else:
+            mfe = entry_price - max_favorable
+            mae = max_adverse - entry_price
+            
+        # Enhanced trade entry
         trade_entry = {
             'timestamp': data.get('timestamp', pd.Timestamp.now().isoformat()),
             'symbol': data.get('symbol', 'UNKNOWN'),
-            'direction': data.get('direction', ''),  # LONG/SHORT
-            'entry_price': float(data.get('entry_price', 0)),
-            'exit_price': float(data.get('exit_price', 0)),
+            'direction': data.get('direction', ''),
+            'entry_price': entry_price,
+            'exit_price': exit_price,
+            'stop_loss': stop_loss,
+            'take_profit': take_profit,
             'quantity': float(data.get('quantity', 1)),
-            'pnl': float(data.get('pnl', 0)),
+            'pnl': float(data.get('pnl', actual_pnl)),
             'pnl_pips': float(data.get('pnl_pips', 0)),
-            'result': data.get('result', ''),  # WIN/LOSS/BREAKEVEN
+            'result': data.get('result', ''),
+            
+            # R:R Analysis
+            'planned_rr': planned_rr,
+            'actual_rr': actual_rr,
+            'rr_efficiency': (actual_rr / planned_rr) if planned_rr > 0 else 0,
+            
+            # MAE/MFE Analysis
+            'mae': mae,
+            'mfe': mfe,
+            'mae_percentage': (mae / entry_price * 100) if entry_price > 0 else 0,
+            'mfe_percentage': (mfe / entry_price * 100) if entry_price > 0 else 0,
+            'exit_efficiency': (actual_pnl / mfe) if mfe > 0 else 0,
+            
+            # Trade Duration
+            'entry_time': data.get('entry_time', pd.Timestamp.now().isoformat()),
+            'exit_time': data.get('exit_time', pd.Timestamp.now().isoformat()),
+            'duration_minutes': float(data.get('duration_minutes', 0)),
             
             # AI Signal Data
             'entry_signal': data.get('entry_signal', ''),
@@ -1111,9 +1158,12 @@ def log_trade():
             'patterns_used': data.get('patterns_used', []),
             'hmm_state': data.get('hmm_state', 'Unknown'),
             'session': data.get('session', 'Unknown'),
-            'risk_reward_actual': float(data.get('risk_reward_actual', 0)),
             
-            # Notes
+            # Market Conditions
+            'volatility': float(data.get('volatility', 0)),
+            'volume_ratio': float(data.get('volume_ratio', 1)),
+            'spread': float(data.get('spread', 0)),
+            
             'notes': data.get('notes', '')
         }
         
