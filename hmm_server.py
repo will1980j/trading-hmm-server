@@ -188,16 +188,183 @@ CORS(app)  # Allow cross-origin requests
 hmm_engine = TradingHMM()
 
 @app.route('/', methods=['GET'])
-def health_check():
-    """Health check endpoint with model performance"""
-    return jsonify({
-        'status': 'HMM Server Running',
-        'is_trained': hmm_engine.is_trained,
-        'observations': len(hmm_engine.observation_history),
-        'training_score': round(hmm_engine.training_score, 4) if hmm_engine.is_trained else 0,
-        'validation_score': round(hmm_engine.validation_score, 4) if hmm_engine.is_trained else 0,
-        'top_features': np.argsort(hmm_engine.feature_importance)[-3:][::-1].tolist() if hmm_engine.is_trained else []
-    })
+def dashboard():
+    """Simple web dashboard for trade logging"""
+    html = '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>AI Trading System Dashboard</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; background: #1a1a2e; color: white; }
+            .container { max-width: 800px; margin: 0 auto; }
+            .section { background: #16213e; padding: 20px; margin: 20px 0; border-radius: 10px; }
+            .form-group { margin: 15px 0; }
+            label { display: block; margin-bottom: 5px; color: #00d4ff; }
+            input, select, textarea { width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #333; background: #2a2a3e; color: white; }
+            button { background: #00d4ff; color: black; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+            button:hover { background: #0099cc; }
+            .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+            .stat-box { background: #0f3460; padding: 15px; border-radius: 8px; text-align: center; }
+            .success { color: #00ff88; }
+            .error { color: #ff4444; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🤖 AI Trading System Dashboard</h1>
+            
+            <div class="section">
+                <h2>📊 System Status</h2>
+                <div class="stats">
+                    <div class="stat-box">
+                        <h3>HMM Model</h3>
+                        <p class="success">''' + ('✅ Trained' if hmm_engine.is_trained else '⏳ Learning') + '''</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Observations</h3>
+                        <p>''' + str(len(hmm_engine.observation_history)) + '''</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Pending Signals</h3>
+                        <p class="success">''' + str(performance_stats.get('pending_signals', 0)) + '''</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Win Rate</h3>
+                        <p class="success">''' + str(round((performance_stats['winning_trades'] / performance_stats['total_trades'] * 100) if performance_stats['total_trades'] > 0 else 0, 1)) + '''%</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>📝 Log New Trade</h2>
+                <form id="tradeForm">
+                    <div class="form-group">
+                        <label>Symbol:</label>
+                        <input type="text" id="symbol" value="EURUSD" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Direction:</label>
+                        <select id="direction" required>
+                            <option value="LONG">LONG</option>
+                            <option value="SHORT">SHORT</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Entry Price:</label>
+                        <input type="number" id="entry_price" step="0.00001" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Exit Price:</label>
+                        <input type="number" id="exit_price" step="0.00001" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>P&L (Pips):</label>
+                        <input type="number" id="pnl_pips" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Result:</label>
+                        <select id="result" required>
+                            <option value="WIN">WIN</option>
+                            <option value="LOSS">LOSS</option>
+                            <option value="BREAKEVEN">BREAKEVEN</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>AI Signal Used:</label>
+                        <input type="text" id="entry_signal" placeholder="e.g., FVG_MACRO_LONG">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>AI Confidence (0-1):</label>
+                        <input type="number" id="ai_confidence" step="0.01" min="0" max="1" value="0.75">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Patterns Used (comma separated):</label>
+                        <input type="text" id="patterns" placeholder="e.g., hammer, engulf">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Session:</label>
+                        <select id="session">
+                            <option value="London">London</option>
+                            <option value="NY">NY</option>
+                            <option value="Asian">Asian</option>
+                            <option value="Overlap">Overlap</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notes:</label>
+                        <textarea id="notes" rows="3" placeholder="Optional notes about the trade..."></textarea>
+                    </div>
+                    
+                    <button type="submit">📊 Log Trade</button>
+                </form>
+                
+                <div id="message" style="margin-top: 15px;"></div>
+            </div>
+            
+            <div class="section">
+                <h2>📈 Quick Actions</h2>
+                <button onclick="window.open('/performance', '_blank')">📊 View Performance Stats</button>
+                <button onclick="window.open('/model_insights', '_blank')" style="margin-left: 10px;">🧠 Get AI Insights</button>
+            </div>
+        </div>
+        
+        <script>
+            document.getElementById('tradeForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = {
+                    symbol: document.getElementById('symbol').value,
+                    direction: document.getElementById('direction').value,
+                    entry_price: parseFloat(document.getElementById('entry_price').value),
+                    exit_price: parseFloat(document.getElementById('exit_price').value),
+                    pnl_pips: parseFloat(document.getElementById('pnl_pips').value),
+                    pnl: parseFloat(document.getElementById('pnl_pips').value), // Same as pips for now
+                    result: document.getElementById('result').value,
+                    entry_signal: document.getElementById('entry_signal').value,
+                    ai_confidence: parseFloat(document.getElementById('ai_confidence').value),
+                    patterns_used: document.getElementById('patterns').value.split(',').map(p => p.trim()).filter(p => p),
+                    session: document.getElementById('session').value,
+                    notes: document.getElementById('notes').value
+                };
+                
+                try {
+                    const response = await fetch('/log_trade', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        document.getElementById('message').innerHTML = '<p class="success">✅ Trade logged successfully!</p>';
+                        document.getElementById('tradeForm').reset();
+                        setTimeout(() => location.reload(), 2000); // Refresh to update stats
+                    } else {
+                        document.getElementById('message').innerHTML = '<p class="error">❌ Error: ' + result.error + '</p>';
+                    }
+                } catch (error) {
+                    document.getElementById('message').innerHTML = '<p class="error">❌ Error logging trade: ' + error.message + '</p>';
+                }
+            });
+        </script>
+    </body>
+    </html>
+    '''
+    return html
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -339,6 +506,23 @@ def webhook_receiver():
                 # Process mixed bias analysis
                 analysis_result = mixed_bias_analysis()
                 return analysis_result
+            elif 'Auto Log Signal:' in alert_message:
+                json_str = alert_message.split('Auto Log Signal: ')[1]
+                signal_data = json.loads(json_str)
+                # Auto-log the signal
+                signal_entry = {
+                    'signal_id': len(signal_log) + 1,
+                    'timestamp': signal_data.get('timestamp', pd.Timestamp.now().isoformat()),
+                    'symbol': signal_data.get('symbol', 'UNKNOWN'),
+                    'direction': signal_data.get('direction', ''),
+                    'entry_signal': signal_data.get('entry_signal', ''),
+                    'ai_confidence': float(signal_data.get('ai_confidence', 0)),
+                    'suggested_entry': float(signal_data.get('suggested_entry', 0)),
+                    'status': 'PENDING'
+                }
+                signal_log.append(signal_entry)
+                performance_stats['pending_signals'] = len([s for s in signal_log if s['status'] == 'PENDING'])
+                return jsonify({'status': 'signal_logged', 'signal_id': signal_entry['signal_id']})
             else:
                 return jsonify({'error': 'Unknown alert format'}), 400
         
@@ -576,13 +760,15 @@ def predict_entry():
 
 # Trade Logging System
 trade_log = []
+signal_log = []  # Auto-logged signals waiting for results
 performance_stats = {
     'total_trades': 0,
     'winning_trades': 0,
     'losing_trades': 0,
     'total_pnl': 0.0,
     'best_patterns': {},
-    'confidence_accuracy': {}
+    'confidence_accuracy': {},
+    'pending_signals': 0
 }
 
 @app.route('/log_trade', methods=['POST'])
@@ -657,6 +843,18 @@ def log_trade():
     except Exception as e:
         logger.error(f"Trade logging error: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint with model performance"""
+    return jsonify({
+        'status': 'HMM Server Running',
+        'is_trained': hmm_engine.is_trained,
+        'observations': len(hmm_engine.observation_history),
+        'training_score': round(hmm_engine.training_score, 4) if hmm_engine.is_trained else 0,
+        'validation_score': round(hmm_engine.validation_score, 4) if hmm_engine.is_trained else 0,
+        'top_features': np.argsort(hmm_engine.feature_importance)[-3:][::-1].tolist() if hmm_engine.is_trained else []
+    })
 
 @app.route('/performance', methods=['GET'])
 def get_performance():

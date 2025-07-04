@@ -2060,6 +2060,10 @@ if barstate.islast
             if use_python_server
                 webhook_data = '{"daily_bias":"' + biasLabel + '","bias_score":' + str.tostring(biasScore) + ',"current_price":' + str.tostring(close) + ',"volume_ratio":' + str.tostring(volume/volume[1]) + ',"pullback_level":' + str.tostring(htf_open_data) + ',"current_regime":' + str.tostring(current_regime) + ',"timestamp":"' + str.tostring(time) + '"}'
                 alert('Execution Ready: ' + webhook_data, alert.freq_once_per_bar)
+                
+                // Auto-log execution ready signal
+                exec_log_data = '{"auto_log_signal":true,"symbol":"' + syminfo.ticker + '","direction":"' + (biasScore > 0 ? "LONG" : "SHORT") + '","entry_signal":"EXECUTION_READY","ai_confidence":0.9,"suggested_entry":' + str.tostring(close) + ',"bias_score":' + str.tostring(biasScore) + ',"hmm_state":"' + hmm_state_name + '","session":"' + (inLondonSession ? "London" : inNYSession ? "NY" : "Other") + '","timestamp":"' + str.tostring(time) + '"}'
+                alert('Auto Log Signal: ' + exec_log_data, alert.freq_once_per_bar)
         
         // Enhanced Python Server Status Row
         if use_python_server
@@ -2090,6 +2094,10 @@ if barstate.islast
             if use_python_server and entry_confidence >= 0.65
                 entry_data = '{"entry_signal":"' + current_entry_signal + '","confidence":' + str.tostring(entry_confidence) + ',"risk_reward":' + str.tostring(risk_reward_ratio) + ',"current_price":' + str.tostring(close) + ',"daily_bias":"' + biasLabel + '","bias_score":' + str.tostring(biasScore) + ',"timestamp":"' + str.tostring(time) + '"}'
                 alert('Entry Signal: ' + entry_data, alert.freq_once_per_bar)
+                
+                // Auto-log signal for tracking
+                signal_log_data = '{"auto_log_signal":true,"symbol":"' + syminfo.ticker + '","direction":"' + (str.contains(current_entry_signal, "LONG") ? "LONG" : "SHORT") + '","entry_signal":"' + current_entry_signal + '","ai_confidence":' + str.tostring(entry_confidence) + ',"suggested_entry":' + str.tostring(close) + ',"target_price":' + str.tostring(target_price) + ',"stop_price":' + str.tostring(stop_price) + ',"risk_reward":' + str.tostring(risk_reward_ratio) + ',"bias_score":' + str.tostring(biasScore) + ',"hmm_state":"' + hmm_state_name + '","session":"' + (inLondonSession ? "London" : inNYSession ? "NY" : "Other") + '","timestamp":"' + str.tostring(time) + '"}'
+                alert('Auto Log Signal: ' + signal_log_data, alert.freq_once_per_bar)
         
         // Timeframe-specific execution status
         // Debug session timing
