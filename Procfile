@@ -1,1 +1,1 @@
-web: gunicorn hmm_server:app --host 0.0.0.0 --port $PORT
+web: gunicorn hmm_server:app --bind 0.0.0.0:$PORT
