@@ -500,6 +500,15 @@ def webhook_receiver():
             data = request.json
             logger.info(f"JSON Data: {data}")
             webhook_entry['data_type'] = 'JSON'
+            webhook_entry['processed'] = True
+            
+            # Process direct JSON data as market data
+            result = hmm_engine.predict_state(data)
+            logger.info(f"Direct JSON processed: {result['state_name']} (confidence: {result['confidence']})")
+            logger.info(f"Total observations now: {len(hmm_engine.observation_history)}")
+            
+            result['webhook_id'] = webhook_counter
+            return jsonify(result)
         else:
             alert_message = request.form.get('message', '')
             logger.info(f"Form Message: {alert_message[:200]}...")
@@ -543,12 +552,13 @@ def webhook_receiver():
                 logger.warning(f"Unknown alert format: {alert_message[:100]}...")
                 return jsonify({'error': 'Unknown alert format', 'webhook_id': webhook_counter}), 400
         
+        # This should only be reached for form data processing
         if not data:
             logger.error("No data provided in webhook")
             return jsonify({'error': 'No data provided', 'webhook_id': webhook_counter}), 400
         
         result = hmm_engine.predict_state(data)
-        logger.info(f"Webhook #{webhook_counter} processed: {result['state_name']} (confidence: {result['confidence']})")
+        logger.info(f"Form data processed: {result['state_name']} (confidence: {result['confidence']})")
         logger.info(f"Total observations now: {len(hmm_engine.observation_history)}")
         
         webhook_entry['processed'] = True
