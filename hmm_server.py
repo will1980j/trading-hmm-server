@@ -196,17 +196,17 @@ def dashboard():
     <head>
         <title>AI Trading System Dashboard</title>
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
             
             * { box-sizing: border-box; }
             
             body { 
-                font-family: 'JetBrains Mono', monospace; 
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
                 margin: 0; 
-                background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%); 
-                color: #e0e0e0; 
+                background: linear-gradient(180deg, #0a0e1a 0%, #1a1f2e 100%); 
+                color: #c7d2fe; 
                 min-height: 100vh;
-                overflow-x: hidden;
+                font-weight: 400;
             }
             
             .container { 
@@ -223,14 +223,11 @@ def dashboard():
             }
             
             .header h1 {
-                font-size: 2.5em;
-                background: linear-gradient(45deg, #00d4ff, #ff6b6b, #4ecdc4, #45b7d1);
-                background-size: 400% 400%;
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                animation: gradientShift 3s ease-in-out infinite;
-                margin: 0;
-                text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+                font-size: 2.2em;
+                font-weight: 300;
+                color: #f8fafc;
+                margin: 0 0 8px 0;
+                letter-spacing: -0.025em;
             }
             
             @keyframes gradientShift {
@@ -254,16 +251,13 @@ def dashboard():
             }
             
             .section { 
-                background: rgba(22, 33, 62, 0.8); 
-                padding: 25px; 
-                margin: 20px 0; 
-                border-radius: 15px; 
-                border: 1px solid rgba(0, 212, 255, 0.2);
-                backdrop-filter: blur(10px);
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-                transition: all 0.3s ease;
-                position: relative;
-                overflow: hidden;
+                background: rgba(30, 41, 59, 0.4); 
+                padding: 24px; 
+                margin: 24px 0; 
+                border-radius: 8px; 
+                border: 1px solid rgba(71, 85, 105, 0.2);
+                backdrop-filter: blur(8px);
+                transition: border-color 0.2s ease;
             }
             
             .section::before {
@@ -303,14 +297,12 @@ def dashboard():
             }
             
             .stat-box { 
-                background: linear-gradient(135deg, #0f3460 0%, #1a1a2e 100%); 
-                padding: 20px; 
-                border-radius: 12px; 
+                background: rgba(15, 23, 42, 0.6); 
+                padding: 24px; 
+                border-radius: 6px; 
                 text-align: center;
-                border: 1px solid rgba(0, 212, 255, 0.3);
-                transition: all 0.3s ease;
-                position: relative;
-                overflow: hidden;
+                border: 1px solid rgba(51, 65, 85, 0.3);
+                transition: all 0.2s ease;
             }
             
             .stat-box::after {
@@ -352,9 +344,7 @@ def dashboard():
             }
             
             .success { 
-                color: #00ff88; 
-                text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
-                animation: glow 2s ease-in-out infinite alternate;
+                color: #10b981;
             }
             
             @keyframes glow {
@@ -365,19 +355,16 @@ def dashboard():
             .error { color: #ff4444; }
             
             button { 
-                background: linear-gradient(45deg, #00d4ff, #0099cc); 
-                color: white; 
-                padding: 12px 24px; 
-                border: none; 
-                border-radius: 8px; 
+                background: rgba(51, 65, 85, 0.8); 
+                color: #f1f5f9; 
+                padding: 12px 20px; 
+                border: 1px solid rgba(71, 85, 105, 0.4); 
+                border-radius: 6px; 
                 cursor: pointer; 
-                font-weight: bold;
+                font-weight: 500;
                 font-family: inherit;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-                transition: all 0.3s ease;
-                position: relative;
-                overflow: hidden;
+                font-size: 0.9em;
+                transition: all 0.2s ease;
             }
             
             button::before {
@@ -485,8 +472,8 @@ def dashboard():
         
         <div class="container">
             <div class="header">
-                <h1>🤖 AI TRADING TERMINAL<span class="live-indicator"></span></h1>
-                <p style="color: #666; margin: 5px 0;">Advanced Machine Learning Trading System</p>
+                <h1>QUANTITATIVE TRADING SYSTEM<span class="live-indicator"></span></h1>
+                <p style="color: #64748b; font-size: 0.95em; margin: 0;">Institutional-Grade Algorithmic Trading Platform</p>
             </div>
             
             <div class="section">

@@ -725,7 +725,7 @@ if use_1m_signals and barstate.isconfirmed
     
     // Clean entry signals - small and simple
     if show_entry_labels and entry_signal_active and entry_confidence >= entry_signal_sensitivity
-        signal_color = str.contains(current_entry_signal, "LONG") ? color.green : color.red
+        signal_color = str.contains(current_entry_signal, "LONG") ? color.new(color.blue, 0) : color.new(color.orange, 0)
         signal_text = str.contains(current_entry_signal, "LONG") ? "L" : "S"
         
         if str.contains(current_entry_signal, "LONG")
@@ -2054,7 +2054,7 @@ if barstate.islast
                           barstate.isconfirmed
         
         if execution_ready
-            label.new(bar_index, low, "🚀 Execute Bias ➝ " + biasLabel, style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)
+            label.new(bar_index, low, "🚀 Execute Bias ➝ " + biasLabel, style=label.style_label_up, color=color.new(color.blue, 20), textcolor=color.white, size=size.small)
             
             // Send webhook alert to Railway server
             if use_python_server
@@ -2136,15 +2136,15 @@ if barstate.islast
 any_bull = ebp_bull or inside_bull or engulf_bull or gap_bull or hammer_bull or three_bull or bull_close_above or bull_sweep
 any_bear = ebp_bear or inside_bear or engulf_bear or gap_bear or hammer_bear or three_bear or bear_close_below or bear_sweep
 
-// Enhanced candle coloring with regime awareness
+// Professional candle coloring with transparency
 candle_color := na
 if show_candle_coloring and show_current_tf_signals
     if use_markov_enhancement and avoid_trading
-        candle_color := color.gray  // Gray for avoid trading periods
+        candle_color := color.new(color.gray, 70)  // Subtle gray for avoid trading
     else if any_bull
-        candle_color := use_markov_enhancement ? (current_regime == 1 ? color.lime : current_regime == 0 ? color.green : color.olive) : color.green
+        candle_color := color.new(color.blue, 60)  // Professional blue for bullish
     else if any_bear
-        candle_color := use_markov_enhancement ? (current_regime == 1 ? color.fuchsia : current_regime == 0 ? color.red : color.maroon) : color.red
+        candle_color := color.new(color.orange, 60)  // Professional orange for bearish
 
 barcolor(candle_color)
 
@@ -2157,11 +2157,11 @@ bull_fail_mark = show_success_markers and show_current_tf_signals and bull_patte
 bear_success_mark = show_success_markers and show_current_tf_signals and bear_pattern_prev and low < low[1] and barstate.isconfirmed
 bear_fail_mark = show_success_markers and show_current_tf_signals and bear_pattern_prev and low >= low[1] and barstate.isconfirmed
 
-// Offset markers to avoid overlap with labels - only show on allowed timeframes
-plotshape(bull_success_mark and show_current_tf_signals, "Bull Success", shape.triangleup, location.belowbar, color.lime, size=size.tiny, offset=-1)
-plotshape(bull_fail_mark and show_current_tf_signals, "Bull Fail", shape.xcross, location.belowbar, color.orange, size=size.tiny, offset=-1)
-plotshape(bear_success_mark and show_current_tf_signals, "Bear Success", shape.triangledown, location.abovebar, color.lime, size=size.tiny, offset=-1)
-plotshape(bear_fail_mark and show_current_tf_signals, "Bear Fail", shape.xcross, location.abovebar, color.orange, size=size.tiny, offset=-1)
+// Clean success/fail markers with meaningful colors
+plotshape(bull_success_mark and show_current_tf_signals, "Bull Success", shape.triangleup, location.belowbar, color.new(color.blue, 0), size=size.tiny, offset=-1)
+plotshape(bull_fail_mark and show_current_tf_signals, "Bull Fail", shape.xcross, location.belowbar, color.new(color.gray, 30), size=size.tiny, offset=-1)
+plotshape(bear_success_mark and show_current_tf_signals, "Bear Success", shape.triangledown, location.abovebar, color.new(color.orange, 0), size=size.tiny, offset=-1)
+plotshape(bear_fail_mark and show_current_tf_signals, "Bear Fail", shape.xcross, location.abovebar, color.new(color.gray, 30), size=size.tiny, offset=-1)
 
 // Pattern labels - only show when on selected data timeframe and bar is confirmed
 if show_pattern_labels and show_current_tf_signals and barstate.isconfirmed
@@ -2222,7 +2222,7 @@ if use_markov_enhancement
             pattern_confidence = seq_mult * reg_mult
             if pattern_confidence > 1.3  // High confidence threshold
                 confidence_text = "HIGH CONF: " + str.tostring(pattern_confidence, "#.##") + "x"
-                label.new(bar_index, low * 0.998, confidence_text, color=color.yellow, textcolor=color.black, style=label.style_label_up, size=size.tiny)
+                label.new(bar_index, low * 0.998, confidence_text, color=color.new(color.white, 80), textcolor=color.black, style=label.style_label_up, size=size.tiny)
 
 // Current timeframe combinations for visual signals - removed duplicates
 
