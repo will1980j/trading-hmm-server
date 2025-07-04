@@ -990,6 +990,45 @@ def learning_status():
         logger.error(f"Learning status error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/webhook_test', methods=['GET', 'POST'])
+def webhook_test():
+    """Test webhook connectivity and log all incoming requests"""
+    try:
+        if request.method == 'GET':
+            return jsonify({
+                'status': 'Webhook endpoint active',
+                'url': request.url,
+                'method': 'GET',
+                'timestamp': datetime.now().isoformat(),
+                'message': 'Send POST request with JSON data to test webhook'
+            })
+        
+        # Log all POST data for debugging
+        logger.info(f"Webhook test received: {request.method}")
+        logger.info(f"Headers: {dict(request.headers)}")
+        logger.info(f"Content-Type: {request.content_type}")
+        
+        if request.is_json:
+            data = request.json
+            logger.info(f"JSON data: {data}")
+        else:
+            form_data = request.form.to_dict()
+            raw_data = request.get_data(as_text=True)
+            logger.info(f"Form data: {form_data}")
+            logger.info(f"Raw data: {raw_data}")
+        
+        return jsonify({
+            'status': 'Webhook test successful',
+            'received_data': True,
+            'content_type': request.content_type,
+            'method': request.method,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Webhook test error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Enhanced health check with system metrics"""
