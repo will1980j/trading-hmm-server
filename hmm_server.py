@@ -187,492 +187,161 @@ app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests
 hmm_engine = TradingHMM()
 
+#!/usr/bin/env python3
+
+# Replace the dashboard function in hmm_server.py with this clean version
+
 @app.route('/', methods=['GET'])
 def dashboard():
-    """Wall Street financial trader dashboard"""
-    html = '''
+    """Clean trading dashboard with performance analytics"""
+    # Calculate performance metrics
+    total_trades = performance_stats['total_trades']
+    win_rate = (performance_stats['winning_trades'] / total_trades * 100) if total_trades > 0 else 0
+    avg_rr = sum([t.get('actual_rr', 0) for t in trade_log]) / len(trade_log) if trade_log else 0
+    avg_mae = sum([t.get('mae_percentage', 0) for t in trade_log]) / len(trade_log) if trade_log else 0
+    avg_mfe = sum([t.get('mfe_percentage', 0) for t in trade_log]) / len(trade_log) if trade_log else 0
+    
+    html = f'''
     <!DOCTYPE html>
     <html>
     <head>
-        <title>AI Trading System Dashboard</title>
+        <title>Trading System Dashboard</title>
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-            
-            * { box-sizing: border-box; }
-            
-            body { 
-                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+            * {{ box-sizing: border-box; }}
+            body {{ 
+                font-family: 'Inter', sans-serif; 
                 margin: 0; 
-                background: linear-gradient(180deg, #0a0e1a 0%, #1a1f2e 100%); 
-                color: #c7d2fe; 
+                background: #0f172a; 
+                color: #cbd5e1; 
                 min-height: 100vh;
-                font-weight: 400;
-            }
-            
-            .container { 
-                max-width: 1200px; 
-                margin: 0 auto; 
-                padding: 20px;
-                position: relative;
-            }
-            
-            .header {
-                text-align: center;
-                margin-bottom: 30px;
-                position: relative;
-            }
-            
-            .header h1 {
-                font-size: 2.2em;
-                font-weight: 300;
-                color: #f8fafc;
-                margin: 0 0 8px 0;
-                letter-spacing: -0.025em;
-            }
-            
-            @keyframes gradientShift {
-                0%, 100% { background-position: 0% 50%; }
-                50% { background-position: 100% 50%; }
-            }
-            
-            .live-indicator {
-                display: inline-block;
-                width: 12px;
-                height: 12px;
-                background: #00ff88;
-                border-radius: 50%;
-                animation: pulse 1.5s infinite;
-                margin-left: 10px;
-            }
-            
-            @keyframes pulse {
-                0%, 100% { opacity: 1; transform: scale(1); }
-                50% { opacity: 0.3; transform: scale(1.2); }
-            }
-            
-            .section { 
-                background: rgba(30, 41, 59, 0.4); 
-                padding: 24px; 
-                margin: 24px 0; 
-                border-radius: 8px; 
-                border: 1px solid rgba(71, 85, 105, 0.2);
-                backdrop-filter: blur(8px);
-                transition: border-color 0.2s ease;
-            }
-            
-            .section::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: -100%;
-                width: 100%;
-                height: 2px;
-                background: linear-gradient(90deg, transparent, #00d4ff, transparent);
-                animation: scan 3s linear infinite;
-            }
-            
-            @keyframes scan {
-                0% { left: -100%; }
-                100% { left: 100%; }
-            }
-            
-            .section:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 12px 40px rgba(0, 212, 255, 0.2);
-                border-color: rgba(0, 212, 255, 0.4);
-            }
-            
-            .section h2 {
-                color: #00d4ff;
-                margin-top: 0;
-                font-size: 1.3em;
-                text-transform: uppercase;
-                letter-spacing: 2px;
-            }
-            
-            .stats { 
-                display: grid; 
-                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
-                gap: 20px; 
-            }
-            
-            .stat-box { 
-                background: rgba(15, 23, 42, 0.6); 
-                padding: 24px; 
-                border-radius: 6px; 
-                text-align: center;
-                border: 1px solid rgba(51, 65, 85, 0.3);
-                transition: all 0.2s ease;
-            }
-            
-            .stat-box::after {
-                content: '';
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                width: 0;
-                height: 0;
-                background: radial-gradient(circle, rgba(0, 212, 255, 0.1) 0%, transparent 70%);
-                transition: all 0.3s ease;
-                transform: translate(-50%, -50%);
-            }
-            
-            .stat-box:hover::after {
-                width: 200px;
-                height: 200px;
-            }
-            
-            .stat-box:hover {
-                transform: scale(1.05);
-                border-color: rgba(0, 212, 255, 0.6);
-            }
-            
-            .stat-box h3 {
-                color: #00d4ff;
-                margin: 0 0 10px 0;
-                font-size: 0.9em;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-            }
-            
-            .stat-box p {
-                font-size: 1.8em;
-                font-weight: bold;
-                margin: 0;
-                position: relative;
-                z-index: 1;
-            }
-            
-            .success { 
-                color: #10b981;
-            }
-            
-            @keyframes glow {
-                from { text-shadow: 0 0 10px rgba(0, 255, 136, 0.5); }
-                to { text-shadow: 0 0 20px rgba(0, 255, 136, 0.8), 0 0 30px rgba(0, 255, 136, 0.3); }
-            }
-            
-            .error { color: #ff4444; }
-            
-            button { 
-                background: rgba(51, 65, 85, 0.8); 
-                color: #f1f5f9; 
-                padding: 12px 20px; 
-                border: 1px solid rgba(71, 85, 105, 0.4); 
-                border-radius: 6px; 
-                cursor: pointer; 
-                font-weight: 500;
-                font-family: inherit;
-                font-size: 0.9em;
-                transition: all 0.2s ease;
-            }
-            
-            button::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: -100%;
-                width: 100%;
-                height: 100%;
-                background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-                transition: left 0.5s;
-            }
-            
-            button:hover::before {
-                left: 100%;
-            }
-            
-            button:hover { 
-                transform: translateY(-2px);
-                box-shadow: 0 5px 15px rgba(0, 212, 255, 0.4);
-            }
-            
-            .signal-item {
-                background: linear-gradient(135deg, #0f3460 0%, #1a1a2e 100%);
-                padding: 15px;
-                margin: 10px 0;
-                border-radius: 10px;
-                border-left: 4px solid #00d4ff;
-                transition: all 0.3s ease;
-                animation: slideIn 0.5s ease-out;
-            }
-            
-            @keyframes slideIn {
-                from { opacity: 0; transform: translateX(-20px); }
-                to { opacity: 1; transform: translateX(0); }
-            }
-            
-            .signal-item:hover {
-                transform: translateX(5px);
-                border-left-color: #00ff88;
-                box-shadow: 0 5px 15px rgba(0, 212, 255, 0.2);
-            }
-            
-            .signal-buttons {
-                margin-top: 10px;
-            }
-            
-            .signal-buttons button {
-                font-size: 10px;
-                padding: 5px 10px;
-                margin: 2px;
-                border-radius: 5px;
-            }
-            
-            .btn-win { background: linear-gradient(45deg, #00ff88, #00cc6a); }
-            .btn-loss { background: linear-gradient(45deg, #ff4444, #cc3333); }
-            .btn-ignore { background: linear-gradient(45deg, #666, #444); }
-            
-            .loading {
-                display: inline-block;
-                width: 20px;
-                height: 20px;
-                border: 3px solid rgba(0, 212, 255, 0.3);
-                border-radius: 50%;
-                border-top-color: #00d4ff;
-                animation: spin 1s ease-in-out infinite;
-            }
-            
-            @keyframes spin {
-                to { transform: rotate(360deg); }
-            }
-            
-            .matrix-bg {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                pointer-events: none;
-                z-index: -1;
-                opacity: 0.1;
-            }
-            
-            .notification {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: linear-gradient(45deg, #00d4ff, #0099cc);
-                color: white;
-                padding: 15px 20px;
-                border-radius: 8px;
-                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-                transform: translateX(400px);
-                transition: transform 0.3s ease;
-                z-index: 1000;
-            }
-            
-            .notification.show {
-                transform: translateX(0);
-            }
+            }}
+            .container {{ max-width: 1400px; margin: 0 auto; padding: 24px; }}
+            .header {{ text-align: center; margin-bottom: 32px; border-bottom: 1px solid #334155; padding-bottom: 24px; }}
+            .header h1 {{ font-size: 2em; font-weight: 300; color: #f8fafc; margin: 0; }}
+            .section {{ background: #1e293b; padding: 24px; margin: 20px 0; border-radius: 8px; border: 1px solid #334155; }}
+            .section h2 {{ color: #f1f5f9; margin: 0 0 20px 0; font-size: 1.1em; font-weight: 500; text-transform: uppercase; }}
+            .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }}
+            .stat-box {{ background: #0f172a; padding: 20px; border-radius: 6px; text-align: center; border: 1px solid #334155; }}
+            .stat-box h3 {{ color: #94a3b8; margin: 0 0 10px 0; font-size: 0.8em; text-transform: uppercase; }}
+            .stat-box p {{ font-size: 1.8em; font-weight: 600; margin: 0; color: #f8fafc; }}
+            .success {{ color: #10b981; }}
+            .warning {{ color: #f59e0b; }}
+            .error {{ color: #ef4444; }}
+            button {{ background: #334155; color: #f1f5f9; padding: 12px 20px; border: 1px solid #475569; border-radius: 6px; cursor: pointer; font-weight: 500; font-family: inherit; transition: all 0.2s ease; }}
+            button:hover {{ background: #475569; }}
+            .performance-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }}
+            .metric-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #334155; }}
+            .metric-label {{ color: #94a3b8; }}
+            .metric-value {{ color: #f8fafc; font-weight: 500; }}
         </style>
     </head>
     <body>
-        <canvas class="matrix-bg" id="matrixCanvas"></canvas>
-        
         <div class="container">
             <div class="header">
-                <h1>QUANTITATIVE TRADING SYSTEM<span class="live-indicator"></span></h1>
-                <p style="color: #64748b; font-size: 0.95em; margin: 0;">Institutional-Grade Algorithmic Trading Platform</p>
+                <h1>TRADING SYSTEM DASHBOARD</h1>
+                <p style="color: #64748b; margin: 5px 0;">Performance Analytics & Signal Management</p>
             </div>
             
             <div class="section">
-                <h2>📊 System Status</h2>
+                <h2>System Status</h2>
                 <div class="stats">
                     <div class="stat-box">
-                        <h3>HMM Model</h3>
-                        <p class="success">''' + ('✅ Trained' if hmm_engine.is_trained else '⏳ Learning') + '''</p>
+                        <h3>Model Status</h3>
+                        <p class="success">{'TRAINED' if hmm_engine.is_trained else 'LEARNING'}</p>
                     </div>
                     <div class="stat-box">
-                        <h3>Observations</h3>
-                        <p>''' + str(len(hmm_engine.observation_history)) + '''</p>
-                    </div>
-                    <div class="stat-box">
-                        <h3>Pending Signals</h3>
-                        <p class="success">''' + str(performance_stats.get('pending_signals', 0)) + '''</p>
+                        <h3>Total Trades</h3>
+                        <p>{total_trades}</p>
                     </div>
                     <div class="stat-box">
                         <h3>Win Rate</h3>
-                        <p class="success">''' + str(round((performance_stats['winning_trades'] / performance_stats['total_trades'] * 100) if performance_stats['total_trades'] > 0 else 0, 1)) + '''%</p>
+                        <p class="{'success' if win_rate > 60 else 'warning' if win_rate > 40 else 'error'}">{win_rate:.1f}%</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Avg R:R</h3>
+                        <p class="{'success' if avg_rr > 2 else 'warning' if avg_rr > 1 else 'error'}">{avg_rr:.2f}</p>
                     </div>
                 </div>
             </div>
             
             <div class="section">
-                <h2>⏳ Update Signal Results</h2>
-                <p>AI signals are automatically logged. Just click the result when you're done trading:</p>
-                <div id="pendingSignals">Loading...</div>
-                <button onclick="loadPendingSignals()" style="margin-top: 10px;">🔄 Refresh Signals</button>
-            </div>
-            
-            <div class="section">
-                <h2>🚀 Quick Actions</h2>
-                <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-                    <button onclick="window.open('/performance', '_blank')" style="flex: 1; min-width: 200px;">📊 Performance Analytics</button>
-                    <button onclick="window.open('/model_insights', '_blank')" style="flex: 1; min-width: 200px;">🧠 AI Insights</button>
-                    <button onclick="loadPendingSignals()" style="flex: 1; min-width: 200px;">🔄 Refresh Data</button>
+                <h2>Performance Analytics</h2>
+                <div class="performance-grid">
+                    <div>
+                        <h3 style="color: #f1f5f9; margin-bottom: 15px;">Trade Metrics</h3>
+                        <div class="metric-row">
+                            <span class="metric-label">Total P&L:</span>
+                            <span class="metric-value {'success' if performance_stats['total_pnl'] > 0 else 'error'}">{performance_stats['total_pnl']:.2f}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Winning Trades:</span>
+                            <span class="metric-value">{performance_stats['winning_trades']}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Losing Trades:</span>
+                            <span class="metric-value">{performance_stats['losing_trades']}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Avg Per Trade:</span>
+                            <span class="metric-value">{(performance_stats['total_pnl'] / total_trades):.2f if total_trades > 0 else 0}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Avg MAE:</span>
+                            <span class="metric-value error">{avg_mae:.2f}%</span>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 style="color: #f1f5f9; margin-bottom: 15px;">Risk Analysis</h3>
+                        <div class="metric-row">
+                            <span class="metric-label">Best Trade:</span>
+                            <span class="metric-value success">{max([t.get('pnl', 0) for t in trade_log]) if trade_log else 0:.2f}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Worst Trade:</span>
+                            <span class="metric-value error">{min([t.get('pnl', 0) for t in trade_log]) if trade_log else 0:.2f}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Avg MFE:</span>
+                            <span class="metric-value success">{avg_mfe:.2f}%</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Exit Efficiency:</span>
+                            <span class="metric-value">{(sum([t.get('exit_efficiency', 0) for t in trade_log]) / len(trade_log)):.2f if trade_log else 0}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">R:R Efficiency:</span>
+                            <span class="metric-value">{(sum([t.get('rr_efficiency', 0) for t in trade_log]) / len(trade_log)):.2f if trade_log else 0}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <div class="section" style="text-align: center; font-size: 0.9em; color: #666;">
-                <p>🤖 Powered by Advanced Machine Learning | 🔒 Secure Cloud Processing | ⚡ Real-time Analysis</p>
-                <p>Last Updated: <span id="lastUpdate"></span></p>
+            <div class="section">
+                <h2>Signal Management</h2>
+                <div id="signalList">No pending signals</div>
+                <button onclick="refreshSignals()">REFRESH SIGNALS</button>
             </div>
             
-            <script>
-                // Update timestamp
-                document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
-                setInterval(() => {
-                    document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
-                }, 60000);
-            </script>
+            <div class="section">
+                <h2>Quick Actions</h2>
+                <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                    <button onclick="window.open('/performance', '_blank')">DETAILED METRICS</button>
+                    <button onclick="window.open('/model_insights', '_blank')">MODEL INSIGHTS</button>
+                    <button onclick="refreshSignals()">REFRESH DATA</button>
+                </div>
+            </div>
         </div>
         
         <script>
-            // Matrix background animation
-            const canvas = document.getElementById('matrixCanvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            function refreshSignals() {{
+                document.getElementById('signalList').innerHTML = 'No pending signals - System monitoring';
+            }}
             
-            const matrix = '01';
-            const matrixArray = matrix.split('');
-            const fontSize = 10;
-            const columns = canvas.width / fontSize;
-            const drops = [];
-            
-            for (let x = 0; x < columns; x++) {
-                drops[x] = 1;
-            }
-            
-            function drawMatrix() {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#00d4ff';
-                ctx.font = fontSize + 'px monospace';
-                
-                for (let i = 0; i < drops.length; i++) {
-                    const text = matrixArray[Math.floor(Math.random() * matrixArray.length)];
-                    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-                    
-                    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-                        drops[i] = 0;
-                    }
-                    drops[i]++;
-                }
-            }
-            
-            setInterval(drawMatrix, 35);
-            
-            // Sound effects
-            function playSound(type) {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                if (type === 'win') {
-                    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-                    oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.1);
-                } else if (type === 'loss') {
-                    oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
-                    oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.2);
-                } else {
-                    oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
-                }
-                
-                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.2);
-            }
-            
-            // Notification system
-            function showNotification(message, type = 'info') {
-                const notification = document.createElement('div');
-                notification.className = 'notification';
-                notification.textContent = message;
-                document.body.appendChild(notification);
-                
-                setTimeout(() => notification.classList.add('show'), 100);
-                setTimeout(() => {
-                    notification.classList.remove('show');
-                    setTimeout(() => document.body.removeChild(notification), 300);
-                }, 3000);
-            }
-            
-            // Auto-refresh stats every 30 seconds
-            setInterval(() => {
-                loadPendingSignals();
-            }, 30000);
-            
-            // Load pending signals on page load
-            loadPendingSignals();
-            
-            async function loadPendingSignals() {
-                try {
-                    document.getElementById('pendingSignals').innerHTML = '<div class="loading"></div> Loading signals...';
-                    
-                    // Simulate pending signals for demo
-                    const pendingData = [];
-                    
-                    let html = '';
-                    if (pendingData.length === 0) {
-                        html = '<p style="text-align: center; color: #666; font-style: italic;">🎯 No pending signals - AI is monitoring markets</p>';
-                    } else {
-                        html = '<div style="max-height: 400px; overflow-y: auto;">';
-                        pendingData.forEach(signal => {
-                            const direction = signal.direction === 'LONG' ? '🟢' : '🔴';
-                            html += `
-                                <div class="signal-item">
-                                    <strong>${direction} ${signal.symbol} - ${signal.entry_signal}</strong><br>
-                                    <small>Confidence: ${(signal.ai_confidence * 100).toFixed(0)}% | Entry: ${signal.suggested_entry}</small>
-                                    <div class="signal-buttons">
-                                        <button class="btn-win" onclick="updateSignal(${signal.signal_id}, 'TAKEN', 'WIN')">✅ WIN</button>
-                                        <button class="btn-loss" onclick="updateSignal(${signal.signal_id}, 'TAKEN', 'LOSS')">❌ LOSS</button>
-                                        <button class="btn-ignore" onclick="updateSignal(${signal.signal_id}, 'IGNORED', '')">⏭️ IGNORE</button>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        html += '</div>';
-                    }
-                    
-                    setTimeout(() => {
-                        document.getElementById('pendingSignals').innerHTML = html;
-                    }, 500);
-                } catch (error) {
-                    document.getElementById('pendingSignals').innerHTML = '<p class="error">⚠️ Error loading signals</p>';
-                }
-            }
-            
-            function updateSignal(signalId, status, result) {
-                if (result === 'WIN') {
-                    playSound('win');
-                    showNotification('🎉 Trade marked as WIN!', 'success');
-                } else if (result === 'LOSS') {
-                    playSound('loss');
-                    showNotification('📉 Trade marked as LOSS', 'warning');
-                } else {
-                    playSound('click');
-                    showNotification('⏭️ Signal ignored', 'info');
-                }
-                
-                setTimeout(() => {
-                    loadPendingSignals();
-                    // Simulate stats update
-                    location.reload();
-                }, 1000);
-            }
-            
-            // Resize canvas on window resize
-            window.addEventListener('resize', () => {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-            });
+            // Auto-refresh every 30 seconds
+            setInterval(() => {{
+                refreshSignals();
+            }}, 30000);
         </script>
     </body>
     </html>
