@@ -9,6 +9,9 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import json
 import logging
+import pickle
+import os
+from datetime import datetime
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler
 
@@ -29,22 +32,34 @@ class TradingHMM:
         
     def prepare_features(self, data):
         try:
+            # Input validation and sanitization
+            volume_ratio = max(0.1, min(10.0, float(data.get('volume_ratio', 1.0))))
+            price_momentum = max(-1.0, min(1.0, float(data.get('price_momentum', 0.0))))
+            current_price = max(0.001, float(data.get('current_price', 1.0)))
+            atr_value = max(0.0001, float(data.get('atr_value', 1.0)))
+            
             features = np.array([
-                data.get('volume_ratio', 1.0),
-                data.get('price_momentum', 0.0),
-                data.get('time_of_day', 12) / 24.0,
-                data.get('day_of_week', 3) / 7.0,
-                data.get('trend_strength', 0.0) / 100.0,
-                data.get('support_distance', 5.0) / 100.0,
-                data.get('resistance_distance', 5.0) / 100.0,
-                data.get('pattern_sequence_score', 1.0),
-                data.get('market_regime_score', 0.0),
-                data.get('volatility_percentile', 50.0) / 100.0,
-                data.get('volume_profile', 1.0),
-                data.get('price_position', 0.5),
-                data.get('momentum_divergence', 0.0),
-                data.get('atr_value', 1.0) / data.get('current_price', 1.0) * 1000
+                volume_ratio,
+                price_momentum,
+                max(0, min(24, data.get('time_of_day', 12))) / 24.0,
+                max(0, min(7, data.get('day_of_week', 3))) / 7.0,
+                max(-100, min(100, data.get('trend_strength', 0.0))) / 100.0,
+                max(0, min(100, data.get('support_distance', 5.0))) / 100.0,
+                max(0, min(100, data.get('resistance_distance', 5.0))) / 100.0,
+                max(0, min(5, data.get('pattern_sequence_score', 1.0))),
+                max(-1, min(1, data.get('market_regime_score', 0.0))),
+                max(0, min(100, data.get('volatility_percentile', 50.0))) / 100.0,
+                max(0.1, min(10, data.get('volume_profile', 1.0))),
+                max(0, min(1, data.get('price_position', 0.5))),
+                max(-1, min(1, data.get('momentum_divergence', 0.0))),
+                (atr_value / current_price) * 1000
             ]).reshape(1, -1)
+            
+            # Check for NaN or infinite values
+            if np.any(np.isnan(features)) or np.any(np.isinf(features)):
+                logger.warning("Invalid feature values detected, using defaults")
+                return np.array([[1.0, 0.0, 0.5, 0.4, 0.0, 0.05, 0.05, 1.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.001]])
+            
             return features
         except Exception as e:
             logger.error(f"Feature preparation error: {e}")
@@ -155,6 +170,36 @@ app = Flask(__name__)
 CORS(app)
 hmm_engine = TradingHMM()
 
+# Data persistence functions
+def save_data():
+    """Save trading data to files"""
+    try:
+        data = {
+            'trade_log': trade_log,
+            'signal_log': signal_log,
+            'performance_stats': performance_stats,
+            'hmm_observations': hmm_engine.observation_history
+        }
+        with open('trading_data.pkl', 'wb') as f:
+            pickle.dump(data, f)
+    except Exception as e:
+        logger.error(f"Data save error: {e}")
+
+def load_data():
+    """Load trading data from files"""
+    global trade_log, signal_log, performance_stats
+    try:
+        if os.path.exists('trading_data.pkl'):
+            with open('trading_data.pkl', 'rb') as f:
+                data = pickle.load(f)
+            trade_log = data.get('trade_log', [])
+            signal_log = data.get('signal_log', [])
+            performance_stats.update(data.get('performance_stats', {}))
+            hmm_engine.observation_history = data.get('hmm_observations', [])
+            logger.info(f"Loaded {len(trade_log)} trades from storage")
+    except Exception as e:
+        logger.error(f"Data load error: {e}")
+
 # Trade Logging System
 trade_log = []
 signal_log = []
@@ -167,6 +212,9 @@ performance_stats = {
     'confidence_accuracy': {},
     'pending_signals': 0
 }
+
+# Load existing data on startup
+load_data()
 
 @app.route('/', methods=['GET'])
 def dashboard():
@@ -369,6 +417,12 @@ def webhook_receiver():
                 training_data = json.loads(json_str)
                 hmm_engine.observation_history.append(training_data)
                 return jsonify({'status': 'training_data_received'})
+            elif 'Mixed Bias Analysis:' in alert_message:
+                json_str = alert_message.split('Mixed Bias Analysis: ')[1]
+                mixed_data = json.loads(json_str)
+                # Process mixed bias analysis
+                result = mixed_bias_analysis_internal(mixed_data)
+                return jsonify(result)
             elif 'Auto Log Signal:' in alert_message:
                 json_str = alert_message.split('Auto Log Signal: ')[1]
                 signal_data = json.loads(json_str)
@@ -484,6 +538,9 @@ def log_trade():
         if trade_entry['result'] == 'WIN':
             performance_stats['confidence_accuracy'][conf_bucket]['wins'] += 1
         
+        # Save data after each trade
+        save_data()
+        
         return jsonify({'status': 'success', 'trade_id': len(trade_log)})
         
     except Exception as e:
@@ -514,12 +571,33 @@ def get_performance():
                 'total_trades': data['total']
             }
         
+        # Calculate profit factor and drawdown metrics
+        winning_pnl = sum([t.get('pnl', 0) for t in trade_log if t.get('pnl', 0) > 0])
+        losing_pnl = abs(sum([t.get('pnl', 0) for t in trade_log if t.get('pnl', 0) < 0]))
+        profit_factor = winning_pnl / losing_pnl if losing_pnl > 0 else 0
+        
+        # Calculate maximum drawdown
+        cumulative_pnl = 0
+        peak = 0
+        max_drawdown = 0
+        for trade in trade_log:
+            cumulative_pnl += trade.get('pnl', 0)
+            if cumulative_pnl > peak:
+                peak = cumulative_pnl
+            drawdown = peak - cumulative_pnl
+            if drawdown > max_drawdown:
+                max_drawdown = drawdown
+        
         result = {
             'summary': {
                 'total_trades': performance_stats['total_trades'],
                 'win_rate': round(win_rate, 2),
                 'total_pnl': round(performance_stats['total_pnl'], 2),
-                'avg_pnl_per_trade': round(performance_stats['total_pnl'] / performance_stats['total_trades'], 2) if performance_stats['total_trades'] > 0 else 0
+                'avg_pnl_per_trade': round(performance_stats['total_pnl'] / performance_stats['total_trades'], 2) if performance_stats['total_trades'] > 0 else 0,
+                'profit_factor': round(profit_factor, 2),
+                'best_trade': max([t.get('pnl', 0) for t in trade_log]) if trade_log else 0,
+                'worst_trade': min([t.get('pnl', 0) for t in trade_log]) if trade_log else 0,
+                'max_drawdown': round(max_drawdown, 2)
             },
             'pattern_performance': pattern_stats,
             'confidence_accuracy': confidence_stats,
@@ -627,6 +705,49 @@ def market_structure():
         logger.error(f"Market structure analysis error: {e}")
         return jsonify({'error': str(e)}), 500
 
+def mixed_bias_analysis_internal(data):
+    """Internal mixed bias analysis function"""
+    bull_score = data.get('bull_weighted_score', 0.0)
+    bear_score = data.get('bear_weighted_score', 0.0)
+    bull_patterns = data.get('bull_patterns', [])
+    bear_patterns = data.get('bear_patterns', [])
+    hmm_state = data.get('hmm_state', 0)
+    
+    pattern_weights = {
+        'hammer': 0.85, 'engulf': 0.75, 'ebp': 0.70, 'three_bar': 0.65,
+        'sweep': 0.60, 'inside': 0.45, 'close_above': 0.40, 'close_below': 0.40
+    }
+    
+    bull_ml_score = sum(pattern_weights.get(p, 0.5) for p in bull_patterns)
+    bear_ml_score = sum(pattern_weights.get(p, 0.5) for p in bear_patterns)
+    
+    if hmm_state == 1:
+        bull_ml_score *= 1.2
+    elif hmm_state == 2:
+        bull_ml_score *= 1.3
+    elif hmm_state == 3:
+        bear_ml_score *= 1.3
+    
+    confidence_threshold = 0.15
+    if bull_ml_score > bear_ml_score + confidence_threshold:
+        recommendation = 'BULLISH'
+        confidence = min((bull_ml_score - bear_ml_score) / bull_ml_score, 0.95)
+    elif bear_ml_score > bull_ml_score + confidence_threshold:
+        recommendation = 'BEARISH'
+        confidence = min((bear_ml_score - bull_ml_score) / bear_ml_score, 0.95)
+    else:
+        recommendation = 'NEUTRAL'
+        confidence = 0.5
+    
+    return {
+        'recommendation': recommendation,
+        'confidence': round(confidence, 3),
+        'bull_ml_score': round(bull_ml_score, 3),
+        'bear_ml_score': round(bear_ml_score, 3),
+        'analysis_method': 'ML_Enhanced_Pattern_Weighting',
+        'timestamp': pd.Timestamp.now().isoformat()
+    }
+
 @app.route('/mixed_bias_analysis', methods=['POST'])
 def mixed_bias_analysis():
     """Analyze mixed bias days using ML"""
@@ -635,47 +756,7 @@ def mixed_bias_analysis():
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         
-        bull_score = data.get('bull_weighted_score', 0.0)
-        bear_score = data.get('bear_weighted_score', 0.0)
-        bull_patterns = data.get('bull_patterns', [])
-        bear_patterns = data.get('bear_patterns', [])
-        hmm_state = data.get('hmm_state', 0)
-        
-        pattern_weights = {
-            'hammer': 0.85, 'engulf': 0.75, 'ebp': 0.70, 'three_bar': 0.65,
-            'sweep': 0.60, 'inside': 0.45, 'close_above': 0.40, 'close_below': 0.40
-        }
-        
-        bull_ml_score = sum(pattern_weights.get(p, 0.5) for p in bull_patterns)
-        bear_ml_score = sum(pattern_weights.get(p, 0.5) for p in bear_patterns)
-        
-        if hmm_state == 1:
-            bull_ml_score *= 1.2
-        elif hmm_state == 2:
-            bull_ml_score *= 1.3
-        elif hmm_state == 3:
-            bear_ml_score *= 1.3
-        
-        confidence_threshold = 0.15
-        if bull_ml_score > bear_ml_score + confidence_threshold:
-            recommendation = 'BULLISH'
-            confidence = min((bull_ml_score - bear_ml_score) / bull_ml_score, 0.95)
-        elif bear_ml_score > bull_ml_score + confidence_threshold:
-            recommendation = 'BEARISH'
-            confidence = min((bear_ml_score - bull_ml_score) / bear_ml_score, 0.95)
-        else:
-            recommendation = 'NEUTRAL'
-            confidence = 0.5
-        
-        result = {
-            'recommendation': recommendation,
-            'confidence': round(confidence, 3),
-            'bull_ml_score': round(bull_ml_score, 3),
-            'bear_ml_score': round(bear_ml_score, 3),
-            'analysis_method': 'ML_Enhanced_Pattern_Weighting',
-            'timestamp': pd.Timestamp.now().isoformat()
-        }
-        
+        result = mixed_bias_analysis_internal(data)
         return jsonify(result)
         
     except Exception as e:
@@ -695,6 +776,9 @@ def predict_entry():
         current_price = data.get('current_price', 0.0)
         volume_ratio = data.get('volume_ratio', 1.0)
         price_momentum = data.get('price_momentum', 0.0)
+        pullback_level = data.get('pullback_level', 0.0)
+        resistance_level = data.get('resistance_level', 0.0)
+        support_level = data.get('support_level', 0.0)
         
         # Get HMM state prediction
         hmm_result = hmm_engine.predict_state({
@@ -707,23 +791,41 @@ def predict_entry():
         
         entry_signal = "NO_ENTRY"
         confidence = 0.0
+        target_price = 0.0
+        stop_price = 0.0
         
         # LONG entries with HMM state alignment
         if daily_bias == "BULLISH" and bias_score >= 65 and hmm_result['state'] in [1, 2]:  # Accumulation or Markup
             if volume_ratio > 1.2 and price_momentum > 0.1:
                 entry_signal = "ENTER_LONG"
                 confidence = min(bias_score / 100 * (1 + volume_ratio * 0.2) * hmm_result['confidence'], 0.95)
+                target_price = resistance_level if resistance_level > 0 else current_price * 1.002
+                stop_price = support_level if support_level > 0 else current_price * 0.998
         
         # SHORT entries with HMM state alignment  
         elif daily_bias == "BEARISH" and bias_score <= -65 and hmm_result['state'] in [1, 3]:  # Accumulation or Distribution
             if volume_ratio > 1.2 and price_momentum < -0.1:
                 entry_signal = "ENTER_SHORT"
                 confidence = min(abs(bias_score) / 100 * (1 + volume_ratio * 0.2) * hmm_result['confidence'], 0.95)
+                target_price = support_level if support_level > 0 else current_price * 0.998
+                stop_price = resistance_level if resistance_level > 0 else current_price * 1.002
+        
+        # Calculate risk/reward ratio
+        risk_reward = 0.0
+        if stop_price != 0 and target_price != 0:
+            risk = abs(current_price - stop_price)
+            reward = abs(target_price - current_price)
+            risk_reward = reward / risk if risk > 0 else 0
         
         result = {
             'entry_signal': entry_signal,
             'confidence': round(confidence, 3),
             'current_price': current_price,
+            'target_price': round(target_price, 5),
+            'stop_price': round(stop_price, 5),
+            'risk_reward': round(risk_reward, 2),
+            'hmm_state': hmm_result['state_name'],
+            'hmm_confidence': hmm_result['confidence'],
             'volume_ratio': volume_ratio,
             'price_momentum': price_momentum,
             'timestamp': pd.Timestamp.now().isoformat()
@@ -760,10 +862,39 @@ def get_model_insights():
                         'sample_size': data['total']
                     })
         
+        # Calculate session performance
+        london_trades = [t for t in trade_log if t.get('session') == 'London']
+        ny_trades = [t for t in trade_log if t.get('session') == 'NY']
+        
+        if london_trades:
+            london_wins = len([t for t in london_trades if t.get('result') == 'WIN'])
+            insights['session_performance']['London'] = {
+                'total_trades': len(london_trades),
+                'win_rate': round((london_wins / len(london_trades)) * 100, 1),
+                'avg_pnl': round(sum([t.get('pnl', 0) for t in london_trades]) / len(london_trades), 2)
+            }
+        
+        if ny_trades:
+            ny_wins = len([t for t in ny_trades if t.get('result') == 'WIN'])
+            insights['session_performance']['NY'] = {
+                'total_trades': len(ny_trades),
+                'win_rate': round((ny_wins / len(ny_trades)) * 100, 1),
+                'avg_pnl': round(sum([t.get('pnl', 0) for t in ny_trades]) / len(ny_trades), 2)
+            }
+        
         # Generate recommendations
         if len(insights['best_performing_patterns']) > 0:
             best_pattern = max(insights['best_performing_patterns'], key=lambda x: x['success_rate'])
             insights['recommendations'].append(f"Focus on {best_pattern['pattern']} patterns - {best_pattern['success_rate']}% success rate")
+        
+        # Session recommendations
+        if 'London' in insights['session_performance'] and 'NY' in insights['session_performance']:
+            london_wr = insights['session_performance']['London']['win_rate']
+            ny_wr = insights['session_performance']['NY']['win_rate']
+            if london_wr > ny_wr + 10:
+                insights['recommendations'].append(f"London session performing better ({london_wr}% vs {ny_wr}% win rate)")
+            elif ny_wr > london_wr + 10:
+                insights['recommendations'].append(f"NY session performing better ({ny_wr}% vs {london_wr}% win rate)")
         
         return jsonify(insights)
         
@@ -773,12 +904,29 @@ def get_model_insights():
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'HMM Server Running',
-        'is_trained': hmm_engine.is_trained,
-        'observations': len(hmm_engine.observation_history)
-    })
+    """Enhanced health check with system metrics"""
+    try:
+        # System health metrics
+        memory_usage = 0
+        try:
+            import psutil
+            process = psutil.Process()
+            memory_usage = process.memory_info().rss / 1024 / 1024  # MB
+        except:
+            pass
+        
+        return jsonify({
+            'status': 'HMM Server Running',
+            'is_trained': hmm_engine.is_trained,
+            'observations': len(hmm_engine.observation_history),
+            'total_trades': len(trade_log),
+            'memory_usage_mb': round(memory_usage, 2),
+            'uptime': datetime.now().isoformat(),
+            'training_score': round(hmm_engine.training_score, 4) if hmm_engine.is_trained else 0,
+            'validation_score': round(hmm_engine.validation_score, 4) if hmm_engine.is_trained else 0
+        })
+    except Exception as e:
+        return jsonify({'status': 'Error', 'error': str(e)}), 500
 
 if __name__ == '__main__':
     import os
