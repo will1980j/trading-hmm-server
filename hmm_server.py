@@ -187,7 +187,90 @@ app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests
 hmm_engine = TradingHMM()
 
+# Trade Logging System
+trade_log = []
+signal_log = []
+performance_stats = {
+    'total_trades': 0,
+    'winning_trades': 0,
+    'losing_trades': 0,
+    'total_pnl': 0.0,
+    'best_patterns': {},
+    'confidence_accuracy': {},
+    'pending_signals': 0
+}
 
+@app.route('/', methods=['GET'])
+def dashboard():
+    """Clean trading dashboard with performance analytics"""
+    total_trades = performance_stats['total_trades']
+    win_rate = (performance_stats['winning_trades'] / total_trades * 100) if total_trades > 0 else 0
+    avg_rr = sum([t.get('actual_rr', 0) for t in trade_log]) / len(trade_log) if trade_log else 0
+    
+    html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Trading System Dashboard</title>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+            * {{ box-sizing: border-box; }}
+            body {{ font-family: 'Inter', sans-serif; margin: 0; background: #0f172a; color: #cbd5e1; min-height: 100vh; }}
+            .container {{ max-width: 1400px; margin: 0 auto; padding: 24px; }}
+            .header {{ text-align: center; margin-bottom: 32px; border-bottom: 1px solid #334155; padding-bottom: 24px; }}
+            .header h1 {{ font-size: 2em; font-weight: 300; color: #f8fafc; margin: 0; }}
+            .section {{ background: #1e293b; padding: 24px; margin: 20px 0; border-radius: 8px; border: 1px solid #334155; }}
+            .section h2 {{ color: #f1f5f9; margin: 0 0 20px 0; font-size: 1.1em; font-weight: 500; text-transform: uppercase; }}
+            .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }}
+            .stat-box {{ background: #0f172a; padding: 20px; border-radius: 6px; text-align: center; border: 1px solid #334155; }}
+            .stat-box h3 {{ color: #94a3b8; margin: 0 0 10px 0; font-size: 0.8em; text-transform: uppercase; }}
+            .stat-box p {{ font-size: 1.8em; font-weight: 600; margin: 0; color: #f8fafc; }}
+            .success {{ color: #10b981; }}
+            .warning {{ color: #f59e0b; }}
+            .error {{ color: #ef4444; }}
+            button {{ background: #334155; color: #f1f5f9; padding: 12px 20px; border: 1px solid #475569; border-radius: 6px; cursor: pointer; font-weight: 500; font-family: inherit; transition: all 0.2s ease; }}
+            button:hover {{ background: #475569; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>TRADING SYSTEM DASHBOARD</h1>
+                <p style="color: #64748b; margin: 5px 0;">Performance Analytics & Signal Management</p>
+            </div>
+            
+            <div class="section">
+                <h2>System Status</h2>
+                <div class="stats">
+                    <div class="stat-box">
+                        <h3>Model Status</h3>
+                        <p class="success">{'TRAINED' if hmm_engine.is_trained else 'LEARNING'}</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Total Trades</h3>
+                        <p>{total_trades}</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Win Rate</h3>
+                        <p class="{'success' if win_rate > 60 else 'warning' if win_rate > 40 else 'error'}">{win_rate:.1f}%</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Avg R:R</h3>
+                        <p class="{'success' if avg_rr > 2 else 'warning' if avg_rr > 1 else 'error'}">{avg_rr:.2f}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>Signal Management</h2>
+                <div>No pending signals</div>
+                <button onclick="location.reload()">REFRESH DATA</button>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+    return html
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -303,6 +386,13 @@ def retrain():
         
     except Exception as e:
         logger.error(f"Retrain endpoint error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    print("🚀 Starting Trading Dashboard Server...")
+    app.run(host='0.0.0.0', port=port, debug=False)ain endpoint error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/webhook', methods=['POST'])
