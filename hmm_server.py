@@ -8,9 +8,10 @@ import numpy as np
 import pandas as pd
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from hmmlearn.hmm import GaussianHMM
 import json
 import logging
+from sklearn.mixture import GaussianMixture
+from sklearn.preprocessing import StandardScaler
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 class TradingHMM:
     def __init__(self):
         # 4 Hidden States: 0=Ranging, 1=Accumulation, 2=Markup, 3=Distribution
-        self.model = GaussianHMM(n_components=4, covariance_type="full", n_iter=200, random_state=42)
+        self.model = GaussianMixture(n_components=4, covariance_type="full", max_iter=200, random_state=42)
         self.states = ['Ranging', 'Accumulation', 'Markup', 'Distribution']
         self.is_trained = False
         self.observation_history = []
@@ -144,7 +145,7 @@ class TradingHMM:
                 if self.scaler is not None:
                     X = self.scaler.transform(X)
                 
-                # Use trained HMM
+                # Use trained model
                 state_probs = self.model.predict_proba(X)
                 predicted_states = self.model.predict(X)
                 
