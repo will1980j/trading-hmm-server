@@ -239,7 +239,7 @@ def predict():
 
 @app.route('/webhook', methods=['POST'])
 def webhook_receiver():
-    """Receive webhook data from TradingView"""
+    """Enhanced webhook receiver for multiple alert types"""
     try:
         if request.is_json:
             data = request.json
@@ -248,6 +248,27 @@ def webhook_receiver():
             if 'Market Data:' in alert_message:
                 json_str = alert_message.split('Market Data: ')[1]
                 data = json.loads(json_str)
+            elif 'HMM Training Data:' in alert_message:
+                json_str = alert_message.split('HMM Training Data: ')[1]
+                training_data = json.loads(json_str)
+                hmm_engine.observation_history.append(training_data)
+                return jsonify({'status': 'training_data_received'})
+            elif 'Auto Log Signal:' in alert_message:
+                json_str = alert_message.split('Auto Log Signal: ')[1]
+                signal_data = json.loads(json_str)
+                signal_entry = {
+                    'signal_id': len(signal_log) + 1,
+                    'timestamp': signal_data.get('timestamp', pd.Timestamp.now().isoformat()),
+                    'symbol': signal_data.get('symbol', 'UNKNOWN'),
+                    'direction': signal_data.get('direction', ''),
+                    'entry_signal': signal_data.get('entry_signal', ''),
+                    'ai_confidence': float(signal_data.get('ai_confidence', 0)),
+                    'suggested_entry': float(signal_data.get('suggested_entry', 0)),
+                    'status': 'PENDING'
+                }
+                signal_log.append(signal_entry)
+                performance_stats['pending_signals'] = len([s for s in signal_log if s['status'] == 'PENDING'])
+                return jsonify({'status': 'signal_logged', 'signal_id': signal_entry['signal_id']})
             else:
                 return jsonify({'error': 'Unknown alert format'}), 400
         
@@ -265,7 +286,7 @@ def webhook_receiver():
 
 @app.route('/log_trade', methods=['POST'])
 def log_trade():
-    """Log trade with R:R analysis"""
+    """Enhanced trade logging with MAE/MFE analysis"""
     try:
         data = request.json
         if not data:
@@ -273,18 +294,53 @@ def log_trade():
         
         entry_price = float(data.get('entry_price', 0))
         exit_price = float(data.get('exit_price', 0))
-        actual_pnl = exit_price - entry_price if data.get('direction') == 'LONG' else entry_price - exit_price
+        stop_loss = float(data.get('stop_loss', 0))
+        take_profit = float(data.get('take_profit', 0))
+        max_favorable = float(data.get('max_favorable_excursion', exit_price))
+        max_adverse = float(data.get('max_adverse_excursion', entry_price))
         
+        # Calculate R:R metrics
+        if stop_loss > 0 and take_profit > 0:
+            risk = abs(entry_price - stop_loss)
+            reward = abs(take_profit - entry_price)
+            planned_rr = reward / risk if risk > 0 else 0
+        else:
+            planned_rr = 0
+            
+        actual_pnl = exit_price - entry_price if data.get('direction') == 'LONG' else entry_price - exit_price
+        actual_risk = abs(entry_price - stop_loss) if stop_loss > 0 else abs(actual_pnl)
+        actual_rr = abs(actual_pnl) / actual_risk if actual_risk > 0 else 0
+        
+        # Calculate MAE/MFE
+        if data.get('direction') == 'LONG':
+            mfe = max_favorable - entry_price
+            mae = entry_price - max_adverse
+        else:
+            mfe = entry_price - max_favorable
+            mae = max_adverse - entry_price
+            
         trade_entry = {
             'timestamp': data.get('timestamp', pd.Timestamp.now().isoformat()),
             'symbol': data.get('symbol', 'UNKNOWN'),
             'direction': data.get('direction', ''),
             'entry_price': entry_price,
             'exit_price': exit_price,
+            'stop_loss': stop_loss,
+            'take_profit': take_profit,
             'pnl': float(data.get('pnl', actual_pnl)),
             'result': data.get('result', ''),
-            'actual_rr': float(data.get('actual_rr', 0)),
-            'ai_confidence': float(data.get('ai_confidence', 0))
+            'planned_rr': planned_rr,
+            'actual_rr': actual_rr,
+            'rr_efficiency': (actual_rr / planned_rr) if planned_rr > 0 else 0,
+            'mae': mae,
+            'mfe': mfe,
+            'mae_percentage': (mae / entry_price * 100) if entry_price > 0 else 0,
+            'mfe_percentage': (mfe / entry_price * 100) if entry_price > 0 else 0,
+            'exit_efficiency': (actual_pnl / mfe) if mfe > 0 else 0,
+            'duration_minutes': float(data.get('duration_minutes', 0)),
+            'ai_confidence': float(data.get('ai_confidence', 0)),
+            'patterns_used': data.get('patterns_used', []),
+            'session': data.get('session', 'Unknown')
         }
         
         trade_log.append(trade_entry)
@@ -295,6 +351,14 @@ def log_trade():
             performance_stats['winning_trades'] += 1
         elif trade_entry['result'] == 'LOSS':
             performance_stats['losing_trades'] += 1
+        
+        # Track pattern performance
+        for pattern in trade_entry['patterns_used']:
+            if pattern not in performance_stats['best_patterns']:
+                performance_stats['best_patterns'][pattern] = {'wins': 0, 'total': 0}
+            performance_stats['best_patterns'][pattern]['total'] += 1
+            if trade_entry['result'] == 'WIN':
+                performance_stats['best_patterns'][pattern]['wins'] += 1
         
         return jsonify({'status': 'success', 'trade_id': len(trade_log)})
         
@@ -344,6 +408,212 @@ def train():
         
     except Exception as e:
         logger.error(f"Training endpoint error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/retrain', methods=['POST'])
+def retrain():
+    """Retrain HMM on accumulated observations"""
+    try:
+        if len(hmm_engine.observation_history) < 20:
+            return jsonify({
+                'status': 'insufficient_data',
+                'message': f'Need at least 20 observations, have {len(hmm_engine.observation_history)}'
+            })
+        
+        success = hmm_engine.train_model(hmm_engine.observation_history)
+        
+        return jsonify({
+            'status': 'success' if success else 'failed',
+            'is_trained': hmm_engine.is_trained,
+            'observations_used': len(hmm_engine.observation_history)
+        })
+        
+    except Exception as e:
+        logger.error(f"Retrain endpoint error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/market_structure', methods=['POST'])
+def market_structure():
+    """Analyze current market structure for entry timing"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        highs = data.get('recent_highs', [])
+        lows = data.get('recent_lows', [])
+        volumes = data.get('recent_volumes', [])
+        
+        structure_analysis = {
+            'trend_strength': 0.0,
+            'support_level': 0.0,
+            'resistance_level': 0.0,
+            'breakout_probability': 0.0,
+            'optimal_entry_zone': [0.0, 0.0]
+        }
+        
+        if len(highs) >= 3 and len(lows) >= 3:
+            recent_highs = highs[-3:]
+            recent_lows = lows[-3:]
+            
+            higher_highs = sum(1 for i in range(1, len(recent_highs)) if recent_highs[i] > recent_highs[i-1])
+            higher_lows = sum(1 for i in range(1, len(recent_lows)) if recent_lows[i] > recent_lows[i-1])
+            
+            structure_analysis['trend_strength'] = (higher_highs + higher_lows) / 4.0
+            structure_analysis['support_level'] = min(recent_lows)
+            structure_analysis['resistance_level'] = max(recent_highs)
+            
+            if len(volumes) >= 3:
+                avg_volume = sum(volumes[-3:]) / 3
+                current_volume = volumes[-1] if volumes else 1.0
+                volume_strength = current_volume / avg_volume if avg_volume > 0 else 1.0
+                structure_analysis['breakout_probability'] = min(volume_strength * structure_analysis['trend_strength'], 1.0)
+            
+            support = structure_analysis['support_level']
+            resistance = structure_analysis['resistance_level']
+            zone_size = (resistance - support) * 0.2
+            
+            if structure_analysis['trend_strength'] > 0.5:
+                structure_analysis['optimal_entry_zone'] = [support, support + zone_size]
+            else:
+                structure_analysis['optimal_entry_zone'] = [resistance - zone_size, resistance]
+        
+        return jsonify(structure_analysis)
+        
+    except Exception as e:
+        logger.error(f"Market structure analysis error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/mixed_bias_analysis', methods=['POST'])
+def mixed_bias_analysis():
+    """Analyze mixed bias days using ML"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        bull_score = data.get('bull_weighted_score', 0.0)
+        bear_score = data.get('bear_weighted_score', 0.0)
+        bull_patterns = data.get('bull_patterns', [])
+        bear_patterns = data.get('bear_patterns', [])
+        hmm_state = data.get('hmm_state', 0)
+        
+        pattern_weights = {
+            'hammer': 0.85, 'engulf': 0.75, 'ebp': 0.70, 'three_bar': 0.65,
+            'sweep': 0.60, 'inside': 0.45, 'close_above': 0.40, 'close_below': 0.40
+        }
+        
+        bull_ml_score = sum(pattern_weights.get(p, 0.5) for p in bull_patterns)
+        bear_ml_score = sum(pattern_weights.get(p, 0.5) for p in bear_patterns)
+        
+        if hmm_state == 1:
+            bull_ml_score *= 1.2
+        elif hmm_state == 2:
+            bull_ml_score *= 1.3
+        elif hmm_state == 3:
+            bear_ml_score *= 1.3
+        
+        confidence_threshold = 0.15
+        if bull_ml_score > bear_ml_score + confidence_threshold:
+            recommendation = 'BULLISH'
+            confidence = min((bull_ml_score - bear_ml_score) / bull_ml_score, 0.95)
+        elif bear_ml_score > bull_ml_score + confidence_threshold:
+            recommendation = 'BEARISH'
+            confidence = min((bear_ml_score - bull_ml_score) / bear_ml_score, 0.95)
+        else:
+            recommendation = 'NEUTRAL'
+            confidence = 0.5
+        
+        result = {
+            'recommendation': recommendation,
+            'confidence': round(confidence, 3),
+            'bull_ml_score': round(bull_ml_score, 3),
+            'bear_ml_score': round(bear_ml_score, 3),
+            'analysis_method': 'ML_Enhanced_Pattern_Weighting',
+            'timestamp': pd.Timestamp.now().isoformat()
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Mixed bias analysis error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/predict_entry', methods=['POST'])
+def predict_entry():
+    """Real-time 1M entry signal prediction"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        daily_bias = data.get('daily_bias', 'NEUTRAL')
+        bias_score = data.get('bias_score', 50.0)
+        current_price = data.get('current_price', 0.0)
+        volume_ratio = data.get('volume_ratio', 1.0)
+        price_momentum = data.get('price_momentum', 0.0)
+        
+        entry_signal = "NO_ENTRY"
+        confidence = 0.0
+        
+        if daily_bias == "BULLISH" and bias_score >= 65:
+            if volume_ratio > 1.2 and price_momentum > 0.1:
+                entry_signal = "ENTER_LONG"
+                confidence = min(bias_score / 100 * (1 + volume_ratio * 0.2), 0.95)
+        elif daily_bias == "BEARISH" and bias_score <= -65:
+            if volume_ratio > 1.2 and price_momentum < -0.1:
+                entry_signal = "ENTER_SHORT"
+                confidence = min(abs(bias_score) / 100 * (1 + volume_ratio * 0.2), 0.95)
+        
+        result = {
+            'entry_signal': entry_signal,
+            'confidence': round(confidence, 3),
+            'current_price': current_price,
+            'volume_ratio': volume_ratio,
+            'price_momentum': price_momentum,
+            'timestamp': pd.Timestamp.now().isoformat()
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Entry prediction error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/model_insights', methods=['GET'])
+def get_model_insights():
+    """Get AI model insights based on logged trades"""
+    try:
+        if len(trade_log) < 5:
+            return jsonify({'message': 'Need at least 5 trades for insights'})
+        
+        insights = {
+            'best_performing_patterns': [],
+            'optimal_confidence_threshold': 0.7,
+            'session_performance': {},
+            'recommendations': []
+        }
+        
+        # Find best patterns
+        for pattern, data in performance_stats['best_patterns'].items():
+            if data['total'] >= 3:
+                success_rate = (data['wins'] / data['total']) * 100
+                if success_rate > 60:
+                    insights['best_performing_patterns'].append({
+                        'pattern': pattern,
+                        'success_rate': round(success_rate, 1),
+                        'sample_size': data['total']
+                    })
+        
+        # Generate recommendations
+        if len(insights['best_performing_patterns']) > 0:
+            best_pattern = max(insights['best_performing_patterns'], key=lambda x: x['success_rate'])
+            insights['recommendations'].append(f"Focus on {best_pattern['pattern']} patterns - {best_pattern['success_rate']}% success rate")
+        
+        return jsonify(insights)
+        
+    except Exception as e:
+        logger.error(f"Model insights error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
