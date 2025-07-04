@@ -510,14 +510,36 @@ def webhook_receiver():
             result['webhook_id'] = webhook_counter
             return jsonify(result)
         else:
+            # Try form data first
             alert_message = request.form.get('message', '')
-            logger.info(f"Form Message: {alert_message[:200]}...")
-            webhook_entry['data_type'] = 'FORM'
+            
+            # If no form data, get raw text data
+            if not alert_message:
+                alert_message = raw_data
+                webhook_entry['data_type'] = 'RAW_TEXT'
+                logger.info(f"Raw Text Message: {alert_message[:200]}...")
+            else:
+                webhook_entry['data_type'] = 'FORM'
+                logger.info(f"Form Message: {alert_message[:200]}...")
             
             if 'Market Data:' in alert_message:
-                json_str = alert_message.split('Market Data: ')[1]
-                data = json.loads(json_str)
-                logger.info(f"Parsed Market Data: {data}")
+                try:
+                    json_str = alert_message.split('Market Data: ')[1].strip()
+                    # Handle potential truncation by trying to fix incomplete JSON
+                    if not json_str.endswith('}'):
+                        logger.warning(f"JSON appears truncated: {json_str}")
+                        # Try to find the last complete field
+                        last_comma = json_str.rfind(',')
+                        if last_comma > 0:
+                            json_str = json_str[:last_comma] + '}'
+                            logger.info(f"Attempting to fix JSON: {json_str}")
+                    
+                    data = json.loads(json_str)
+                    logger.info(f"Successfully parsed Market Data: {data}")
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON parsing failed: {e}")
+                    logger.error(f"Raw JSON string: {json_str}")
+                    return jsonify({'error': f'Invalid JSON: {str(e)}', 'webhook_id': webhook_counter}), 400
             elif 'HMM Training Data:' in alert_message:
                 json_str = alert_message.split('HMM Training Data: ')[1]
                 training_data = json.loads(json_str)
