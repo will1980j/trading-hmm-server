@@ -150,16 +150,24 @@ performance_stats = {
 
 @app.route('/', methods=['GET'])
 def dashboard():
-    """Clean trading dashboard"""
+    """Enhanced dashboard with auto-refresh and performance graphs"""
     total_trades = performance_stats['total_trades']
     win_rate = (performance_stats['winning_trades'] / total_trades * 100) if total_trades > 0 else 0
     avg_rr = sum([t.get('actual_rr', 0) for t in trade_log]) / len(trade_log) if trade_log else 0
+    avg_mae = sum([t.get('mae_percentage', 0) for t in trade_log]) / len(trade_log) if trade_log else 0
+    avg_mfe = sum([t.get('mfe_percentage', 0) for t in trade_log]) / len(trade_log) if trade_log else 0
+    
+    # Prepare chart data
+    recent_trades = trade_log[-20:] if len(trade_log) > 20 else trade_log
+    pnl_data = [t.get('pnl', 0) for t in recent_trades]
+    rr_data = [t.get('actual_rr', 0) for t in recent_trades]
     
     html = f'''
     <!DOCTYPE html>
     <html>
     <head>
         <title>Trading System Dashboard</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
             * {{ box-sizing: border-box; }}
@@ -178,9 +186,13 @@ def dashboard():
             .error {{ color: #ef4444; }}
             button {{ background: #334155; color: #f1f5f9; padding: 12px 20px; border: 1px solid #475569; border-radius: 6px; cursor: pointer; font-weight: 500; font-family: inherit; transition: all 0.2s ease; }}
             button:hover {{ background: #475569; }}
+            .chart-container {{ background: #0f172a; padding: 20px; border-radius: 6px; margin: 20px 0; height: 300px; }}
+            .charts-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }}
+            .auto-refresh {{ position: fixed; top: 20px; right: 20px; background: #10b981; color: white; padding: 8px 16px; border-radius: 20px; font-size: 0.8em; }}
         </style>
     </head>
     <body>
+        <div class="auto-refresh">AUTO-REFRESH: ON</div>
         <div class="container">
             <div class="header">
                 <h1>TRADING SYSTEM DASHBOARD</h1>
@@ -206,15 +218,99 @@ def dashboard():
                         <h3>Avg R:R</h3>
                         <p class="{'success' if avg_rr > 2 else 'warning' if avg_rr > 1 else 'error'}">{avg_rr:.2f}</p>
                     </div>
+                    <div class="stat-box">
+                        <h3>Avg MAE</h3>
+                        <p class="error">{avg_mae:.2f}%</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Avg MFE</h3>
+                        <p class="success">{avg_mfe:.2f}%</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>Performance Charts</h2>
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <canvas id="pnlChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="rrChart"></canvas>
+                    </div>
                 </div>
             </div>
             
             <div class="section">
                 <h2>Signal Management</h2>
-                <div>No pending signals</div>
-                <button onclick="location.reload()">REFRESH DATA</button>
+                <div id="signalList">No pending signals</div>
+                <button onclick="refreshData()">REFRESH DATA</button>
             </div>
         </div>
+        
+        <script>
+            // Chart setup
+            const pnlCtx = document.getElementById('pnlChart').getContext('2d');
+            const rrCtx = document.getElementById('rrChart').getContext('2d');
+            
+            const pnlChart = new Chart(pnlCtx, {{
+                type: 'line',
+                data: {{
+                    labels: {list(range(1, len(pnl_data) + 1))},
+                    datasets: [{{
+                        label: 'P&L per Trade',
+                        data: {pnl_data},
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {{
+                        legend: {{ labels: {{ color: '#cbd5e1' }} }}
+                    }},
+                    scales: {{
+                        x: {{ ticks: {{ color: '#94a3b8' }} }},
+                        y: {{ ticks: {{ color: '#94a3b8' }} }}
+                    }}
+                }}
+            }});
+            
+            const rrChart = new Chart(rrCtx, {{
+                type: 'bar',
+                data: {{
+                    labels: {list(range(1, len(rr_data) + 1))},
+                    datasets: [{{
+                        label: 'Risk:Reward Ratio',
+                        data: {rr_data},
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderColor: '#3b82f6'
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {{
+                        legend: {{ labels: {{ color: '#cbd5e1' }} }}
+                    }},
+                    scales: {{
+                        x: {{ ticks: {{ color: '#94a3b8' }} }},
+                        y: {{ ticks: {{ color: '#94a3b8' }} }}
+                    }}
+                }}
+            }});
+            
+            function refreshData() {{
+                location.reload();
+            }}
+            
+            // Auto-refresh every 30 seconds
+            setInterval(() => {{
+                location.reload();
+            }}, 30000);
+        </script>
     </body>
     </html>
     '''
