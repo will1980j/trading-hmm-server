@@ -62,9 +62,29 @@ class TradingHMM:
                 features.append(feat)
             
             X = np.array(features)
-            self.model.fit(X)
+            
+            # Feature scaling
+            self.scaler = StandardScaler()
+            X_scaled = self.scaler.fit_transform(X)
+            
+            # Train-validation split (80-20)
+            split_idx = int(len(X_scaled) * 0.8)
+            X_train = X_scaled[:split_idx]
+            X_val = X_scaled[split_idx:]
+            
+            # Train HMM
+            self.model.fit(X_train)
+            
+            # Calculate scores
+            self.training_score = self.model.score(X_train)
+            self.validation_score = self.model.score(X_val) if len(X_val) > 0 else self.training_score
+            
+            # Feature importance (variance of each feature across states)
+            state_means = self.model.means_
+            self.feature_importance = np.var(state_means, axis=0)
+            
             self.is_trained = True
-            logger.info(f"HMM trained on {len(historical_data)} observations")
+            logger.info(f"HMM trained: {len(historical_data)} obs, train_score: {self.training_score:.3f}, val_score: {self.validation_score:.3f}")
             return True
             
         except Exception as e:
@@ -456,6 +476,14 @@ def log_trade():
             if trade_entry['result'] == 'WIN':
                 performance_stats['best_patterns'][pattern]['wins'] += 1
         
+        # Track confidence accuracy
+        conf_bucket = int(trade_entry['ai_confidence'] * 10) * 10  # 70%, 80%, etc.
+        if conf_bucket not in performance_stats['confidence_accuracy']:
+            performance_stats['confidence_accuracy'][conf_bucket] = {'wins': 0, 'total': 0}
+        performance_stats['confidence_accuracy'][conf_bucket]['total'] += 1
+        if trade_entry['result'] == 'WIN':
+            performance_stats['confidence_accuracy'][conf_bucket]['wins'] += 1
+        
         return jsonify({'status': 'success', 'trade_id': len(trade_log)})
         
     except Exception as e:
@@ -464,10 +492,27 @@ def log_trade():
 
 @app.route('/performance', methods=['GET'])
 def get_performance():
-    """Get trading performance statistics"""
+    """Enhanced trading performance statistics"""
     try:
         win_rate = (performance_stats['winning_trades'] / performance_stats['total_trades'] * 100) if performance_stats['total_trades'] > 0 else 0
         recent_trades = trade_log[-10:] if len(trade_log) > 10 else trade_log
+        
+        # Calculate pattern success rates
+        pattern_stats = {}
+        for pattern, data in performance_stats['best_patterns'].items():
+            pattern_stats[pattern] = {
+                'success_rate': (data['wins'] / data['total'] * 100) if data['total'] > 0 else 0,
+                'total_trades': data['total'],
+                'wins': data['wins']
+            }
+        
+        # Calculate confidence accuracy
+        confidence_stats = {}
+        for conf, data in performance_stats['confidence_accuracy'].items():
+            confidence_stats[f"{conf}%"] = {
+                'accuracy': (data['wins'] / data['total'] * 100) if data['total'] > 0 else 0,
+                'total_trades': data['total']
+            }
         
         result = {
             'summary': {
@@ -476,6 +521,8 @@ def get_performance():
                 'total_pnl': round(performance_stats['total_pnl'], 2),
                 'avg_pnl_per_trade': round(performance_stats['total_pnl'] / performance_stats['total_trades'], 2) if performance_stats['total_trades'] > 0 else 0
             },
+            'pattern_performance': pattern_stats,
+            'confidence_accuracy': confidence_stats,
             'recent_trades': recent_trades,
             'total_logged_trades': len(trade_log)
         }
@@ -637,7 +684,7 @@ def mixed_bias_analysis():
 
 @app.route('/predict_entry', methods=['POST'])
 def predict_entry():
-    """Real-time 1M entry signal prediction"""
+    """Real-time 1M entry signal prediction with HMM state alignment"""
     try:
         data = request.json
         if not data:
@@ -649,17 +696,29 @@ def predict_entry():
         volume_ratio = data.get('volume_ratio', 1.0)
         price_momentum = data.get('price_momentum', 0.0)
         
+        # Get HMM state prediction
+        hmm_result = hmm_engine.predict_state({
+            'pattern_strength': abs(bias_score) / 100,
+            'volume_ratio': volume_ratio,
+            'price_momentum': price_momentum,
+            'volatility_ratio': 1.0,
+            'rsi_momentum': 0.5
+        })
+        
         entry_signal = "NO_ENTRY"
         confidence = 0.0
         
-        if daily_bias == "BULLISH" and bias_score >= 65:
+        # LONG entries with HMM state alignment
+        if daily_bias == "BULLISH" and bias_score >= 65 and hmm_result['state'] in [1, 2]:  # Accumulation or Markup
             if volume_ratio > 1.2 and price_momentum > 0.1:
                 entry_signal = "ENTER_LONG"
-                confidence = min(bias_score / 100 * (1 + volume_ratio * 0.2), 0.95)
-        elif daily_bias == "BEARISH" and bias_score <= -65:
+                confidence = min(bias_score / 100 * (1 + volume_ratio * 0.2) * hmm_result['confidence'], 0.95)
+        
+        # SHORT entries with HMM state alignment  
+        elif daily_bias == "BEARISH" and bias_score <= -65 and hmm_result['state'] in [1, 3]:  # Accumulation or Distribution
             if volume_ratio > 1.2 and price_momentum < -0.1:
                 entry_signal = "ENTER_SHORT"
-                confidence = min(abs(bias_score) / 100 * (1 + volume_ratio * 0.2), 0.95)
+                confidence = min(abs(bias_score) / 100 * (1 + volume_ratio * 0.2) * hmm_result['confidence'], 0.95)
         
         result = {
             'entry_signal': entry_signal,
