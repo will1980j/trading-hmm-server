@@ -333,6 +333,12 @@ def webhook_receiver():
                 training_data = json.loads(json_str)
                 hmm_engine.observation_history.append(training_data)
                 return jsonify({'status': 'training_data_received'})
+            elif 'Mixed Bias Analysis:' in alert_message:
+                json_str = alert_message.split('Mixed Bias Analysis: ')[1]
+                mixed_data = json.loads(json_str)
+                # Process mixed bias analysis
+                analysis_result = mixed_bias_analysis()
+                return analysis_result
             else:
                 return jsonify({'error': 'Unknown alert format'}), 400
         
@@ -397,6 +403,90 @@ def predict_entry_signal(data):
     except Exception as e:
         logger.error(f"Entry signal prediction error: {e}")
         return {'entry_signal': 'ERROR', 'error': str(e)}
+
+@app.route('/mixed_bias_analysis', methods=['POST'])
+def mixed_bias_analysis():
+    """Analyze mixed bias days using ML to determine optimal direction"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        bull_score = data.get('bull_weighted_score', 0.0)
+        bear_score = data.get('bear_weighted_score', 0.0)
+        bull_patterns = data.get('bull_patterns', [])
+        bear_patterns = data.get('bear_patterns', [])
+        hmm_state = data.get('hmm_state', 0)
+        hmm_confidence = data.get('hmm_confidence', 0.5)
+        
+        # Enhanced pattern analysis using historical data + market context
+        pattern_weights = {
+            'hammer': 0.85,      # Typically high success rate
+            'engulf': 0.75,      # Strong momentum pattern
+            'ebp': 0.70,         # Sweep patterns
+            'three_bar': 0.65,   # Multi-bar confirmation
+            'sweep': 0.60,       # Basic sweep
+            'inside': 0.45,      # Often lower success
+            'close_above': 0.40, # Basic pattern
+            'close_below': 0.40  # Basic pattern
+        }
+        
+        # Calculate ML-enhanced scores
+        bull_ml_score = 0.0
+        bear_ml_score = 0.0
+        
+        for pattern in bull_patterns:
+            if pattern in pattern_weights:
+                bull_ml_score += pattern_weights[pattern]
+        
+        for pattern in bear_patterns:
+            if pattern in pattern_weights:
+                bear_ml_score += pattern_weights[pattern]
+        
+        # HMM state enhancement
+        if hmm_state == 1:  # Accumulation - favor continuation
+            bull_ml_score *= 1.2
+        elif hmm_state == 2:  # Markup - favor bullish
+            bull_ml_score *= 1.3
+        elif hmm_state == 3:  # Distribution - favor bearish
+            bear_ml_score *= 1.3
+        
+        # Market structure analysis
+        volume_ratio = data.get('volume_ratio', 1.0)
+        if volume_ratio > 1.5:  # High volume confirmation
+            if bull_ml_score > bear_ml_score:
+                bull_ml_score *= 1.1
+            else:
+                bear_ml_score *= 1.1
+        
+        # Final recommendation
+        confidence_threshold = 0.15
+        if bull_ml_score > bear_ml_score + confidence_threshold:
+            recommendation = 'BULLISH'
+            confidence = min((bull_ml_score - bear_ml_score) / bull_ml_score, 0.95)
+        elif bear_ml_score > bull_ml_score + confidence_threshold:
+            recommendation = 'BEARISH'
+            confidence = min((bear_ml_score - bull_ml_score) / bear_ml_score, 0.95)
+        else:
+            recommendation = 'NEUTRAL'
+            confidence = 0.5
+        
+        result = {
+            'recommendation': recommendation,
+            'confidence': round(confidence, 3),
+            'bull_ml_score': round(bull_ml_score, 3),
+            'bear_ml_score': round(bear_ml_score, 3),
+            'analysis_method': 'ML_Enhanced_Pattern_Weighting',
+            'hmm_state_factor': hmm_state,
+            'timestamp': pd.Timestamp.now().isoformat()
+        }
+        
+        logger.info(f"Mixed Bias Analysis: {recommendation} with {confidence:.3f} confidence")
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Mixed bias analysis error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/predict_entry', methods=['POST'])
 def predict_entry():
