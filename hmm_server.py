@@ -574,12 +574,195 @@ def predict_entry():
         logger.error(f"Entry prediction error: {e}")
         return jsonify({'error': str(e)}), 500
 
+# Trade Logging System
+trade_log = []
+performance_stats = {
+    'total_trades': 0,
+    'winning_trades': 0,
+    'losing_trades': 0,
+    'total_pnl': 0.0,
+    'best_patterns': {},
+    'confidence_accuracy': {}
+}
+
+@app.route('/log_trade', methods=['POST'])
+def log_trade():
+    """Log manual trade results for model training"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No trade data provided'}), 400
+        
+        # Required fields
+        trade_entry = {
+            'timestamp': data.get('timestamp', pd.Timestamp.now().isoformat()),
+            'symbol': data.get('symbol', 'UNKNOWN'),
+            'direction': data.get('direction', ''),  # LONG/SHORT
+            'entry_price': float(data.get('entry_price', 0)),
+            'exit_price': float(data.get('exit_price', 0)),
+            'quantity': float(data.get('quantity', 1)),
+            'pnl': float(data.get('pnl', 0)),
+            'pnl_pips': float(data.get('pnl_pips', 0)),
+            'result': data.get('result', ''),  # WIN/LOSS/BREAKEVEN
+            
+            # AI Signal Data
+            'entry_signal': data.get('entry_signal', ''),
+            'ai_confidence': float(data.get('ai_confidence', 0)),
+            'bias_score': float(data.get('bias_score', 0)),
+            'patterns_used': data.get('patterns_used', []),
+            'hmm_state': data.get('hmm_state', 'Unknown'),
+            'session': data.get('session', 'Unknown'),
+            'risk_reward_actual': float(data.get('risk_reward_actual', 0)),
+            
+            # Notes
+            'notes': data.get('notes', '')
+        }
+        
+        # Add to trade log
+        trade_log.append(trade_entry)
+        
+        # Update performance stats
+        performance_stats['total_trades'] += 1
+        performance_stats['total_pnl'] += trade_entry['pnl']
+        
+        if trade_entry['result'] == 'WIN':
+            performance_stats['winning_trades'] += 1
+        elif trade_entry['result'] == 'LOSS':
+            performance_stats['losing_trades'] += 1
+        
+        # Track pattern performance
+        for pattern in trade_entry['patterns_used']:
+            if pattern not in performance_stats['best_patterns']:
+                performance_stats['best_patterns'][pattern] = {'wins': 0, 'total': 0}
+            performance_stats['best_patterns'][pattern]['total'] += 1
+            if trade_entry['result'] == 'WIN':
+                performance_stats['best_patterns'][pattern]['wins'] += 1
+        
+        # Track confidence accuracy
+        conf_bucket = int(trade_entry['ai_confidence'] * 10) * 10  # 70%, 80%, etc.
+        if conf_bucket not in performance_stats['confidence_accuracy']:
+            performance_stats['confidence_accuracy'][conf_bucket] = {'wins': 0, 'total': 0}
+        performance_stats['confidence_accuracy'][conf_bucket]['total'] += 1
+        if trade_entry['result'] == 'WIN':
+            performance_stats['confidence_accuracy'][conf_bucket]['wins'] += 1
+        
+        logger.info(f"Trade logged: {trade_entry['direction']} {trade_entry['symbol']} - {trade_entry['result']} ({trade_entry['pnl']:.2f})")
+        
+        return jsonify({
+            'status': 'success',
+            'trade_id': len(trade_log),
+            'message': 'Trade logged successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Trade logging error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/performance', methods=['GET'])
+def get_performance():
+    """Get trading performance statistics"""
+    try:
+        # Calculate win rate
+        win_rate = (performance_stats['winning_trades'] / performance_stats['total_trades'] * 100) if performance_stats['total_trades'] > 0 else 0
+        
+        # Calculate pattern success rates
+        pattern_stats = {}
+        for pattern, data in performance_stats['best_patterns'].items():
+            pattern_stats[pattern] = {
+                'success_rate': (data['wins'] / data['total'] * 100) if data['total'] > 0 else 0,
+                'total_trades': data['total'],
+                'wins': data['wins']
+            }
+        
+        # Calculate confidence accuracy
+        confidence_stats = {}
+        for conf, data in performance_stats['confidence_accuracy'].items():
+            confidence_stats[f"{conf}%"] = {
+                'accuracy': (data['wins'] / data['total'] * 100) if data['total'] > 0 else 0,
+                'total_trades': data['total']
+            }
+        
+        # Recent trades (last 10)
+        recent_trades = trade_log[-10:] if len(trade_log) > 10 else trade_log
+        
+        result = {
+            'summary': {
+                'total_trades': performance_stats['total_trades'],
+                'win_rate': round(win_rate, 2),
+                'total_pnl': round(performance_stats['total_pnl'], 2),
+                'avg_pnl_per_trade': round(performance_stats['total_pnl'] / performance_stats['total_trades'], 2) if performance_stats['total_trades'] > 0 else 0
+            },
+            'pattern_performance': pattern_stats,
+            'confidence_accuracy': confidence_stats,
+            'recent_trades': recent_trades,
+            'total_logged_trades': len(trade_log)
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Performance retrieval error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/model_insights', methods=['GET'])
+def get_model_insights():
+    """Get AI model insights based on logged trades"""
+    try:
+        if len(trade_log) < 5:
+            return jsonify({'message': 'Need at least 5 trades for insights'})
+        
+        insights = {
+            'best_performing_patterns': [],
+            'optimal_confidence_threshold': 0.7,
+            'session_performance': {},
+            'hmm_state_accuracy': {},
+            'recommendations': []
+        }
+        
+        # Find best patterns
+        for pattern, data in performance_stats['best_patterns'].items():
+            if data['total'] >= 3:  # Minimum sample size
+                success_rate = (data['wins'] / data['total']) * 100
+                if success_rate > 60:
+                    insights['best_performing_patterns'].append({
+                        'pattern': pattern,
+                        'success_rate': round(success_rate, 1),
+                        'sample_size': data['total']
+                    })
+        
+        # Find optimal confidence threshold
+        best_threshold = 0.7
+        best_accuracy = 0
+        for conf, data in performance_stats['confidence_accuracy'].items():
+            if data['total'] >= 3:
+                accuracy = (data['wins'] / data['total']) * 100
+                if accuracy > best_accuracy:
+                    best_accuracy = accuracy
+                    best_threshold = conf / 100
+        
+        insights['optimal_confidence_threshold'] = best_threshold
+        
+        # Generate recommendations
+        if len(insights['best_performing_patterns']) > 0:
+            best_pattern = max(insights['best_performing_patterns'], key=lambda x: x['success_rate'])
+            insights['recommendations'].append(f"Focus on {best_pattern['pattern']} patterns - {best_pattern['success_rate']}% success rate")
+        
+        if best_threshold > 0.7:
+            insights['recommendations'].append(f"Consider raising confidence threshold to {best_threshold:.0%} for better accuracy")
+        
+        return jsonify(insights)
+        
+    except Exception as e:
+        logger.error(f"Model insights error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))
     
-    print("🚀 Starting HMM Server...")
+    print("🚀 Starting HMM Server with Trade Logging...")
     print(f"📊 Server will be available on port: {port}")
-    print("⚡ Ready to receive Pine Script data!")
+    print("⚡ Ready to receive Pine Script data and log trades!")
+    print("📈 New endpoints: /log_trade, /performance, /model_insights")
     
     app.run(host='0.0.0.0', port=port, debug=False)
