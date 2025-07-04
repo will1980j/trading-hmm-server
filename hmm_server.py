@@ -458,27 +458,69 @@ def predict():
         logger.error(f"Prediction endpoint error: {e}")
         return jsonify({'error': str(e)}), 500
 
+# Global webhook counter for debugging
+webhook_counter = 0
+webhook_log = []
+
 @app.route('/webhook', methods=['POST'])
 def webhook_receiver():
-    """Enhanced webhook receiver for multiple alert types"""
+    """Enhanced webhook receiver with comprehensive logging"""
+    global webhook_counter
+    webhook_counter += 1
+    
     try:
+        # Log EVERYTHING for debugging
+        logger.info(f"=== WEBHOOK #{webhook_counter} RECEIVED ===")
+        logger.info(f"Method: {request.method}")
+        logger.info(f"URL: {request.url}")
+        logger.info(f"Headers: {dict(request.headers)}")
+        logger.info(f"Content-Type: {request.content_type}")
+        logger.info(f"Content-Length: {request.content_length}")
+        
+        # Log raw data
+        raw_data = request.get_data(as_text=True)
+        logger.info(f"Raw Data: {raw_data[:500]}...")  # First 500 chars
+        
+        # Store webhook log entry
+        webhook_entry = {
+            'id': webhook_counter,
+            'timestamp': datetime.now().isoformat(),
+            'method': request.method,
+            'content_type': request.content_type,
+            'raw_data': raw_data[:200],  # First 200 chars
+            'processed': False
+        }
+        webhook_log.append(webhook_entry)
+        
+        # Keep only last 50 webhook logs
+        if len(webhook_log) > 50:
+            webhook_log[:] = webhook_log[-25:]
+        
         if request.is_json:
             data = request.json
+            logger.info(f"JSON Data: {data}")
+            webhook_entry['data_type'] = 'JSON'
         else:
             alert_message = request.form.get('message', '')
+            logger.info(f"Form Message: {alert_message[:200]}...")
+            webhook_entry['data_type'] = 'FORM'
+            
             if 'Market Data:' in alert_message:
                 json_str = alert_message.split('Market Data: ')[1]
                 data = json.loads(json_str)
+                logger.info(f"Parsed Market Data: {data}")
             elif 'HMM Training Data:' in alert_message:
                 json_str = alert_message.split('HMM Training Data: ')[1]
                 training_data = json.loads(json_str)
                 hmm_engine.observation_history.append(training_data)
-                return jsonify({'status': 'training_data_received'})
+                logger.info(f"Training data added. Total observations: {len(hmm_engine.observation_history)}")
+                webhook_entry['processed'] = True
+                return jsonify({'status': 'training_data_received', 'webhook_id': webhook_counter})
             elif 'Mixed Bias Analysis:' in alert_message:
                 json_str = alert_message.split('Mixed Bias Analysis: ')[1]
                 mixed_data = json.loads(json_str)
-                # Process mixed bias analysis
                 result = mixed_bias_analysis_internal(mixed_data)
+                webhook_entry['processed'] = True
                 return jsonify(result)
             elif 'Auto Log Signal:' in alert_message:
                 json_str = alert_message.split('Auto Log Signal: ')[1]
@@ -495,21 +537,28 @@ def webhook_receiver():
                 }
                 signal_log.append(signal_entry)
                 performance_stats['pending_signals'] = len([s for s in signal_log if s['status'] == 'PENDING'])
-                return jsonify({'status': 'signal_logged', 'signal_id': signal_entry['signal_id']})
+                webhook_entry['processed'] = True
+                return jsonify({'status': 'signal_logged', 'signal_id': signal_entry['signal_id'], 'webhook_id': webhook_counter})
             else:
-                return jsonify({'error': 'Unknown alert format'}), 400
+                logger.warning(f"Unknown alert format: {alert_message[:100]}...")
+                return jsonify({'error': 'Unknown alert format', 'webhook_id': webhook_counter}), 400
         
         if not data:
-            return jsonify({'error': 'No data provided'}), 400
+            logger.error("No data provided in webhook")
+            return jsonify({'error': 'No data provided', 'webhook_id': webhook_counter}), 400
         
         result = hmm_engine.predict_state(data)
-        logger.info(f"Webhook processed: {result['state_name']}")
+        logger.info(f"Webhook #{webhook_counter} processed: {result['state_name']} (confidence: {result['confidence']})")
+        logger.info(f"Total observations now: {len(hmm_engine.observation_history)}")
+        
+        webhook_entry['processed'] = True
+        result['webhook_id'] = webhook_counter
         
         return jsonify(result)
         
     except Exception as e:
-        logger.error(f"Webhook error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Webhook #{webhook_counter} error: {e}")
+        return jsonify({'error': str(e), 'webhook_id': webhook_counter}), 500
 
 @app.route('/log_trade', methods=['POST'])
 def log_trade():
@@ -988,6 +1037,21 @@ def learning_status():
         })
     except Exception as e:
         logger.error(f"Learning status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/webhook_debug', methods=['GET'])
+def webhook_debug():
+    """Debug webhook reception issues"""
+    try:
+        return jsonify({
+            'total_webhooks_received': webhook_counter,
+            'recent_webhooks': webhook_log[-10:] if webhook_log else [],
+            'observations_count': len(hmm_engine.observation_history),
+            'model_trained': hmm_engine.is_trained,
+            'last_webhook': webhook_log[-1] if webhook_log else None,
+            'server_time': datetime.now().isoformat()
+        })
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/webhook_test', methods=['GET', 'POST'])
