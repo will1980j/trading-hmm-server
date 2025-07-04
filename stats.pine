@@ -1468,15 +1468,15 @@ if barstate.islast
         "Center" => position.top_center
         => position.top_right
     
-    unified_table := table.new(table_pos, 4, total_rows, bgcolor=color.new(#0a0a0a, 10), border_width=2, border_color=color.new(#333333, 50), frame_width=1, frame_color=color.new(#666666, 30))
+    unified_table := table.new(table_pos, 4, total_rows, bgcolor=color.new(#0f172a, 85), border_width=1, border_color=color.new(#334155, 60))
     current_row = 0
     
-    // Enhanced Main Header with gradient effect
-    header_bg = color.new(#1a1a2e, 0)
-    table.cell(unified_table, 0, current_row, "🎯 PRECISION TRADING SYSTEM", text_color=color.white, bgcolor=header_bg, text_size=size.normal)
-    table.cell(unified_table, 1, current_row, "⚡ LIVE", text_color=color.lime, bgcolor=header_bg, text_size=size.small)
-    table.cell(unified_table, 2, current_row, data_timeframe, text_color=color.yellow, bgcolor=header_bg, text_size=size.small)
-    table.cell(unified_table, 3, current_row, syminfo.ticker, text_color=color.aqua, bgcolor=header_bg, text_size=size.small)
+    // Clean professional header
+    header_bg = color.new(#1e293b, 80)
+    table.cell(unified_table, 0, current_row, "QUANTITATIVE SYSTEM", text_color=color.new(color.white, 0), bgcolor=header_bg, text_size=size.normal)
+    table.cell(unified_table, 1, current_row, "LIVE", text_color=color.new(#10b981, 0), bgcolor=header_bg, text_size=size.small)
+    table.cell(unified_table, 2, current_row, data_timeframe, text_color=color.new(color.silver, 0), bgcolor=header_bg, text_size=size.small)
+    table.cell(unified_table, 3, current_row, syminfo.ticker, text_color=color.new(color.silver, 0), bgcolor=header_bg, text_size=size.small)
     current_row += 1
     
     universal_font_size = switch table_font_size
@@ -2026,22 +2026,18 @@ if barstate.islast
         bias_bg = bias_strength >= 80 ? color.new(color.green, 70) : bias_strength >= 60 ? color.new(color.orange, 70) : color.new(color.gray, 70)
         bias_text_color = bias_strength >= 70 ? color.white : color.silver
         
-        bias_title = current_tf_minutes <= 5 ? "⚡ SCALP BIAS" : current_tf_minutes <= 60 ? "📊 SWING BIAS" : "🎯 HTF BIAS"
-        table.cell(unified_table, 0, current_row, bias_title, text_color=color.white, bgcolor=bias_bg, text_size=universal_font_size)
+        bias_title = current_tf_minutes <= 5 ? "SCALP BIAS" : current_tf_minutes <= 60 ? "SWING BIAS" : "HTF BIAS"
+        table.cell(unified_table, 0, current_row, bias_title, text_color=color.new(color.white, 0), bgcolor=bias_bg, text_size=universal_font_size)
+        score_color = bias_strength >= 70 ? color.new(#10b981, 0) : color.new(#64748b, 0)
+        
         table.cell(unified_table, 1, current_row, biasLabel, text_color=bias_text_color, text_size=universal_font_size)
-        table.cell(unified_table, 2, current_row, str.tostring(biasScore, "#.#") + "/100", text_color=bias_strength >= 70 ? color.lime : color.yellow, text_size=universal_font_size)
-        table.cell(unified_table, 3, current_row, bias_strength >= 70 ? "🚀 STRONG" : bias_strength >= 50 ? "⚡ MODERATE" : "⚠️ WEAK", text_color=bias_text_color, text_size=universal_font_size)
+        table.cell(unified_table, 2, current_row, str.tostring(biasScore, "#.#"), text_color=score_color, text_size=universal_font_size)
+        table.cell(unified_table, 3, current_row, bias_strength >= 70 ? "STRONG" : bias_strength >= 50 ? "MODERATE" : "WEAK", text_color=score_color, text_size=universal_font_size)
         current_row += 1
         
         // TIME FILTERING AND EXECUTION LOGIC
-        // Time filtering (e.g., 7:00–11:30 London, 13:30–17:00 NY in UTC)
         current_hour = hour
         current_minute = minute
-        // Adjusted for TradingView's UTC reference
-        // London: 2am-7am UTC (TradingView time) = 7am-12pm London local
-        // NY: 8am-12pm UTC (TradingView time) = 1pm-5pm NY local  
-        inLondonSession = (current_hour >= 2 and current_hour < 7)
-        inNYSession = (current_hour >= 8 and current_hour <= 12)
         
         // Midnight Open logic (optional) - moved outside conditional
         pullback_into_midnight = (low < htf_open_data and high > htf_open_data)
@@ -2099,34 +2095,32 @@ if barstate.islast
                 signal_log_data = '{"auto_log_signal":true,"symbol":"' + syminfo.ticker + '","direction":"' + (str.contains(current_entry_signal, "LONG") ? "LONG" : "SHORT") + '","entry_signal":"' + current_entry_signal + '","ai_confidence":' + str.tostring(entry_confidence) + ',"suggested_entry":' + str.tostring(close) + ',"target_price":' + str.tostring(target_price) + ',"stop_price":' + str.tostring(stop_price) + ',"risk_reward":' + str.tostring(risk_reward_ratio) + ',"bias_score":' + str.tostring(biasScore) + ',"hmm_state":"' + hmm_state_name + '","session":"' + (inLondonSession ? "London" : inNYSession ? "NY" : "Other") + '","timestamp":"' + str.tostring(time) + '"}'
                 alert('Auto Log Signal: ' + signal_log_data, alert.freq_once_per_bar)
         
-        // Timeframe-specific execution status
-        // Debug session timing
-        debug_time = "H:" + str.tostring(current_hour) + " M:" + str.tostring(current_minute)
-        session_status = (inLondonSession or inNYSession) ? "🌆 IN SESSION" : "🌃 OFF (" + debug_time + ")"
-        regime_status = current_regime == 0 ? "🟠 RANGING" : current_regime == 1 ? "🟢 TRENDING" : "🔴 TRANSITION"
+        // DEBUG: Force session status to show current hour
+        session_status = "H:" + str.tostring(current_hour) + " L:" + str.tostring(inLondonSession) + " NY:" + str.tostring(inNYSession)
+        regime_status = current_regime == 0 ? "RANGING" : current_regime == 1 ? "TRENDING" : "TRANSITION"
         
         // Different execution logic based on timeframe
         tf_execution_ready = false
         tf_execution_status = ""
         if current_tf_minutes <= 5
-            // Scalping: More flexible conditions
             tf_execution_ready := (bias_strength >= 60 and (inLondonSession or inNYSession))
-            tf_execution_status := tf_execution_ready ? "⚡ SCALP READY" : "⏳ WAITING"
+            tf_execution_status := tf_execution_ready ? "SCALP READY" : "WAITING"
         else if current_tf_minutes <= 60
-            // Swing: Moderate conditions
             tf_execution_ready := (bias_strength >= 70)
-            tf_execution_status := tf_execution_ready ? "📊 SWING READY" : "⏳ WAITING"
+            tf_execution_status := tf_execution_ready ? "SWING READY" : "WAITING"
         else
-            // HTF: Original strict conditions
             tf_execution_ready := execution_ready
-            tf_execution_status := execution_ready ? "✅ HTF READY" : "⚠️ WAITING"
+            tf_execution_status := execution_ready ? "HTF READY" : "WAITING"
         
-        execution_bg = tf_execution_ready ? color.new(color.green, 50) : color.new(color.gray, 70)
+        execution_bg = color.new(#0f172a, 60)
+        status_color = tf_execution_ready ? color.new(#10b981, 0) : color.new(#64748b, 0)
+        session_color = (inLondonSession or inNYSession) ? color.new(#10b981, 0) : color.new(#64748b, 0)
+        regime_color = current_regime == 1 ? color.new(#10b981, 0) : color.new(#64748b, 0)
         
-        table.cell(unified_table, 0, current_row, "🚀 EXECUTION STATUS", text_color=color.white, bgcolor=execution_bg, text_size=universal_font_size)
-        table.cell(unified_table, 1, current_row, tf_execution_status, text_color=str.contains(tf_execution_status, "READY") ? color.lime : color.orange, text_size=universal_font_size)
-        table.cell(unified_table, 2, current_row, session_status, text_color=(inLondonSession or inNYSession) ? color.lime : color.gray, text_size=universal_font_size)
-        table.cell(unified_table, 3, current_row, regime_status, text_color=current_regime == 1 ? color.lime : current_regime == 0 ? color.yellow : color.red, text_size=universal_font_size)
+        table.cell(unified_table, 0, current_row, "EXECUTION STATUS", text_color=color.new(color.white, 0), bgcolor=execution_bg, text_size=universal_font_size)
+        table.cell(unified_table, 1, current_row, tf_execution_status, text_color=status_color, text_size=universal_font_size)
+        table.cell(unified_table, 2, current_row, session_status, text_color=session_color, text_size=universal_font_size)
+        table.cell(unified_table, 3, current_row, regime_status, text_color=regime_color, text_size=universal_font_size)
         current_row += 1
 
         
