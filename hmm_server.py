@@ -189,7 +189,7 @@ hmm_engine = TradingHMM()
 
 @app.route('/', methods=['GET'])
 def dashboard():
-    """Simple web dashboard for trade logging"""
+    """Wall Street financial trader dashboard"""
     html = '''
     <!DOCTYPE html>
     <html>

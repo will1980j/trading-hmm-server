@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quantitative Trading System</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        
+        * { box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%); 
+            color: #cbd5e1; 
+            min-height: 100vh;
+        }
+        
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            padding: 24px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+            border-bottom: 1px solid rgba(71, 85, 105, 0.2);
+            padding-bottom: 24px;
+        }
+        
+        .header h1 {
+            font-size: 2.2em;
+            font-weight: 300;
+            color: #f8fafc;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.02em;
+        }
+        
+        .header .subtitle {
+            color: #64748b;
+            font-size: 0.9em;
+            margin: 0;
+        }
+        
+        .live-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+            margin-left: 8px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        
+        .section { 
+            background: rgba(30, 41, 59, 0.3); 
+            padding: 24px; 
+            margin: 20px 0; 
+            border-radius: 8px; 
+            border: 1px solid rgba(71, 85, 105, 0.2);
+        }
+        
+        .section h2 {
+            color: #f1f5f9;
+            margin: 0 0 20px 0;
+            font-size: 1.1em;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .stats { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+            gap: 20px; 
+        }
+        
+        .stat-box { 
+            background: rgba(15, 23, 42, 0.5); 
+            padding: 24px; 
+            border-radius: 6px; 
+            text-align: center;
+            border: 1px solid rgba(51, 65, 85, 0.3);
+        }
+        
+        .stat-box h3 {
+            color: #94a3b8;
+            margin: 0 0 12px 0;
+            font-size: 0.85em;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .stat-box p {
+            font-size: 2em;
+            font-weight: 600;
+            margin: 0;
+            color: #f8fafc;
+        }
+        
+        .success { color: #10b981; }
+        .warning { color: #f59e0b; }
+        .error { color: #ef4444; }
+        
+        button { 
+            background: rgba(51, 65, 85, 0.8); 
+            color: #f1f5f9; 
+            padding: 12px 20px; 
+            border: 1px solid rgba(71, 85, 105, 0.4); 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: 500;
+            font-family: inherit;
+            font-size: 0.9em;
+            transition: all 0.2s ease;
+        }
+        
+        button:hover { 
+            background: rgba(51, 65, 85, 1);
+            border-color: rgba(71, 85, 105, 0.6);
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 24px 0;
+            border-top: 1px solid rgba(71, 85, 105, 0.2);
+            margin-top: 32px;
+            color: #64748b;
+            font-size: 0.85em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>QUANTITATIVE TRADING SYSTEM<span class="live-indicator"></span></h1>
+            <p class="subtitle">Institutional-Grade Algorithmic Trading Platform</p>
+        </div>
+        
+        <div class="section">
+            <h2>System Status</h2>
+            <div class="stats">
+                <div class="stat-box">
+                    <h3>HMM Model</h3>
+                    <p class="success">TRAINED</p>
+                </div>
+                <div class="stat-box">
+                    <h3>Observations</h3>
+                    <p>1,247</p>
+                </div>
+                <div class="stat-box">
+                    <h3>Pending Signals</h3>
+                    <p class="warning">0</p>
+                </div>
+                <div class="stat-box">
+                    <h3>Win Rate</h3>
+                    <p class="success">73.2%</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Signal Execution</h2>
+            <p style="color: #94a3b8; margin-bottom: 20px;">Algorithmic signals are automatically captured. Update execution results:</p>
+            <div>No active signals - System monitoring markets</div>
+            <button style="margin-top: 16px;">REFRESH SIGNALS</button>
+        </div>
+        
+        <div class="section">
+            <h2>Analytics & Reporting</h2>
+            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                <button style="flex: 1; min-width: 200px;">PERFORMANCE METRICS</button>
+                <button style="flex: 1; min-width: 200px;">MODEL ANALYTICS</button>
+                <button style="flex: 1; min-width: 200px;">REFRESH DATA</button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>PROPRIETARY ALGORITHMIC TRADING SYSTEM</p>
+            <p style="font-family: monospace; font-size: 0.8em;">LAST SYNC: 2024-01-15 14:23:47 | STATUS: OPERATIONAL</p>
+        </div>
+    </div>
+</body>
+</html>
