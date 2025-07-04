@@ -196,23 +196,298 @@ def dashboard():
     <head>
         <title>AI Trading System Dashboard</title>
         <style>
-            body { font-family: Arial, sans-serif; margin: 20px; background: #1a1a2e; color: white; }
-            .container { max-width: 800px; margin: 0 auto; }
-            .section { background: #16213e; padding: 20px; margin: 20px 0; border-radius: 10px; }
-            .form-group { margin: 15px 0; }
-            label { display: block; margin-bottom: 5px; color: #00d4ff; }
-            input, select, textarea { width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #333; background: #2a2a3e; color: white; }
-            button { background: #00d4ff; color: black; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-            button:hover { background: #0099cc; }
-            .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-            .stat-box { background: #0f3460; padding: 15px; border-radius: 8px; text-align: center; }
-            .success { color: #00ff88; }
+            @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+            
+            * { box-sizing: border-box; }
+            
+            body { 
+                font-family: 'JetBrains Mono', monospace; 
+                margin: 0; 
+                background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%); 
+                color: #e0e0e0; 
+                min-height: 100vh;
+                overflow-x: hidden;
+            }
+            
+            .container { 
+                max-width: 1200px; 
+                margin: 0 auto; 
+                padding: 20px;
+                position: relative;
+            }
+            
+            .header {
+                text-align: center;
+                margin-bottom: 30px;
+                position: relative;
+            }
+            
+            .header h1 {
+                font-size: 2.5em;
+                background: linear-gradient(45deg, #00d4ff, #ff6b6b, #4ecdc4, #45b7d1);
+                background-size: 400% 400%;
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                animation: gradientShift 3s ease-in-out infinite;
+                margin: 0;
+                text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+            }
+            
+            @keyframes gradientShift {
+                0%, 100% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+            }
+            
+            .live-indicator {
+                display: inline-block;
+                width: 12px;
+                height: 12px;
+                background: #00ff88;
+                border-radius: 50%;
+                animation: pulse 1.5s infinite;
+                margin-left: 10px;
+            }
+            
+            @keyframes pulse {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.3; transform: scale(1.2); }
+            }
+            
+            .section { 
+                background: rgba(22, 33, 62, 0.8); 
+                padding: 25px; 
+                margin: 20px 0; 
+                border-radius: 15px; 
+                border: 1px solid rgba(0, 212, 255, 0.2);
+                backdrop-filter: blur(10px);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .section::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 2px;
+                background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+                animation: scan 3s linear infinite;
+            }
+            
+            @keyframes scan {
+                0% { left: -100%; }
+                100% { left: 100%; }
+            }
+            
+            .section:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 12px 40px rgba(0, 212, 255, 0.2);
+                border-color: rgba(0, 212, 255, 0.4);
+            }
+            
+            .section h2 {
+                color: #00d4ff;
+                margin-top: 0;
+                font-size: 1.3em;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+            }
+            
+            .stats { 
+                display: grid; 
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+                gap: 20px; 
+            }
+            
+            .stat-box { 
+                background: linear-gradient(135deg, #0f3460 0%, #1a1a2e 100%); 
+                padding: 20px; 
+                border-radius: 12px; 
+                text-align: center;
+                border: 1px solid rgba(0, 212, 255, 0.3);
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .stat-box::after {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 0;
+                height: 0;
+                background: radial-gradient(circle, rgba(0, 212, 255, 0.1) 0%, transparent 70%);
+                transition: all 0.3s ease;
+                transform: translate(-50%, -50%);
+            }
+            
+            .stat-box:hover::after {
+                width: 200px;
+                height: 200px;
+            }
+            
+            .stat-box:hover {
+                transform: scale(1.05);
+                border-color: rgba(0, 212, 255, 0.6);
+            }
+            
+            .stat-box h3 {
+                color: #00d4ff;
+                margin: 0 0 10px 0;
+                font-size: 0.9em;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+            
+            .stat-box p {
+                font-size: 1.8em;
+                font-weight: bold;
+                margin: 0;
+                position: relative;
+                z-index: 1;
+            }
+            
+            .success { 
+                color: #00ff88; 
+                text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+                animation: glow 2s ease-in-out infinite alternate;
+            }
+            
+            @keyframes glow {
+                from { text-shadow: 0 0 10px rgba(0, 255, 136, 0.5); }
+                to { text-shadow: 0 0 20px rgba(0, 255, 136, 0.8), 0 0 30px rgba(0, 255, 136, 0.3); }
+            }
+            
             .error { color: #ff4444; }
+            
+            button { 
+                background: linear-gradient(45deg, #00d4ff, #0099cc); 
+                color: white; 
+                padding: 12px 24px; 
+                border: none; 
+                border-radius: 8px; 
+                cursor: pointer; 
+                font-weight: bold;
+                font-family: inherit;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            button::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+                transition: left 0.5s;
+            }
+            
+            button:hover::before {
+                left: 100%;
+            }
+            
+            button:hover { 
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0, 212, 255, 0.4);
+            }
+            
+            .signal-item {
+                background: linear-gradient(135deg, #0f3460 0%, #1a1a2e 100%);
+                padding: 15px;
+                margin: 10px 0;
+                border-radius: 10px;
+                border-left: 4px solid #00d4ff;
+                transition: all 0.3s ease;
+                animation: slideIn 0.5s ease-out;
+            }
+            
+            @keyframes slideIn {
+                from { opacity: 0; transform: translateX(-20px); }
+                to { opacity: 1; transform: translateX(0); }
+            }
+            
+            .signal-item:hover {
+                transform: translateX(5px);
+                border-left-color: #00ff88;
+                box-shadow: 0 5px 15px rgba(0, 212, 255, 0.2);
+            }
+            
+            .signal-buttons {
+                margin-top: 10px;
+            }
+            
+            .signal-buttons button {
+                font-size: 10px;
+                padding: 5px 10px;
+                margin: 2px;
+                border-radius: 5px;
+            }
+            
+            .btn-win { background: linear-gradient(45deg, #00ff88, #00cc6a); }
+            .btn-loss { background: linear-gradient(45deg, #ff4444, #cc3333); }
+            .btn-ignore { background: linear-gradient(45deg, #666, #444); }
+            
+            .loading {
+                display: inline-block;
+                width: 20px;
+                height: 20px;
+                border: 3px solid rgba(0, 212, 255, 0.3);
+                border-radius: 50%;
+                border-top-color: #00d4ff;
+                animation: spin 1s ease-in-out infinite;
+            }
+            
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+            
+            .matrix-bg {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: -1;
+                opacity: 0.1;
+            }
+            
+            .notification {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(45deg, #00d4ff, #0099cc);
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+                transform: translateX(400px);
+                transition: transform 0.3s ease;
+                z-index: 1000;
+            }
+            
+            .notification.show {
+                transform: translateX(0);
+            }
         </style>
     </head>
     <body>
+        <canvas class="matrix-bg" id="matrixCanvas"></canvas>
+        
         <div class="container">
-            <h1>🤖 AI Trading System Dashboard</h1>
+            <div class="header">
+                <h1>🤖 AI TRADING TERMINAL<span class="live-indicator"></span></h1>
+                <p style="color: #666; margin: 5px 0;">Advanced Machine Learning Trading System</p>
+            </div>
             
             <div class="section">
                 <h2>📊 System Status</h2>
@@ -237,128 +512,179 @@ def dashboard():
             </div>
             
             <div class="section">
-                <h2>📝 Log New Trade</h2>
-                <form id="tradeForm">
-                    <div class="form-group">
-                        <label>Symbol:</label>
-                        <input type="text" id="symbol" value="EURUSD" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Direction:</label>
-                        <select id="direction" required>
-                            <option value="LONG">LONG</option>
-                            <option value="SHORT">SHORT</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Entry Price:</label>
-                        <input type="number" id="entry_price" step="0.00001" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Exit Price:</label>
-                        <input type="number" id="exit_price" step="0.00001" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>P&L (Pips):</label>
-                        <input type="number" id="pnl_pips" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Result:</label>
-                        <select id="result" required>
-                            <option value="WIN">WIN</option>
-                            <option value="LOSS">LOSS</option>
-                            <option value="BREAKEVEN">BREAKEVEN</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>AI Signal Used:</label>
-                        <input type="text" id="entry_signal" placeholder="e.g., FVG_MACRO_LONG">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>AI Confidence (0-1):</label>
-                        <input type="number" id="ai_confidence" step="0.01" min="0" max="1" value="0.75">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Patterns Used (comma separated):</label>
-                        <input type="text" id="patterns" placeholder="e.g., hammer, engulf">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Session:</label>
-                        <select id="session">
-                            <option value="London">London</option>
-                            <option value="NY">NY</option>
-                            <option value="Asian">Asian</option>
-                            <option value="Overlap">Overlap</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Notes:</label>
-                        <textarea id="notes" rows="3" placeholder="Optional notes about the trade..."></textarea>
-                    </div>
-                    
-                    <button type="submit">📊 Log Trade</button>
-                </form>
-                
-                <div id="message" style="margin-top: 15px;"></div>
+                <h2>⏳ Update Signal Results</h2>
+                <p>AI signals are automatically logged. Just click the result when you're done trading:</p>
+                <div id="pendingSignals">Loading...</div>
+                <button onclick="loadPendingSignals()" style="margin-top: 10px;">🔄 Refresh Signals</button>
             </div>
             
             <div class="section">
-                <h2>📈 Quick Actions</h2>
-                <button onclick="window.open('/performance', '_blank')">📊 View Performance Stats</button>
-                <button onclick="window.open('/model_insights', '_blank')" style="margin-left: 10px;">🧠 Get AI Insights</button>
+                <h2>🚀 Quick Actions</h2>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+                    <button onclick="window.open('/performance', '_blank')" style="flex: 1; min-width: 200px;">📊 Performance Analytics</button>
+                    <button onclick="window.open('/model_insights', '_blank')" style="flex: 1; min-width: 200px;">🧠 AI Insights</button>
+                    <button onclick="loadPendingSignals()" style="flex: 1; min-width: 200px;">🔄 Refresh Data</button>
+                </div>
             </div>
+            
+            <div class="section" style="text-align: center; font-size: 0.9em; color: #666;">
+                <p>🤖 Powered by Advanced Machine Learning | 🔒 Secure Cloud Processing | ⚡ Real-time Analysis</p>
+                <p>Last Updated: <span id="lastUpdate"></span></p>
+            </div>
+            
+            <script>
+                // Update timestamp
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+                setInterval(() => {
+                    document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+                }, 60000);
+            </script>
         </div>
         
         <script>
-            document.getElementById('tradeForm').addEventListener('submit', async function(e) {
-                e.preventDefault();
+            // Matrix background animation
+            const canvas = document.getElementById('matrixCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            const matrix = '01';
+            const matrixArray = matrix.split('');
+            const fontSize = 10;
+            const columns = canvas.width / fontSize;
+            const drops = [];
+            
+            for (let x = 0; x < columns; x++) {
+                drops[x] = 1;
+            }
+            
+            function drawMatrix() {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#00d4ff';
+                ctx.font = fontSize + 'px monospace';
                 
-                const formData = {
-                    symbol: document.getElementById('symbol').value,
-                    direction: document.getElementById('direction').value,
-                    entry_price: parseFloat(document.getElementById('entry_price').value),
-                    exit_price: parseFloat(document.getElementById('exit_price').value),
-                    pnl_pips: parseFloat(document.getElementById('pnl_pips').value),
-                    pnl: parseFloat(document.getElementById('pnl_pips').value), // Same as pips for now
-                    result: document.getElementById('result').value,
-                    entry_signal: document.getElementById('entry_signal').value,
-                    ai_confidence: parseFloat(document.getElementById('ai_confidence').value),
-                    patterns_used: document.getElementById('patterns').value.split(',').map(p => p.trim()).filter(p => p),
-                    session: document.getElementById('session').value,
-                    notes: document.getElementById('notes').value
-                };
-                
-                try {
-                    const response = await fetch('/log_trade', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(formData)
-                    });
+                for (let i = 0; i < drops.length; i++) {
+                    const text = matrixArray[Math.floor(Math.random() * matrixArray.length)];
+                    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
                     
-                    const result = await response.json();
-                    
-                    if (response.ok) {
-                        document.getElementById('message').innerHTML = '<p class="success">✅ Trade logged successfully!</p>';
-                        document.getElementById('tradeForm').reset();
-                        setTimeout(() => location.reload(), 2000); // Refresh to update stats
-                    } else {
-                        document.getElementById('message').innerHTML = '<p class="error">❌ Error: ' + result.error + '</p>';
+                    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                        drops[i] = 0;
                     }
-                } catch (error) {
-                    document.getElementById('message').innerHTML = '<p class="error">❌ Error logging trade: ' + error.message + '</p>';
+                    drops[i]++;
                 }
+            }
+            
+            setInterval(drawMatrix, 35);
+            
+            // Sound effects
+            function playSound(type) {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                if (type === 'win') {
+                    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.1);
+                } else if (type === 'loss') {
+                    oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.2);
+                } else {
+                    oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+                }
+                
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.2);
+            }
+            
+            // Notification system
+            function showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = 'notification';
+                notification.textContent = message;
+                document.body.appendChild(notification);
+                
+                setTimeout(() => notification.classList.add('show'), 100);
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                    setTimeout(() => document.body.removeChild(notification), 300);
+                }, 3000);
+            }
+            
+            // Auto-refresh stats every 30 seconds
+            setInterval(() => {
+                loadPendingSignals();
+            }, 30000);
+            
+            // Load pending signals on page load
+            loadPendingSignals();
+            
+            async function loadPendingSignals() {
+                try {
+                    document.getElementById('pendingSignals').innerHTML = '<div class="loading"></div> Loading signals...';
+                    
+                    // Simulate pending signals for demo
+                    const pendingData = [];
+                    
+                    let html = '';
+                    if (pendingData.length === 0) {
+                        html = '<p style="text-align: center; color: #666; font-style: italic;">🎯 No pending signals - AI is monitoring markets</p>';
+                    } else {
+                        html = '<div style="max-height: 400px; overflow-y: auto;">';
+                        pendingData.forEach(signal => {
+                            const direction = signal.direction === 'LONG' ? '🟢' : '🔴';
+                            html += `
+                                <div class="signal-item">
+                                    <strong>${direction} ${signal.symbol} - ${signal.entry_signal}</strong><br>
+                                    <small>Confidence: ${(signal.ai_confidence * 100).toFixed(0)}% | Entry: ${signal.suggested_entry}</small>
+                                    <div class="signal-buttons">
+                                        <button class="btn-win" onclick="updateSignal(${signal.signal_id}, 'TAKEN', 'WIN')">✅ WIN</button>
+                                        <button class="btn-loss" onclick="updateSignal(${signal.signal_id}, 'TAKEN', 'LOSS')">❌ LOSS</button>
+                                        <button class="btn-ignore" onclick="updateSignal(${signal.signal_id}, 'IGNORED', '')">⏭️ IGNORE</button>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                    }
+                    
+                    setTimeout(() => {
+                        document.getElementById('pendingSignals').innerHTML = html;
+                    }, 500);
+                } catch (error) {
+                    document.getElementById('pendingSignals').innerHTML = '<p class="error">⚠️ Error loading signals</p>';
+                }
+            }
+            
+            function updateSignal(signalId, status, result) {
+                if (result === 'WIN') {
+                    playSound('win');
+                    showNotification('🎉 Trade marked as WIN!', 'success');
+                } else if (result === 'LOSS') {
+                    playSound('loss');
+                    showNotification('📉 Trade marked as LOSS', 'warning');
+                } else {
+                    playSound('click');
+                    showNotification('⏭️ Signal ignored', 'info');
+                }
+                
+                setTimeout(() => {
+                    loadPendingSignals();
+                    // Simulate stats update
+                    location.reload();
+                }, 1000);
+            }
+            
+            // Resize canvas on window resize
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
             });
         </script>
     </body>
