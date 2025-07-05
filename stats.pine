@@ -2247,35 +2247,11 @@ if current_entry_signal != "NO_ENTRY" and entry_signal_active
 // PERSISTENT PLOTTING - LABELS STAY VISIBLE DURING BACKTEST
 // =============================================================================
 // Long entry markers that persist
-plotshape(
-    (last_signal == "ENTER_LONG" or last_signal == "FVG_MACRO_LONG" or last_signal == "MACRO_LONG") and bar_index == signal_bar, 
-    title="Long Entry", 
-    style=shape.triangleup, 
-    location=location.belowbar, 
-    color=color.new(color.green, 0), 
-    size=size.normal,
-    text="LONG\n" + str.tostring(last_confidence * 100, "#") + "%"
-)
+plotshape((last_signal == "ENTER_LONG" or last_signal == "FVG_MACRO_LONG" or last_signal == "MACRO_LONG") and bar_index == signal_bar, title="Long Entry", style=shape.triangleup, location=location.belowbar, color=color.new(color.green, 0), size=size.normal)
 
 // Short entry markers that persist
-plotshape(
-    (last_signal == "ENTER_SHORT" or last_signal == "FVG_MACRO_SHORT" or last_signal == "MACRO_SHORT") and bar_index == signal_bar, 
-    title="Short Entry", 
-    style=shape.triangledown, 
-    location=location.abovebar, 
-    color=color.new(color.red, 0), 
-    size=size.normal,
-    text="SHORT\n" + str.tostring(last_confidence * 100, "#") + "%"
-)
+plotshape((last_signal == "ENTER_SHORT" or last_signal == "FVG_MACRO_SHORT" or last_signal == "MACRO_SHORT") and bar_index == signal_bar, title="Short Entry", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.normal)
 
-// Optional: Add HMM state labels that persist
+// Optional: Add labels with confidence that persist
 if last_signal != "NO_ENTRY" and bar_index == signal_bar and show_hmm_states
-    label.new(
-        bar_index, 
-        str.contains(last_signal, "LONG") ? low : high,
-        text=last_hmm_state + "\nConf: " + str.tostring(last_confidence * 100, "#") + "%",
-        style=str.contains(last_signal, "LONG") ? label.style_label_up : label.style_label_down,
-        color=str.contains(last_signal, "LONG") ? color.green : color.red,
-        textcolor=color.white,
-        size=size.small
-    )
+    label.new(bar_index, str.contains(last_signal, "LONG") ? low : high, "SIGNAL", style=str.contains(last_signal, "LONG") ? label.style_label_up : label.style_label_down, color=str.contains(last_signal, "LONG") ? color.green : color.red, textcolor=color.white, size=size.small)
