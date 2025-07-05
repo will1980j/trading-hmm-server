@@ -668,7 +668,7 @@ if use_1m_signals and barstate.isconfirmed
             entry_signal_active := true
     
     // BEARISH Entry Conditions (when bearish bias is dominant)
-    if dominant_bearish and current_hmm_state == 1  // HMM Accumulation state for precision
+    if dominant_bearish and (current_hmm_state == 1 or current_hmm_state == 3)  // HMM Accumulation or Distribution state
         // ALL SELECTABLE MACRO WINDOWS (UTC time)
         w_0233_0300 = macro_0233_0300 and ((hour == 7 and minute >= 33) or (hour == 8 and minute <= 0))
         w_0403_0430 = macro_0403_0430 and ((hour == 9 and minute >= 3) or (hour == 9 and minute <= 30))
