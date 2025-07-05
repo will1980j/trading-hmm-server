@@ -1,6 +1,14 @@
 //@version=5
 indicator("All Patterns Complete with Markov Chain", overlay = true, max_bars_back = 5000, max_labels_count = 500)
 
+// =============================================================================
+// PERSISTENT SIGNAL VARIABLES FOR BACKTEST LABELS
+// =============================================================================
+var string last_signal = "NO_ENTRY"
+var int signal_bar = 0
+var float last_confidence = 0.0
+var string last_hmm_state = ""
+
 // Check timeframe
 timeframe_minutes = timeframe.in_seconds() / 60
 
@@ -2036,8 +2044,14 @@ if barstate.islast
         current_row += 1
         
         // TIME FILTERING AND EXECUTION LOGIC
+        // Time filtering (e.g., 7:00–11:30 London, 13:30–17:00 NY in UTC)
         current_hour = hour
         current_minute = minute
+        // Adjusted for TradingView's UTC reference
+        // London: 2am-7am UTC (TradingView time) = 7am-12pm London local
+        // NY: 8am-12pm UTC (TradingView time) = 1pm-5pm NY local  
+        inLondonSession = (current_hour >= 2 and current_hour < 7)
+        inNYSession = (current_hour >= 8 and current_hour <= 12)
         
         // Midnight Open logic (optional) - moved outside conditional
         pullback_into_midnight = (low < htf_open_data and high > htf_open_data)
@@ -2095,8 +2109,8 @@ if barstate.islast
                 signal_log_data = '{"auto_log_signal":true,"symbol":"' + syminfo.ticker + '","direction":"' + (str.contains(current_entry_signal, "LONG") ? "LONG" : "SHORT") + '","entry_signal":"' + current_entry_signal + '","ai_confidence":' + str.tostring(entry_confidence) + ',"suggested_entry":' + str.tostring(close) + ',"target_price":' + str.tostring(target_price) + ',"stop_price":' + str.tostring(stop_price) + ',"risk_reward":' + str.tostring(risk_reward_ratio) + ',"bias_score":' + str.tostring(biasScore) + ',"hmm_state":"' + hmm_state_name + '","session":"' + (inLondonSession ? "London" : inNYSession ? "NY" : "Other") + '","timestamp":"' + str.tostring(time) + '"}'
                 alert('Auto Log Signal: ' + signal_log_data, alert.freq_once_per_bar)
         
-        // DEBUG: Force session status to show current hour
-        session_status = "H:" + str.tostring(current_hour) + " L:" + str.tostring(inLondonSession) + " NY:" + str.tostring(inNYSession)
+        // Clean execution status with professional colors - use the same session variables
+        session_status = (inLondonSession or inNYSession) ? "IN SESSION" : "OFF HOURS"
         regime_status = current_regime == 0 ? "RANGING" : current_regime == 1 ? "TRENDING" : "TRANSITION"
         
         // Different execution logic based on timeframe
@@ -2220,7 +2234,48 @@ if use_markov_enhancement
 
 // Current timeframe combinations for visual signals - removed duplicates
 
-// Plot regime score for debugging (optional)
-// plot(use_markov_enhancement ? regime_score : na, title="Regime Score", color=color.blue, display=display.none)
-// plot(use_markov_enhancement ? regime_score : na, title="Regime Score", color=color.blue, display=display.none)
-// plot(use_markov_enhancement ? regime_score : na, title="Regime Score", color=color.blue, display=display.none)
+// =============================================================================
+// PERSISTENT ENTRY SIGNAL TRACKING FOR BACKTEST VISIBILITY
+// =============================================================================
+if current_entry_signal != "NO_ENTRY" and entry_signal_active
+    last_signal := current_entry_signal
+    signal_bar := bar_index
+    last_confidence := entry_confidence
+    last_hmm_state := hmm_state_name
+
+// =============================================================================
+// PERSISTENT PLOTTING - LABELS STAY VISIBLE DURING BACKTEST
+// =============================================================================
+// Long entry markers that persist
+plotshape(
+    (last_signal == "ENTER_LONG" or last_signal == "FVG_MACRO_LONG" or last_signal == "MACRO_LONG") and bar_index == signal_bar, 
+    title="Long Entry", 
+    style=shape.triangleup, 
+    location=location.belowbar, 
+    color=color.new(color.green, 0), 
+    size=size.normal,
+    text="LONG\n" + str.tostring(last_confidence * 100, "#") + "%"
+)
+
+// Short entry markers that persist
+plotshape(
+    (last_signal == "ENTER_SHORT" or last_signal == "FVG_MACRO_SHORT" or last_signal == "MACRO_SHORT") and bar_index == signal_bar, 
+    title="Short Entry", 
+    style=shape.triangledown, 
+    location=location.abovebar, 
+    color=color.new(color.red, 0), 
+    size=size.normal,
+    text="SHORT\n" + str.tostring(last_confidence * 100, "#") + "%"
+)
+
+// Optional: Add HMM state labels that persist
+if last_signal != "NO_ENTRY" and bar_index == signal_bar and show_hmm_states
+    label.new(
+        bar_index, 
+        str.contains(last_signal, "LONG") ? low : high,
+        text=last_hmm_state + "\nConf: " + str.tostring(last_confidence * 100, "#") + "%",
+        style=str.contains(last_signal, "LONG") ? label.style_label_up : label.style_label_down,
+        color=str.contains(last_signal, "LONG") ? color.green : color.red,
+        textcolor=color.white,
+        size=size.small
+    )
