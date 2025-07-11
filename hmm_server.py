@@ -16,6 +16,9 @@ import json
 
 logger = logging.getLogger(__name__)
 
+# Global app variable for gunicorn
+app = None
+
 class UltimateICTSystem:
     def __init__(self):
         self.ny_tz = pytz.timezone('America/New_York')
@@ -42,6 +45,10 @@ class UltimateICTSystem:
         self.app = Flask(__name__)
         CORS(self.app)
         self._setup_routes()
+        
+        # Make app accessible at module level for gunicorn
+        global app
+        app = self.app
     
     def receive_state_data(self, data: Dict):
         """Receive multi-timeframe state data"""
@@ -332,15 +339,15 @@ class UltimateICTSystem:
         def api_analysis():
             return jsonify(self.get_analysis())
 
+# Initialize system at module level for gunicorn
+import os
+logging.basicConfig(level=logging.INFO)
+system = UltimateICTSystem()
+app = system.app  # Make app available for gunicorn
+
 if __name__ == '__main__':
-    import os
-    
-    logging.basicConfig(level=logging.INFO)
-    
-    system = UltimateICTSystem()
-    
     port = int(os.environ.get('PORT', 5000))
     print(f"🚀 Starting Ultimate ICT System on port {port}")
     print(f"🎯 Dashboard: http://localhost:{port}")
     
-    system.app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False)
