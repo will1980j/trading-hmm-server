@@ -1,0 +1,241 @@
+//@version=5
+indicator("SSV6 + Webhook", overlay=true, max_lines_count=500, max_boxes_count=500)
+
+// === Input Parameters ===
+pivotLength = input.int(500, "Line Extension (bars)")
+useBodyForTermination = input.bool(false, "Use Body for Line Termination")
+showFVG = input.bool(true, "Show FVGs")
+showOB = input.bool(true, "Show Order Blocks")
+filterFVGByPivots = input.bool(false, "Filter FVGs by Pivot Lines")
+showCE = input.bool(false, "Show CE Mid-line")
+
+// FVG settings
+bullFVGColor = input.color(color.green, "Bullish FVG Color", group="FVG Settings")
+bearFVGColor = input.color(color.red, "Bearish FVG Color", group="FVG Settings")
+fvgOpacity = input.int(70, "FVG Opacity", minval=0, maxval=100, group="FVG Settings")
+
+// OB settings
+bullOBColor = input.color(color.lime, "Bullish OB Color", group="OB Settings")
+bearOBColor = input.color(color.maroon, "Bearish OB Color", group="OB Settings")
+obOpacity = input.int(70, "OB Opacity", minval=0, maxval=100, group="OB Settings")
+
+// Inactive zones settings
+showInactiveZones = input.bool(true, "Show Inactive Zones", group="Inactive Zones")
+inactiveOpacity = input.int(95, "Inactive Zone Opacity", minval=0, maxval=100, group="Inactive Zones")
+
+fvgLookback = input.int(500, "Zone Extension Bars", minval=20, maxval=1000)
+
+// === Type Definitions ===
+type Zone
+    float price
+    int time
+    box visual
+    bool active
+    float topPrice    
+    float bottomPrice
+    bool isOB
+    line ceLine
+
+// === Variables ===
+var array<line> highLines = array.new<line>()
+var array<float> highPivots = array.new<float>()
+var array<int> highPivotTimes = array.new<int>()
+var array<bool> highPivotHasFVG = array.new<bool>()
+
+var array<line> lowLines = array.new<line>()
+var array<float> lowPivots = array.new<float>()
+var array<int> lowPivotTimes = array.new<int>()
+var array<bool> lowPivotHasFVG = array.new<bool>()
+
+var array<Zone> bullishZones = array.new<Zone>()
+var array<Zone> bearishZones = array.new<Zone>()
+var array<Zone> inactiveBullishZones = array.new<Zone>()
+var array<Zone> inactiveBearishZones = array.new<Zone>()
+
+// Track potential OB candles
+var float lastBearishCandleHigh = na
+var float lastBearishCandleLow = na
+var int lastBearishCandleIdx = na
+var float lastBullishCandleHigh = na
+var float lastBullishCandleLow = na
+var int lastBullishCandleIdx = na
+var int consecutiveBearishCount = 0
+var int consecutiveBullishCount = 0
+
+// State Management Enums
+BULL_ERL_TO_IRL = 1
+BULL_IRL_TO_ERL = 2
+BEAR_ERL_TO_IRL = 3
+BEAR_IRL_TO_ERL = 4
+
+// State Variables
+var int currentState = BULL_ERL_TO_IRL
+
+// Add these variables to track first pivots after breaks
+var bool waitingForBullPivot = false
+var bool waitingForBearPivot = false
+
+// === Functions ===
+createZone(float price, int time, float top, float bottom, bool isOB, color bullZoneColor, color bearZoneColor) =>
+    bool shouldShowZone = (showFVG and not isOB) or (showOB and isOB)
+    color zoneColor = price < close ? bullZoneColor : bearZoneColor
+    int zoneOpacity = isOB ? obOpacity : fvgOpacity
+    
+    box visual = shouldShowZone ? box.new(left=time, top=top, right=bar_index + fvgLookback, bottom=bottom, bgcolor=color.new(zoneColor, zoneOpacity), border_color=na) : na
+    line ceLine = showCE and shouldShowZone ? line.new(time, (top + bottom) / 2, bar_index + fvgLookback, (top + bottom) / 2, color=color.new(zoneColor, 0), width=1, style=line.style_dashed) : na
+    Zone.new(price, time, visual, true, top, bottom, isOB, ceLine)
+
+isBullishFVG(offset) =>
+    low[offset] > high[offset + 2]
+
+isBearishFVG(offset) =>
+    low[offset + 2] > high[offset]
+
+isPriceInZone(float top, float bottom) =>
+    (high > bottom and high < top) or (low > bottom and low < top) or (low < bottom and high > top)
+
+updateState(bool isHighBreak, bool isLowBreak, bool inBullZone, bool inBearZone, bool isConfirmed) =>
+    int newState = currentState
+    
+    if isConfirmed
+        if isHighBreak
+            newState := BULL_ERL_TO_IRL
+        if isLowBreak
+            newState := BEAR_ERL_TO_IRL
+    else
+        if inBullZone and currentState == BULL_ERL_TO_IRL
+            newState := BULL_IRL_TO_ERL
+        if inBearZone and currentState == BEAR_ERL_TO_IRL
+            newState := BEAR_IRL_TO_ERL
+    
+    newState
+
+// === State Display Functions ===
+stateToString(int state) =>
+    if state == BULL_ERL_TO_IRL
+        "BULL_ERL_TO_IRL"
+    else if state == BULL_IRL_TO_ERL
+        "BULL_IRL_TO_ERL"
+    else if state == BEAR_ERL_TO_IRL
+        "BEAR_ERL_TO_IRL"
+    else if state == BEAR_IRL_TO_ERL
+        "BEAR_IRL_TO_ERL"
+    else
+        "BULL_ERL_TO_IRL"
+
+getStateColor(int state) =>
+    if state == BULL_ERL_TO_IRL or state == BULL_IRL_TO_ERL
+        color.lime
+    else if state == BEAR_ERL_TO_IRL or state == BEAR_IRL_TO_ERL
+        color.red
+    else
+        color.gray
+
+// === Pivot Detection ===
+pivotHighVal = ta.pivothigh(high, 2, 2)
+pivotLowVal = ta.pivotlow(low, 2, 2)
+
+// Simple pivot detection
+bool isHighPivot = not na(pivotHighVal)
+bool isLowPivot = not na(pivotLowVal)
+
+// Check zones in real-time
+bool currentlyInBullishZone = false
+bool currentlyInBearishZone = false
+
+if array.size(bearishZones) > 0
+    for i = array.size(bearishZones) - 1 to 0
+        Zone currentZone = array.get(bearishZones, i)
+        if currentZone.active
+            if isPriceInZone(currentZone.topPrice, currentZone.bottomPrice)
+                currentlyInBearishZone := true
+
+if array.size(bullishZones) > 0
+    for i = array.size(bullishZones) - 1 to 0
+        Zone currentZone = array.get(bullishZones, i)
+        if currentZone.active
+            if isPriceInZone(currentZone.topPrice, currentZone.bottomPrice)
+                currentlyInBullishZone := true
+
+currentState := updateState(false, false, currentlyInBullishZone, currentlyInBearishZone, false)
+
+if barstate.isconfirmed
+    bool highBreak = false
+    bool lowBreak = false
+
+    // Check for breaks and update lines
+    if array.size(highLines) > 0
+        for i = array.size(highLines) - 1 to 0
+            float pivotLevel = array.get(highPivots, i)
+            if high > pivotLevel
+                highBreak := true
+                array.remove(highLines, i)
+                array.remove(highPivots, i)
+                array.remove(highPivotTimes, i)
+                array.remove(highPivotHasFVG, i)
+
+    if array.size(lowLines) > 0
+        for i = array.size(lowLines) - 1 to 0
+            float pivotLevel = array.get(lowPivots, i)
+            if low < pivotLevel
+                lowBreak := true
+                array.remove(lowLines, i)
+                array.remove(lowPivots, i)
+                array.remove(lowPivotTimes, i)
+                array.remove(lowPivotHasFVG, i)
+
+    // Create new pivot lines
+    if isHighPivot
+        line newLine = line.new(bar_index - 2, pivotHighVal, bar_index + pivotLength, pivotHighVal, color=color.white, width=1)
+        array.push(highLines, newLine)
+        array.push(highPivots, pivotHighVal)
+        array.push(highPivotTimes, bar_index - 2)
+        array.push(highPivotHasFVG, false)
+
+    if isLowPivot
+        line newLine = line.new(bar_index - 2, pivotLowVal, bar_index + pivotLength, pivotLowVal, color=color.white, width=1)
+        array.push(lowLines, newLine)
+        array.push(lowPivots, pivotLowVal)
+        array.push(lowPivotTimes, bar_index - 2)
+        array.push(lowPivotHasFVG, false)
+
+    // Process new FVGs
+    if isBullishFVG(0)
+        float topPrice = low[0]
+        float bottomPrice = high[2]
+        Zone bullFVG = createZone(bottomPrice, bar_index - 1, topPrice, bottomPrice, false, bullFVGColor, bearFVGColor)
+        array.push(bullishZones, bullFVG)
+
+    if isBearishFVG(0)
+        float topPrice = low[2]
+        float bottomPrice = high[0]
+        Zone bearFVG = createZone(topPrice, bar_index - 1, topPrice, bottomPrice, false, bullFVGColor, bearFVGColor)
+        array.push(bearishZones, bearFVG)
+
+    if highBreak or lowBreak
+        currentState := updateState(highBreak, lowBreak, currentlyInBullishZone, currentlyInBearishZone, true)
+
+// === State Display Table ===
+var table stateTable = table.new(position.bottom_right, 2, 2, bgcolor=color.rgb(0, 0, 0, 80))
+
+if barstate.isconfirmed
+    table.cell(stateTable, 0, 0, "Timeframe", text_color=color.white, text_size=size.normal)
+    table.cell(stateTable, 1, 0, timeframe.period, text_color=color.white, text_size=size.normal)
+    table.cell(stateTable, 0, 1, "State", text_color=color.white, text_size=size.normal)
+    table.cell(stateTable, 1, 1, stateToString(currentState), text_color=getStateColor(currentState), text_size=size.normal)
+
+// === SEND DATA TO PYTHON SYSTEM ===
+if barstate.islast
+    // Convert state to string for Python
+    stateString = stateToString(currentState)
+    
+    // Create timeframe key
+    timeframeKey = "state_" + timeframe.period
+    
+    // Send state data
+    stateData = '{"' + timeframeKey + '":"' + stateString + '"}'
+    alert('STATES: ' + stateData, alert.freq_once_per_bar)
+    
+    // Send structure data with current zones
+    structureData = '{"current_price":' + str.tostring(close) + ',"symbol":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '"}'
+    alert('STRUCTURE: ' + structureData, alert.freq_once_per_bar)
