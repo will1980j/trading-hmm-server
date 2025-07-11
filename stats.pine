@@ -1,13 +1,7 @@
 //@version=5
 indicator("All Patterns Complete with Markov Chain", overlay = true, max_bars_back = 5000, max_labels_count = 500)
 
-// =============================================================================
-// PERSISTENT SIGNAL VARIABLES FOR BACKTEST LABELS
-// =============================================================================
-var string last_signal = "NO_ENTRY"
-var int signal_bar = 0
-var float last_confidence = 0.0
-var string last_hmm_state = ""
+
 
 // Check timeframe
 timeframe_minutes = timeframe.in_seconds() / 60
@@ -20,6 +14,8 @@ show_engulf = input.bool(true, "Engulfing", group="Patterns")
 show_gap = input.bool(true, "Gap Fill Reversal", group="Patterns")
 show_hammer = input.bool(true, "Hammer/Shooting Star", group="Patterns")
 show_three = input.bool(true, "Three Bar Pattern", group="Patterns")
+show_close = input.bool(true, "Close Above/Below", group="Patterns")
+show_sweep = input.bool(true, "Bull/Bear Sweep", group="Patterns")
 
 bull_label_bg = input.color(color.green, "Bullish Label Background", group="Label Style")
 bear_label_bg = input.color(color.red, "Bearish Label Background", group="Label Style")
@@ -48,6 +44,7 @@ show_opportunity_section = input.bool(true, "🎯 Show Opportunity Section", gro
 show_markov_section = input.bool(true, "🤖 Show Markov Section", group="Dynamic Table")
 show_sequences_section = input.bool(true, "🔄 Show Sequences Section", group="Dynamic Table")
 show_combinations_section = input.bool(false, "🔗 Show Combinations Section", group="Dynamic Table")
+show_only_active_patterns = input.bool(false, "📍 Show Only Last Candle Patterns", group="Dynamic Table")
 table_position = input.string("Right", "Table Position", options=["Right", "Left", "Center"], group="Dynamic Table")
 table_font_size = input.string("Small", "Universal Table Font Size", options=["Tiny", "Small", "Normal", "Large"], group="Dynamic Table")
 min_success_rate = input.float(0, "Minimum Success Rate %", minval=0, maxval=100, group="Dynamic Table")
@@ -444,302 +441,7 @@ if use_hmm
     // Update state name
     hmm_state_name := current_hmm_state == 0 ? "Ranging" : current_hmm_state == 1 ? "Accumulation" : current_hmm_state == 2 ? "Markup" : "Distribution"
 
-// 1M Entry Signal Detection with Python Server Integration
-if use_1m_signals and barstate.isconfirmed
-    // Calculate 1M market structure
-    current_vol_ratio = volume / math.max(ta.sma(volume, 20), 1)
-    price_momentum_1m = (close - close[5]) / close[5] * 100
-    
-    // Better support and resistance levels for proper R:R
-    recent_high = ta.highest(high, 50)
-    recent_low = ta.lowest(low, 50)
-    atr_value = ta.atr(14)
-    pullback_level = close < ta.sma(close, 10) ? ta.sma(close, 10) : recent_low
-    
-    // Enhanced bias calculation with timing
-    simple_bias = 0.0
-    timing_score = 0.0
-    
-    // Market structure timing
-    london_session = (hour >= 7 and hour < 12)
-    ny_session = (hour >= 13 and hour <= 17)
-    overlap_session = (hour >= 13 and hour < 16)
-    
-    // Volume profile timing
-    vol_increasing = volume > volume[1] and volume[1] > volume[2]
-    vol_spike = current_vol_ratio > 1.5
-    
-    // Calculate bias with timing multiplier
-    if ebp_bull_htf[1] or inside_bull_htf[1] or engulf_bull_htf[1] or hammer_bull_htf[1] or three_bull_htf[1] or bull_close_above_htf[1] or bull_sweep_htf[1]
-        simple_bias := 75.0
-        timing_score := (london_session or ny_session ? 1.2 : 1.0) * (vol_spike ? 1.3 : 1.0)
-    else if ebp_bear_htf[1] or inside_bear_htf[1] or engulf_bear_htf[1] or hammer_bear_htf[1] or three_bear_htf[1] or bear_close_below_htf[1] or bear_sweep_htf[1]
-        simple_bias := -75.0
-        timing_score := (london_session or ny_session ? 1.2 : 1.0) * (vol_spike ? 1.3 : 1.0)
-    
-    // Apply timing multiplier
-    simple_bias := simple_bias * timing_score
-    
-    // Calculate advanced features for HMM
-    trend_strength = ta.sma(close, 20) > ta.sma(close, 50) ? (close - ta.sma(close, 20)) / ta.sma(close, 20) * 100 : (close - ta.sma(close, 20)) / ta.sma(close, 20) * -100
-    support_distance = (close - recent_low) / recent_low * 100
-    resistance_distance = (recent_high - close) / close * 100
-    pattern_sequence_score = array.size(pattern_sequence) > 0 ? (array.size(sequence_multipliers) > 0 ? array.get(sequence_multipliers, 0) : 1.0) : 1.0
-    market_regime_score = current_regime == 1 ? 1.0 : current_regime == 0 ? 0.0 : -1.0
-    volatility_percentile = ta.percentrank(ta.atr(14), 50)
-    volume_profile = ta.sma(volume, 5) / ta.sma(volume, 20)
-    price_position = (close - ta.lowest(low, 20)) / (ta.highest(high, 20) - ta.lowest(low, 20))
-    momentum_divergence = ta.rsi(close, 14) > 70 and close < close[5] ? -1.0 : ta.rsi(close, 14) < 30 and close > close[5] ? 1.0 : 0.0
-    
-    // Send comprehensive data to Python server (15M frequency for faster training)
-    if use_python_server and barstate.isconfirmed
-        webhook_data = '{"current_price":' + str.tostring(close) + 
-                      ',"volume_ratio":' + str.tostring(current_vol_ratio) + 
-                      ',"price_momentum":' + str.tostring(price_momentum_1m) + 
-                      ',"daily_bias":"' + (simple_bias > 0 ? 'BULLISH' : 'BEARISH') + '"' + 
-                      ',"bias_score":' + str.tostring(simple_bias) + 
-                      ',"time_of_day":' + str.tostring(hour) + 
-                      ',"day_of_week":' + str.tostring(dayofweek) + 
-                      ',"trend_strength":' + str.tostring(trend_strength) + 
-                      ',"support_distance":' + str.tostring(support_distance) + 
-                      ',"resistance_distance":' + str.tostring(resistance_distance) + 
-                      ',"pattern_sequence_score":' + str.tostring(pattern_sequence_score) + 
-                      ',"market_regime_score":' + str.tostring(market_regime_score) + 
-                      ',"volatility_percentile":' + str.tostring(volatility_percentile) + 
-                      ',"volume_profile":' + str.tostring(volume_profile) + 
-                      ',"price_position":' + str.tostring(price_position) + 
-                      ',"momentum_divergence":' + str.tostring(momentum_divergence) + 
-                      ',"atr_value":' + str.tostring(atr_value) + '}'
-        
-        alert('Market Data: ' + webhook_data, alert.freq_once_per_bar)
-    
-    // Reset entry signal
-    current_entry_signal := "NO_ENTRY"
-    entry_confidence := 0.0
-    entry_signal_active := false
-    
-    // Enhanced bias detection for mixed signal days
-    daily_bullish = ebp_bull_htf[1] or inside_bull_htf[1] or engulf_bull_htf[1] or hammer_bull_htf[1] or three_bull_htf[1] or bull_close_above_htf[1] or bull_sweep_htf[1]
-    daily_bearish = ebp_bear_htf[1] or inside_bear_htf[1] or engulf_bear_htf[1] or hammer_bear_htf[1] or three_bear_htf[1] or bear_close_below_htf[1] or bear_sweep_htf[1]
-    
-    // Calculate weighted pattern strength based on historical performance
-    bull_weighted_score = 0.0
-    bear_weighted_score = 0.0
-    
-    // Bull pattern weights (pure historical success rates)
-    if ebp_bull_htf[1]
-        ebp_bull_rate = array.get(signals, 0) > 0 ? (array.get(success, 0) / array.get(signals, 0)) : 0.5
-        bull_weighted_score += ebp_bull_rate
-    if inside_bull_htf[1]
-        inside_bull_rate = array.get(signals, 1) > 0 ? (array.get(success, 1) / array.get(signals, 1)) : 0.5
-        bull_weighted_score += inside_bull_rate
-    if engulf_bull_htf[1]
-        engulf_bull_rate = array.get(signals, 2) > 0 ? (array.get(success, 2) / array.get(signals, 2)) : 0.5
-        bull_weighted_score += engulf_bull_rate
-    if hammer_bull_htf[1]
-        hammer_bull_rate = array.get(signals, 4) > 0 ? (array.get(success, 4) / array.get(signals, 4)) : 0.5
-        bull_weighted_score += hammer_bull_rate  // Pure historical rate
-    if three_bull_htf[1]
-        three_bull_rate = array.get(signals, 5) > 0 ? (array.get(success, 5) / array.get(signals, 5)) : 0.5
-        bull_weighted_score += three_bull_rate
-    if bull_close_above_htf[1]
-        close_above_rate = array.get(signals, 12) > 0 ? (array.get(success, 12) / array.get(signals, 12)) : 0.5
-        bull_weighted_score += close_above_rate  // Let data speak for itself
-    if bull_sweep_htf[1]
-        bull_sweep_rate = array.get(signals, 14) > 0 ? (array.get(success, 14) / array.get(signals, 14)) : 0.5
-        bull_weighted_score += bull_sweep_rate
-    
-    // Bear pattern weights (pure historical success rates)
-    if ebp_bear_htf[1]
-        ebp_bear_rate = array.get(signals, 6) > 0 ? (array.get(success, 6) / array.get(signals, 6)) : 0.5
-        bear_weighted_score += ebp_bear_rate
-    if inside_bear_htf[1]
-        inside_bear_rate = array.get(signals, 7) > 0 ? (array.get(success, 7) / array.get(signals, 7)) : 0.5
-        bear_weighted_score += inside_bear_rate
-    if engulf_bear_htf[1]
-        engulf_bear_rate = array.get(signals, 8) > 0 ? (array.get(success, 8) / array.get(signals, 8)) : 0.5
-        bear_weighted_score += engulf_bear_rate
-    if hammer_bear_htf[1]
-        hammer_bear_rate = array.get(signals, 10) > 0 ? (array.get(success, 10) / array.get(signals, 10)) : 0.5
-        bear_weighted_score += hammer_bear_rate  // Pure historical rate
-    if three_bear_htf[1]
-        three_bear_rate = array.get(signals, 11) > 0 ? (array.get(success, 11) / array.get(signals, 11)) : 0.5
-        bear_weighted_score += three_bear_rate
-    if bear_close_below_htf[1]
-        close_below_rate = array.get(signals, 13) > 0 ? (array.get(success, 13) / array.get(signals, 13)) : 0.5
-        bear_weighted_score += close_below_rate  // Let data speak for itself
-    if bear_sweep_htf[1]
-        bear_sweep_rate = array.get(signals, 15) > 0 ? (array.get(success, 15) / array.get(signals, 15)) : 0.5
-        bear_weighted_score += bear_sweep_rate
-    
-    // Determine dominant bias using weighted historical performance + Python server
-    mixed_bias_day = daily_bullish and daily_bearish
-    performance_threshold = 0.1  // Minimum 10% performance difference to choose direction
-    
-    // Send mixed bias analysis to Python server for ML enhancement
-    if use_python_server and mixed_bias_day and barstate.isconfirmed
-        mixed_bias_data = '{"mixed_bias_analysis":true' +
-                         ',"bull_weighted_score":' + str.tostring(bull_weighted_score) +
-                         ',"bear_weighted_score":' + str.tostring(bear_weighted_score) +
-                         ',"bull_patterns":[' + 
-                         (ebp_bull_htf[1] ? '"ebp",' : '') +
-                         (inside_bull_htf[1] ? '"inside",' : '') +
-                         (engulf_bull_htf[1] ? '"engulf",' : '') +
-                         (hammer_bull_htf[1] ? '"hammer",' : '') +
-                         (three_bull_htf[1] ? '"three_bar",' : '') +
-                         (bull_close_above_htf[1] ? '"close_above",' : '') +
-                         (bull_sweep_htf[1] ? '"sweep"' : '') + ']' +
-                         ',"bear_patterns":[' +
-                         (ebp_bear_htf[1] ? '"ebp",' : '') +
-                         (inside_bear_htf[1] ? '"inside",' : '') +
-                         (engulf_bear_htf[1] ? '"engulf",' : '') +
-                         (hammer_bear_htf[1] ? '"hammer",' : '') +
-                         (three_bear_htf[1] ? '"three_bar",' : '') +
-                         (bear_close_below_htf[1] ? '"close_below",' : '') +
-                         (bear_sweep_htf[1] ? '"sweep"' : '') + ']' +
-                         ',"current_price":' + str.tostring(close) +
-                         ',"volume_ratio":' + str.tostring(volume/volume[1]) +
-                         ',"atr_value":' + str.tostring(ta.atr(14)) +
-                         ',"rsi_value":' + str.tostring(ta.rsi(close, 14)) +
-                         ',"hmm_state":' + str.tostring(current_hmm_state) +
-                         ',"hmm_confidence":' + str.tostring(hmm_confidence) +
-                         ',"timestamp":"' + str.tostring(time) + '"}'
-        
-        alert('Mixed Bias Analysis: ' + mixed_bias_data, alert.freq_once_per_bar)
-    
-    // Use Pine Script logic as fallback, Python server can override via future enhancements
-    dominant_bullish = daily_bullish and (not mixed_bias_day or (bull_weighted_score > bear_weighted_score + performance_threshold))
-    dominant_bearish = daily_bearish and (not mixed_bias_day or (bear_weighted_score > bull_weighted_score + performance_threshold))
-    
-    // BULLISH Entry Conditions (when bullish bias is dominant)
-    if dominant_bullish and current_hmm_state == 1  // HMM Accumulation state for precision
-        // ALL SELECTABLE MACRO WINDOWS (UTC time)
-        w_0233_0300 = macro_0233_0300 and ((hour == 7 and minute >= 33) or (hour == 8 and minute <= 0))
-        w_0403_0430 = macro_0403_0430 and ((hour == 9 and minute >= 3) or (hour == 9 and minute <= 30))
-        w_0850_0910 = macro_0850_0910 and ((hour == 12 and minute >= 50) or (hour == 13 and minute <= 10))
-        w_0950_1010 = macro_0950_1010 and ((hour == 13 and minute >= 50) or (hour == 14 and minute <= 10))
-        w_1020_1040 = macro_1020_1040 and (hour == 14 and minute >= 20 and minute <= 40)
-        w_1050_1110 = macro_1050_1110 and ((hour == 14 and minute >= 50) or (hour == 15 and minute <= 10))
-        w_1150_1210 = macro_1150_1210 and ((hour == 15 and minute >= 50) or (hour == 16 and minute <= 10))
-        w_1250_1310 = macro_1250_1310 and ((hour == 16 and minute >= 50) or (hour == 17 and minute <= 10))
-        w_1310_1340 = macro_1310_1340 and (hour == 17 and minute >= 10 and minute <= 40)
-        w_1350_1410 = macro_1350_1410 and ((hour == 17 and minute >= 50) or (hour == 18 and minute <= 10))
-        w_1450_1510 = macro_1450_1510 and ((hour == 18 and minute >= 50) or (hour == 19 and minute <= 10))
-        w_1515_1545 = macro_1515_1545 and (hour == 19 and minute >= 15 and minute <= 45)
-        w_1545_1600 = macro_1545_1600 and ((hour == 19 and minute >= 45) or (hour == 20 and minute <= 0))
-        w_1650_1710 = macro_1650_1710 and ((hour == 20 and minute >= 50) or (hour == 21 and minute <= 10))
-        w_1750_1810 = macro_1750_1810 and ((hour == 21 and minute >= 50) or (hour == 22 and minute <= 10))
-        w_1850_1910 = macro_1850_1910 and ((hour == 22 and minute >= 50) or (hour == 23 and minute <= 10))
-        w_1950_2010 = macro_1950_2010 and ((hour == 23 and minute >= 50) or (hour == 0 and minute <= 10))
-        w_2050_2110 = macro_2050_2110 and ((hour == 0 and minute >= 50) or (hour == 1 and minute <= 10))
-        w_2150_2210 = macro_2150_2210 and ((hour == 1 and minute >= 50) or (hour == 2 and minute <= 10))
-        w_2250_2310 = macro_2250_2310 and ((hour == 2 and minute >= 50) or (hour == 3 and minute <= 10))
-        w_2350_0010 = macro_2350_0010 and ((hour == 3 and minute >= 50) or (hour == 4 and minute <= 10))
-        w_0050_0110 = macro_0050_0110 and ((hour == 4 and minute >= 50) or (hour == 5 and minute <= 10))
-        w_0150_0210 = macro_0150_0210 and ((hour == 5 and minute >= 50) or (hour == 6 and minute <= 10))
-        w_0250_0310 = macro_0250_0310 and ((hour == 6 and minute >= 50) or (hour == 7 and minute <= 10))
-        w_0350_0410 = macro_0350_0410 and ((hour == 7 and minute >= 50) or (hour == 8 and minute <= 10))
-        w_0450_0510 = macro_0450_0510 and ((hour == 8 and minute >= 50) or (hour == 9 and minute <= 10))
-        w_0550_0610 = macro_0550_0610 and ((hour == 9 and minute >= 50) or (hour == 10 and minute <= 10))
-        w_0650_0710 = macro_0650_0710 and ((hour == 10 and minute >= 50) or (hour == 11 and minute <= 10))
-        w_0750_0810 = macro_0750_0810 and ((hour == 11 and minute >= 50) or (hour == 12 and minute <= 10))
-        
-        in_macro_window = w_0233_0300 or w_0403_0430 or w_0850_0910 or w_0950_1010 or w_1020_1040 or w_1050_1110 or w_1150_1210 or w_1250_1310 or w_1310_1340 or w_1350_1410 or w_1450_1510 or w_1515_1545 or w_1545_1600 or w_1650_1710 or w_1750_1810 or w_1850_1910 or w_1950_2010 or w_2050_2110 or w_2150_2210 or w_2250_2310 or w_2350_0010 or w_0050_0110 or w_0150_0210 or w_0250_0310 or w_0350_0410 or w_0450_0510 or w_0550_0610 or w_0650_0710 or w_0750_0810
-        
-        // PRECISE FVG DETECTION
-        fvg_bullish = low > high[2] and not na(high[2])  // Bullish FVG formation
-        fvg_entry = fvg_bullish and close > high[1]      // Price trading through FVG
-        
-        // Enhanced precision conditions
-        volume_confirmation = current_vol_ratio > 1.3
-        momentum_strong = price_momentum_1m > 0.15
-        market_structure_bullish = close > ta.sma(close, 20)
-        
-        // SNIPER ENTRY: FVG + Macro Window + All conditions
-        if fvg_entry and in_macro_window and volume_confirmation and momentum_strong and market_structure_bullish
-            current_entry_signal := "FVG_MACRO_LONG"
-            entry_confidence := math.min(0.95 * current_vol_ratio * (price_momentum_1m / 0.15), 0.98)
-        else if volume_confirmation and momentum_strong and market_structure_bullish and in_macro_window
-            current_entry_signal := "MACRO_LONG"
-            entry_confidence := math.min(0.80 * current_vol_ratio, 0.90)
-            
-            target_price := recent_high
-            stop_price := math.max(recent_low, close * 0.998)  // Tight stop for precision
-            entry_signal_active := true
-    
-    // BEARISH Entry Conditions (when bearish bias is dominant)
-    if dominant_bearish and (current_hmm_state == 1 or current_hmm_state == 3)  // HMM Accumulation or Distribution state
-        // ALL SELECTABLE MACRO WINDOWS (UTC time)
-        w_0233_0300 = macro_0233_0300 and ((hour == 7 and minute >= 33) or (hour == 8 and minute <= 0))
-        w_0403_0430 = macro_0403_0430 and ((hour == 9 and minute >= 3) or (hour == 9 and minute <= 30))
-        w_0850_0910 = macro_0850_0910 and ((hour == 12 and minute >= 50) or (hour == 13 and minute <= 10))
-        w_0950_1010 = macro_0950_1010 and ((hour == 13 and minute >= 50) or (hour == 14 and minute <= 10))
-        w_1020_1040 = macro_1020_1040 and (hour == 14 and minute >= 20 and minute <= 40)
-        w_1050_1110 = macro_1050_1110 and ((hour == 14 and minute >= 50) or (hour == 15 and minute <= 10))
-        w_1150_1210 = macro_1150_1210 and ((hour == 15 and minute >= 50) or (hour == 16 and minute <= 10))
-        w_1250_1310 = macro_1250_1310 and ((hour == 16 and minute >= 50) or (hour == 17 and minute <= 10))
-        w_1310_1340 = macro_1310_1340 and (hour == 17 and minute >= 10 and minute <= 40)
-        w_1350_1410 = macro_1350_1410 and ((hour == 17 and minute >= 50) or (hour == 18 and minute <= 10))
-        w_1450_1510 = macro_1450_1510 and ((hour == 18 and minute >= 50) or (hour == 19 and minute <= 10))
-        w_1515_1545 = macro_1515_1545 and (hour == 19 and minute >= 15 and minute <= 45)
-        w_1545_1600 = macro_1545_1600 and ((hour == 19 and minute >= 45) or (hour == 20 and minute <= 0))
-        w_1650_1710 = macro_1650_1710 and ((hour == 20 and minute >= 50) or (hour == 21 and minute <= 10))
-        w_1750_1810 = macro_1750_1810 and ((hour == 21 and minute >= 50) or (hour == 22 and minute <= 10))
-        w_1850_1910 = macro_1850_1910 and ((hour == 22 and minute >= 50) or (hour == 23 and minute <= 10))
-        w_1950_2010 = macro_1950_2010 and ((hour == 23 and minute >= 50) or (hour == 0 and minute <= 10))
-        w_2050_2110 = macro_2050_2110 and ((hour == 0 and minute >= 50) or (hour == 1 and minute <= 10))
-        w_2150_2210 = macro_2150_2210 and ((hour == 1 and minute >= 50) or (hour == 2 and minute <= 10))
-        w_2250_2310 = macro_2250_2310 and ((hour == 2 and minute >= 50) or (hour == 3 and minute <= 10))
-        w_2350_0010 = macro_2350_0010 and ((hour == 3 and minute >= 50) or (hour == 4 and minute <= 10))
-        w_0050_0110 = macro_0050_0110 and ((hour == 4 and minute >= 50) or (hour == 5 and minute <= 10))
-        w_0150_0210 = macro_0150_0210 and ((hour == 5 and minute >= 50) or (hour == 6 and minute <= 10))
-        w_0250_0310 = macro_0250_0310 and ((hour == 6 and minute >= 50) or (hour == 7 and minute <= 10))
-        w_0350_0410 = macro_0350_0410 and ((hour == 7 and minute >= 50) or (hour == 8 and minute <= 10))
-        w_0450_0510 = macro_0450_0510 and ((hour == 8 and minute >= 50) or (hour == 9 and minute <= 10))
-        w_0550_0610 = macro_0550_0610 and ((hour == 9 and minute >= 50) or (hour == 10 and minute <= 10))
-        w_0650_0710 = macro_0650_0710 and ((hour == 10 and minute >= 50) or (hour == 11 and minute <= 10))
-        w_0750_0810 = macro_0750_0810 and ((hour == 11 and minute >= 50) or (hour == 12 and minute <= 10))
-        
-        in_macro_window = w_0233_0300 or w_0403_0430 or w_0850_0910 or w_0950_1010 or w_1020_1040 or w_1050_1110 or w_1150_1210 or w_1250_1310 or w_1310_1340 or w_1350_1410 or w_1450_1510 or w_1515_1545 or w_1545_1600 or w_1650_1710 or w_1750_1810 or w_1850_1910 or w_1950_2010 or w_2050_2110 or w_2150_2210 or w_2250_2310 or w_2350_0010 or w_0050_0110 or w_0150_0210 or w_0250_0310 or w_0350_0410 or w_0450_0510 or w_0550_0610 or w_0650_0710 or w_0750_0810
-        
-        // PRECISE FVG DETECTION
-        fvg_bearish = high < low[2] and not na(low[2])   // Bearish FVG formation
-        fvg_entry = fvg_bearish and close < low[1]       // Price trading through FVG
-        
-        // Enhanced precision conditions
-        volume_confirmation = current_vol_ratio > 1.3
-        momentum_strong = price_momentum_1m < -0.15
-        market_structure_bearish = close < ta.sma(close, 20)
-        
-        // SNIPER ENTRY: FVG + Macro Window + All conditions
-        if fvg_entry and in_macro_window and volume_confirmation and momentum_strong and market_structure_bearish
-            current_entry_signal := "FVG_MACRO_SHORT"
-            entry_confidence := math.min(0.95 * current_vol_ratio * (math.abs(price_momentum_1m) / 0.15), 0.98)
-        else if volume_confirmation and momentum_strong and market_structure_bearish and in_macro_window
-            current_entry_signal := "MACRO_SHORT"
-            entry_confidence := math.min(0.80 * current_vol_ratio, 0.90)
-            
-            target_price := recent_low
-            stop_price := math.min(recent_high, close * 1.002)  // Tight stop for precision
-            entry_signal_active := true
-    
-    // Calculate Risk/Reward
-    if target_price != 0 and stop_price != 0
-        risk = math.abs(close - stop_price)
-        reward = math.abs(target_price - close)
-        risk_reward_ratio := reward / risk
-    
-    // Debug removed - clean chart
-    
-    // Clean entry signals - small and simple
-    if show_entry_labels and entry_signal_active and entry_confidence >= entry_signal_sensitivity
-        signal_color = str.contains(current_entry_signal, "LONG") ? color.new(color.blue, 0) : color.new(color.orange, 0)
-        signal_text = str.contains(current_entry_signal, "LONG") ? "L" : "S"
-        
-        if str.contains(current_entry_signal, "LONG")
-            label.new(bar_index, low, signal_text, style=label.style_label_up, color=signal_color, textcolor=color.white, size=size.tiny)
-        else
-            label.new(bar_index, high, signal_text, style=label.style_label_down, color=signal_color, textcolor=color.white, size=size.tiny)
+
 
 // Markov Chain Enhancement Logic
 if use_markov_enhancement
@@ -1494,58 +1196,39 @@ if barstate.islast
         "Large" => size.large
         => size.small
     
-    // STATS SECTION REMOVED - TOO CLUTTERED
-    if false  // Disabled
+    // DYNAMIC STATS SECTION - Only show enabled patterns
+    if show_stats_section
         // Stats section header
         table.cell(unified_table, 0, current_row, "📈 PATTERN STATISTICS", text_color=stats_text_color, bgcolor=stats_header_color, text_size=universal_font_size)
-        table.cell(unified_table, 1, current_row, "Bull %", text_color=stats_text_color, bgcolor=stats_header_color, text_size=universal_font_size)
-        table.cell(unified_table, 2, current_row, "Bear %", text_color=stats_text_color, bgcolor=stats_header_color, text_size=universal_font_size)
-        table.cell(unified_table, 3, current_row, "Total", text_color=stats_text_color, bgcolor=stats_header_color, text_size=universal_font_size)
+        table.cell(unified_table, 1, current_row, "Pattern", text_color=stats_text_color, bgcolor=stats_header_color, text_size=universal_font_size)
+        table.cell(unified_table, 2, current_row, "Occurrences", text_color=stats_text_color, bgcolor=stats_header_color, text_size=universal_font_size)
+        table.cell(unified_table, 3, current_row, "Success %", text_color=stats_text_color, bgcolor=stats_header_color, text_size=universal_font_size)
         current_row += 1
         
-        pattern_enabled = array.from(show_ebp, show_inside, show_engulf, show_gap, show_hammer, show_three, true, true, true, true)
-        individual_names = array.from("EBP", "Inside", "Engulf", "Gap", "Hammer", "3-Bar", "Close-Above", "Close-Below", "Bull-Sweep", "Bear-Sweep")
+        // Dynamic pattern display - only show enabled patterns
+        pattern_enabled = array.from(show_ebp, show_ebp, show_inside, show_inside, show_engulf, show_engulf, show_gap, show_gap, show_hammer, show_hammer, show_three, show_three, show_close, show_close, show_sweep, show_sweep)
+        pattern_names = array.from("EBP-Bull", "EBP-Bear", "Inside-Bull", "Inside-Bear", "Engulf-Bull", "Engulf-Bear", "Gap-Bull", "Gap-Bear", "Hammer-Bull", "Hammer-Bear", "3Bar-Bull", "3Bar-Bear", "Close-Above", "Close-Below", "Bull-Sweep", "Bear-Sweep")
         
-        for i = 0 to 9
-            if array.get(pattern_enabled, i)
-                if i < 6
-                    bull_total = array.get(signals, i)
-                    bear_total = array.get(signals, i + 6)
-                    bull_rate = bull_total > 0 ? (array.get(success, i) / bull_total) * 100 : 0
-                    bear_rate = bear_total > 0 ? (array.get(success, i + 6) / bear_total) * 100 : 0
-                    
-                    enhanced_bull_rate = use_markov_enhancement and show_enhanced_probabilities ? getEnhancedProbability(bull_rate, i) : bull_rate
-                    enhanced_bear_rate = use_markov_enhancement and show_enhanced_probabilities ? getEnhancedProbability(bear_rate, i + 6) : bear_rate
-                    
-                    bull_display = show_enhanced_probabilities and use_markov_enhancement ? str.tostring(enhanced_bull_rate, "#.#") + "%" + (enhanced_bull_rate != bull_rate ? "*" : "") : str.tostring(bull_rate, "#.#") + "%"
-                    bear_display = show_enhanced_probabilities and use_markov_enhancement ? str.tostring(enhanced_bear_rate, "#.#") + "%" + (enhanced_bear_rate != bear_rate ? "*" : "") : str.tostring(bear_rate, "#.#") + "%"
-                    
-                    table.cell(unified_table, 0, current_row, array.get(individual_names, i), text_color=stats_text_color, text_size=universal_font_size)
-                    table.cell(unified_table, 1, current_row, bull_display, text_color=stats_bull_color, text_size=universal_font_size)
-                    table.cell(unified_table, 2, current_row, bear_display, text_color=stats_bear_color, text_size=universal_font_size)
-                    table.cell(unified_table, 3, current_row, str.tostring(bull_total + bear_total), text_color=stats_text_color, text_size=universal_font_size)
-                else
-                    pattern_index = i + 6
-                    pattern_total = array.get(signals, pattern_index)
-                    pattern_rate = pattern_total > 0 ? (array.get(success, pattern_index) / pattern_total) * 100 : 0
-                    enhanced_pattern_rate = use_markov_enhancement and show_enhanced_probabilities ? getEnhancedProbability(pattern_rate, pattern_index) : pattern_rate
-                    pattern_display = show_enhanced_probabilities and use_markov_enhancement ? str.tostring(enhanced_pattern_rate, "#.#") + "%" + (enhanced_pattern_rate != pattern_rate ? "*" : "") : str.tostring(pattern_rate, "#.#") + "%"
-                    
-                    table.cell(unified_table, 0, current_row, array.get(individual_names, i), text_color=stats_text_color, text_size=universal_font_size)
-                    if i == 6 or i == 8
-                        table.cell(unified_table, 1, current_row, pattern_display, text_color=stats_bull_color, text_size=universal_font_size)
-                        table.cell(unified_table, 2, current_row, "-", text_color=stats_text_color, text_size=universal_font_size)
-                    else
-                        table.cell(unified_table, 1, current_row, "-", text_color=stats_text_color, text_size=universal_font_size)
-                        table.cell(unified_table, 2, current_row, pattern_display, text_color=stats_bear_color, text_size=universal_font_size)
-                    table.cell(unified_table, 3, current_row, str.tostring(pattern_total), text_color=stats_text_color, text_size=universal_font_size)
+        // Check which patterns are active on last completed candle
+        last_candle_patterns = array.from(ebp_bull_htf[1], ebp_bear_htf[1], inside_bull_htf[1], inside_bear_htf[1], engulf_bull_htf[1], engulf_bear_htf[1], gap_bull_htf[1], gap_bear_htf[1], hammer_bull_htf[1], hammer_bear_htf[1], three_bull_htf[1], three_bear_htf[1], bull_close_above_htf[1], bear_close_below_htf[1], bull_sweep_htf[1], bear_sweep_htf[1])
+        
+        for i = 0 to 15
+            is_pattern_enabled = array.get(pattern_enabled, i)
+            is_pattern_active = array.get(last_candle_patterns, i)
+            
+            // Show pattern if enabled AND (not filtering OR pattern is active on last candle)
+            if is_pattern_enabled and (not show_only_active_patterns or is_pattern_active)
+                total = array.get(signals, i)
+                success_count = array.get(success, i)
+                rate = total > 0 ? (success_count / total) * 100 : 0
+                pattern_name = array.get(pattern_names, i)
+                
+                table.cell(unified_table, 0, current_row, data_timeframe, text_color=stats_text_color, bgcolor=stats_timeframe_color, text_size=universal_font_size)
+                table.cell(unified_table, 1, current_row, pattern_name, text_color=stats_text_color, text_size=universal_font_size)
+                table.cell(unified_table, 2, current_row, str.tostring(total), text_color=stats_text_color, text_size=universal_font_size)
+                table.cell(unified_table, 3, current_row, str.tostring(rate, "#.#") + "%", text_color=rate > 50 ? stats_bull_color : stats_bear_color, text_size=universal_font_size)
                 current_row += 1
-        
-        table.cell(unified_table, 0, current_row, "Data: " + data_timeframe, text_color=stats_text_color, bgcolor=stats_timeframe_color, text_size=universal_font_size)
-        table.cell(unified_table, 1, current_row, "", text_color=stats_text_color, bgcolor=stats_timeframe_color, text_size=universal_font_size)
-        table.cell(unified_table, 2, current_row, "", text_color=stats_text_color, bgcolor=stats_timeframe_color, text_size=universal_font_size)
-        table.cell(unified_table, 3, current_row, "", text_color=stats_text_color, bgcolor=stats_timeframe_color, text_size=universal_font_size)
-        current_row += 1
+
     // MARKOV SECTION REMOVED - TOO CLUTTERED  
     if false  // Disabled
         regime_name = switch current_regime
@@ -1902,42 +1585,8 @@ if barstate.islast
                         current_combo += (j > 0 ? "+" : "") + pattern_name
                     break
         
-        // 1. Most Recent Closed Candle - Debug HTF patterns
-        debug_patterns = ""
-        if ebp_bull_htf[1]
-            debug_patterns += "EBP-Bull+"
-        if inside_bull_htf[1]
-            debug_patterns += "Inside-Bull+"
-        if engulf_bull_htf[1]
-            debug_patterns += "Engulf-Bull+"
-        if gap_bull_htf[1]
-            debug_patterns += "Gap-Bull+"
-        if hammer_bull_htf[1]
-            debug_patterns += "Hammer-Bull+"
-        if three_bull_htf[1]
-            debug_patterns += "3Bar-Bull+"
-        if ebp_bear_htf[1]
-            debug_patterns += "EBP-Bear+"
-        if inside_bear_htf[1]
-            debug_patterns += "Inside-Bear+"
-        if engulf_bear_htf[1]
-            debug_patterns += "Engulf-Bear+"
-        if gap_bear_htf[1]
-            debug_patterns += "Gap-Bear+"
-        if hammer_bear_htf[1]
-            debug_patterns += "Hammer-Bear+"
-        if three_bear_htf[1]
-            debug_patterns += "3Bar-Bear+"
-        if bull_close_above_htf[1]
-            debug_patterns += "Close-Above+"
-        if bear_close_below_htf[1]
-            debug_patterns += "Close-Below+"
-        if bull_sweep_htf[1]
-            debug_patterns += "Bull-Sweep+"
-        if bear_sweep_htf[1]
-            debug_patterns += "Bear-Sweep+"
-        
-        debug_text = debug_patterns != "" ? str.substring(debug_patterns, 0, str.length(debug_patterns) - 1) : "NO PATTERNS"
+        // Pattern detection for trade decision
+        pattern_detected = ebp_bull_htf[1] or inside_bull_htf[1] or engulf_bull_htf[1] or gap_bull_htf[1] or hammer_bull_htf[1] or three_bull_htf[1] or bull_close_above_htf[1] or bull_sweep_htf[1] or ebp_bear_htf[1] or inside_bear_htf[1] or engulf_bear_htf[1] or gap_bear_htf[1] or hammer_bear_htf[1] or three_bear_htf[1] or bear_close_below_htf[1] or bear_sweep_htf[1]
         
         // ENHANCED TRADE DECISION ANALYSIS
         trade_decision = "NO TRADE"
@@ -2089,25 +1738,113 @@ if barstate.islast
                 health_data = '{"health_check":true,"timestamp":"' + str.tostring(time) + '","symbol":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '"}'
                 alert('Health Check: ' + health_data, alert.freq_once_per_bar)
         
-        // Enhanced 1M Entry Signal Row
-        if use_1m_signals and entry_signal_active
-            signal_bg = str.contains(current_entry_signal, "LONG") ? color.new(color.green, 60) : color.new(color.red, 60)
-            confidence_color = entry_confidence >= 0.8 ? color.lime : entry_confidence >= 0.65 ? color.yellow : color.orange
+        // ICT SIGNAL TRANSMISSION TO PYTHON
+        if use_python_server and barstate.isconfirmed and show_current_tf_signals
+            // Check for high-confidence ICT signals
+            signal_detected = false
+            signal_type = ""
+            signal_reason = ""
+            signal_confidence = 0.0
+            entry_price = close
+            stop_loss = 0.0
+            take_profit = 0.0
             
-            table.cell(unified_table, 0, current_row, "⚡ PRECISION ENTRY", text_color=color.white, bgcolor=signal_bg, text_size=universal_font_size)
-            table.cell(unified_table, 1, current_row, current_entry_signal, text_color=color.white, text_size=universal_font_size)
-            table.cell(unified_table, 2, current_row, str.tostring(entry_confidence * 100, "#") + "% | R:R " + str.tostring(risk_reward_ratio, "#.#"), text_color=confidence_color, text_size=universal_font_size)
-            table.cell(unified_table, 3, current_row, entry_confidence >= 0.8 ? "🚀 EXECUTE" : entry_confidence >= 0.65 ? "⚡ READY" : "⚠️ WAIT", text_color=confidence_color, text_size=universal_font_size)
-            current_row += 1
+            // MACRO WINDOW DETECTION
+            current_minute = hour * 60 + minute
+            in_macro_window = false
+            macro_name = ""
             
-            // Send 1M entry signal to Railway server
-            if use_python_server and entry_confidence >= 0.65
-                entry_data = '{"entry_signal":"' + current_entry_signal + '","confidence":' + str.tostring(entry_confidence) + ',"risk_reward":' + str.tostring(risk_reward_ratio) + ',"current_price":' + str.tostring(close) + ',"daily_bias":"' + biasLabel + '","bias_score":' + str.tostring(biasScore) + ',"timestamp":"' + str.tostring(time) + '"}'
-                alert('Entry Signal: ' + entry_data, alert.freq_once_per_bar)
+            // Convert to EST (subtract 5 hours from UTC)
+            est_hour = (hour - 5 + 24) % 24
+            est_minute = est_hour * 60 + minute
+            
+            // Check macro windows (EST times)
+            if est_minute >= 590 and est_minute <= 610  // 9:50-10:10 AM
+                in_macro_window := true
+                macro_name := "Opening_Range"
+            else if est_minute >= 650 and est_minute <= 670  // 10:50-11:10 AM
+                in_macro_window := true
+                macro_name := "Pre_Lunch"
+            else if est_minute >= 830 and est_minute <= 850  // 1:50-2:10 PM
+                in_macro_window := true
+                macro_name := "PM_Start"
+            else if est_minute >= 890 and est_minute <= 910  // 2:50-3:10 PM
+                in_macro_window := true
+                macro_name := "PM_Mid"
+            
+            // BULLISH SIGNALS
+            if (show_ebp and ebp_bull) or (show_inside and inside_bull) or (show_engulf and engulf_bull) or (show_hammer and hammer_bull)
+                signal_detected := true
+                signal_type := "LONG"
+                signal_confidence := in_macro_window ? 0.80 : 0.65
                 
-                // Auto-log signal for tracking
-                signal_log_data = '{"auto_log_signal":true,"symbol":"' + syminfo.ticker + '","direction":"' + (str.contains(current_entry_signal, "LONG") ? "LONG" : "SHORT") + '","entry_signal":"' + current_entry_signal + '","ai_confidence":' + str.tostring(entry_confidence) + ',"suggested_entry":' + str.tostring(close) + ',"target_price":' + str.tostring(target_price) + ',"stop_price":' + str.tostring(stop_price) + ',"risk_reward":' + str.tostring(risk_reward_ratio) + ',"bias_score":' + str.tostring(biasScore) + ',"hmm_state":"' + hmm_state_name + '","session":"' + (inLondonSession ? "London" : inNYSession ? "NY" : "Other") + '","timestamp":"' + str.tostring(time) + '"}'
-                alert('Auto Log Signal: ' + signal_log_data, alert.freq_once_per_bar)
+                // Determine specific pattern
+                if show_ebp and ebp_bull
+                    signal_reason := "EBP_Bullish_Sweep"
+                else if show_inside and inside_bull
+                    signal_reason := "Inside_Bar_Bullish_Break"
+                else if show_engulf and engulf_bull
+                    signal_reason := "Bullish_Engulfing"
+                else if show_hammer and hammer_bull
+                    signal_reason := "Bullish_Hammer"
+                
+                // Calculate stops and targets
+                stop_loss := low - (close * 0.002)  // 0.2% below low
+                take_profit := close + ((close - stop_loss) * 2)  // 2:1 R:R
+            
+            // BEARISH SIGNALS
+            else if (show_ebp and ebp_bear) or (show_inside and inside_bear) or (show_engulf and engulf_bear) or (show_hammer and hammer_bear)
+                signal_detected := true
+                signal_type := "SHORT"
+                signal_confidence := in_macro_window ? 0.80 : 0.65
+                
+                // Determine specific pattern
+                if show_ebp and ebp_bear
+                    signal_reason := "EBP_Bearish_Sweep"
+                else if show_inside and inside_bear
+                    signal_reason := "Inside_Bar_Bearish_Break"
+                else if show_engulf and engulf_bear
+                    signal_reason := "Bearish_Engulfing"
+                else if show_hammer and hammer_bear
+                    signal_reason := "Bearish_Shooting_Star"
+                
+                // Calculate stops and targets
+                stop_loss := high + (close * 0.002)  // 0.2% above high
+                take_profit := close - ((stop_loss - close) * 2)  // 2:1 R:R
+            
+            // SEND SIGNAL TO PYTHON SERVER
+            if signal_detected and signal_confidence >= 0.65
+                // Enhanced signal data with ICT context
+                signal_data = '{' +
+                    '"signal_type":"' + signal_type + '",' +
+                    '"symbol":"' + syminfo.ticker + '",' +
+                    '"timeframe":"' + timeframe.period + '",' +
+                    '"entry_price":' + str.tostring(entry_price, "#.##") + ',' +
+                    '"stop_loss":' + str.tostring(stop_loss, "#.##") + ',' +
+                    '"take_profit":' + str.tostring(take_profit, "#.##") + ',' +
+                    '"confidence":' + str.tostring(signal_confidence, "#.##") + ',' +
+                    '"reason":"' + signal_reason + '",' +
+                    '"macro_window":"' + macro_name + '",' +
+                    '"in_macro":' + str.tostring(in_macro_window) + ',' +
+                    '"session":"' + (inLondonSession ? "London" : inNYSession ? "NY" : "Other") + '",' +
+                    '"regime":"' + (current_regime == 0 ? "Ranging" : current_regime == 1 ? "Trending" : "Transition") + '",' +
+                    '"bias_score":' + str.tostring(biasScore, "#.##") + ',' +
+                    '"volume_ratio":' + str.tostring(volume/volume[1], "#.##") + ',' +
+                    '"timestamp":"' + str.tostring(time) + '",' +
+                    '"risk_reward":' + str.tostring(math.abs(take_profit - entry_price) / math.abs(entry_price - stop_loss), "#.##") +
+                    '}'
+                
+                alert('ICT Signal: ' + signal_data, alert.freq_once_per_bar)
+                
+                // Visual confirmation on chart
+                if signal_type == "LONG"
+                    label.new(bar_index, low * 0.999, "🚀 LONG SIGNAL\n" + signal_reason + "\nConf: " + str.tostring(signal_confidence * 100, "#") + "%", 
+                             style=label.style_label_up, color=color.new(color.green, 20), textcolor=color.white, size=size.normal)
+                else
+                    label.new(bar_index, high * 1.001, "🔻 SHORT SIGNAL\n" + signal_reason + "\nConf: " + str.tostring(signal_confidence * 100, "#") + "%", 
+                             style=label.style_label_down, color=color.new(color.red, 20), textcolor=color.white, size=size.normal)
+        
+
         
         // Clean execution status with professional colors - use the same session variables
         session_status = (inLondonSession or inNYSession) ? "IN SESSION" : "OFF HOURS"
@@ -2144,21 +1881,25 @@ if barstate.islast
 any_bull = ebp_bull or inside_bull or engulf_bull or gap_bull or hammer_bull or three_bull or bull_close_above or bull_sweep
 any_bear = ebp_bear or inside_bear or engulf_bear or gap_bear or hammer_bear or three_bear or bear_close_below or bear_sweep
 
-// Professional candle coloring with transparency
+// Professional candle coloring with transparency - controlled by pattern checkboxes
 candle_color := na
 if show_candle_coloring and show_current_tf_signals
+    // Check which patterns are enabled and active
+    bull_patterns_active = (show_ebp and ebp_bull) or (show_inside and inside_bull) or (show_engulf and engulf_bull) or (show_gap and gap_bull) or (show_hammer and hammer_bull) or (show_three and three_bull) or (show_close and bull_close_above) or (show_sweep and bull_sweep)
+    bear_patterns_active = (show_ebp and ebp_bear) or (show_inside and inside_bear) or (show_engulf and engulf_bear) or (show_gap and gap_bear) or (show_hammer and hammer_bear) or (show_three and three_bear) or (show_close and bear_close_below) or (show_sweep and bear_sweep)
+    
     if use_markov_enhancement and avoid_trading
         candle_color := color.new(color.gray, 70)  // Subtle gray for avoid trading
-    else if any_bull
+    else if bull_patterns_active
         candle_color := color.new(color.blue, 60)  // Professional blue for bullish
-    else if any_bear
+    else if bear_patterns_active
         candle_color := color.new(color.orange, 60)  // Professional orange for bearish
 
 barcolor(candle_color)
 
-// Success/fail markers - only on selected data timeframe
-bull_pattern_prev = ebp_bull[1] or inside_bull[1] or engulf_bull[1] or gap_bull[1] or hammer_bull[1] or three_bull[1] or bull_close_above[1] or bull_sweep[1]
-bear_pattern_prev = ebp_bear[1] or inside_bear[1] or engulf_bear[1] or gap_bear[1] or hammer_bear[1] or three_bear[1] or bear_close_below[1] or bear_sweep[1]
+// Success/fail markers - only on selected data timeframe and only for enabled patterns
+bull_pattern_prev = (show_ebp and ebp_bull[1]) or (show_inside and inside_bull[1]) or (show_engulf and engulf_bull[1]) or (show_gap and gap_bull[1]) or (show_hammer and hammer_bull[1]) or (show_three and three_bull[1]) or (show_close and bull_close_above[1]) or (show_sweep and bull_sweep[1])
+bear_pattern_prev = (show_ebp and ebp_bear[1]) or (show_inside and inside_bear[1]) or (show_engulf and engulf_bear[1]) or (show_gap and gap_bear[1]) or (show_hammer and hammer_bear[1]) or (show_three and three_bear[1]) or (show_close and bear_close_below[1]) or (show_sweep and bear_sweep[1])
 
 bull_success_mark = show_success_markers and show_current_tf_signals and bull_pattern_prev and high > high[1] and barstate.isconfirmed
 bull_fail_mark = show_success_markers and show_current_tf_signals and bull_pattern_prev and high <= high[1] and barstate.isconfirmed
@@ -2171,47 +1912,50 @@ plotshape(bull_fail_mark and show_current_tf_signals, "Bull Fail", shape.xcross,
 plotshape(bear_success_mark and show_current_tf_signals, "Bear Success", shape.triangledown, location.abovebar, color.new(color.orange, 0), size=size.tiny, offset=-1)
 plotshape(bear_fail_mark and show_current_tf_signals, "Bear Fail", shape.xcross, location.abovebar, color.new(color.gray, 30), size=size.tiny, offset=-1)
 
-// Pattern labels - only show when on selected data timeframe and bar is confirmed
+// Pattern labels - only show when on selected data timeframe and bar is confirmed - controlled by checkboxes
 if show_pattern_labels and show_current_tf_signals and barstate.isconfirmed
-    bull_label_text = ""
-    bear_label_text = ""
+    var string bull_label_text = ""
+    var string bear_label_text = ""
     
-    if ebp_bull
+    bull_label_text := ""
+    bear_label_text := ""
+    
+    if show_ebp and ebp_bull
         bull_label_text += "EBP\n"
-    if inside_bull
+    if show_inside and inside_bull
         bull_label_text += "Inside\n"
-    if engulf_bull
+    if show_engulf and engulf_bull
         bull_label_text += "Engulf\n"
-    if gap_bull
+    if show_gap and gap_bull
         bull_label_text += "Gap\n"
-    if hammer_bull
+    if show_hammer and hammer_bull
         bull_label_text += "Hammer\n"
-    if three_bull
+    if show_three and three_bull
         bull_label_text += "3-Bar\n"
-    if bull_close_above
+    if show_close and bull_close_above
         bull_label_text += "Close-Above\n"
-    if bull_sweep
+    if show_sweep and bull_sweep
         bull_label_text += "Bull-Sweep\n"
     
     if str.length(bull_label_text) > 0
         bull_label_text := str.substring(bull_label_text, 0, str.length(bull_label_text) - 1)
         label.new(bar_index, low * 0.9999, bull_label_text, style=label.style_label_up, color=bull_label_bg, textcolor=label_text_color, size=size.small)
     
-    if ebp_bear
+    if show_ebp and ebp_bear
         bear_label_text += "EBP\n"
-    if inside_bear
+    if show_inside and inside_bear
         bear_label_text += "Inside\n"
-    if engulf_bear
+    if show_engulf and engulf_bear
         bear_label_text += "Engulf\n"
-    if gap_bear
+    if show_gap and gap_bear
         bear_label_text += "Gap\n"
-    if hammer_bear
+    if show_hammer and hammer_bear
         bear_label_text += "Shoot\n"
-    if three_bear
+    if show_three and three_bear
         bear_label_text += "3-Bar\n"
-    if bear_close_below
+    if show_close and bear_close_below
         bear_label_text += "Close-Below\n"
-    if bear_sweep
+    if show_sweep and bear_sweep
         bear_label_text += "Bear-Sweep\n"
     
     if str.length(bear_label_text) > 0
@@ -2234,24 +1978,3 @@ if use_markov_enhancement
 
 // Current timeframe combinations for visual signals - removed duplicates
 
-// =============================================================================
-// PERSISTENT ENTRY SIGNAL TRACKING FOR BACKTEST VISIBILITY
-// =============================================================================
-if current_entry_signal != "NO_ENTRY" and entry_signal_active
-    last_signal := current_entry_signal
-    signal_bar := bar_index
-    last_confidence := entry_confidence
-    last_hmm_state := hmm_state_name
-
-// =============================================================================
-// PERSISTENT PLOTTING - LABELS STAY VISIBLE DURING BACKTEST
-// =============================================================================
-// Long entry markers that persist
-plotshape((last_signal == "ENTER_LONG" or last_signal == "FVG_MACRO_LONG" or last_signal == "MACRO_LONG") and bar_index == signal_bar, title="Long Entry", style=shape.triangleup, location=location.belowbar, color=color.new(color.green, 0), size=size.normal)
-
-// Short entry markers that persist
-plotshape((last_signal == "ENTER_SHORT" or last_signal == "FVG_MACRO_SHORT" or last_signal == "MACRO_SHORT") and bar_index == signal_bar, title="Short Entry", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.normal)
-
-// Optional: Add labels with confidence that persist
-if last_signal != "NO_ENTRY" and bar_index == signal_bar and show_hmm_states
-    label.new(bar_index, str.contains(last_signal, "LONG") ? low : high, "SIGNAL", style=str.contains(last_signal, "LONG") ? label.style_label_up : label.style_label_down, color=str.contains(last_signal, "LONG") ? color.green : color.red, textcolor=color.white, size=size.small)

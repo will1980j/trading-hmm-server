@@ -1,0 +1,239 @@
+//@version=6
+indicator("Multi-TF Market State Tracker", overlay=false)
+
+// Base theme colors and constants - all single line
+var color BG_COLOR = color.rgb(28, 28, 53)
+var color HEADER_BG = color.rgb(35, 35, 65)
+var color TEXT_COLOR = color.rgb(255, 255, 255)
+var color HEADER_TEXT = color.rgb(255, 255, 255)
+var color bullishBgColor = color.rgb(0, 255, 0)
+var color bearishBgColor = color.rgb(255, 0, 0)
+var int tableBgTransparency = 60
+var int headerBgTransparency = 40
+var int cellBgTransparency = 50
+
+// Table style inputs
+tableTextSize = input.string("Normal", "Table Text Size", options=["Tiny", "Small", "Normal", "Large", "Huge"], group="Table Style")
+var float tableSize = input.float(1.0, "Table Size Multiplier", minval=0.5, maxval=2.0, step=0.1, group="Table Style")
+var float tablePadding = input.float(1.0, "Cell Padding", minval=0.5, maxval=2.0, step=0.1, group="Table Style")
+
+// Constants
+var TF_MONTHLY = "M"
+var TF_WEEKLY = "W" 
+var TF_DAILY = "D"
+var TF_4H = "240"
+var TF_1H = "60"
+var TF_15 = "15"
+var TF_5 = "5"
+var TF_1 = "1"
+
+// State definitions
+var STATE_BULL_ERL_TO_IRL = "BULLISH ERL ↓ IRL"
+var STATE_BULL_IRL_TO_ERL = "BULLISH IRL ↑ ERL"
+var STATE_BEAR_ERL_TO_IRL = "BEARISH ERL ↑ IRL"
+var STATE_BEAR_IRL_TO_ERL = "BEARISH IRL ↓ ERL"
+
+// Signal filter inputs - single line each
+showStrongBullish = input.bool(true, "Show Strong Bullish Signals", inline="strong_signals", group="Signal Filters")
+showStrongBearish = input.bool(true, "Show Strong Bearish Signals", inline="strong_signals", group="Signal Filters")
+showStrongCounter = input.bool(true, "Show Strong Counter Signals", inline="strong_signals", group="Signal Filters")
+showWeakBullish = input.bool(true, "Show Weak Bullish Signals", group="Signal Filters")
+showWeakBearish = input.bool(true, "Show Weak Bearish Signals", group="Signal Filters")
+showWeakAligned = input.bool(true, "Show Weak Aligned Signals", group="Signal Filters")
+
+// Color inputs
+bullErlIrlColor = input.color(title="BULLISH ERL→IRL Color", defval=color.rgb(120, 123, 198), group="State Colors")
+bullIrlErlColor = input.color(title="BULLISH IRL→ERL Color", defval=color.rgb(101, 255, 255), group="State Colors")
+bearErlIrlColor = input.color(title="BEARISH ERL→IRL Color", defval=color.rgb(198, 123, 120), group="State Colors")
+bearIrlErlColor = input.color(title="BEARISH IRL→ERL Color", defval=color.rgb(255, 101, 101), group="State Colors")
+textColor = input.color(title="Table Text Color", defval=TEXT_COLOR, group="Table Style")
+headerTextColor = input.color(title="Header Text Color", defval=HEADER_TEXT, group="Table Style")
+
+// State inputs - single line each
+stateMonthly = input.string(title="Monthly State", defval=STATE_BULL_ERL_TO_IRL, options=[STATE_BULL_ERL_TO_IRL, STATE_BULL_IRL_TO_ERL, STATE_BEAR_ERL_TO_IRL, STATE_BEAR_IRL_TO_ERL])
+stateWeekly = input.string(title="Weekly State", defval=STATE_BULL_ERL_TO_IRL, options=[STATE_BULL_ERL_TO_IRL, STATE_BULL_IRL_TO_ERL, STATE_BEAR_ERL_TO_IRL, STATE_BEAR_IRL_TO_ERL])
+stateDaily = input.string(title="Daily State", defval=STATE_BULL_ERL_TO_IRL, options=[STATE_BULL_ERL_TO_IRL, STATE_BULL_IRL_TO_ERL, STATE_BEAR_ERL_TO_IRL, STATE_BEAR_IRL_TO_ERL])
+state4H = input.string(title="4H State", defval=STATE_BULL_ERL_TO_IRL, options=[STATE_BULL_ERL_TO_IRL, STATE_BULL_IRL_TO_ERL, STATE_BEAR_ERL_TO_IRL, STATE_BEAR_IRL_TO_ERL])
+state1H = input.string(title="1H State", defval=STATE_BULL_ERL_TO_IRL, options=[STATE_BULL_ERL_TO_IRL, STATE_BULL_IRL_TO_ERL, STATE_BEAR_ERL_TO_IRL, STATE_BEAR_IRL_TO_ERL])
+state15M = input.string(title="15M State", defval=STATE_BULL_ERL_TO_IRL, options=[STATE_BULL_ERL_TO_IRL, STATE_BULL_IRL_TO_ERL, STATE_BEAR_ERL_TO_IRL, STATE_BEAR_IRL_TO_ERL])
+state5M = input.string(title="5M State", defval=STATE_BULL_ERL_TO_IRL, options=[STATE_BULL_ERL_TO_IRL, STATE_BULL_IRL_TO_ERL, STATE_BEAR_ERL_TO_IRL, STATE_BEAR_IRL_TO_ERL])
+state1M = input.string(title="1M State", defval=STATE_BULL_ERL_TO_IRL, options=[STATE_BULL_ERL_TO_IRL, STATE_BULL_IRL_TO_ERL, STATE_BEAR_ERL_TO_IRL, STATE_BEAR_IRL_TO_ERL])
+
+// Helper functions
+getTableTextSize(string size) =>
+    switch size
+        "Tiny" => size.tiny
+        "Small" => size.small
+        "Normal" => size.normal
+        "Large" => size.large
+        "Huge" => size.huge
+        => size.normal
+
+getTrendText(state) =>
+    state == STATE_BULL_ERL_TO_IRL ? "▼ Counter" : state == STATE_BULL_IRL_TO_ERL ? "▲ Pro" : state == STATE_BEAR_ERL_TO_IRL ? "▲ Counter" : "▼ Pro"
+
+getStateColor(state) =>
+    state == STATE_BULL_ERL_TO_IRL ? color.new(bullErlIrlColor, cellBgTransparency) : state == STATE_BULL_IRL_TO_ERL ? color.new(bullIrlErlColor, cellBgTransparency) : state == STATE_BEAR_ERL_TO_IRL ? color.new(bearErlIrlColor, cellBgTransparency) : color.new(bearIrlErlColor, cellBgTransparency)
+// Updated getOpportunityStrength function with corrected Weak Aligned logic
+getOpportunityStrength(string higherTFState, string lowerTFState) =>
+    string result = ""
+    if (higherTFState == STATE_BULL_IRL_TO_ERL and lowerTFState == STATE_BULL_IRL_TO_ERL) and showStrongBullish
+        result := "STRONG BULLISH ▲"
+    else if (higherTFState == STATE_BEAR_IRL_TO_ERL and lowerTFState == STATE_BEAR_IRL_TO_ERL) and showStrongBearish
+        result := "STRONG BEARISH ▼"
+    else if ((higherTFState == STATE_BULL_ERL_TO_IRL and lowerTFState == STATE_BULL_ERL_TO_IRL) or 
+             (higherTFState == STATE_BEAR_ERL_TO_IRL and lowerTFState == STATE_BEAR_ERL_TO_IRL)) and showStrongCounter
+        result := "STRONG COUNTER " + (higherTFState == STATE_BULL_ERL_TO_IRL ? "▼" : "▲")
+    else if (higherTFState == STATE_BULL_ERL_TO_IRL and lowerTFState == STATE_BULL_IRL_TO_ERL) and showWeakBullish
+        result := "WEAK BULLISH ▲"
+    else if (higherTFState == STATE_BEAR_ERL_TO_IRL and lowerTFState == STATE_BEAR_IRL_TO_ERL) and showWeakBearish
+        result := "WEAK BEARISH ▼"
+    else if showWeakAligned and ((str.contains(higherTFState, "BEARISH") and str.contains(lowerTFState, "BULLISH") or str.contains(higherTFState, "BULLISH") and str.contains(lowerTFState, "BEARISH")) and ((higherTFState == STATE_BEAR_ERL_TO_IRL and lowerTFState == STATE_BULL_IRL_TO_ERL) or (higherTFState == STATE_BULL_IRL_TO_ERL and lowerTFState == STATE_BEAR_ERL_TO_IRL) or (higherTFState == STATE_BULL_ERL_TO_IRL and lowerTFState == STATE_BEAR_IRL_TO_ERL) or (higherTFState == STATE_BEAR_IRL_TO_ERL and lowerTFState == STATE_BULL_ERL_TO_IRL)))
+        result := "WEAK ALIGNED " + (higherTFState == STATE_BEAR_ERL_TO_IRL or higherTFState == STATE_BULL_IRL_TO_ERL ? "▲" : "▼")
+    result
+
+getOpportunityColor(string signal) =>
+    color result = na
+    if str.contains(signal, "STRONG BULLISH")
+        result := color.new(bullishBgColor, cellBgTransparency)
+    else if str.contains(signal, "STRONG BEARISH")
+        result := color.new(bearishBgColor, cellBgTransparency)
+    else if str.contains(signal, "STRONG COUNTER")
+        result := color.new(color.yellow, cellBgTransparency)
+    else if str.contains(signal, "WEAK BULLISH")
+        result := color.new(color.new(bullishBgColor, 70), cellBgTransparency)
+    else if str.contains(signal, "WEAK BEARISH")
+        result := color.new(color.new(bearishBgColor, 70), cellBgTransparency)
+    else if str.contains(signal, "WEAK ALIGNED")
+        result := color.new(color.blue, cellBgTransparency)
+    else
+        result := color.new(color.gray, cellBgTransparency)
+    result
+
+getEntryPoint(string timeframePair, string direction) =>
+    string result = ""
+    if timeframePair == "Monthly-Weekly"
+        result := direction == "▲" ? "Weekly Demand FVG" : direction == "▼" ? "Weekly Supply FVG" : ""
+    else if timeframePair == "Weekly-Daily"
+        result := direction == "▲" ? "Daily Demand FVG" : direction == "▼" ? "Daily Supply FVG" : ""
+    else if timeframePair == "Daily-4H"
+        result := direction == "▲" ? "4H Demand FVG" : direction == "▼" ? "4H Supply FVG" : ""
+    else if timeframePair == "4H-1H"
+        result := direction == "▲" ? "1H Demand FVG" : direction == "▼" ? "1H Supply FVG" : ""
+    else if timeframePair == "1H-15M"
+        result := direction == "▲" ? "15M Demand FVG" : direction == "▼" ? "15M Supply FVG" : ""
+    else if timeframePair == "15M-5M"
+        result := direction == "▲" ? "5M Demand FVG" : direction == "▼" ? "5M Supply FVG" : ""
+    else if timeframePair == "5M-1M"
+        result := direction == "▲" ? "1M Demand FVG" : direction == "▼" ? "1M Supply FVG" : ""
+    result
+
+// Table creation with dynamic text size
+var table stateTable = table.new(position.top_right, columns=3, rows=19, bgcolor=BG_COLOR, frame_width=2, frame_color=color.new(color.gray, 50), border_width=1)
+
+if barstate.islast
+    // Clear existing table content
+    for i = 0 to 15
+        table.cell(stateTable, 0, i, "", bgcolor=color.new(color.black, 100))
+        table.cell(stateTable, 1, i, "", bgcolor=color.new(color.black, 100))
+        table.cell(stateTable, 2, i, "", bgcolor=color.new(color.black, 100))
+
+    // Headers with dynamic text size
+    table.cell(stateTable, 0, 0, "TIMEFRAME", bgcolor=HEADER_BG, text_color=headerTextColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 1, 0, "━━━ STATE ━━━ ", bgcolor=HEADER_BG, text_color=headerTextColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 2, 0, "━━━ TREND ━━━ ", bgcolor=HEADER_BG, text_color=headerTextColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+
+    // Monthly
+    table.cell(stateTable, 0, 1, "Monthly", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 1, 1, stateMonthly, bgcolor=getStateColor(stateMonthly), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 2, 1, getTrendText(stateMonthly), bgcolor=getStateColor(stateMonthly), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    
+    // Weekly
+    table.cell(stateTable, 0, 2, "Weekly", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 1, 2, stateWeekly, bgcolor=getStateColor(stateWeekly), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 2, 2, getTrendText(stateWeekly), bgcolor=getStateColor(stateWeekly), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    
+    // Daily
+    table.cell(stateTable, 0, 3, "Daily", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 1, 3, stateDaily, bgcolor=getStateColor(stateDaily), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 2, 3, getTrendText(stateDaily), bgcolor=getStateColor(stateDaily), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+
+    // 4H
+    table.cell(stateTable, 0, 4, "4H", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 1, 4, state4H, bgcolor=getStateColor(state4H), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 2, 4, getTrendText(state4H), bgcolor=getStateColor(state4H), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    
+    // 1H
+    table.cell(stateTable, 0, 5, "1H", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 1, 5, state1H, bgcolor=getStateColor(state1H), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 2, 5, getTrendText(state1H), bgcolor=getStateColor(state1H), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    
+    // 15M
+    table.cell(stateTable, 0, 6, "15M", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 1, 6, state15M, bgcolor=getStateColor(state15M), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 2, 6, getTrendText(state15M), bgcolor=getStateColor(state15M), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    
+    // 5M
+    table.cell(stateTable, 0, 7, "5M", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 1, 7, state5M, bgcolor=getStateColor(state5M), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 2, 7, getTrendText(state5M), bgcolor=getStateColor(state5M), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    
+    // 1M
+    table.cell(stateTable, 0, 8, "1M", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 1, 8, state1M, bgcolor=getStateColor(state1M), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 2, 8, getTrendText(state1M), bgcolor=getStateColor(state1M), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+
+    // Opportunity Headers
+    table.cell(stateTable, 0, 9, "POTENTIAL", bgcolor=HEADER_BG, text_color=headerTextColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 1, 9, "━━━ ANALYSIS ━━━", bgcolor=HEADER_BG, text_color=headerTextColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+    table.cell(stateTable, 2, 9, "━━━ ENTRY ━━━", bgcolor=HEADER_BG, text_color=headerTextColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+
+    // Process and display signals with dynamic text size
+    // Monthly-Weekly
+    mw_signal = getOpportunityStrength(stateMonthly, stateWeekly)
+    if mw_signal != ""
+        table.cell(stateTable, 0, 10, "Monthly-Weekly", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+        table.cell(stateTable, 1, 10, mw_signal, bgcolor=getOpportunityColor(mw_signal), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+        table.cell(stateTable, 2, 10, getEntryPoint("Monthly-Weekly", str.contains(mw_signal, "▲") ? "▲" : "▼"), bgcolor=getOpportunityColor(mw_signal), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+
+    // Weekly-Daily
+    wd_signal = getOpportunityStrength(stateWeekly, stateDaily)
+    if wd_signal != ""
+        table.cell(stateTable, 0, 11, "Weekly-Daily", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+        table.cell(stateTable, 1, 11, wd_signal, bgcolor=getOpportunityColor(wd_signal), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+        table.cell(stateTable, 2, 11, getEntryPoint("Weekly-Daily", str.contains(wd_signal, "▲") ? "▲" : "▼"), bgcolor=getOpportunityColor(wd_signal), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+
+    // Daily-4H
+    d4h_signal = getOpportunityStrength(stateDaily, state4H)
+    if d4h_signal != ""
+        table.cell(stateTable, 0, 12, "Daily-4H", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+        table.cell(stateTable, 1, 12, d4h_signal, bgcolor=getOpportunityColor(d4h_signal), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+        table.cell(stateTable, 2, 12, getEntryPoint("Daily-4H", str.contains(d4h_signal, "▲") ? "▲" : "▼"), bgcolor=getOpportunityColor(d4h_signal), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+
+    // 4H-1H
+    h4_1h_signal = getOpportunityStrength(state4H, state1H)
+    if h4_1h_signal != ""
+        table.cell(stateTable, 0, 13, "4H-1H", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+        table.cell(stateTable, 1, 13, h4_1h_signal, bgcolor=getOpportunityColor(h4_1h_signal), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+        table.cell(stateTable, 2, 13, getEntryPoint("4H-1H", str.contains(h4_1h_signal, "▲") ? "▲" : "▼"), bgcolor=getOpportunityColor(h4_1h_signal), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+
+    // 1H-15M
+    h1_15m_signal = getOpportunityStrength(state1H, state15M)
+    if h1_15m_signal != ""
+        table.cell(stateTable, 0, 14, "1H-15M", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+        table.cell(stateTable, 1, 14, h1_15m_signal, bgcolor=getOpportunityColor(h1_15m_signal), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+        table.cell(stateTable, 2, 14, getEntryPoint("1H-15M", str.contains(h1_15m_signal, "▲") ? "▲" : "▼"), bgcolor=getOpportunityColor(h1_15m_signal), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+        
+    // 15M-5M
+    m15_5m_signal = getOpportunityStrength(state15M, state5M)
+    if m15_5m_signal != ""
+        table.cell(stateTable, 0, 15, "15M-5M", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+        table.cell(stateTable, 1, 15, m15_5m_signal, bgcolor=getOpportunityColor(m15_5m_signal), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+        table.cell(stateTable, 2, 15, getEntryPoint("15M-5M", str.contains(m15_5m_signal, "▲") ? "▲" : "▼"), bgcolor=getOpportunityColor(m15_5m_signal), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+        
+    // 5M-1M
+    m5_1m_signal = getOpportunityStrength(state5M, state1M)
+    if m5_1m_signal != ""
+        table.cell(stateTable, 0, 16, "5M-1M", bgcolor=color.new(color.gray, cellBgTransparency), text_color=textColor, text_halign=text.align_right, text_size=getTableTextSize(tableTextSize))
+        table.cell(stateTable, 1, 16, m5_1m_signal, bgcolor=getOpportunityColor(m5_1m_signal), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))
+        table.cell(stateTable, 2, 16, getEntryPoint("5M-1M", str.contains(m5_1m_signal, "▲") ? "▲" : "▼"), bgcolor=getOpportunityColor(m5_1m_signal), text_color=textColor, text_halign=text.align_center, text_size=getTableTextSize(tableTextSize))

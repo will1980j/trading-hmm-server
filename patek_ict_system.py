@@ -74,50 +74,19 @@ class PatekICTSystem:
     def update_all_timeframes(self):
         """Update all timeframe data - Patek's multi-timeframe approach"""
         try:
-            # Try working symbols only - NO FAKE DATA
-            symbols_to_try = ['QQQ', 'SPY', '^IXIC', 'TQQQ', 'SQQQ']  # Real ETFs that work
+            ticker = yf.Ticker(self.symbol)
             
-            data_loaded = False
-            for symbol in symbols_to_try:
-                try:
-                    logger.info(f"Trying to fetch data for {symbol}...")
-                    ticker = yf.Ticker(symbol)
-                    
-                    # Test with daily data first
-                    test_data = ticker.history(period='5d', interval='1d')
-                    
-                    if not test_data.empty:
-                        logger.info(f"✅ Successfully loaded data for {symbol}")
-                        self.symbol = symbol  # Update symbol to working one
-                        
-                        # Weekly data for key levels and bias
-                        self.weekly_data = ticker.history(period='1y', interval='1wk')
-                        
-                        # Daily data for ranges and DOL
-                        self.daily_data = ticker.history(period='3mo', interval='1d')
-                        
-                        # Intraday data for execution (shorter periods to avoid errors)
-                        self.h1_data = ticker.history(period='5d', interval='1h')
-                        self.m15_data = ticker.history(period='2d', interval='15m')
-                        self.m5_data = ticker.history(period='1d', interval='5m')
-                        
-                        # Skip 1m data if it fails
-                        try:
-                            self.m1_data = ticker.history(period='1d', interval='1m')
-                        except:
-                            self.m1_data = pd.DataFrame()
-                            logger.warning("Could not load 1m data, continuing without it")
-                        
-                        data_loaded = True
-                        break
-                        
-                except Exception as e:
-                    logger.warning(f"Failed to load {symbol}: {e}")
-                    continue
+            # Weekly data for key levels and bias
+            self.weekly_data = ticker.history(period='1y', interval='1wk')
             
-            if not data_loaded:
-                logger.error("FAILED TO LOAD ANY REAL MARKET DATA - SYSTEM DISABLED")
-                return
+            # Daily data for ranges and DOL
+            self.daily_data = ticker.history(period='3mo', interval='1d')
+            
+            # Intraday data for execution
+            self.h1_data = ticker.history(period='5d', interval='1h')
+            self.m15_data = ticker.history(period='2d', interval='15m')
+            self.m5_data = ticker.history(period='1d', interval='5m')
+            self.m1_data = ticker.history(period='1d', interval='1m')
             
             # Process all key levels
             self._update_key_levels()
@@ -129,8 +98,6 @@ class PatekICTSystem:
             
         except Exception as e:
             logger.error(f"Data update error: {e}")
-            logger.error("NO REAL DATA AVAILABLE - SYSTEM STOPPED")
-            return
     
     def _update_key_levels(self):
         """Update all ICT key levels per Patek's methodology"""
@@ -613,22 +580,9 @@ class PatekICTSystem:
         """Get complete ICT analysis per Patek's method"""
         current_price = self.daily_data.iloc[-1]['Close'] if not self.daily_data.empty else 0
         
-        # Map symbols to readable names
-        symbol_names = {
-            'NQ=F': 'NASDAQ 100 E-mini Futures',
-            'ES=F': 'S&P 500 E-mini Futures', 
-            '^IXIC': 'NASDAQ Composite Index',
-            'QQQ': 'Invesco QQQ Trust ETF',
-            'SPY': 'SPDR S&P 500 ETF Trust',
-            'DEMO': 'Demo Market Data'
-        }
-        
-        market_name = symbol_names.get(self.symbol, f'{self.symbol} Market')
-        
         return {
             'timestamp': datetime.now(self.ny_tz).isoformat(),
             'symbol': self.symbol,
-            'market_name': market_name,
             'current_price': current_price,
             'current_bias': self.current_bias,
             
@@ -727,8 +681,7 @@ class PatekICTSystem:
                     <div class="header">
                         <h1>🏛️ PATEK ICT ANALYSIS</h1>
                         <p>Pure ICT Methodology - Key Levels & Draw on Liquidity</p>
-                        <p><strong style="color: #10b981; font-size: 1.2em;">{{ analysis.symbol }}</strong> - {{ analysis.market_name }}</p>
-                        <p><span class="price">${{ "%.2f"|format(analysis.current_price) }}</span> | Bias: {{ analysis.current_bias }} | Updated: {{ analysis.timestamp[11:19] }}</p>
+                        <p><span class="price">${{ analysis.current_price }}</span> | Bias: {{ analysis.current_bias }}</p>
                     </div>
                     
                     <div class="stats">
