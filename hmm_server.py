@@ -347,3 +347,8 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"🚀 Starting Ultimate ICT System on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
+
+@app.route('/webhook', methods=['POST'])
+def receive_alert():
+    print("🔔 Alert received:", request.data.decode())
+    return '', 200
