@@ -71,7 +71,8 @@ class UltimateICTSystem:
             # Update symbol if provided
             if 'symbol' in data:
                 self.symbol = data['symbol']
-
+            # Clear and rebuild zones...
+            self.active_zones = []
             for zone_type in ['fvgs', 'order_blocks', 'liquidity_levels']:
                 if zone_type in data:
                     for z in data[zone_type]:
