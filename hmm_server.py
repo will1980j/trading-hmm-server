@@ -297,14 +297,16 @@ class UltimateICTSystem:
             template = Template(html)
             return template.render(analysis=analysis)
         
-        @self.app.route('/receive_states', methods=['POST'])
-        def receive_states():
-            try:
-                data = request.json or {}
-                success = self.receive_state_data(data)
-                return jsonify({'status': 'success' if success else 'error'})
-            except Exception as e:
-                return jsonify({'error': str(e)}), 500
+	@self.app.route('/receive_states', methods=['POST'])
+	def receive_states():
+    	try:
+        	data = request.get_json(force=True)
+        logger.info(f"[STATE] Received: {data}")
+        return jsonify({"status": "success"})
+    	except Exception as e:
+        logger.error(f"[STATE] Error: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
         
         @self.app.route('/receive_structure', methods=['POST'])
         def receive_structure():
