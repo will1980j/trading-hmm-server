@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Ultimate ICT Trading System
-Combines multi‐timeframe state‐tracker + structure zones + auto‐refresh dashboard
+Ultimate ICT Trading System with real–time WebSocket updates
 """
 
 import logging
@@ -10,24 +9,20 @@ import os
 from datetime import datetime
 from typing import Dict
 
-import numpy as np
-import pandas as pd
 import pytz
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from jinja2 import Template
+from flask_socketio import SocketIO
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Exposed for Gunicorn
-app = None
 
 class UltimateICTSystem:
     def __init__(self):
         self.ny_tz = pytz.timezone('America/New_York')
 
-        # Initialize multi‐timeframe states
+        # Initialize multi-timeframe states
         self.market_states = {
             tf: {'state': 'BULL_ERL_TO_IRL', 'trend': 'Counter', 'confidence': 0.7}
             for tf in ['M','W','D','4H','1H','15M','5M','1M']
@@ -39,14 +34,11 @@ class UltimateICTSystem:
         self.current_price = 0.0
         self.symbol = 'NQ1!'
 
-        # Flask setup
+        # Flask & SocketIO setup
         self.app = Flask(__name__)
         CORS(self.app)
+        self.socketio = SocketIO(self.app, cors_allowed_origins="*")
         self._setup_routes()
-
-        # Expose to Gunicorn
-        global app
-        app = self.app
 
     def receive_state_data(self, data: Dict):
         try:
@@ -66,6 +58,9 @@ class UltimateICTSystem:
                         'confidence': conf
                     }
             self._analyze_opportunities()
+
+            # push update to all clients
+            self.socketio.emit('update', self.get_analysis())
             return True
         except Exception as e:
             logger.error("State data error", exc_info=True)
@@ -94,6 +89,9 @@ class UltimateICTSystem:
                 self.current_price = float(data['current_price'])
 
             self._analyze_opportunities()
+
+            # push update to all clients
+            self.socketio.emit('update', self.get_analysis())
             return True
         except Exception as e:
             logger.error("Structure data error", exc_info=True)
@@ -184,76 +182,113 @@ class UltimateICTSystem:
 
     def _setup_routes(self):
         html_template = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Ultimate ICT Trading System</title>
-            <meta http-equiv="refresh" content="15">
-            <style>
-                body { font-family: 'Segoe UI', sans-serif; background: #0a0e1a; color: #e2e8f0; margin: 0; padding: 20px; }
-                .container { max-width: 1600px; margin: 0 auto; }
-                .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1e293b; padding-bottom: 20px; }
-                .header h1 { color: #f1f5f9; font-size: 2.5em; margin: 0; }
-                .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin: 20px 0; }
-                .section { background: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155; }
-                .section h2 { color: #f8fafc; margin: 0 0 15px 0; font-size: 1.3em; border-bottom: 1px solid #475569; padding-bottom: 10px; }
-                .opportunity { background: #0f172a; padding: 15px; margin: 10px 0; border-radius: 6px; border-left: 4px solid #10b981; }
-                .strong { border-left-color: #10b981; } .weak { border-left-color: #f59e0b; } .counter { border-left-color: #ef4444; }
-                .state-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
-                .state-box { background: #0f172a; padding: 10px; text-align: center; border-radius: 4px; }
-                .bull { border-left: 3px solid #10b981; } .bear { border-left: 3px solid #ef4444; }
-                .price { color: #10b981; font-weight: bold; font-size: 1.5em; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>🎯 ULTIMATE ICT TRADING SYSTEM</h1>
-                    <p><strong>{{ analysis.symbol }}</strong> – <span class="price">${{ "%.2f"|format(analysis.current_price) }}</span></p>
-                </div>
-                <div class="grid">
-                    <div class="section">
-                        <h2>🚀 TOP OPPORTUNITIES</h2>
-                        {% for opp in analysis.opportunities %}
-                        <div class="opportunity {{ opp.strength.lower() }}">
-                            <strong>{{ opp.signal_type }} – {{ opp.strength }}</strong><br>
-                            <small>Confluence: {{ "%.0f"|format(opp.confluence_score*100) }}% |
-                            Probability: {{ "%.0f"|format(opp.probability*100) }}% |
-                            R:R {{ "%.1f"|format(opp.risk_reward) }}:1</small><br>
-                            <small>{{ opp.entry_zone.type }} @ {{ "%.2f"|format(opp.entry_zone.top) }}–{{ "%.2f"|format(opp.entry_zone.bottom) }}</small><br>
-                            <small>{{ opp.reasoning }}</small>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    <div class="section">
-                        <h2>📊 MARKET STATES</h2>
-                        <div class="state-grid">
-                            {% for tf, state in analysis.market_states.items() %}
-                            <div class="state-box {{ 'bull' if 'BULL' in state.state else 'bear' }}">
-                                <strong>{{ tf }}</strong><br>
-                                <small><em>{{ state.state }}</em></small><br>
-                                <small>{{ state.trend }}</small><br>
-                                <small>{{ "%.0f"|format(state.confidence*100) }}%</small>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    <div class="section">
-                        <h2>📈 SYSTEM SUMMARY</h2>
-                        <p><strong>Total Opportunities:</strong> {{ analysis.summary.total_opportunities }}</p>
-                        <p><strong>Strong Signals:</strong> {{ analysis.summary.strong_signals }}</p>
-                        <p><strong>Active Zones:</strong> {{ analysis.summary.active_zones }}</p>
-                        <p><strong>Bullish Timeframes:</strong> {{ analysis.summary.bullish_bias }}/8</p>
-                        <p><strong>Bearish Timeframes:</strong> {{ analysis.summary.bearish_bias }}/8</p>
-                        <h3>🔗 Data Feeds</h3>
-                        <p><strong>State Tracker:</strong> POST /receive_states</p>
-                        <p><strong>Structure Data:</strong> POST /receive_structure</p>
-                        <p><strong>Test System:</strong> GET /test</p>
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ultimate ICT Trading System</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #0a0e1a; color: #e2e8f0; margin: 0; padding: 20px; }
+    .container { max-width: 1600px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1e293b; padding-bottom: 20px; }
+    .header h1 { color: #f1f5f9; font-size: 2.5em; margin: 0; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin: 20px 0; }
+    .section { background: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155; }
+    .section h2 { color: #f8fafc; margin: 0 0 15px 0; font-size: 1.3em; border-bottom: 1px solid #475569; padding-bottom: 10px; }
+    .opportunity { background: #0f172a; padding: 15px; margin: 10px 0; border-left: 4px solid #10b981; border-radius: 6px; }
+    .strong { border-left-color: #10b981; } .weak { border-left-color: #f59e0b; } .counter { border-left-color: #ef4444; }
+    .state-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+    .state-box { background: #0f172a; padding: 10px; text-align: center; border-radius: 4px; }
+    .bull { border-left: 3px solid #10b981; } .bear { border-left: 3px solid #ef4444; }
+    .price { color: #10b981; font-weight: bold; font-size: 1.5em; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎯 ULTIMATE ICT TRADING SYSTEM</h1>
+      <p>
+        <strong id="symbol">{{ analysis.symbol }}</strong> –
+        <span id="price" class="price">${{ "%.2f"|format(analysis.current_price) }}</span>
+      </p>
+    </div>
+    <div class="grid">
+      <div class="section">
+        <h2>🚀 TOP OPPORTUNITIES</h2>
+        <div id="opportunities">
+        {% for opp in analysis.opportunities %}
+          <div class="opportunity {{ opp.strength.lower() }}">
+            <strong>{{ opp.signal_type }} – {{ opp.strength }}</strong><br>
+            <small>Confluence: {{ "%.0f"|format(opp.confluence_score*100) }}% |
+                   Probability: {{ "%.0f"|format(opp.probability*100) }}% |
+                   R:R {{ "%.1f"|format(opp.risk_reward) }}:1</small><br>
+            <small>{{ opp.entry_zone.type }} @ {{ "%.2f"|format(opp.entry_zone.top) }}–
+                   {{ "%.2f"|format(opp.entry_zone.bottom) }}</small><br>
+            <small>{{ opp.reasoning }}</small>
+          </div>
+        {% endfor %}
+        </div>
+      </div>
+      <div class="section">
+        <h2>📊 MARKET STATES</h2>
+        <div class="state-grid" id="states">
+        {% for tf, state in analysis.market_states.items() %}
+          <div class="state-box {{ 'bull' if 'BULL' in state.state else 'bear' }}">
+            <strong>{{ tf }}</strong><br>
+            <small><em>{{ state.state }}</em></small><br>
+            <small>{{ state.trend }}</small><br>
+            <small>{{ "%.0f"|format(state.confidence*100) }}%</small>
+          </div>
+        {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Socket.IO client -->
+  <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+  <script>
+    const socket = io();
+    socket.on('update', data => {
+      // update header
+      document.getElementById('symbol').textContent = data.symbol;
+      document.getElementById('price').textContent = '$' + data.current_price.toFixed(2);
+
+      // render opportunities
+      const oppCont = document.getElementById('opportunities');
+      oppCont.innerHTML = '';
+      data.opportunities.forEach(o => {
+        const div = document.createElement('div');
+        div.className = 'opportunity ' + o.strength.toLowerCase();
+        div.innerHTML = `
+          <strong>${o.signal_type} – ${o.strength}</strong><br>
+          <small>Confluence: ${Math.round(o.confluence_score*100)}% |
+                 Probability: ${Math.round(o.probability*100)}% |
+                 R:R ${o.risk_reward.toFixed(1)}:1</small><br>
+          <small>${o.entry_zone.type} @ ${o.entry_zone.top.toFixed(2)}–
+                 ${o.entry_zone.bottom.toFixed(2)}</small><br>
+          <small>${o.reasoning}</small>
+        `;
+        oppCont.appendChild(div);
+      });
+
+      // render states
+      const stateCont = document.getElementById('states');
+      stateCont.innerHTML = '';
+      Object.entries(data.market_states).forEach(([tf,s]) => {
+        const box = document.createElement('div');
+        box.className = 'state-box ' + (s.state.includes('BULL') ? 'bull' : 'bear');
+        box.innerHTML = `
+          <strong>${tf}</strong><br>
+          <small><em>${s.state}</em></small><br>
+          <small>${s.trend}</small><br>
+          <small>${Math.round(s.confidence*100)}%</small>
+        `;
+        stateCont.appendChild(box);
+      });
+    });
+  </script>
+</body>
+</html>
         """
 
         @self.app.route('/')
@@ -269,68 +304,76 @@ class UltimateICTSystem:
                 payload = raw.split(":",1)[1].strip()
                 try:
                     data = json.loads(payload)
-                    logger.info(f"[STRUCTURE] Parsed JSON: {data}")
                     ok = self.receive_structure_data(data)
                     return jsonify({'status':'structure_ok' if ok else 'structure_error'}),200
                 except Exception as e:
-                    logger.error(f"[STRUCTURE] JSON error: {e}", exc_info=True)
                     return jsonify({'status':'error','message':str(e)}),400
 
             elif raw.upper().startswith("STATES:"):
                 payload = raw.split(":",1)[1].strip()
                 try:
                     data = json.loads(payload)
-                    logger.info(f"[STATES] Parsed JSON: {data}")
                     ok = self.receive_state_data(data)
                     return jsonify({'status':'states_ok' if ok else 'states_error'}),200
                 except Exception as e:
-                    logger.error(f"[STATES] JSON error: {e}", exc_info=True)
                     return jsonify({'status':'error','message':str(e)}),400
 
             else:
                 try:
                     data = json.loads(raw)
-                    logger.info(f"[FALLBACK] Parsed JSON: {data}")
                     ok = self.receive_state_data(data)
                     return jsonify({'status':'fallback_ok' if ok else 'fallback_error'}),200
                 except Exception as e:
-                    logger.error(f"[FALLBACK] JSON error: {e}", exc_info=True)
                     return jsonify({'status':'error','message':str(e)}),400
 
-        @self.app.route('/receive_structure', methods=['POST'])
-        def receive_structure():
+        @self.app.route('/receive_states', methods=['POST'])
+        def receive_states():
+            raw = request.data.decode('utf-8', errors='replace').strip()
+            logger.info(f"[STATE] Raw body: {raw}")
+
+            # STRUCTURE-prefixed payload?
+        if raw.upper().startswith("STRUCTURE:"):
+            payload = raw.split(":", 1)[1].strip()
             try:
-                data = request.get_json(force=True) or {}
-                logger.info(f"[STRUCTURE] Raw JSON body: {data}")
+                data = json.loads(payload)
+                logger.info(f"[STRUCTURE] Parsed JSON: {data}")
                 ok = self.receive_structure_data(data)
-                return jsonify({'status':'success' if ok else 'error'}),200
+                status = 'structure_ok' if ok else 'structure_error'
+                return jsonify({'status': status}), 200
             except Exception as e:
-                logger.error(f"[STRUCTURE] Error: {e}", exc_info=True)
-                return jsonify({'status':'error','message':str(e)}),500
+                logger.error(f"[STRUCTURE] JSON error: {e}", exc_info=True)
+                return jsonify({
+                    'status': 'error',
+                    'message': f"STRUCTURE parse failed: {e}"
+                }), 400
 
-        @self.app.route('/test', methods=['GET'])
-        def test_system():
-            self.receive_state_data({
-                'state_W':'BULL_IRL_TO_ERL',
-                'state_D':'BULL_IRL_TO_ERL',
-                'state_4H':'BULL_ERL_TO_IRL'
-            })
-            self.receive_structure_data({
-                'symbol':'TEST',
-                'current_price':15250.50,
-                'fvgs':[{'direction':'BULL','top':15260,'bottom':15240,'active':True,'strength':0.8}]
-            })
-            return jsonify({'status':'test_data_loaded','opportunities':len(self.opportunities)}),200
+        # STATES-prefixed payload?
+        elif raw.upper().startswith("STATES:"):
+            payload = raw.split(":", 1)[1].strip()
+            try:
+                data = json.loads(payload)
+                logger.info(f"[STATES] Parsed JSON: {data}")
+                ok = self.receive_state_data(data)
+                status = 'states_ok' if ok else 'states_error'
+                return jsonify({'status': status}), 200
+            except Exception as e:
+                logger.error(f"[STATES] JSON error: {e}", exc_info=True)
+                return jsonify({
+                    'status': 'error',
+                    'message': f"STATES parse failed: {e}"
+                }), 400
 
-        @self.app.route('/api/analysis')
-        def api_analysis():
-            return jsonify(self.get_analysis()),200
-
-# Instantiate & expose for Gunicorn
-system = UltimateICTSystem()
-app = system.app
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT',5000))
-    print(f"🚀 Starting Ultimate ICT System on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=False)
+        # Fallback: try raw JSON
+        else:
+            try:
+                data = json.loads(raw)
+                logger.info(f"[FALLBACK] Parsed JSON: {data}")
+                ok = self.receive_state_data(data)
+                status = 'fallback_ok' if ok else 'fallback_error'
+                return jsonify({'status': status}), 200
+            except Exception as e:
+                logger.error(f"[FALLBACK] JSON error: {e}", exc_info=True)
+                return jsonify({
+                    'status': 'error',
+                    'message': f"Fallback parse failed: {e}"
+                }), 400
