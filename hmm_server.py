@@ -68,6 +68,10 @@ class UltimateICTSystem:
     def receive_structure_data(self, data: Dict):
         try:
             self.active_zones = []
+            # Update symbol if provided
+            if 'symbol' in data:
+                self.symbol = data['symbol']
+
             for zone_type in ['fvgs', 'order_blocks', 'liquidity_levels']:
                 if zone_type in data:
                     for z in data[zone_type]:
