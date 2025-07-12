@@ -257,17 +257,7 @@ class UltimateICTSystem:
 
         @self.app.route('/receive_states', methods=['POST'])
         def receive_states():
-            raw = request.data.decode('utf-8', errors='replace')
-            logger.info(f"[STATE] Raw body: {raw}")
-
-            try:
-                data = request.get_json(force=True)
-                logger.info(f"[STATE] Parsed JSON: {data}")
-                success = self.receive_state_data(data)
-                return jsonify({'status': 'success' if success else 'error'})
-            except Exception as e:
-                logger.error(f"[STATE] Error: {e}", exc_info=True)
-                return jsonify({'status': 'error', 'message': str(e)}), 500
+            return jsonify({'status': 'ok'}), 200
 
         @self.app.route('/receive_structure', methods=['POST'])
         def receive_structure():
