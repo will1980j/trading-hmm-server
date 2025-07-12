@@ -326,6 +326,72 @@ html_template = """<!DOCTYPE html>
       btn.querySelector('i').className = 'bi bi-sun';
     }
   </script>
+  <script>
+  async function fetchAndRender() {
+    try {
+      const res  = await fetch('/api/analysis');
+      const data = await res.json();
+
+      // Symbol + Price
+      document.querySelector('#symbol').textContent = data.symbol;
+      document.querySelector('#price').textContent  = '$' + data.current_price.toFixed(2);
+
+      // Opportunities
+      const oppDiv = document.getElementById('ops');
+      oppDiv.innerHTML = '';
+      data.opportunities.forEach(o => {
+        const card = document.createElement('div');
+        card.className = 'card bg-transparent border card-opportunity ' + o.strength.toLowerCase();
+        card.innerHTML = `
+          <div class="card-body">
+            <h6>${o.signal_type} – ${o.strength}</h6>
+            <div class="small">Confluence: ${Math.round(o.confluence_score*100)}% |
+              Prob: ${Math.round(o.probability*100)}% |
+              R:R ${o.risk_reward.toFixed(1)}:1</div>
+            <div class="small text-muted">${o.entry_zone.type} @ 
+              ${o.entry_zone.top.toFixed(2)}–${o.entry_zone.bottom.toFixed(2)}</div>
+            <div class="small text-muted">${o.reasoning}</div>
+          </div>`;
+        oppDiv.appendChild(card);
+      });
+
+      // States
+      document.querySelectorAll('.state-box').forEach(box => box.remove());
+      const stateSection = document.querySelector('.row.g-2');
+      Object.entries(data.market_states).forEach(([tf, s]) => {
+        const box = document.createElement('div');
+        box.className = 'col-6';
+        box.innerHTML = `
+          <div class="state-box ${s.state.includes('BULL') ? 'bull' : 'bear'}">
+            <strong>${tf}</strong><br>
+            <small><em>${s.state}</em></small><br>
+            <small>${s.trend} ${Math.round(s.confidence*100)}%</small>
+          </div>`;
+        stateSection.appendChild(box);
+      });
+
+      // Summary
+      document.querySelectorAll('.card-body.small div').forEach(el => {
+        const txt = el.textContent.split(':')[0];
+        const key = {
+          'Total Opps': data.summary.total_opportunities,
+          'Strong Signals': data.summary.strong_signals,
+          'Active Zones': data.summary.active_zones,
+          'Bullish TFs': data.summary.bullish_bias + '/8',
+          'Bearish TFs': data.summary.bearish_bias + '/8'
+        }[txt.trim()];
+        if (key !== undefined) el.textContent = `${txt}: ${key}`;
+      });
+
+    } catch (e) {
+      console.error('Dashboard update failed', e);
+    }
+  }
+
+  // Start polling
+  setInterval(fetchAndRender, 2000);
+  window.addEventListener('load', fetchAndRender);
+</script>
 </body>
 </html>
 """
