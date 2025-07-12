@@ -1,4 +1,3 @@
-# Part 1 of 2
 #!/usr/bin/env python3
 """
 Ultimate ICT Trading System
@@ -24,6 +23,7 @@ logger = logging.getLogger(__name__)
 class UltimateICTSystem:
     def __init__(self):
         self.local_tz = pytz.timezone('Australia/Sydney')
+        # Initialize multi‐timeframe states
         self.market_states = {
             tf: {'state':'BULL_ERL_TO_IRL','trend':'Counter','confidence':0.7}
             for tf in ['M','W','D','4H','1H','15M','5M','1M']
@@ -34,6 +34,7 @@ class UltimateICTSystem:
         self.symbol = 'NQ1!'
         self.price_history = []  # for sparkline
 
+        # Flask setup
         self.app = Flask(__name__)
         CORS(self.app)
         self._setup_routes()
@@ -48,7 +49,11 @@ class UltimateICTSystem:
                     val = data[key]
                     trend = 'Pro' if 'IRL_TO_ERL' in val else 'Counter'
                     conf  = 0.8 if 'STRONG' in val else 0.6
-                    self.market_states[tf] = {'state':val,'trend':trend,'confidence':conf}
+                    self.market_states[tf] = {
+                        'state':      val,
+                        'trend':      trend,
+                        'confidence': conf
+                    }
             self._analyze_opportunities()
             return True
         except Exception:
@@ -90,7 +95,7 @@ class UltimateICTSystem:
                     'signal_type':     'LONG' if zone['direction']=='BULL' else 'SHORT',
                     'strength':        conf['strength'],
                     'confluence_score':conf['score'],
-                    'probability':     min(0.5+conf['score']*0.4,0.95),
+                    'probability':     min(0.5 + conf['score']*0.4, 0.95),
                     'risk_reward':     2.5,
                     'entry_zone':      zone,
                     'reasoning':       conf['reasoning']
@@ -156,9 +161,7 @@ class UltimateICTSystem:
         }
 
     def _setup_routes(self):
-        # (Part 2 continues with html_template, routes & app launch)
-        # Part 2 of 2
-        html_template = """
+                html_template = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -183,6 +186,29 @@ class UltimateICTSystem:
     .card-body { line-height:1.4; }
     #ops .card-opportunity { margin-bottom:1rem; }
     footer { font-size:0.85rem; opacity:0.6; }
+
+    /* Dark‐mode fixes */
+    body.dark .card.bg-transparent {
+      background-color: #161b22 !important;
+      border: 1px solid #30363d !important;
+    }
+    body.dark .text-muted {
+      color: #8b949e !important;
+    }
+    body.dark .card-body {
+      color: #c9d1d9 !important;
+    }
+    body.dark footer {
+      color: #8b949e !important;
+    }
+    /* Light‐mode overrides */
+    body.light .card.bg-transparent {
+      background-color: #ffffff !important;
+      border: 1px solid #dee2e6 !important;
+    }
+    body.light .text-muted {
+      color: #6c757d !important;
+    }
   </style>
 </head>
 <body class="dark">
@@ -190,8 +216,11 @@ class UltimateICTSystem:
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h1 class="h5">🎯 Ultimate ICT Trading System</h1>
       <div>
-        <span class="fw-semibold">{{ analysis.symbol }}</span> – <span class="fw-bold text-success">${{ "%.2f"|format(analysis.current_price) }}</span>
-        <button id="theme-toggle" class="btn btn-sm btn-outline-light ms-3"><i class="bi bi-moon-stars"></i></button>
+        <span class="fw-semibold">{{ analysis.symbol }}</span> –
+        <span class="fw-bold text-success">${{ "%.2f"|format(analysis.current_price) }}</span>
+        <button id="theme-toggle" class="btn btn-sm btn-outline-light ms-3">
+          <i class="bi bi-moon-stars"></i>
+        </button>
       </div>
     </div>
     <div class="mb-2 small text-muted">Updated: {{ analysis.timestamp }}</div>
@@ -202,20 +231,28 @@ class UltimateICTSystem:
     </div>
 
     <div class="row gy-4 mt-3">
+      <!-- Top Opportunities -->
       <div class="col-md-8">
         <div class="card bg-transparent border-0">
           <div class="card-header bg-secondary text-white">🚀 Top Opportunities</div>
           <div class="card-body" id="ops">
             {% if analysis.opportunities %}
               {% for opp in analysis.opportunities %}
-              <div class="card bg-transparent border card-opportunity {{ opp.strength.lower() }}">
-                <div class="card-body">
-                  <h6>{{ opp.signal_type }} – {{ opp.strength }}</h6>
-                  <div class="small">Confluence: {{ "%.0f"|format(opp.confluence_score*100) }}% | Prob: {{ "%.0f"|format(opp.probability*100) }}% | R:R {{ "%.1f"|format(opp.risk_reward) }}:1</div>
-                  <div class="small text-muted">{{ opp.entry_zone.type }} @ {{ "%.2f"|format(opp.entry_zone.top) }}–{{ "%.2f"|format(opp.entry_zone.bottom) }}</div>
-                  <div class="small text-muted">{{ opp.reasoning }}</div>
+                <div class="card bg-transparent border card-opportunity {{ opp.strength.lower() }}">
+                  <div class="card-body">
+                    <h6>{{ opp.signal_type }} – {{ opp.strength }}</h6>
+                    <div class="small">
+                      Confluence: {{ "%.0f"|format(opp.confluence_score*100) }}% |
+                      Prob: {{ "%.0f"|format(opp.probability*100) }}% |
+                      R:R {{ "%.1f"|format(opp.risk_reward) }}:1
+                    </div>
+                    <div class="small text-muted">
+                      {{ opp.entry_zone.type }} @ {{ "%.2f"|format(opp.entry_zone.top) }}–
+                      {{ "%.2f"|format(opp.entry_zone.bottom) }}
+                    </div>
+                    <div class="small text-muted">{{ opp.reasoning }}</div>
+                  </div>
                 </div>
-              </div>
               {% endfor %}
             {% else %}
               <div class="text-center text-muted py-5">
@@ -226,19 +263,21 @@ class UltimateICTSystem:
           </div>
         </div>
       </div>
+
+      <!-- Market States & Summary -->
       <div class="col-md-4">
         <div class="card bg-transparent border-0 mb-3">
           <div class="card-header bg-secondary text-white">📊 Market States</div>
           <div class="card-body">
             <div class="row g-2">
               {% for tf, s in analysis.market_states.items() %}
-              <div class="col-6">
-                <div class="state-box {{ 'bull' if 'BULL' in s.state else 'bear' }}">
-                  <strong>{{ tf }}</strong><br>
-                  <small><em>{{ s.state }}</em></small><br>
-                  <small>{{ s.trend }} {{ "%.0f"|format(s.confidence*100) }}%</small>
+                <div class="col-6">
+                  <div class="state-box {{ 'bull' if 'BULL' in s.state else 'bear' }}">
+                    <strong>{{ tf }}</strong><br>
+                    <small><em>{{ s.state }}</em></small><br>
+                    <small>{{ s.trend }} {{ "%.0f"|format(s.confidence*100) }}%</small>
+                  </div>
                 </div>
-              </div>
               {% endfor %}
             </div>
           </div>
@@ -255,7 +294,10 @@ class UltimateICTSystem:
         </div>
       </div>
     </div>
-    <footer class="mt-4 text-center">Data feeds: POST /receive_states | POST /receive_structure | GET /api/analysis</footer>
+
+    <footer class="mt-4 text-center">
+      Data feeds: POST /receive_states | POST /receive_structure | GET /api/analysis
+    </footer>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -266,10 +308,15 @@ class UltimateICTSystem:
     new Chart(ctx, {
       type: 'line',
       data: {
-        labels: spData.map((_,i)=>i+1),
-        datasets:[{data:spData,borderColor:'#10b981',borderWidth:1.5,pointRadius:0,tension:0.3}]
+        labels: spData.map((_, i) => i+1),
+        datasets: [{ data: spData, borderColor:'#10b981', borderWidth:1.5, pointRadius:0, tension:0.3 }]
       },
-      options:{responsive:false,maintainAspectRatio:false,scales:{x:{display:false},y:{display:false}},plugins:{legend:{display:false},tooltip:{enabled:false}}}
+      options: {
+        responsive:false,
+        maintainAspectRatio:false,
+        scales:{ x:{display:false}, y:{display:false} },
+        plugins:{ legend:{display:false}, tooltip:{enabled:false} }
+      }
     });
 
     // theme toggle
@@ -278,49 +325,56 @@ class UltimateICTSystem:
       document.body.classList.toggle('light');
       document.body.classList.toggle('dark');
       const icon = btn.querySelector('i');
-      if(document.body.classList.contains('light')){
-        icon.className='bi bi-sun'; localStorage.setItem('theme','light');
+      if (document.body.classList.contains('light')) {
+        icon.className = 'bi bi-sun';
+        localStorage.setItem('theme','light');
       } else {
-        icon.className='bi bi-moon-stars'; localStorage.setItem('theme','dark');
+        icon.className = 'bi bi-moon-stars';
+        localStorage.setItem('theme','dark');
       }
     };
-    if(localStorage.getItem('theme')==='light'){
+    if (localStorage.getItem('theme')==='light') {
       document.body.classList.replace('dark','light');
-      btn.querySelector('i').className='bi bi-sun';
+      btn.querySelector('i').className = 'bi bi-sun';
     }
   </script>
 </body>
 </html>
         """
 
-        @self.app.route('/')
-        def dashboard():
-            return Template(html_template).render(analysis=self.get_analysis())
+@self.app.route('/')
+def dashboard():
+    return Template(html_template).render(analysis=self.get_analysis())
 
-        @self.app.route('/receive_states', methods=['POST'])
-        def receive_states():
-            raw = request.data.decode('utf-8', errors='replace').strip()
-            if raw.upper().startswith("STRUCTURE:"):
-                payload = raw.split(":",1)[1]; self.receive_structure_data(json.loads(payload)); return jsonify(status='structure_ok'),200
-            if raw.upper().startswith("STATES:"):
-                payload = raw.split(":",1)[1]; self.receive_state_data(json.loads(payload)); return jsonify(status='states_ok'),200
-            self.receive_state_data(json.loads(raw)); return jsonify(status='fallback_ok'),200
+@self.app.route('/receive_states', methods=['POST'])
+def receive_states():
+    raw = request.data.decode('utf-8', errors='replace').strip()
+    if raw.upper().startswith("STRUCTURE:"):
+        payload = raw.split(":",1)[1]
+        self.receive_structure_data(json.loads(payload))
+        return jsonify(status='structure_ok'), 200
+    if raw.upper().startswith("STATES:"):
+        payload = raw.split(":",1)[1]
+        self.receive_state_data(json.loads(payload))
+        return jsonify(status='states_ok'), 200
+    self.receive_state_data(json.loads(raw))
+    return jsonify(status='fallback_ok'), 200
 
-        @self.app.route('/receive_structure', methods=['POST'])
-        def receive_structure():
-            data = request.get_json(force=True) or {}
-            self.receive_structure_data(data)
-            return jsonify(status='structure_ok'),200
+@self.app.route('/receive_structure', methods=['POST'])
+def receive_structure():
+    data = request.get_json(force=True) or {}
+    self.receive_structure_data(data)
+    return jsonify(status='structure_ok'), 200
 
-        @self.app.route('/api/analysis', methods=['GET'])
-        def api_analysis():
-            return jsonify(self.get_analysis()),200
+@self.app.route('/api/analysis', methods=['GET'])
+def api_analysis():
+    return jsonify(self.get_analysis()), 200
 
-# expose for Gunicorn
+# Expose for Gunicorn
 system = UltimateICTSystem()
 app    = system.app
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT',5000))
+    port = int(os.environ.get('PORT', 5000))
     print(f"🚀 Starting Ultimate ICT System on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
