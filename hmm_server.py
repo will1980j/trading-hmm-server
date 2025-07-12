@@ -354,22 +354,3 @@ if __name__ == '__main__':
 
 import traceback
 
-@self.app.route('/receive_states', methods=['POST'])
-def receive_states():
-    try:
-        # 1) Grab the raw body for inspection
-        raw_body = request.get_data(as_text=True)
-        self.app.logger.info(f"🔍 Raw body: {raw_body}")
-
-        # 2) Force JSON parsing (even if headers are missing)
-        data = request.get_json(force=True, silent=True) or {}
-        self.app.logger.info(f"🔍 Parsed JSON: {data}")
-
-        # 3) Process the data
-        success = self.receive_state_data(data)
-        return jsonify({'status': 'success' if success else 'error'})
-    except Exception:
-        # 4) Catch any exception and log full traceback
-        tb = traceback.format_exc()
-        self.app.logger.error(f"❌ Error in /receive_states:\n{tb}")
-        return jsonify({'error': 'internal server error'}), 500
