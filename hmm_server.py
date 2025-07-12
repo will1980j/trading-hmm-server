@@ -267,7 +267,7 @@ class UltimateICTSystem:
                 return jsonify({'status': 'success' if success else 'error'})
             except Exception as e:
                 logger.error(f"[STATE] Error: {e}", exc_info=True)
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+                return jsonify({'status': 'error', 'message': str(e)}), 500
 
         @self.app.route('/receive_structure', methods=['POST'])
         def receive_structure():
