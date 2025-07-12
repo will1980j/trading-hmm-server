@@ -257,7 +257,10 @@ class UltimateICTSystem:
 
         @self.app.route('/receive_states', methods=['POST'])
         def receive_states():
+            raw = request.data.decode('utf-8', errors='replace')
+            logger.info(f"[STATE] Raw body: {raw}")
             return jsonify({'status': 'ok'}), 200
+
 
         @self.app.route('/receive_structure', methods=['POST'])
         def receive_structure():
