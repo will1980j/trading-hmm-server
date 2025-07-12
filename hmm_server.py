@@ -155,37 +155,49 @@ html_template = """<!DOCTYPE html>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
   <style>
-    body.light { background:#f8f9fa; color:#212529; }
-    body.dark  { background:#0d1117; color:#c9d1d9; }
-    .card-opportunity { border-left-width:4px !important; }
-    .card-opportunity.strong { border-color:#10b981 !important; }
-    .card-opportunity.weak   { border-color:#f59e0b !important; }
-    .card-opportunity.counter{ border-color:#ef4444 !important; }
-    .state-box { border-radius:4px; padding:10px; }
-    .state-box.bull { background:rgba(16,185,129,0.1); }
-    .state-box.bear { background:rgba(239,68,68,0.1); }
-    .card-body { line-height:1.4; }
-    #ops .card-opportunity { margin-bottom:1rem; }
-    footer { font-size:0.85rem; opacity:0.6; }
+  /* Base Themes */
+  body.light { background:#f8f9fa; color:#212529; }
+  body.dark  { background:#0d1117; color:#c9d1d9; }
 
-    /* Dark‐mode fixes */
-    body.dark .card.bg-transparent {
-      background-color: #161b22 !important;
-      border: 1px solid #30363d !important;
-    }
-    body.dark .text-muted {
-      color: #8b949e !important;
-    }
+  /* Card Appearance */
+  .card-opportunity { border-left-width:4px !important; }
+  .card-opportunity.strong  { border-color:#10b981 !important; }
+  .card-opportunity.weak    { border-color:#f59e0b !important; }
+  .card-opportunity.counter { border-color:#ef4444 !important; }
 
-    /* Light‐mode overrides */
-    body.light .card.bg-transparent {
-      background-color: #ffffff !important;
-      border: 1px solid #dee2e6 !important;
-    }
-    body.light .text-muted {
-      color: #6c757d !important;
-    }
-  </style>
+  /* State Boxes */
+  .state-box       { border-radius:4px; padding:10px; }
+  .state-box.bull  { background:rgba(16,185,129,0.1); }
+  .state-box.bear  { background:rgba(239,68,68,0.1); }
+
+  /* Layout */
+  .card-body       { line-height:1.4; }
+  #ops .card-opportunity { margin-bottom:1rem; }
+  footer           { font-size:0.85rem; opacity:0.6; }
+
+  /* Force Visibility in Dark Mode */
+  body.dark .card {
+    background-color: #161b22 !important;
+    border: 1px solid #30363d !important;
+    color: #c9d1d9 !important;
+  }
+  body.dark .card .card-header,
+  body.dark .card .card-body {
+    color: #c9d1d9 !important;
+  }
+  body.dark .text-muted {
+    color: #8b949e !important;
+  }
+
+  /* Light Mode Enhancements */
+  body.light .card {
+    background-color: #ffffff !important;
+    border: 1px solid #dee2e6 !important;
+  }
+  body.light .text-muted {
+    color: #6c757d !important;
+  }
+</style>
 </head>
 <body class="dark">
   <div class="container py-4">
