@@ -1,1 +1,1 @@
-web: gunicorn -k eventlet -w 1 hmm_server:app
+web: gunicorn -w 1 hmm_server:app
