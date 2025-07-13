@@ -400,8 +400,23 @@ def receive_alert():
                 })
         analyze_opportunities()
         return jsonify(status="structure_ok"), 200
+    # … after your STATES/STRUCTURE handlers …
 
-    # Unknown payload
+    # 3) Handle DASHBOARD payloads so they don’t 400
+    if raw.upper().startswith("DASHBOARD:"):
+        try:
+            json_str = raw.split(":", 1)[1].strip()
+            dash = json.loads(json_str)
+            logger.info("🔔 Dashboard data: %s", dash)
+            # OPTIONAL: store dash into a global if you want
+            # e.g. global dashboard_metrics; dashboard_metrics = dash
+        except Exception as e:
+            logger.exception("Failed to parse DASHBOARD JSON")
+            return jsonify(error="bad dashboard payload"), 400
+
+        return jsonify(status="dashboard_ok"), 200
+
+    # fallback for anything else
     logger.error("Unknown webhook content: %s", raw)
     return jsonify(error="unknown payload"), 400
 
