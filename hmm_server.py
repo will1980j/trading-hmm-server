@@ -9,7 +9,7 @@ from datetime import datetime
 import pytz
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from jinja2 import Template
+
 
 # ─── Setup ─────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
@@ -164,26 +164,38 @@ def receive_alert():
         except: return jsonify(error="bad dashboard"),400
 
     return jsonify(error="unknown payload"), 400
+@app.route("/", methods=["GET"])
+def index():
+    # This is the “basic HTML” page that polls /api/analysis every 15 s
+    return """
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="15">
+  <title>ICT Trading System</title>
+</head>
+<body>
+  <h1>ICT Trading System</h1>
+  <div>Symbol: <span id="sym">-</span></div>
+  <div>Price:  <span id="prc">-</span></div>
+  <pre id="out"></pre>
 
-@app.route('/')
-def dashboard():
-    html = """<!DOCTYPE html>
-<html><head>
-  <meta charset="utf-8"><meta http-equiv="refresh" content="15">
-  <title>ICT Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-</head><body class="p-4">
-  <h3>🎯 ICT Dashboard</h3>
-  <small>Updated: {{analysis.timestamp}}</small>
-  <hr>
-  <h5>Market States</h5>
-  <pre>{{analysis.market_states | tojson(indent=2)}}</pre>
-  <h5>Active Zones</h5>
-  <pre>{{analysis.dashboard | tojson(indent=2)}}</pre>
-  <h5>Opportunities</h5>
-  <pre>{{analysis.opportunities | tojson(indent=2)}}</pre>
-</body></html>"""
-    return Template(html).render(analysis=get_analysis()), 200
+  <script>
+    async function update() {
+      const res = await fetch('/api/analysis');
+      const data = await res.json();
+      document.getElementById('sym').textContent = data.symbol;
+      document.getElementById('prc').textContent = data.current_price;
+      document.getElementById('out').textContent = JSON.stringify(data, null, 2);
+    }
+    update();
+    setInterval(update, 15000);
+  </script>
+</body>
+</html>
+"""
+
 
 @app.route('/api/analysis')
 def api_analysis():
