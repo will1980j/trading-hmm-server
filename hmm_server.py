@@ -343,6 +343,67 @@ def receive_states_route():
         return jsonify(error=str(e)), 500
 
 # ─── Entry Point ────────────────────────────────────────────────────────────
+@app.route('/webhook', methods=['POST'])
+def receive_alert():
+    raw = request.data.decode('utf-8').strip()
+    logger.info("🔔 Webhook raw payload: %s", raw)
+
+    # STATES payload starts with "STATES:"
+    if raw.upper().startswith("STATES:"):
+        try:
+            # grab the JSON substring after the first colon
+            j = raw.split(":", 1)[1].strip()
+            data = json.loads(j)
+        except Exception as e:
+            logger.exception("Failed to parse STATES JSON")
+            return jsonify(error="bad states payload", detail=str(e)), 400
+
+        # update market_states exactly as you did in receive_states_route
+        for tf in market_states:
+            key = f"state_{tf}"
+            if key in data:
+                val = data[key]
+                market_states[tf] = {
+                    "state": val,
+                    "trend": "Pro" if "IRL_TO_ERL" in val else "Counter",
+                    "confidence": 0.8 if "STRONG" in val else 0.6
+                }
+        analyze_opportunities()
+        return jsonify(status="states_ok"), 200
+
+    # STRUCTURE payload starts with "STRUCTURE:"
+    if raw.upper().startswith("STRUCTURE:"):
+        try:
+            j = raw.split(":", 1)[1].strip()
+            data = json.loads(j)
+        except Exception as e:
+            logger.exception("Failed to parse STRUCTURE JSON")
+            return jsonify(error="bad structure payload", detail=str(e)), 400
+
+        # update symbol, current_price, active_zones exactly as you did before
+        global symbol, current_price, active_zones
+        if "symbol" in data:
+            symbol = data["symbol"]
+        if "current_price" in data:
+            current_price = float(data["current_price"])
+        active_zones = []
+        for zt in ["fvgs", "order_blocks", "liquidity_levels"]:
+            for z in data.get(zt, []):
+                active_zones.append({
+                    "type": zt.rstrip("s").upper(),
+                    "direction": z.get("direction", "BULL"),
+                    "top": float(z.get("top", 0)),
+                    "bottom": float(z.get("bottom", 0)),
+                    "active": bool(z.get("active", True)),
+                    "strength": float(z.get("strength", 0.5))
+                })
+        analyze_opportunities()
+        return jsonify(status="structure_ok"), 200
+
+    # Unknown payload
+    logger.error("Unknown webhook content: %s", raw)
+    return jsonify(error="unknown payload"), 400
+
 @app.route('/health', methods=['GET'])
 def health():
     return 'OK', 200
