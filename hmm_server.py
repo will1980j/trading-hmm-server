@@ -345,8 +345,9 @@ def receive_states_route():
 # ─── Entry Point ────────────────────────────────────────────────────────────
 @app.route('/webhook', methods=['POST'])
 def receive_alert():
-    raw = request.data.decode('utf-8').strip()
-    logger.info("🔔 Webhook raw payload: %s", raw)
+    raw = request.data.decode('utf-8', errors='replace').strip()
+    logger.info("🔔 Incoming webhook: path=%s, headers=%s", request.path, dict(request.headers))
+    logger.info("🔔 Payload (%d bytes): %s", len(raw), raw)
 
     # STATES payload starts with "STATES:"
     if raw.upper().startswith("STATES:"):
