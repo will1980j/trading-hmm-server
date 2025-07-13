@@ -343,6 +343,9 @@ def receive_states_route():
         return jsonify(error=str(e)), 500
 
 # ─── Entry Point ────────────────────────────────────────────────────────────
+@app.route('/health', methods=['GET'])
+def health():
+    return 'OK', 200
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"🚀 Starting Ultimate ICT System on port {port}")
