@@ -334,10 +334,12 @@
             padding: 25px;
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255,255,255,0.1);
-            height: 420px;
-            min-height: 420px;
+            height: auto;
+            min-height: 480px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.1);
             transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
         
         .chart-container:hover {
@@ -1063,7 +1065,7 @@
         <div class="main-grid">
             <div class="chart-container">
                 <h3>Trade-by-Trade Equity</h3>
-                <div style="height: 280px;">
+                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;">
                     <canvas id="equityChart"></canvas>
                 </div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
@@ -1076,7 +1078,7 @@
             
             <div class="chart-container">
                 <h3>Daily Equity Curve</h3>
-                <div style="height: 280px;"><canvas id="dailyEquityChart"></canvas></div>
+                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="dailyEquityChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>📊 What this shows:</strong> Your daily profit/loss aggregated by trading day. Shows which days you made or lost money and helps identify daily performance patterns.
                 </div>
@@ -1087,7 +1089,7 @@
             
             <div class="chart-container">
                 <h3>Weekly Equity Curve</h3>
-                <div style="height: 280px;"><canvas id="weeklyEquityChart"></canvas></div>
+                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="weeklyEquityChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>📊 What this shows:</strong> Your weekly performance over time. Each point represents a week's total profit/loss, helping identify longer-term trends and weekly consistency.
                 </div>
@@ -1098,7 +1100,7 @@
             
             <div class="chart-container">
                 <h3>Monthly Equity Curve</h3>
-                <div style="height: 280px;"><canvas id="monthlyEquityChart"></canvas></div>
+                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="monthlyEquityChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>📊 What this shows:</strong> Your monthly performance progression. Shows seasonal patterns and long-term account growth, with each point representing a month's total results.
                 </div>
@@ -1109,7 +1111,7 @@
             
             <div class="chart-container">
                 <h3>R-Score Distribution</h3>
-                <div style="height: 280px;"><canvas id="rScoreChart"></canvas></div>
+                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="rScoreChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>📊 What this shows:</strong> How often you hit different R-multiples. Shows your MFE distribution and helps determine optimal profit targets based on actual trade outcomes.
                 </div>
@@ -1120,7 +1122,7 @@
             
             <div class="chart-container">
                 <h3>Day of Week Performance</h3>
-                <div style="height: 280px;"><canvas id="dayOfWeekChart"></canvas></div>
+                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="dayOfWeekChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>📊 What this shows:</strong> Your average expectancy for each trading day (Monday-Friday). Helps identify which days of the week are most profitable for your strategy.
                 </div>
@@ -1131,7 +1133,7 @@
             
             <div class="chart-container">
                 <h3>Monthly Seasonality</h3>
-                <div style="height: 280px;"><canvas id="seasonalityChart"></canvas></div>
+                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="seasonalityChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>📊 What this shows:</strong> Your average expectancy for each month of the year. Reveals seasonal patterns in your trading performance and market behavior.
                 </div>
@@ -1142,7 +1144,7 @@
             
             <div class="chart-container">
                 <h3>Rolling 30D Performance</h3>
-                <div style="height: 280px;"><canvas id="rollingChart"></canvas></div>
+                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="rollingChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>📊 What this shows:</strong> Your 30-day rolling average expectancy over time. Smooths out daily volatility to show underlying performance trends and momentum.
                 </div>
@@ -1153,7 +1155,7 @@
             
             <div class="chart-container">
                 <h3>Session Performance Heatmap</h3>
-                <div style="height: 280px;"><canvas id="sessionHeatmapChart"></canvas></div>
+                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="sessionHeatmapChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>📊 What this shows:</strong> Win rate percentage for each trading session. Helps identify which market sessions (Asia, London, NY) work best for your strategy.
                 </div>
