@@ -756,7 +756,8 @@ class PatekICTSystem:
             """
             
             from jinja2 import Template
-            template = Template(dashboard_html)
+            from markupsafe import escape
+            template = Template(dashboard_html, autoescape=True)
             return template.render(analysis=analysis)
         
         @self.app.route('/api/analysis')
@@ -786,4 +787,4 @@ if __name__ == '__main__':
     print(f"🚀 Starting Patek ICT System on port {port}")
     print(f"📊 Dashboard: http://localhost:{port}")
     
-    patek_system.app.run(host='0.0.0.0', port=port, debug=False)
+    patek_system.app.run(host='127.0.0.1', port=port, debug=False)

@@ -320,6 +320,7 @@ def get_trades():
             """)
         except Exception as e:
             db.conn.rollback()
+            print(f"Database query error: {str(e).replace('\n', ' ').replace('\r', ' ')}")
             raise e
         
         trades = []
@@ -422,7 +423,8 @@ def get_prop_firms():
             })
         
         return jsonify({"firms": firms})
-    except:
+    except Exception as e:
+        print(f"Prop firms query error: {str(e).replace('\n', ' ').replace('\r', ' ')}")
         return jsonify({"firms": []})
 
 @app.route('/api/scrape-propfirms')
@@ -441,4 +443,4 @@ def scrape_propfirms():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Starting server on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='127.0.0.1', port=port, debug=False)

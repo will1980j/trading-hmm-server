@@ -2286,6 +2286,15 @@
             changeTheme();
         }
         
+        function loadSampleData() {
+            window.trades = [
+                { date: '2024-01-15', bias: 'LONG', session: 'LONDON', breakeven: false, rScore: 2.5, r1: 2.5, r2: 2.5, r3: 0, r4: 0, r5: 0, r6: 0, r7: 0, r8: 0, r9: 0, r10: 0, r11: 0, r12: 0, r13: 0, r14: 0, r15: 0, r16: 0, r17: 0, r18: 0, r19: 0, r20: 0 },
+                { date: '2024-01-16', bias: 'SHORT', session: 'NEW YORK AM', breakeven: true, rScore: 1, r1: 1, r2: 1, r3: 0, r4: 0, r5: 0, r6: 0, r7: 0, r8: 0, r9: 0, r10: 0, r11: 0, r12: 0, r13: 0, r14: 0, r15: 0, r16: 0, r17: 0, r18: 0, r19: 0, r20: 0 },
+                { date: '2024-01-17', bias: 'LONG', session: 'LONDON', breakeven: false, rScore: -1, r1: -1, r2: -1, r3: 0, r4: 0, r5: 0, r6: 0, r7: 0, r8: 0, r9: 0, r10: 0, r11: 0, r12: 0, r13: 0, r14: 0, r15: 0, r16: 0, r17: 0, r18: 0, r19: 0, r20: 0 }
+            ];
+            updateDashboard();
+        }
+        
         // AI Analysis Functions
         class TradingAI {
             constructor() {
@@ -4365,18 +4374,10 @@
             console.log('DOM loaded, starting initialization...');
             loadTheme();
             initCharts();
-            // Clear any existing trades and load only from Trade Manager
+            // Load all data from PostgreSQL database
             trades = [];
-            const managerTrades = JSON.parse(localStorage.getItem('tradingData')) || [];
-            if (managerTrades.length > 0) {
-                trades = [...managerTrades]; // Create fresh copy
-                console.log('Loaded', trades.length, 'trades from Trade Manager');
-                console.log('Date range:', trades[0]?.date, 'to', trades[trades.length-1]?.date);
-                updateCharts();
-            } else {
-                console.log('No Trade Manager data, loading sample data');
-                loadSampleData();
-            }
+            console.log('Loading all data from PostgreSQL database');
+            loadDatabaseData();
             loadFilterStates();
             
             // Force immediate updates

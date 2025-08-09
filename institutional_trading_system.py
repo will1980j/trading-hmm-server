@@ -132,7 +132,7 @@ class InstitutionalTradingSystem:
                     time.sleep(60)  # Update every minute
                     
                 except Exception as e:
-                    logger.error(f"Data feed error: {e}")
+                    logger.error(f"Data feed error: {str(e).replace('\n', ' ').replace('\r', ' ')}")
                     time.sleep(30)
         
         thread = threading.Thread(target=data_feed_worker, daemon=True)
@@ -170,7 +170,7 @@ class InstitutionalTradingSystem:
                     time.sleep(30)  # Process every 30 seconds
                     
                 except Exception as e:
-                    logger.error(f"Signal processor error: {e}")
+                    logger.error(f"Signal processor error: {str(e).replace('\n', ' ').replace('\r', ' ')}")
                     time.sleep(60)
         
         thread = threading.Thread(target=signal_processor, daemon=True)
@@ -185,7 +185,7 @@ class InstitutionalTradingSystem:
                     self._manage_active_trades()
                     time.sleep(10)  # Check every 10 seconds
                 except Exception as e:
-                    logger.error(f"Trade manager error: {e}")
+                    logger.error(f"Trade manager error: {str(e).replace('\n', ' ').replace('\r', ' ')}")
                     time.sleep(30)
         
         thread = threading.Thread(target=trade_manager, daemon=True)
@@ -202,7 +202,7 @@ class InstitutionalTradingSystem:
                         self._update_ai_models()
                     time.sleep(3600)  # Update every hour
                 except Exception as e:
-                    logger.error(f"AI learning error: {e}")
+                    logger.error(f"AI learning error: {str(e).replace('\n', ' ').replace('\r', ' ')}")
                     time.sleep(1800)  # Retry in 30 minutes
         
         thread = threading.Thread(target=ai_learner, daemon=True)
@@ -233,7 +233,7 @@ class InstitutionalTradingSystem:
             return data
             
         except Exception as e:
-            logger.error(f"Data fetch error for {symbol}: {e}")
+            logger.error(f"Data fetch error for {symbol}: {str(e).replace('\n', ' ').replace('\r', ' ')}")
             return pd.DataFrame()
     
     def _process_symbol_signals(self, symbol: str):
@@ -268,7 +268,7 @@ class InstitutionalTradingSystem:
                         self._execute_signal(signal)
             
         except Exception as e:
-            logger.error(f"Signal processing error for {symbol}: {e}")
+            logger.error(f"Signal processing error for {symbol}: {str(e).replace('\n', ' ').replace('\r', ' ')}")
     
     def _create_trading_signal(self, symbol: str, signal_data: Dict, latest_candle: pd.Series) -> Optional[TradingSignal]:
         """Create a trading signal from ICT analysis"""
@@ -299,7 +299,7 @@ class InstitutionalTradingSystem:
             )
             
         except Exception as e:
-            logger.error(f"Signal creation error: {e}")
+            logger.error(f"Signal creation error: {str(e).replace('\n', ' ').replace('\r', ' ')}")
             return None
     
     def _validate_signal(self, signal: TradingSignal) -> bool:
@@ -347,7 +347,7 @@ class InstitutionalTradingSystem:
             return self.ai_engine.predict_signal_quality(features)
             
         except Exception as e:
-            logger.error(f"AI analysis error: {e}")
+            logger.error(f"AI analysis error: {str(e).replace('\n', ' ').replace('\r', ' ')}")
             return {'combined_confidence': 0.5}
     
     def _execute_signal(self, signal: TradingSignal):
@@ -371,7 +371,7 @@ class InstitutionalTradingSystem:
             self.trade_history.append(trade)
             
         except Exception as e:
-            logger.error(f"Signal execution error: {e}")
+            logger.error(f"Signal execution error: {str(e).replace('\n', ' ').replace('\r', ' ')}")
     
     def _manage_active_trades(self):
         """Manage active trades"""
@@ -408,7 +408,7 @@ class InstitutionalTradingSystem:
                     self._close_trade(trade, current_price, 'TIME')
                     
             except Exception as e:
-                logger.error(f"Trade management error for {symbol}: {e}")
+                logger.error(f"Trade management error for {symbol}: {str(e).replace('\n', ' ').replace('\r', ' ')}")
     
     def _close_trade(self, trade: Trade, exit_price: float, reason: str):
         """Close a trade"""
@@ -438,7 +438,7 @@ class InstitutionalTradingSystem:
                        f"P&L: ${trade.pnl:.2f} ({reason}) Duration: {trade.duration_minutes}min")
             
         except Exception as e:
-            logger.error(f"Trade closing error: {e}")
+            logger.error(f"Trade closing error: {str(e).replace('\n', ' ').replace('\r', ' ')}")
     
     def _update_performance_stats(self, trade: Trade):
         """Update performance statistics"""
@@ -502,7 +502,7 @@ class InstitutionalTradingSystem:
                     logger.info(f"🤖 AI models updated with {len(combined_data)} samples")
                     
         except Exception as e:
-            logger.error(f"AI model update error: {e}")
+            logger.error(f"AI model update error: {str(e).replace('\n', ' ').replace('\r', ' ')}")
     
     def _is_market_hours(self, current_time: datetime) -> bool:
         """Check if market is open"""

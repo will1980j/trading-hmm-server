@@ -20,6 +20,7 @@ class PropFirmScraper:
     
     def scrape_propfirmmatch(self):
         """Scrape PropFirmMatch for latest deals"""
+        response = None
         try:
             url = "https://propfirmmatch.com/prop-firms"
             response = self.session.get(url, timeout=10)
@@ -45,6 +46,9 @@ class PropFirmScraper:
         except Exception as e:
             print(f"PropFirmMatch scraping failed: {e}")
             return []
+        finally:
+            if response:
+                response.close()
     
     def extract_firm_data(self, card):
         """Extract firm data from HTML card"""
@@ -170,17 +174,21 @@ class PropFirmScraper:
     
     def run_scraper(self):
         """Run the complete scraping process"""
-        print(f"🔍 Starting PropFirmMatch scraper at {datetime.now()}")
-        
-        # Scrape PropFirmMatch
-        firms = self.scrape_propfirmmatch()
-        print(f"📊 Found {len(firms)} prop firms")
-        
-        if firms:
-            updated = self.update_database(firms)
-            print(f"✅ Updated {updated} firms in database")
-        
-        return len(firms)
+        try:
+            print(f"🔍 Starting PropFirmMatch scraper at {datetime.now()}")
+            
+            # Scrape PropFirmMatch
+            firms = self.scrape_propfirmmatch()
+            print(f"📊 Found {len(firms)} prop firms")
+            
+            if firms:
+                updated = self.update_database(firms)
+                print(f"✅ Updated {updated} firms in database")
+            
+            return len(firms)
+        except Exception as e:
+            print(f"Scraper error: {e}")
+            return 0
 
 def run_daily_scraper():
     """Run scraper - called by scheduler"""

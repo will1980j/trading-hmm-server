@@ -382,7 +382,7 @@ class TradingViewDataReceiver:
                     return jsonify({'error': 'Data processing failed'}), 500
                     
             except Exception as e:
-                logger.error(f"Data reception error: {e}")
+                logger.error(f"Data reception error: {str(e).replace('\n', ' ').replace('\r', ' ')}")
                 return jsonify({'error': str(e)}), 500
         
         @self.app.route('/api/analysis')
@@ -403,4 +403,4 @@ if __name__ == '__main__':
     print(f"📡 Webhook: http://localhost:{port}/tradingview_data")
     print("📈 Configure TradingView Pine Script to send data to webhook URL")
     
-    tv_receiver.app.run(host='0.0.0.0', port=port, debug=False)
+    tv_receiver.app.run(host='127.0.0.1', port=port, debug=False)
