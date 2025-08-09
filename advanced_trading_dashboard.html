@@ -1647,7 +1647,7 @@
             // Monte Carlo elements don't exist in current HTML - skip for now
             
             // Update AI insights
-            safeCall("updateAIInsights", );
+            safeCall("updateAIInsights");
             
             // Update equity curve with filtered data
             let cumulative = 0;
@@ -3986,7 +3986,7 @@
             document.getElementById('maxConsecLosses').textContent = metrics.maxConsecLosses;
             
             // Update AI insights
-            safeCall("updateAIInsights", );
+            safeCall("updateAIInsights");
             
             // Update equity curve with filtered data
             let cumulative = 0;
@@ -4387,7 +4387,7 @@
             // Force AI insights update
             setTimeout(() => {
                 console.log('Forcing AI insights update...');
-                safeCall("updateAIInsights", );
+                safeCall("updateAIInsights");
             }, 2000);
             
             // Auto-refresh strategy summary every 30 seconds for live adaptation
