@@ -6,7 +6,10 @@ from openai import OpenAI
 
 # Load environment variables
 load_dotenv()
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+# Initialize OpenAI client only if API key is available
+api_key = os.getenv('OPENAI_API_KEY')
+client = OpenAI(api_key=api_key) if api_key else None
 
 app = Flask(__name__)
 
@@ -102,6 +105,12 @@ def api_trading_data():
 @app.route('/api/ai-insights', methods=['POST'])
 def ai_insights():
     try:
+        if not client:
+            return jsonify({
+                "error": "OpenAI API key not configured",
+                "status": "error"
+            }), 500
+            
         data = request.get_json()
         prompt = data.get('prompt', 'Analyze this trading data')
         trading_data = data.get('data', {})
