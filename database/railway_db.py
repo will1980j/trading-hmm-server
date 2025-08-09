@@ -93,20 +93,24 @@ class RailwayDB:
             return type('Result', (), {'data': data})()
     
     def store_signal(self, signal: Dict):
-        with self.conn.cursor() as cur:
-            cur.execute('''
-                INSERT INTO trading_signals (symbol, signal_type, entry_price, confidence, reason, timestamp)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            ''', (
-                signal.get('symbol'),
-                signal.get('type'),
-                signal.get('entry', 0),
-                signal.get('confidence', 0),
-                signal.get('reason', ''),
-                datetime.now()
-            ))
-        self.conn.commit()
-        return {"status": "success"}
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute('''
+                    INSERT INTO trading_signals (symbol, signal_type, entry_price, confidence, reason, timestamp)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                ''', (
+                    signal.get('symbol'),
+                    signal.get('type'),
+                    signal.get('entry', 0),
+                    signal.get('confidence', 0),
+                    signal.get('reason', ''),
+                    datetime.now()
+                ))
+            self.conn.commit()
+            return {"status": "success"}
+        except Exception as e:
+            self.conn.rollback()
+            raise e
     
     def store_ict_level(self, level: Dict):
         with self.conn.cursor() as cur:

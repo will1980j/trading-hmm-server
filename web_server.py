@@ -309,14 +309,18 @@ def get_trades():
         if not db_enabled or not db:
             return jsonify({"trades": [], "error": "Database not available"})
         
-        cursor = db.conn.cursor()
-        cursor.execute("""
-            SELECT id, symbol, signal_type, entry_price, confidence, reason, 
-                   timestamp, created_at
-            FROM trading_signals 
-            ORDER BY created_at DESC 
-            LIMIT 100
-        """)
+        try:
+            cursor = db.conn.cursor()
+            cursor.execute("""
+                SELECT id, symbol, signal_type, entry_price, confidence, reason, 
+                       timestamp, created_at
+                FROM trading_signals 
+                ORDER BY created_at DESC 
+                LIMIT 100
+            """)
+        except Exception as e:
+            db.conn.rollback()
+            raise e
         
         trades = []
         for row in cursor.fetchall():
