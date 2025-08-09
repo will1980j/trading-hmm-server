@@ -135,21 +135,24 @@ class TradingChatbot {
                 })
             });
 
-            const result = await response.json();
-            
             // Remove thinking message
             const messages = document.getElementById('chat-messages');
-            messages.removeChild(messages.lastChild);
+            if (messages.lastChild) messages.removeChild(messages.lastChild);
 
-            if (result.status === 'success') {
-                this.addMessage('assistant', result.insight);
+            if (response.ok) {
+                const result = await response.json();
+                if (result.status === 'success') {
+                    this.addMessage('assistant', result.insight);
+                } else {
+                    this.addMessage('assistant', `Error: ${result.error || 'API key not configured'}`);
+                }
             } else {
-                this.addMessage('assistant', 'Sorry, I encountered an error. Please try again.');
+                this.addMessage('assistant', `Server error (${response.status}). Check API configuration.`);
             }
         } catch (error) {
             const messages = document.getElementById('chat-messages');
-            messages.removeChild(messages.lastChild);
-            this.addMessage('assistant', 'Connection error. Please check your internet and try again.');
+            if (messages.lastChild) messages.removeChild(messages.lastChild);
+            this.addMessage('assistant', `Error: ${error.message}`);
         }
     }
 
