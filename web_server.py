@@ -26,16 +26,17 @@ def read_html_file(filename):
         with open(filename, 'r', encoding='utf-8') as f:
             return f.read()
     except FileNotFoundError:
-        return f"<h1>File {filename} not found</h1>"
+        print(f"Warning: File {filename} not found")
+        return f"<h1>Trading Dashboard</h1><p>File {filename} not found. Server is running.</p><a href='/health'>Health Check</a>"
 
 # Main routes
 @app.route('/')
 def dashboard():
-    return read_html_file('advanced_trading_dashboard.html')
+    return read_html_file('dashboard_clean.html')
 
 @app.route('/dashboard')
 def advanced_dashboard():
-    return read_html_file('advanced_trading_dashboard.html')
+    return read_html_file('dashboard_clean.html')
 
 @app.route('/trade-manager')
 def trade_manager():
@@ -55,7 +56,7 @@ def reporting_hub():
 
 @app.route('/tradingview')
 def tradingview():
-    return read_html_file('tradingview_integration.html')
+    return read_html_file('trading_dashboard.html')
 
 @app.route('/trading-dashboard')
 def trading_dashboard():
@@ -74,6 +75,10 @@ def api_integration_js():
 @app.route('/chatbot.js')
 def chatbot_js():
     return send_from_directory('.', 'chatbot.js', mimetype='application/javascript')
+
+@app.route('/trading_empire_kb.js')
+def trading_empire_kb_js():
+    return send_from_directory('.', 'trading_empire_kb.js', mimetype='application/javascript')
 
 # Serve images from root
 @app.route('/<path:filename>')
@@ -195,6 +200,11 @@ Provide specific, actionable advice with Australian context. Think like a CFO, C
             "status": "error"
         }), 500
 
+@app.route('/health')
+def health_check():
+    return jsonify({"status": "healthy", "message": "Trading server running"})
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+    print(f"Starting server on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
