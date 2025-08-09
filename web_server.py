@@ -12,6 +12,7 @@ def read_html_file(filename):
     except FileNotFoundError:
         return f"<h1>File {filename} not found</h1>"
 
+# Main routes
 @app.route('/')
 def dashboard():
     return read_html_file('advanced_trading_dashboard.html')
@@ -40,17 +41,32 @@ def reporting_hub():
 def tradingview():
     return read_html_file('tradingview_integration.html')
 
+@app.route('/trading-dashboard')
+def trading_dashboard():
+    return read_html_file('trading_dashboard.html')
+
 # Serve static files (CSS, JS, images)
 @app.route('/static/<path:filename>')
 def static_files(filename):
     return send_from_directory('static', filename)
+
+# Serve JavaScript files from root
+@app.route('/api_integration.js')
+def api_integration_js():
+    return send_from_directory('.', 'api_integration.js', mimetype='application/javascript')
+
+# Serve images from root
+@app.route('/<path:filename>')
+def serve_files(filename):
+    if filename.endswith(('.jpg', '.png', '.gif', '.ico', '.pdf')):
+        return send_from_directory('.', filename)
+    return "File not found", 404
 
 # API endpoint for trading data
 @app.route('/api/trading-data')
 def api_trading_data():
     format_type = request.args.get('format', 'json')
     
-    # Sample data structure - you can modify this based on your needs
     sample_data = {
         "trades": [
             {"date": "2024-01-15", "symbol": "EURUSD", "outcome": "win", "rTarget": 2, "profit": 200},
@@ -64,7 +80,6 @@ def api_trading_data():
     }
     
     if format_type == 'gamma':
-        # Format for Gamma presentations
         return jsonify({
             "title": "Trading Performance Dashboard",
             "summary": sample_data["summary"],
@@ -72,11 +87,6 @@ def api_trading_data():
         })
     
     return jsonify(sample_data)
-
-# Serve JavaScript files
-@app.route('/api_integration.js')
-def api_integration_js():
-    return send_from_directory('.', 'api_integration.js', mimetype='application/javascript')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
