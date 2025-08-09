@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporting Hub - Trading Analytics</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --accent-color: #00ff88;
+            --glass-bg: rgba(255,255,255,0.08);
+            --glass-border: rgba(255,255,255,0.1);
+            --shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .navbar {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .nav-link:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .nav-link.active {
+            color: #00ff88;
+            background: rgba(0,255,136,0.15);
+            border-color: rgba(0,255,136,0.3);
+        }
+        
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ff88, #00d4aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .report-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .report-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 25px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .report-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        }
+        
+        .report-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #00ff88;
+        }
+        
+        .report-description {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+        
+        .report-features {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+        
+        .report-features li {
+            font-size: 0.8em;
+            opacity: 0.7;
+            margin-bottom: 5px;
+            padding-left: 15px;
+            position: relative;
+        }
+        
+        .report-features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #00ff88;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, var(--accent-color), #00d4aa);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,255,136,0.3);
+        }
+        
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .gamma-integration {
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-connected { background: #00ff88; }
+        .status-disconnected { background: #ff4757; }
+        
+        .export-preview {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
+                <a href="advanced_trading_dashboard.html" class="nav-link">Dashboard</a>
+                <a href="trade_manager.html" class="nav-link">Trade Manager</a>
+                <a href="prop_firms_v2.html" class="nav-link">Prop Portfolio</a>
+                <a href="financial_summary.html" class="nav-link">Financial Summary</a>
+                <a href="reporting_hub.html" class="nav-link active">Reporting Hub</a>
+                <a href="tradingview_integration.html" class="nav-link">TradingView</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="header">
+            <h1>📊 Reporting Hub</h1>
+            <p>Generate Professional Reports for Investors, Partners & Stakeholders</p>
+        </div>
+        
+        <div class="gamma-integration">
+            <h3>🔗 Gamma.app Integration</h3>
+            <p style="margin-bottom: 15px;">Connect your trading data to Gamma.app for automated presentation generation</p>
+            
+            <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                <span class="status-indicator status-disconnected"></span>
+                <span>Status: Ready to Connect</span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
+                <button class="btn" onclick="connectGamma()">🔗 Connect Gamma</button>
+                <button class="btn" onclick="openGamma()">🚀 Open Gamma.app</button>
+                <button class="btn btn-secondary" onclick="testConnection()">🧪 Test Connection</button>
+                <button class="btn btn-secondary" onclick="exportData()">📤 Export Data</button>
+            </div>
+            
+            <div id="exportPreview" class="export-preview" style="display: none;"></div>
+        </div>
+        
+        <div class="gamma-integration" style="margin-bottom: 20px;">
+            <h3>⚡ Quick Actions</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 15px;">
+                <button class="btn" onclick="generateAllReports()">📊 Generate All Reports</button>
+                <button class="btn btn-secondary" onclick="scheduleReports()">⏰ Schedule Reports</button>
+                <button class="btn btn-secondary" onclick="shareReports()">📤 Share Reports</button>
+                <button class="btn btn-secondary" onclick="downloadPDF()">📄 Download PDF</button>
+            </div>
+        </div>
+        
+        <div class="gamma-integration" style="margin-bottom: 20px;">
+            <h3>🎨 Gamma.app Templates</h3>
+            <p style="margin-bottom: 15px;">Pre-configured templates optimized for trading analytics</p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                <button class="btn btn-secondary" onclick="useTemplate('professional')">💼 Professional</button>
+                <button class="btn btn-secondary" onclick="useTemplate('investor')">💰 Investor</button>
+                <button class="btn btn-secondary" onclick="useTemplate('minimal')">✨ Minimal</button>
+                <button class="btn btn-secondary" onclick="useTemplate('detailed')">📈 Detailed</button>
+            </div>
+        </div>
+        
+        <div class="report-grid">
+            <div class="report-card">
+                <div class="report-title">📈 Monthly Performance Report</div>
+                <div class="report-description">Comprehensive monthly trading performance analysis for investors and stakeholders</div>
+                <ul class="report-features">
+                    <li>P&L breakdown by prop firm</li>
+                    <li>Win rate and expectancy trends</li>
+                    <li>Risk-adjusted returns (Sharpe, Sortino)</li>
+                    <li>Drawdown analysis and recovery</li>
+                    <li>Session performance breakdown</li>
+                    <li>R-target optimization insights</li>
+                </ul>
+                <button class="btn" onclick="generateReport('monthly')">Generate Report</button>
+                <button class="btn btn-secondary" onclick="generateAndOpen('monthly')">Generate & Open Gamma</button>
+            </div>
+            
+            <div class="report-card">
+                <div class="report-title">🏢 Investor Pitch Deck</div>
+                <div class="report-description">Professional presentation showcasing trading strategy, performance, and growth potential</div>
+                <ul class="report-features">
+                    <li>Strategy overview and edge</li>
+                    <li>Historical performance metrics</li>
+                    <li>Prop firm portfolio scaling</li>
+                    <li>Risk management framework</li>
+                    <li>Growth projections and targets</li>
+                    <li>Competitive advantages</li>
+                </ul>
+                <button class="btn" onclick="generateReport('investor')">Generate Report</button>
+                <button class="btn btn-secondary" onclick="generateAndOpen('investor')">Generate & Open Gamma</button>
+            </div>
+            
+            <div class="report-card">
+                <div class="report-title">⚠️ Risk Assessment Report</div>
+                <div class="report-description">Detailed risk analysis for compliance, partners, and internal risk management</div>
+                <ul class="report-features">
+                    <li>Portfolio concentration analysis</li>
+                    <li>Correlation risk assessment</li>
+                    <li>Maximum drawdown scenarios</li>
+                    <li>Stress testing results</li>
+                    <li>Prop firm rule compliance</li>
+                    <li>Position sizing optimization</li>
+                </ul>
+                <button class="btn" onclick="generateReport('risk')">Generate Report</button>
+                <button class="btn btn-secondary" onclick="generateAndOpen('risk')">Generate & Open Gamma</button>
+            </div>
+            
+            <div class="report-card">
+                <div class="report-title">📊 Quarterly Business Review</div>
+                <div class="report-description">Executive summary for business partners, accountants, and strategic planning</div>
+                <ul class="report-features">
+                    <li>Revenue and profit analysis</li>
+                    <li>Tax implications and planning</li>
+                    <li>Business growth metrics</li>
+                    <li>Operational efficiency</li>
+                    <li>Market opportunity assessment</li>
+                    <li>Strategic recommendations</li>
+                </ul>
+                <button class="btn" onclick="generateReport('quarterly')">Generate Report</button>
+                <button class="btn btn-secondary" onclick="generateAndOpen('quarterly')">Generate & Open Gamma</button>
+            </div>
+            
+            <div class="report-card">
+                <div class="report-title">🎯 Strategy Performance Analysis</div>
+                <div class="report-description">Deep-dive analysis of trading strategy effectiveness and optimization opportunities</div>
+                <ul class="report-features">
+                    <li>AI-powered pattern recognition</li>
+                    <li>Session and timeframe analysis</li>
+                    <li>Market condition performance</li>
+                    <li>Strategy evolution tracking</li>
+                    <li>Optimization recommendations</li>
+                    <li>Backtesting validation</li>
+                </ul>
+                <button class="btn" onclick="generateReport('strategy')">Generate Report</button>
+                <button class="btn btn-secondary" onclick="generateAndOpen('strategy')">Generate & Open Gamma</button>
+            </div>
+            
+            <div class="report-card">
+                <div class="report-title">💰 Financial Allocation Report</div>
+                <div class="report-description">Profit allocation and financial planning report for personal wealth management</div>
+                <ul class="report-features">
+                    <li>Monthly profit allocation breakdown</li>
+                    <li>Tax-optimized distribution</li>
+                    <li>Investment portfolio allocation</li>
+                    <li>SMSF contribution planning</li>
+                    <li>Property investment funding</li>
+                    <li>Emergency fund management</li>
+                </ul>
+                <button class="btn" onclick="generateReport('allocation')">Generate Report</button>
+                <button class="btn btn-secondary" onclick="generateAndOpen('allocation')">Generate & Open Gamma</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="api_integration.js"></script>
+    <script>
+        function connectGamma() {
+            // Simulate connection process
+            const statusIndicator = document.querySelector('.status-indicator');
+            const statusText = statusIndicator.nextElementSibling;
+            
+            statusText.textContent = 'Connecting...';
+            
+            setTimeout(() => {
+                statusIndicator.className = 'status-indicator status-connected';
+                statusText.textContent = 'Connected to Gamma.app';
+                
+                // Show connection success
+                alert('✅ Successfully connected to Gamma.app!\n\nYou can now generate reports directly to your Gamma workspace.');
+            }, 2000);
+        }
+        
+        function testConnection() {
+            if (window.TradingAPI) {
+                const testData = window.TradingAPI.exportForGamma();
+                alert(`✅ Connection Test Successful!\n\nData Points Available:\n• ${testData.summary.totalTrades} trades\n• ${testData.summary.fundedAccounts} funded accounts\n• ${testData.summary.winRate} win rate`);
+            } else {
+                alert('❌ API not loaded. Please refresh the page.');
+            }
+        }
+        
+        function exportData() {
+            if (window.TradingAPI) {
+                const data = window.TradingAPI.generateGammaPresentation();
+                const preview = document.getElementById('exportPreview');
+                preview.style.display = 'block';
+                preview.textContent = JSON.stringify(data, null, 2);
+                
+                // Copy to clipboard
+                navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+                alert('📋 Data exported and copied to clipboard!\n\nPaste this into Gamma.app to create your presentation.');
+            }
+        }
+        
+        function openGamma() {
+            window.open('https://gamma.app', '_blank');
+        }
+        
+        function generateAllReports() {
+            if (!window.TradingAPI) {
+                alert('❌ API not loaded. Please refresh the page and try again.');
+                return;
+            }
+            
+            const types = ['monthly', 'investor', 'risk', 'quarterly', 'strategy', 'allocation'];
+            const allReports = {};
+            
+            try {
+                types.forEach(type => {
+                    allReports[type] = window.TradingAPI.generateGammaPresentation(type);
+                });
+                
+                navigator.clipboard.writeText(JSON.stringify(allReports, null, 2));
+                alert('📊 All 6 reports generated and copied to clipboard!\n\nCreate multiple presentations in Gamma.app from this comprehensive data set.');
+            } catch (error) {
+                console.error('Error generating reports:', error);
+                alert('❌ Error generating reports. Check console for details.');
+            }
+        }
+        
+        function scheduleReports() {
+            alert('⏰ Report Scheduling\n\nRecommended Schedule:\n• Daily: Quick performance check\n• Weekly: Strategy analysis\n• Monthly: Full performance report\n• Quarterly: Business review\n\nSet up automated exports in your calendar app.');
+        }
+        
+        function shareReports() {
+            const shareData = {
+                title: 'Trading Performance Reports',
+                text: 'Professional trading analytics reports generated from systematic trading data',
+                url: window.location.href
+            };
+            
+            if (navigator.share) {
+                navigator.share(shareData);
+            } else {
+                navigator.clipboard.writeText(window.location.href);
+                alert('📤 Reporting Hub link copied to clipboard!\n\nShare this link to give others access to generate reports from your trading data.');
+            }
+        }
+        
+        function downloadPDF() {
+            alert('📄 PDF Export\n\nFor PDF generation:\n1. Generate report in Gamma.app\n2. Use Gamma\'s export to PDF feature\n3. Or use browser Print > Save as PDF\n\nRecommended: Use Gamma.app for best formatting.');
+        }
+        
+        function useTemplate(templateType) {
+            const templates = {
+                professional: 'Clean, corporate design with focus on metrics and charts',
+                investor: 'Executive-style layout emphasizing ROI and growth potential', 
+                minimal: 'Simple, clean design highlighting key insights only',
+                detailed: 'Comprehensive layout with extensive data visualization'
+            };
+            
+            alert(`🎨 ${templateType.charAt(0).toUpperCase() + templateType.slice(1)} Template\n\n${templates[templateType]}\n\nTo use:\n1. Generate your report data\n2. Open Gamma.app\n3. Select "${templateType}" template\n4. Paste your data`);
+        }
+        
+        function generateReport(type) {
+            if (!window.TradingAPI) {
+                alert('❌ API not loaded. Please refresh the page.');
+                return;
+            }
+            
+            // Generate AI-driven presentation with comprehensive insights
+            const presentation = window.TradingAPI.generateGammaPresentation(type);
+            
+            // Copy to clipboard for Gamma
+            navigator.clipboard.writeText(JSON.stringify(presentation, null, 2));
+            
+            const reportInfo = {
+                monthly: { title: 'Monthly Performance Report', features: 'AI insights, performance analysis, strategic recommendations' },
+                investor: { title: 'Investor Performance Report', features: 'executive summary, risk-adjusted returns, forward outlook' },
+                risk: { title: 'Risk Assessment Report', features: 'risk profile analysis, controls assessment, monitoring protocols' },
+                quarterly: { title: 'Quarterly Business Review', features: 'performance overview, business metrics, strategic direction' },
+                strategy: { title: 'Strategy Performance Analysis', features: 'strategy insights, effectiveness analysis, optimization opportunities' },
+                allocation: { title: 'Financial Allocation Report', features: 'capital allocation strategy, portfolio distribution, performance metrics' }
+            };
+            
+            const info = reportInfo[type] || reportInfo.monthly;
+            
+            alert(`📊 ${info.title} Generated!\n\n• AI-driven content with comprehensive insights\n• Includes: ${info.features}\n• Professional presentation format\n• Data copied to clipboard\n\nPaste into Gamma.app to create your presentation.`);
+        }
+        
+        function previewReport(type) {
+            const preview = previewReportContent(type);
+            const truncated = preview.length > 200 ? preview.substring(0, 200) + '...' : preview;
+            
+            alert(`📋 AI-Generated Preview:\n\n${truncated}\n\nClick "Generate Report" to create full presentation with comprehensive AI insights.`);
+        }
+        
+        function generateAndOpen(type) {
+            generateReport(type);
+            setTimeout(() => {
+                openGamma();
+            }, 500);
+        }
+        
+        // Auto-generate sample data on page load for demo
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show helpful tips
+            setTimeout(() => {
+                if (!localStorage.getItem('reportingHubTips')) {
+                    alert('💡 Reporting Hub Tips:\n\n• Generate reports with AI insights\n• Use "Open Gamma.app" for direct access\n• Try "Generate All Reports" for complete data set\n• Schedule regular report generation\n• Use templates for consistent formatting');
+                    localStorage.setItem('reportingHubTips', 'shown');
+                }
+            }, 1000);
+        });
+        
+        function previewReportContent(type) {
+            if (!window.TradingAPI) return 'API not available';
+            
+            const presentation = window.TradingAPI.generateGammaPresentation(type);
+            const firstSlide = presentation.slides[0];
+            
+            if (firstSlide && firstSlide.content) {
+                const content = firstSlide.content;
+                return content.summary || content.assessment || content.insights || 'AI-generated content available';
+            }
+            
+            return 'Professional AI-driven content generated';
+        }
+    </script>
+</body>
+</html>

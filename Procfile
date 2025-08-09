@@ -1,1 +1,1 @@
-web: gunicorn -w 1 hmm_server:app
+web: gunicorn -w 1 web_server:app

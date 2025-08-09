@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade Manager - Trading Analytics</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --accent-color: #00ff88;
+            --glass-bg: rgba(255,255,255,0.08);
+            --glass-border: rgba(255,255,255,0.1);
+            --shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        /* Theme Styles */
+        .theme-gradient {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+        }
+        
+        .theme-dark {
+            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+            color: #e0e0e0;
+        }
+        
+        .theme-minimal {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            color: #212529;
+        }
+        
+        .theme-neon {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0a1a 100%);
+            color: #00ff88;
+        }
+        
+        .theme-gold {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2416 100%);
+            color: #f4e4bc;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .navbar {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .nav-link:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .nav-link.active {
+            color: #00ff88;
+            background: rgba(0,255,136,0.15);
+            border-color: rgba(0,255,136,0.3);
+        }
+        
+        .theme-select {
+            padding: 8px 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ff88, #00d4aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .data-input {
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .input-labels {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+        
+        .input-labels span {
+            font-size: 12px;
+            opacity: 0.8;
+            text-align: center;
+        }
+        
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 10px;
+            margin: 5px 0 15px 0;
+        }
+        
+        select, input {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, var(--accent-color), #00d4aa);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(0,255,136,0.2);
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,255,136,0.4);
+            background: linear-gradient(45deg, #00d4aa, var(--accent-color));
+        }
+        
+        .btn:active {
+            transform: translateY(-1px);
+        }
+        
+        .trades-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .trades-table th,
+        .trades-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .trades-table th {
+            background: rgba(255,255,255,0.1);
+            font-weight: bold;
+        }
+        
+        .positive { color: #00ff88; }
+        .negative { color: #ff4757; }
+        .neutral { color: #ffa502; }
+        
+        /* Minimal theme overrides */
+        .theme-minimal .navbar {
+            background: rgba(0,0,0,0.05);
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .theme-minimal .nav-link {
+            color: #495057;
+            background: rgba(0,0,0,0.03);
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .theme-minimal .nav-link:hover {
+            background: rgba(0,0,0,0.08);
+            color: #212529;
+        }
+        
+        .theme-minimal .nav-link.active {
+            color: #007bff;
+            background: rgba(0,123,255,0.1);
+            border-color: rgba(0,123,255,0.2);
+        }
+        
+        .theme-minimal .header,
+        .theme-minimal .data-input,
+        .theme-minimal .stat-card {
+            background: rgba(255,255,255,0.8);
+            border: 1px solid rgba(0,0,0,0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            color: #212529;
+        }
+        
+        .theme-minimal .header h1 {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .theme-minimal .stat-value {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .theme-minimal .stat-label {
+            color: #495057;
+        }
+        
+        .theme-select option {
+            background: #2a2a2a;
+            color: white;
+        }
+        
+        .theme-minimal .theme-select {
+            background: rgba(255,255,255,0.9);
+            color: #495057;
+            border: 1px solid rgba(0,0,0,0.2);
+        }
+        
+        .theme-minimal .theme-select option {
+            background: white;
+            color: #495057;
+        }
+        
+        .theme-minimal .positive { color: #28a745; }
+        .theme-minimal .negative { color: #dc3545; }
+        .theme-minimal .neutral { color: #ffc107; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            background: rgba(255,255,255,0.12);
+        }
+        
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            margin: 8px 0;
+            background: linear-gradient(45deg, var(--accent-color), #00d4aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-label {
+            font-size: 0.8em;
+            opacity: 0.8;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .theme-select {
+            padding: 8px 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .theme-select option {
+            background: #2a2a2a;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+
+            <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
+                <select id="themeSelector" onchange="changeTheme()" class="theme-select">
+                    <option value="gradient">Ocean Gradient</option>
+                    <option value="dark">Dark Professional</option>
+                    <option value="minimal">Minimal White</option>
+                    <option value="neon">Neon Cyber</option>
+                    <option value="gold">Gold Luxury</option>
+                </select>
+                <a href="advanced_trading_dashboard.html" class="nav-link">Dashboard</a>
+                <a href="trade_manager.html" class="nav-link active">Trade Manager</a>
+                <a href="prop_firms_v2.html" class="nav-link">Prop Portfolio</a>
+                <a href="financial_summary.html" class="nav-link">Financial Summary</a>
+                <a href="reporting_hub.html" class="nav-link">Reporting Hub</a>
+                <a href="tradingview_integration.html" class="nav-link">TradingView</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="header">
+            <h1>📊 Trade Manager</h1>
+            <p>Add, Edit, and Manage Your Trading Data</p>
+            <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; text-align: center;">
+                <div style="font-size: 12px; opacity: 0.8;">Session Time</div>
+                <div id="currentDateTime" style="font-size: 14px; font-weight: 600;">Loading...</div>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Trades</div>
+                <div class="stat-value" id="totalTrades">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value positive" id="winRate">0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total R</div>
+                <div class="stat-value" id="totalR">0R</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Expectancy</div>
+                <div class="stat-value" id="expectancy">0R</div>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">This Week</div>
+                <div class="stat-value" id="weekTrades">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">This Month</div>
+                <div class="stat-value" id="monthTrades">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Best Session</div>
+                <div class="stat-value" id="bestSession">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Last Updated</div>
+                <div class="stat-value" id="lastUpdated" style="font-size: 1em;">Never</div>
+            </div>
+        </div>
+        
+        <div class="data-input">
+            <h3>Add New Trade</h3>
+            <div class="input-labels">
+                <span>Date</span>
+                <span>Bias</span>
+                <span>Session</span>
+                <span>Breakeven</span>
+                <span>MFE (R Score)</span>
+                <span>Entry Price</span>
+                <span>Stop Loss</span>
+                <span></span>
+            </div>
+            <div class="input-grid">
+                <input type="date" id="tradeDate" placeholder="Date">
+                <select id="tradeBias">
+                    <option value="LONG">Long</option>
+                    <option value="SHORT">Short</option>
+                </select>
+                <select id="tradeSession">
+                    <option value="ASIA">Asia</option>
+                    <option value="LONDON">London</option>
+                    <option value="NY PRE MARKET">NY Pre Market</option>
+                    <option value="NEW YORK AM">New York AM</option>
+                    <option value="NY LUNCH">NY Lunch</option>
+                    <option value="NEW YORK PM">New York PM</option>
+                </select>
+                <input type="checkbox" id="tradeBreakeven">
+                <input type="number" id="tradeRScore" placeholder="MFE R Score" step="0.1">
+                <input type="number" id="entryPrice" placeholder="Entry" step="0.01">
+                <input type="number" id="stopLoss" placeholder="Stop" step="0.01">
+                <button class="btn" id="tradeActionBtn" onclick="addTrade()">Add Trade</button>
+                <button class="btn" id="cancelEditBtn" onclick="cancelEdit()" style="background: #6c757d; display: none;">Cancel</button>
+            </div>
+            
+            <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn" onclick="loadSampleData()">Load 96 Sample Trades</button>
+                <button class="btn" onclick="exportData()">Export CSV</button>
+                <input type="file" id="csvFile" accept=".csv" style="display: none;" onchange="importCSV(event)">
+                <button class="btn" onclick="document.getElementById('csvFile').click()">Import CSV</button>
+                <button class="btn" onclick="clearAllTrades()" style="background: linear-gradient(45deg, #ff4757, #ff6b7a);">Clear All</button>
+            </div>
+        </div>
+        
+        <div class="data-input">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3>Trade History</h3>
+                <div>
+                    <input type="text" id="searchTrades" placeholder="Search trades..." style="margin-right: 10px;">
+                    <select id="filterSession">
+                        <option value="">All Sessions</option>
+                        <option value="ASIA">Asia</option>
+                        <option value="LONDON">London</option>
+                        <option value="NY PRE MARKET">NY Pre Market</option>
+                        <option value="NEW YORK AM">New York AM</option>
+                        <option value="NY LUNCH">NY Lunch</option>
+                        <option value="NEW YORK PM">New York PM</option>
+                    </select>
+                </div>
+            </div>
+            
+            <table class="trades-table" id="tradesTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Bias</th>
+                        <th>Session</th>
+                        <th>BE</th>
+                        <th>MFE R Score</th>
+                        <th>Entry</th>
+                        <th>Stop</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="tradesBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let trades = JSON.parse(localStorage.getItem('tradingData')) || [];
+        let editingTradeId = null;
+        
+        function addTrade() {
+            const trade = {
+                id: Date.now(),
+                date: document.getElementById('tradeDate').value,
+                bias: document.getElementById('tradeBias').value,
+                session: document.getElementById('tradeSession').value,
+                breakeven: document.getElementById('tradeBreakeven').checked,
+                rScore: parseFloat(document.getElementById('tradeRScore').value) || 0,
+                entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
+                stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
+                r1: 0, r2: 0, r3: 0, r4: 0, r5: 0, r6: 0, r7: 0, r8: 0, r9: 0, r10: 0,
+                r11: 0, r12: 0, r13: 0, r14: 0, r15: 0, r16: 0, r17: 0, r18: 0, r19: 0, r20: 0
+            };
+            
+            // Set R values based on rScore
+            for (let i = 1; i <= 20; i++) {
+                trade[`r${i}`] = trade.rScore;
+            }
+            
+            trades.push(trade);
+            saveTrades();
+            console.log('Trade saved. Total trades:', trades.length);
+            updateDisplay();
+            clearInputs();
+        }
+        
+        function clearInputs() {
+            document.getElementById('tradeDate').value = '';
+            document.getElementById('tradeRScore').value = '';
+            document.getElementById('entryPrice').value = '';
+            document.getElementById('stopLoss').value = '';
+            document.getElementById('tradeBreakeven').checked = false;
+        }
+        
+        function editTrade(id) {
+            const trade = trades.find(t => t.id === id);
+            if (!trade) return;
+            
+            editingTradeId = id;
+            
+            // Populate form with trade data
+            document.getElementById('tradeDate').value = trade.date;
+            document.getElementById('tradeBias').value = trade.bias;
+            document.getElementById('tradeSession').value = trade.session;
+            document.getElementById('tradeBreakeven').checked = trade.breakeven;
+            document.getElementById('tradeRScore').value = trade.rScore;
+            document.getElementById('entryPrice').value = trade.entryPrice;
+            document.getElementById('stopLoss').value = trade.stopLoss;
+            
+            // Update UI
+            document.getElementById('tradeActionBtn').textContent = 'Update Trade';
+            document.getElementById('tradeActionBtn').onclick = updateTrade;
+            document.getElementById('cancelEditBtn').style.display = 'inline-block';
+        }
+        
+        function updateTrade() {
+            const tradeIndex = trades.findIndex(t => t.id === editingTradeId);
+            if (tradeIndex === -1) return;
+            
+            const updatedTrade = {
+                ...trades[tradeIndex],
+                date: document.getElementById('tradeDate').value,
+                bias: document.getElementById('tradeBias').value,
+                session: document.getElementById('tradeSession').value,
+                breakeven: document.getElementById('tradeBreakeven').checked,
+                rScore: parseFloat(document.getElementById('tradeRScore').value) || 0,
+                entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
+                stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0
+            };
+            
+            // Update R values
+            for (let i = 1; i <= 20; i++) {
+                updatedTrade[`r${i}`] = updatedTrade.rScore;
+            }
+            
+            trades[tradeIndex] = updatedTrade;
+            saveTrades();
+            console.log('Trade updated:', editingTradeId);
+            
+            cancelEdit();
+            updateDisplay();
+        }
+        
+        function cancelEdit() {
+            editingTradeId = null;
+            clearInputs();
+            document.getElementById('tradeActionBtn').textContent = 'Add Trade';
+            document.getElementById('tradeActionBtn').onclick = addTrade;
+            document.getElementById('cancelEditBtn').style.display = 'none';
+        }
+        
+        function deleteTrade(id) {
+            if (confirm('Are you sure you want to delete this trade?')) {
+                trades = trades.filter(trade => trade.id !== id);
+                saveTrades();
+                updateDisplay();
+            }
+        }
+        
+        function saveTrades() {
+            localStorage.setItem('tradingData', JSON.stringify(trades));
+            localStorage.setItem('lastUpdated', new Date().toLocaleString());
+        }
+        
+        function loadSampleData() {
+            const data = [
+                ['2024-08-06','LONG','LONDON',false,-1],['2024-08-06','LONG','LONDON',false,-1],['2024-08-06','LONG','LONDON',true,2],['2024-08-06','LONG','LONDON',true,23],['2024-08-06','LONG','LONDON',true,7],
+                ['2024-08-06','LONG','LONDON',true,8],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,7],
+                ['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',false,-1],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','SHORT','LONDON',true,9],['2024-08-06','SHORT','LONDON',true,1],
+                ['2024-08-06','SHORT','LONDON',false,-1],['2024-08-06','SHORT','NY PRE MARKET',true,2],['2024-08-06','SHORT','NY PRE MARKET',true,1],['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',true,5],
+                ['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',true,4],['2024-08-06','SHORT','NY PRE MARKET',false,-1],
+                ['2024-08-06','SHORT','NY PRE MARKET',true,1],['2024-08-06','SHORT','NY PRE MARKET',true,3],['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',true,1],['2024-08-06','SHORT','NY PRE MARKET',false,-1],
+                ['2024-08-06','SHORT','NY PRE MARKET',true,35],['2024-08-06','SHORT','NEW YORK AM',true,1],['2024-08-06','SHORT','NEW YORK AM',false,-1],['2024-08-06','LONG','NEW YORK AM',false,-1],['2024-08-06','LONG','NEW YORK AM',true,2],
+                ['2024-08-06','LONG','NEW YORK AM',true,0],['2024-08-06','LONG','NEW YORK AM',true,4],['2024-08-06','LONG','NEW YORK AM',true,31],['2024-08-06','LONG','NY LUNCH',false,-1],['2024-08-06','LONG','NY LUNCH',false,-1],
+                ['2024-08-06','LONG','NY LUNCH',false,-1],['2024-08-06','LONG','NY LUNCH',true,1],['2024-08-06','LONG','NEW YORK PM',false,-1],['2024-08-06','LONG','NEW YORK PM',false,-1],['2024-08-06','LONG','NEW YORK PM',true,46],
+                ['2024-08-06','LONG','NEW YORK PM',true,1],['2024-08-06','LONG','NEW YORK PM',true,1],['2024-08-06','LONG','NEW YORK PM',false,-1],['2024-08-06','LONG','NEW YORK PM',true,3],['2024-08-06','LONG','NEW YORK PM',false,-1],
+                ['2024-08-06','LONG','NEW YORK PM',true,2],['2024-08-06','LONG','NEW YORK PM',true,1],['2024-08-06','LONG','NEW YORK PM',true,1],['2024-08-07','LONG','LONDON',true,2],['2024-08-07','LONG','LONDON',false,-1],
+                ['2024-08-07','LONG','LONDON',false,-1],['2024-08-07','SHORT','LONDON',false,-1],['2024-08-07','SHORT','LONDON',true,1],['2024-08-07','LONG','LONDON',true,6],['2024-08-07','LONG','LONDON',true,2],
+                ['2024-08-07','LONG','LONDON',false,-1],['2024-08-07','LONG','LONDON',true,146],['2024-08-07','LONG','LONDON',true,6],['2024-08-07','LONG','LONDON',true,28],['2024-08-07','LONG','LONDON',false,-1],
+                ['2024-08-07','LONG','LONDON',true,43],['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','LONG','NY PRE MARKET',true,7],['2024-08-07','LONG','NY PRE MARKET',false,-1],
+                ['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','SHORT','NY PRE MARKET',false,-1],['2024-08-07','SHORT','NY PRE MARKET',false,-1],
+                ['2024-08-07','SHORT','NY PRE MARKET',true,2],['2024-08-07','SHORT','NEW YORK AM',false,-1],['2024-08-07','SHORT','NEW YORK AM',true,3],['2024-08-07','SHORT','NEW YORK AM',true,1],['2024-08-07','SHORT','NEW YORK AM',true,9],
+                ['2024-08-07','SHORT','NEW YORK AM',false,-1],['2024-08-07','SHORT','NEW YORK AM',true,2],['2024-08-07','SHORT','NEW YORK AM',true,3],['2024-08-07','SHORT','NY LUNCH',true,1],['2024-08-07','SHORT','NY LUNCH',false,-1],
+                ['2024-08-07','SHORT','NY LUNCH',true,8],['2024-08-07','SHORT','NEW YORK PM',true,6],['2024-08-07','SHORT','NEW YORK PM',false,-1],['2024-08-07','SHORT','NEW YORK PM',true,1],['2024-08-07','SHORT','NEW YORK PM',true,1],
+                ['2024-08-07','SHORT','NEW YORK PM',false,-1],['2024-08-07','SHORT','NEW YORK PM',false,-1],['2024-08-07','SHORT','NEW YORK PM',true,2],['2024-08-07','SHORT','NEW YORK PM',true,3],['2024-08-07','SHORT','NEW YORK PM',true,1],
+                ['2024-08-07','SHORT','NEW YORK PM',false,-1]
+            ];
+            
+            trades = data.map((d, index) => ({
+                id: Date.now() + index,
+                date: d[0], bias: d[1], session: d[2], breakeven: d[3], rScore: d[4],
+                entryPrice: 0, stopLoss: 0,
+                r1: d[4], r2: d[4], r3: d[4], r4: d[4], r5: d[4], r6: d[4], r7: d[4], r8: d[4], r9: d[4], r10: d[4],
+                r11: d[4], r12: d[4], r13: d[4], r14: d[4], r15: d[4], r16: d[4], r17: d[4], r18: d[4], r19: d[4], r20: d[4]
+            }));
+            
+            saveTrades();
+            updateDisplay();
+        }
+        
+        function clearAllTrades() {
+            if (confirm('Are you sure you want to delete all trades? This cannot be undone.')) {
+                trades = [];
+                saveTrades();
+                updateDisplay();
+            }
+        }
+        
+        function exportData() {
+            const csv = 'Date,Bias,Session,Breakeven,MFE_RScore,Entry,Stop\n' + 
+                       trades.map(t => `${t.date},${t.bias},${t.session},${t.breakeven},${t.rScore},${t.entryPrice},${t.stopLoss}`).join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'trading_data.csv';
+            a.click();
+        }
+        
+        function importCSV(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const csv = e.target.result;
+                    const lines = csv.split('\n');
+                    
+                    trades = [];
+                    for (let i = 1; i < lines.length; i++) {
+                        if (lines[i].trim()) {
+                            const values = lines[i].split(',');
+                            const trade = {
+                                id: Date.now() + i,
+                                date: values[0],
+                                bias: values[1],
+                                session: values[2],
+                                breakeven: values[3] === 'true',
+                                rScore: parseFloat(values[4]) || 0,
+                                entryPrice: parseFloat(values[5]) || 0,
+                                stopLoss: parseFloat(values[6]) || 0
+                            };
+                            
+                            // Set R values
+                            for (let j = 1; j <= 20; j++) {
+                                trade[`r${j}`] = trade.rScore;
+                            }
+                            
+                            trades.push(trade);
+                        }
+                    }
+                    saveTrades();
+                    updateDisplay();
+                };
+                reader.readAsText(file);
+            }
+        }
+        
+        function updateDisplay() {
+            updateStats();
+            updateTable();
+        }
+        
+        function updateStats() {
+            const now = new Date();
+            const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            
+            const weekTrades = trades.filter(t => new Date(t.date) >= weekStart).length;
+            const monthTrades = trades.filter(t => new Date(t.date) >= monthStart).length;
+            
+            // Calculate financial performance
+            const wins = trades.filter(t => t.rScore > 0 || t.breakeven).length;
+            const winRate = trades.length > 0 ? ((wins / trades.length) * 100).toFixed(1) : 0;
+            const totalR = trades.reduce((sum, t) => sum + t.rScore, 0);
+            const expectancy = trades.length > 0 ? (totalR / trades.length).toFixed(2) : 0;
+            
+            // Find best session
+            const sessionStats = {};
+            trades.forEach(trade => {
+                if (!sessionStats[trade.session]) {
+                    sessionStats[trade.session] = { total: 0, count: 0 };
+                }
+                sessionStats[trade.session].total += trade.rScore;
+                sessionStats[trade.session].count++;
+            });
+            
+            let bestSession = '-';
+            let bestAvg = -999;
+            Object.keys(sessionStats).forEach(session => {
+                const avg = sessionStats[session].total / sessionStats[session].count;
+                if (avg > bestAvg && sessionStats[session].count >= 3) {
+                    bestAvg = avg;
+                    bestSession = session;
+                }
+            });
+            
+            // Update display
+            document.getElementById('totalTrades').textContent = trades.length;
+            document.getElementById('winRate').textContent = winRate + '%';
+            document.getElementById('totalR').textContent = totalR.toFixed(1) + 'R';
+            document.getElementById('expectancy').textContent = expectancy + 'R';
+            document.getElementById('weekTrades').textContent = weekTrades;
+            document.getElementById('monthTrades').textContent = monthTrades;
+            document.getElementById('bestSession').textContent = bestSession;
+            document.getElementById('lastUpdated').textContent = localStorage.getItem('lastUpdated') || 'Never';
+            
+            // Update colors based on performance
+            const totalRElement = document.getElementById('totalR');
+            const expectancyElement = document.getElementById('expectancy');
+            
+            totalRElement.className = 'stat-value ' + (totalR > 0 ? 'positive' : totalR < 0 ? 'negative' : 'neutral');
+            expectancyElement.className = 'stat-value ' + (parseFloat(expectancy) > 0 ? 'positive' : parseFloat(expectancy) < 0 ? 'negative' : 'neutral');
+        }
+        
+        function updateTable() {
+            const tbody = document.getElementById('tradesBody');
+            const searchTerm = document.getElementById('searchTrades').value.toLowerCase();
+            const sessionFilter = document.getElementById('filterSession').value;
+            
+            let filteredTrades = trades.filter(trade => {
+                const matchesSearch = !searchTerm || 
+                    trade.date.includes(searchTerm) || 
+                    trade.bias.toLowerCase().includes(searchTerm) ||
+                    trade.session.toLowerCase().includes(searchTerm);
+                const matchesSession = !sessionFilter || trade.session === sessionFilter;
+                return matchesSearch && matchesSession;
+            });
+            
+            tbody.innerHTML = '';
+            filteredTrades.slice(-50).reverse().forEach(trade => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${trade.date}</td>
+                    <td>${trade.bias}</td>
+                    <td>${trade.session}</td>
+                    <td>${trade.breakeven ? '✓' : ''}</td>
+                    <td class="${trade.rScore > 0 ? 'positive' : trade.rScore < 0 ? 'negative' : 'neutral'}">${trade.rScore.toFixed(1)}R</td>
+                    <td>${trade.entryPrice.toFixed(2)}</td>
+                    <td>${trade.stopLoss.toFixed(2)}</td>
+                    <td>
+                        <button onclick="editTrade(${trade.id})" style="background: #ffa502; border: none; padding: 5px 10px; border-radius: 5px; color: white; cursor: pointer; margin-right: 5px;">Edit</button>
+                        <button onclick="deleteTrade(${trade.id})" style="background: #ff4757; border: none; padding: 5px 10px; border-radius: 5px; color: white; cursor: pointer;">Delete</button>
+                    </td>
+                `;
+            });
+        }
+        
+        // Event listeners
+        document.getElementById('searchTrades').addEventListener('input', updateTable);
+        document.getElementById('filterSession').addEventListener('change', updateTable);
+        
+        function changeTheme() {
+            const theme = document.getElementById('themeSelector').value;
+            const body = document.body;
+            
+            // Remove all theme classes
+            body.className = body.className.replace(/theme-\w+/g, '');
+            
+            // Add new theme class
+            body.classList.add(`theme-${theme}`);
+            
+            // Update accent colors based on theme
+            const root = document.documentElement;
+            switch(theme) {
+                case 'dark':
+                    root.style.setProperty('--accent-color', '#4a9eff');
+                    break;
+                case 'minimal':
+                    root.style.setProperty('--accent-color', '#007bff');
+                    break;
+                case 'neon':
+                    root.style.setProperty('--accent-color', '#ff0080');
+                    break;
+                case 'gold':
+                    root.style.setProperty('--accent-color', '#ffd700');
+                    break;
+                default:
+                    root.style.setProperty('--accent-color', '#00ff88');
+            }
+            
+            // Save theme preference
+            localStorage.setItem('selectedTheme', theme);
+        }
+        
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('selectedTheme') || 'gradient';
+            document.getElementById('themeSelector').value = savedTheme;
+            changeTheme();
+        }
+        
+        function updateDateTime() {
+            const now = new Date();
+            const options = {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZoneName: 'short'
+            };
+            document.getElementById('currentDateTime').textContent = now.toLocaleDateString('en-US', options);
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Loading trades from localStorage...');
+            trades = JSON.parse(localStorage.getItem('tradingData')) || [];
+            console.log('Loaded', trades.length, 'trades');
+            
+            loadTheme();
+            updateDisplay();
+            updateDateTime();
+            setInterval(updateDateTime, 30000);
+        });
+    </script>
+</body>
+</html>

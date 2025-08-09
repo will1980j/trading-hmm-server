@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prop Fund Portfolio Manager</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --accent-color: #00ff88;
+            --glass-bg: rgba(255,255,255,0.08);
+            --glass-border: rgba(255,255,255,0.1);
+            --shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .navbar {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .nav-link:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .nav-link.active {
+            color: #00ff88;
+            background: rgba(0,255,136,0.15);
+            border-color: rgba(0,255,136,0.3);
+        }
+        
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ff88, #00d4aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .month-selector {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        
+        .month-btn {
+            padding: 8px 16px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .month-btn.active {
+            background: rgba(0,255,136,0.2);
+            border-color: rgba(0,255,136,0.5);
+            color: #00ff88;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .overview-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .overview-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+        
+        .overview-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            opacity: 0.8;
+        }
+        
+        .overview-value {
+            font-size: 16px;
+            font-weight: 700;
+        }
+        
+        .data-input {
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .status-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .status-tab {
+            padding: 10px 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .status-tab.active {
+            background: rgba(0,255,136,0.2);
+            border-color: rgba(0,255,136,0.5);
+            color: #00ff88;
+        }
+        
+        .firm-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            overflow: hidden;
+            font-size: 12px;
+        }
+        
+        .firm-table th,
+        .firm-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .firm-table th {
+            background: rgba(255,255,255,0.1);
+            font-weight: bold;
+            font-size: 11px;
+        }
+        
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        
+        .status-challenge { background: rgba(255,165,2,0.2); color: #ffa502; }
+        .status-funded { background: rgba(0,255,136,0.2); color: #00ff88; }
+        .status-failed { background: rgba(255,71,87,0.2); color: #ff4757; }
+        
+        .btn {
+            background: linear-gradient(45deg, var(--accent-color), #00d4aa);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,255,136,0.3);
+        }
+        
+        .positive { color: #00ff88; }
+        .negative { color: #ff4757; }
+        .neutral { color: #ffa502; }
+        
+        select, input {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            font-size: 12px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4757, #ffa502, #00ff88);
+            transition: width 0.3s ease;
+        }
+        
+        .theme-select {
+            padding: 8px 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .theme-select option {
+            background: #2a2a2a;
+            color: white;
+        }
+        
+        /* Theme Styles */
+        .theme-gradient {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+        }
+        
+        .theme-dark {
+            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+            color: #e0e0e0;
+        }
+        
+        .theme-minimal {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            color: #212529;
+        }
+        
+        .theme-neon {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0a1a 100%);
+            color: #00ff88;
+        }
+        
+        .theme-gold {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2416 100%);
+            color: #f4e4bc;
+        }
+        
+        .theme-minimal .navbar,
+        .theme-minimal .header,
+        .theme-minimal .overview-card,
+        .theme-minimal .data-input {
+            background: rgba(255,255,255,0.8);
+            border: 1px solid rgba(0,0,0,0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            color: #212529;
+        }
+        
+        .theme-minimal .nav-link {
+            color: #495057;
+            background: rgba(0,0,0,0.03);
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .theme-minimal .nav-link:hover {
+            background: rgba(0,0,0,0.08);
+            color: #212529;
+        }
+        
+        .theme-minimal .nav-link.active {
+            color: #007bff;
+            background: rgba(0,123,255,0.1);
+            border-color: rgba(0,123,255,0.2);
+        }
+        
+        .theme-minimal .header h1 {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .theme-minimal .overview-value {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .theme-minimal .theme-select {
+            background: rgba(255,255,255,0.9);
+            color: #495057;
+            border: 1px solid rgba(0,0,0,0.2);
+        }
+        
+        .theme-minimal .theme-select option {
+            background: white;
+            color: #495057;
+        }
+        
+        .theme-minimal .positive { color: #28a745; }
+        .theme-minimal .negative { color: #dc3545; }
+        .theme-minimal .neutral { color: #ffc107; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+
+            <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
+                <select id="themeSelector" onchange="changeTheme()" class="theme-select">
+                    <option value="gradient">Ocean Gradient</option>
+                    <option value="dark">Dark Professional</option>
+                    <option value="minimal">Minimal White</option>
+                    <option value="neon">Neon Cyber</option>
+                    <option value="gold">Gold Luxury</option>
+                </select>
+                <a href="advanced_trading_dashboard.html" class="nav-link">Dashboard</a>
+                <a href="trade_manager.html" class="nav-link">Trade Manager</a>
+                <a href="prop_firms_v2.html" class="nav-link active">Prop Portfolio</a>
+                <a href="financial_summary.html" class="nav-link">Financial Summary</a>
+                <a href="reporting_hub.html" class="nav-link">Reporting Hub</a>
+                <a href="tradingview_integration.html" class="nav-link">TradingView</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🏢 Prop Fund Portfolio Manager</h1>
+            <p>Challenge Tracking & Funded Account Management</p>
+            <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; text-align: center;">
+                <div style="font-size: 12px; opacity: 0.8;">Last Updated</div>
+                <div id="currentDateTime" style="font-size: 14px; font-weight: 600;">Loading...</div>
+            </div>
+        </div>
+        
+        <div class="month-selector">
+            <div class="month-btn active" onclick="selectMonth('2024-01')">Jan</div>
+            <div class="month-btn" onclick="selectMonth('2024-02')">Feb</div>
+            <div class="month-btn" onclick="selectMonth('2024-03')">Mar</div>
+            <div class="month-btn" onclick="selectMonth('2024-04')">Apr</div>
+            <div class="month-btn" onclick="selectMonth('2024-05')">May</div>
+            <div class="month-btn" onclick="selectMonth('2024-06')">Jun</div>
+            <div class="month-btn" onclick="selectMonth('2024-07')">Jul</div>
+            <div class="month-btn" onclick="selectMonth('2024-08')">Aug</div>
+            <div class="month-btn" onclick="selectMonth('2024-09')">Sep</div>
+            <div class="month-btn" onclick="selectMonth('2024-10')">Oct</div>
+            <div class="month-btn" onclick="selectMonth('2024-11')">Nov</div>
+            <div class="month-btn" onclick="selectMonth('2024-12')">Dec</div>
+        </div>
+        
+        <div class="dashboard-grid">
+            <div class="overview-card">
+                <h3>Portfolio Targets</h3>
+                <div class="overview-row">
+                    <span class="overview-label">Monthly Target %</span>
+                    <input type="number" class="editable overview-value" id="monthlyTargetPercent" value="5.00" step="0.1" onchange="updatePortfolioMetrics()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px 8px; color: white; width: 80px; text-align: right;">
+                </div>
+                <div class="overview-row">
+                    <span class="overview-label">Target AUD</span>
+                    <span class="overview-value positive" id="monthlyTargetAUD">$0</span>
+                </div>
+                <div class="overview-row">
+                    <span class="overview-label">ATO Tax Rate %</span>
+                    <input type="number" class="editable overview-value" id="atoTaxRate" value="25" step="1" onchange="updatePortfolioMetrics()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px 8px; color: white; width: 80px; text-align: right;">
+                </div>
+            </div>
+            
+            <div class="overview-card">
+                <h3>Portfolio Performance</h3>
+                <div class="overview-row">
+                    <span class="overview-label">Portfolio Balance</span>
+                    <span class="overview-value positive" id="portfolioBalance">$0</span>
+                </div>
+                <div class="overview-row">
+                    <span class="overview-label">Monthly Profit</span>
+                    <span class="overview-value positive" id="monthlyProfit">$0</span>
+                </div>
+                <div class="overview-row">
+                    <span class="overview-label">Performance %</span>
+                    <span class="overview-value neutral" id="performancePercent">0%</span>
+                </div>
+            </div>
+            
+            <div class="overview-card">
+                <h3>Tax & NPAT</h3>
+                <div class="overview-row">
+                    <span class="overview-label">Monthly Tax Bill</span>
+                    <span class="overview-value negative" id="monthlyTaxBill">$0</span>
+                </div>
+                <div class="overview-row">
+                    <span class="overview-label">Net Profit After Tax</span>
+                    <span class="overview-value positive" id="netProfitAfterTax">$0</span>
+                </div>
+                <div class="overview-row">
+                    <span class="overview-label">Success Rate</span>
+                    <span class="overview-value" id="successRate">0%</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="data-input">
+            <h3>🛡️ Risk Management Dashboard</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                <div class="overview-card" style="margin: 0; padding: 15px;">
+                    <h4>Portfolio Heat Map</h4>
+                    <div class="overview-row" style="margin-bottom: 10px; padding: 5px;">
+                        <span class="overview-label">Forex Exposure</span>
+                        <span class="overview-value" id="forexExposure">0%</span>
+                    </div>
+                    <div class="overview-row" style="margin-bottom: 10px; padding: 5px;">
+                        <span class="overview-label">Futures Exposure</span>
+                        <span class="overview-value" id="futuresExposure">0%</span>
+                    </div>
+                </div>
+                <div class="overview-card" style="margin: 0; padding: 15px;">
+                    <h4>Drawdown Tracking</h4>
+                    <div class="overview-row" style="margin-bottom: 10px; padding: 5px;">
+                        <span class="overview-label">Max Drawdown</span>
+                        <span class="overview-value negative" id="maxDrawdown">0%</span>
+                    </div>
+                    <div class="overview-row" style="margin-bottom: 10px; padding: 5px;">
+                        <span class="overview-label">Current DD</span>
+                        <span class="overview-value" id="currentDrawdown">0%</span>
+                    </div>
+                </div>
+                <div class="overview-card" style="margin: 0; padding: 15px;">
+                    <h4>Correlation Analysis</h4>
+                    <div class="overview-row" style="margin-bottom: 10px; padding: 5px;">
+                        <span class="overview-label">Correlation Risk</span>
+                        <span class="overview-value" id="correlationRisk">Low</span>
+                    </div>
+                    <div class="overview-row" style="margin-bottom: 10px; padding: 5px;">
+                        <span class="overview-label">Diversification</span>
+                        <span class="overview-value positive" id="diversificationScore">Good</span>
+                    </div>
+                </div>
+                <div class="overview-card" style="margin: 0; padding: 15px;">
+                    <h4>Alert System</h4>
+                    <div class="overview-row" style="margin-bottom: 10px; padding: 5px;">
+                        <span class="overview-label">Active Alerts</span>
+                        <span class="overview-value" id="activeAlerts">0</span>
+                    </div>
+                    <div class="overview-row" style="margin-bottom: 10px; padding: 5px;">
+                        <span class="overview-label">Risk Level</span>
+                        <span class="overview-value" id="overallRiskLevel">Medium</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="data-input">
+            <h3>🤖 Automated Insights</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <h4>Performance Analysis</h4>
+                    <div id="performanceInsights" style="background: rgba(0,255,136,0.1); padding: 15px; border-radius: 8px; font-size: 13px; line-height: 1.4;">Analyzing performance patterns...</div>
+                </div>
+                <div>
+                    <h4>Optimization Recommendations</h4>
+                    <div id="optimizationRecommendations" style="background: rgba(255,165,2,0.1); padding: 15px; border-radius: 8px; font-size: 13px; line-height: 1.4;">Calculating optimal allocation...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="data-input">
+            <h3>Add New Prop Firm</h3>
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr auto auto; gap: 10px; margin-bottom: 10px;">
+                <label style="font-size: 11px; opacity: 0.8;">Firm Name</label>
+                <label style="font-size: 11px; opacity: 0.8;">Website URL</label>
+                <label style="font-size: 11px; opacity: 0.8;">Status</label>
+                <label style="font-size: 11px; opacity: 0.8;">Market Type</label>
+                <label style="font-size: 11px; opacity: 0.8;">Account Size ($)</label>
+                <label style="font-size: 11px; opacity: 0.8;">Max Funding ($)</label>
+                <label style="font-size: 11px; opacity: 0.8;">Profit Split %</label>
+                <label style="font-size: 11px; opacity: 0.8;">Currency</label>
+                <label style="font-size: 11px; opacity: 0.8;">Research</label>
+                <label style="font-size: 11px; opacity: 0.8;">Add</label>
+            </div>
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr auto auto; gap: 10px; align-items: end; margin-bottom: 15px;">
+                <input type="text" id="firmName" placeholder="FTMO" style="width: 100%;">
+                <div style="position: relative;">
+                    <input type="text" id="firmWebsite" placeholder="https://ftmo.com" style="width: 100%;" onblur="autoResearchFirm()">
+                    <div id="researchStatus" style="position: absolute; top: -20px; left: 0; font-size: 10px; opacity: 0.8; display: none;">🔍 Researching...</div>
+                </div>
+                <select id="firmStatus" style="width: 100%;">
+                    <option value="challenge">Challenge</option>
+                    <option value="funded">Funded</option>
+                    <option value="failed">Failed</option>
+                </select>
+                <select id="marketType" style="width: 100%;">
+                    <option value="Forex">Forex</option>
+                    <option value="Futures">Futures</option>
+                    <option value="Both">Both</option>
+                </select>
+                <input type="number" id="accountSize" placeholder="200000" step="1000" style="width: 100%;">
+                <input type="number" id="maxFunding" placeholder="2000000" step="10000" style="width: 100%;">
+                <input type="number" id="profitSplit" placeholder="90" min="50" max="95" step="5" style="width: 100%;">
+                <select id="currency" style="width: 100%;">
+                    <option value="USD">USD</option>
+                    <option value="AUD">AUD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                </select>
+                <button class="btn" onclick="autoResearchFirm()" style="background: #17a2b8;">🔍 Research</button>
+                <button class="btn" onclick="addPropFirm()">Add Firm</button>
+            </div>
+        </div>
+        
+        <div class="data-input">
+            <h3>Prop Firm Portfolio</h3>
+            <div class="status-tabs">
+                <div class="status-tab active" onclick="filterByStatus('all')">All Firms</div>
+                <div class="status-tab" onclick="filterByStatus('challenge')">Challenges</div>
+                <div class="status-tab" onclick="filterByStatus('funded')">Funded</div>
+                <div class="status-tab" onclick="filterByStatus('failed')">Failed</div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="firm-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Logo</th>
+                            <th>Firm Name</th>
+                            <th>Status</th>
+                            <th>Market</th>
+                            <th>Website</th>
+                            <th>Scaling</th>
+                            <th>Max Funding</th>
+                            <th>Account Size</th>
+                            <th>Monthly Profit $</th>
+                            <th>Profit %</th>
+                            <th>Split %</th>
+                            <th>Currency</th>
+                            <th>AUD Account</th>
+                            <th>AUD Profit</th>
+                            <th>AUD Tax</th>
+                            <th>NPAT</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="firmTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="data-input">
+            <h3>Monthly Allocation Strategy</h3>
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 12px; opacity: 0.8;">Allocation percentages must total 100%</label>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 15px;">
+                <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <div style="font-size: 10px; opacity: 0.8; margin-bottom: 5px;">Salary</div>
+                    <input type="number" id="salaryPercent" value="30" step="1" onchange="updateAllocations()" style="width: 50px; text-align: center;">%
+                    <div id="salaryAmount" style="font-size: 11px; opacity: 0.7;">$0</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <div style="font-size: 10px; opacity: 0.8; margin-bottom: 5px;">Second Skies</div>
+                    <input type="number" id="secondSkiesPercent" value="20" step="1" onchange="updateAllocations()" style="width: 50px; text-align: center;">%
+                    <div id="secondSkiesAmount" style="font-size: 11px; opacity: 0.7;">$0</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <div style="font-size: 10px; opacity: 0.8; margin-bottom: 5px;">SMSF</div>
+                    <input type="number" id="smsfPercent" value="15" step="1" onchange="updateAllocations()" style="width: 50px; text-align: center;">%
+                    <div id="smsfAmount" style="font-size: 11px; opacity: 0.7;">$0</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <div style="font-size: 10px; opacity: 0.8; margin-bottom: 5px;">Property Fund</div>
+                    <input type="number" id="propertyPercent" value="15" step="1" onchange="updateAllocations()" style="width: 50px; text-align: center;">%
+                    <div id="propertyAmount" style="font-size: 11px; opacity: 0.7;">$0</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <div style="font-size: 10px; opacity: 0.8; margin-bottom: 5px;">Investments</div>
+                    <input type="number" id="investmentsPercent" value="10" step="1" onchange="updateAllocations()" style="width: 50px; text-align: center;">%
+                    <div id="investmentsAmount" style="font-size: 11px; opacity: 0.7;">$0</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <div style="font-size: 10px; opacity: 0.8; margin-bottom: 5px;">Debts</div>
+                    <input type="number" id="debtsPercent" value="5" step="1" onchange="updateAllocations()" style="width: 50px; text-align: center;">%
+                    <div id="debtsAmount" style="font-size: 11px; opacity: 0.7;">$0</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <div style="font-size: 10px; opacity: 0.8; margin-bottom: 5px;">Emergency</div>
+                    <input type="number" id="emergencyPercent" value="5" step="1" onchange="updateAllocations()" style="width: 50px; text-align: center;">%
+                    <div id="emergencyAmount" style="font-size: 11px; opacity: 0.7;">$0</div>
+                </div>
+            </div>
+            <div style="margin-top: 15px; text-align: center;">
+                <span style="font-weight: 600;">Total Allocation: <span id="totalAllocation">100</span>%</span>
+                <span id="allocationWarning" style="color: #ff4757; margin-left: 20px; display: none;">⚠️ Must equal 100%</span>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentMonth = '2024-01';
+        let propFirms = JSON.parse(localStorage.getItem(`propFirmsV2_${currentMonth}`)) || [];
+        let currentFilter = 'all';
+        let exchangeRates = { USD: 1.5, EUR: 1.65, GBP: 1.9, AUD: 1.0 };
+        
+        // Prop Firm Database
+        class PropFirmResearcher {
+            constructor() {
+                this.firmDatabase = {
+                    'ftmo.com': { name: 'FTMO', maxFunding: 2000000, profitSplit: 90, currency: 'EUR', marketType: 'Forex', riskRules: '10% daily loss, 5% max drawdown, no weekend holding, 1:100 leverage', lastUpdated: '2024-01-15' },
+                    'apextraderfunding.com': { name: 'Apex Trader Funding', maxFunding: 300000, profitSplit: 90, currency: 'USD', marketType: 'Futures', riskRules: '$3K daily loss limit, $6K trailing drawdown, ES/NQ/YM/RTY only, no overnight holds', lastUpdated: '2024-01-15' },
+                    'the5ers.com': { name: 'The5ers', maxFunding: 4000000, profitSplit: 90, currency: 'GBP', marketType: 'Forex', riskRules: '4% daily loss, 6% max drawdown, high-frequency OK, 1:100 leverage', lastUpdated: '2024-01-15' }
+                };
+            }
+            
+            async researchFirm(websiteUrl) {
+                if (!websiteUrl) return null;
+                const cleanUrl = websiteUrl.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].toLowerCase();
+                const firmData = this.firmDatabase[cleanUrl];
+                if (firmData) {
+                    return { ...firmData, source: 'database' };
+                }
+                return null;
+            }
+        }
+        
+        const firmResearcher = new PropFirmResearcher();
+        
+        function selectMonth(month) {
+            localStorage.setItem(`propFirmsV2_${currentMonth}`, JSON.stringify(propFirms));
+            currentMonth = month;
+            propFirms = JSON.parse(localStorage.getItem(`propFirmsV2_${currentMonth}`)) || [];
+            document.querySelectorAll('.month-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            updateDashboard();
+        }
+        
+        async function autoResearchFirm() {
+            const websiteUrl = document.getElementById('firmWebsite').value;
+            if (!websiteUrl) return;
+            
+            const statusEl = document.getElementById('researchStatus');
+            statusEl.style.display = 'block';
+            statusEl.textContent = '🔍 Researching firm...';
+            
+            try {
+                const firmData = await firmResearcher.researchFirm(websiteUrl);
+                if (firmData) {
+                    if (!document.getElementById('firmName').value) {
+                        document.getElementById('firmName').value = firmData.name;
+                    }
+                    document.getElementById('maxFunding').value = firmData.maxFunding;
+                    document.getElementById('profitSplit').value = firmData.profitSplit;
+                    document.getElementById('currency').value = firmData.currency;
+                    if (firmData.marketType) {
+                        document.getElementById('marketType').value = firmData.marketType;
+                    }
+                    statusEl.textContent = '✅ Research complete!';
+                    statusEl.style.color = '#00ff88';
+                } else {
+                    statusEl.textContent = '❌ Firm not in database';
+                    statusEl.style.color = '#ff4757';
+                }
+            } catch (error) {
+                statusEl.textContent = '❌ Research failed';
+                statusEl.style.color = '#ff4757';
+            }
+            
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+                statusEl.style.color = '';
+            }, 3000);
+        }
+        
+        function addPropFirm() {
+            const firmName = document.getElementById('firmName').value;
+            const firmWebsite = document.getElementById('firmWebsite').value;
+            const firmStatus = document.getElementById('firmStatus').value;
+            const marketType = document.getElementById('marketType').value;
+            const accountSize = parseFloat(document.getElementById('accountSize').value) || 0;
+            const maxFunding = parseFloat(document.getElementById('maxFunding').value) || 0;
+            const profitSplit = parseFloat(document.getElementById('profitSplit').value) || 90;
+            const currency = document.getElementById('currency').value;
+            
+            if (!firmName) {
+                alert('Please enter a firm name');
+                return;
+            }
+            
+            const newFirm = {
+                id: Date.now(),
+                firmName,
+                firmWebsite,
+                status: firmStatus,
+                marketType,
+                accountSize,
+                maxFunding,
+                profitSplit,
+                currency,
+                monthlyProfit: 0,
+                challengeProgress: firmStatus === 'challenge' ? Math.random() * 100 : 100,
+                scalingPercent: maxFunding > 0 ? (accountSize / maxFunding * 100) : 0,
+                dateAdded: new Date().toISOString()
+            };
+            
+            propFirms.push(newFirm);
+            localStorage.setItem(`propFirmsV2_${currentMonth}`, JSON.stringify(propFirms));
+            
+            // Clear inputs
+            document.getElementById('firmName').value = '';
+            document.getElementById('firmWebsite').value = '';
+            document.getElementById('accountSize').value = '';
+            document.getElementById('maxFunding').value = '';
+            
+            updateDashboard();
+        }
+        
+        function calculateRiskLevel(accountSize, maxFunding) {
+            const ratio = accountSize / maxFunding;
+            if (ratio < 0.1) return 'Low';
+            if (ratio < 0.5) return 'Medium';
+            return 'High';
+        }
+        
+        function filterByStatus(status) {
+            currentFilter = status;
+            document.querySelectorAll('.status-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            updateFirmTable();
+        }
+        
+        function updatePortfolioMetrics() {
+            const monthlyTargetPercent = parseFloat(document.getElementById('monthlyTargetPercent').value) || 5;
+            const taxRate = parseFloat(document.getElementById('atoTaxRate').value) || 25;
+            
+            let totalBalance = 0;
+            let totalMonthlyProfit = 0;
+            
+            propFirms.forEach(firm => {
+                if (firm.status === 'funded') {
+                    totalBalance += firm.accountSize * exchangeRates[firm.currency];
+                    totalMonthlyProfit += firm.monthlyProfit * exchangeRates[firm.currency];
+                }
+            });
+            
+            const monthlyTargetAUD = totalBalance * (monthlyTargetPercent / 100);
+            const performancePercent = totalBalance > 0 ? (totalMonthlyProfit / totalBalance * 100) : 0;
+            const monthlyTaxBill = totalMonthlyProfit * (taxRate / 100);
+            const netProfitAfterTax = totalMonthlyProfit - monthlyTaxBill;
+            
+            document.getElementById('monthlyTargetAUD').textContent = '$' + monthlyTargetAUD.toLocaleString();
+            document.getElementById('portfolioBalance').textContent = '$' + totalBalance.toLocaleString();
+            document.getElementById('monthlyProfit').textContent = '$' + totalMonthlyProfit.toLocaleString();
+            document.getElementById('performancePercent').textContent = performancePercent.toFixed(2) + '%';
+            document.getElementById('monthlyTaxBill').textContent = '$' + monthlyTaxBill.toLocaleString();
+            document.getElementById('netProfitAfterTax').textContent = '$' + netProfitAfterTax.toLocaleString();
+            
+            const fundedAccounts = propFirms.filter(f => f.status === 'funded').length;
+            const totalFirms = propFirms.length;
+            const successRate = totalFirms > 0 ? ((fundedAccounts / totalFirms) * 100).toFixed(1) : 0;
+            document.getElementById('successRate').textContent = successRate + '%';
+        }
+        
+        function updateDashboard() {
+            updatePortfolioMetrics();
+            updateRiskManagement();
+            updateAutomatedInsights();
+            updateFirmTable();
+        }
+        
+        // Risk Management Dashboard
+        function updateRiskManagement() {
+            const fundedFirms = propFirms.filter(f => f.status === 'funded');
+            const totalCapital = fundedFirms.reduce((sum, f) => sum + f.accountSize * exchangeRates[f.currency], 0);
+            
+            // Portfolio Heat Map
+            const forexCapital = fundedFirms.filter(f => f.marketType === 'Forex').reduce((sum, f) => sum + f.accountSize * exchangeRates[f.currency], 0);
+            const futuresCapital = fundedFirms.filter(f => f.marketType === 'Futures').reduce((sum, f) => sum + f.accountSize * exchangeRates[f.currency], 0);
+            
+            const forexExposure = totalCapital > 0 ? ((forexCapital / totalCapital) * 100).toFixed(1) : 0;
+            const futuresExposure = totalCapital > 0 ? ((futuresCapital / totalCapital) * 100).toFixed(1) : 0;
+            
+            document.getElementById('forexExposure').textContent = forexExposure + '%';
+            document.getElementById('futuresExposure').textContent = futuresExposure + '%';
+            
+            // Drawdown Analysis
+            const maxDrawdown = Math.max(...fundedFirms.map(f => Math.random() * 15));
+            const currentDrawdown = Math.max(...fundedFirms.map(f => Math.max(0, (f.monthlyProfit || 0) < 0 ? Math.abs(f.monthlyProfit / f.accountSize * 100) : 0)));
+            
+            document.getElementById('maxDrawdown').textContent = maxDrawdown.toFixed(1) + '%';
+            document.getElementById('currentDrawdown').textContent = currentDrawdown.toFixed(1) + '%';
+            
+            // Correlation & Diversification
+            const forexCount = fundedFirms.filter(f => f.marketType === 'Forex').length;
+            const futuresCount = fundedFirms.filter(f => f.marketType === 'Futures').length;
+            const correlationRisk = (forexCount === 0 || futuresCount === 0) ? 'High' : 'Low';
+            
+            const uniqueCurrencies = new Set(fundedFirms.map(f => f.currency)).size;
+            const uniqueMarkets = new Set(fundedFirms.map(f => f.marketType)).size;
+            const diversificationScore = (uniqueCurrencies >= 3 && uniqueMarkets >= 2) ? 'Excellent' : 'Good';
+            
+            document.getElementById('correlationRisk').textContent = correlationRisk;
+            document.getElementById('diversificationScore').textContent = diversificationScore;
+            
+            // Alert System
+            const alerts = [];
+            if (maxDrawdown > 10) alerts.push('High drawdown');
+            if (forexExposure > 80 || futuresExposure > 80) alerts.push('High concentration');
+            
+            document.getElementById('activeAlerts').textContent = alerts.length;
+            document.getElementById('overallRiskLevel').textContent = alerts.length > 1 ? 'High' : alerts.length > 0 ? 'Medium' : 'Low';
+        }
+        
+        // Automated Insights
+        function updateAutomatedInsights() {
+            const fundedFirms = propFirms.filter(f => f.status === 'funded');
+            
+            if (fundedFirms.length === 0) {
+                document.getElementById('performanceInsights').innerHTML = 'No funded accounts to analyze.';
+                document.getElementById('optimizationRecommendations').innerHTML = 'Add funded accounts to get recommendations.';
+                return;
+            }
+            
+            const totalProfit = fundedFirms.reduce((sum, f) => sum + (f.monthlyProfit || 0) * exchangeRates[f.currency], 0);
+            const bestPerformer = fundedFirms.reduce((best, current) => 
+                ((current.monthlyProfit || 0) / current.accountSize) > ((best.monthlyProfit || 0) / best.accountSize) ? current : best
+            );
+            
+            // Performance Analysis
+            const performanceInsights = `
+                <strong>📈 Performance Summary:</strong><br>
+                • Total monthly profit: $${totalProfit.toLocaleString()}<br>
+                • Best performer: ${bestPerformer.firmName} (${(((bestPerformer.monthlyProfit || 0) / bestPerformer.accountSize) * 100).toFixed(2)}%)<br>
+                • Average ROI: ${((totalProfit / fundedFirms.reduce((sum, f) => sum + f.accountSize * exchangeRates[f.currency], 0)) * 100).toFixed(2)}%
+            `;
+            document.getElementById('performanceInsights').innerHTML = performanceInsights;
+            
+            // Optimization Recommendations
+            const recommendations = [];
+            const avgROI = fundedFirms.reduce((sum, f) => sum + ((f.monthlyProfit || 0) / f.accountSize), 0) / fundedFirms.length;
+            const topPerformers = fundedFirms.filter(f => ((f.monthlyProfit || 0) / f.accountSize) > avgROI * 1.2);
+            
+            if (topPerformers.length > 0) {
+                recommendations.push(`• Consider scaling up: ${topPerformers.map(f => f.firmName).join(', ')}`);
+            }
+            
+            const forexCount = fundedFirms.filter(f => f.marketType === 'Forex').length;
+            const futuresCount = fundedFirms.filter(f => f.marketType === 'Futures').length;
+            
+            if (forexCount === 0) recommendations.push('• Consider adding Forex exposure');
+            if (futuresCount === 0) recommendations.push('• Consider adding Futures exposure');
+            
+            const optimizationRecs = `<strong>🎯 Optimization Recommendations:</strong><br>${recommendations.join('<br>') || '• Portfolio is well balanced'}`;
+            document.getElementById('optimizationRecommendations').innerHTML = optimizationRecs;
+        }
+        
+        function updateFirmTable() {
+            const tbody = document.getElementById('firmTableBody');
+            tbody.innerHTML = '';
+            
+            const filteredFirms = currentFilter === 'all' ? propFirms : propFirms.filter(f => f.status === currentFilter);
+            
+            filteredFirms.forEach((firm, index) => {
+                const profitPercent = firm.accountSize > 0 ? (firm.monthlyProfit / firm.accountSize * 100) : 0;
+                const audAccountSize = firm.accountSize * exchangeRates[firm.currency];
+                const audProfit = firm.monthlyProfit * exchangeRates[firm.currency];
+                const taxRate = parseFloat(document.getElementById('atoTaxRate').value) || 25;
+                const audTax = audProfit * (taxRate / 100);
+                const npat = audProfit - audTax;
+                
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>
+                        <img src="https://www.google.com/s2/favicons?domain=${firm.firmWebsite ? firm.firmWebsite.replace(/^https?:\/\//, '').replace(/^www\./, '') : 'example.com'}&sz=32" 
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" 
+                             style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover;" 
+                             alt="${firm.firmName}">
+                        <div style="display: none; width: 24px; height: 24px; background: #00ff88; border-radius: 4px; font-size: 10px; color: white; text-align: center; line-height: 24px; font-weight: bold;">${firm.firmName.substring(0, 2).toUpperCase()}</div>
+                    </td>
+                    <td>${firm.firmName}</td>
+                    <td><span class="status-badge status-${firm.status}">${firm.status.toUpperCase()}</span></td>
+                    <td><span style="padding: 2px 6px; background: ${firm.marketType === 'Forex' ? 'rgba(0,255,136,0.2)' : firm.marketType === 'Futures' ? 'rgba(255,165,2,0.2)' : 'rgba(55,66,250,0.2)'}; border-radius: 4px; font-size: 10px;">${firm.marketType || 'Forex'}</span></td>
+                    <td><a href="${firm.firmWebsite || '#'}" target="_blank" style="color: #00ff88; font-size: 10px;">${firm.firmWebsite ? firm.firmWebsite.substring(0, 15) + '...' : 'N/A'}</a></td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${Math.min(firm.scalingPercent || 0, 100)}%"></div>
+                        </div>
+                        <div style="font-size: 10px; text-align: center;">${(firm.scalingPercent || 0).toFixed(0)}%</div>
+                    </td>
+                    <td>$${firm.maxFunding.toLocaleString()}</td>
+                    <td>$${firm.accountSize.toLocaleString()}</td>
+                    <td><input type="number" value="${firm.monthlyProfit || 0}" onchange="updateMonthlyProfit(${propFirms.indexOf(firm)}, this.value)" style="width: 80px;"></td>
+                    <td>${profitPercent.toFixed(2)}%</td>
+                    <td>${firm.profitSplit}%</td>
+                    <td>${firm.currency}</td>
+                    <td>$${audAccountSize.toLocaleString()}</td>
+                    <td class="positive">$${audProfit.toLocaleString()}</td>
+                    <td class="negative">$${audTax.toLocaleString()}</td>
+                    <td class="positive">$${npat.toLocaleString()}</td>
+                    <td>
+                        <button onclick="editFirm(${propFirms.indexOf(firm)})" class="btn" style="background: #ffa502; margin-right: 5px;">Edit</button>
+                        <button onclick="deleteFirm(${propFirms.indexOf(firm)})" class="btn" style="background: #ff4757;">Delete</button>
+                    </td>
+                `;
+            });
+        }
+        
+        function updateMonthlyProfit(index, value) {
+            propFirms[index].monthlyProfit = parseFloat(value) || 0;
+            localStorage.setItem(`propFirmsV2_${currentMonth}`, JSON.stringify(propFirms));
+            updateDashboard();
+        }
+        
+        function editFirm(index) {
+            // Edit functionality
+            console.log('Edit firm:', propFirms[index]);
+        }
+        
+        function deleteFirm(index) {
+            if (confirm('Are you sure you want to delete this firm?')) {
+                propFirms.splice(index, 1);
+                localStorage.setItem(`propFirmsV2_${currentMonth}`, JSON.stringify(propFirms));
+                updateDashboard();
+            }
+        }
+        
+        // Centralized Firm Database
+        function updateCentralizedDatabase(firm) {
+            let centralDB = JSON.parse(localStorage.getItem('centralizedFirmDB')) || {};
+            
+            if (!centralDB[firm.id]) {
+                centralDB[firm.id] = {
+                    ...firm,
+                    monthlyHistory: {},
+                    performanceMetrics: { totalProfit: 0, avgROI: 0, riskScore: 50 }
+                };
+            }
+            
+            centralDB[firm.id].monthlyHistory[currentMonth] = {
+                profit: firm.monthlyProfit || 0,
+                accountSize: firm.accountSize,
+                status: firm.status,
+                timestamp: new Date().toISOString()
+            };
+            
+            localStorage.setItem('centralizedFirmDB', JSON.stringify(centralDB));
+        }
+        
+        // Performance-Based Allocation System
+        function updateAllocations() {
+            const netProfit = parseFloat(document.getElementById('netProfitAfterTax').textContent.replace(/[$,]/g, '')) || 0;
+            const currentPerformance = parseFloat(document.getElementById('performancePercent').textContent) || 0;
+            const monthlyTarget = parseFloat(document.getElementById('monthlyTargetPercent').value) || 5;
+            
+            const allocations = ['salary', 'secondSkies', 'smsf', 'property', 'investments', 'debts', 'emergency'];
+            let totalPercent = 0;
+            
+            allocations.forEach(allocation => {
+                let percent = parseFloat(document.getElementById(allocation + 'Percent').value) || 0;
+                
+                // Performance-based allocation hints
+                const input = document.getElementById(allocation + 'Percent');
+                if (currentPerformance > monthlyTarget * 1.5) {
+                    if (allocation === 'investments' || allocation === 'smsf') {
+                        input.style.borderColor = '#00ff88';
+                        input.title = 'Consider increasing - strong performance';
+                    }
+                } else if (currentPerformance < monthlyTarget * 0.5) {
+                    if (allocation === 'emergency' || allocation === 'debts') {
+                        input.style.borderColor = '#ffa502';
+                        input.title = 'Consider increasing - underperforming';
+                    }
+                }
+                
+                const amount = netProfit * (percent / 100);
+                document.getElementById(allocation + 'Amount').textContent = '$' + amount.toLocaleString();
+                totalPercent += percent;
+            });
+            
+            document.getElementById('totalAllocation').textContent = totalPercent;
+            const warning = document.getElementById('allocationWarning');
+            if (totalPercent !== 100) {
+                warning.style.display = 'inline';
+            } else {
+                warning.style.display = 'none';
+            }
+        }
+        
+        // Load sample data
+        function loadSampleData() {
+            if (propFirms.length === 0) {
+                const sampleFirms = [
+                    { firmName: 'FTMO', firmWebsite: 'https://ftmo.com', status: 'funded', marketType: 'Forex', accountSize: 200000, maxFunding: 2000000, profitSplit: 90, currency: 'EUR', monthlyProfit: 3500, challengeProgress: 100, scalingPercent: 10 },
+                    { firmName: 'Apex Trader', firmWebsite: 'https://apextraderfunding.com', status: 'challenge', marketType: 'Futures', accountSize: 150000, maxFunding: 300000, profitSplit: 90, currency: 'USD', monthlyProfit: 0, challengeProgress: 65, scalingPercent: 50 },
+                    { firmName: 'The5ers', firmWebsite: 'https://the5ers.com', status: 'funded', marketType: 'Forex', accountSize: 100000, maxFunding: 4000000, profitSplit: 90, currency: 'GBP', monthlyProfit: 2800, challengeProgress: 100, scalingPercent: 2.5 }
+                ];
+                
+                propFirms = sampleFirms.map((firm, index) => ({
+                    id: Date.now() + index,
+                    ...firm,
+                    dateAdded: new Date().toISOString()
+                }));
+                
+                localStorage.setItem(`propFirmsV2_${currentMonth}`, JSON.stringify(propFirms));
+            }
+        }
+        
+        function updateDateTime() {
+            const now = new Date();
+            const options = {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZoneName: 'short'
+            };
+            document.getElementById('currentDateTime').textContent = now.toLocaleDateString('en-US', options);
+        }
+        
+        function changeTheme() {
+            const theme = document.getElementById('themeSelector').value;
+            const body = document.body;
+            
+            body.className = body.className.replace(/theme-\w+/g, '');
+            body.classList.add(`theme-${theme}`);
+            
+            const root = document.documentElement;
+            switch(theme) {
+                case 'dark': root.style.setProperty('--accent-color', '#4a9eff'); break;
+                case 'minimal': root.style.setProperty('--accent-color', '#007bff'); break;
+                case 'neon': root.style.setProperty('--accent-color', '#ff0080'); break;
+                case 'gold': root.style.setProperty('--accent-color', '#ffd700'); break;
+                default: root.style.setProperty('--accent-color', '#00ff88');
+            }
+            
+            localStorage.setItem('selectedTheme', theme);
+        }
+        
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('selectedTheme') || 'gradient';
+            document.getElementById('themeSelector').value = savedTheme;
+            changeTheme();
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTheme();
+            loadSampleData();
+            updateDashboard();
+            updateDateTime();
+            setInterval(updateDateTime, 30000);
+        });
+    </script>
+</body>
+</html>
