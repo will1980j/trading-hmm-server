@@ -496,12 +496,42 @@ class TradingDashboardAPI {
     generateWebhook() {
         return `${this.baseUrl}/api/trading-data?format=gamma&timestamp=${Date.now()}`;
     }
+
+    // Get AI insights for trading data
+    async getAIInsights(prompt = 'Analyze my trading performance and provide actionable insights') {
+        try {
+            const trades = JSON.parse(localStorage.getItem('tradingData')) || [];
+            const propFirms = JSON.parse(localStorage.getItem('propFirmsV2_2024-01')) || [];
+            const data = this.exportForGamma();
+            
+            const response = await fetch('/api/ai-insights', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    data: {
+                        summary: data.summary,
+                        metrics: data.metrics,
+                        recentTrades: trades.slice(-10),
+                        propFirms: propFirms
+                    }
+                })
+            });
+            
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            return { error: error.message, status: 'error' };
+        }
+    }
 }
 
 // Initialize API
 window.TradingAPI = new TradingDashboardAPI();
 
-// Add export button to dashboard
+// Add export and AI buttons to dashboard
 function addExportButton() {
     const exportBtn = document.createElement('button');
     exportBtn.textContent = '📊 Export for Gamma';
@@ -512,8 +542,37 @@ function addExportButton() {
         alert(result);
     };
     
+    const aiBtn = document.createElement('button');
+    aiBtn.textContent = '🤖 AI Insights';
+    aiBtn.className = 'btn';
+    aiBtn.style.background = '#28a745';
+    aiBtn.style.marginLeft = '10px';
+    aiBtn.onclick = async () => {
+        aiBtn.textContent = '⏳ Analyzing...';
+        const result = await window.TradingAPI.getAIInsights();
+        aiBtn.textContent = '🤖 AI Insights';
+        
+        if (result.status === 'success') {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center';
+            modal.innerHTML = `
+                <div style="background:white;padding:20px;border-radius:10px;max-width:80%;max-height:80%;overflow-y:auto">
+                    <h3>AI Trading Insights</h3>
+                    <p style="white-space:pre-wrap">${result.insight}</p>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background:#dc3545;color:white;border:none;padding:10px 20px;border-radius:5px;cursor:pointer">Close</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        } else {
+            alert('Error: ' + (result.error || 'Failed to get AI insights'));
+        }
+    };
+    
     const navbar = document.querySelector('.navbar div');
-    if (navbar) navbar.appendChild(exportBtn);
+    if (navbar) {
+        navbar.appendChild(exportBtn);
+        navbar.appendChild(aiBtn);
+    }
 }
 
 // Auto-initialize when DOM loads

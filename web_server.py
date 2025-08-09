@@ -1,6 +1,12 @@
 from flask import Flask, render_template_string, send_from_directory, request, jsonify
 import os
 import json
+from dotenv import load_dotenv
+import openai
+
+# Load environment variables
+load_dotenv()
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 app = Flask(__name__)
 
@@ -87,6 +93,34 @@ def api_trading_data():
         })
     
     return jsonify(sample_data)
+
+# OpenAI API endpoint for trading insights
+@app.route('/api/ai-insights', methods=['POST'])
+def ai_insights():
+    try:
+        data = request.get_json()
+        prompt = data.get('prompt', 'Analyze this trading data')
+        trading_data = data.get('data', {})
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a professional trading analyst. Provide concise, actionable insights based on trading data."},
+                {"role": "user", "content": f"{prompt}\n\nTrading Data: {json.dumps(trading_data)}"}
+            ],
+            max_tokens=500,
+            temperature=0.7
+        )
+        
+        return jsonify({
+            "insight": response.choices[0].message.content,
+            "status": "success"
+        })
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "status": "error"
+        }), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
