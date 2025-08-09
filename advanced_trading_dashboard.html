@@ -2082,14 +2082,14 @@
             }
         }
         
-        function updateCalendarView() {
+        async function updateCalendarView() {
             saveFilterStates();
             const filteredTrades = getFilteredTrades();
             const rTarget = parseInt(document.getElementById('rTargetFilter').value);
-            updateTradingCalendar(filteredTrades, rTarget);
+            await updateTradingCalendar(filteredTrades, rTarget);
         }
         
-        function updateTradingCalendar(filteredTrades, rTarget) {
+        async function updateTradingCalendar(filteredTrades, rTarget) {
             // Load from database instead of localStorage
             await loadTradesFromDB();
             filteredTrades = getFilteredTrades();
