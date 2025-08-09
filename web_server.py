@@ -9,7 +9,10 @@ load_dotenv()
 
 # Initialize OpenAI client only if API key is available
 api_key = os.getenv('OPENAI_API_KEY')
-client = OpenAI(api_key=api_key) if api_key else None
+try:
+    client = OpenAI(api_key=api_key) if api_key else None
+except Exception:
+    client = None
 
 app = Flask(__name__)
 
