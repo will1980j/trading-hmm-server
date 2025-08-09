@@ -544,10 +544,13 @@
                 console.log('⚠️ Database error:', error);
             }
             
-            trades.push(trade);
+            // Reload trades from database after adding
+            setTimeout(() => {
+                loadTrades();
+            }, 500);
+            
             saveTrades();
-            console.log('Trade saved. Total trades:', trades.length);
-            updateDisplay();
+            console.log('Trade saved to database');
             clearInputs();
         }
         
@@ -625,7 +628,7 @@
         }
         
         function saveTrades() {
-            localStorage.setItem('tradingData', JSON.stringify(trades));
+            // No longer saving to localStorage - data is in database
             localStorage.setItem('lastUpdated', new Date().toLocaleString());
         }
         
@@ -872,12 +875,9 @@
         
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Loading trades from localStorage...');
-            trades = JSON.parse(localStorage.getItem('tradingData')) || [];
-            console.log('Loaded', trades.length, 'trades');
-            
+            console.log('Loading trades from database...');
+            loadTrades();
             loadTheme();
-            updateDisplay();
             updateDateTime();
             setInterval(updateDateTime, 30000);
         });

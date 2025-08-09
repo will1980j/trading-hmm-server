@@ -398,6 +398,46 @@ def health_check():
         "database": "connected" if db_enabled else "offline"
     })
 
+# Prop firm endpoints
+@app.route('/api/prop-firms')
+def get_prop_firms():
+    try:
+        month_year = request.args.get('month', '2024-08')
+        if not db_enabled or not db:
+            return jsonify({"firms": []})
+        
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            SELECT firm_name, status, account_size, monthly_profit 
+            FROM prop_firms WHERE month_year = %s
+        """, (month_year,))
+        
+        firms = []
+        for row in cursor.fetchall():
+            firms.append({
+                'firmName': row[0],
+                'status': row[1], 
+                'accountSize': float(row[2]) if row[2] else 0,
+                'monthlyProfit': float(row[3]) if row[3] else 0
+            })
+        
+        return jsonify({"firms": firms})
+    except:
+        return jsonify({"firms": []})
+
+@app.route('/api/scrape-propfirms')
+def scrape_propfirms():
+    try:
+        from propfirm_scraper import run_daily_scraper
+        firms_found = run_daily_scraper()
+        return jsonify({
+            "status": "success",
+            "firms_found": firms_found,
+            "message": f"Scraped {firms_found} prop firms"
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Starting server on port {port}")

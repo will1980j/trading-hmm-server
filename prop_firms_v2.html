@@ -552,6 +552,7 @@
                 </select>
                 <button class="btn" onclick="autoResearchFirm()" style="background: #17a2b8;">🔍 Research</button>
                 <button class="btn" onclick="addPropFirm()">Add Firm</button>
+                <button class="btn" onclick="scrapePropFirms()" style="background: #17a2b8; margin-left: 10px;">🔍 Auto-Find Deals</button>
             </div>
         </div>
         
@@ -644,7 +645,19 @@
     
     <script>
         let currentMonth = '2024-01';
-        let propFirms = JSON.parse(localStorage.getItem(`propFirmsV2_${currentMonth}`)) || [];
+        let propFirms = [];
+        
+        // Load prop firms from database
+        async function loadPropFirms() {
+            try {
+                const response = await fetch(`/api/prop-firms?month=${currentMonth}`);
+                const data = await response.json();
+                propFirms = data.firms || [];
+                updateDashboard();
+            } catch (error) {
+                console.error('Failed to load prop firms:', error);
+            }
+        }
         let currentFilter = 'all';
         let exchangeRates = { USD: 1.5, EUR: 1.65, GBP: 1.9, AUD: 1.0 };
         
@@ -672,12 +685,10 @@
         const firmResearcher = new PropFirmResearcher();
         
         function selectMonth(month) {
-            localStorage.setItem(`propFirmsV2_${currentMonth}`, JSON.stringify(propFirms));
             currentMonth = month;
-            propFirms = JSON.parse(localStorage.getItem(`propFirmsV2_${currentMonth}`)) || [];
             document.querySelectorAll('.month-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
-            updateDashboard();
+            loadPropFirms();
         }
         
         async function autoResearchFirm() {
@@ -1090,12 +1101,40 @@
             changeTheme();
         }
         
+        async function scrapePropFirms() {
+            try {
+                const button = event.target;
+                button.textContent = '🔍 Scraping...';
+                button.disabled = true;
+                
+                const response = await fetch('/api/scrape-propfirms');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    alert(`✅ Found ${data.firms_found} new prop firm deals!`);
+                    loadPropFirms(); // Refresh the display
+                } else {
+                    alert('⚠️ Scraping failed: ' + (data.error || 'Unknown error'));
+                }
+                
+            } catch (error) {
+                alert('❌ Scraping error: ' + error.message);
+            } finally {
+                const button = event.target;
+                button.textContent = '🔍 Auto-Find Deals';
+                button.disabled = false;
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             loadTheme();
-            loadSampleData();
-            updateDashboard();
+            loadPropFirms();
             updateDateTime();
             setInterval(updateDateTime, 30000);
+            // Auto-refresh prop firm data every 60 seconds
+            setInterval(loadPropFirms, 60000);
+            // Auto-scrape new deals daily
+            setInterval(scrapePropFirms, 24 * 60 * 60 * 1000);
         });
     </script>
 <script src="/chatbot.js"></script>`n</body>

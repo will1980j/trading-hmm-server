@@ -58,6 +58,24 @@ class RailwayDB:
                 )
             ''')
             
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS prop_firms (
+                    id SERIAL PRIMARY KEY,
+                    firm_name VARCHAR(100) NOT NULL,
+                    website VARCHAR(200),
+                    status VARCHAR(20) NOT NULL,
+                    market_type VARCHAR(20),
+                    account_size DECIMAL(15,2),
+                    max_funding DECIMAL(15,2),
+                    profit_split DECIMAL(5,2),
+                    currency VARCHAR(5),
+                    monthly_profit DECIMAL(15,2) DEFAULT 0,
+                    month_year VARCHAR(7) NOT NULL,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            ''')
+            
             # Indexes
             cur.execute('CREATE INDEX IF NOT EXISTS idx_market_data_symbol_time ON market_data(symbol, timestamp DESC)')
             
