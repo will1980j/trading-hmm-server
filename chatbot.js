@@ -399,24 +399,24 @@ class TradingChatbot {
         chatWindow.innerHTML = `
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; font-weight: bold;">
                 🤖 Trading AI Assistant
-                <span onclick="tradingChatbot.toggleChat()" style="float: right; cursor: pointer; font-size: 18px;">×</span>
+                <span onclick="window.tradingChatbot.toggleChat()" style="float: right; cursor: pointer; font-size: 18px;">×</span>
             </div>
             <div id="chat-messages" style="flex: 1; padding: 15px; overflow-y: auto; background: #f8f9fa;"></div>
             <div style="padding: 15px; border-top: 1px solid #eee; background: white;">
                 <div style="display: flex; gap: 10px;">
                     <input id="chat-input" type="text" placeholder="Ask about your trading..." 
                            style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none;">
-                    <button onclick="tradingChatbot.sendMessage()" 
+                    <button onclick="window.tradingChatbot.sendMessage()" 
                             style="background: #667eea; color: white; border: none; padding: 10px 15px; border-radius: 20px; cursor: pointer;">Send</button>
                 </div>
                 <div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
-                    <button onclick="tradingChatbot.quickAction('gamma-report')" 
+                    <button onclick="window.tradingChatbot.quickAction('gamma-report')" 
                             style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">📊 Generate Report</button>
-                    <button onclick="tradingChatbot.quickAction('predictions')" 
+                    <button onclick="window.tradingChatbot.quickAction('predictions')" 
                             style="background: #17a2b8; color: white; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">🔮 Predictions</button>
-                    <button onclick="tradingChatbot.quickAction('alerts')" 
+                    <button onclick="window.tradingChatbot.quickAction('alerts')" 
                             style="background: #ffc107; color: black; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">🚨 Alerts</button>
-                    <button onclick="tradingChatbot.toggleVoice()" 
+                    <button onclick="window.tradingChatbot.toggleVoice()" 
                             style="background: #6f42c1; color: white; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">🎤 Voice</button>
                 </div>
             </div>
@@ -452,9 +452,10 @@ class TradingChatbot {
             padding: 10px 15px;
             border-radius: 15px;
             max-width: 80%;
+            line-height: 1.4;
             ${role === 'user' ? 
-                'background: #667eea; color: white; margin-left: auto; text-align: right; text-shadow: 0 1px 2px rgba(0,0,0,0.3);' : 
-                'background: white; border: 1px solid #eee; margin-right: auto; color: #000; text-shadow: 0 1px 1px rgba(255,255,255,0.8);'
+                'background: #667eea; color: white; margin-left: auto; text-align: right;' : 
+                'background: #f8f9fa; border: 1px solid #dee2e6; margin-right: auto; color: #212529;'
             }
         `;
         messageDiv.innerHTML = content.replace(/\n/g, '<br>');
