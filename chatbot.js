@@ -45,6 +45,11 @@ class TradingChatbot {
         this.businessMetrics = JSON.parse(localStorage.getItem('businessMetrics')) || {};
         this.taxData = JSON.parse(localStorage.getItem('taxData')) || {};
         this.propertyPortfolio = JSON.parse(localStorage.getItem('propertyData')) || [];
+        
+        // Ensure all data arrays exist
+        if (!Array.isArray(this.tradingData)) this.tradingData = [];
+        if (!Array.isArray(this.propFirms)) this.propFirms = [];
+        if (!Array.isArray(this.propertyPortfolio)) this.propertyPortfolio = [];
     }
 
     analyzeBusinessMetrics() {
@@ -245,10 +250,10 @@ Provide specific, actionable advice using the comprehensive business data provid
     }
 
     analyzeTradingPerformance() {
-        const trades = this.tradingData;
-        const wins = trades.filter(t => t.outcome === 'win').length;
+        const trades = this.tradingData || [];
+        const wins = trades.filter(t => t && t.outcome === 'win').length;
         const winRate = trades.length ? (wins / trades.length * 100).toFixed(1) : 0;
-        const avgProfit = trades.length ? trades.reduce((sum, t) => sum + (t.profit || 0), 0) / trades.length : 0;
+        const avgProfit = trades.length ? trades.reduce((sum, t) => sum + ((t && t.profit) || 0), 0) / trades.length : 0;
         
         return {
             totalTrades: trades.length,
@@ -260,9 +265,9 @@ Provide specific, actionable advice using the comprehensive business data provid
     }
 
     analyzePropFirmProgress() {
-        const firms = this.propFirms;
-        const funded = firms.filter(f => f.status === 'funded').length;
-        const challenges = firms.filter(f => f.status === 'challenge').length;
+        const firms = this.propFirms || [];
+        const funded = firms.filter(f => f && f.status === 'funded').length;
+        const challenges = firms.filter(f => f && f.status === 'challenge').length;
         
         return {
             fundedAccounts: funded,
