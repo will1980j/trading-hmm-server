@@ -3726,8 +3726,8 @@
                 weeklyReturns.push(weekReturn);
             }
             
-            const trend = weeklyReturns[weeklyReturns.length - 1] > weeklyReturns[0] ? 'positive' : 'negative';
-            const strength = Math.abs(weeklyReturns[weeklyReturns.length - 1] - weeklyReturns[0]) > 2 ? 'strong' : 'weak';
+            const trend = (weeklyReturns.length > 0 && weeklyReturns[weeklyReturns.length - 1] > weeklyReturns[0]) ? 'positive' : 'negative';
+            const strength = (weeklyReturns.length > 0 && Math.abs(weeklyReturns[weeklyReturns.length - 1] - weeklyReturns[0]) > 2) ? 'strong' : 'weak';
             const prediction = trend === 'positive' ? 'continued growth' : 'potential reversal';
             
             return { direction: trend, strength, prediction };
@@ -3748,7 +3748,7 @@
             const bestMonths = monthlyData.map((perf, index) => ({ month: index, perf })).sort((a, b) => b.perf - a.perf).slice(0, 3);
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             
-            const pattern = bestMonths.length > 0 ? `${monthNames[bestMonths[0].month]}-${monthNames[bestMonths[1]?.month || bestMonths[0].month]} strength` : 'developing';
+            const pattern = bestMonths.length > 0 ? `${monthNames[bestMonths[0]?.month] || 'Unknown'}-${monthNames[bestMonths[1]?.month || bestMonths[0]?.month] || 'Unknown'} strength` : 'developing';
             const recommendation = `Focus trading during ${monthNames[bestMonths[0]?.month || 0]} for optimal results.`;
             
             return { pattern, recommendation };
@@ -3809,12 +3809,14 @@
             trades.forEach(trade => {
                 const date = new Date(trade.date + 'T00:00:00');
                 const month = date.getMonth();
-                monthData[month].push(getRValue(trade, rTarget));
+                if (monthData[month]) {
+                    monthData[month].push(getRValue(trade, rTarget));
+                }
             });
             
             return Object.keys(monthData).map(month => {
                 const monthTrades = monthData[month];
-                return monthTrades.length > 0 ? monthTrades.reduce((sum, r) => sum + r, 0) / monthTrades.length : 0;
+                return (monthTrades && monthTrades.length > 0) ? monthTrades.reduce((sum, r) => sum + r, 0) / monthTrades.length : 0;
             });
         }
         
