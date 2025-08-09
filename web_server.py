@@ -215,9 +215,18 @@ Provide specific, actionable advice with Australian context. Think like a CFO, C
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
-        data = request.get_json()
+        # Handle different content types
+        if request.is_json:
+            data = request.get_json()
+        else:
+            # Try to parse as JSON from raw data
+            raw_data = request.get_data(as_text=True)
+            data = json.loads(raw_data) if raw_data else None
+        
         if not data:
-            return jsonify({"error": "No data provided"}), 400
+            return jsonify({"error": "No JSON data provided"}), 400
+        
+        print(f"Webhook received: {data}")  # Debug log
         
         if db_enabled and db:
             # Store market data if provided
