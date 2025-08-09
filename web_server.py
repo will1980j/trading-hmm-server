@@ -122,17 +122,65 @@ def ai_insights():
             
         data = request.get_json()
         prompt = data.get('prompt', 'How can I trade better?')
+        trading_data = data.get('data', {})
+        trading_data = data.get('data', {})
         print(f"Prompt: {prompt[:50]}...")
+        print(f"Has trading data: {bool(trading_data)}")
         
         print("Making OpenAI API call...")
+        # Enhanced system prompt with trading context
+        system_prompt = """
+You are the ultimate Trading Empire Advisor - a multi-disciplinary expert combining:
+
+🎯 TRADING MASTERY:
+- ICT concepts (Fair Value Gaps, Order Blocks, Liquidity Sweeps, Market Structure)
+- Futures markets (ES, NQ, YM, RTY) and Forex (majors, minors, exotics)
+- TradingView platform expertise (indicators, Pine Script, alerts, strategies)
+- Prop firm optimization (FTMO, MyForexFunds, The5ers, etc.)
+- Risk management and systematic trading approaches
+
+💼 BUSINESS & FINANCE:
+- Trading business structure and scaling strategies
+- Australian tax optimization for traders (CGT, business deductions, structures)
+- Cash flow management and profit allocation systems
+- Technology stack development and platform integration
+- Performance analytics and business intelligence
+
+🏠 WEALTH CREATION & PROPERTY:
+- Property investment using trading profits (residential, commercial, REIT)
+- Australian property market analysis and financing strategies
+- Portfolio diversification beyond trading (stocks, bonds, alternatives)
+- Wealth preservation and generational planning
+- Investment property tax strategies and depreciation
+
+🚀 STRATEGIC GROWTH:
+- Platform development and feature enhancement
+- Revenue stream diversification (signals, education, managed accounts)
+- Team building and operational systems
+- Market expansion and competitive positioning
+- Exit strategies and business valuation
+
+Provide specific, actionable advice with Australian context. Think like a CFO, CTO, and wealth advisor combined.
+"""
+        
+        # Add trading context if available
+        context_info = ""
+        if trading_data.get('summary'):
+            summary = trading_data['summary']
+            context_info = f"\n\nTrader's Current Stats:\n- Total Trades: {summary.get('totalTrades', 'N/A')}\n- Win Rate: {summary.get('winRate', 'N/A')}\n- Funded Accounts: {summary.get('fundedAccounts', 'N/A')}"
+        
+        if trading_data.get('recentTrades'):
+            recent = trading_data['recentTrades'][-3:]  # Last 3 trades
+            context_info += f"\n\nRecent Trades: {len(recent)} trades with outcomes: {[t.get('outcome', 'unknown') for t in recent]}"
+        
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a professional ICT trading analyst. Provide concise, actionable trading advice."},
+                {"role": "system", "content": system_prompt + context_info},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=300,
-            temperature=0.7
+            max_tokens=500,
+            temperature=0.8
         )
         
         print("OpenAI API call successful")

@@ -237,6 +237,282 @@ def predict():
         logger.error(f"Prediction endpoint error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/ai-insights', methods=['POST'])
+def ai_insights():
+    """Enhanced AI insights with business intelligence"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        prompt = data.get('prompt', '')
+        context_data = data.get('data', {})
+        
+        # Analyze the prompt to determine response type
+        prompt_lower = prompt.lower()
+        
+        # Generate intelligent response based on context
+        if 'tax' in prompt_lower or 'accounting' in prompt_lower:
+            insight = generate_tax_advice(prompt, context_data)
+        elif 'prop' in prompt_lower or 'challenge' in prompt_lower:
+            insight = generate_prop_firm_advice(prompt, context_data)
+        elif 'property' in prompt_lower or 'invest' in prompt_lower:
+            insight = generate_investment_advice(prompt, context_data)
+        elif 'business' in prompt_lower or 'scale' in prompt_lower:
+            insight = generate_business_advice(prompt, context_data)
+        elif 'trade' in prompt_lower or 'ict' in prompt_lower:
+            insight = generate_trading_advice(prompt, context_data)
+        else:
+            insight = generate_strategic_advice(prompt, context_data)
+        
+        return jsonify({
+            'status': 'success',
+            'insight': insight,
+            'context': determine_context_type(prompt)
+        })
+        
+    except Exception as e:
+        logger.error(f"AI insights error: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+def determine_context_type(prompt):
+    """Determine the context type for the response"""
+    prompt_lower = prompt.lower()
+    if 'tax' in prompt_lower: return 'Australian Tax & Accounting'
+    if 'prop' in prompt_lower: return 'Prop Firm Strategy'
+    if 'property' in prompt_lower: return 'Property Investment'
+    if 'business' in prompt_lower: return 'Business Growth'
+    if 'trade' in prompt_lower: return 'Trading Performance'
+    return 'Strategic Planning'
+
+def generate_tax_advice(prompt, data):
+    """Generate Australian tax optimization advice"""
+    trading_data = data.get('tradingData', [])
+    total_profit = sum([t.get('profit', 0) for t in trading_data])
+    
+    advice = f"🇦🇺 **AUSTRALIAN TAX OPTIMIZATION**\n\n"
+    
+    if total_profit > 100000:
+        advice += "📊 **RECOMMENDED STRUCTURE:** Company + Discretionary Trust\n"
+        advice += f"• Current trading profit: ${total_profit:,.0f}\n"
+        advice += "• Potential tax savings: 15-25% through structure optimization\n"
+        advice += "• Company tax rate: 25-30% vs personal rates up to 47%\n\n"
+        
+        advice += "💡 **IMMEDIATE ACTIONS:**\n"
+        advice += "• Set up trading company for business income treatment\n"
+        advice += "• Establish discretionary trust for income distribution\n"
+        advice += "• Maximize super contributions ($27,500 concessional)\n"
+        advice += "• Track all deductible expenses (software, data, equipment)\n\n"
+    else:
+        advice += "📊 **CURRENT STRUCTURE:** Optimize as sole trader initially\n"
+        advice += f"• Trading profit: ${total_profit:,.0f}\n"
+        advice += "• Focus on expense deductions and super contributions\n\n"
+    
+    advice += "📋 **DEDUCTIBLE EXPENSES:**\n"
+    advice += "• Trading software & data feeds\n"
+    advice += "• Home office expenses (percentage basis)\n"
+    advice += "• Computer equipment & hardware\n"
+    advice += "• Professional development & education\n"
+    advice += "• Accounting & legal fees\n\n"
+    
+    advice += "⚖️ **COMPLIANCE:** Maintain detailed records, quarterly BAS if GST registered"
+    
+    return advice
+
+def generate_prop_firm_advice(prompt, data):
+    """Generate prop firm strategy advice"""
+    prop_firms = data.get('propFirms', [])
+    funded_count = len([f for f in prop_firms if f.get('status') == 'funded'])
+    challenge_count = len([f for f in prop_firms if f.get('status') == 'challenge'])
+    
+    advice = f"🏆 **PROP FIRM MASTERY STRATEGY**\n\n"
+    advice += f"📊 **CURRENT STATUS:**\n"
+    advice += f"• Funded accounts: {funded_count}\n"
+    advice += f"• Active challenges: {challenge_count}\n\n"
+    
+    if funded_count < 3:
+        advice += "🎯 **PRIORITY:** Scale to 3+ funded accounts\n\n"
+        advice += "💡 **CHALLENGE OPTIMIZATION:**\n"
+        advice += "• Risk only 0.5-1% per trade in Phase 1\n"
+        advice += "• Focus on consistency over large profits\n"
+        advice += "• Trade only during London/NY overlap\n"
+        advice += "• Avoid high-impact news events\n\n"
+        
+        advice += "🏅 **RECOMMENDED FIRMS:**\n"
+        advice += "• FTMO: Most established, reliable payouts\n"
+        advice += "• FundedNext: Largest account sizes available\n"
+        advice += "• MyForexFunds: Fast payouts, good support\n\n"
+    else:
+        advice += "🚀 **SCALING PHASE:** Optimize funded account management\n\n"
+        advice += "💰 **PROFIT OPTIMIZATION:**\n"
+        advice += "• Scale position sizes gradually\n"
+        advice += "• Compound profits intelligently\n"
+        advice += "• Consider larger account challenges\n\n"
+    
+    advice += "📈 **ICT CONCEPTS FOR PROP FIRMS:**\n"
+    advice += "• Focus on institutional order flow\n"
+    advice += "• Trade fair value gaps and order blocks\n"
+    advice += "• Use market structure for entries\n"
+    advice += "• Maintain strict risk management\n\n"
+    
+    advice += "⚡ **NEXT STEPS:** Pass 2 more challenges this month, optimize tax structure for profits"
+    
+    return advice
+
+def generate_investment_advice(prompt, data):
+    """Generate property and investment advice"""
+    trading_data = data.get('tradingData', [])
+    total_profit = sum([t.get('profit', 0) for t in trading_data])
+    
+    advice = f"🏠 **PROPERTY & INVESTMENT STRATEGY**\n\n"
+    advice += f"💰 **AVAILABLE CAPITAL:** ${total_profit:,.0f} from trading\n\n"
+    
+    if total_profit > 50000:
+        advice += "🎯 **READY FOR PROPERTY INVESTMENT**\n\n"
+        advice += "🇦🇺 **AUSTRALIAN MARKETS:**\n"
+        advice += "• Brisbane: 4-6% yield, growth potential, infrastructure development\n"
+        advice += "• Melbourne: 3-5% yield, cultural hub, steady growth\n"
+        advice += "• Sydney: 2-4% yield, premium locations, capital growth focus\n\n"
+        
+        advice += "💡 **FINANCING STRATEGY:**\n"
+        advice += "• Use trading profits as deposit (20% minimum)\n"
+        advice += "• Interest-only loans for investment properties\n"
+        advice += "• Offset accounts for tax efficiency\n"
+        advice += "• Consider company/trust structure for ownership\n\n"
+        
+        advice += "🌍 **GLOBAL OPPORTUNITIES:**\n"
+        advice += "• USA: Strong rental yields, established markets\n"
+        advice += "• Singapore: Asian gateway, stable government\n"
+        advice += "• Dubai: Tax-free jurisdiction, tourism growth\n\n"
+    else:
+        advice += "📈 **BUILD CAPITAL FIRST**\n"
+        advice += "• Target $50K+ for property deposit\n"
+        advice += "• Continue scaling prop firm operations\n"
+        advice += "• Consider REITs for immediate exposure\n\n"
+    
+    advice += "🎯 **DIVERSIFICATION STRATEGY:**\n"
+    advice += "• 40% Property, 40% Stocks, 20% Alternatives\n"
+    advice += "• Geographic spread: Australia, US, Asia\n"
+    advice += "• Currency hedging for international investments\n\n"
+    
+    advice += "⚡ **NEXT STEPS:** Secure pre-approval, research growth corridors, optimize tax structure"
+    
+    return advice
+
+def generate_business_advice(prompt, data):
+    """Generate business growth and scaling advice"""
+    trading_data = data.get('tradingData', [])
+    prop_firms = data.get('propFirms', [])
+    
+    advice = f"🚀 **BUSINESS SCALING STRATEGY**\n\n"
+    
+    advice += "💼 **REVENUE DIVERSIFICATION:**\n"
+    advice += "• Trading: Multiple prop firm accounts\n"
+    advice += "• Education: ICT courses & mentoring\n"
+    advice += "• Technology: Custom trading tools\n"
+    advice += "• Consulting: Help others pass challenges\n\n"
+    
+    advice += "⚙️ **OPERATIONAL EFFICIENCY:**\n"
+    advice += "• Automate trade management & risk controls\n"
+    advice += "• Integrate accounting & reporting systems\n"
+    advice += "• Streamline customer onboarding\n"
+    advice += "• Document all processes & strategies\n\n"
+    
+    advice += "👥 **TEAM BUILDING:**\n"
+    advice += "• Hire specialist accountant for tax optimization\n"
+    advice += "• Consider virtual assistant for admin tasks\n"
+    advice += "• Partner with complementary service providers\n\n"
+    
+    advice += "📊 **PERFORMANCE METRICS:**\n"
+    advice += "• Track revenue per stream\n"
+    advice += "• Monitor customer acquisition costs\n"
+    advice += "• Measure operational efficiency gains\n\n"
+    
+    advice += "⚡ **IMMEDIATE FOCUS:** Scale prop firm operations, optimize tax structure, develop education products"
+    
+    return advice
+
+def generate_trading_advice(prompt, data):
+    """Generate trading performance advice"""
+    trading_data = data.get('tradingData', [])
+    if not trading_data:
+        return "📊 **TRADING ANALYSIS:** No recent trading data available. Start logging trades for personalized insights."
+    
+    wins = len([t for t in trading_data if t.get('outcome') == 'win'])
+    total = len(trading_data)
+    win_rate = (wins / total * 100) if total > 0 else 0
+    avg_profit = sum([t.get('profit', 0) for t in trading_data]) / total if total > 0 else 0
+    
+    advice = f"📊 **TRADING PERFORMANCE ANALYSIS**\n\n"
+    advice += f"📈 **CURRENT METRICS:**\n"
+    advice += f"• Win Rate: {win_rate:.1f}% ({wins}/{total} trades)\n"
+    advice += f"• Average P&L: ${avg_profit:.2f}\n"
+    advice += f"• Total Trades: {total}\n\n"
+    
+    if win_rate > 60:
+        advice += "🏆 **EXCELLENT PERFORMANCE:** You're trading at institutional level\n\n"
+        advice += "🎯 **OPTIMIZATION FOCUS:**\n"
+        advice += "• Scale position sizes gradually\n"
+        advice += "• Add more prop firm accounts\n"
+        advice += "• Document your edge for consistency\n\n"
+    elif win_rate > 45:
+        advice += "✅ **SOLID PERFORMANCE:** Good foundation to build on\n\n"
+        advice += "🎯 **IMPROVEMENT AREAS:**\n"
+        advice += "• Refine entry criteria for higher probability\n"
+        advice += "• Focus on risk-reward optimization\n"
+        advice += "• Analyze losing trades for patterns\n\n"
+    else:
+        advice += "⚠️ **NEEDS IMPROVEMENT:** Focus on consistency first\n\n"
+        advice += "🎯 **PRIORITY ACTIONS:**\n"
+        advice += "• Reduce position sizes until consistent\n"
+        advice += "• Back to basics: market structure & ICT concepts\n"
+        advice += "• Paper trade new strategies before live\n\n"
+    
+    advice += "💡 **ICT CONCEPTS TO MASTER:**\n"
+    advice += "• Fair Value Gaps for precise entries\n"
+    advice += "• Order Blocks for institutional levels\n"
+    advice += "• Market Structure for trend direction\n"
+    advice += "• Liquidity concepts for stop placement\n\n"
+    
+    advice += "⚡ **NEXT STEPS:** Focus on consistency, document your edge, scale gradually"
+    
+    return advice
+
+def generate_strategic_advice(prompt, data):
+    """Generate strategic planning advice"""
+    advice = f"🎯 **STRATEGIC EMPIRE PLANNING**\n\n"
+    
+    advice += "📋 **SHORT-TERM (3 months):**\n"
+    advice += "• Pass 3+ prop firm challenges\n"
+    advice += "• Optimize tax structure (company + trust)\n"
+    advice += "• Build 6-month emergency fund\n"
+    advice += "• Document all trading processes\n\n"
+    
+    advice += "🚀 **MEDIUM-TERM (12 months):**\n"
+    advice += "• Diversify revenue streams (education, tools)\n"
+    advice += "• Acquire first investment property\n"
+    advice += "• Build automated trading systems\n"
+    advice += "• Hire specialist team members\n\n"
+    
+    advice += "🏆 **LONG-TERM (3+ years):**\n"
+    advice += "• Build $10M+ net worth\n"
+    advice += "• Create passive income streams\n"
+    advice += "• Establish generational wealth structures\n"
+    advice += "• Consider business exit strategies\n\n"
+    
+    advice += "⚖️ **RISK MANAGEMENT:**\n"
+    advice += "• Never risk >2% per trade\n"
+    advice += "• Diversify across multiple income sources\n"
+    advice += "• Maintain adequate insurance coverage\n"
+    advice += "• Hedge against major market downturns\n\n"
+    
+    advice += "⚡ **IMMEDIATE PRIORITY:** Scale prop firm operations while optimizing tax efficiency"
+    
+    return advice
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
