@@ -32,11 +32,11 @@ def read_html_file(filename):
 # Main routes
 @app.route('/')
 def dashboard():
-    return read_html_file('dashboard_clean.html')
+    return read_html_file('advanced_trading_dashboard.html')
 
 @app.route('/dashboard')
 def advanced_dashboard():
-    return read_html_file('dashboard_clean.html')
+    return read_html_file('advanced_trading_dashboard.html')
 
 @app.route('/trade-manager')
 def trade_manager():
