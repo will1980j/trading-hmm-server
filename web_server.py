@@ -9,10 +9,14 @@ load_dotenv()
 
 # Initialize OpenAI client only if API key is available
 api_key = os.getenv('OPENAI_API_KEY')
-try:
-    client = OpenAI(api_key=api_key) if api_key else None
-except Exception:
-    client = None
+client = None
+if api_key:
+    try:
+        client = OpenAI(api_key=api_key)
+        print(f"OpenAI client initialized successfully")
+    except Exception as e:
+        print(f"OpenAI client initialization failed: {e}")
+        client = None
 
 app = Flask(__name__)
 
@@ -108,9 +112,6 @@ def api_trading_data():
 @app.route('/api/ai-insights', methods=['POST'])
 def ai_insights():
     try:
-        print(f"API Key exists: {bool(os.getenv('OPENAI_API_KEY'))}")
-        print(f"Client exists: {bool(client)}")
-        
         if not client:
             return jsonify({
                 "error": "OpenAI client not initialized",
@@ -120,7 +121,6 @@ def ai_insights():
         data = request.get_json()
         prompt = data.get('prompt', 'How can I trade better?')
         
-        print(f"Sending request to OpenAI...")
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -131,13 +131,11 @@ def ai_insights():
             temperature=0.7
         )
         
-        print(f"OpenAI response received")
         return jsonify({
             "insight": response.choices[0].message.content,
             "status": "success"
         })
     except Exception as e:
-        print(f"Error: {str(e)}")
         return jsonify({
             "error": str(e),
             "status": "error"
