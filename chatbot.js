@@ -102,8 +102,8 @@ class TradingChatbot {
             border-radius: 15px;
             max-width: 80%;
             ${role === 'user' ? 
-                'background: #667eea; color: white; margin-left: auto; text-align: right;' : 
-                'background: white; border: 1px solid #eee; margin-right: auto;'
+                'background: #667eea; color: white; margin-left: auto; text-align: right; text-shadow: 0 1px 2px rgba(0,0,0,0.3);' : 
+                'background: white; border: 1px solid #eee; margin-right: auto; color: #000; text-shadow: 0 1px 1px rgba(255,255,255,0.8);'
             }
         `;
         messageDiv.innerHTML = content.replace(/\n/g, '<br>');

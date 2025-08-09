@@ -108,31 +108,36 @@ def api_trading_data():
 @app.route('/api/ai-insights', methods=['POST'])
 def ai_insights():
     try:
+        print(f"API Key exists: {bool(os.getenv('OPENAI_API_KEY'))}")
+        print(f"Client exists: {bool(client)}")
+        
         if not client:
             return jsonify({
-                "error": "OpenAI API key not configured",
+                "error": "OpenAI client not initialized",
                 "status": "error"
             }), 500
             
         data = request.get_json()
-        prompt = data.get('prompt', 'Analyze this trading data')
-        trading_data = data.get('data', {})
+        prompt = data.get('prompt', 'How can I trade better?')
         
+        print(f"Sending request to OpenAI...")
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a professional ICT trading analyst specializing in institutional concepts, prop firm trading, Fair Value Gaps, Order Blocks, and risk management. Provide concise, actionable insights."},
-                {"role": "user", "content": f"{prompt}\n\nTrading Data: {json.dumps(trading_data)}"}
+                {"role": "system", "content": "You are a professional ICT trading analyst. Provide concise, actionable trading advice."},
+                {"role": "user", "content": prompt}
             ],
-            max_tokens=500,
+            max_tokens=300,
             temperature=0.7
         )
         
+        print(f"OpenAI response received")
         return jsonify({
             "insight": response.choices[0].message.content,
             "status": "success"
         })
     except Exception as e:
+        print(f"Error: {str(e)}")
         return jsonify({
             "error": str(e),
             "status": "error"
