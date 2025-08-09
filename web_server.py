@@ -112,7 +112,9 @@ def api_trading_data():
 @app.route('/api/ai-insights', methods=['POST'])
 def ai_insights():
     try:
+        print("AI insights endpoint called")
         if not client:
+            print("Client not available")
             return jsonify({
                 "error": "OpenAI client not initialized",
                 "status": "error"
@@ -120,7 +122,9 @@ def ai_insights():
             
         data = request.get_json()
         prompt = data.get('prompt', 'How can I trade better?')
+        print(f"Prompt: {prompt[:50]}...")
         
+        print("Making OpenAI API call...")
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -131,11 +135,13 @@ def ai_insights():
             temperature=0.7
         )
         
+        print("OpenAI API call successful")
         return jsonify({
             "insight": response.choices[0].message.content,
             "status": "success"
         })
     except Exception as e:
+        print(f"Error in ai_insights: {str(e)}")
         return jsonify({
             "error": str(e),
             "status": "error"
