@@ -493,11 +493,45 @@
             try {
                 const response = await fetch('/api/trades');
                 const data = await response.json();
-                trades = data.trades || [];
+                
+                if (data.trades) {
+                    trades = data.trades.map(t => ({
+                        id: t.id || Date.now(),
+                        date: t.created_at ? t.created_at.split('T')[0] : '2024-08-06',
+                        bias: t.bias || t.signal_type || 'LONG',
+                        session: extractSession(t.reason) || 'LONDON',
+                        breakeven: extractBreakeven(t.reason),
+                        rScore: extractRScore(t.reason),
+                        entryPrice: t.entry || t.entry_price || 0,
+                        stopLoss: 0,
+                        r1: extractRScore(t.reason), r2: extractRScore(t.reason), r3: extractRScore(t.reason), r4: extractRScore(t.reason), r5: extractRScore(t.reason),
+                        r6: extractRScore(t.reason), r7: extractRScore(t.reason), r8: extractRScore(t.reason), r9: extractRScore(t.reason), r10: extractRScore(t.reason),
+                        r11: extractRScore(t.reason), r12: extractRScore(t.reason), r13: extractRScore(t.reason), r14: extractRScore(t.reason), r15: extractRScore(t.reason),
+                        r16: extractRScore(t.reason), r17: extractRScore(t.reason), r18: extractRScore(t.reason), r19: extractRScore(t.reason), r20: extractRScore(t.reason)
+                    }));
+                    console.log('Loaded', trades.length, 'trades from database');
+                }
                 updateDisplay();
             } catch (error) {
                 console.error('Failed to load trades:', error);
             }
+        }
+        
+        function extractSession(reason) {
+            if (!reason) return 'LONDON';
+            const sessionMatch = reason.match(/(ASIA|LONDON|NY PRE MARKET|NEW YORK AM|NY LUNCH|NEW YORK PM)/i);
+            return sessionMatch ? sessionMatch[1].toUpperCase() : 'LONDON';
+        }
+        
+        function extractBreakeven(reason) {
+            if (!reason) return false;
+            return reason.toLowerCase().includes('breakeven') || reason.includes('0R');
+        }
+        
+        function extractRScore(reason) {
+            if (!reason) return 0;
+            const rMatch = reason.match(/(-?\d+(?:\.\d+)?)R/i);
+            return rMatch ? parseFloat(rMatch[1]) : 0;
         }
         
         async function addTrade() {
