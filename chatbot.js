@@ -399,24 +399,24 @@ class TradingChatbot {
         chatWindow.innerHTML = `
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; font-weight: bold;">
                 🤖 Trading AI Assistant
-                <span onclick="window.tradingChatbot.toggleChat()" style="float: right; cursor: pointer; font-size: 18px;">×</span>
+                <span id="chat-close-btn" style="float: right; cursor: pointer; font-size: 18px;">×</span>
             </div>
             <div id="chat-messages" style="flex: 1; padding: 15px; overflow-y: auto; background: #f8f9fa;"></div>
             <div style="padding: 15px; border-top: 1px solid #eee; background: white;">
                 <div style="display: flex; gap: 10px;">
                     <input id="chat-input" type="text" placeholder="Ask about your trading..." 
                            style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none;">
-                    <button onclick="window.tradingChatbot.sendMessage()" 
+                    <button id="chat-send-btn" 
                             style="background: #667eea; color: white; border: none; padding: 10px 15px; border-radius: 20px; cursor: pointer;">Send</button>
                 </div>
                 <div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
-                    <button onclick="window.tradingChatbot.quickAction('gamma-report')" 
+                    <button id="gamma-btn" 
                             style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">📊 Generate Report</button>
-                    <button onclick="window.tradingChatbot.quickAction('predictions')" 
+                    <button id="predictions-btn" 
                             style="background: #17a2b8; color: white; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">🔮 Predictions</button>
-                    <button onclick="window.tradingChatbot.quickAction('alerts')" 
+                    <button id="alerts-btn" 
                             style="background: #ffc107; color: black; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">🚨 Alerts</button>
-                    <button onclick="window.tradingChatbot.toggleVoice()" 
+                    <button id="voice-btn" 
                             style="background: #6f42c1; color: white; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">🎤 Voice</button>
                 </div>
             </div>
@@ -426,9 +426,12 @@ class TradingChatbot {
         document.body.appendChild(chatWindow);
 
         // Enter key support
-        document.getElementById('chat-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.sendMessage();
-        });
+        const chatInput = document.getElementById('chat-input');
+        if (chatInput) {
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.sendMessage();
+            });
+        }
 
         // Enhanced welcome with business intelligence
         const welcomeMsg = this.generateIntelligentWelcome();
@@ -436,6 +439,32 @@ class TradingChatbot {
         
         // Request notification permission
         this.requestNotificationPermission();
+        
+        // Setup event listeners
+        this.setupEventListeners();
+    }
+    
+    setupEventListeners() {
+        // Send button
+        const sendBtn = document.getElementById('chat-send-btn');
+        if (sendBtn) sendBtn.onclick = () => this.sendMessage();
+        
+        // Close button
+        const closeBtn = document.getElementById('chat-close-btn');
+        if (closeBtn) closeBtn.onclick = () => this.toggleChat();
+        
+        // Quick action buttons
+        const gammaBtn = document.getElementById('gamma-btn');
+        if (gammaBtn) gammaBtn.onclick = () => this.quickAction('gamma-report');
+        
+        const predictionsBtn = document.getElementById('predictions-btn');
+        if (predictionsBtn) predictionsBtn.onclick = () => this.quickAction('predictions');
+        
+        const alertsBtn = document.getElementById('alerts-btn');
+        if (alertsBtn) alertsBtn.onclick = () => this.quickAction('alerts');
+        
+        const voiceBtn = document.getElementById('voice-btn');
+        if (voiceBtn) voiceBtn.onclick = () => this.toggleVoice();
     }
 
     toggleChat() {
@@ -455,7 +484,7 @@ class TradingChatbot {
             line-height: 1.4;
             ${role === 'user' ? 
                 'background: #667eea; color: white; margin-left: auto; text-align: right;' : 
-                'background: #f8f9fa; border: 1px solid #dee2e6; margin-right: auto; color: #212529;'
+                'background: #ffffff; border: 1px solid #dee2e6; margin-right: auto; color: #333333; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'
             }
         `;
         messageDiv.innerHTML = content.replace(/\n/g, '<br>');
