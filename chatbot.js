@@ -355,6 +355,12 @@ class TradingChatbot {
     }
 
     createChatWidget() {
+        // Remove existing chat elements if they exist
+        const existingToggle = document.getElementById('chat-toggle');
+        const existingWindow = document.getElementById('chat-window');
+        if (existingToggle) existingToggle.remove();
+        if (existingWindow) existingWindow.remove();
+        
         // Chat toggle button
         const chatToggle = document.createElement('div');
         chatToggle.id = 'chat-toggle';
@@ -375,8 +381,9 @@ class TradingChatbot {
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             z-index: 9998;
             transition: all 0.3s ease;
+            pointer-events: auto;
         `;
-        chatToggle.onclick = () => this.toggleChat();
+        chatToggle.addEventListener('click', () => this.toggleChat());
 
         // Chat window
         const chatWindow = document.createElement('div');
@@ -425,6 +432,32 @@ class TradingChatbot {
         document.body.appendChild(chatToggle);
         document.body.appendChild(chatWindow);
 
+        // Add elements to DOM
+        document.body.appendChild(chatToggle);
+        document.body.appendChild(chatWindow);
+        
+        // Setup event listeners immediately after DOM insertion
+        setTimeout(() => {
+            this.setupEventListeners();
+            
+            // Enhanced welcome with business intelligence
+            const welcomeMsg = this.generateIntelligentWelcome();
+            this.addMessage('assistant', welcomeMsg);
+        }, 100);
+        
+        // Request notification permission
+        this.requestNotificationPermission();
+    }
+    
+    setupEventListeners() {
+        // Send button
+        const sendBtn = document.getElementById('chat-send-btn');
+        if (sendBtn) sendBtn.addEventListener('click', () => this.sendMessage());
+        
+        // Close button
+        const closeBtn = document.getElementById('chat-close-btn');
+        if (closeBtn) closeBtn.addEventListener('click', () => this.toggleChat());
+        
         // Enter key support
         const chatInput = document.getElementById('chat-input');
         if (chatInput) {
@@ -432,39 +465,19 @@ class TradingChatbot {
                 if (e.key === 'Enter') this.sendMessage();
             });
         }
-
-        // Enhanced welcome with business intelligence
-        const welcomeMsg = this.generateIntelligentWelcome();
-        this.addMessage('assistant', welcomeMsg);
-        
-        // Request notification permission
-        this.requestNotificationPermission();
-        
-        // Setup event listeners
-        this.setupEventListeners();
-    }
-    
-    setupEventListeners() {
-        // Send button
-        const sendBtn = document.getElementById('chat-send-btn');
-        if (sendBtn) sendBtn.onclick = () => this.sendMessage();
-        
-        // Close button
-        const closeBtn = document.getElementById('chat-close-btn');
-        if (closeBtn) closeBtn.onclick = () => this.toggleChat();
         
         // Quick action buttons
         const gammaBtn = document.getElementById('gamma-btn');
-        if (gammaBtn) gammaBtn.onclick = () => this.quickAction('gamma-report');
+        if (gammaBtn) gammaBtn.addEventListener('click', () => this.quickAction('gamma-report'));
         
         const predictionsBtn = document.getElementById('predictions-btn');
-        if (predictionsBtn) predictionsBtn.onclick = () => this.quickAction('predictions');
+        if (predictionsBtn) predictionsBtn.addEventListener('click', () => this.quickAction('predictions'));
         
         const alertsBtn = document.getElementById('alerts-btn');
-        if (alertsBtn) alertsBtn.onclick = () => this.quickAction('alerts');
+        if (alertsBtn) alertsBtn.addEventListener('click', () => this.quickAction('alerts'));
         
         const voiceBtn = document.getElementById('voice-btn');
-        if (voiceBtn) voiceBtn.onclick = () => this.toggleVoice();
+        if (voiceBtn) voiceBtn.addEventListener('click', () => this.toggleVoice());
     }
 
     toggleChat() {
