@@ -3,6 +3,9 @@ class TradingChatbot {
     constructor() {
         this.isOpen = false;
         this.messages = [];
+        this.tradingData = [];
+        this.propFirms = [];
+        this.businessIntelligence = {};
         this.knowledgeBase = this.initializeKnowledgeBase();
         this.init();
     }
@@ -53,6 +56,9 @@ class TradingChatbot {
     }
 
     analyzeBusinessMetrics() {
+        // Ensure data is loaded first
+        if (!this.tradingData) this.loadContext();
+        
         // Calculate key business intelligence metrics
         this.businessIntelligence = {
             tradingPerformance: this.analyzeTradingPerformance(),
