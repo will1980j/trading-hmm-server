@@ -1204,8 +1204,52 @@
     </div>
 
     <script>
-        window.trades = window.trades || [];
+        window.trades = [];
         window.charts = window.charts || {};
+        
+        // Load trades from database
+        async function loadTradesFromDB() {
+            try {
+                const response = await fetch('/api/trades');
+                const data = await response.json();
+                if (data.trades) {
+                    window.trades = data.trades.map(t => ({
+                        date: t.created_at ? t.created_at.split('T')[0] : '2024-08-06',
+                        bias: t.bias || 'LONG',
+                        session: extractSession(t.reason) || 'LONDON',
+                        breakeven: extractBreakeven(t.reason),
+                        rScore: extractRScore(t.reason),
+                        r1: extractRScore(t.reason), r2: extractRScore(t.reason), r3: extractRScore(t.reason), r4: extractRScore(t.reason), r5: extractRScore(t.reason),
+                        r6: extractRScore(t.reason), r7: extractRScore(t.reason), r8: extractRScore(t.reason), r9: extractRScore(t.reason), r10: extractRScore(t.reason),
+                        r11: extractRScore(t.reason), r12: extractRScore(t.reason), r13: extractRScore(t.reason), r14: extractRScore(t.reason), r15: extractRScore(t.reason),
+                        r16: extractRScore(t.reason), r17: extractRScore(t.reason), r18: extractRScore(t.reason), r19: extractRScore(t.reason), r20: extractRScore(t.reason)
+                    }));
+                    console.log('Loaded', window.trades.length, 'trades from database');
+                }
+            } catch (error) {
+                console.error('Failed to load trades from database:', error);
+            }
+        }
+        
+        function extractSession(reason) {
+            if (!reason) return 'LONDON';
+            if (reason.includes('LONDON')) return 'LONDON';
+            if (reason.includes('NY PRE MARKET')) return 'NY PRE MARKET';
+            if (reason.includes('NEW YORK AM')) return 'NEW YORK AM';
+            if (reason.includes('NY LUNCH')) return 'NY LUNCH';
+            if (reason.includes('NEW YORK PM')) return 'NEW YORK PM';
+            return 'LONDON';
+        }
+        
+        function extractBreakeven(reason) {
+            return reason && reason.includes('R') && !reason.includes('-1R');
+        }
+        
+        function extractRScore(reason) {
+            if (!reason) return 0;
+            const match = reason.match(/(-?\d+)R/);
+            return match ? parseInt(match[1]) : 0;
+        }
         
         function initCharts() {
   // Idempotent guard
@@ -1519,7 +1563,7 @@
         }
         
         function saveFilterStates() {
-            // Save session filters
+            // Save UI state only (not trade data)
             const sessionCheckboxes = document.querySelectorAll('.session-filter');
             const sessionStates = {};
             sessionCheckboxes.forEach(cb => {
@@ -1527,8 +1571,6 @@
             });
             localStorage.setItem('sessionFilters', JSON.stringify(sessionStates));
             localStorage.setItem('sessionAll', document.getElementById('sessionAll').checked);
-            
-            // Save other filters
             localStorage.setItem('rTargetFilter', document.getElementById('rTargetFilter').value);
             localStorage.setItem('biasFilter', document.getElementById('biasFilter').value);
             localStorage.setItem('breakevenFilter', document.getElementById('breakevenFilter').value);
@@ -1990,38 +2032,9 @@
             updateDashboard();
         }
         
-        function loadSampleData() {
-            const data = [
-                ['2024-08-06','LONG','LONDON',false,-1],['2024-08-06','LONG','LONDON',false,-1],['2024-08-06','LONG','LONDON',true,2],['2024-08-06','LONG','LONDON',true,23],['2024-08-06','LONG','LONDON',true,7],
-                ['2024-08-06','LONG','LONDON',true,8],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,7],
-                ['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',false,-1],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','SHORT','LONDON',true,9],['2024-08-06','SHORT','LONDON',true,1],
-                ['2024-08-06','SHORT','LONDON',false,-1],['2024-08-06','SHORT','NY PRE MARKET',true,2],['2024-08-06','SHORT','NY PRE MARKET',true,1],['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',true,5],
-                ['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',true,4],['2024-08-06','SHORT','NY PRE MARKET',false,-1],
-                ['2024-08-06','SHORT','NY PRE MARKET',true,1],['2024-08-06','SHORT','NY PRE MARKET',true,3],['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',true,1],['2024-08-06','SHORT','NY PRE MARKET',false,-1],
-                ['2024-08-06','SHORT','NY PRE MARKET',true,35],['2024-08-06','SHORT','NEW YORK AM',true,1],['2024-08-06','SHORT','NEW YORK AM',false,-1],['2024-08-06','LONG','NEW YORK AM',false,-1],['2024-08-06','LONG','NEW YORK AM',true,2],
-                ['2024-08-06','LONG','NEW YORK AM',true,0],['2024-08-06','LONG','NEW YORK AM',true,4],['2024-08-06','LONG','NEW YORK AM',true,31],['2024-08-06','LONG','NY LUNCH',false,-1],['2024-08-06','LONG','NY LUNCH',false,-1],
-                ['2024-08-06','LONG','NY LUNCH',false,-1],['2024-08-06','LONG','NY LUNCH',true,1],['2024-08-06','LONG','NEW YORK PM',false,-1],['2024-08-06','LONG','NEW YORK PM',false,-1],['2024-08-06','LONG','NEW YORK PM',true,46],
-                ['2024-08-06','LONG','NEW YORK PM',true,1],['2024-08-06','LONG','NEW YORK PM',true,1],['2024-08-06','LONG','NEW YORK PM',false,-1],['2024-08-06','LONG','NEW YORK PM',true,3],['2024-08-06','LONG','NEW YORK PM',false,-1],
-                ['2024-08-06','LONG','NEW YORK PM',true,2],['2024-08-06','LONG','NEW YORK PM',true,1],['2024-08-06','LONG','NEW YORK PM',true,1],['2024-08-07','LONG','LONDON',true,2],['2024-08-07','LONG','LONDON',false,-1],
-                ['2024-08-07','LONG','LONDON',false,-1],['2024-08-07','SHORT','LONDON',false,-1],['2024-08-07','SHORT','LONDON',true,1],['2024-08-07','LONG','LONDON',true,6],['2024-08-07','LONG','LONDON',true,2],
-                ['2024-08-07','LONG','LONDON',false,-1],['2024-08-07','LONG','LONDON',true,146],['2024-08-07','LONG','LONDON',true,6],['2024-08-07','LONG','LONDON',true,28],['2024-08-07','LONG','LONDON',false,-1],
-                ['2024-08-07','LONG','LONDON',true,43],['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','LONG','NY PRE MARKET',true,7],['2024-08-07','LONG','NY PRE MARKET',false,-1],
-                ['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','SHORT','NY PRE MARKET',false,-1],['2024-08-07','SHORT','NY PRE MARKET',false,-1],
-                ['2024-08-07','SHORT','NY PRE MARKET',true,2],['2024-08-07','SHORT','NEW YORK AM',false,-1],['2024-08-07','SHORT','NEW YORK AM',true,3],['2024-08-07','SHORT','NEW YORK AM',true,1],['2024-08-07','SHORT','NEW YORK AM',true,9],
-                ['2024-08-07','SHORT','NEW YORK AM',false,-1],['2024-08-07','SHORT','NEW YORK AM',true,2],['2024-08-07','SHORT','NEW YORK AM',true,3],['2024-08-07','SHORT','NY LUNCH',true,1],['2024-08-07','SHORT','NY LUNCH',false,-1],
-                ['2024-08-07','SHORT','NY LUNCH',true,8],['2024-08-07','SHORT','NEW YORK PM',true,6],['2024-08-07','SHORT','NEW YORK PM',false,-1],['2024-08-07','SHORT','NEW YORK PM',true,1],['2024-08-07','SHORT','NEW YORK PM',true,1],
-                ['2024-08-07','SHORT','NEW YORK PM',false,-1],['2024-08-07','SHORT','NEW YORK PM',false,-1],['2024-08-07','SHORT','NEW YORK PM',true,2],['2024-08-07','SHORT','NEW YORK PM',true,3],['2024-08-07','SHORT','NEW YORK PM',true,1],
-                ['2024-08-07','SHORT','NEW YORK PM',false,-1]
-            ];
-            
-            trades = data.map(d => ({
-                date: d[0], bias: d[1], session: d[2], 
-                breakeven: d[3], // Use the original breakeven flag from data
-                rScore: d[4],
-                r1: d[4], r2: d[4], r3: d[4], r4: d[4], r5: d[4], r6: d[4], r7: d[4], r8: d[4], r9: d[4], r10: d[4],
-                r11: d[4], r12: d[4], r13: d[4], r14: d[4], r15: d[4], r16: d[4], r17: d[4], r18: d[4], r19: d[4], r20: d[4]
-            }));
-            
+        // Load data from database instead of sample data
+        async function loadDatabaseData() {
+            await loadTradesFromDB();
             updateDashboard();
         }
         
@@ -2077,13 +2090,10 @@
         }
         
         function updateTradingCalendar(filteredTrades, rTarget) {
-            // Force sync with trade manager first
-            const managerTrades = JSON.parse(localStorage.getItem('tradingData')) || [];
-            if (managerTrades.length > 0) {
-                trades = managerTrades;
-                filteredTrades = getFilteredTrades();
-                console.log('Calendar synced with', trades.length, 'trades from manager');
-            }
+            // Load from database instead of localStorage
+            await loadTradesFromDB();
+            filteredTrades = getFilteredTrades();
+            console.log('Calendar loaded with', trades.length, 'trades from database');
             
             const calendar = document.getElementById('tradingCalendar');
             const view = document.getElementById('calendarView').value;

@@ -107,21 +107,34 @@ trades_data = [
 ]
 
 def upload_trades():
-    url = "https://web-production-cd33.up.railway.app/upload-trades"
+    url = "https://web-production-cd33.up.railway.app/webhook"
     
-    payload = {"trades": trades_data}
+    uploaded_count = 0
+    failed_count = 0
     
-    try:
-        response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
-        
-        if response.status_code == 200:
-            result = response.json()
-            print(f"SUCCESS: Uploaded {result['uploaded']}/{result['total']} trades")
-        else:
-            print(f"ERROR: {response.status_code} - {response.text}")
+    for i, trade in enumerate(trades_data):
+        try:
+            payload = {
+                "symbol": "NQ1!",
+                "signal_type": trade["bias"],
+                "entry_price": 0,
+                "confidence": abs(trade["rScore"]) / 10.0 if trade["rScore"] != 0 else 0.5,
+                "reason": f"{trade['session']} - {trade['rScore']}R - {trade['date']}"
+            }
             
-    except Exception as e:
-        print(f"FAILED: {e}")
+            response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
+            
+            if response.status_code == 200:
+                uploaded_count += 1
+                if (i + 1) % 10 == 0:
+                    print(f"Uploaded {i + 1}/96 trades...")
+            else:
+                failed_count += 1
+                
+        except Exception as e:
+            failed_count += 1
+    
+    print(f"SUCCESS: Uploaded {uploaded_count}/96 trades, {failed_count} failed")
 
 if __name__ == "__main__":
     print("Uploading 96 trades to database...")
