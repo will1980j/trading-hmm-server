@@ -242,6 +242,16 @@ def webhook():
                     'timestamp': data.get('timestamp')
                 })
             
+            # Store trading signal if provided
+            if 'signal_type' in data:
+                db.store_signal({
+                    'symbol': data.get('symbol', 'NQ1!'),
+                    'type': data.get('signal_type'),
+                    'entry': data.get('entry_price', 0),
+                    'confidence': data.get('confidence', 0.8),
+                    'reason': data.get('reason', 'Manual entry')
+                })
+            
             # Store ICT levels if provided
             for level_type in ['fvgs', 'order_blocks', 'liquidity_levels']:
                 for level in data.get(level_type, []):
@@ -256,6 +266,123 @@ def webhook():
         
         return jsonify({"status": "success", "database": "stored" if db_enabled else "offline"})
         
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Bulk trade upload
+@app.route('/upload-trades', methods=['POST'])
+def upload_trades():
+    try:
+        data = request.get_json()
+        trades = data.get('trades', [])
+        
+        if not db_enabled or not db:
+            return jsonify({"error": "Database not available"}), 500
+        
+        stored_count = 0
+        for trade in trades:
+            try:
+                db.store_signal({
+                    'symbol': 'NQ1!',
+                    'type': trade.get('bias', 'LONG'),
+                    'entry': trade.get('entryPrice', 0),
+                    'confidence': abs(trade.get('rScore', 0)) / 10,
+                    'reason': f"{trade.get('session', 'UNKNOWN')} - {trade.get('rScore', 0)}R - {trade.get('date', '')}"
+                })
+                stored_count += 1
+            except Exception as e:
+                print(f"Failed to store trade: {e}")
+        
+        return jsonify({
+            "status": "success",
+            "uploaded": stored_count,
+            "total": len(trades)
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Get trades from database
+@app.route('/api/trades')
+def get_trades():
+    try:
+        if not db_enabled or not db:
+            return jsonify({"trades": [], "error": "Database not available"})
+        
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            SELECT id, symbol, signal_type, entry_price, confidence, reason, 
+                   timestamp, created_at
+            FROM trading_signals 
+            ORDER BY created_at DESC 
+            LIMIT 100
+        """)
+        
+        trades = []
+        for row in cursor.fetchall():
+            trades.append({
+                'id': row['id'],
+                'symbol': row['symbol'],
+                'bias': row['signal_type'],
+                'entry': row['entry_price'],
+                'confidence': row['confidence'],
+                'reason': row['reason'],
+                'timestamp': str(row['timestamp']),
+                'created_at': str(row['created_at'])
+            })
+        
+        return jsonify({"trades": trades, "count": len(trades)})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Manual signal entry
+@app.route('/add-signal', methods=['POST'])
+def add_signal():
+    try:
+        data = request.get_json() or request.form.to_dict()
+        
+        if db_enabled and db:
+            result = db.store_signal({
+                'symbol': data.get('symbol', 'NQ1!'),
+                'type': data.get('signal_type', 'LONG'),
+                'entry': float(data.get('entry_price', 0)),
+                'confidence': float(data.get('confidence', 0.8)),
+                'reason': data.get('reason', 'Manual entry')
+            })
+            
+            return jsonify({
+                "status": "success", 
+                "message": "Signal stored successfully",
+                "data": data
+            })
+        else:
+            return jsonify({"error": "Database not available"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Get recent signals
+@app.route('/api/signals')
+def get_signals():
+    try:
+        if db_enabled and db:
+            # Get recent signals from database
+            cursor = db.conn.cursor()
+            cursor.execute("""
+                SELECT * FROM trading_signals 
+                ORDER BY created_at DESC 
+                LIMIT 20
+            """)
+            signals = cursor.fetchall()
+            
+            return jsonify({
+                "signals": [dict(signal) for signal in signals],
+                "count": len(signals)
+            })
+        else:
+            return jsonify({"error": "Database not available"}), 500
+            
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

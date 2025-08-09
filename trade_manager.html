@@ -485,10 +485,22 @@
     </div>
 
     <script>
-        let trades = JSON.parse(localStorage.getItem('tradingData')) || [];
+        let trades = [];
         let editingTradeId = null;
         
-        function addTrade() {
+        // Load trades from database
+        async function loadTrades() {
+            try {
+                const response = await fetch('/api/trades');
+                const data = await response.json();
+                trades = data.trades || [];
+                updateDisplay();
+            } catch (error) {
+                console.error('Failed to load trades:', error);
+            }
+        }
+        
+        async function addTrade() {
             const trade = {
                 id: Date.now(),
                 date: document.getElementById('tradeDate').value,
@@ -505,6 +517,31 @@
             // Set R values based on rScore
             for (let i = 1; i <= 20; i++) {
                 trade[`r${i}`] = trade.rScore;
+            }
+            
+            // Store in database
+            try {
+                const response = await fetch('/webhook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        symbol: 'NQ1!',
+                        signal_type: trade.bias,
+                        entry_price: trade.entryPrice,
+                        stop_loss: trade.stopLoss,
+                        confidence: Math.abs(trade.rScore) / 10, // Convert R to confidence
+                        reason: `${trade.session} session - ${trade.rScore}R`,
+                        trade_data: trade // Store full trade data
+                    })
+                });
+                
+                if (response.ok) {
+                    console.log('✅ Trade stored in database');
+                } else {
+                    console.log('⚠️ Database storage failed, saved locally only');
+                }
+            } catch (error) {
+                console.log('⚠️ Database error:', error);
             }
             
             trades.push(trade);
