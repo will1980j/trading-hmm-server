@@ -320,7 +320,8 @@ def get_trades():
             """)
         except Exception as e:
             db.conn.rollback()
-            print(f"Database query error: {str(e).replace('\n', ' ').replace('\r', ' ')}")
+            error_msg = str(e).replace('\n', ' ').replace('\r', ' ')
+            print(f"Database query error: {error_msg}")
             raise e
         
         trades = []
@@ -424,7 +425,8 @@ def get_prop_firms():
         
         return jsonify({"firms": firms})
     except Exception as e:
-        print(f"Prop firms query error: {str(e).replace('\n', ' ').replace('\r', ' ')}")
+        error_msg = str(e).replace('\n', ' ').replace('\r', ' ')
+        print(f"Prop firms query error: {error_msg}")
         return jsonify({"firms": []})
 
 @app.route('/api/scrape-propfirms')
