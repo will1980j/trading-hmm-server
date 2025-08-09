@@ -4,6 +4,17 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
+# Database integration
+try:
+    from database.railway_db import RailwayDB
+    db = RailwayDB()
+    db_enabled = True
+    print("✅ Database connected")
+except Exception as e:
+    print(f"❌ Database connection failed: {e}")
+    db = None
+    db_enabled = False
+
 # Load environment variables
 load_dotenv()
 
@@ -200,9 +211,46 @@ Provide specific, actionable advice with Australian context. Think like a CFO, C
             "status": "error"
         }), 500
 
+# Webhook for storing trading data
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        if db_enabled and db:
+            # Store market data if provided
+            if 'current_price' in data:
+                db.store_market_data(data.get('symbol', 'NQ1!'), {
+                    'close': data['current_price'],
+                    'timestamp': data.get('timestamp')
+                })
+            
+            # Store ICT levels if provided
+            for level_type in ['fvgs', 'order_blocks', 'liquidity_levels']:
+                for level in data.get(level_type, []):
+                    db.store_ict_level({
+                        'symbol': data.get('symbol', 'NQ1!'),
+                        'type': level_type.upper(),
+                        'top': level.get('top', 0),
+                        'bottom': level.get('bottom', 0),
+                        'strength': level.get('strength', 0.5),
+                        'active': level.get('active', True)
+                    })
+        
+        return jsonify({"status": "success", "database": "stored" if db_enabled else "offline"})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/health')
 def health_check():
-    return jsonify({"status": "healthy", "message": "Trading server running"})
+    return jsonify({
+        "status": "healthy", 
+        "message": "Trading server running",
+        "database": "connected" if db_enabled else "offline"
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

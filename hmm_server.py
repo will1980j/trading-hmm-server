@@ -10,6 +10,17 @@ import pytz
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
+# Database integration
+try:
+    from database.railway_db import RailwayDB
+    db = RailwayDB()
+    db_enabled = True
+    logging.info("Database connected")
+except Exception as e:
+    logging.error(f"Database connection failed: {e}")
+    db = None
+    db_enabled = False
+
 
 # ─── Setup ─────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
@@ -44,7 +55,7 @@ def analyze_opportunities():
     for z in active_zones:
         if not z["active"]: continue
         score = z["strength"]
-        opps.append({
+        opp = {
             "signal_type": "LONG" if z["direction"]=="BULL" else "SHORT",
             "strength": "STRONG" if score>0.7 else ("WEAK" if score>0.4 else "COUNTER"),
             "confluence_score": min(score,1.0),
@@ -52,7 +63,22 @@ def analyze_opportunities():
             "risk_reward": 2.5,
             "entry_zone": z,
             "reasoning": f"{z['type']} @{z['top']:.2f}-{z['bottom']:.2f}"
-        })
+        }
+        opps.append(opp)
+        
+        # Store in database if available
+        if db_enabled and db:
+            try:
+                db.store_signal({
+                    'symbol': symbol,
+                    'type': opp['signal_type'],
+                    'entry': (z['top'] + z['bottom']) / 2,
+                    'confidence': score,
+                    'reason': opp['reasoning']
+                })
+            except Exception as e:
+                logger.error(f"Database store error: {e}")
+                
     opportunities = sorted(opps, key=lambda o: o["confluence_score"], reverse=True)
 
 def get_analysis():
