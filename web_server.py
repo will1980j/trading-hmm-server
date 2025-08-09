@@ -212,8 +212,14 @@ Provide specific, actionable advice with Australian context. Think like a CFO, C
         }), 500
 
 # Webhook for storing trading data
-@app.route('/webhook', methods=['POST'])
+@app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
+    if request.method == 'GET':
+        return jsonify({
+            "message": "Webhook endpoint ready",
+            "database": "connected" if db_enabled else "offline",
+            "usage": "Send POST with JSON data"
+        })
     try:
         # Handle different content types
         if request.is_json:
