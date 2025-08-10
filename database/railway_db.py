@@ -12,7 +12,7 @@ class RailwayDB:
         # Railway automatically provides DATABASE_URL
         self.db_url = getenv('DATABASE_URL')
         if not self.db_url:
-            raise Exception("DATABASE_URL not found - add PostgreSQL service in Railway")
+            raise ConnectionError("DATABASE_URL not found - add PostgreSQL service in Railway")
         
         try:
             self.conn = connect(self.db_url, cursor_factory=RealDictCursor)
@@ -97,8 +97,10 @@ class RailwayDB:
                 )
             ''')
             
-            # Indexes
+            # Indexes for better performance
             cur.execute('CREATE INDEX IF NOT EXISTS idx_market_data_symbol_time ON market_data(symbol, timestamp DESC)')
+            cur.execute('CREATE INDEX IF NOT EXISTS idx_trading_signals_symbol ON trading_signals(symbol)')
+            cur.execute('CREATE INDEX IF NOT EXISTS idx_ict_levels_symbol ON ict_levels(symbol)')
             
         self.conn.commit()
     
@@ -110,7 +112,7 @@ class RailwayDB:
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 ''', (
                     symbol,
-                    datetime.now(timezone.utc),
+                    data.get('timestamp') or datetime.now(timezone.utc),
                     data.get('open', 0),
                     data.get('high', 0),
                     data.get('low', 0),
@@ -122,6 +124,7 @@ class RailwayDB:
             return {"status": "success"}
         except Exception as e:
             self.conn.rollback()
+            logging.error(f"Error storing market data: {e}")
             raise e
     
     def get_recent_data(self, symbol: str, limit: int = 100):
@@ -147,12 +150,13 @@ class RailwayDB:
                     signal.get('entry', 0),
                     signal.get('confidence', 0),
                     signal.get('reason', ''),
-                    datetime.now(timezone.utc)
+                    signal.get('timestamp') or datetime.now(timezone.utc)
                 ))
             self.conn.commit()
             return {"status": "success"}
         except Exception as e:
             self.conn.rollback()
+            logging.error(f"Error storing signal: {e}")
             raise e
     
     def store_ict_level(self, level: Dict):
@@ -168,10 +172,11 @@ class RailwayDB:
                     level.get('bottom', 0),
                     level.get('strength', 0.5),
                     level.get('active', True),
-                    datetime.now(timezone.utc)
+                    level.get('timestamp') or datetime.now(timezone.utc)
                 ))
             self.conn.commit()
             return {"status": "success"}
         except Exception as e:
             self.conn.rollback()
+            logging.error(f"Error storing ICT level: {e}")
             raise e

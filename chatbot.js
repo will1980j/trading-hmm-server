@@ -1,6 +1,13 @@
 // Trading Empire AI Advisor - Comprehensive Business Intelligence
 class TradingChatbot {
     constructor() {
+        // Constants
+        this.RISK_MULTIPLIER = 0.01;
+        this.GROWTH_FACTOR = 1.5;
+        this.TRADING_DAYS_PER_MONTH = 20;
+        this.NOTIFICATION_INTERVAL = 300000; // 5 minutes
+        this.SCALING_FACTOR = 0.23;
+        
         try {
             this.isOpen = false;
             this.messages = [];
@@ -14,6 +21,15 @@ class TradingChatbot {
             this.init();
         } catch (error) {
             console.error('Error initializing chatbot:', error);
+            this.handleInitializationError(error);
+        }
+    }
+    
+    handleInitializationError(error) {
+        // Provide fallback functionality when initialization fails
+        const chatContainer = document.getElementById('chat-container');
+        if (chatContainer) {
+            chatContainer.innerHTML = '<div class="error-message">Chatbot temporarily unavailable. Please refresh the page.</div>';
         }
     }
 
@@ -26,6 +42,7 @@ class TradingChatbot {
             this.setupSmartNotifications();
         } catch (error) {
             console.error('Error initializing chatbot:', error);
+            this.handleInitializationError(error);
         }
     }
 
@@ -47,10 +64,9 @@ class TradingChatbot {
     }
 
     setupSmartNotifications() {
-        const NOTIFICATION_INTERVAL = 300000; // 5 minutes
         setInterval(() => {
             this.checkForSmartNotifications();
-        }, NOTIFICATION_INTERVAL);
+        }, this.NOTIFICATION_INTERVAL);
     }
 
     checkForSmartNotifications() {
@@ -232,21 +248,18 @@ class TradingChatbot {
         
         const recentTrades = trades.slice(-Math.min(30, trades.length));
         const avgDailyR = recentTrades.length > 0 ? recentTrades.reduce((sum, trade) => sum + (trade.rScore || 0), 0) / recentTrades.length : 0;
-        const TRADING_DAYS_PER_MONTH = 20;
-        const monthlyRProjection = avgDailyR * TRADING_DAYS_PER_MONTH;
+        const monthlyRProjection = avgDailyR * this.TRADING_DAYS_PER_MONTH;
         
         const fundedCapital = firms.filter(firm => firm.status === 'funded')
             .reduce((sum, firm) => sum + (firm.accountSize || 0), 0);
-        const RISK_PER_R = 0.01;
-        const monthlyProfitProjection = monthlyRProjection * (fundedCapital * RISK_PER_R);
+        const monthlyProfitProjection = monthlyRProjection * (fundedCapital * this.RISK_MULTIPLIER);
         
-        const GROWTH_RATE = 1.5;
-        const q3Projection = monthlyProfitProjection * GROWTH_RATE;
+        const quarterlyProjection = monthlyProfitProjection * this.GROWTH_FACTOR;
         
         return {
             monthlyRTarget: monthlyRProjection.toFixed(1) + 'R',
             monthlyProfitProjection: '$' + monthlyProfitProjection.toLocaleString(),
-            q3Projection: '$' + q3Projection.toLocaleString(),
+            q3Projection: '$' + quarterlyProjection.toLocaleString(),
             growthRate: '50% quarterly growth potential',
             keyInsight: monthlyProfitProjection > 50000 ? 
                 'On track to hit $50K monthly by Q3' : 
@@ -259,17 +272,22 @@ class TradingChatbot {
         const trades = this.tradingData || [];
         const sessionStats = {};
         
-        trades.forEach(trade => {
+        // Use reduce for better performance instead of forEach
+        const sessionStats = trades.reduce((stats, trade) => {
             try {
                 if (trade && trade.session) {
-                    if (!sessionStats[trade.session]) sessionStats[trade.session] = { total: 0, count: 0 };
-                    sessionStats[trade.session].total += trade.rScore || 0;
-                    sessionStats[trade.session].count++;
+                    if (!stats[trade.session]) {
+                        stats[trade.session] = { total: 0, count: 0 };
+                    }
+                    stats[trade.session].total += trade.rScore || 0;
+                    stats[trade.session].count++;
                 }
-            } catch (e) {
-                console.error('Error processing trade session data:', e);
+            } catch (error) {
+                console.error('Error processing trade session data:', error);
+                // Continue processing other trades
             }
-        });
+            return stats;
+        }, {});
         
         let bestSession = 'NY PRE MARKET';
         let bestAvg = 0;
@@ -281,8 +299,7 @@ class TradingChatbot {
                 if (avg > bestAvg) {
                     bestAvg = avg;
                     bestSession = session;
-                    const SCALING_FACTOR = 0.23;
-                    potentialIncrease = (avg - 0.5) * stats.count * SCALING_FACTOR;
+                    potentialIncrease = (avg - 0.5) * stats.count * this.SCALING_FACTOR;
                 }
             }
         });
@@ -566,7 +583,7 @@ class TradingChatbot {
         const winRate = trades.length ? (wins / trades.length * 100).toFixed(1) : 0;
         const avgProfit = trades.length ? trades.reduce((sum, trade) => {
             const profit = (trade && trade.profit) || (trade && trade.rScore) || 0;
-            return sum + (isNaN(profit) ? 0 : profit);
+            return sum + (Number.isFinite(profit) ? profit : 0);
         }, 0) / trades.length : 0;
         
         const patterns = this.recognizeTradingPatterns(trades);
@@ -780,10 +797,13 @@ class TradingChatbot {
 
     analyzeLosingTrades() {
         const trades = this.tradingData || [];
-        const losingTrades = trades.filter(trade => trade.rScore < 0 || trade.outcome === 'loss');
+        const losingTrades = trades.filter(trade => trade && (trade.rScore < 0 || trade.outcome === 'loss'));
         
         if (!losingTrades || losingTrades.length === 0) {
-            return 'No losing trades to analyze - excellent performance!';
+            return {
+                message: 'No losing trades to analyze - excellent performance!',
+                hasData: false
+            };
         }
         
         const sessionLosses = {};
@@ -802,7 +822,8 @@ class TradingChatbot {
             worstSession: worstSession,
             lossCount: sessionLosses[worstSession],
             ictRecommendation: this.generateICTRecommendation(worstSession),
-            improvement: `Focus on ${worstSession} session market structure analysis`
+            improvement: `Focus on ${worstSession} session market structure analysis`,
+            hasData: true
         };
     }
 

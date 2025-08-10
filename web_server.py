@@ -1,5 +1,5 @@
 from flask import Flask, render_template_string, send_from_directory, request, jsonify
-from os import environ
+from os import environ, path
 from json import loads, dumps
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -7,6 +7,13 @@ from werkzeug.utils import secure_filename
 from html import escape
 from logging import basicConfig, getLogger, INFO
 from csrf_protection import csrf, csrf_protect
+from ai_prompts import get_ai_system_prompt
+from auth import login_required, authenticate
+import math
+
+# Constants
+NEWLINE_CHAR = '\n'
+CARRIAGE_RETURN_CHAR = '\r'
 
 # Setup logging first
 basicConfig(level=INFO)
@@ -22,7 +29,7 @@ try:
     db_enabled = True
     logger.info("Database connected successfully")
 except (ImportError, ConnectionError, Exception) as e:
-    logger.error(f"Database connection failed: {str(e).replace(chr(10), '').replace(chr(13), '')}")
+    logger.error(f"Database connection failed: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
     db = None
     db_enabled = False
 
@@ -34,7 +41,7 @@ if api_key:
         client = OpenAI(api_key=api_key)
         logger.info("OpenAI client initialized successfully")
     except (ValueError, ConnectionError, Exception) as e:
-        logger.error(f"OpenAI client initialization failed: {str(e).replace(chr(10), '').replace(chr(13), '')}")
+        logger.error(f"OpenAI client initialization failed: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
         client = None
 
 app = Flask(__name__)
@@ -47,45 +54,75 @@ def read_html_file(filename):
         # Secure filename to prevent path traversal
         secure_name = secure_filename(filename)
         if not secure_name or secure_name != filename:
-            logger.warning(f"Invalid filename rejected: {filename.replace(chr(10), '').replace(chr(13), '')}")
+            logger.warning(f"Invalid filename rejected: {filename.replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
             return "<h1>Trading Dashboard</h1><p>Invalid file request.</p><a href='/health'>Health Check</a>"
         
-        with open(secure_name, 'r', encoding='utf-8') as f:
+        # Use relative path for better portability
+        file_path = path.join(path.dirname(__file__), secure_name)
+        with open(file_path, 'r', encoding='utf-8') as f:
             return f.read()
-    except FileNotFoundError:
-        logger.warning(f"File not found: {filename.replace(chr(10), '').replace(chr(13), '')}")
+    except (FileNotFoundError, IOError) as e:
+        logger.warning(f"File access error for {filename}: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
         return "<h1>Trading Dashboard</h1><p>File not found. Server is running.</p><a href='/health'>Health Check</a>"
+    except Exception as e:
+        logger.error(f"Unexpected error reading file {filename}: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
+        return "<h1>Trading Dashboard</h1><p>Server error. Please try again.</p><a href='/health'>Health Check</a>"
 
-# Main routes
+# Authentication routes
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if authenticate(username, password):
+            session['authenticated'] = True
+            return redirect('/')
+        return render_template_string(read_html_file('login.html'), error='Invalid credentials')
+    return render_template_string(read_html_file('login.html'))
+
+@app.route('/logout')
+def logout():
+    session.pop('authenticated', None)
+    return redirect('/login')
+
+# Main routes - now protected
 @app.route('/')
+@login_required
 def dashboard():
     return read_html_file('advanced_trading_dashboard.html')
 
 @app.route('/dashboard')
+@login_required
 def advanced_dashboard():
     return read_html_file('advanced_trading_dashboard.html')
 
 @app.route('/trade-manager')
+@login_required
 def trade_manager():
     return read_html_file('trade_manager.html')
 
 @app.route('/prop-portfolio')
+@login_required
 def prop_portfolio():
     return read_html_file('prop_firms_v2.html')
 
 @app.route('/financial-summary')
+@login_required
 def financial_summary():
     return read_html_file('financial_summary.html')
 
 @app.route('/reporting-hub')
+@login_required
 def reporting_hub():
     return read_html_file('reporting_hub.html')
 
 @app.route('/tradingview')
+@login_required
 def tradingview():
     return read_html_file('trading_dashboard.html')
 
 @app.route('/trading-dashboard')
+@login_required
 def trading_dashboard():
     return read_html_file('trading_dashboard.html')
 
@@ -120,6 +157,7 @@ def serve_files(filename):
 
 # API endpoint for trading data
 @app.route('/api/trading-data')
+@login_required
 def api_trading_data():
     format_type = request.args.get('format', 'json')
     
@@ -146,6 +184,7 @@ def api_trading_data():
 
 # OpenAI API endpoint for trading insights
 @app.route('/api/ai-insights', methods=['POST'])
+@login_required
 @csrf_protect
 def ai_insights():
     try:
@@ -160,43 +199,11 @@ def ai_insights():
         data = request.get_json()
         prompt = data.get('prompt', 'How can I trade better?')
         trading_data = data.get('data', {})
-        logger.info(f"AI insights request: {prompt[:50].replace(chr(10), '').replace(chr(13), '')}...")
+        logger.info(f"AI insights request: {prompt[:50].replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}...")
         logger.debug(f"Has trading data: {bool(trading_data)}")
         
-        # Enhanced system prompt with trading context
-        system_prompt = """
-You are the ultimate Trading Empire Advisor - a multi-disciplinary expert combining:
-
-🎯 TRADING MASTERY:
-- ICT concepts (Fair Value Gaps, Order Blocks, Liquidity Sweeps, Market Structure)
-- Futures markets (ES, NQ, YM, RTY) and Forex (majors, minors, exotics)
-- TradingView platform expertise (indicators, Pine Script, alerts, strategies)
-- Prop firm optimization (FTMO, MyForexFunds, The5ers, etc.)
-- Risk management and systematic trading approaches
-
-💼 BUSINESS & FINANCE:
-- Trading business structure and scaling strategies
-- Australian tax optimization for traders (CGT, business deductions, structures)
-- Cash flow management and profit allocation systems
-- Technology stack development and platform integration
-- Performance analytics and business intelligence
-
-🏠 WEALTH CREATION & PROPERTY:
-- Property investment using trading profits (residential, commercial, REIT)
-- Australian property market analysis and financing strategies
-- Portfolio diversification beyond trading (stocks, bonds, alternatives)
-- Wealth preservation and generational planning
-- Investment property tax strategies and depreciation
-
-🚀 STRATEGIC GROWTH:
-- Platform development and feature enhancement
-- Revenue stream diversification (signals, education, managed accounts)
-- Team building and operational systems
-- Market expansion and competitive positioning
-- Exit strategies and business valuation
-
-Provide specific, actionable advice with Australian context. Think like a CFO, CTO, and wealth advisor combined.
-"""
+        # Get centralized system prompt for better maintainability
+        system_prompt = get_ai_system_prompt()
         
         # Add trading context if available
         context_info = ""
@@ -233,6 +240,7 @@ Provide specific, actionable advice with Australian context. Think like a CFO, C
 
 # Webhook for storing trading data
 @app.route('/webhook', methods=['GET', 'POST'])
+@login_required
 @csrf_protect
 def webhook():
     if request.method == 'GET':
@@ -253,7 +261,9 @@ def webhook():
         if not data:
             return jsonify({"error": "No JSON data provided"}), 400
         
-        logger.info(f"Webhook received data: {str(type(data).__name__).replace(chr(10), '').replace(chr(13), '')}")
+        # Sanitize log input to prevent log injection
+        data_type = str(type(data).__name__).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')
+        logger.info(f"Webhook received data: {data_type}")
         
         if db_enabled and db:
             # Store market data if provided
@@ -313,7 +323,7 @@ def upload_trades():
                 })
                 stored_count += 1
             except Exception as e:
-                logger.error(f"Failed to store trade: {str(e).replace(chr(10), '').replace(chr(13), '')}")
+                logger.error(f"Failed to store trade: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
         
         return jsonify({
             "status": "success",
@@ -342,8 +352,8 @@ def get_trades():
             """)
         except Exception as e:
             db.conn.rollback()
-            error_msg = str(e).replace('\n', ' ').replace('\r', ' ')
-            logger.error(f"Database query error: {error_msg.replace(chr(10), '').replace(chr(13), '')}")
+            error_msg = str(e).replace(NEWLINE_CHAR, ' ').replace(CARRIAGE_RETURN_CHAR, ' ')
+            logger.error(f"Database query error: {error_msg}")
             raise e
         
         trades = [{
@@ -371,8 +381,22 @@ def add_signal():
         
         if db_enabled and db:
             try:
+                # Validate and convert numeric inputs with NaN protection
+                entry_price_str = str(data.get('entry_price', 0)).lower()
+                confidence_str = str(data.get('confidence', 0.8)).lower()
+                
+                # Check for NaN, infinity, or invalid values
+                if any(invalid in entry_price_str for invalid in ['nan', 'inf', '-inf']):
+                    return jsonify({"error": "Invalid entry price value"}), 400
+                if any(invalid in confidence_str for invalid in ['nan', 'inf', '-inf']):
+                    return jsonify({"error": "Invalid confidence value"}), 400
+                    
                 entry_price = float(data.get('entry_price', 0))
                 confidence = float(data.get('confidence', 0.8))
+                
+                # Additional validation for finite numbers
+                if not (math.isfinite(entry_price) and math.isfinite(confidence)):
+                    return jsonify({"error": "Numeric values must be finite"}), 400
                 
                 # Validate inputs
                 if entry_price < 0:
@@ -422,7 +446,7 @@ def get_signals():
                     "count": len(signals)
                 })
             except (ConnectionError, Exception) as e:
-                logger.error(f"Database query error: {str(e).replace(chr(10), '').replace(chr(13), '')}")
+                logger.error(f"Database query error: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
                 return jsonify({"error": "Database query failed"}), 500
         else:
             return jsonify({"error": "Database not available"}), 500
@@ -464,8 +488,8 @@ def get_prop_firms():
         
         return jsonify({"firms": firms})
     except (ConnectionError, ValueError, Exception) as e:
-        error_msg = str(e).replace('\n', ' ').replace('\r', ' ')
-        logger.error(f"Prop firms query error: {error_msg.replace(chr(10), '').replace(chr(13), '')}")
+        error_msg = str(e).replace(NEWLINE_CHAR, ' ').replace(CARRIAGE_RETURN_CHAR, ' ')
+        logger.error(f"Prop firms query error: {error_msg}")
         return jsonify({"firms": []})
 
 @app.route('/api/scrape-propfirms')
@@ -479,7 +503,7 @@ def scrape_propfirms():
             "message": f"Scraped {firms_found} prop firms"
         })
     except (ImportError, AttributeError, Exception) as e:
-        logger.error(f"Scraper error: {str(e).replace(chr(10), '').replace(chr(13), '')}")
+        logger.error(f"Scraper error: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
         return jsonify({"error": "Scraper unavailable"}), 500
 
 if __name__ == '__main__':

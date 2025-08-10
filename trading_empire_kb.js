@@ -1,7 +1,50 @@
 // Trading Empire Knowledge Base - Comprehensive Business Intelligence
-const TradingEmpireKB = {
-    // Prop Firm Intelligence (PropFirmMatch.com insights)
-    propFirmIntelligence: {
+// Modularized for better maintainability and performance
+class TradingEmpireKB {
+    constructor() {
+        this.initializeModules();
+    }
+    
+    initializeModules() {
+        this.propFirmModule = new PropFirmModule();
+        this.taxModule = new AustralianTaxModule();
+        this.propertyModule = new PropertyInvestmentModule();
+        this.businessModule = new BusinessGrowthModule();
+        this.wealthModule = new WealthStrategiesModule();
+        this.planningModule = new StrategicPlanningModule();
+    }
+    
+    // Getter methods for accessing modules
+    getPropFirmIntelligence() {
+        return this.propFirmModule.getData();
+    }
+    
+    getAustralianTaxStrategy() {
+        return this.taxModule.getData();
+    }
+    
+    getPropertyInvestment() {
+        return this.propertyModule.getData();
+    }
+    
+    getBusinessGrowth() {
+        return this.businessModule.getData();
+    }
+    
+    getWealthStrategies() {
+        return this.wealthModule.getData();
+    }
+    
+    getStrategicPlanning() {
+        return this.planningModule.getData();
+    }
+}
+
+// Prop Firm Intelligence Module
+class PropFirmModule {
+    getData() {
+        return {
+        // Prop Firm Intelligence (PropFirmMatch.com insights)
         topTierFirms: {
             'FTMO': { 
                 maxSize: '2M', 
@@ -35,10 +78,14 @@ const TradingEmpireKB = {
             avoidNews: 'High-impact news events increase risk',
             optimalPairs: 'EURUSD, GBPUSD, AUDUSD for predictability'
         }
-    },
+        };
+    }
+}
 
-    // Australian Tax & Accounting Intelligence
-    australianTaxStrategy: {
+// Australian Tax Strategy Module
+class AustralianTaxModule {
+    getData() {
+        return {
         tradingTaxStructures: {
             soleTrader: {
                 pros: 'Simple, direct control',
@@ -82,10 +129,14 @@ const TradingEmpireKB = {
             records: 'Detailed trading records for 5 years',
             aasb: 'Accounting standards compliance for companies'
         }
-    },
+        };
+    }
+}
 
-    // Property Investment Intelligence (Australia + Global)
-    propertyInvestment: {
+// Property Investment Module
+class PropertyInvestmentModule {
+    getData() {
+        return {
         australianMarkets: {
             sydney: {
                 growth: 'Strong long-term, high entry cost',
@@ -126,10 +177,14 @@ const TradingEmpireKB = {
             singapore: 'Asian gateway, stable government',
             dubai: 'Tax-free jurisdiction, tourism growth'
         }
-    },
+        };
+    }
+}
 
-    // Business Scaling & Growth Intelligence
-    businessGrowth: {
+// Business Growth Module
+class BusinessGrowthModule {
+    getData() {
+        return {
         revenueStreams: {
             trading: {
                 propFirms: 'Multiple funded accounts, scale systematically',
@@ -164,10 +219,14 @@ const TradingEmpireKB = {
             marketing: 'Automated lead generation and nurturing',
             customer: 'Streamlined onboarding and support'
         }
-    },
+        };
+    }
+}
 
-    // Wealth Building & Investment Intelligence
-    wealthStrategies: {
+// Wealth Strategies Module
+class WealthStrategiesModule {
+    getData() {
+        return {
         assetAllocation: {
             conservative: '60% property, 30% stocks, 10% alternatives',
             balanced: '40% property, 40% stocks, 20% alternatives',
@@ -191,10 +250,14 @@ const TradingEmpireKB = {
             succession: 'Business transition planning',
             philanthropy: 'Tax-effective charitable giving'
         }
-    },
+        };
+    }
+}
 
-    // Strategic Planning Intelligence
-    strategicPlanning: {
+// Strategic Planning Module
+class StrategicPlanningModule {
+    getData() {
+        return {
         shortTerm: {
             trading: 'Pass 3+ prop firm challenges',
             tax: 'Optimize current structure',
@@ -216,12 +279,16 @@ const TradingEmpireKB = {
             personal: 'Adequate insurance coverage',
             market: 'Hedge against major downturns'
         }
+        };
     }
-};
+}
+
+// Create singleton instance
+const tradingEmpireKB = new TradingEmpireKB();
 
 // Export for use in chatbot
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = TradingEmpireKB;
+    module.exports = tradingEmpireKB;
 } else if (typeof window !== 'undefined') {
-    window.TradingEmpireKB = TradingEmpireKB;
+    window.TradingEmpireKB = tradingEmpireKB;
 }

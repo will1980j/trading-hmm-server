@@ -25,10 +25,17 @@ class TradingDashboardAPI {
 
     generateSummary(trades, propFirms) {
         const fundedFirms = propFirms.filter(firm => firm.status === 'funded');
-        const totalR = trades.reduce((sum, trade) => {
+        const totalRiskRewardRatio = trades.reduce((sum, trade) => {
             try {
                 if (trade.breakeven) return sum;
                 const rTarget = parseFloat(trade.rTarget) || 1;
+                
+                // Validate numeric values
+                if (!Number.isFinite(rTarget)) {
+                    console.warn('Invalid rTarget value:', trade.rTarget);
+                    return sum;
+                }
+                
                 return sum + (trade.outcome === 'win' ? rTarget : (trade.outcome === 'loss' ? -1 : 0));
             } catch (error) {
                 console.error('Error processing trade:', error);
@@ -40,7 +47,7 @@ class TradingDashboardAPI {
         return {
             totalTrades: trades.length,
             winRate: winRate + '%',
-            totalR: totalR.toFixed(1) + 'R',
+            totalR: totalRiskRewardRatio.toFixed(1) + 'R',
             fundedAccounts: fundedFirms.length,
             portfolioValue: fundedFirms.reduce((sum, f) => sum + f.accountSize, 0)
         };
@@ -77,10 +84,14 @@ class TradingDashboardAPI {
                 if (trade && trade.date) {
                     const month = trade.date.substring(0, 7);
                     if (!monthly[month]) monthly[month] = 0;
-                    monthly[month] += trade.profit || 0;
+                    const profit = trade.profit || 0;
+                    if (Number.isFinite(profit)) {
+                        monthly[month] += profit;
+                    }
                 }
-            } catch (e) {
-                console.error('Error processing trade data:', e);
+            } catch (error) {
+                console.error('Error processing trade data:', error);
+                continue; // Skip this trade and continue processing
             }
         });
         return monthly;
@@ -120,14 +131,15 @@ class TradingDashboardAPI {
     }
 
     calculateAdvancedMetrics(trades, propFirms) {
-        const fundedFirms = propFirms.filter(f => f.status === 'funded');
-        const rValues = trades.map(t => {
-            if (t.breakeven) return 0;
-            const rTarget = parseFloat(t.rTarget) || 1;
-            return t.outcome === 'win' ? rTarget : (t.outcome === 'loss' ? -1 : 0);
-        });
-        const winningTrades = trades.filter(t => t.outcome === 'win');
-        const losingTrades = trades.filter(t => t.outcome === 'loss');
+        try {
+            const fundedFirms = propFirms.filter(firm => firm.status === 'funded');
+            const rValues = trades.map(trade => {
+                if (trade.breakeven) return 0;
+                const rTarget = parseFloat(trade.rTarget) || 1;
+                return trade.outcome === 'win' ? rTarget : (trade.outcome === 'loss' ? -1 : 0);
+            });
+            const winningTrades = trades.filter(trade => trade.outcome === 'win');
+            const losingTrades = trades.filter(trade => trade.outcome === 'loss');
         
         return {
             totalTrades: trades.length,
@@ -143,6 +155,10 @@ class TradingDashboardAPI {
             monthlyProfit: fundedFirms.reduce((sum, f) => sum + (f.monthlyProfit || 0), 0),
             successRate: propFirms.length ? (fundedFirms.length / propFirms.length * 100) : 0
         };
+        } catch (error) {
+            console.error('Error calculating advanced metrics:', error);
+            throw new Error('Failed to calculate trading metrics');
+        }
     }
 
     generateExecutiveSummary(metrics, reportType) {
@@ -480,16 +496,14 @@ class TradingDashboardAPI {
     calculateMaxDrawdown(profits) {
         if (!profits || profits.length === 0) return 0;
         
-        let maxDrawdown = 0;
-        let peak = 0;
-        let cumulative = 0;
-        
-        for (const profit of profits) {
-            cumulative += profit;
-            peak = Math.max(peak, cumulative);
-            const drawdown = peak > 0 ? (peak - cumulative) / peak * 100 : 0;
-            maxDrawdown = Math.max(maxDrawdown, drawdown);
-        }
+        // Use reduce for better performance with large datasets
+        const { maxDrawdown } = profits.reduce((acc, profit) => {
+            acc.cumulative += profit;
+            acc.peak = Math.max(acc.peak, acc.cumulative);
+            const drawdown = acc.peak > 0 ? (acc.peak - acc.cumulative) / acc.peak * 100 : 0;
+            acc.maxDrawdown = Math.max(acc.maxDrawdown, drawdown);
+            return acc;
+        }, { maxDrawdown: 0, peak: 0, cumulative: 0 });
         
         return maxDrawdown;
     }
@@ -503,13 +517,16 @@ class TradingDashboardAPI {
     }
     
     calculateProfitFactor(winningTrades, losingTrades) {
-        const totalWins = winningTrades.reduce((sum, trade) => sum + (parseFloat(trade.rTarget) || 1), 0);
+        const totalWins = winningTrades.reduce((sum, trade) => {
+            const rTarget = parseFloat(trade.rTarget) || 1;
+            return sum + (Number.isFinite(rTarget) ? rTarget : 1);
+        }, 0);
         const totalLosses = losingTrades.length;
         if (totalLosses === 0) {
             return totalWins > 0 ? Number.MAX_SAFE_INTEGER : 0;
         }
         const profitFactor = totalWins / totalLosses;
-        return isFinite(profitFactor) ? profitFactor : 0;
+        return Number.isFinite(profitFactor) ? profitFactor : 0;
     }
 
     // Copy to clipboard for easy sharing

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trading System Login</title>
+    <style>
+        body { font-family: Arial; background: #1e3c72; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-form { background: rgba(255,255,255,0.1); padding: 40px; border-radius: 15px; backdrop-filter: blur(10px); }
+        input { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 8px; background: rgba(255,255,255,0.2); color: white; }
+        input::placeholder { color: rgba(255,255,255,0.7); }
+        button { width: 100%; padding: 15px; background: #00ff88; border: none; border-radius: 8px; color: black; font-weight: bold; cursor: pointer; }
+        .error { color: #ff4757; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="login-form">
+        <h2>🔐 Trading System Access</h2>
+        <form method="POST">
+            <input type="text" name="username" placeholder="Username" required>
+            <input type="password" name="password" placeholder="Password" required>
+            <button type="submit">Login</button>
+        </form>
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+    </div>
+</body>
+</html>

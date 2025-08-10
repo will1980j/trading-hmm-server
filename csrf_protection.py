@@ -8,6 +8,9 @@ from hashlib import sha256
 from functools import wraps
 from flask import request, session, abort, jsonify
 
+# Constants
+PROTECTED_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE']
+
 class CSRFProtection:
     def __init__(self, app=None):
         self.app = app
@@ -38,7 +41,6 @@ def csrf_protect(f):
     """Decorator to protect routes with CSRF validation"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        PROTECTED_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE']
         if request.method in PROTECTED_METHODS:
             token = request.headers.get('X-CSRF-Token') or request.form.get('csrf_token')
             if not token or not csrf.validate_csrf_token(token):

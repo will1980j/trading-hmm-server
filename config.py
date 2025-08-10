@@ -85,8 +85,12 @@ class TradingConfig:
             for attr_name, (method_name, default_value) in config_map.items():
                 method = getattr(cls, method_name)
                 setattr(cls, attr_name, method(attr_name, default_value))
-        except (ValueError, TypeError) as e:
-            raise ValueError(f"Invalid environment variable configuration: {e}")
+        except ValueError as e:
+            raise ValueError(f"Configuration validation error: {e}")
+        except TypeError as e:
+            raise TypeError(f"Configuration type error: {e}")
+        except Exception as e:
+            raise ValueError(f"Configuration error: {e}")
         
         # Symbols from environment (comma-separated)
         symbols_env = os.getenv('TRADING_SYMBOLS')
