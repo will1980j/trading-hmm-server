@@ -960,11 +960,11 @@
                         <span id="recoveryForecast" class="positive">Loading...</span>
                     </div>
                 </div>
-                <div style="margin-top: 15px; padding: 10px; background: rgba(0,255,136,0.1); border-radius: 8px;">
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px; color: #333333;">Generative AI Strategic Analysis:</div>
-                    <div id="aiInsights" style="font-size: 13px; line-height: 1.4; margin-bottom: 10px; color: #333333;">Analyzing trading patterns and market conditions...</div>
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px; color: #333333;">ML Risk Assessment:</div>
-                    <div id="mlRiskAnalysis" style="font-size: 13px; line-height: 1.4; color: #333333;">Processing risk patterns...</div>
+                <div style="margin-top: 15px; padding: 15px; background: rgba(0,255,136,0.1); border-radius: 8px; border: 1px solid rgba(0,255,136,0.3);">
+                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px; color: #ffffff; font-weight: 600;">Generative AI Strategic Analysis:</div>
+                    <div id="aiInsights" style="font-size: 13px; line-height: 1.4; margin-bottom: 12px; color: #ffffff; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px;">Analyzing trading patterns and market conditions...</div>
+                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px; color: #ffffff; font-weight: 600;">ML Risk Assessment:</div>
+                    <div id="mlRiskAnalysis" style="font-size: 13px; line-height: 1.4; color: #ffffff; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px;">Processing risk patterns...</div>
                 </div>
                 <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; line-height: 1.4;">
                     <strong>AI Performance Summary:</strong> <span id="aiPerformanceSummary">Loading comprehensive analysis...</span>
@@ -2051,10 +2051,17 @@
             updateDashboard();
             // Initialize D3 charts after data loads
             setTimeout(() => {
-                if (window.d3Charts) {
-                    initD3EquityChart();
+                if (typeof d3 !== 'undefined' && window.d3Charts && window.initD3EquityChart) {
+                    try {
+                        initD3EquityChart();
+                        console.log('D3 charts initialized successfully');
+                    } catch (error) {
+                        console.warn('D3 chart initialization failed:', error);
+                    }
+                } else {
+                    console.warn('D3 or d3Charts not available, skipping D3 chart initialization');
                 }
-            }, 100);
+            }, 500);
         }
         
         function exportData() {
@@ -2288,6 +2295,22 @@
                 { date: '2024-01-17', bias: 'LONG', session: 'LONDON', breakeven: false, rScore: -1, r1: -1, r2: -1, r3: 0, r4: 0, r5: 0, r6: 0, r7: 0, r8: 0, r9: 0, r10: 0, r11: 0, r12: 0, r13: 0, r14: 0, r15: 0, r16: 0, r17: 0, r18: 0, r19: 0, r20: 0 }
             ];
             updateDashboard();
+        }
+        
+        // Add D3 container to HTML if it doesn't exist
+        function ensureD3Container() {
+            if (!document.getElementById('d3EquityContainer')) {
+                const container = document.createElement('div');
+                container.id = 'd3EquityContainer';
+                container.style.cssText = 'width: 100%; height: 300px; margin: 20px 0; background: rgba(255,255,255,0.05); border-radius: 10px; padding: 20px;';
+                container.innerHTML = '<h3 style="color: white; margin-bottom: 15px;">D3 Enhanced Equity Chart</h3>';
+                
+                // Insert after the main charts
+                const mainGrid = document.querySelector('.main-grid');
+                if (mainGrid) {
+                    mainGrid.parentNode.insertBefore(container, mainGrid.nextSibling);
+                }
+            }
         }
         
         // AI Analysis Functions
@@ -2780,38 +2803,38 @@
             // R-target optimization
             if (optimalR !== currentRTarget) {
                 const improvement = (((optimalR/currentRTarget) - 1) * 100).toFixed(0);
-                recommendations.push(`🎯 Switch to ${optimalR}R target for ${improvement > 0 ? '+' : ''}${improvement}% expectancy boost`);
+                recommendations.push(`TARGET: Switch to ${optimalR}R target for ${improvement > 0 ? '+' : ''}${improvement}% expectancy boost`);
             }
             
             // Session optimization
             if (bestSession !== 'LONDON') {
-                recommendations.push(`⏰ Focus 60% of trades during ${bestSession.replace('NEW YORK', 'NY')} session`);
+                recommendations.push(`TIMING: Focus 60% of trades during ${bestSession.replace('NEW YORK', 'NY')} session`);
             }
             
             // Risk management
             const maxDD = parseFloat(metrics.maxDrawdown);
             if (maxDD > 15) {
-                recommendations.push(`⚠️ Implement tighter risk controls - current ${maxDD.toFixed(1)}R drawdown exceeds 15R threshold`);
+                recommendations.push(`RISK: Implement tighter risk controls - current ${maxDD.toFixed(1)}R drawdown exceeds 15R threshold`);
             } else if (maxDD < 5 && healthScore > 70) {
-                recommendations.push(`📈 Consider 25% position size increase - excellent risk management allows for scaling`);
+                recommendations.push(`SCALE: Consider 25% position size increase - excellent risk management allows for scaling`);
             }
             
             // Performance-based actions
             const winRate = parseFloat(metrics.winRate);
             if (winRate < 45) {
-                recommendations.push(`🔍 Review entry criteria - ${winRate.toFixed(1)}% win rate suggests setup refinement needed`);
+                recommendations.push(`SETUP: Review entry criteria - ${winRate.toFixed(1)}% win rate suggests setup refinement needed`);
             } else if (winRate > 65) {
-                recommendations.push(`🚀 Exceptional ${winRate.toFixed(1)}% win rate - maintain current methodology and consider scaling`);
+                recommendations.push(`PERFORMANCE: Exceptional ${winRate.toFixed(1)}% win rate - maintain current methodology and consider scaling`);
             }
             
             // Cyclical insights
             if (cyclicalData.bestDay !== 'N/A') {
-                recommendations.push(`📅 Concentrate 40% of weekly volume on ${cyclicalData.bestDay} for optimal results`);
+                recommendations.push(`SCHEDULE: Concentrate 40% of weekly volume on ${cyclicalData.bestDay} for optimal results`);
             }
             
             // Default recommendation if no specific actions needed
             if (recommendations.length === 0) {
-                recommendations.push(`✅ Strategy performing well - maintain current approach and monitor for optimization opportunities`);
+                recommendations.push(`STATUS: Strategy performing well - maintain current approach and monitor for optimization opportunities`);
             }
             
             return recommendations[0]; // Return the most important recommendation
@@ -3486,19 +3509,19 @@
             
             // Behavioral insights
             if (aiData.behavioralScore === 'Revenge Risk') {
-                insights.push('⚠️ AI detected potential revenge trading patterns. Take breaks after losses.');
+                insights.push('WARNING: AI detected potential revenge trading patterns. Take breaks after losses.');
             } else if (aiData.behavioralScore === 'Overconfident') {
-                insights.push('⚠️ High recent win rate detected. Maintain discipline and avoid overconfidence.');
+                insights.push('CAUTION: High recent win rate detected. Maintain discipline and avoid overconfidence.');
             }
             
             // Performance insights
             if (aiData.dynamicRTarget > rTarget) {
-                insights.push(`💡 Consider increasing R-target to ${aiData.dynamicRTarget}R for better expectancy.`);
+                insights.push(`OPTIMIZATION: Consider increasing R-target to ${aiData.dynamicRTarget}R for better expectancy.`);
             }
             
             // Pattern insights
             if (aiData.winningPattern !== 'No pattern') {
-                insights.push(`🎯 Your biggest winners come from ${aiData.winningPattern} session. Focus on this timeframe.`);
+                insights.push(`PATTERN: Your biggest winners come from ${aiData.winningPattern} session. Focus on this timeframe.`);
             }
             
             const mlRiskAnalysis = generateMLRiskAnalysis(trades, rTarget);
@@ -3544,8 +3567,8 @@
             }
             
             return riskFactors.length > 0 ? 
-                '⚠️ ' + riskFactors.join('. ') + '.' : 
-                '✅ Risk levels within acceptable parameters. Continue monitoring.';
+                'ALERT: ' + riskFactors.join('. ') + '.' : 
+                'NORMAL: Risk levels within acceptable parameters. Continue monitoring.';
         }
         
         function generateNeuralPrediction(trades, rTarget) {
