@@ -91,7 +91,7 @@ class TradingDashboardAPI {
                 }
             } catch (error) {
                 console.error('Error processing trade data:', error);
-                continue; // Skip this trade and continue processing
+                // Skip this trade and continue processing
             }
         });
         return monthly;
