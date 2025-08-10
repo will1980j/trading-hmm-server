@@ -1938,7 +1938,7 @@
         function updateHeatmapCalendar(filteredTrades, rTarget, calendar, legend, year) {
             calendar.style.display = 'block';
             
-            // Create daily data map
+            // Create daily data map with proper aggregation
             const dailyData = {};
             filteredTrades.forEach(trade => {
                 const tradeDate = new Date(trade.date + 'T00:00:00');
@@ -1954,6 +1954,8 @@
                     else if (rValue < 0) dailyData[dateKey].losses++;
                 }
             });
+            
+            console.log('Heatmap daily data:', Object.keys(dailyData).length, 'days with trades');
             
             // Create heatmap container
             const heatmapDiv = document.createElement('div');
@@ -2023,18 +2025,19 @@
                             const dateKey = dayDate.toISOString().split('T')[0];
                             const dayData = dailyData[dateKey];
                             
-                            if (dayData) {
+                            if (dayData && dayData.trades.length > 0) {
                                 const intensity = Math.min(5, Math.max(1, Math.abs(Math.round(dayData.totalR))));
-                                if (dayData.totalR > 0) {
+                                if (dayData.totalR > 0.1) {
                                     dayDiv.classList.add(`profit-${intensity}`);
-                                } else if (dayData.totalR < 0) {
+                                } else if (dayData.totalR < -0.1) {
                                     dayDiv.classList.add(`loss-${intensity}`);
                                 } else {
                                     dayDiv.classList.add('breakeven');
                                 }
                                 
-                                // Add tooltip
-                                dayDiv.title = `${dateKey}\n${dayData.totalR.toFixed(1)}R | ${dayData.trades.length} trades\n${((dayData.wins / dayData.trades.length) * 100).toFixed(0)}% win rate`;
+                                // Add tooltip with proper data
+                                const winRate = dayData.trades.length > 0 ? ((dayData.wins / dayData.trades.length) * 100).toFixed(0) : '0';
+                                dayDiv.title = `${dateKey}\n${dayData.totalR.toFixed(1)}R | ${dayData.trades.length} trades\n${winRate}% win rate`;
                             } else {
                                 dayDiv.classList.add('no-data');
                             }
@@ -2090,27 +2093,32 @@
         function updateDailyCalendar(filteredTrades, rTarget, calendar) {
             const dailyData = {};
             
+            // Aggregate trades by date
             filteredTrades.forEach(trade => {
                 const date = trade.date;
                 if (!dailyData[date]) {
-                    dailyData[date] = { totalR: 0, wins: 0, count: 0 };
+                    dailyData[date] = { totalR: 0, wins: 0, count: 0, breakevens: 0 };
                 }
                 const rValue = getRValue(trade, rTarget);
                 dailyData[date].totalR += rValue;
                 dailyData[date].count++;
                 if (rValue > 0) dailyData[date].wins++;
+                else if (rValue === 0) dailyData[date].breakevens++;
             });
             
+            console.log('Daily calendar data:', Object.keys(dailyData).length, 'unique days');
+            
+            // Create calendar entries for each unique day
             Object.keys(dailyData).sort().forEach(date => {
                 const dayData = dailyData[date];
                 const dayDiv = document.createElement('div');
                 dayDiv.className = 'calendar-day';
                 
-                if (dayData.totalR > 0) dayDiv.classList.add('calendar-profitable');
-                else if (dayData.totalR < 0) dayDiv.classList.add('calendar-loss');
+                if (dayData.totalR > 0.1) dayDiv.classList.add('calendar-profitable');
+                else if (dayData.totalR < -0.1) dayDiv.classList.add('calendar-loss');
                 else dayDiv.classList.add('calendar-breakeven');
                 
-                const winRate = (dayData.wins / dayData.count * 100).toFixed(0);
+                const winRate = dayData.count > 0 ? ((dayData.wins / dayData.count) * 100).toFixed(0) : '0';
                 
                 dayDiv.innerHTML = `
                     <div class="calendar-date">${date}</div>
@@ -2139,24 +2147,29 @@
                 else if (rValue < 0) weeklyData[weekStr].losses++;
             });
             
+            console.log('Weekly calendar data:', Object.keys(weeklyData).length, 'weeks');
+            
             Object.keys(weeklyData).sort().forEach(week => {
                 const weekData = weeklyData[week];
                 const weekDiv = document.createElement('div');
                 weekDiv.className = 'calendar-day';
                 
-                if (weekData.totalR > 0) weekDiv.classList.add('calendar-profitable');
-                else if (weekData.totalR < 0) weekDiv.classList.add('calendar-loss');
+                if (weekData.totalR > 0.1) weekDiv.classList.add('calendar-profitable');
+                else if (weekData.totalR < -0.1) weekDiv.classList.add('calendar-loss');
                 else weekDiv.classList.add('calendar-breakeven');
                 
-                const winRate = weekData.trades.length > 0 ? (weekData.wins / weekData.trades.length * 100).toFixed(0) : 0;
-                const avgR = weekData.trades.length > 0 ? (weekData.totalR / weekData.trades.length).toFixed(2) : 0;
-                const expectancy = weekData.trades.length > 0 ? ((weekData.wins / weekData.trades.length) * avgR - ((weekData.trades.length - weekData.wins) / weekData.trades.length) * 1).toFixed(2) : 0;
-                const bestTrade = weekData.trades.length > 0 ? Math.max(...weekData.trades.map(t => getRValue(t, rTarget))).toFixed(1) : 0;
+                const winRate = weekData.trades.length > 0 ? (weekData.wins / weekData.trades.length * 100).toFixed(0) : '0';
+                const avgR = weekData.trades.length > 0 ? (weekData.totalR / weekData.trades.length).toFixed(2) : '0.00';
+                const expectancy = weekData.trades.length > 0 ? ((weekData.wins / weekData.trades.length) * parseFloat(avgR) - ((weekData.trades.length - weekData.wins) / weekData.trades.length) * 1).toFixed(2) : '0.00';
+                const bestTrade = weekData.trades.length > 0 ? Math.max(...weekData.trades.map(t => getRValue(t, rTarget))).toFixed(1) : '0.0';
                 const tradingDays = new Set(weekData.trades.map(t => t.date)).size;
                 
                 const [year, weekNum] = week.split('-W');
+                const weekNumber = weekNum || '1';
+                const yearNumber = year || new Date().getFullYear();
+                
                 weekDiv.innerHTML = `
-                    <div class="calendar-date" style="font-size: 11px; margin-bottom: 3px;">Week ${weekNum} ${year}</div>
+                    <div class="calendar-date" style="font-size: 11px; margin-bottom: 3px;">Week ${weekNumber} ${yearNumber}</div>
                     <div class="calendar-stats" style="font-size: 9px; line-height: 1.2;">
                         ${weekData.totalR.toFixed(1)}R | ${weekData.trades.length}T<br>
                         ${winRate}% WR | E:${expectancy}<br>
