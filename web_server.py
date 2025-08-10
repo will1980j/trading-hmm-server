@@ -7,6 +7,13 @@ from werkzeug.utils import secure_filename
 import html
 import logging
 
+# Setup logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Load environment variables
+load_dotenv()
+
 # Database integration
 try:
     from database.railway_db import RailwayDB
@@ -17,9 +24,6 @@ except Exception as e:
     logger.error(f"Database connection failed: {e}")
     db = None
     db_enabled = False
-
-# Load environment variables
-load_dotenv()
 
 # Initialize OpenAI client only if API key is available
 api_key = os.getenv('OPENAI_API_KEY')
@@ -33,10 +37,6 @@ if api_key:
         client = None
 
 app = Flask(__name__)
-
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Read HTML files and serve them
 def read_html_file(filename):
@@ -152,7 +152,6 @@ def ai_insights():
             
         data = request.get_json()
         prompt = data.get('prompt', 'How can I trade better?')
-        trading_data = data.get('data', {})
         trading_data = data.get('data', {})
         logger.info(f"AI insights request: {prompt[:50]}...")
         logger.debug(f"Has trading data: {bool(trading_data)}")
