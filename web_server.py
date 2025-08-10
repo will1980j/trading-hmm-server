@@ -149,6 +149,10 @@ def notification_system_js():
     return send_from_directory('.', 'notification_system.js', mimetype='application/javascript')
 
 # Serve images from root
+@app.route('/style_preview.html')
+def style_preview():
+    return read_html_file('style_preview.html')
+
 @app.route('/<path:filename>')
 def serve_files(filename):
     if filename.endswith(('.jpg', '.png', '.gif', '.ico', '.pdf')):
