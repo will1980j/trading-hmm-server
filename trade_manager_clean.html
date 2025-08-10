@@ -26,8 +26,6 @@
             transition: all 0.3s ease;
         }
         
-
-        
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -185,8 +183,6 @@
         .negative { color: #ff4757; }
         .neutral { color: #ffa502; }
         
-
-        
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -228,16 +224,6 @@
             font-weight: 600;
         }
         
-        .theme-select {
-            padding: 8px 12px;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 8px;
-            background: rgba(255,255,255,0.1);
-            color: white;
-            font-size: 14px;
-            backdrop-filter: blur(10px);
-        }
-        
         .theme-select option {
             background: #2a2a2a;
             color: white;
@@ -247,7 +233,6 @@
 <body>
     <nav class="navbar">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-
             <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
                 <select id="styleSelector" onchange="changeStyle()" class="theme-select">
                     <option value="slate">Slate</option>
@@ -447,11 +432,10 @@
                             breakeven: extractBreakeven(t.reason),
                             rScore: rScore,
                             entryPrice: parseFloat(t.entry || t.entry_price) || 0,
+                            exitPrice: parseFloat(t.exit_price) || 0,
                             stopLoss: parseFloat(t.stop_loss) || 0,
-                            r1: rScore, r2: rScore, r3: rScore, r4: rScore, r5: rScore,
-                            r6: rScore, r7: rScore, r8: rScore, r9: rScore, r10: rScore,
-                            r11: rScore, r12: rScore, r13: rScore, r14: rScore, r15: rScore,
-                            r16: rScore, r17: rScore, r18: rScore, r19: rScore, r20: rScore
+                            positionSize: parseInt(t.position_size) || 1,
+                            commission: parseFloat(t.commission) || 0
                         };
                     });
                     console.log('Loaded', trades.length, 'trades from database');
@@ -482,70 +466,6 @@
             return rMatch ? parseFloat(rMatch[1]) : 0;
         }
         
-        async function addTrade() {
-            const trade = {
-                id: Date.now(),
-                date: document.getElementById('tradeDate').value,
-                bias: document.getElementById('tradeBias').value,
-                session: document.getElementById('tradeSession').value,
-                breakeven: document.getElementById('tradeBreakeven').checked,
-                rScore: parseFloat(document.getElementById('tradeRScore').value) || 0,
-                entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
-                exitPrice: parseFloat(document.getElementById('exitPrice').value) || 0,
-                stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
-                positionSize: parseInt(document.getElementById('positionSize').value) || 1,
-                commission: parseFloat(document.getElementById('commission').value) || 0,
-                r1: 0, r2: 0, r3: 0, r4: 0, r5: 0, r6: 0, r7: 0, r8: 0, r9: 0, r10: 0,
-                r11: 0, r12: 0, r13: 0, r14: 0, r15: 0, r16: 0, r17: 0, r18: 0, r19: 0, r20: 0
-            };
-            
-            // Validate input
-            const errors = validateTradeInput(trade);
-            if (errors.length > 0) {
-                alert('Validation errors:\n' + errors.join('\n'));
-                return;
-            }
-            
-            // Set R values based on rScore
-            for (let i = 1; i <= 20; i++) {
-                trade[`r${i}`] = trade.rScore;
-            }
-            
-            // Store in database
-            try {
-                const response = await fetch('/webhook', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        symbol: 'NQ1!',
-                        signal_type: trade.bias,
-                        entry_price: trade.entryPrice,
-                        stop_loss: trade.stopLoss,
-                        confidence: Math.abs(trade.rScore) / 10, // Convert R to confidence
-                        reason: `${trade.session} session - ${trade.rScore}R`,
-                        trade_data: trade // Store full trade data
-                    })
-                });
-                
-                if (response.ok) {
-                    console.log('✅ Trade stored in database');
-                } else {
-                    console.log('⚠️ Database storage failed, saved locally only');
-                }
-            } catch (error) {
-                console.log('⚠️ Database error:', error);
-            }
-            
-            // Reload trades from database after adding
-            setTimeout(() => {
-                loadTrades();
-            }, 500);
-            
-            saveTrades();
-            console.log('Trade saved to database');
-            clearInputs();
-        }
-        
         function validateTradeInput(trade) {
             const errors = [];
             
@@ -568,6 +488,193 @@
             return errors;
         }
         
+        async function addTrade() {
+            const trade = {
+                id: Date.now(),
+                date: document.getElementById('tradeDate').value,
+                bias: document.getElementById('tradeBias').value,
+                session: document.getElementById('tradeSession').value,
+                breakeven: document.getElementById('tradeBreakeven').checked,
+                rScore: parseFloat(document.getElementById('tradeRScore').value) || 0,
+                entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
+                exitPrice: parseFloat(document.getElementById('exitPrice').value) || 0,
+                stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
+                positionSize: parseInt(document.getElementById('positionSize').value) || 1,
+                commission: parseFloat(document.getElementById('commission').value) || 0
+            };
+            
+            const errors = validateTradeInput(trade);
+            if (errors.length > 0) {
+                alert('Validation errors:\n' + errors.join('\n'));
+                return;
+            }
+            
+            try {
+                const response = await fetch('/webhook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        symbol: 'NQ1!',
+                        signal_type: trade.bias,
+                        entry_price: trade.entryPrice,
+                        stop_loss: trade.stopLoss,
+                        confidence: Math.abs(trade.rScore) / 10,
+                        reason: `${trade.session} session - ${trade.rScore}R`,
+                        trade_data: trade
+                    })
+                });
+                
+                if (response.ok) {
+                    console.log('✅ Trade stored in database');
+                } else {
+                    console.log('⚠️ Database storage failed, saved locally only');
+                }
+            } catch (error) {
+                console.log('⚠️ Database error:', error);
+            }
+            
+            setTimeout(() => {
+                loadTrades();
+            }, 500);
+            
+            clearInputs();
+        }
+        
+        function calculatePnL(trade) {
+            if (!trade.exitPrice || !trade.entryPrice) return 0;
+            const pointValue = 20;
+            const points = trade.bias === 'LONG' ? 
+                (trade.exitPrice - trade.entryPrice) : 
+                (trade.entryPrice - trade.exitPrice);
+            return (points * pointValue * (trade.positionSize || 1)) - (trade.commission || 0);
+        }
+        
+        function toggleBulkMode() {
+            bulkMode = !bulkMode;
+            const btn = document.getElementById('bulkModeBtn');
+            btn.textContent = bulkMode ? 'Exit Bulk' : 'Bulk Mode';
+            btn.style.background = bulkMode ? '#ff4757' : '#ffa502';
+            
+            if (bulkMode) {
+                showBulkControls();
+            } else {
+                hideBulkControls();
+                selectedTrades.clear();
+            }
+        }
+        
+        function showBulkControls() {
+            const controls = document.createElement('div');
+            controls.id = 'bulkControls';
+            controls.innerHTML = `
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 15px 0;">
+                    <h4>Bulk Operations</h4>
+                    <button class="btn" onclick="bulkDelete()" style="background: #ff4757; margin-right: 10px;">Delete Selected</button>
+                    <button class="btn" onclick="bulkExport()" style="background: #2ed573; margin-right: 10px;">Export Selected</button>
+                    <button class="btn" onclick="bulkAnalyze()" style="background: #3742fa;">AI Analyze Selected</button>
+                    <span style="margin-left: 15px; opacity: 0.8;">Selected: <span id="selectedCount">0</span></span>
+                </div>
+            `;
+            document.querySelector('.data-input:last-child').appendChild(controls);
+        }
+        
+        function hideBulkControls() {
+            const controls = document.getElementById('bulkControls');
+            if (controls) controls.remove();
+        }
+        
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.trade-select');
+            checkboxes.forEach(cb => {
+                cb.checked = selectAll.checked;
+                const id = parseInt(cb.dataset.id);
+                if (selectAll.checked) selectedTrades.add(id);
+                else selectedTrades.delete(id);
+            });
+            updateSelectedCount();
+        }
+        
+        function toggleTradeSelect(id) {
+            if (selectedTrades.has(id)) selectedTrades.delete(id);
+            else selectedTrades.add(id);
+            updateSelectedCount();
+        }
+        
+        function updateSelectedCount() {
+            const countEl = document.getElementById('selectedCount');
+            if (countEl) countEl.textContent = selectedTrades.size;
+        }
+        
+        function bulkDelete() {
+            if (selectedTrades.size === 0) {
+                alert('No trades selected');
+                return;
+            }
+            
+            if (confirm(`Delete ${selectedTrades.size} selected trades?`)) {
+                trades = trades.filter(t => !selectedTrades.has(t.id));
+                selectedTrades.clear();
+                updateDisplay();
+            }
+        }
+        
+        function bulkExport() {
+            if (selectedTrades.size === 0) {
+                alert('No trades selected');
+                return;
+            }
+            
+            const selectedTradesData = trades.filter(t => selectedTrades.has(t.id));
+            const csv = 'Date,Bias,Session,Breakeven,MFE_RScore,Entry,Exit,Stop,Size,Commission,PnL\n' + 
+                       selectedTradesData.map(t => 
+                           `${t.date},${t.bias},${t.session},${t.breakeven},${t.rScore},${t.entryPrice},${t.exitPrice || ''},${t.stopLoss},${t.positionSize || 1},${t.commission || 0},${calculatePnL(t).toFixed(2)}`
+                       ).join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `selected_trades_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+        
+        function bulkAnalyze() {
+            if (selectedTrades.size === 0) {
+                alert('No trades selected');
+                return;
+            }
+            
+            const selectedTradesData = trades.filter(t => selectedTrades.has(t.id));
+            const analysis = analyzeTradeGroup(selectedTradesData);
+            
+            alert(`Bulk Analysis (${selectedTrades.size} trades):\n\n${analysis}`);
+        }
+        
+        function analyzeTradeGroup(tradeGroup) {
+            const wins = tradeGroup.filter(t => t.rScore > 0 || t.breakeven).length;
+            const winRate = ((wins / tradeGroup.length) * 100).toFixed(1);
+            const totalR = tradeGroup.reduce((sum, t) => sum + t.rScore, 0);
+            const avgR = (totalR / tradeGroup.length).toFixed(2);
+            const totalPnL = tradeGroup.reduce((sum, t) => sum + calculatePnL(t), 0);
+            
+            const sessions = {};
+            tradeGroup.forEach(t => {
+                sessions[t.session] = (sessions[t.session] || 0) + 1;
+            });
+            const topSession = Object.keys(sessions).reduce((a, b) => sessions[a] > sessions[b] ? a : b);
+            
+            return `Win Rate: ${winRate}%\nAvg R: ${avgR}R\nTotal P&L: $${totalPnL.toFixed(2)}\nTop Session: ${topSession} (${sessions[topSession]} trades)\nDate Range: ${tradeGroup[0].date} to ${tradeGroup[tradeGroup.length-1].date}`;
+        }
+        
+        async function analyzeScreenshot() {
+            alert('Screenshot analysis feature coming soon.');
+        }
+        
+        async function fetchDayNews() {
+            alert('News fetch feature coming soon.');
+        }
+        
         function clearInputs() {
             document.getElementById('tradeDate').value = '';
             document.getElementById('tradeRScore').value = '';
@@ -586,7 +693,6 @@
             
             editingTradeId = id;
             
-            // Populate form with trade data
             document.getElementById('tradeDate').value = trade.date;
             document.getElementById('tradeBias').value = trade.bias;
             document.getElementById('tradeSession').value = trade.session;
@@ -595,7 +701,6 @@
             document.getElementById('entryPrice').value = trade.entryPrice;
             document.getElementById('stopLoss').value = trade.stopLoss;
             
-            // Update UI
             document.getElementById('tradeActionBtn').textContent = 'Update Trade';
             document.getElementById('tradeActionBtn').onclick = updateTrade;
             document.getElementById('cancelEditBtn').style.display = 'inline-block';
@@ -616,13 +721,7 @@
                 stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0
             };
             
-            // Update R values
-            for (let i = 1; i <= 20; i++) {
-                updatedTrade[`r${i}`] = updatedTrade.rScore;
-            }
-            
             trades[tradeIndex] = updatedTrade;
-            saveTrades();
             console.log('Trade updated:', editingTradeId);
             
             cancelEdit();
@@ -640,56 +739,28 @@
         function deleteTrade(id) {
             if (confirm('Are you sure you want to delete this trade?')) {
                 trades = trades.filter(trade => trade.id !== id);
-                saveTrades();
                 updateDisplay();
             }
-        }
-        
-        function saveTrades() {
-            // Data is stored in database only
-            console.log('Trade saved to database');
         }
         
         function loadSampleData() {
             const data = [
                 ['2024-08-06','LONG','LONDON',false,-1],['2024-08-06','LONG','LONDON',false,-1],['2024-08-06','LONG','LONDON',true,2],['2024-08-06','LONG','LONDON',true,23],['2024-08-06','LONG','LONDON',true,7],
-                ['2024-08-06','LONG','LONDON',true,8],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,7],
-                ['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',false,-1],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','SHORT','LONDON',true,9],['2024-08-06','SHORT','LONDON',true,1],
-                ['2024-08-06','SHORT','LONDON',false,-1],['2024-08-06','SHORT','NY PRE MARKET',true,2],['2024-08-06','SHORT','NY PRE MARKET',true,1],['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',true,5],
-                ['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',true,4],['2024-08-06','SHORT','NY PRE MARKET',false,-1],
-                ['2024-08-06','SHORT','NY PRE MARKET',true,1],['2024-08-06','SHORT','NY PRE MARKET',true,3],['2024-08-06','SHORT','NY PRE MARKET',false,-1],['2024-08-06','SHORT','NY PRE MARKET',true,1],['2024-08-06','SHORT','NY PRE MARKET',false,-1],
-                ['2024-08-06','SHORT','NY PRE MARKET',true,35],['2024-08-06','SHORT','NEW YORK AM',true,1],['2024-08-06','SHORT','NEW YORK AM',false,-1],['2024-08-06','LONG','NEW YORK AM',false,-1],['2024-08-06','LONG','NEW YORK AM',true,2],
-                ['2024-08-06','LONG','NEW YORK AM',true,0],['2024-08-06','LONG','NEW YORK AM',true,4],['2024-08-06','LONG','NEW YORK AM',true,31],['2024-08-06','LONG','NY LUNCH',false,-1],['2024-08-06','LONG','NY LUNCH',false,-1],
-                ['2024-08-06','LONG','NY LUNCH',false,-1],['2024-08-06','LONG','NY LUNCH',true,1],['2024-08-06','LONG','NEW YORK PM',false,-1],['2024-08-06','LONG','NEW YORK PM',false,-1],['2024-08-06','LONG','NEW YORK PM',true,46],
-                ['2024-08-06','LONG','NEW YORK PM',true,1],['2024-08-06','LONG','NEW YORK PM',true,1],['2024-08-06','LONG','NEW YORK PM',false,-1],['2024-08-06','LONG','NEW YORK PM',true,3],['2024-08-06','LONG','NEW YORK PM',false,-1],
-                ['2024-08-06','LONG','NEW YORK PM',true,2],['2024-08-06','LONG','NEW YORK PM',true,1],['2024-08-06','LONG','NEW YORK PM',true,1],['2024-08-07','LONG','LONDON',true,2],['2024-08-07','LONG','LONDON',false,-1],
-                ['2024-08-07','LONG','LONDON',false,-1],['2024-08-07','SHORT','LONDON',false,-1],['2024-08-07','SHORT','LONDON',true,1],['2024-08-07','LONG','LONDON',true,6],['2024-08-07','LONG','LONDON',true,2],
-                ['2024-08-07','LONG','LONDON',false,-1],['2024-08-07','LONG','LONDON',true,146],['2024-08-07','LONG','LONDON',true,6],['2024-08-07','LONG','LONDON',true,28],['2024-08-07','LONG','LONDON',false,-1],
-                ['2024-08-07','LONG','LONDON',true,43],['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','LONG','NY PRE MARKET',true,7],['2024-08-07','LONG','NY PRE MARKET',false,-1],
-                ['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','LONG','NY PRE MARKET',false,-1],['2024-08-07','SHORT','NY PRE MARKET',false,-1],['2024-08-07','SHORT','NY PRE MARKET',false,-1],
-                ['2024-08-07','SHORT','NY PRE MARKET',true,2],['2024-08-07','SHORT','NEW YORK AM',false,-1],['2024-08-07','SHORT','NEW YORK AM',true,3],['2024-08-07','SHORT','NEW YORK AM',true,1],['2024-08-07','SHORT','NEW YORK AM',true,9],
-                ['2024-08-07','SHORT','NEW YORK AM',false,-1],['2024-08-07','SHORT','NEW YORK AM',true,2],['2024-08-07','SHORT','NEW YORK AM',true,3],['2024-08-07','SHORT','NY LUNCH',true,1],['2024-08-07','SHORT','NY LUNCH',false,-1],
-                ['2024-08-07','SHORT','NY LUNCH',true,8],['2024-08-07','SHORT','NEW YORK PM',true,6],['2024-08-07','SHORT','NEW YORK PM',false,-1],['2024-08-07','SHORT','NEW YORK PM',true,1],['2024-08-07','SHORT','NEW YORK PM',true,1],
-                ['2024-08-07','SHORT','NEW YORK PM',false,-1],['2024-08-07','SHORT','NEW YORK PM',false,-1],['2024-08-07','SHORT','NEW YORK PM',true,2],['2024-08-07','SHORT','NEW YORK PM',true,3],['2024-08-07','SHORT','NEW YORK PM',true,1],
-                ['2024-08-07','SHORT','NEW YORK PM',false,-1]
+                ['2024-08-06','LONG','LONDON',true,8],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,7]
             ];
             
             trades = data.map((d, index) => ({
                 id: Date.now() + index,
                 date: d[0], bias: d[1], session: d[2], breakeven: d[3], rScore: d[4],
-                entryPrice: 0, stopLoss: 0,
-                r1: d[4], r2: d[4], r3: d[4], r4: d[4], r5: d[4], r6: d[4], r7: d[4], r8: d[4], r9: d[4], r10: d[4],
-                r11: d[4], r12: d[4], r13: d[4], r14: d[4], r15: d[4], r16: d[4], r17: d[4], r18: d[4], r19: d[4], r20: d[4]
+                entryPrice: 0, exitPrice: 0, stopLoss: 0, positionSize: 1, commission: 0
             }));
             
-            saveTrades();
             updateDisplay();
         }
         
         function clearAllTrades() {
             if (confirm('Are you sure you want to delete all trades? This cannot be undone.')) {
                 trades = [];
-                saveTrades();
                 updateDisplay();
             }
         }
@@ -726,18 +797,15 @@
                                 breakeven: values[3] === 'true',
                                 rScore: parseFloat(values[4]) || 0,
                                 entryPrice: parseFloat(values[5]) || 0,
-                                stopLoss: parseFloat(values[6]) || 0
+                                stopLoss: parseFloat(values[6]) || 0,
+                                exitPrice: 0,
+                                positionSize: 1,
+                                commission: 0
                             };
-                            
-                            // Set R values
-                            for (let j = 1; j <= 20; j++) {
-                                trade[`r${j}`] = trade.rScore;
-                            }
                             
                             trades.push(trade);
                         }
                     }
-                    saveTrades();
                     updateDisplay();
                 };
                 reader.readAsText(file);
@@ -754,7 +822,6 @@
             const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
             const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
             
-            // Single-pass calculation for better performance
             const stats = trades.reduce((acc, trade) => {
                 const tradeDate = new Date(trade.date);
                 if (tradeDate >= weekStart) acc.weekTrades++;
@@ -773,7 +840,6 @@
             const winRate = trades.length > 0 ? ((stats.wins / trades.length) * 100).toFixed(1) : 0;
             const expectancy = trades.length > 0 ? (stats.totalR / trades.length).toFixed(2) : 0;
             
-            // Find best session from already calculated stats
             let bestSession = '-';
             let bestAvg = -999;
             Object.keys(stats.sessions).forEach(session => {
@@ -784,7 +850,6 @@
                 }
             });
             
-            // Update display
             document.getElementById('totalTrades').textContent = trades.length;
             document.getElementById('winRate').textContent = winRate + '%';
             document.getElementById('totalR').textContent = stats.totalR.toFixed(1) + 'R';
@@ -792,9 +857,8 @@
             document.getElementById('weekTrades').textContent = stats.weekTrades;
             document.getElementById('monthTrades').textContent = stats.monthTrades;
             document.getElementById('bestSession').textContent = bestSession;
-            document.getElementById('lastUpdated').textContent = localStorage.getItem('lastUpdated') || 'Never';
+            document.getElementById('lastUpdated').textContent = 'Just now';
             
-            // Update colors based on performance
             const totalRElement = document.getElementById('totalR');
             const expectancyElement = document.getElementById('expectancy');
             
@@ -835,13 +899,11 @@
                     <td>
                         <button onclick="editTrade(${trade.id})" style="background: #ffa502; border: none; padding: 3px 8px; border-radius: 3px; color: white; cursor: pointer; margin-right: 3px; font-size: 11px;">Edit</button>
                         <button onclick="deleteTrade(${trade.id})" style="background: #ff4757; border: none; padding: 3px 8px; border-radius: 3px; color: white; cursor: pointer; font-size: 11px;">Del</button>
-                        ${trade.screenshot ? '<button onclick="viewScreenshot(' + trade.id + ')" style="background: #3742fa; border: none; padding: 3px 8px; border-radius: 3px; color: white; cursor: pointer; margin-left: 3px; font-size: 11px;">📷</button>' : ''}
                     </td>
                 `;
             });
         }
         
-        // Event listeners
         document.getElementById('searchTrades').addEventListener('input', updateTable);
         document.getElementById('filterSession').addEventListener('change', updateTable);
         
@@ -877,136 +939,6 @@
             document.getElementById('currentDateTime').textContent = now.toLocaleDateString('en-US', options);
         }
         
-        // Enhanced functions for new features
-        function calculatePnL(trade) {
-            if (!trade.exitPrice || !trade.entryPrice) return 0;
-            const pointValue = 20; // NQ point value
-            const points = trade.bias === 'LONG' ? 
-                (trade.exitPrice - trade.entryPrice) : 
-                (trade.entryPrice - trade.exitPrice);
-            return (points * pointValue * (trade.positionSize || 1)) - (trade.commission || 0);
-        }
-        
-        function toggleBulkMode() {
-            bulkMode = !bulkMode;
-            const btn = document.getElementById('bulkModeBtn');
-            btn.textContent = bulkMode ? 'Exit Bulk' : 'Bulk Mode';
-            btn.style.background = bulkMode ? '#ff4757' : '#ffa502';
-            
-            if (bulkMode) {
-                showBulkControls();
-            } else {
-                hideBulkControls();
-                selectedTrades.clear();
-            }
-        }
-        
-        function showBulkControls() {
-            const controls = document.createElement('div');
-            controls.id = 'bulkControls';
-            controls.innerHTML = `
-                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 15px 0;">
-                    <h4>Bulk Operations</h4>
-                    <button class="btn" onclick="bulkDelete()" style="background: #ff4757; margin-right: 10px;">Delete Selected</button>
-                    <button class="btn" onclick="bulkExport()" style="background: #2ed573; margin-right: 10px;">Export Selected</button>
-                    <button class="btn" onclick="bulkAnalyze()" style="background: #3742fa;">AI Analyze Selected</button>
-                    <span style="margin-left: 15px; opacity: 0.8;">Selected: <span id="selectedCount">0</span></span>
-                </div>
-            `;
-            document.querySelector('.data-input:last-child').appendChild(controls);
-        }
-        
-        function hideBulkControls() {
-            const controls = document.getElementById('bulkControls');
-            if (controls) controls.remove();
-        }
-        
-        function toggleSelectAll() {
-            const selectAll = document.getElementById('selectAll');
-            const checkboxes = document.querySelectorAll('.trade-select');
-            checkboxes.forEach(cb => {
-                cb.checked = selectAll.checked;
-                const id = parseInt(cb.dataset.id);
-                if (selectAll.checked) selectedTrades.add(id);
-                else selectedTrades.delete(id);
-            });
-            updateSelectedCount();
-        }
-        
-        function toggleTradeSelect(id) {
-            if (selectedTrades.has(id)) selectedTrades.delete(id);
-            else selectedTrades.add(id);
-            updateSelectedCount();
-        }
-        
-        function updateSelectedCount() {
-            const countEl = document.getElementById('selectedCount');
-            if (countEl) countEl.textContent = selectedTrades.size;
-        }
-        
-        function bulkDelete() {
-            if (selectedTrades.size === 0) {
-                alert('No trades selected');
-                return;
-            }
-            
-            if (confirm(`Delete ${selectedTrades.size} selected trades?`)) {
-                trades = trades.filter(t => !selectedTrades.has(t.id));
-                selectedTrades.clear();
-                saveTrades();
-                updateDisplay();
-            }
-        }
-        
-        function bulkExport() {
-            if (selectedTrades.size === 0) {
-                alert('No trades selected');
-                return;
-            }
-            
-            const selectedTradesData = trades.filter(t => selectedTrades.has(t.id));
-            const csv = 'Date,Bias,Session,Breakeven,MFE_RScore,Entry,Exit,Stop,Size,Commission,PnL\n' + 
-                       selectedTradesData.map(t => 
-                           `${t.date},${t.bias},${t.session},${t.breakeven},${t.rScore},${t.entryPrice},${t.exitPrice || ''},${t.stopLoss},${t.positionSize || 1},${t.commission || 0},${calculatePnL(t).toFixed(2)}`
-                       ).join('\n');
-            
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `selected_trades_${new Date().toISOString().split('T')[0]}.csv`;
-            a.click();
-        }
-        
-        function bulkAnalyze() {
-            if (selectedTrades.size === 0) {
-                alert('No trades selected');
-                return;
-            }
-            
-            const selectedTradesData = trades.filter(t => selectedTrades.has(t.id));
-            const analysis = analyzeTradeGroup(selectedTradesData);
-            
-            alert(`Bulk Analysis (${selectedTrades.size} trades):\n\n${analysis}`);
-        }
-        
-        function analyzeTradeGroup(tradeGroup) {
-            const wins = tradeGroup.filter(t => t.rScore > 0 || t.breakeven).length;
-            const winRate = ((wins / tradeGroup.length) * 100).toFixed(1);
-            const totalR = tradeGroup.reduce((sum, t) => sum + t.rScore, 0);
-            const avgR = (totalR / tradeGroup.length).toFixed(2);
-            const totalPnL = tradeGroup.reduce((sum, t) => sum + calculatePnL(t), 0);
-            
-            const sessions = {};
-            tradeGroup.forEach(t => {
-                sessions[t.session] = (sessions[t.session] || 0) + 1;
-            });
-            const topSession = Object.keys(sessions).reduce((a, b) => sessions[a] > sessions[b] ? a : b);
-            
-            return `Win Rate: ${winRate}%\nAvg R: ${avgR}R\nTotal P&L: $${totalPnL.toFixed(2)}\nTop Session: ${topSession} (${sessions[topSession]} trades)\nDate Range: ${tradeGroup[0].date} to ${tradeGroup[tradeGroup.length-1].date}`;
-        }
-        
-        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Loading trades from database...');
             loadTrades();
@@ -1021,189 +953,3 @@
 <script src="chatbot.js"></script>
 </body>
 </html>
-
-        // Enhanced functions for new features
-        function calculatePnL(trade) {
-            if (!trade.exitPrice || !trade.entryPrice) return 0;
-            const pointValue = 20; // NQ point value
-            const points = trade.bias === 'LONG' ? 
-                (trade.exitPrice - trade.entryPrice) : 
-                (trade.entryPrice - trade.exitPrice);
-            return (points * pointValue * (trade.positionSize || 1)) - (trade.commission || 0);
-        }
-        
-        function toggleBulkMode() {
-            bulkMode = !bulkMode;
-            const btn = document.getElementById('bulkModeBtn');
-            btn.textContent = bulkMode ? 'Exit Bulk' : 'Bulk Mode';
-            btn.style.background = bulkMode ? '#ff4757' : '#ffa502';
-            
-            if (bulkMode) {
-                showBulkControls();
-            } else {
-                hideBulkControls();
-                selectedTrades.clear();
-            }
-        }
-        
-        function showBulkControls() {
-            const controls = document.createElement('div');
-            controls.id = 'bulkControls';
-            controls.innerHTML = `
-                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 15px 0;">
-                    <h4>Bulk Operations</h4>
-                    <button class="btn" onclick="bulkDelete()" style="background: #ff4757; margin-right: 10px;">Delete Selected</button>
-                    <button class="btn" onclick="bulkExport()" style="background: #2ed573; margin-right: 10px;">Export Selected</button>
-                    <button class="btn" onclick="bulkAnalyze()" style="background: #3742fa;">AI Analyze Selected</button>
-                    <span style="margin-left: 15px; opacity: 0.8;">Selected: <span id="selectedCount">0</span></span>
-                </div>
-            `;
-            document.querySelector('.data-input:last-child').appendChild(controls);
-        }
-        
-        function hideBulkControls() {
-            const controls = document.getElementById('bulkControls');
-            if (controls) controls.remove();
-        }
-        
-        function toggleSelectAll() {
-            const selectAll = document.getElementById('selectAll');
-            const checkboxes = document.querySelectorAll('.trade-select');
-            checkboxes.forEach(cb => {
-                cb.checked = selectAll.checked;
-                const id = parseInt(cb.dataset.id);
-                if (selectAll.checked) selectedTrades.add(id);
-                else selectedTrades.delete(id);
-            });
-            updateSelectedCount();
-        }
-        
-        function toggleTradeSelect(id) {
-            if (selectedTrades.has(id)) selectedTrades.delete(id);
-            else selectedTrades.add(id);
-            updateSelectedCount();
-        }
-        
-        function updateSelectedCount() {
-            const countEl = document.getElementById('selectedCount');
-            if (countEl) countEl.textContent = selectedTrades.size;
-        }
-        
-        async function analyzeScreenshot() {
-            const file = document.getElementById('screenshot').files[0];
-            if (!file) {
-                alert('Please select a screenshot first');
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append('image', file);
-            
-            try {
-                const response = await fetch('/api/analyze-screenshot', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-                
-                alert(`AI Analysis:\n\n${result.analysis}\n\nEdges Identified:\n${result.edges.join('\n')}`);
-            } catch (error) {
-                console.error('Screenshot analysis failed:', error);
-                alert('Screenshot analysis failed. Feature coming soon.');
-            }
-        }
-        
-        async function fetchDayNews() {
-            const date = document.getElementById('tradeDate').value;
-            if (!date) {
-                alert('Please select a date first');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/news/${date}`);
-                const news = await response.json();
-                
-                dailyNews[date] = news;
-                
-                const newsHtml = news.map(item => 
-                    `<div style="margin: 5px 0; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 5px;">
-                        <strong>${item.time}</strong> - ${item.title} (${item.impact})
-                    </div>`
-                ).join('');
-                
-                const popup = window.open('', 'news', 'width=600,height=400,scrollbars=yes');
-                popup.document.write(`
-                    <html><head><title>News for ${date}</title></head>
-                    <body style="font-family: Arial; padding: 20px; background: #1e3c72; color: white;">
-                        <h2>Economic News - ${date}</h2>
-                        ${newsHtml}
-                    </body></html>
-                `);
-            } catch (error) {
-                console.error('News fetch failed:', error);
-                alert('News fetch failed. Feature coming soon.');
-            }
-        }
-        
-        function bulkDelete() {
-            if (selectedTrades.size === 0) {
-                alert('No trades selected');
-                return;
-            }
-            
-            if (confirm(`Delete ${selectedTrades.size} selected trades?`)) {
-                trades = trades.filter(t => !selectedTrades.has(t.id));
-                selectedTrades.clear();
-                saveTrades();
-                updateDisplay();
-            }
-        }
-        
-        function bulkExport() {
-            if (selectedTrades.size === 0) {
-                alert('No trades selected');
-                return;
-            }
-            
-            const selectedTradesData = trades.filter(t => selectedTrades.has(t.id));
-            const csv = 'Date,Bias,Session,Breakeven,MFE_RScore,Entry,Exit,Stop,Size,Commission,PnL\n' + 
-                       selectedTradesData.map(t => 
-                           `${t.date},${t.bias},${t.session},${t.breakeven},${t.rScore},${t.entryPrice},${t.exitPrice || ''},${t.stopLoss},${t.positionSize || 1},${t.commission || 0},${calculatePnL(t).toFixed(2)}`
-                       ).join('\n');
-            
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `selected_trades_${new Date().toISOString().split('T')[0]}.csv`;
-            a.click();
-        }
-        
-        function bulkAnalyze() {
-            if (selectedTrades.size === 0) {
-                alert('No trades selected');
-                return;
-            }
-            
-            const selectedTradesData = trades.filter(t => selectedTrades.has(t.id));
-            const analysis = analyzeTradeGroup(selectedTradesData);
-            
-            alert(`Bulk Analysis (${selectedTrades.size} trades):\n\n${analysis}`);
-        }
-        
-        function analyzeTradeGroup(tradeGroup) {
-            const wins = tradeGroup.filter(t => t.rScore > 0 || t.breakeven).length;
-            const winRate = ((wins / tradeGroup.length) * 100).toFixed(1);
-            const totalR = tradeGroup.reduce((sum, t) => sum + t.rScore, 0);
-            const avgR = (totalR / tradeGroup.length).toFixed(2);
-            const totalPnL = tradeGroup.reduce((sum, t) => sum + calculatePnL(t), 0);
-            
-            const sessions = {};
-            tradeGroup.forEach(t => {
-                sessions[t.session] = (sessions[t.session] || 0) + 1;
-            });
-            const topSession = Object.keys(sessions).reduce((a, b) => sessions[a] > sessions[b] ? a : b);
-            
-            return `Win Rate: ${winRate}%\nAvg R: ${avgR}R\nTotal P&L: $${totalPnL.toFixed(2)}\nTop Session: ${topSession} (${sessions[topSession]} trades)\nDate Range: ${tradeGroup[0].date} to ${tradeGroup[tradeGroup.length-1].date}`;
-        }

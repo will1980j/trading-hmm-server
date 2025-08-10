@@ -1,0 +1,19 @@
+{
+  "// Basic TradingView webhook payload - LIMITED DATA": "",
+  "ticker": "NQ1!",
+  "action": "BUY", 
+  "price": 18450.25,
+  "time": "2024-01-15T14:30:00Z",
+  "strategy": "RSI_Strategy",
+  "message": "RSI oversold signal",
+  
+  "// What you DON'T get automatically": "",
+  "exit_price": "NOT_AVAILABLE",
+  "stop_loss": "NOT_AVAILABLE", 
+  "take_profit": "NOT_AVAILABLE",
+  "position_size": "MUST_HARDCODE",
+  "commission": "NOT_AVAILABLE",
+  "pnl": "NOT_AVAILABLE",
+  "trade_duration": "NOT_AVAILABLE",
+  "r_score": "MUST_CALCULATE"
+}

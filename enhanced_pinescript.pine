@@ -1,0 +1,53 @@
+// Enhanced Pine Script to capture more trade data
+//@version=5
+strategy("Enhanced Trade Tracker", overlay=true)
+
+// Track trade state
+var float entry_price = na
+var float stop_loss = na
+var float take_profit = na
+var int trade_id = 0
+
+// Strategy logic
+rsi = ta.rsi(close, 14)
+long_condition = ta.crossover(rsi, 30)
+short_condition = ta.crossunder(rsi, 70)
+
+// Entry alerts with more data
+if long_condition and strategy.position_size == 0
+    entry_price := close
+    stop_loss := close * 0.99  // 1% stop
+    take_profit := close * 1.02  // 2% target
+    trade_id += 1
+    
+    strategy.entry("Long", strategy.long)
+    
+    // Enhanced webhook payload
+    alert_message = '{"action": "ENTRY", "direction": "LONG", "ticker": "' + syminfo.ticker + 
+                   '", "entry_price": ' + str.tostring(entry_price) + 
+                   ', "stop_loss": ' + str.tostring(stop_loss) + 
+                   ', "take_profit": ' + str.tostring(take_profit) + 
+                   ', "trade_id": ' + str.tostring(trade_id) + 
+                   ', "timestamp": "' + str.tostring(time) + 
+                   '", "strategy": "RSI_Enhanced"}'
+    
+    alert(alert_message, alert.freq_once_per_bar)
+
+// Exit alerts
+if strategy.position_size > 0 and (close <= stop_loss or close >= take_profit or short_condition)
+    exit_price = close
+    pnl_points = exit_price - entry_price
+    r_score = pnl_points / (entry_price - stop_loss)
+    
+    strategy.close("Long")
+    
+    // Exit webhook payload
+    exit_message = '{"action": "EXIT", "direction": "LONG", "ticker": "' + syminfo.ticker + 
+                  '", "entry_price": ' + str.tostring(entry_price) + 
+                  ', "exit_price": ' + str.tostring(exit_price) + 
+                  ', "pnl_points": ' + str.tostring(pnl_points) + 
+                  ', "r_score": ' + str.tostring(r_score) + 
+                  ', "trade_id": ' + str.tostring(trade_id) + 
+                  ', "timestamp": "' + str.tostring(time) + '"}'
+    
+    alert(exit_message, alert.freq_once_per_bar)
