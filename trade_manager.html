@@ -329,8 +329,8 @@
                 <span>Breakeven</span>
                 <span>MFE (R Score)</span>
                 <span>Entry Price</span>
+                <span>Exit Price</span>
                 <span>Stop Loss</span>
-                <span></span>
             </div>
             <div class="input-grid">
                 <input type="date" id="tradeDate" placeholder="Date">
@@ -349,9 +349,29 @@
                 <input type="checkbox" id="tradeBreakeven">
                 <input type="number" id="tradeRScore" placeholder="MFE R Score" step="0.1">
                 <input type="number" id="entryPrice" placeholder="Entry" step="0.01">
+                <input type="number" id="exitPrice" placeholder="Exit" step="0.01">
                 <input type="number" id="stopLoss" placeholder="Stop" step="0.01">
+            </div>
+            
+            <div class="input-labels" style="margin-top: 15px;">
+                <span>Position Size</span>
+                <span>Commission</span>
+                <span>Screenshot</span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="input-grid">
+                <input type="number" id="positionSize" placeholder="Contracts" step="1">
+                <input type="number" id="commission" placeholder="Fees" step="0.01">
+                <input type="file" id="screenshot" accept="image/*">
                 <button class="btn" id="tradeActionBtn" onclick="addTrade()">Add Trade</button>
                 <button class="btn" id="cancelEditBtn" onclick="cancelEdit()" style="background: #6c757d; display: none;">Cancel</button>
+                <button class="btn" onclick="analyzeScreenshot()" style="background: #3742fa;">AI Analyze</button>
+                <button class="btn" onclick="fetchDayNews()" style="background: #2ed573;">Get News</button>
+                <button class="btn" onclick="toggleBulkMode()" id="bulkModeBtn" style="background: #ffa502;">Bulk Mode</button>
             </div>
             
             <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
@@ -383,13 +403,17 @@
             <table class="trades-table" id="tradesTable">
                 <thead>
                     <tr>
+                        <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
                         <th>Date</th>
                         <th>Bias</th>
                         <th>Session</th>
                         <th>BE</th>
-                        <th>MFE R Score</th>
+                        <th>MFE R</th>
                         <th>Entry</th>
-                        <th>Stop</th>
+                        <th>Exit</th>
+                        <th>Size</th>
+                        <th>Comm</th>
+                        <th>P&L</th>
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -402,6 +426,9 @@
     <script>
         let trades = [];
         let editingTradeId = null;
+        let bulkMode = false;
+        let selectedTrades = new Set();
+        let dailyNews = {};
         
         // Load trades from database
         async function loadTrades() {
@@ -464,10 +491,20 @@
                 breakeven: document.getElementById('tradeBreakeven').checked,
                 rScore: parseFloat(document.getElementById('tradeRScore').value) || 0,
                 entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
+                exitPrice: parseFloat(document.getElementById('exitPrice').value) || 0,
                 stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
+                positionSize: parseInt(document.getElementById('positionSize').value) || 1,
+                commission: parseFloat(document.getElementById('commission').value) || 0,
                 r1: 0, r2: 0, r3: 0, r4: 0, r5: 0, r6: 0, r7: 0, r8: 0, r9: 0, r10: 0,
                 r11: 0, r12: 0, r13: 0, r14: 0, r15: 0, r16: 0, r17: 0, r18: 0, r19: 0, r20: 0
             };
+            
+            // Validate input
+            const errors = validateTradeInput(trade);
+            if (errors.length > 0) {
+                alert('Validation errors:\n' + errors.join('\n'));
+                return;
+            }
             
             // Set R values based on rScore
             for (let i = 1; i <= 20; i++) {
@@ -509,11 +546,37 @@
             clearInputs();
         }
         
+        function validateTradeInput(trade) {
+            const errors = [];
+            
+            if (!trade.date || isNaN(Date.parse(trade.date))) {
+                errors.push('Valid date is required');
+            }
+            
+            if (!['LONG', 'SHORT'].includes(trade.bias)) {
+                errors.push('Bias must be LONG or SHORT');
+            }
+            
+            if (!isFinite(trade.rScore) || isNaN(trade.rScore)) {
+                errors.push('R Score must be a valid number');
+            }
+            
+            if (trade.entryPrice < 0 || !isFinite(trade.entryPrice)) {
+                errors.push('Entry price must be a positive number');
+            }
+            
+            return errors;
+        }
+        
         function clearInputs() {
             document.getElementById('tradeDate').value = '';
             document.getElementById('tradeRScore').value = '';
             document.getElementById('entryPrice').value = '';
+            document.getElementById('exitPrice').value = '';
             document.getElementById('stopLoss').value = '';
+            document.getElementById('positionSize').value = '';
+            document.getElementById('commission').value = '';
+            document.getElementById('screenshot').value = '';
             document.getElementById('tradeBreakeven').checked = false;
         }
         
@@ -691,30 +754,31 @@
             const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
             const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
             
-            const weekTrades = trades.filter(t => new Date(t.date) >= weekStart).length;
-            const monthTrades = trades.filter(t => new Date(t.date) >= monthStart).length;
+            // Single-pass calculation for better performance
+            const stats = trades.reduce((acc, trade) => {
+                const tradeDate = new Date(trade.date);
+                if (tradeDate >= weekStart) acc.weekTrades++;
+                if (tradeDate >= monthStart) acc.monthTrades++;
+                
+                if (trade.rScore > 0 || trade.breakeven) acc.wins++;
+                acc.totalR += trade.rScore || 0;
+                
+                if (!acc.sessions[trade.session]) acc.sessions[trade.session] = { total: 0, count: 0 };
+                acc.sessions[trade.session].total += trade.rScore || 0;
+                acc.sessions[trade.session].count++;
+                
+                return acc;
+            }, { weekTrades: 0, monthTrades: 0, wins: 0, totalR: 0, sessions: {} });
             
-            // Calculate financial performance
-            const wins = trades.filter(t => t.rScore > 0 || t.breakeven).length;
-            const winRate = trades.length > 0 ? ((wins / trades.length) * 100).toFixed(1) : 0;
-            const totalR = trades.reduce((sum, t) => sum + t.rScore, 0);
-            const expectancy = trades.length > 0 ? (totalR / trades.length).toFixed(2) : 0;
+            const winRate = trades.length > 0 ? ((stats.wins / trades.length) * 100).toFixed(1) : 0;
+            const expectancy = trades.length > 0 ? (stats.totalR / trades.length).toFixed(2) : 0;
             
-            // Find best session
-            const sessionStats = {};
-            trades.forEach(trade => {
-                if (!sessionStats[trade.session]) {
-                    sessionStats[trade.session] = { total: 0, count: 0 };
-                }
-                sessionStats[trade.session].total += trade.rScore;
-                sessionStats[trade.session].count++;
-            });
-            
+            // Find best session from already calculated stats
             let bestSession = '-';
             let bestAvg = -999;
-            Object.keys(sessionStats).forEach(session => {
-                const avg = sessionStats[session].total / sessionStats[session].count;
-                if (avg > bestAvg && sessionStats[session].count >= 3) {
+            Object.keys(stats.sessions).forEach(session => {
+                const avg = stats.sessions[session].total / stats.sessions[session].count;
+                if (avg > bestAvg && stats.sessions[session].count >= 3) {
                     bestAvg = avg;
                     bestSession = session;
                 }
@@ -723,10 +787,10 @@
             // Update display
             document.getElementById('totalTrades').textContent = trades.length;
             document.getElementById('winRate').textContent = winRate + '%';
-            document.getElementById('totalR').textContent = totalR.toFixed(1) + 'R';
+            document.getElementById('totalR').textContent = stats.totalR.toFixed(1) + 'R';
             document.getElementById('expectancy').textContent = expectancy + 'R';
-            document.getElementById('weekTrades').textContent = weekTrades;
-            document.getElementById('monthTrades').textContent = monthTrades;
+            document.getElementById('weekTrades').textContent = stats.weekTrades;
+            document.getElementById('monthTrades').textContent = stats.monthTrades;
             document.getElementById('bestSession').textContent = bestSession;
             document.getElementById('lastUpdated').textContent = localStorage.getItem('lastUpdated') || 'Never';
             
@@ -734,7 +798,7 @@
             const totalRElement = document.getElementById('totalR');
             const expectancyElement = document.getElementById('expectancy');
             
-            totalRElement.className = 'stat-value ' + (totalR > 0 ? 'positive' : totalR < 0 ? 'negative' : 'neutral');
+            totalRElement.className = 'stat-value ' + (stats.totalR > 0 ? 'positive' : stats.totalR < 0 ? 'negative' : 'neutral');
             expectancyElement.className = 'stat-value ' + (parseFloat(expectancy) > 0 ? 'positive' : parseFloat(expectancy) < 0 ? 'negative' : 'neutral');
         }
         
@@ -755,17 +819,23 @@
             tbody.innerHTML = '';
             filteredTrades.slice(-50).reverse().forEach(trade => {
                 const row = tbody.insertRow();
+                const pnl = calculatePnL(trade);
                 row.innerHTML = `
+                    <td><input type="checkbox" class="trade-select" data-id="${trade.id}" onchange="toggleTradeSelect(${trade.id})"></td>
                     <td>${trade.date}</td>
                     <td>${trade.bias}</td>
                     <td>${trade.session}</td>
                     <td>${trade.breakeven ? '✓' : ''}</td>
                     <td class="${trade.rScore > 0 ? 'positive' : trade.rScore < 0 ? 'negative' : 'neutral'}">${trade.rScore.toFixed(1)}R</td>
                     <td>${trade.entryPrice.toFixed(2)}</td>
-                    <td>${trade.stopLoss.toFixed(2)}</td>
+                    <td>${(trade.exitPrice || 0).toFixed(2)}</td>
+                    <td>${trade.positionSize || 1}</td>
+                    <td>$${(trade.commission || 0).toFixed(2)}</td>
+                    <td class="${pnl >= 0 ? 'positive' : 'negative'}">$${pnl.toFixed(2)}</td>
                     <td>
-                        <button onclick="editTrade(${trade.id})" style="background: #ffa502; border: none; padding: 5px 10px; border-radius: 5px; color: white; cursor: pointer; margin-right: 5px;">Edit</button>
-                        <button onclick="deleteTrade(${trade.id})" style="background: #ff4757; border: none; padding: 5px 10px; border-radius: 5px; color: white; cursor: pointer;">Delete</button>
+                        <button onclick="editTrade(${trade.id})" style="background: #ffa502; border: none; padding: 3px 8px; border-radius: 3px; color: white; cursor: pointer; margin-right: 3px; font-size: 11px;">Edit</button>
+                        <button onclick="deleteTrade(${trade.id})" style="background: #ff4757; border: none; padding: 3px 8px; border-radius: 3px; color: white; cursor: pointer; font-size: 11px;">Del</button>
+                        ${trade.screenshot ? '<button onclick="viewScreenshot(' + trade.id + ')" style="background: #3742fa; border: none; padding: 3px 8px; border-radius: 3px; color: white; cursor: pointer; margin-left: 3px; font-size: 11px;">📷</button>' : ''}
                     </td>
                 `;
             });
@@ -823,3 +893,188 @@
 </body>
 </html>
 
+        // Enhanced functions for new features
+        function calculatePnL(trade) {
+            if (!trade.exitPrice || !trade.entryPrice) return 0;
+            const pointValue = 20; // NQ point value
+            const points = trade.bias === 'LONG' ? 
+                (trade.exitPrice - trade.entryPrice) : 
+                (trade.entryPrice - trade.exitPrice);
+            return (points * pointValue * (trade.positionSize || 1)) - (trade.commission || 0);
+        }
+        
+        function toggleBulkMode() {
+            bulkMode = !bulkMode;
+            const btn = document.getElementById('bulkModeBtn');
+            btn.textContent = bulkMode ? 'Exit Bulk' : 'Bulk Mode';
+            btn.style.background = bulkMode ? '#ff4757' : '#ffa502';
+            
+            if (bulkMode) {
+                showBulkControls();
+            } else {
+                hideBulkControls();
+                selectedTrades.clear();
+            }
+        }
+        
+        function showBulkControls() {
+            const controls = document.createElement('div');
+            controls.id = 'bulkControls';
+            controls.innerHTML = `
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 15px 0;">
+                    <h4>Bulk Operations</h4>
+                    <button class="btn" onclick="bulkDelete()" style="background: #ff4757; margin-right: 10px;">Delete Selected</button>
+                    <button class="btn" onclick="bulkExport()" style="background: #2ed573; margin-right: 10px;">Export Selected</button>
+                    <button class="btn" onclick="bulkAnalyze()" style="background: #3742fa;">AI Analyze Selected</button>
+                    <span style="margin-left: 15px; opacity: 0.8;">Selected: <span id="selectedCount">0</span></span>
+                </div>
+            `;
+            document.querySelector('.data-input:last-child').appendChild(controls);
+        }
+        
+        function hideBulkControls() {
+            const controls = document.getElementById('bulkControls');
+            if (controls) controls.remove();
+        }
+        
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.trade-select');
+            checkboxes.forEach(cb => {
+                cb.checked = selectAll.checked;
+                const id = parseInt(cb.dataset.id);
+                if (selectAll.checked) selectedTrades.add(id);
+                else selectedTrades.delete(id);
+            });
+            updateSelectedCount();
+        }
+        
+        function toggleTradeSelect(id) {
+            if (selectedTrades.has(id)) selectedTrades.delete(id);
+            else selectedTrades.add(id);
+            updateSelectedCount();
+        }
+        
+        function updateSelectedCount() {
+            const countEl = document.getElementById('selectedCount');
+            if (countEl) countEl.textContent = selectedTrades.size;
+        }
+        
+        async function analyzeScreenshot() {
+            const file = document.getElementById('screenshot').files[0];
+            if (!file) {
+                alert('Please select a screenshot first');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            try {
+                const response = await fetch('/api/analyze-screenshot', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                alert(`AI Analysis:\n\n${result.analysis}\n\nEdges Identified:\n${result.edges.join('\n')}`);
+            } catch (error) {
+                console.error('Screenshot analysis failed:', error);
+                alert('Screenshot analysis failed. Feature coming soon.');
+            }
+        }
+        
+        async function fetchDayNews() {
+            const date = document.getElementById('tradeDate').value;
+            if (!date) {
+                alert('Please select a date first');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/news/${date}`);
+                const news = await response.json();
+                
+                dailyNews[date] = news;
+                
+                const newsHtml = news.map(item => 
+                    `<div style="margin: 5px 0; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 5px;">
+                        <strong>${item.time}</strong> - ${item.title} (${item.impact})
+                    </div>`
+                ).join('');
+                
+                const popup = window.open('', 'news', 'width=600,height=400,scrollbars=yes');
+                popup.document.write(`
+                    <html><head><title>News for ${date}</title></head>
+                    <body style="font-family: Arial; padding: 20px; background: #1e3c72; color: white;">
+                        <h2>Economic News - ${date}</h2>
+                        ${newsHtml}
+                    </body></html>
+                `);
+            } catch (error) {
+                console.error('News fetch failed:', error);
+                alert('News fetch failed. Feature coming soon.');
+            }
+        }
+        
+        function bulkDelete() {
+            if (selectedTrades.size === 0) {
+                alert('No trades selected');
+                return;
+            }
+            
+            if (confirm(`Delete ${selectedTrades.size} selected trades?`)) {
+                trades = trades.filter(t => !selectedTrades.has(t.id));
+                selectedTrades.clear();
+                saveTrades();
+                updateDisplay();
+            }
+        }
+        
+        function bulkExport() {
+            if (selectedTrades.size === 0) {
+                alert('No trades selected');
+                return;
+            }
+            
+            const selectedTradesData = trades.filter(t => selectedTrades.has(t.id));
+            const csv = 'Date,Bias,Session,Breakeven,MFE_RScore,Entry,Exit,Stop,Size,Commission,PnL\n' + 
+                       selectedTradesData.map(t => 
+                           `${t.date},${t.bias},${t.session},${t.breakeven},${t.rScore},${t.entryPrice},${t.exitPrice || ''},${t.stopLoss},${t.positionSize || 1},${t.commission || 0},${calculatePnL(t).toFixed(2)}`
+                       ).join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `selected_trades_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+        
+        function bulkAnalyze() {
+            if (selectedTrades.size === 0) {
+                alert('No trades selected');
+                return;
+            }
+            
+            const selectedTradesData = trades.filter(t => selectedTrades.has(t.id));
+            const analysis = analyzeTradeGroup(selectedTradesData);
+            
+            alert(`Bulk Analysis (${selectedTrades.size} trades):\n\n${analysis}`);
+        }
+        
+        function analyzeTradeGroup(tradeGroup) {
+            const wins = tradeGroup.filter(t => t.rScore > 0 || t.breakeven).length;
+            const winRate = ((wins / tradeGroup.length) * 100).toFixed(1);
+            const totalR = tradeGroup.reduce((sum, t) => sum + t.rScore, 0);
+            const avgR = (totalR / tradeGroup.length).toFixed(2);
+            const totalPnL = tradeGroup.reduce((sum, t) => sum + calculatePnL(t), 0);
+            
+            const sessions = {};
+            tradeGroup.forEach(t => {
+                sessions[t.session] = (sessions[t.session] || 0) + 1;
+            });
+            const topSession = Object.keys(sessions).reduce((a, b) => sessions[a] > sessions[b] ? a : b);
+            
+            return `Win Rate: ${winRate}%\nAvg R: ${avgR}R\nTotal P&L: $${totalPnL.toFixed(2)}\nTop Session: ${topSession} (${sessions[topSession]} trades)\nDate Range: ${tradeGroup[0].date} to ${tradeGroup[tradeGroup.length-1].date}`;
+        }

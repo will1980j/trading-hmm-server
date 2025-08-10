@@ -199,9 +199,13 @@ def amber_oracle():
 
 @app.route('/<path:filename>')
 def serve_files(filename):
-    if filename.endswith(('.jpg', '.png', '.gif', '.ico', '.pdf')):
-        return send_from_directory('.', filename)
-    return "File not found", 404
+    try:
+        if filename.endswith(('.jpg', '.png', '.gif', '.ico', '.pdf')):
+            return send_from_directory('.', filename)
+        return "File not found", 404
+    except (IOError, OSError) as e:
+        logger.error(f"File access error: {str(e)}")
+        return "File access error", 500
 
 # API endpoint for trading data
 @app.route('/api/trading-data')
@@ -384,6 +388,7 @@ def upload_trades():
 
 # Get trades from database
 @app.route('/api/trades')
+@login_required
 def get_trades():
     try:
         if not db_enabled or not db:
@@ -477,6 +482,7 @@ def add_signal():
 
 # Get recent signals
 @app.route('/api/signals')
+@login_required
 def get_signals():
     try:
         if db_enabled and db:
@@ -514,6 +520,7 @@ def health_check():
 
 # Prop firm endpoints
 @app.route('/api/prop-firms')
+@login_required
 def get_prop_firms():
     try:
         month_year = request.args.get('month', '2024-08')
@@ -542,6 +549,7 @@ def get_prop_firms():
         return jsonify({"firms": []})
 
 @app.route('/api/scrape-propfirms')
+@login_required
 def scrape_propfirms():
     try:
         from propfirm_scraper import run_daily_scraper
