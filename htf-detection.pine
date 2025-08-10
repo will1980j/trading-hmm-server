@@ -1,7 +1,0 @@
-// Get HTF pivots using request.security
-[htfPivotHigh, htfPivotLow, htfPivotTime] = request.security(syminfo.tickerid, htf, getPivots(), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
-
-// Process HTF pivots if enabled
-if showHTFPivots
-    if not na(htfPivotHigh) and htfPivotTime != lastHTFPivotTime
-        lastHTFPivotTime := htfPivotTime

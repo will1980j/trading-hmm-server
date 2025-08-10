@@ -1,3 +1,0 @@
-// Mark the end of HTF pivot tracking for this macro
-if showHTFPivots and macro.htf_active
-    macro.htf_active := false
