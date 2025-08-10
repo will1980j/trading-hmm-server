@@ -314,24 +314,18 @@ class StyleSwitcher {
             @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono:wght@400&display=swap');
             
             body.style-nighthawk {
-                background: #000F14 !important;
-                color: #00B4D8 !important;
+                background: #001122 !important;
+                color: #66D9EF !important;
                 font-family: 'Share Tech Mono', monospace !important;
-                font-size: 12px !important;
-                animation: scanlines 0.1s linear infinite;
-            }
-            
-            @keyframes scanlines {
-                0% { background-position: 0 0; }
-                100% { background-position: 0 2px; }
+                font-size: 14px !important;
             }
             
             body.style-nighthawk::before {
                 content: '';
                 position: fixed;
                 top: 0; left: 0; right: 0; bottom: 0;
-                background: linear-gradient(transparent 50%, rgba(0, 180, 216, 0.03) 50%);
-                background-size: 100% 2px;
+                background: linear-gradient(transparent 50%, rgba(102, 217, 239, 0.02) 50%);
+                background-size: 100% 3px;
                 pointer-events: none;
                 z-index: 1000;
             }
@@ -354,19 +348,19 @@ class StyleSwitcher {
             .style-nighthawk h3,
             .style-nighthawk canvas,
             .style-nighthawk svg {
-                background: #002836 !important;
-                border: 2px solid #00B4D8 !important;
-                color: #00B4D8 !important;
-                text-shadow: 0 0 5px #00B4D8 !important;
+                background: #003344 !important;
+                border: 1px solid #66D9EF !important;
+                color: #CCFFFF !important;
+                text-shadow: none !important;
                 font-family: 'Share Tech Mono', monospace !important;
-                font-size: 12px !important;
+                font-size: 14px !important;
             }
             
             .style-nighthawk .chart-container,
             .style-nighthawk canvas,
             .style-nighthawk svg {
-                background: radial-gradient(ellipse at center, #002836 0%, #000F14 100%) !important;
-                transform: perspective(800px) rotateX(15deg) !important;
+                background: radial-gradient(ellipse at center, #003344 0%, #001122 100%) !important;
+                transform: perspective(800px) rotateX(10deg) !important;
                 position: relative !important;
             }
             
@@ -375,9 +369,9 @@ class StyleSwitcher {
                 position: absolute;
                 top: 0; left: 0; right: 0; bottom: 0;
                 background-image: 
-                    linear-gradient(rgba(0, 180, 216, 0.2) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(0, 180, 216, 0.2) 1px, transparent 1px);
-                background-size: 20px 20px;
+                    linear-gradient(rgba(102, 217, 239, 0.1) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(102, 217, 239, 0.1) 1px, transparent 1px);
+                background-size: 25px 25px;
                 pointer-events: none;
             }
             
@@ -385,37 +379,40 @@ class StyleSwitcher {
             .style-nighthawk button,
             .style-nighthawk input[type="button"],
             .style-nighthawk input[type="submit"] {
-                background: #00B4D8 !important;
-                color: #000F14 !important;
-                border: 2px solid #90E0EF !important;
-                clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)) !important;
+                background: #66D9EF !important;
+                color: #001122 !important;
+                border: 2px solid #CCFFFF !important;
+                clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)) !important;
                 text-shadow: none !important;
                 font-family: 'Share Tech Mono', monospace !important;
+                font-weight: bold !important;
             }
             
             .style-nighthawk .metric-value,
             .style-nighthawk .price,
             .style-nighthawk .value,
             .style-nighthawk .number {
-                color: #90E0EF !important;
-                text-shadow: 0 0 15px #00B4D8 !important;
-                font-size: 24px !important;
+                color: #FFFFFF !important;
+                text-shadow: 0 0 8px #66D9EF !important;
+                font-size: 20px !important;
                 font-family: 'Share Tech Mono', monospace !important;
+                font-weight: bold !important;
             }
             
             .style-nighthawk .navbar {
-                background: #002836 !important;
-                border-bottom: 2px solid #00B4D8 !important;
-                padding: 5px 10px !important;
+                background: #003344 !important;
+                border-bottom: 2px solid #66D9EF !important;
+                padding: 8px 15px !important;
+                color: #FFFFFF !important;
             }
             
             .style-nighthawk .pulse {
-                animation: pulse 1s infinite !important;
+                animation: pulse 2s infinite !important;
             }
             
             @keyframes pulse {
                 0%, 100% { opacity: 1; }
-                50% { opacity: 0.5; }
+                50% { opacity: 0.7; }
             }
         `;
         document.head.appendChild(style);
