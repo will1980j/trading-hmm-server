@@ -776,8 +776,11 @@
         
         function changeStyle() {
             const style = document.getElementById('styleSelector').value;
+            console.log('Changing style to:', style);
             if (window.professionalStyles) {
                 window.professionalStyles.setStyle(style);
+            } else {
+                console.error('Professional styles not loaded');
             }
         }
         

@@ -15,6 +15,7 @@ class ProfessionalStyles {
     }
     
     applyStyle(style) {
+        console.log('Applying style:', style);
         this.removeExistingStyles();
         
         const styleElement = document.createElement('style');
@@ -24,6 +25,7 @@ class ProfessionalStyles {
         
         document.body.className = `style-${style}`;
         this.currentStyle = style;
+        console.log('Style applied, body class:', document.body.className);
     }
     
     removeExistingStyles() {
@@ -211,5 +213,7 @@ class ProfessionalStyles {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Initializing professional styles');
     window.professionalStyles = new ProfessionalStyles();
+    console.log('Professional styles initialized:', window.professionalStyles);
 });

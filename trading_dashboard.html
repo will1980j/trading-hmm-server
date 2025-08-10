@@ -163,8 +163,25 @@
 <body>
     <div class="dashboard">
         <div class="header">
-            <h1>🚀 Trading Analytics Pro</h1>
-            <p>Real-time Performance Dashboard</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div>
+                    <h1>🚀 Trading Analytics Pro</h1>
+                    <p>Real-time Performance Dashboard</p>
+                </div>
+                <select id="styleSelector" onchange="changeStyle()" style="padding: 8px 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(255,255,255,0.1); color: white; font-size: 14px; backdrop-filter: blur(10px);">
+                    <option value="slate">Slate</option>
+                    <option value="charcoal">Charcoal</option>
+                    <option value="navy">Navy</option>
+                    <option value="graphite">Graphite</option>
+                    <option value="midnight">Midnight</option>
+                    <option value="steel">Steel</option>
+                    <option value="carbon">Carbon</option>
+                    <option value="obsidian">Obsidian</option>
+                    <option value="onyx">Onyx</option>
+                    <option value="platinum">Platinum</option>
+                    <option value="arctic">Arctic</option>
+                </select>
+            </div>
         </div>
         
         <div class="metric-card">
@@ -509,14 +526,34 @@
             }
         }
         
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            initCharts();
-            loadTradesFromDB();
-        });
+
     </script>
 <script src="professional_styles.js"></script>
 <script src="chatbot.js"></script>
+<script>
+function changeStyle() {
+    const style = document.getElementById('styleSelector').value;
+    if (window.professionalStyles) {
+        window.professionalStyles.setStyle(style);
+    }
+}
+
+function loadStyle() {
+    const savedStyle = localStorage.getItem('professionalStyle') || 'slate';
+    const selector = document.getElementById('styleSelector');
+    if (selector) {
+        selector.value = savedStyle;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initCharts();
+    loadTradesFromDB();
+    setTimeout(() => {
+        loadStyle();
+    }, 100);
+});
+</script>
 </body>
 </html>
 
