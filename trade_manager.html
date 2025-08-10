@@ -340,12 +340,18 @@
         <div style="display: flex; justify-content: space-between; align-items: center;">
 
             <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
-                <select id="themeSelector" onchange="changeTheme()" class="theme-select">
-                    <option value="gradient">Ocean Gradient</option>
-                    <option value="dark">Dark Professional</option>
-                    <option value="minimal">Minimal White</option>
-                    <option value="neon">Neon Cyber</option>
-                    <option value="gold">Gold Luxury</option>
+                <select id="styleSelector" onchange="changeStyle()" class="style-select">
+                    <option value="slate">Slate</option>
+                    <option value="charcoal">Charcoal</option>
+                    <option value="navy">Navy</option>
+                    <option value="graphite">Graphite</option>
+                    <option value="midnight">Midnight</option>
+                    <option value="steel">Steel</option>
+                    <option value="carbon">Carbon</option>
+                    <option value="obsidian">Obsidian</option>
+                    <option value="onyx">Onyx</option>
+                    <option value="platinum">Platinum</option>
+                    <option value="arctic">Arctic</option>
                 </select>
                 <a href="/dashboard" class="nav-link">Dashboard</a>
                 <a href="/trade-manager" class="nav-link active">Trade Manager</a>
@@ -494,22 +500,28 @@
                 const response = await fetch('/api/trades');
                 const data = await response.json();
                 
-                if (data.trades) {
-                    trades = data.trades.map(t => ({
-                        id: t.id || Date.now(),
-                        date: t.created_at ? t.created_at.split('T')[0] : '2024-08-06',
-                        bias: t.bias || t.signal_type || 'LONG',
-                        session: extractSession(t.reason) || 'LONDON',
-                        breakeven: extractBreakeven(t.reason),
-                        rScore: extractRScore(t.reason),
-                        entryPrice: t.entry || t.entry_price || 0,
-                        stopLoss: 0,
-                        r1: extractRScore(t.reason), r2: extractRScore(t.reason), r3: extractRScore(t.reason), r4: extractRScore(t.reason), r5: extractRScore(t.reason),
-                        r6: extractRScore(t.reason), r7: extractRScore(t.reason), r8: extractRScore(t.reason), r9: extractRScore(t.reason), r10: extractRScore(t.reason),
-                        r11: extractRScore(t.reason), r12: extractRScore(t.reason), r13: extractRScore(t.reason), r14: extractRScore(t.reason), r15: extractRScore(t.reason),
-                        r16: extractRScore(t.reason), r17: extractRScore(t.reason), r18: extractRScore(t.reason), r19: extractRScore(t.reason), r20: extractRScore(t.reason)
-                    }));
+                if (data.trades && data.trades.length > 0) {
+                    trades = data.trades.map(t => {
+                        const rScore = parseFloat(extractRScore(t.reason)) || parseFloat(t.trade_data?.rScore) || 0;
+                        return {
+                            id: t.id || Date.now(),
+                            date: t.created_at ? t.created_at.split('T')[0] : '2024-08-06',
+                            bias: t.bias || t.signal_type || 'LONG',
+                            session: extractSession(t.reason) || 'LONDON',
+                            breakeven: extractBreakeven(t.reason),
+                            rScore: rScore,
+                            entryPrice: parseFloat(t.entry || t.entry_price) || 0,
+                            stopLoss: parseFloat(t.stop_loss) || 0,
+                            r1: rScore, r2: rScore, r3: rScore, r4: rScore, r5: rScore,
+                            r6: rScore, r7: rScore, r8: rScore, r9: rScore, r10: rScore,
+                            r11: rScore, r12: rScore, r13: rScore, r14: rScore, r15: rScore,
+                            r16: rScore, r17: rScore, r18: rScore, r19: rScore, r20: rScore
+                        };
+                    });
                     console.log('Loaded', trades.length, 'trades from database');
+                } else {
+                    console.log('No trades found, loading sample data');
+                    loadSampleData();
                 }
                 updateDisplay();
             } catch (error) {
@@ -854,43 +866,14 @@
         document.getElementById('searchTrades').addEventListener('input', updateTable);
         document.getElementById('filterSession').addEventListener('change', updateTable);
         
-        function changeTheme() {
-            const theme = document.getElementById('themeSelector').value;
-            const body = document.body;
-            
-            // Remove all theme classes
-            body.className = body.className.replace(/theme-\w+/g, '');
-            
-            // Add new theme class
-            body.classList.add(`theme-${theme}`);
-            
-            // Update accent colors based on theme
-            const root = document.documentElement;
-            switch(theme) {
-                case 'dark':
-                    root.style.setProperty('--accent-color', '#4a9eff');
-                    break;
-                case 'minimal':
-                    root.style.setProperty('--accent-color', '#007bff');
-                    break;
-                case 'neon':
-                    root.style.setProperty('--accent-color', '#ff0080');
-                    break;
-                case 'gold':
-                    root.style.setProperty('--accent-color', '#ffd700');
-                    break;
-                default:
-                    root.style.setProperty('--accent-color', '#00ff88');
-            }
-            
-            // Save theme preference
-            localStorage.setItem('selectedTheme', theme);
+        function changeStyle() {
+            const style = document.getElementById('styleSelector').value;
+            window.professionalStyles.setStyle(style);
         }
         
-        function loadTheme() {
-            const savedTheme = localStorage.getItem('selectedTheme') || 'gradient';
-            document.getElementById('themeSelector').value = savedTheme;
-            changeTheme();
+        function loadStyle() {
+            const savedStyle = localStorage.getItem('professionalStyle') || 'slate';
+            document.getElementById('styleSelector').value = savedStyle;
         }
         
         function updateDateTime() {
@@ -911,11 +894,13 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Loading trades from database...');
             loadTrades();
-            loadTheme();
+            loadStyle();
             updateDateTime();
             setInterval(updateDateTime, 30000);
         });
     </script>
-<script src="/chatbot.js"></script>`n</body>
+<script src="/professional_styles.js"></script>
+<script src="/chatbot.js"></script>
+</body>
 </html>
 

@@ -488,23 +488,24 @@
                 const data = await response.json();
                 
                 if (data.trades && data.trades.length > 0) {
-                    trades = data.trades.map(t => ({
-                        date: t.created_at ? t.created_at.split('T')[0] : '2024-08-06',
-                        direction: t.bias || t.signal_type || 'LONG',
-                        symbol: 'NQ1!',
-                        pnl: parseFloat(t.trade_data?.rScore || 0),
-                        entry: parseFloat(t.entry_price || 0),
-                        exit: parseFloat(t.entry_price || 0) + parseFloat(t.trade_data?.rScore || 0),
-                        duration: '2h'
-                    }));
+                    trades = data.trades.map(t => {
+                        const rScore = parseFloat(t.trade_data?.rScore || 0) || 0;
+                        const entryPrice = parseFloat(t.entry_price || 0) || 0;
+                        return {
+                            date: t.created_at ? t.created_at.split('T')[0] : '2024-08-06',
+                            direction: t.bias || t.signal_type || 'LONG',
+                            symbol: 'NQ1!',
+                            pnl: rScore,
+                            entry: entryPrice,
+                            exit: entryPrice + rScore,
+                            duration: '2h'
+                        };
+                    });
                     console.log('Loaded', trades.length, 'trades from database');
                     updateDashboard();
-                } else {
-                    loadSampleData();
                 }
             } catch (error) {
                 console.error('Failed to load trades from database:', error);
-                loadSampleData();
             }
         }
         
@@ -514,6 +515,8 @@
             loadTradesFromDB();
         });
     </script>
-<script src="/chatbot.js"></script>`n</body>
+<script src="/professional_styles.js"></script>
+<script src="/chatbot.js"></script>
+</body>
 </html>
 
