@@ -545,6 +545,102 @@
             text-align: center;
         }
         
+        /* Modern Calendar Heatmap Styles */
+        .calendar-heatmap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .calendar-months {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .calendar-month {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .calendar-month-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 5px;
+        }
+        
+        .calendar-weeks {
+            display: flex;
+            gap: 3px;
+        }
+        
+        .calendar-week {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        
+        .calendar-day-heatmap {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .calendar-day-heatmap:hover {
+            transform: scale(1.3);
+            border: 1px solid rgba(255,255,255,0.4);
+            z-index: 10;
+            position: relative;
+        }
+        
+        .calendar-day-heatmap.no-data {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .calendar-day-heatmap.profit-1 { background: rgba(0, 255, 136, 0.2); }
+        .calendar-day-heatmap.profit-2 { background: rgba(0, 255, 136, 0.4); }
+        .calendar-day-heatmap.profit-3 { background: rgba(0, 255, 136, 0.6); }
+        .calendar-day-heatmap.profit-4 { background: rgba(0, 255, 136, 0.8); }
+        .calendar-day-heatmap.profit-5 { background: rgba(0, 255, 136, 1.0); }
+        
+        .calendar-day-heatmap.loss-1 { background: rgba(255, 71, 87, 0.2); }
+        .calendar-day-heatmap.loss-2 { background: rgba(255, 71, 87, 0.4); }
+        .calendar-day-heatmap.loss-3 { background: rgba(255, 71, 87, 0.6); }
+        .calendar-day-heatmap.loss-4 { background: rgba(255, 71, 87, 0.8); }
+        .calendar-day-heatmap.loss-5 { background: rgba(255, 71, 87, 1.0); }
+        
+        .calendar-day-heatmap.breakeven { background: rgba(255, 165, 2, 0.5); }
+        
+        .calendar-legend {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .calendar-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .calendar-legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        /* Traditional Calendar Styles */
         .calendar-day {
             background: var(--glass-bg);
             border-radius: 12px;
@@ -572,6 +668,21 @@
         
         .calendar-date { font-weight: bold; margin-bottom: 4px; }
         .calendar-stats { font-size: 10px; opacity: 0.9; }
+        
+        /* Calendar Tooltip */
+        .calendar-tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            pointer-events: none;
+            z-index: 1000;
+            max-width: 200px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
         
         .tooltip {
             position: relative;
@@ -1175,21 +1286,27 @@
             </div>
         </div>
         
-        <div class="chart-container" style="grid-column: 1 / -1; height: auto; min-height: 200px;">
+        <div class="chart-container" style="grid-column: 1 / -1; height: auto; min-height: 400px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3>Trading Calendar</h3>
-                <div>
-                    <select id="calendarView" onchange="updateCalendarView()">
-                        <option value="day">Daily View</option>
+                <h3>Trading Performance Calendar</h3>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <select id="calendarView" onchange="updateCalendarView()" style="padding: 6px 10px; border-radius: 6px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);">
+                        <option value="heatmap">Heatmap View</option>
+                        <option value="day">Daily Grid</option>
                         <option value="week">Weekly View</option>
                         <option value="month">Monthly View</option>
                     </select>
+                    <select id="calendarYear" onchange="updateCalendarView()" style="padding: 6px 10px; border-radius: 6px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);">
+                        <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                    </select>
                 </div>
             </div>
-            <div style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; line-height: 1.4;">
+            <div style="margin-bottom: 15px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; line-height: 1.4;">
                 <strong>Calendar Summary:</strong> <span id="calendarSummary">Loading calendar analysis...</span>
             </div>
-            <div id="tradingCalendar" style="display: grid; gap: 5px; padding: 10px;"></div>
+            <div id="tradingCalendar" style="padding: 10px; min-height: 300px;"></div>
+            <div id="calendarLegend" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 11px;"></div>
         </div>
         
 
@@ -1693,6 +1810,7 @@
         // Load data from database instead of sample data
         async function loadDatabaseData() {
             await loadTradesFromDB();
+            initializeCalendarYear();
             updateDashboard();
             // Initialize D3 charts after data loads
             setTimeout(() => {
@@ -1708,6 +1826,29 @@
                     console.warn('D3 not available, skipping D3 chart initialization');
                 }
             }, 500);
+        }
+        
+        function initializeCalendarYear() {
+            const yearSelect = document.getElementById('calendarYear');
+            const currentYear = new Date().getFullYear();
+            
+            // Clear existing options
+            yearSelect.innerHTML = '';
+            
+            // Add years from current year back to 2020
+            for (let year = currentYear; year >= 2020; year--) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                if (year === currentYear) option.selected = true;
+                yearSelect.appendChild(option);
+            }
+            
+            // Set calendar view to heatmap by default
+            const calendarView = document.getElementById('calendarView');
+            if (calendarView && calendarView.value !== 'heatmap') {
+                calendarView.value = 'heatmap';
+            }
         }
         
         function exportData() {
@@ -1768,40 +1909,197 @@
             console.log('Calendar loaded with', trades.length, 'trades from database');
             
             const calendar = document.getElementById('tradingCalendar');
+            const legend = document.getElementById('calendarLegend');
             const view = document.getElementById('calendarView').value;
+            const year = parseInt(document.getElementById('calendarYear').value);
+            
             calendar.innerHTML = ''; // Clear existing content
+            legend.innerHTML = ''; // Clear legend
             
             console.log('Updating calendar with', filteredTrades.length, 'filtered trades');
             
-            if (view === 'day') {
+            if (view === 'heatmap') {
+                updateHeatmapCalendar(filteredTrades, rTarget, calendar, legend, year);
+            } else if (view === 'day') {
+                calendar.style.display = 'grid';
                 calendar.style.gridTemplateColumns = 'repeat(7, 1fr)';
                 updateDailyCalendar(filteredTrades, rTarget, calendar);
             } else if (view === 'week') {
+                calendar.style.display = 'grid';
                 calendar.style.gridTemplateColumns = 'repeat(4, 1fr)';
                 updateWeeklyCalendar(filteredTrades, rTarget, calendar);
             } else if (view === 'month') {
+                calendar.style.display = 'grid';
                 calendar.style.gridTemplateColumns = 'repeat(3, 1fr)';
                 updateMonthlyCalendar(filteredTrades, rTarget, calendar);
             }
         }
         
-        function updateDailyCalendar(filteredTrades, rTarget, calendar) {
-            const dailyData = {};
-            console.log('Sample trade dates:', filteredTrades.slice(0, 5).map(t => t.date));
+        function updateHeatmapCalendar(filteredTrades, rTarget, calendar, legend, year) {
+            calendar.style.display = 'block';
             
+            // Create daily data map
+            const dailyData = {};
             filteredTrades.forEach(trade => {
-                const date = trade.date; // Use exact date string as key
-                if (!dailyData[date]) {
-                    dailyData[date] = { trades: [], totalR: 0, wins: 0, losses: 0 };
+                const tradeDate = new Date(trade.date + 'T00:00:00');
+                if (tradeDate.getFullYear() === year) {
+                    const dateKey = trade.date;
+                    if (!dailyData[dateKey]) {
+                        dailyData[dateKey] = { trades: [], totalR: 0, wins: 0, losses: 0 };
+                    }
+                    const rValue = getRValue(trade, rTarget);
+                    dailyData[dateKey].trades.push(trade);
+                    dailyData[dateKey].totalR += rValue;
+                    if (rValue > 0) dailyData[dateKey].wins++;
+                    else if (rValue < 0) dailyData[dateKey].losses++;
                 }
-                const rValue = getRValue(trade, rTarget);
-                dailyData[date].trades.push(trade);
-                dailyData[date].totalR += rValue;
-                if (rValue > 0) dailyData[date].wins++;
-                else if (rValue < 0) dailyData[date].losses++;
             });
             
-            console.log('Unique dates found:', Object.keys(dailyData).length, Object.keys(dailyData).slice(0, 10));
+            // Create heatmap container
+            const heatmapDiv = document.createElement('div');
+            heatmapDiv.className = 'calendar-heatmap';
+            
+            const monthsDiv = document.createElement('div');
+            monthsDiv.className = 'calendar-months';
+            
+            // Generate months
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            for (let month = 0; month < 12; month++) {
+                const monthDiv = document.createElement('div');
+                monthDiv.className = 'calendar-month';
+                
+                const monthLabel = document.createElement('div');
+                monthLabel.className = 'calendar-month-label';
+                monthLabel.textContent = monthNames[month];
+                monthDiv.appendChild(monthLabel);
+                
+                const weeksDiv = document.createElement('div');
+                weeksDiv.className = 'calendar-weeks';
+                
+                // Get first day of month and number of days
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                const daysInMonth = lastDay.getDate();
+                
+                // Create weeks
+                const weeks = [];
+                let currentWeek = [];
+                
+                // Add empty days for first week
+                const startDay = firstDay.getDay();
+                for (let i = 0; i < startDay; i++) {
+                    currentWeek.push(null);
+                }
+                
+                // Add all days of month
+                for (let day = 1; day <= daysInMonth; day++) {
+                    currentWeek.push(new Date(year, month, day));
+                    if (currentWeek.length === 7) {
+                        weeks.push(currentWeek);
+                        currentWeek = [];
+                    }
+                }
+                
+                // Add remaining days to last week
+                if (currentWeek.length > 0) {
+                    while (currentWeek.length < 7) {
+                        currentWeek.push(null);
+                    }
+                    weeks.push(currentWeek);
+                }
+                
+                // Create week columns
+                for (let weekIndex = 0; weekIndex < weeks[0].length; weekIndex++) {
+                    const weekDiv = document.createElement('div');
+                    weekDiv.className = 'calendar-week';
+                    
+                    weeks.forEach(week => {
+                        const dayDate = week[weekIndex];
+                        const dayDiv = document.createElement('div');
+                        dayDiv.className = 'calendar-day-heatmap';
+                        
+                        if (dayDate) {
+                            const dateKey = dayDate.toISOString().split('T')[0];
+                            const dayData = dailyData[dateKey];
+                            
+                            if (dayData) {
+                                const intensity = Math.min(5, Math.max(1, Math.abs(Math.round(dayData.totalR))));
+                                if (dayData.totalR > 0) {
+                                    dayDiv.classList.add(`profit-${intensity}`);
+                                } else if (dayData.totalR < 0) {
+                                    dayDiv.classList.add(`loss-${intensity}`);
+                                } else {
+                                    dayDiv.classList.add('breakeven');
+                                }
+                                
+                                // Add tooltip
+                                dayDiv.title = `${dateKey}\n${dayData.totalR.toFixed(1)}R | ${dayData.trades.length} trades\n${((dayData.wins / dayData.trades.length) * 100).toFixed(0)}% win rate`;
+                            } else {
+                                dayDiv.classList.add('no-data');
+                            }
+                        } else {
+                            dayDiv.style.visibility = 'hidden';
+                        }
+                        
+                        weekDiv.appendChild(dayDiv);
+                    });
+                    
+                    weeksDiv.appendChild(weekDiv);
+                }
+                
+                monthDiv.appendChild(weeksDiv);
+                monthsDiv.appendChild(monthDiv);
+            }
+            
+            heatmapDiv.appendChild(monthsDiv);
+            calendar.appendChild(heatmapDiv);
+            
+            // Create legend
+            createCalendarLegend(legend);
+        }
+        
+        function createCalendarLegend(legend) {
+            const legendItems = [
+                { label: 'No trades', class: 'no-data' },
+                { label: 'Small loss', class: 'loss-1' },
+                { label: 'Large loss', class: 'loss-5' },
+                { label: 'Breakeven', class: 'breakeven' },
+                { label: 'Small profit', class: 'profit-1' },
+                { label: 'Large profit', class: 'profit-5' }
+            ];
+            
+            legend.innerHTML = '<span style="margin-right: 10px;">Performance:</span>';
+            
+            legendItems.forEach(item => {
+                const legendItem = document.createElement('div');
+                legendItem.className = 'calendar-legend-item';
+                
+                const colorBox = document.createElement('div');
+                colorBox.className = `calendar-legend-color calendar-day-heatmap ${item.class}`;
+                
+                const label = document.createElement('span');
+                label.textContent = item.label;
+                
+                legendItem.appendChild(colorBox);
+                legendItem.appendChild(label);
+                legend.appendChild(legendItem);
+            });
+        }
+        
+        function updateDailyCalendar(filteredTrades, rTarget, calendar) {
+            const dailyData = {};
+            
+            filteredTrades.forEach(trade => {
+                const date = trade.date;
+                if (!dailyData[date]) {
+                    dailyData[date] = { totalR: 0, wins: 0, count: 0 };
+                }
+                const rValue = getRValue(trade, rTarget);
+                dailyData[date].totalR += rValue;
+                dailyData[date].count++;
+                if (rValue > 0) dailyData[date].wins++;
+            });
             
             Object.keys(dailyData).sort().forEach(date => {
                 const dayData = dailyData[date];
@@ -1812,18 +2110,13 @@
                 else if (dayData.totalR < 0) dayDiv.classList.add('calendar-loss');
                 else dayDiv.classList.add('calendar-breakeven');
                 
-                const winRate = dayData.trades.length > 0 ? (dayData.wins / dayData.trades.length * 100).toFixed(0) : 0;
-                const avgR = dayData.trades.length > 0 ? (dayData.totalR / dayData.trades.length).toFixed(2) : 0;
-                const expectancy = dayData.trades.length > 0 ? ((dayData.wins / dayData.trades.length) * avgR - ((dayData.trades.length - dayData.wins) / dayData.trades.length) * 1).toFixed(2) : 0;
-                const bestTrade = dayData.trades.length > 0 ? Math.max(...dayData.trades.map(t => getRValue(t, rTarget))).toFixed(1) : 0;
+                const winRate = (dayData.wins / dayData.count * 100).toFixed(0);
                 
-                const dateObj = new Date(date + 'T00:00:00');
                 dayDiv.innerHTML = `
-                    <div class="calendar-date" style="font-size: 11px; margin-bottom: 3px;">${date}</div>
-                    <div class="calendar-stats" style="font-size: 9px; line-height: 1.2;">
-                        ${dayData.totalR.toFixed(1)}R | ${dayData.trades.length}T<br>
-                        ${winRate}% WR | E:${expectancy}<br>
-                        Avg:${avgR}R | Best:${bestTrade}R
+                    <div class="calendar-date">${date}</div>
+                    <div class="calendar-stats">
+                        ${dayData.totalR.toFixed(1)}R | ${dayData.count}T<br>
+                        ${winRate}% WR
                     </div>
                 `;
                 
@@ -3630,6 +3923,24 @@
             updateMarketStatus();
         }
         
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing...');
+            loadFilterStates();
+            loadStyle();
+            loadDatabaseData();
+            
+            // Start market status updates
+            forceUpdates();
+            setInterval(updateDateTime, 1000);
+            setInterval(updateMarketStatus, 60000);
+            
+            // Initialize chat if available
+            if (typeof TradingChatAI !== 'undefined') {
+                new TradingChatAI();
+            }
+        });
+        
         // Auto-update strategy summary when filters change
         function updateCharts() {
             // Save current filter states
@@ -3664,7 +3975,9 @@
             safeCall("updateAIInsights");
             
             // Update D3 charts with filtered data
-            updateD3Charts();
+            if (typeof updateD3Charts === 'function') {
+                updateD3Charts();
+            }
             
             // Update trading calendar
             updateTradingCalendar(filteredTrades, rTarget);
