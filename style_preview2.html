@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dark Trading Interface</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            min-height: 100vh;
+            font-size: 14px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #1a1a1a;
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .nav {
+            display: flex;
+            gap: 30px;
+        }
+        
+        .nav-item {
+            color: #888;
+            text-decoration: none;
+            padding: 8px 0;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .nav-item.active, .nav-item:hover {
+            color: #fff;
+            border-bottom-color: #00d4aa;
+        }
+        
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .connect-btn {
+            background: #fff;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-section {
+            background: #111;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #1a1a1a;
+        }
+        
+        .asset-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .asset-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .asset-name {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .asset-price {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        
+        .price-change {
+            color: #ff4757;
+            font-size: 14px;
+        }
+        
+        .price-change.positive {
+            color: #00d4aa;
+        }
+        
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .control-btn {
+            background: #1a1a1a;
+            border: none;
+            color: #888;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .control-btn.active, .control-btn:hover {
+            background: #333;
+            color: #fff;
+        }
+        
+        .chart-placeholder {
+            height: 300px;
+            background: #0a0a0a;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        
+        .volume-chart {
+            height: 80px;
+            background: #0a0a0a;
+            border-radius: 8px;
+            display: flex;
+            align-items: end;
+            padding: 10px;
+            gap: 2px;
+        }
+        
+        .volume-bar {
+            background: #333;
+            flex: 1;
+            min-height: 4px;
+            border-radius: 1px;
+        }
+        
+        .volume-bar:nth-child(3n) { height: 60%; background: #00d4aa; }
+        .volume-bar:nth-child(5n) { height: 80%; }
+        .volume-bar:nth-child(7n) { height: 40%; }
+        
+        .trading-panel {
+            background: #111;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #1a1a1a;
+        }
+        
+        .trade-tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        
+        .trade-tab {
+            flex: 1;
+            background: none;
+            border: none;
+            color: #888;
+            padding: 12px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .trade-tab.active {
+            color: #00d4aa;
+            border-bottom-color: #00d4aa;
+        }
+        
+        .trade-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .form-label {
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        
+        .form-input {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #00d4aa;
+        }
+        
+        .trade-btn {
+            background: #00d4aa;
+            color: #000;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        
+        .stat-card {
+            background: #111;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #1a1a1a;
+        }
+        
+        .stat-title {
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .stat-change {
+            font-size: 12px;
+            color: #00d4aa;
+        }
+        
+        .mini-chart {
+            height: 60px;
+            background: #0a0a0a;
+            border-radius: 6px;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+        }
+        
+        .donut-chart {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: conic-gradient(#00d4aa 0deg 180deg, #ff4757 180deg 270deg, #333 270deg 360deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin: 20px auto;
+        }
+        
+        .donut-center {
+            width: 80px;
+            height: 80px;
+            background: #111;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .donut-value {
+            font-size: 16px;
+            font-weight: 700;
+        }
+        
+        .donut-label {
+            font-size: 10px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <span>⚡</span>
+                <span>TradingPro</span>
+            </div>
+            <div class="nav">
+                <a href="#" class="nav-item active">Exchange</a>
+                <a href="#" class="nav-item">Portfolio</a>
+                <a href="#" class="nav-item">Analytics</a>
+                <a href="#" class="nav-item">Signals</a>
+            </div>
+            <div class="user-section">
+                <button class="connect-btn">Connect Wallet</button>
+                <div style="width: 32px; height: 32px; background: #333; border-radius: 50%;"></div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="chart-section">
+                <div class="asset-header">
+                    <div class="asset-info">
+                        <div class="asset-name">NQ1! Futures</div>
+                        <div class="asset-price">$18,470</div>
+                        <div class="price-change">-3.69% (-$693.66)</div>
+                    </div>
+                </div>
+                
+                <div class="chart-controls">
+                    <button class="control-btn">Price</button>
+                    <button class="control-btn active">Market cap</button>
+                    <button class="control-btn">Volume</button>
+                    <button class="control-btn">TVL</button>
+                </div>
+                
+                <div class="chart-placeholder">
+                    📈 Chart visualization would go here
+                </div>
+                
+                <div class="volume-chart">
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                    <div class="volume-bar"></div>
+                </div>
+            </div>
+            
+            <div class="trading-panel">
+                <div class="trade-tabs">
+                    <button class="trade-tab active">Buy</button>
+                    <button class="trade-tab">Sell</button>
+                </div>
+                
+                <div class="trade-form">
+                    <div class="form-group">
+                        <label class="form-label">Order Type</label>
+                        <select class="form-input">
+                            <option>Market</option>
+                            <option>Limit</option>
+                            <option>Stop</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Amount</label>
+                        <input type="number" class="form-input" placeholder="0.147648" />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Balance</label>
+                        <div style="color: #888;">1500 USD</div>
+                    </div>
+                    
+                    <button class="trade-btn">Execute Trade</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-title">Portfolio Value</div>
+                <div class="stat-value">$127,450</div>
+                <div class="stat-change">+12.5% (24h)</div>
+                <div class="mini-chart">📊</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-title">Win Rate</div>
+                <div class="donut-chart">
+                    <div class="donut-center">
+                        <div class="donut-value">73.2%</div>
+                        <div class="donut-label">Success</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-title">Active Positions</div>
+                <div class="stat-value">12</div>
+                <div class="stat-change">3 Long, 9 Short</div>
+                <div class="mini-chart">📈</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

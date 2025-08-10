@@ -153,6 +153,10 @@ def notification_system_js():
 def style_preview():
     return read_html_file('style_preview.html')
 
+@app.route('/style_preview2.html')
+def style_preview2():
+    return read_html_file('style_preview2.html')
+
 @app.route('/<path:filename>')
 def serve_files(filename):
     if filename.endswith(('.jpg', '.png', '.gif', '.ico', '.pdf')):
