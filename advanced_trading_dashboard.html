@@ -16,7 +16,7 @@
     <!-- External CDN resources present security risks - consider hosting locally -->
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script defer src="./d3_charts.js"></script>
+    <script defer src="d3_charts.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js" crossorigin="anonymous"></script>
     <script defer src="api_integration.js"></script>
     <script defer src="notification_system.js"></script>
@@ -1082,10 +1082,10 @@
                     <canvas id="equityChart"></canvas>
                 </div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
-                    <strong>📊 What this shows:</strong> Your cumulative profit/loss over time, with each trade adding to or subtracting from your total R. A smooth upward line indicates consistent profitability.
+                    <strong>What this shows:</strong> Your cumulative profit/loss over time, with each trade adding to or subtracting from your total R. A smooth upward line indicates consistent profitability.
                 </div>
                 <div style="margin-top: 5px; padding: 8px; background: rgba(0,255,136,0.1); border-radius: 6px; font-size: 11px;">
-                    <strong>🤖 AI Insight:</strong> <span id="equityInsight">Equity trending upward with good consistency</span>
+                    <strong>AI Insight:</strong> <span id="equityInsight">Equity trending upward with good consistency</span>
                 </div>
             </div>
             
@@ -1093,10 +1093,10 @@
                 <h3>Daily Equity Curve</h3>
                 <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="dailyEquityChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
-                    <strong>📊 What this shows:</strong> Your daily profit/loss aggregated by trading day. Shows which days you made or lost money and helps identify daily performance patterns.
+                    <strong>What this shows:</strong> Your daily profit/loss aggregated by trading day. Shows which days you made or lost money and helps identify daily performance patterns.
                 </div>
                 <div style="margin-top: 5px; padding: 8px; background: rgba(0,255,136,0.1); border-radius: 6px; font-size: 11px;">
-                    <strong>🧠 ML Analysis:</strong> <span id="dailyInsight">Daily volatility moderate - maintain sizing</span>
+                    <strong>ML Analysis:</strong> <span id="dailyInsight">Daily volatility moderate - maintain sizing</span>
                 </div>
             </div>
             
@@ -1104,10 +1104,10 @@
                 <h3>Weekly Equity Curve</h3>
                 <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="weeklyEquityChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
-                    <strong>📊 What this shows:</strong> Your weekly performance over time. Each point represents a week's total profit/loss, helping identify longer-term trends and weekly consistency.
+                    <strong>What this shows:</strong> Your weekly performance over time. Each point represents a week's total profit/loss, helping identify longer-term trends and weekly consistency.
                 </div>
                 <div style="margin-top: 5px; padding: 8px; background: rgba(0,255,136,0.1); border-radius: 6px; font-size: 11px;">
-                    <strong>📊 Pattern Recognition:</strong> <span id="weeklyInsight">Weekly trend positive with strong momentum</span>
+                    <strong>Pattern Recognition:</strong> <span id="weeklyInsight">Weekly trend positive with strong momentum</span>
                 </div>
             </div>
             
@@ -1115,10 +1115,10 @@
                 <h3>Monthly Equity Curve</h3>
                 <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="monthlyEquityChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
-                    <strong>📊 What this shows:</strong> Your monthly performance progression. Shows seasonal patterns and long-term account growth, with each point representing a month's total results.
+                    <strong>What this shows:</strong> Your monthly performance progression. Shows seasonal patterns and long-term account growth, with each point representing a month's total results.
                 </div>
                 <div style="margin-top: 5px; padding: 8px; background: rgba(0,255,136,0.1); border-radius: 6px; font-size: 11px;">
-                    <strong>🔮 Predictive AI:</strong> <span id="monthlyInsight">Current month historically favorable</span>
+                    <strong>Predictive AI:</strong> <span id="monthlyInsight">Current month historically favorable</span>
                 </div>
             </div>
             
@@ -1126,10 +1126,10 @@
                 <h3>R-Score Distribution</h3>
                 <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="rScoreChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
-                    <strong>📊 What this shows:</strong> How often you hit different R-multiples. Shows your MFE distribution and helps determine optimal profit targets based on actual trade outcomes.
+                    <strong>What this shows:</strong> How often you hit different R-multiples. Shows your MFE distribution and helps determine optimal profit targets based on actual trade outcomes.
                 </div>
                 <div style="margin-top: 5px; padding: 8px; background: rgba(0,255,136,0.1); border-radius: 6px; font-size: 11px;">
-                    <strong>🎯 AI Optimization:</strong> <span id="rScoreInsight">3R target optimal for your MFE data</span>
+                    <strong>AI Optimization:</strong> <span id="rScoreInsight">3R target optimal for your MFE data</span>
                 </div>
             </div>
             
@@ -1137,10 +1137,10 @@
                 <h3>Day of Week Performance</h3>
                 <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="dayOfWeekChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
-                    <strong>📊 What this shows:</strong> Your average expectancy for each trading day (Monday-Friday). Helps identify which days of the week are most profitable for your strategy.
+                    <strong>What this shows:</strong> Your average expectancy for each trading day (Monday-Friday). Helps identify which days of the week are most profitable for your strategy.
                 </div>
                 <div style="margin-top: 5px; padding: 8px; background: rgba(255,165,2,0.1); border-radius: 6px; font-size: 11px;">
-                    <strong>🗓️ Cyclical AI:</strong> <span id="dayOfWeekInsight">Wednesday shows strongest performance</span>
+                    <strong>Cyclical AI:</strong> <span id="dayOfWeekInsight">Wednesday shows strongest performance</span>
                 </div>
             </div>
             
@@ -1148,10 +1148,10 @@
                 <h3>Monthly Seasonality</h3>
                 <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="seasonalityChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
-                    <strong>📊 What this shows:</strong> Your average expectancy for each month of the year. Reveals seasonal patterns in your trading performance and market behavior.
+                    <strong>What this shows:</strong> Your average expectancy for each month of the year. Reveals seasonal patterns in your trading performance and market behavior.
                 </div>
                 <div style="margin-top: 5px; padding: 8px; background: rgba(255,165,2,0.1); border-radius: 6px; font-size: 11px;">
-                    <strong>🌊 Seasonal ML:</strong> <span id="seasonalityInsight">Aug-Sep strength pattern detected</span>
+                    <strong>Seasonal ML:</strong> <span id="seasonalityInsight">Aug-Sep strength pattern detected</span>
                 </div>
             </div>
             
@@ -1159,10 +1159,10 @@
                 <h3>Rolling 30D Performance</h3>
                 <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="rollingChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
-                    <strong>📊 What this shows:</strong> Your 30-day rolling average expectancy over time. Smooths out daily volatility to show underlying performance trends and momentum.
+                    <strong>What this shows:</strong> Your 30-day rolling average expectancy over time. Smooths out daily volatility to show underlying performance trends and momentum.
                 </div>
                 <div style="margin-top: 5px; padding: 8px; background: rgba(255,165,2,0.1); border-radius: 6px; font-size: 11px;">
-                    <strong>📈 Trend AI:</strong> <span id="rollingInsight">30-day momentum positive with strong strength</span>
+                    <strong>Trend AI:</strong> <span id="rollingInsight">30-day momentum positive with strong strength</span>
                 </div>
             </div>
             
@@ -1170,10 +1170,10 @@
                 <h3>Session Performance Heatmap</h3>
                 <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="sessionHeatmapChart"></canvas></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
-                    <strong>📊 What this shows:</strong> Win rate percentage for each trading session. Helps identify which market sessions (Asia, London, NY) work best for your strategy.
+                    <strong>What this shows:</strong> Win rate percentage for each trading session. Helps identify which market sessions (Asia, London, NY) work best for your strategy.
                 </div>
                 <div style="margin-top: 5px; padding: 8px; background: rgba(255,165,2,0.1); border-radius: 6px; font-size: 11px;">
-                    <strong>⏰ Session AI:</strong> <span id="sessionInsight">Increase London allocation by 20%</span>
+                    <strong>Session AI:</strong> <span id="sessionInsight">Increase London allocation by 20%</span>
                 </div>
             </div>
         </div>
@@ -1201,7 +1201,7 @@
     <!-- AI Chat Widget -->
     <div id="aiChatWidget" class="chat-widget">
         <div id="chatToggle" class="chat-toggle">
-            <i class="fas fa-robot"></i>
+            <i class="fas fa-comments"></i>
         </div>
         <div id="chatContainer" class="chat-container" style="display: none;">
             <div class="chat-header">

@@ -319,7 +319,7 @@ class TradingChatbot {
         
         const chatToggle = document.createElement('div');
         chatToggle.id = 'chat-toggle';
-        chatToggle.innerHTML = '🤖';
+        chatToggle.innerHTML = 'AI';
         chatToggle.style.cssText = `
             position: fixed;
             bottom: 20px;
@@ -372,13 +372,13 @@ class TradingChatbot {
                 </div>
                 <div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
                     <button id="gamma-btn" 
-                            style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">📊 Generate Report</button>
+                            style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">Generate Report</button>
                     <button id="predictions-btn" 
-                            style="background: #17a2b8; color: white; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">🔮 Predictions</button>
+                            style="background: #17a2b8; color: white; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">Predictions</button>
                     <button id="alerts-btn" 
-                            style="background: #ffc107; color: black; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">🚨 Alerts</button>
+                            style="background: #ffc107; color: black; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">Alerts</button>
                     <button id="voice-btn" 
-                            style="background: #6f42c1; color: white; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">🎤 Voice</button>
+                            style="background: #6f42c1; color: white; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; font-size: 12px;">Voice</button>
                 </div>
             </div>
         `;
