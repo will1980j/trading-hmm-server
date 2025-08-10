@@ -308,7 +308,7 @@ def upload_trades():
                 })
                 stored_count += 1
             except Exception as e:
-        logger.error(f"Failed to store trade: {str(e).replace(chr(10), '').replace(chr(13), '')}")
+                logger.error(f"Failed to store trade: {str(e).replace(chr(10), '').replace(chr(13), '')}")
         
         return jsonify({
             "status": "success",
@@ -410,6 +410,11 @@ def get_signals():
                 LIMIT 20
             """)
             signals = cursor.fetchall()
+            
+            return jsonify({
+                "signals": [dict(signal) for signal in signals],
+                "count": len(signals)
+            })
         except (ConnectionError, Exception) as e:
             logger.error(f"Database query error: {str(e).replace(chr(10), '').replace(chr(13), '')}")
             return jsonify({"error": "Database query failed"}), 500
