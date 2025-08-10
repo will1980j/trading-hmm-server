@@ -481,10 +481,37 @@
             }
         }
         
+        // Load trades from database
+        async function loadTradesFromDB() {
+            try {
+                const response = await fetch('/api/trades');
+                const data = await response.json();
+                
+                if (data.trades && data.trades.length > 0) {
+                    trades = data.trades.map(t => ({
+                        date: t.created_at ? t.created_at.split('T')[0] : '2024-08-06',
+                        direction: t.bias || t.signal_type || 'LONG',
+                        symbol: 'NQ1!',
+                        pnl: parseFloat(t.trade_data?.rScore || 0),
+                        entry: parseFloat(t.entry_price || 0),
+                        exit: parseFloat(t.entry_price || 0) + parseFloat(t.trade_data?.rScore || 0),
+                        duration: '2h'
+                    }));
+                    console.log('Loaded', trades.length, 'trades from database');
+                    updateDashboard();
+                } else {
+                    loadSampleData();
+                }
+            } catch (error) {
+                console.error('Failed to load trades from database:', error);
+                loadSampleData();
+            }
+        }
+        
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             initCharts();
-            loadSampleData();
+            loadTradesFromDB();
         });
     </script>
 <script src="/chatbot.js"></script>`n</body>

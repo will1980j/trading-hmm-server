@@ -353,10 +353,11 @@ class StyleSwitcher {
             .style-nighthawk svg {
                 background: #003344 !important;
                 border: 1px solid #66D9EF !important;
-                color: #CCFFFF !important;
+                color: #FFFFFF !important;
                 text-shadow: none !important;
                 font-family: 'Share Tech Mono', monospace !important;
                 font-size: 14px !important;
+                font-weight: 500 !important;
             }
             
             .style-nighthawk .chart-container,
@@ -396,10 +397,13 @@ class StyleSwitcher {
             .style-nighthawk .value,
             .style-nighthawk .number {
                 color: #FFFFFF !important;
-                text-shadow: 0 0 8px #66D9EF !important;
+                text-shadow: none !important;
                 font-size: 20px !important;
                 font-family: 'Share Tech Mono', monospace !important;
                 font-weight: bold !important;
+                background: rgba(102, 217, 239, 0.1) !important;
+                padding: 2px 6px !important;
+                border-radius: 4px !important;
             }
             
             .style-nighthawk .navbar {
