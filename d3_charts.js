@@ -139,27 +139,37 @@ function updateD3Charts() {
     });
     window.d3Charts.createLineChart('d3MonthlyEquityChart', monthlyEquityData, '#ff4757');
 
-    // R-Score Distribution
-    const rDistribution = new Array(23).fill(0);
-    filteredTrades.forEach(trade => {
-        const rValue = getRValue(trade, rTarget);
-        if (rValue <= -2) rDistribution[0]++;
-        else if (rValue <= -1) rDistribution[1]++;
-        else if (rValue === 0) rDistribution[2]++;
-        else if (rValue >= 1 && rValue <= 20) {
-            const index = Math.floor(rValue) + 2;
-            if (index < 23) rDistribution[index]++;
-            else rDistribution[22]++;
+    // R-Score Distribution - Fixed to capture all R values
+    const rValues = filteredTrades.map(trade => getRValue(trade, rTarget));
+    const maxR = Math.max(...rValues, 50); // Ensure we capture high R values
+    const minR = Math.min(...rValues, -5);
+    
+    const rDistribution = new Array(maxR - minR + 1).fill(0);
+    rValues.forEach(rValue => {
+        const index = Math.floor(rValue) - minR;
+        if (index >= 0 && index < rDistribution.length) {
+            rDistribution[index]++;
         }
     });
-    const rLabels = ['-2R', '-1R', '0R'];
-    for (let i = 1; i <= 20; i++) rLabels.push(i + 'R');
-    const rColors = ['#ff4757', '#ff6b7a', '#ffa502'];
-    for (let i = 1; i <= 20; i++) {
-        const hue = (i - 1) * 15;
-        rColors.push(`hsl(${120 + hue}, 70%, 50%)`);
+    
+    const rLabels = [];
+    const rColors = [];
+    for (let i = minR; i <= maxR; i++) {
+        rLabels.push(i + 'R');
+        if (i < 0) rColors.push('#ff4757');
+        else if (i === 0) rColors.push('#ffa502');
+        else {
+            const hue = Math.min(120 + (i * 8), 180);
+            rColors.push(`hsl(${hue}, 70%, 50%)`);
+        }
     }
-    window.d3Charts.createBarChart('d3RScoreChart', rDistribution, rLabels, rColors);
+    // Filter out empty buckets for cleaner display
+    const nonZeroIndices = rDistribution.map((count, i) => count > 0 ? i : -1).filter(i => i !== -1);
+    const filteredRDist = nonZeroIndices.map(i => rDistribution[i]);
+    const filteredRLabels = nonZeroIndices.map(i => rLabels[i]);
+    const filteredRColors = nonZeroIndices.map(i => rColors[i]);
+    
+    window.d3Charts.createBarChart('d3RScoreChart', filteredRDist, filteredRLabels, filteredRColors);
 
     // Day of Week
     const dayPerf = analyzeDayOfWeek(filteredTrades, rTarget);
