@@ -155,6 +155,21 @@ class ProfessionalStyles {
                 font-family: '${theme.font}', sans-serif !important;
             }
             
+            .nav-link {
+                background: ${(style === 'platinum' || style === 'arctic') ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'} !important;
+                color: ${theme.text} !important;
+                border: 1px solid ${theme.border} !important;
+            }
+            
+            .nav-link:hover {
+                background: ${(style === 'platinum' || style === 'arctic') ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)'} !important;
+            }
+            
+            .nav-link.active {
+                background: ${theme.accent} !important;
+                color: #ffffff !important;
+            }
+            
             .btn,
             button,
             input[type="button"],

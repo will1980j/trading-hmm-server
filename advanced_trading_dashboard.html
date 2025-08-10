@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="/style_preload.css">
     <!-- External CDN resources present security risks - consider hosting locally -->
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js" integrity="sha384-" crossorigin="anonymous"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script defer src="d3_charts.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js" integrity="sha384-" crossorigin="anonymous"></script>
     <script defer src="api_integration.js"></script>
     <script defer src="notification_system.js"></script>
@@ -797,7 +799,7 @@
                     </div>
                 </div>
                 <div style="margin-top: 15px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 3px solid #00ff88;">
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">🎯 STRATEGIC RECOMMENDATION</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">STRATEGIC RECOMMENDATION</div>
                     <div id="strategicRecommendation" style="font-size: 13px; font-weight: 500;">Analyzing your trading patterns and market conditions...</div>
                 </div>
             </div>
@@ -898,7 +900,7 @@
         
         <div class="advanced-metrics">
             <div class="metric-section">
-                <h3>📅 Cyclical & Seasonal Performance</h3>
+                <h3>Cyclical & Seasonal Performance</h3>
                 <div class="risk-metrics">
                     <div class="risk-item tooltip" data-tooltip="Best performing day of the week. Focus trading on this day for optimal results.">
                         <span>Best Day of Week</span>
@@ -926,12 +928,12 @@
                     </div>
                 </div>
                 <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; line-height: 1.4;">
-                    <strong>📅 Cyclical Summary:</strong> <span id="cyclicalSummary">Loading seasonal analysis...</span>
+                    <strong>Cyclical Summary:</strong> <span id="cyclicalSummary">Loading seasonal analysis...</span>
                 </div>
             </div>
             
             <div class="metric-section">
-                <h3>🤖 AI Performance Intelligence</h3>
+                <h3>AI Performance Intelligence</h3>
                 <div class="risk-metrics">
                     <div class="risk-item tooltip" data-tooltip="AI-detected trading patterns that lead to your biggest winners. Focus on these setups.">
                         <span>Winning Pattern</span>
@@ -959,18 +961,18 @@
                     </div>
                 </div>
                 <div style="margin-top: 15px; padding: 10px; background: rgba(0,255,136,0.1); border-radius: 8px;">
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px; color: #333333;">🧠 Generative AI Strategic Analysis:</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px; color: #333333;">Generative AI Strategic Analysis:</div>
                     <div id="aiInsights" style="font-size: 13px; line-height: 1.4; margin-bottom: 10px; color: #333333;">Analyzing trading patterns and market conditions...</div>
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px; color: #333333;">🔬 ML Risk Assessment:</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px; color: #333333;">ML Risk Assessment:</div>
                     <div id="mlRiskAnalysis" style="font-size: 13px; line-height: 1.4; color: #333333;">Processing risk patterns...</div>
                 </div>
                 <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; line-height: 1.4;">
-                    <strong>📊 AI Performance Summary:</strong> <span id="aiPerformanceSummary">Loading comprehensive analysis...</span>
+                    <strong>AI Performance Summary:</strong> <span id="aiPerformanceSummary">Loading comprehensive analysis...</span>
                 </div>
             </div>
             
             <div class="metric-section">
-                <h3>📊 Advanced Statistical Analysis</h3>
+                <h3>Advanced Statistical Analysis</h3>
                 <div class="risk-metrics">
                     <div class="risk-item tooltip" data-tooltip="Tests if wins/losses are random. Random = good (independent trades), Clustered = psychological patterns, Alternating = unnatural.">
                         <span>Runs Test (Randomness)</span>
@@ -998,12 +1000,12 @@
                     </div>
                 </div>
                 <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; line-height: 1.4;">
-                    <strong>📊 Statistical Summary:</strong> <span id="statisticalSummary">Loading statistical analysis...</span>
+                    <strong>Statistical Summary:</strong> <span id="statisticalSummary">Loading statistical analysis...</span>
                 </div>
             </div>
             
             <div class="metric-section">
-                <h3>🤖 AI Performance Insights</h3>
+                <h3>AI Performance Insights</h3>
                 <div class="risk-metrics">
                     <div class="risk-item tooltip" data-tooltip="R-target with highest expectancy based on your MFE data. Use this target for optimal profits.">
                         <span>Optimal R-Target</span>
@@ -1035,15 +1037,15 @@
                     </div>
                 </div>
                 <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">🔗 Markov Chain ML:</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">Markov Chain ML:</div>
                     <div id="markovInsights" style="font-size: 13px; line-height: 1.4; margin-bottom: 10px;">Analyzing trade sequences...</div>
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">🎯 Generative AI Strategy:</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">Generative AI Strategy:</div>
                     <div id="aiRecommendation" style="font-size: 13px; line-height: 1.4; margin-bottom: 10px;">Analyzing your trading patterns...</div>
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">⚡ Neural Network Prediction:</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">Neural Network Prediction:</div>
                     <div id="neuralPrediction" style="font-size: 13px; line-height: 1.4;">Processing behavioral patterns...</div>
                 </div>
                 <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; line-height: 1.4;">
-                    <strong>🎯 AI Insights Summary:</strong> <span id="aiInsightsSummary">Loading AI analysis...</span>
+                    <strong>AI Insights Summary:</strong> <span id="aiInsightsSummary">Loading AI analysis...</span>
                 </div>
             </div>
             
@@ -1068,7 +1070,7 @@
                     </div>
                 </div>
                 <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; line-height: 1.4;">
-                    <strong>⚠️ Risk Summary:</strong> <span id="riskSummary">Loading risk analysis...</span>
+                    <strong>Risk Summary:</strong> <span id="riskSummary">Loading risk analysis...</span>
                 </div>
             </div>
         </div>
@@ -1188,7 +1190,7 @@
                 </div>
             </div>
             <div style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; line-height: 1.4;">
-                <strong>📅 Calendar Summary:</strong> <span id="calendarSummary">Loading calendar analysis...</span>
+                <strong>Calendar Summary:</strong> <span id="calendarSummary">Loading calendar analysis...</span>
             </div>
             <div id="tradingCalendar" style="display: grid; gap: 5px; padding: 10px;"></div>
         </div>
@@ -2047,6 +2049,12 @@
         async function loadDatabaseData() {
             await loadTradesFromDB();
             updateDashboard();
+            // Initialize D3 charts after data loads
+            setTimeout(() => {
+                if (window.d3Charts) {
+                    initD3EquityChart();
+                }
+            }, 100);
         }
         
         function exportData() {
