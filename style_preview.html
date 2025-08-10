@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>80's Tech Style Preview</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Orbitron', monospace;
+            background: #0F0F23;
+            color: #00FFFF;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* Grid background effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                linear-gradient(rgba(0,255,255,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,255,255,0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(255,0,110,0.2), rgba(131,56,236,0.2));
+            border: 2px solid #FF006E;
+            border-radius: 0;
+            box-shadow: 0 0 30px rgba(255,0,110,0.5);
+        }
+        
+        .header h1 {
+            font-size: 3em;
+            font-weight: 900;
+            text-shadow: 0 0 20px #FF006E;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            color: #8338EC;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .card {
+            background: rgba(0,0,0,0.8);
+            border: 1px solid #00FFFF;
+            padding: 25px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            background: linear-gradient(45deg, #FF006E, #8338EC, #00FFFF);
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .card:hover::before {
+            opacity: 1;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,255,255,0.3);
+        }
+        
+        .card h3 {
+            color: #FF006E;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+        
+        .metric {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #00FFFF;
+            text-shadow: 0 0 15px #00FFFF;
+            margin: 15px 0;
+        }
+        
+        .label {
+            color: #8338EC;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .terminal {
+            background: #000;
+            border: 2px solid #00FF41;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            color: #00FF41;
+            box-shadow: 0 0 20px rgba(0,255,65,0.3);
+            margin: 30px 0;
+        }
+        
+        .terminal-header {
+            color: #FFBF00;
+            margin-bottom: 10px;
+        }
+        
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(0,255,65,0.2);
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #FF006E, #8338EC);
+            border: none;
+            padding: 15px 30px;
+            color: white;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(255,0,110,0.5);
+        }
+        
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(255,0,110,0.8);
+        }
+        
+        .neon-line {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00FFFF, transparent);
+            margin: 30px 0;
+            box-shadow: 0 0 10px #00FFFF;
+        }
+        
+        /* Scanline animation */
+        @keyframes scanline {
+            0% { transform: translateY(-100vh); }
+            100% { transform: translateY(100vh); }
+        }
+        
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00FFFF, transparent);
+            animation: scanline 3s linear infinite;
+            pointer-events: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="scanline"></div>
+    
+    <div class="container">
+        <div class="header">
+            <h1>TRADING NEXUS</h1>
+            <p>Neural Network Analytics</p>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <h3>Portfolio Status</h3>
+                <div class="metric">$127,450</div>
+                <div class="label">Total Value</div>
+            </div>
+            
+            <div class="card">
+                <h3>Win Rate</h3>
+                <div class="metric">73.2%</div>
+                <div class="label">Success Ratio</div>
+            </div>
+            
+            <div class="card">
+                <h3>Active Trades</h3>
+                <div class="metric">12</div>
+                <div class="label">Positions Open</div>
+            </div>
+        </div>
+        
+        <div class="neon-line"></div>
+        
+        <div class="terminal">
+            <div class="terminal-header">>> SYSTEM STATUS REPORT</div>
+            <div class="data-row">
+                <span>NEURAL_NET_STATUS:</span>
+                <span>ONLINE</span>
+            </div>
+            <div class="data-row">
+                <span>MARKET_ANALYSIS:</span>
+                <span>BULLISH_TREND_DETECTED</span>
+            </div>
+            <div class="data-row">
+                <span>RISK_LEVEL:</span>
+                <span>MODERATE</span>
+            </div>
+            <div class="data-row">
+                <span>NEXT_SIGNAL:</span>
+                <span>CALCULATING...</span>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin: 40px 0;">
+            <button class="btn">Execute Trade</button>
+            <button class="btn" style="margin-left: 20px;">Run Analysis</button>
+        </div>
+    </div>
+</body>
+</html>
