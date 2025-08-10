@@ -54,8 +54,7 @@ def read_html_file(filename):
             return f.read()
     except FileNotFoundError:
         logger.warning(f"File not found: {filename.replace(chr(10), '').replace(chr(13), '')}")
-        safe_filename = escape(filename)
-        return f"<h1>Trading Dashboard</h1><p>File {safe_filename} not found. Server is running.</p><a href='/health'>Health Check</a>"
+        return "<h1>Trading Dashboard</h1><p>File not found. Server is running.</p><a href='/health'>Health Check</a>"
 
 # Main routes
 @app.route('/')
@@ -209,8 +208,9 @@ Provide specific, actionable advice with Australian context. Think like a CFO, C
             recent = trading_data['recentTrades'][-3:]  # Last 3 trades
             context_info += f"\n\nRecent Trades: {len(recent)} trades with outcomes: {[t.get('outcome', 'unknown') for t in recent]}"
         
+        model_name = environ.get('OPENAI_MODEL', 'gpt-3.5-turbo')
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=model_name,
             messages=[
                 {"role": "system", "content": system_prompt + context_info},
                 {"role": "user", "content": prompt}
@@ -253,7 +253,7 @@ def webhook():
         if not data:
             return jsonify({"error": "No JSON data provided"}), 400
         
-        logger.info(f"Webhook received data: {type(data).__name__}")
+        logger.info(f"Webhook received data: {str(type(data).__name__).replace(chr(10), '').replace(chr(13), '')}")
         
         if db_enabled and db:
             # Store market data if provided
@@ -410,7 +410,8 @@ def get_signals():
             try:
                 cursor = db.conn.cursor()
                 cursor.execute("""
-                    SELECT * FROM trading_signals 
+                    SELECT id, symbol, signal_type, entry_price, confidence, reason, timestamp, created_at 
+                    FROM trading_signals 
                     ORDER BY created_at DESC 
                     LIMIT 20
                 """)
@@ -462,7 +463,7 @@ def get_prop_firms():
             })
         
         return jsonify({"firms": firms})
-    except Exception as e:
+    except (ConnectionError, ValueError, Exception) as e:
         error_msg = str(e).replace('\n', ' ').replace('\r', ' ')
         logger.error(f"Prop firms query error: {error_msg.replace(chr(10), '').replace(chr(13), '')}")
         return jsonify({"firms": []})
@@ -477,8 +478,9 @@ def scrape_propfirms():
             "firms_found": firms_found,
             "message": f"Scraped {firms_found} prop firms"
         })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except (ImportError, AttributeError, Exception) as e:
+        logger.error(f"Scraper error: {str(e).replace(chr(10), '').replace(chr(13), '')}")
+        return jsonify({"error": "Scraper unavailable"}), 500
 
 if __name__ == '__main__':
     port = int(environ.get('PORT', 5000))

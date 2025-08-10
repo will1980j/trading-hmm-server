@@ -14,8 +14,13 @@ class RailwayDB:
         if not self.db_url:
             raise Exception("DATABASE_URL not found - add PostgreSQL service in Railway")
         
-        self.conn = connect(self.db_url, cursor_factory=RealDictCursor)
-        self.setup_tables()
+        try:
+            self.conn = connect(self.db_url, cursor_factory=RealDictCursor)
+            self.setup_tables()
+        except Exception as e:
+            if hasattr(self, 'conn') and self.conn:
+                self.conn.close()
+            raise e
     
     def __enter__(self):
         return self
@@ -151,18 +156,22 @@ class RailwayDB:
             raise e
     
     def store_ict_level(self, level: Dict):
-        with self.conn.cursor() as cur:
-            cur.execute('''
-                INSERT INTO ict_levels (symbol, level_type, price_high, price_low, strength, active, timestamp)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ''', (
-                level.get('symbol'),
-                level.get('type'),
-                level.get('top', 0),
-                level.get('bottom', 0),
-                level.get('strength', 0.5),
-                level.get('active', True),
-                datetime.now(timezone.utc)
-            ))
-        self.conn.commit()
-        return {"status": "success"}
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute('''
+                    INSERT INTO ict_levels (symbol, level_type, price_high, price_low, strength, active, timestamp)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ''', (
+                    level.get('symbol'),
+                    level.get('type'),
+                    level.get('top', 0),
+                    level.get('bottom', 0),
+                    level.get('strength', 0.5),
+                    level.get('active', True),
+                    datetime.now(timezone.utc)
+                ))
+            self.conn.commit()
+            return {"status": "success"}
+        except Exception as e:
+            self.conn.rollback()
+            raise e

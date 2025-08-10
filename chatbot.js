@@ -1,24 +1,32 @@
 // Trading Empire AI Advisor - Comprehensive Business Intelligence
 class TradingChatbot {
     constructor() {
-        this.isOpen = false;
-        this.messages = [];
-        this.tradingData = [];
-        this.propFirms = [];
-        this.businessIntelligence = {};
-        this.knowledgeBase = this.initializeKnowledgeBase();
-        this.voiceEnabled = false;
-        this.recognition = null;
-        this.synthesis = window.speechSynthesis;
-        this.init();
+        try {
+            this.isOpen = false;
+            this.messages = [];
+            this.tradingData = [];
+            this.propFirms = [];
+            this.businessIntelligence = {};
+            this.knowledgeBase = this.initializeKnowledgeBase();
+            this.voiceEnabled = false;
+            this.recognition = null;
+            this.synthesis = window.speechSynthesis;
+            this.init();
+        } catch (error) {
+            console.error('Error initializing chatbot:', error);
+        }
     }
 
     init() {
-        this.createChatWidget();
-        this.loadContext();
-        this.analyzeBusinessMetrics();
-        this.initializeVoice();
-        this.setupSmartNotifications();
+        try {
+            this.createChatWidget();
+            this.loadContext();
+            this.analyzeBusinessMetrics();
+            this.initializeVoice();
+            this.setupSmartNotifications();
+        } catch (error) {
+            console.error('Error initializing chatbot:', error);
+        }
     }
 
     initializeVoice() {
@@ -40,7 +48,6 @@ class TradingChatbot {
 
     setupSmartNotifications() {
         const NOTIFICATION_INTERVAL = 300000; // 5 minutes
-        // Check for performance issues every 5 minutes
         setInterval(() => {
             this.checkForSmartNotifications();
         }, NOTIFICATION_INTERVAL);
@@ -48,7 +55,7 @@ class TradingChatbot {
 
     checkForSmartNotifications() {
         const alerts = this.businessIntelligence.alerts || [];
-        const highPriorityAlerts = alerts.filter(a => a.priority === 'high');
+        const highPriorityAlerts = alerts.filter(alert => alert.priority === 'high');
         
         if (highPriorityAlerts.length > 0 && !this.isOpen) {
             this.showSmartNotification(highPriorityAlerts[0]);
@@ -56,12 +63,16 @@ class TradingChatbot {
     }
 
     showSmartNotification(alert) {
-        if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('Trading Empire Alert', {
-                body: alert.message,
-                icon: '🚨',
-                tag: 'trading-alert'
-            });
+        try {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('Trading Empire Alert', {
+                    body: alert.message,
+                    icon: '🚨',
+                    tag: 'trading-alert'
+                });
+            }
+        } catch (error) {
+            console.error('Error showing notification:', error);
         }
     }
 
@@ -123,33 +134,33 @@ class TradingChatbot {
     }
 
     loadContext() {
-        try {
-            // Enhanced data loading with business intelligence
-            this.tradingData = JSON.parse(localStorage.getItem('tradingData') || '[]');
-            this.propFirms = JSON.parse(localStorage.getItem('propFirmsV2_2024-01') || '[]');
-            this.businessMetrics = JSON.parse(localStorage.getItem('businessMetrics') || '{}');
-            this.taxData = JSON.parse(localStorage.getItem('taxData') || '{}');
-            this.propertyPortfolio = JSON.parse(localStorage.getItem('propertyData') || '[]');
-        } catch (error) {
-            console.error('Error loading context data:', error);
-            this.tradingData = [];
-            this.propFirms = [];
-            this.businessMetrics = {};
-            this.taxData = {};
-            this.propertyPortfolio = [];
-        }
+        const dataKeys = ['tradingData', 'propFirmsV2_2024-01', 'businessMetrics', 'taxData', 'propertyData'];
+        const defaults = [[], [], {}, {}, []];
         
-        // Ensure all data arrays exist
-        if (!Array.isArray(this.tradingData)) this.tradingData = [];
-        if (!Array.isArray(this.propFirms)) this.propFirms = [];
-        if (!Array.isArray(this.propertyPortfolio)) this.propertyPortfolio = [];
+        dataKeys.forEach((key, index) => {
+            try {
+                const data = JSON.parse(localStorage.getItem(key) || JSON.stringify(defaults[index]));
+                switch(index) {
+                    case 0: this.tradingData = Array.isArray(data) ? data : []; break;
+                    case 1: this.propFirms = Array.isArray(data) ? data : []; break;
+                    case 2: this.businessMetrics = data || {}; break;
+                    case 3: this.taxData = data || {}; break;
+                    case 4: this.propertyPortfolio = Array.isArray(data) ? data : []; break;
+                }
+            } catch (error) {
+                console.error(`Error loading ${key}:`, error);
+                if (index < 2 || index === 4) {
+                    this[index === 0 ? 'tradingData' : index === 1 ? 'propFirms' : 'propertyPortfolio'] = [];
+                } else {
+                    this[index === 2 ? 'businessMetrics' : 'taxData'] = {};
+                }
+            }
+        });
     }
 
     analyzeBusinessMetrics() {
-        // Ensure data is loaded first
         if (!this.tradingData) this.loadContext();
         
-        // Calculate key business intelligence metrics
         this.businessIntelligence = {
             tradingPerformance: this.analyzeTradingPerformance(),
             propFirmStatus: this.analyzePropFirmProgress(),
@@ -165,12 +176,15 @@ class TradingChatbot {
         const trades = this.tradingData || [];
         const firms = this.propFirms || [];
         
-        // Trading pattern alerts
+        if (!trades || !firms) {
+            return alerts;
+        }
+        
         const recentTrades = trades.slice(-20);
-        const londonTrades = recentTrades.filter(t => t.session === 'LONDON');
+        const londonTrades = recentTrades.filter(trade => trade.session === 'LONDON');
         if (londonTrades.length >= 5) {
-            const londonWinRate = londonTrades.filter(t => t.rScore > 0).length / londonTrades.length;
-            const overallWinRate = recentTrades.filter(t => t.rScore > 0).length / recentTrades.length;
+            const londonWinRate = londonTrades.filter(trade => trade.rScore > 0).length / londonTrades.length;
+            const overallWinRate = recentTrades.filter(trade => trade.rScore > 0).length / recentTrades.length;
             if (londonWinRate < overallWinRate - 0.15) {
                 alerts.push({
                     type: 'performance',
@@ -181,10 +195,9 @@ class TradingChatbot {
             }
         }
         
-        // Prop firm opportunities
-        const fundedCount = firms.filter(f => f.status === 'funded').length;
+        const fundedCount = firms.filter(firm => firm.status === 'funded').length;
         if (fundedCount < 3 && trades.length > 50) {
-            const winRate = trades.filter(t => t.rScore > 0).length / trades.length;
+            const winRate = trades.filter(trade => trade.rScore > 0).length / trades.length;
             if (winRate > 0.6) {
                 alerts.push({
                     type: 'opportunity',
@@ -195,9 +208,8 @@ class TradingChatbot {
             }
         }
         
-        // Risk management alerts
-        const forexFirms = firms.filter(f => f.marketType === 'Forex').length;
-        const futuresFirms = firms.filter(f => f.marketType === 'Futures').length;
+        const forexFirms = firms.filter(firm => firm.marketType === 'Forex').length;
+        const futuresFirms = firms.filter(firm => firm.marketType === 'Futures').length;
         if (forexFirms > 0 && futuresFirms === 0) {
             alerts.push({
                 type: 'risk',
@@ -210,25 +222,6 @@ class TradingChatbot {
         return alerts;
     }
 
-    generateGammaReport(reportType = 'monthly') {
-        const data = this.generateComprehensiveSummary();
-        const predictions = this.generatePredictiveAnalytics();
-        
-        const report = {
-            title: this.getReportTitle(reportType),
-            template: this.recommendTemplate(reportType),
-            slides: this.buildReportSlides(reportType, data, predictions),
-            metadata: {
-                generated: new Date().toISOString(),
-                type: reportType,
-                dataPoints: this.tradingData.length,
-                propFirms: this.propFirms.length
-            }
-        };
-        
-        return report;
-    }
-
     generatePredictiveAnalytics() {
         const trades = this.tradingData || [];
         const firms = this.propFirms || [];
@@ -237,20 +230,18 @@ class TradingChatbot {
             return { message: 'Need more data for predictions' };
         }
         
-        // Monthly profit projection
         const recentTrades = trades.slice(-Math.min(30, trades.length));
         const avgDailyR = recentTrades.length > 0 ? recentTrades.reduce((sum, trade) => sum + (trade.rScore || 0), 0) / recentTrades.length : 0;
-        const tradingDaysPerMonth = 20;
-        const monthlyRProjection = avgDailyR * tradingDaysPerMonth;
+        const TRADING_DAYS_PER_MONTH = 20;
+        const monthlyRProjection = avgDailyR * TRADING_DAYS_PER_MONTH;
         
-        // Account size projection
-        const fundedCapital = firms.filter(f => f.status === 'funded')
-            .reduce((sum, f) => sum + (f.accountSize || 0), 0);
-        const monthlyProfitProjection = monthlyRProjection * (fundedCapital * 0.01); // Assuming 1% risk per R
+        const fundedCapital = firms.filter(firm => firm.status === 'funded')
+            .reduce((sum, firm) => sum + (firm.accountSize || 0), 0);
+        const RISK_PER_R = 0.01;
+        const monthlyProfitProjection = monthlyRProjection * (fundedCapital * RISK_PER_R);
         
-        // Growth timeline
-        const currentMonthly = monthlyProfitProjection;
-        const q3Projection = currentMonthly * 1.5; // Assuming 50% growth
+        const GROWTH_RATE = 1.5;
+        const q3Projection = monthlyProfitProjection * GROWTH_RATE;
         
         return {
             monthlyRTarget: monthlyRProjection.toFixed(1) + 'R',
@@ -269,10 +260,14 @@ class TradingChatbot {
         const sessionStats = {};
         
         trades.forEach(trade => {
-            if (trade && trade.session) {
-                if (!sessionStats[trade.session]) sessionStats[trade.session] = { total: 0, count: 0 };
-                sessionStats[trade.session].total += trade.rScore || 0;
-                sessionStats[trade.session].count++;
+            try {
+                if (trade && trade.session) {
+                    if (!sessionStats[trade.session]) sessionStats[trade.session] = { total: 0, count: 0 };
+                    sessionStats[trade.session].total += trade.rScore || 0;
+                    sessionStats[trade.session].count++;
+                }
+            } catch (e) {
+                console.error('Error processing trade session data:', e);
             }
         });
         
@@ -280,12 +275,15 @@ class TradingChatbot {
         let bestAvg = 0;
         let potentialIncrease = 0;
         
-        Object.keys(sessionStats).forEach(session => {
-            const avg = sessionStats[session].total / sessionStats[session].count;
-            if (avg > bestAvg && sessionStats[session].count >= 5) {
-                bestAvg = avg;
-                bestSession = session;
-                potentialIncrease = (avg - 0.5) * sessionStats[session].count * 0.23; // 23% scaling factor
+        Object.entries(sessionStats).forEach(([session, stats]) => {
+            if (stats.count >= 5) {
+                const avg = stats.total / stats.count;
+                if (avg > bestAvg) {
+                    bestAvg = avg;
+                    bestSession = session;
+                    const SCALING_FACTOR = 0.23;
+                    potentialIncrease = (avg - 0.5) * stats.count * SCALING_FACTOR;
+                }
             }
         });
         
@@ -296,82 +294,12 @@ class TradingChatbot {
         };
     }
 
-    getReportTitle(type) {
-        const titles = {
-            monthly: 'Monthly Trading Performance Report',
-            investor: 'Investor Performance Presentation',
-            risk: 'Risk Assessment & Management Report',
-            quarterly: 'Quarterly Business Review',
-            strategy: 'Strategy Performance Analysis',
-            allocation: 'Financial Allocation Strategy'
-        };
-        return titles[type] || titles.monthly;
-    }
-
-    recommendTemplate(type) {
-        const recommendations = {
-            monthly: 'professional',
-            investor: 'investor',
-            risk: 'detailed',
-            quarterly: 'professional',
-            strategy: 'detailed',
-            allocation: 'minimal'
-        };
-        return recommendations[type] || 'professional';
-    }
-
-    buildReportSlides(type, data, predictions) {
-        const slides = [
-            {
-                title: 'Executive Summary',
-                content: {
-                    performance: data.trading.summary,
-                    prediction: predictions.keyInsight,
-                    nextSteps: data.strategic.priority
-                }
-            },
-            {
-                title: 'Performance Analytics',
-                content: {
-                    winRate: data.trading.winRate,
-                    totalTrades: data.trading.totalTrades,
-                    bestSession: data.trading.patterns?.bestSession,
-                    roi: data.trading.trend
-                }
-            },
-            {
-                title: 'Predictive Insights',
-                content: {
-                    monthlyProjection: predictions.monthlyProfitProjection,
-                    q3Target: predictions.q3Projection,
-                    optimization: predictions.optimizations?.topRecommendation,
-                    growthRate: predictions.growthRate
-                }
-            }
-        ];
-        
-        if (type === 'investor') {
-            slides.push({
-                title: 'Investment Opportunity',
-                content: {
-                    scalingPotential: 'Multiple prop firm accounts with proven strategy',
-                    riskManagement: 'Systematic approach with defined risk parameters',
-                    growthProjection: predictions.q3Projection + ' quarterly target'
-                }
-            });
-        }
-        
-        return slides;
-    }
-
     createChatWidget() {
-        // Remove existing chat elements if they exist
         const existingToggle = document.getElementById('chat-toggle');
         const existingWindow = document.getElementById('chat-window');
         if (existingToggle) existingToggle.remove();
         if (existingWindow) existingWindow.remove();
         
-        // Chat toggle button
         const chatToggle = document.createElement('div');
         chatToggle.id = 'chat-toggle';
         chatToggle.innerHTML = '🤖';
@@ -395,7 +323,6 @@ class TradingChatbot {
         `;
         chatToggle.addEventListener('click', () => this.toggleChat());
 
-        // Chat window
         const chatWindow = document.createElement('div');
         chatWindow.id = 'chat-window';
         chatWindow.style.cssText = `
@@ -441,34 +368,23 @@ class TradingChatbot {
 
         document.body.appendChild(chatToggle);
         document.body.appendChild(chatWindow);
-
-        // Add elements to DOM
-        document.body.appendChild(chatToggle);
-        document.body.appendChild(chatWindow);
         
-        // Setup event listeners immediately after DOM insertion
         setTimeout(() => {
             this.setupEventListeners();
-            
-            // Enhanced welcome with business intelligence
             const welcomeMsg = this.generateIntelligentWelcome();
             this.addMessage('assistant', welcomeMsg);
         }, 100);
         
-        // Request notification permission
         this.requestNotificationPermission();
     }
     
     setupEventListeners() {
-        // Send button
         const sendBtn = document.getElementById('chat-send-btn');
         if (sendBtn) sendBtn.addEventListener('click', () => this.sendMessage());
         
-        // Close button
         const closeBtn = document.getElementById('chat-close-btn');
         if (closeBtn) closeBtn.addEventListener('click', () => this.toggleChat());
         
-        // Enter key support
         const chatInput = document.getElementById('chat-input');
         if (chatInput) {
             chatInput.addEventListener('keypress', (e) => {
@@ -476,7 +392,6 @@ class TradingChatbot {
             });
         }
         
-        // Quick action buttons
         const gammaBtn = document.getElementById('gamma-btn');
         if (gammaBtn) gammaBtn.addEventListener('click', () => this.quickAction('gamma-report'));
         
@@ -510,7 +425,6 @@ class TradingChatbot {
                 'background: #ffffff; border: 1px solid #dee2e6; margin-right: auto; color: #333333; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'
             }
         `;
-        // Sanitize content to prevent XSS
         const sanitizedContent = content.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
         messageDiv.innerHTML = sanitizedContent;
         messagesDiv.appendChild(messageDiv);
@@ -532,7 +446,8 @@ class TradingChatbot {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-Token': this.getCSRFToken()
                 },
                 body: JSON.stringify({
                     prompt: enhancedPrompt,
@@ -547,7 +462,6 @@ class TradingChatbot {
                 })
             });
 
-            // Remove thinking message
             const messages = document.getElementById('chat-messages');
             if (messages.lastChild) messages.removeChild(messages.lastChild);
 
@@ -571,36 +485,16 @@ class TradingChatbot {
     buildIntelligentPrompt(userMessage) {
         const context = this.determineContext(userMessage);
         const alerts = this.businessIntelligence.alerts || [];
-        const relevantAlerts = alerts.filter(a => a.type === context.toLowerCase() || a.priority === 'high');
+        const relevantAlerts = alerts.filter(alert => alert.type === context.toLowerCase() || alert.priority === 'high');
         
-        let prompt = `TRADING EMPIRE ADVISOR - Multi-Disciplinary Expert
-
-User Query: ${userMessage}
-
-Context Analysis: ${context}
-
-Current Business Intelligence:
-• Trading Performance: ${this.businessIntelligence.tradingPerformance?.summary || 'Analyzing...'}
-• Active Alerts: ${alerts.length} insights available`;
+        let prompt = `TRADING EMPIRE ADVISOR - Multi-Disciplinary Expert\n\nUser Query: ${userMessage}\n\nContext Analysis: ${context}\n\nCurrent Business Intelligence:\n• Trading Performance: ${this.businessIntelligence.tradingPerformance?.summary || 'Analyzing...'}\n• Active Alerts: ${alerts.length} insights available`;
         
         if (relevantAlerts.length > 0) {
-            prompt += `
-
-Relevant Alerts:
-${relevantAlerts.map(a => `• ${a.message}`).join('\n')}`;
+            prompt += `\n\nRelevant Alerts:\n${relevantAlerts.map(alert => `• ${alert.message}`).join('\n')}`;
         }
         
-        prompt += `
-
-You are an expert advisor specializing in:
-🎯 TRADING: ICT concepts, prop firms, institutional trading, risk management
-💼 BUSINESS: Australian tax optimization, accounting standards, business scaling
-🏠 WEALTH: Property investment (Australia/global), portfolio diversification
-🚀 STRATEGY: PropFirmMatch.com intelligence, revenue optimization, next-step planning
-
-Provide specific, actionable advice using the comprehensive business data provided. Focus on practical solutions that drive real results.`;
+        prompt += `\n\nYou are an expert advisor specializing in:\n🎯 TRADING: ICT concepts, prop firms, institutional trading, risk management\n💼 BUSINESS: Australian tax optimization, accounting standards, business scaling\n🏠 WEALTH: Property investment (Australia/global), portfolio diversification\n🚀 STRATEGY: PropFirmMatch.com intelligence, revenue optimization, next-step planning\n\nProvide specific, actionable advice using the comprehensive business data provided. Focus on practical solutions that drive real results.`;
         
-        // Add Gamma.app integration context
         if (context === 'Gamma Integration') {
             prompt += `\n\nGamma.app Integration Available:\n• Generate professional presentations\n• 6 report types: Monthly, Investor, Risk, Quarterly, Strategy, Allocation\n• AI-powered insights and recommendations\n• Template suggestions based on data`;
         }
@@ -635,11 +529,10 @@ Provide specific, actionable advice using the comprehensive business data provid
     generateIntelligentWelcome() {
         const metrics = this.businessIntelligence;
         const alerts = metrics.alerts || [];
-        const highPriorityAlerts = alerts.filter(a => a.priority === 'high');
+        const highPriorityAlerts = alerts.filter(alert => alert.priority === 'high');
         
-        let welcomeMsg = `🚀 **TRADING EMPIRE ADVISOR** - Your Multi-Disciplinary Expert\n\n📊 **CURRENT STATUS:**\n• Trading Performance: ${metrics.tradingPerformance.summary}\n• Prop Firm Progress: ${metrics.propFirmStatus.summary}\n• Tax Efficiency: ${metrics.taxEfficiency.rating}\n• Wealth Growth: ${metrics.wealthGrowth.trend}`;
+        let welcomeMsg = `🚀 **TRADING EMPIRE ADVISOR** - Your Multi-Disciplinary Expert\n\n📊 **CURRENT STATUS:**\n• Trading Performance: ${metrics.tradingPerformance?.summary || 'Analyzing...'}\n• Prop Firm Progress: ${metrics.propFirmStatus?.summary || 'Loading...'}\n• Tax Efficiency: ${metrics.taxEfficiency?.rating || 'Optimizing'}\n• Wealth Growth: ${metrics.wealthGrowth?.trend || 'Growing'}`;
         
-        // Add proactive alerts
         if (highPriorityAlerts.length > 0) {
             welcomeMsg += `\n\n🚨 **URGENT ALERTS:**`;
             highPriorityAlerts.forEach(alert => {
@@ -651,7 +544,7 @@ Provide specific, actionable advice using the comprehensive business data provid
             welcomeMsg += `\n\n💡 **OPPORTUNITIES:** ${alerts.length - highPriorityAlerts.length} insights available`;
         }
         
-        welcomeMsg += `\n\n🎯 **EXPERTISE AREAS:**\n• ICT Trading & Prop Firm Mastery\n• Australian Tax Optimization & Accounting\n• Property Investment & Wealth Building\n• Business Scaling & Strategic Growth\n\n💡 **NEXT STEPS:** ${metrics.nextSteps.priority}\n\nWhat empire-building challenge shall we tackle?`;
+        welcomeMsg += `\n\n🎯 **EXPERTISE AREAS:**\n• ICT Trading & Prop Firm Mastery\n• Australian Tax Optimization & Accounting\n• Property Investment & Wealth Building\n• Business Scaling & Strategic Growth\n\n💡 **NEXT STEPS:** ${metrics.nextSteps?.priority || 'Scale operations + optimize tax structure'}\n\nWhat empire-building challenge shall we tackle?`;
         
         return welcomeMsg;
     }
@@ -669,11 +562,13 @@ Provide specific, actionable advice using the comprehensive business data provid
 
     analyzeTradingPerformance() {
         const trades = this.tradingData || [];
-        const wins = trades.filter(t => t && (t.outcome === 'win' || t.rScore > 0)).length;
+        const wins = trades.filter(trade => trade && (trade.outcome === 'win' || trade.rScore > 0)).length;
         const winRate = trades.length ? (wins / trades.length * 100).toFixed(1) : 0;
-        const avgProfit = trades.length ? trades.reduce((sum, t) => sum + ((t && t.profit) || (t && t.rScore) || 0), 0) / trades.length : 0;
+        const avgProfit = trades.length ? trades.reduce((sum, trade) => {
+            const profit = (trade && trade.profit) || (trade && trade.rScore) || 0;
+            return sum + (isNaN(profit) ? 0 : profit);
+        }, 0) / trades.length : 0;
         
-        // Pattern recognition
         const patterns = this.recognizeTradingPatterns(trades);
         
         return {
@@ -702,7 +597,6 @@ Provide specific, actionable advice using the comprehensive business data provid
             }
         });
         
-        // Find best performing session
         let bestSession = 'Unknown';
         let bestAvg = -999;
         Object.entries(sessionPerformance).forEach(([session, scores]) => {
@@ -726,27 +620,30 @@ Provide specific, actionable advice using the comprehensive business data provid
         const firms = this.propFirms || [];
         const trades = this.tradingData || [];
         
-        const fundedCapital = firms.filter(f => f.status === 'funded')
-            .reduce((sum, f) => sum + (f.accountSize || 0), 0);
+        const fundedCapital = firms.filter(firm => firm.status === 'funded')
+            .reduce((sum, firm) => sum + (firm.accountSize || 0), 0);
         
-        const monthlyProfit = firms.filter(f => f.status === 'funded')
-            .reduce((sum, f) => sum + (f.monthlyProfit || 0), 0);
+        const monthlyProfit = firms.filter(firm => firm.status === 'funded')
+            .reduce((sum, firm) => sum + (firm.monthlyProfit || 0), 0);
         
         const roi = fundedCapital > 0 ? (monthlyProfit / fundedCapital * 100).toFixed(1) : 0;
+        
+        const health = roi > 5 ? 'Excellent' : roi > 2 ? 'Good' : 'Needs Improvement';
+        const recommendation = roi < 2 ? 'Focus on consistency and risk management' : 'Consider scaling operations';
         
         return {
             fundedCapital: fundedCapital,
             monthlyProfit: monthlyProfit,
             roi: roi + '%',
-            health: roi > 5 ? 'Excellent' : roi > 2 ? 'Good' : 'Needs Improvement',
-            recommendation: roi < 2 ? 'Focus on consistency and risk management' : 'Consider scaling operations'
+            health: health,
+            recommendation: recommendation
         };
     }
 
     analyzePropFirmProgress() {
         const firms = this.propFirms || [];
-        const funded = firms.filter(f => f && f.status === 'funded').length;
-        const challenges = firms.filter(f => f && f.status === 'challenge').length;
+        const funded = firms.filter(firm => firm && firm.status === 'funded').length;
+        const challenges = firms.filter(firm => firm && firm.status === 'challenge').length;
         
         return {
             fundedAccounts: funded,
@@ -758,7 +655,6 @@ Provide specific, actionable advice using the comprehensive business data provid
     }
 
     calculateTaxEfficiency() {
-        // Placeholder for tax calculation logic
         return {
             rating: 'Optimizing',
             structure: 'Company + Trust recommended',
@@ -791,17 +687,17 @@ Provide specific, actionable advice using the comprehensive business data provid
     }
 
     quickAction(action) {
-        switch(action) {
-            case 'gamma-report':
+        const actions = {
+            'gamma-report': () => {
                 const report = this.generateGammaReport('monthly');
                 navigator.clipboard.writeText(JSON.stringify(report, null, 2));
                 this.addMessage('assistant', '📊 **Monthly Report Generated!**\n\nProfessional presentation data copied to clipboard.\n\n🎯 **Next Steps:**\n1. Open Gamma.app\n2. Create new presentation\n3. Paste data (Ctrl+V)\n4. Select "Professional" template\n\n💡 **Includes:** Performance analytics, predictive insights, optimization recommendations');
-                break;
-            case 'predictions':
+            },
+            'predictions': () => {
                 const predictions = this.generatePredictiveAnalytics();
                 this.addMessage('assistant', `🔮 **Predictive Analytics**\n\n🎯 **Key Insight:** ${predictions.keyInsight}\n\n📊 **Projections:**\n• Monthly Target: ${predictions.monthlyRTarget}\n• Profit Projection: ${predictions.monthlyProfitProjection}\n• Q3 Target: ${predictions.q3Projection}\n\n🚀 **Optimization:** ${predictions.optimizations?.topRecommendation}\n\n📈 **Growth Rate:** ${predictions.growthRate}`);
-                break;
-            case 'alerts':
+            },
+            'alerts': () => {
                 const alerts = this.businessIntelligence.alerts || [];
                 if (alerts.length === 0) {
                     this.addMessage('assistant', '✅ **No Active Alerts**\n\nYour trading performance is on track. All systems operating normally.');
@@ -813,7 +709,11 @@ Provide specific, actionable advice using the comprehensive business data provid
                     });
                     this.addMessage('assistant', alertMsg);
                 }
-                break;
+            }
+        };
+        
+        if (actions[action]) {
+            actions[action]();
         }
     }
 
@@ -835,19 +735,29 @@ Provide specific, actionable advice using the comprehensive business data provid
         if (command.includes('hey q')) {
             const actualCommand = command.replace('hey q', '').trim();
             
-            if (actualCommand.includes('win rate')) {
-                const winRate = this.businessIntelligence.tradingPerformance?.winRate || '0%';
-                this.speak(`Your current win rate is ${winRate}`);
-                this.addMessage('assistant', `🎤 Your current win rate is **${winRate}**`);
-            } else if (actualCommand.includes('alert')) {
-                this.quickAction('alerts');
-                this.speak('Checking your alerts now');
-            } else if (actualCommand.includes('report')) {
-                this.quickAction('gamma-report');
-                this.speak('Generating your monthly report');
-            } else if (actualCommand.includes('prediction')) {
-                this.quickAction('predictions');
-                this.speak('Here are your predictive analytics');
+            const commandActions = {
+                'win rate': () => {
+                    const winRate = this.businessIntelligence.tradingPerformance?.winRate || '0%';
+                    this.speak(`Your current win rate is ${winRate}`);
+                    this.addMessage('assistant', `🎤 Your current win rate is **${winRate}**`);
+                },
+                'alert': () => {
+                    this.quickAction('alerts');
+                    this.speak('Checking your alerts now');
+                },
+                'report': () => {
+                    this.quickAction('gamma-report');
+                    this.speak('Generating your monthly report');
+                },
+                'prediction': () => {
+                    this.quickAction('predictions');
+                    this.speak('Here are your predictive analytics');
+                }
+            };
+            
+            const matchedCommand = Object.keys(commandActions).find(cmd => actualCommand.includes(cmd));
+            if (matchedCommand) {
+                commandActions[matchedCommand]();
             } else {
                 this.speak('I can help with win rate, alerts, reports, or predictions');
                 this.addMessage('assistant', '🎤 Available commands:\n• "win rate"\n• "alerts"\n• "generate report"\n• "predictions"');
@@ -856,17 +766,21 @@ Provide specific, actionable advice using the comprehensive business data provid
     }
 
     speak(text) {
-        if (this.synthesis) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 0.9;
-            utterance.pitch = 1;
-            this.synthesis.speak(utterance);
+        try {
+            if (this.synthesis) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.9;
+                utterance.pitch = 1;
+                this.synthesis.speak(utterance);
+            }
+        } catch (error) {
+            console.error('Error with speech synthesis:', error);
         }
     }
 
     analyzeLosingTrades() {
         const trades = this.tradingData || [];
-        const losingTrades = trades.filter(t => t.rScore < 0 || t.outcome === 'loss');
+        const losingTrades = trades.filter(trade => trade.rScore < 0 || trade.outcome === 'loss');
         
         if (!losingTrades || losingTrades.length === 0) {
             return 'No losing trades to analyze - excellent performance!';
@@ -903,6 +817,24 @@ Provide specific, actionable advice using the comprehensive business data provid
         return recommendations[session] || 'Focus on market structure and institutional order flow analysis.';
     }
 
+    generateGammaReport(reportType) {
+        return {
+            title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Trading Report`,
+            data: this.generateComprehensiveSummary(),
+            insights: this.generatePredictiveAnalytics(),
+            timestamp: new Date().toISOString()
+        };
+    }
+
+    getCSRFToken() {
+        try {
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        } catch (error) {
+            console.error('Error getting CSRF token:', error);
+            return '';
+        }
+    }
+
     requestNotificationPermission() {
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission();
@@ -910,7 +842,6 @@ Provide specific, actionable advice using the comprehensive business data provid
     }
 }
 
-// Initialize chatbot when DOM loads
 document.addEventListener('DOMContentLoaded', () => {
     window.tradingChatbot = new TradingChatbot();
 });

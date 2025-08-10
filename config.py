@@ -73,12 +73,18 @@ class TradingConfig:
     @classmethod
     def from_env(cls):
         """Load configuration from environment variables"""
+        config_map = {
+            'MAX_DAILY_LOSS': ('_get_float_env', cls.MAX_DAILY_LOSS),
+            'MAX_DAILY_PROFIT': ('_get_float_env', cls.MAX_DAILY_PROFIT),
+            'RISK_PER_TRADE': ('_get_float_env', cls.RISK_PER_TRADE),
+            'MIN_CONFIDENCE': ('_get_float_env', cls.MIN_CONFIDENCE),
+            'API_PORT': ('_get_int_env', cls.API_PORT)
+        }
+        
         try:
-            cls.MAX_DAILY_LOSS = cls._get_float_env('MAX_DAILY_LOSS', cls.MAX_DAILY_LOSS)
-            cls.MAX_DAILY_PROFIT = cls._get_float_env('MAX_DAILY_PROFIT', cls.MAX_DAILY_PROFIT)
-            cls.RISK_PER_TRADE = cls._get_float_env('RISK_PER_TRADE', cls.RISK_PER_TRADE)
-            cls.MIN_CONFIDENCE = cls._get_float_env('MIN_CONFIDENCE', cls.MIN_CONFIDENCE)
-            cls.API_PORT = cls._get_int_env('PORT', cls.API_PORT)
+            for attr_name, (method_name, default_value) in config_map.items():
+                method = getattr(cls, method_name)
+                setattr(cls, attr_name, method(attr_name, default_value))
         except (ValueError, TypeError) as e:
             raise ValueError(f"Invalid environment variable configuration: {e}")
         

@@ -24,11 +24,16 @@ class TradingDashboardAPI {
     }
 
     generateSummary(trades, propFirms) {
-        const fundedFirms = propFirms.filter(f => f.status === 'funded');
-        const totalR = trades.reduce((sum, t) => {
-            if (t.breakeven) return sum;
-            const rTarget = parseFloat(t.rTarget) || 1;
-            return sum + (t.outcome === 'win' ? rTarget : (t.outcome === 'loss' ? -1 : 0));
+        const fundedFirms = propFirms.filter(firm => firm.status === 'funded');
+        const totalR = trades.reduce((sum, trade) => {
+            try {
+                if (trade.breakeven) return sum;
+                const rTarget = parseFloat(trade.rTarget) || 1;
+                return sum + (trade.outcome === 'win' ? rTarget : (trade.outcome === 'loss' ? -1 : 0));
+            } catch (error) {
+                console.error('Error processing trade:', error);
+                return sum;
+            }
         }, 0);
         const winRate = trades.length > 0 ? ((trades.filter(t => t.outcome === 'win' || t.breakeven).length / trades.length) * 100).toFixed(1) : 0;
         
@@ -498,12 +503,13 @@ class TradingDashboardAPI {
     }
     
     calculateProfitFactor(winningTrades, losingTrades) {
-        const totalWins = winningTrades.reduce((sum, t) => sum + (parseFloat(t.rTarget) || 1), 0);
+        const totalWins = winningTrades.reduce((sum, trade) => sum + (parseFloat(trade.rTarget) || 1), 0);
         const totalLosses = losingTrades.length;
         if (totalLosses === 0) {
-            return totalWins > 0 ? 999 : 0;
+            return totalWins > 0 ? Number.MAX_SAFE_INTEGER : 0;
         }
-        return totalWins / totalLosses;
+        const profitFactor = totalWins / totalLosses;
+        return isFinite(profitFactor) ? profitFactor : 0;
     }
 
     // Copy to clipboard for easy sharing
@@ -536,7 +542,8 @@ class TradingDashboardAPI {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-Token': this.getCSRFToken()
                 },
                 body: JSON.stringify({
                     prompt: prompt,
