@@ -1943,8 +1943,8 @@
                     const rValue = getRValue(trade, rTarget);
                     dailyData[dateKey].trades.push(trade);
                     dailyData[dateKey].totalR += rValue;
-                    if (rValue > 0) dailyData[dateKey].wins++;
-                    else if (rValue < 0) dailyData[dateKey].losses++;
+                    if (rValue >= 0) dailyData[dateKey].wins++;
+                    else dailyData[dateKey].losses++;
                     
                     if (index < 3) console.log('Trade', index, ':', trade.date, 'rScore:', trade.rScore, 'rValue:', rValue);
                 }
@@ -2098,8 +2098,7 @@
                 const rValue = getRValue(trade, rTarget);
                 dailyData[date].totalR += rValue;
                 dailyData[date].count++;
-                if (rValue > 0) dailyData[date].wins++;
-                else if (rValue === 0) dailyData[date].breakevens++;
+                if (rValue >= 0) dailyData[date].wins++;
             });
             
             console.log('Daily calendar data:', Object.keys(dailyData).length, 'unique days');
@@ -2142,8 +2141,8 @@
                 const rValue = getRValue(trade, rTarget);
                 weeklyData[weekStr].trades.push(trade);
                 weeklyData[weekStr].totalR += rValue;
-                if (rValue > 0) weeklyData[weekStr].wins++;
-                else if (rValue < 0) weeklyData[weekStr].losses++;
+                if (rValue >= 0) weeklyData[weekStr].wins++;
+                else weeklyData[weekStr].losses++;
             });
             
             console.log('Weekly calendar data:', Object.keys(weeklyData).length, 'weeks');
@@ -2192,8 +2191,8 @@
                 const rValue = getRValue(trade, rTarget);
                 monthlyData[monthStr].trades.push(trade);
                 monthlyData[monthStr].totalR += rValue;
-                if (rValue > 0) monthlyData[monthStr].wins++;
-                else if (rValue < 0) monthlyData[monthStr].losses++;
+                if (rValue >= 0) monthlyData[monthStr].wins++;
+                else monthlyData[monthStr].losses++;
             });
             
             Object.keys(monthlyData).sort().forEach(month => {
