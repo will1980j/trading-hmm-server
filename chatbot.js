@@ -122,12 +122,21 @@ class TradingChatbot {
     }
 
     loadContext() {
-        // Enhanced data loading with business intelligence
-        this.tradingData = JSON.parse(localStorage.getItem('tradingData')) || [];
-        this.propFirms = JSON.parse(localStorage.getItem('propFirmsV2_2024-01')) || [];
-        this.businessMetrics = JSON.parse(localStorage.getItem('businessMetrics')) || {};
-        this.taxData = JSON.parse(localStorage.getItem('taxData')) || {};
-        this.propertyPortfolio = JSON.parse(localStorage.getItem('propertyData')) || [];
+        try {
+            // Enhanced data loading with business intelligence
+            this.tradingData = JSON.parse(localStorage.getItem('tradingData') || '[]');
+            this.propFirms = JSON.parse(localStorage.getItem('propFirmsV2_2024-01') || '[]');
+            this.businessMetrics = JSON.parse(localStorage.getItem('businessMetrics') || '{}');
+            this.taxData = JSON.parse(localStorage.getItem('taxData') || '{}');
+            this.propertyPortfolio = JSON.parse(localStorage.getItem('propertyData') || '[]');
+        } catch (error) {
+            console.error('Error loading context data:', error);
+            this.tradingData = [];
+            this.propFirms = [];
+            this.businessMetrics = {};
+            this.taxData = {};
+            this.propertyPortfolio = [];
+        }
         
         // Ensure all data arrays exist
         if (!Array.isArray(this.tradingData)) this.tradingData = [];
@@ -228,8 +237,8 @@ class TradingChatbot {
         }
         
         // Monthly profit projection
-        const recentTrades = trades.slice(-30);
-        const avgDailyR = recentTrades.reduce((sum, t) => sum + (t.rScore || 0), 0) / recentTrades.length;
+        const recentTrades = trades.slice(-Math.min(30, trades.length));
+        const avgDailyR = recentTrades.length > 0 ? recentTrades.reduce((sum, trade) => sum + (trade.rScore || 0), 0) / recentTrades.length : 0;
         const tradingDaysPerMonth = 20;
         const monthlyRProjection = avgDailyR * tradingDaysPerMonth;
         
@@ -259,7 +268,7 @@ class TradingChatbot {
         const sessionStats = {};
         
         trades.forEach(trade => {
-            if (trade.session) {
+            if (trade && trade.session) {
                 if (!sessionStats[trade.session]) sessionStats[trade.session] = { total: 0, count: 0 };
                 sessionStats[trade.session].total += trade.rScore || 0;
                 sessionStats[trade.session].count++;

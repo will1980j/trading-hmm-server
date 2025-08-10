@@ -1,8 +1,11 @@
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict
+import logging
+
+logger = logging.getLogger(__name__)
 
 class RailwayDB:
     def __init__(self):
@@ -13,6 +16,19 @@ class RailwayDB:
         
         self.conn = psycopg2.connect(self.db_url, cursor_factory=RealDictCursor)
         self.setup_tables()
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.conn:
+            self.conn.close()
+            logger.info("Database connection closed")
+    
+    def close(self):
+        if self.conn:
+            self.conn.close()
+            logger.info("Database connection closed")
     
     def setup_tables(self):
         with self.conn.cursor() as cur:
@@ -88,7 +104,7 @@ class RailwayDB:
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
                 symbol,
-                datetime.now(),
+                datetime.now(timezone.utc),
                 data.get('open', 0),
                 data.get('high', 0),
                 data.get('low', 0),
@@ -122,7 +138,7 @@ class RailwayDB:
                     signal.get('entry', 0),
                     signal.get('confidence', 0),
                     signal.get('reason', ''),
-                    datetime.now()
+                    datetime.now(timezone.utc)
                 ))
             self.conn.commit()
             return {"status": "success"}
@@ -142,7 +158,7 @@ class RailwayDB:
                 level.get('bottom', 0),
                 level.get('strength', 0),
                 level.get('active', True),
-                datetime.now()
+                datetime.now(timezone.utc)
             ))
         self.conn.commit()
         return {"status": "success"}

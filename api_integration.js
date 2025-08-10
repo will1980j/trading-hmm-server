@@ -539,7 +539,8 @@ function addExportButton() {
     exportBtn.style.background = '#17a2b8';
     exportBtn.onclick = () => {
         const result = window.TradingAPI.copyToClipboard();
-        alert(result);
+        console.log(result);
+        showNotification(result);
     };
     
     const aiBtn = document.createElement('button');
@@ -564,7 +565,8 @@ function addExportButton() {
             `;
             document.body.appendChild(modal);
         } else {
-            alert('Error: ' + (result.error || 'Failed to get AI insights'));
+            console.error('AI insights error:', result.error);
+            showNotification('Error: ' + (result.error || 'Failed to get AI insights'), 'error');
         }
     };
     

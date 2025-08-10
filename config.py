@@ -73,11 +73,14 @@ class TradingConfig:
     @classmethod
     def from_env(cls):
         """Load configuration from environment variables"""
-        cls.MAX_DAILY_LOSS = float(os.getenv('MAX_DAILY_LOSS', cls.MAX_DAILY_LOSS))
-        cls.MAX_DAILY_PROFIT = float(os.getenv('MAX_DAILY_PROFIT', cls.MAX_DAILY_PROFIT))
-        cls.RISK_PER_TRADE = float(os.getenv('RISK_PER_TRADE', cls.RISK_PER_TRADE))
-        cls.MIN_CONFIDENCE = float(os.getenv('MIN_CONFIDENCE', cls.MIN_CONFIDENCE))
-        cls.API_PORT = int(os.getenv('PORT', cls.API_PORT))
+        try:
+            cls.MAX_DAILY_LOSS = float(os.getenv('MAX_DAILY_LOSS', cls.MAX_DAILY_LOSS))
+            cls.MAX_DAILY_PROFIT = float(os.getenv('MAX_DAILY_PROFIT', cls.MAX_DAILY_PROFIT))
+            cls.RISK_PER_TRADE = float(os.getenv('RISK_PER_TRADE', cls.RISK_PER_TRADE))
+            cls.MIN_CONFIDENCE = float(os.getenv('MIN_CONFIDENCE', cls.MIN_CONFIDENCE))
+            cls.API_PORT = int(os.getenv('PORT', cls.API_PORT))
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid environment variable configuration: {e}")
         
         # Symbols from environment (comma-separated)
         symbols_env = os.getenv('TRADING_SYMBOLS')

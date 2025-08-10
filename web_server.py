@@ -3,15 +3,18 @@ import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
+from werkzeug.utils import secure_filename
+import html
+import logging
 
 # Database integration
 try:
     from database.railway_db import RailwayDB
     db = RailwayDB()
     db_enabled = True
-    print("✅ Database connected")
+    logger.info("Database connected successfully")
 except Exception as e:
-    print(f"❌ Database connection failed: {e}")
+    logger.error(f"Database connection failed: {e}")
     db = None
     db_enabled = False
 
@@ -24,21 +27,32 @@ client = None
 if api_key:
     try:
         client = OpenAI(api_key=api_key)
-        print(f"OpenAI client initialized successfully")
+        logger.info("OpenAI client initialized successfully")
     except Exception as e:
-        print(f"OpenAI client initialization failed: {e}")
+        logger.error(f"OpenAI client initialization failed: {e}")
         client = None
 
 app = Flask(__name__)
 
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Read HTML files and serve them
 def read_html_file(filename):
     try:
-        with open(filename, 'r', encoding='utf-8') as f:
+        # Secure filename to prevent path traversal
+        secure_name = secure_filename(filename)
+        if not secure_name or secure_name != filename:
+            logger.warning(f"Invalid filename rejected: {filename}")
+            return "<h1>Trading Dashboard</h1><p>Invalid file request.</p><a href='/health'>Health Check</a>"
+        
+        with open(secure_name, 'r', encoding='utf-8') as f:
             return f.read()
     except FileNotFoundError:
-        print(f"Warning: File {filename} not found")
-        return f"<h1>Trading Dashboard</h1><p>File {filename} not found. Server is running.</p><a href='/health'>Health Check</a>"
+        logger.warning(f"File not found: {filename}")
+        safe_filename = html.escape(filename)
+        return f"<h1>Trading Dashboard</h1><p>File {safe_filename} not found. Server is running.</p><a href='/health'>Health Check</a>"
 
 # Main routes
 @app.route('/')
@@ -140,10 +154,8 @@ def ai_insights():
         prompt = data.get('prompt', 'How can I trade better?')
         trading_data = data.get('data', {})
         trading_data = data.get('data', {})
-        print(f"Prompt: {prompt[:50]}...")
-        print(f"Has trading data: {bool(trading_data)}")
-        
-        print("Making OpenAI API call...")
+        logger.info(f"AI insights request: {prompt[:50]}...")
+        logger.debug(f"Has trading data: {bool(trading_data)}")
         # Enhanced system prompt with trading context
         system_prompt = """
 You are the ultimate Trading Empire Advisor - a multi-disciplinary expert combining:
@@ -199,13 +211,13 @@ Provide specific, actionable advice with Australian context. Think like a CFO, C
             temperature=0.8
         )
         
-        print("OpenAI API call successful")
+        logger.info("OpenAI API call successful")
         return jsonify({
             "insight": response.choices[0].message.content,
             "status": "success"
         })
     except Exception as e:
-        print(f"Error in ai_insights: {str(e)}")
+        logger.error(f"Error in ai_insights: {str(e)}")
         return jsonify({
             "error": str(e),
             "status": "error"
@@ -232,7 +244,7 @@ def webhook():
         if not data:
             return jsonify({"error": "No JSON data provided"}), 400
         
-        print(f"Webhook received: {data}")  # Debug log
+        logger.info(f"Webhook received data: {type(data).__name__}")
         
         if db_enabled and db:
             # Store market data if provided
@@ -291,7 +303,7 @@ def upload_trades():
                 })
                 stored_count += 1
             except Exception as e:
-                print(f"Failed to store trade: {e}")
+                logger.error(f"Failed to store trade: {e}")
         
         return jsonify({
             "status": "success",
@@ -321,7 +333,7 @@ def get_trades():
         except Exception as e:
             db.conn.rollback()
             error_msg = str(e).replace('\n', ' ').replace('\r', ' ')
-            print(f"Database query error: {error_msg}")
+            logger.error(f"Database query error: {error_msg}")
             raise e
         
         trades = []
@@ -349,13 +361,26 @@ def add_signal():
         data = request.get_json() or request.form.to_dict()
         
         if db_enabled and db:
-            result = db.store_signal({
-                'symbol': data.get('symbol', 'NQ1!'),
-                'type': data.get('signal_type', 'LONG'),
-                'entry': float(data.get('entry_price', 0)),
-                'confidence': float(data.get('confidence', 0.8)),
-                'reason': data.get('reason', 'Manual entry')
-            })
+            try:
+                entry_price = float(data.get('entry_price', 0))
+                confidence = float(data.get('confidence', 0.8))
+                
+                # Validate inputs
+                if entry_price < 0:
+                    return jsonify({"error": "Entry price cannot be negative"}), 400
+                if not 0 <= confidence <= 1:
+                    return jsonify({"error": "Confidence must be between 0 and 1"}), 400
+                    
+                result = db.store_signal({
+                    'symbol': data.get('symbol', 'NQ1!'),
+                    'type': data.get('signal_type', 'LONG'),
+                    'entry': entry_price,
+                    'confidence': confidence,
+                    'reason': data.get('reason', 'Manual entry')
+                })
+            except (ValueError, TypeError) as e:
+                logger.error(f"Invalid input data: {e}")
+                return jsonify({"error": "Invalid numeric input"}), 400
             
             return jsonify({
                 "status": "success", 
@@ -426,7 +451,7 @@ def get_prop_firms():
         return jsonify({"firms": firms})
     except Exception as e:
         error_msg = str(e).replace('\n', ' ').replace('\r', ' ')
-        print(f"Prop firms query error: {error_msg}")
+        logger.error(f"Prop firms query error: {error_msg}")
         return jsonify({"firms": []})
 
 @app.route('/api/scrape-propfirms')
@@ -444,5 +469,6 @@ def scrape_propfirms():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"Starting server on port {port}")
-    app.run(host='127.0.0.1', port=port, debug=False)
+    debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
+    logger.info(f"Starting server on port {port}, debug={debug_mode}")
+    app.run(host='127.0.0.1', port=port, debug=debug_mode)
