@@ -148,6 +148,10 @@ def trading_empire_kb_js():
 def notification_system_js():
     return send_from_directory('.', 'notification_system.js', mimetype='application/javascript')
 
+@app.route('/d3_charts.js')
+def d3_charts_js():
+    return send_from_directory('.', 'd3_charts.js', mimetype='application/javascript')
+
 # Serve images from root
 @app.route('/style_preview.html')
 def style_preview():
