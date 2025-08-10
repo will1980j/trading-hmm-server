@@ -43,6 +43,9 @@ class StyleSwitcher {
             case 'amber':
                 this.applyAmberStyle();
                 break;
+            case 'cyber':
+                this.applyCyberStyle();
+                break;
             default:
                 // Keep original styles
                 break;
@@ -52,10 +55,10 @@ class StyleSwitcher {
     }
     
     removeExistingStyles() {
-        const existingStyles = document.querySelectorAll('#terminal-style, #dark-style, #bsod-style, #nighthawk-style, #emerald-style, #amber-style');
+        const existingStyles = document.querySelectorAll('#terminal-style, #dark-style, #bsod-style, #nighthawk-style, #emerald-style, #amber-style, #cyber-style');
         existingStyles.forEach(style => style.remove());
         
-        document.body.classList.remove('style-terminal', 'style-dark', 'style-bsod', 'style-nighthawk', 'style-emerald', 'style-amber');
+        document.body.classList.remove('style-terminal', 'style-dark', 'style-bsod', 'style-nighthawk', 'style-emerald', 'style-amber', 'style-cyber');
     }
     
     applyTerminalStyle() {
@@ -624,6 +627,133 @@ class StyleSwitcher {
                 0% { opacity: 1; }
                 50% { opacity: 0.8; }
                 100% { opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    applyCyberStyle() {
+        document.body.classList.add('style-cyber');
+        
+        const style = document.createElement('style');
+        style.id = 'cyber-style';
+        style.textContent = `
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+            
+            body.style-cyber {
+                background: linear-gradient(135deg, #0F1419 0%, #1A2332 50%, #0F1419 100%) !important;
+                color: #E1E8F0 !important;
+                font-family: 'Inter', sans-serif !important;
+                font-size: 14px !important;
+            }
+            
+            .style-cyber *,
+            .style-cyber .navbar,
+            .style-cyber .header,
+            .style-cyber .controls,
+            .style-cyber .metric-card,
+            .style-cyber .chart-container,
+            .style-cyber .metric-section,
+            .style-cyber .card,
+            .style-cyber .panel,
+            .style-cyber .widget,
+            .style-cyber div,
+            .style-cyber span,
+            .style-cyber p,
+            .style-cyber h1,
+            .style-cyber h2,
+            .style-cyber h3 {
+                background: linear-gradient(145deg, #1E2A3A 0%, #2A3B4D 100%) !important;
+                border: 1px solid rgba(59, 130, 246, 0.3) !important;
+                border-radius: 8px !important;
+                color: #E1E8F0 !important;
+                font-family: 'Inter', sans-serif !important;
+                font-size: 14px !important;
+                box-shadow: 0 4px 20px rgba(59, 130, 246, 0.1) !important;
+            }
+            
+            .style-cyber canvas,
+            .style-cyber svg {
+                background: transparent !important;
+                border: none !important;
+                border-radius: 8px !important;
+            }
+            
+            .style-cyber .chart-container {
+                background: linear-gradient(145deg, #1E2A3A 0%, #2A3B4D 100%) !important;
+                border: 1px solid rgba(59, 130, 246, 0.4) !important;
+                border-radius: 12px !important;
+                box-shadow: 0 8px 32px rgba(59, 130, 246, 0.15) !important;
+                position: relative !important;
+                overflow: hidden !important;
+            }
+            
+            .style-cyber .chart-container::before {
+                content: '';
+                position: absolute;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: linear-gradient(45deg, transparent 30%, rgba(59, 130, 246, 0.05) 50%, transparent 70%);
+                pointer-events: none;
+            }
+            
+            .style-cyber .btn,
+            .style-cyber button,
+            .style-cyber input[type="button"],
+            .style-cyber input[type="submit"] {
+                background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%) !important;
+                color: #FFFFFF !important;
+                border: 1px solid rgba(59, 130, 246, 0.5) !important;
+                border-radius: 6px !important;
+                font-family: 'Inter', sans-serif !important;
+                font-weight: 500 !important;
+                box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3) !important;
+                transition: all 0.3s ease !important;
+            }
+            
+            .style-cyber .btn:hover,
+            .style-cyber button:hover {
+                box-shadow: 0 6px 24px rgba(59, 130, 246, 0.4) !important;
+                transform: translateY(-2px) !important;
+            }
+            
+            .style-cyber .metric-value,
+            .style-cyber .price,
+            .style-cyber .value,
+            .style-cyber .number {
+                color: #60A5FA !important;
+                font-weight: 600 !important;
+                font-size: 24px !important;
+                font-family: 'Inter', sans-serif !important;
+                text-shadow: 0 0 20px rgba(96, 165, 250, 0.5) !important;
+            }
+            
+            .style-cyber .navbar {
+                background: linear-gradient(135deg, #1E2A3A 0%, #2A3B4D 100%) !important;
+                border-bottom: 2px solid rgba(59, 130, 246, 0.3) !important;
+                border-radius: 0 !important;
+                padding: 12px 20px !important;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+            }
+            
+            .style-cyber .positive { 
+                color: #10B981 !important; 
+                text-shadow: 0 0 15px rgba(16, 185, 129, 0.4) !important;
+            }
+            .style-cyber .negative { 
+                color: #EF4444 !important; 
+                text-shadow: 0 0 15px rgba(239, 68, 68, 0.4) !important;
+            }
+            .style-cyber .neutral { 
+                color: #F59E0B !important; 
+                text-shadow: 0 0 15px rgba(245, 158, 11, 0.4) !important;
+            }
+            
+            .style-cyber .metric-card:hover,
+            .style-cyber .chart-container:hover {
+                border-color: rgba(59, 130, 246, 0.6) !important;
+                box-shadow: 0 12px 40px rgba(59, 130, 246, 0.2) !important;
+                transform: translateY(-4px) !important;
+                transition: all 0.3s ease !important;
             }
         `;
         document.head.appendChild(style);
