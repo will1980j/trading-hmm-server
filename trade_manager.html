@@ -25,31 +25,7 @@
             transition: all 0.3s ease;
         }
         
-        /* Theme Styles */
-        .theme-gradient {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: #fff;
-        }
-        
-        .theme-dark {
-            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
-            color: #e0e0e0;
-        }
-        
-        .theme-minimal {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            color: #212529;
-        }
-        
-        .theme-neon {
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a0a1a 100%);
-            color: #00ff88;
-        }
-        
-        .theme-gold {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2416 100%);
-            color: #f4e4bc;
-        }
+
         
         .container {
             max-width: 1400px;
@@ -208,75 +184,7 @@
         .negative { color: #ff4757; }
         .neutral { color: #ffa502; }
         
-        /* Minimal theme overrides */
-        .theme-minimal .navbar {
-            background: rgba(0,0,0,0.05);
-            border: 1px solid rgba(0,0,0,0.1);
-        }
-        
-        .theme-minimal .nav-link {
-            color: #495057;
-            background: rgba(0,0,0,0.03);
-            border: 1px solid rgba(0,0,0,0.1);
-        }
-        
-        .theme-minimal .nav-link:hover {
-            background: rgba(0,0,0,0.08);
-            color: #212529;
-        }
-        
-        .theme-minimal .nav-link.active {
-            color: #007bff;
-            background: rgba(0,123,255,0.1);
-            border-color: rgba(0,123,255,0.2);
-        }
-        
-        .theme-minimal .header,
-        .theme-minimal .data-input,
-        .theme-minimal .stat-card {
-            background: rgba(255,255,255,0.8);
-            border: 1px solid rgba(0,0,0,0.1);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            color: #212529;
-        }
-        
-        .theme-minimal .header h1 {
-            background: linear-gradient(45deg, #007bff, #0056b3);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .theme-minimal .stat-value {
-            background: linear-gradient(45deg, #007bff, #0056b3);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .theme-minimal .stat-label {
-            color: #495057;
-        }
-        
-        .theme-select option {
-            background: #2a2a2a;
-            color: white;
-        }
-        
-        .theme-minimal .theme-select {
-            background: rgba(255,255,255,0.9);
-            color: #495057;
-            border: 1px solid rgba(0,0,0,0.2);
-        }
-        
-        .theme-minimal .theme-select option {
-            background: white;
-            color: #495057;
-        }
-        
-        .theme-minimal .positive { color: #28a745; }
-        .theme-minimal .negative { color: #dc3545; }
-        .theme-minimal .neutral { color: #ffc107; }
+
         
         .stats-grid {
             display: grid;
@@ -340,7 +248,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center;">
 
             <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
-                <select id="styleSelector" onchange="changeStyle()" class="theme-select"
+                <select id="styleSelector" onchange="changeStyle()" class="theme-select">
                     <option value="slate">Slate</option>
                     <option value="charcoal">Charcoal</option>
                     <option value="navy">Navy</option>

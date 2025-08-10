@@ -237,12 +237,18 @@
         <div style="display: flex; justify-content: space-between; align-items: center;">
 
             <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
-                <select id="themeSelector" onchange="changeTheme()" class="theme-select">
-                    <option value="gradient">Ocean Gradient</option>
-                    <option value="dark">Dark Professional</option>
-                    <option value="minimal">Minimal White</option>
-                    <option value="neon">Neon Cyber</option>
-                    <option value="gold">Gold Luxury</option>
+                <select id="styleSelector" onchange="changeStyle()" class="theme-select">
+                    <option value="slate">Slate</option>
+                    <option value="charcoal">Charcoal</option>
+                    <option value="navy">Navy</option>
+                    <option value="graphite">Graphite</option>
+                    <option value="midnight">Midnight</option>
+                    <option value="steel">Steel</option>
+                    <option value="carbon">Carbon</option>
+                    <option value="obsidian">Obsidian</option>
+                    <option value="onyx">Onyx</option>
+                    <option value="platinum">Platinum</option>
+                    <option value="arctic">Arctic</option>
                 </select>
                 <a href="/dashboard" class="nav-link">Dashboard</a>
                 <a href="/trade-manager" class="nav-link">Trade Manager</a>
@@ -467,6 +473,30 @@
             setInterval(updateDateTime, 30000);
         });
     </script>
-<script src="/chatbot.js"></script>`n</body>
+<script src="professional_styles.js"></script>
+<script src="chatbot.js"></script>
+<script>
+function changeStyle() {
+    const style = document.getElementById('styleSelector').value;
+    if (window.professionalStyles) {
+        window.professionalStyles.setStyle(style);
+    }
+}
+
+function loadStyle() {
+    const savedStyle = localStorage.getItem('professionalStyle') || 'slate';
+    const selector = document.getElementById('styleSelector');
+    if (selector) {
+        selector.value = savedStyle;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        loadStyle();
+    }, 100);
+});
+</script>
+</body>
 </html>
 

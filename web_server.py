@@ -221,7 +221,6 @@ def api_trading_data():
 # OpenAI API endpoint for trading insights
 @app.route('/api/ai-insights', methods=['POST'])
 @login_required
-@csrf_protect
 def ai_insights():
     try:
         print("AI insights endpoint called")
