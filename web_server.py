@@ -170,6 +170,21 @@ def style_selector():
 def style_switcher_js():
     return send_from_directory('.', 'style_switcher.js', mimetype='application/javascript')
 
+@app.route('/nighthawk_terminal.html')
+@login_required
+def nighthawk_terminal():
+    return read_html_file('nighthawk_terminal.html')
+
+@app.route('/emerald_mainframe.html')
+@login_required
+def emerald_mainframe():
+    return read_html_file('emerald_mainframe.html')
+
+@app.route('/amber_oracle.html')
+@login_required
+def amber_oracle():
+    return read_html_file('amber_oracle.html')
+
 @app.route('/<path:filename>')
 def serve_files(filename):
     if filename.endswith(('.jpg', '.png', '.gif', '.ico', '.pdf')):

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emerald Mainframe</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: #002200;
+            color: #00FF00;
+            font-family: 'VT323', monospace;
+            font-size: 16px;
+            line-height: 1.2;
+            overflow: hidden;
+        }
+        
+        .screen-glow {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(ellipse at center, rgba(0, 255, 0, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        .header {
+            background: #005500;
+            padding: 8px;
+            border: double 4px #00FF00;
+            text-align: center;
+            font-size: 20px;
+            text-shadow: 0 0 10px #00FF00;
+        }
+        
+        .market-summary {
+            display: flex;
+            justify-content: space-around;
+            padding: 5px 0;
+        }
+        
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            height: calc(100vh - 120px);
+            gap: 2px;
+        }
+        
+        .panel {
+            background: #002200;
+            border: solid 2px #00FF00;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        
+        .panel-title {
+            background: #00FF00;
+            color: #002200;
+            padding: 2px 8px;
+            margin: -10px -10px 10px -10px;
+            font-weight: bold;
+        }
+        
+        .chart-area {
+            height: 60%;
+            border: solid 2px #00FF00;
+            background: #002200;
+            position: relative;
+            margin-bottom: 10px;
+            font-family: monospace;
+        }
+        
+        .ascii-chart {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            font-size: 12px;
+            white-space: pre;
+        }
+        
+        .ticker-scroll {
+            background: #00FF00;
+            color: #002200;
+            padding: 5px;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        
+        .ticker-content {
+            display: inline-block;
+            animation: scroll-left 20s linear infinite;
+        }
+        
+        @keyframes scroll-left {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        
+        .position-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+            border-bottom: 1px dotted #005500;
+        }
+        
+        .blink {
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        .order-book-row {
+            display: flex;
+            justify-content: space-between;
+            font-family: monospace;
+            padding: 1px 0;
+        }
+        
+        .buy-side { color: #99FF99; }
+        .sell-side { color: #00FF00; }
+        
+        .footer {
+            background: #005500;
+            padding: 5px 10px;
+            border-top: double 4px #00FF00;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #00FF00;
+            margin-right: 5px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .trade-window {
+            position: fixed;
+            top: 150px;
+            right: 20px;
+            width: 300px;
+            background: #002200;
+            border: double 4px #00FF00;
+            padding: 10px;
+            z-index: 100;
+        }
+        
+        .input-field {
+            background: #002200;
+            border: solid 1px #00FF00;
+            color: #00FF00;
+            font-family: inherit;
+            font-size: inherit;
+            padding: 2px 5px;
+            width: 100%;
+            margin: 5px 0;
+        }
+        
+        .button {
+            background: #00FF00;
+            color: #002200;
+            border: none;
+            padding: 5px 15px;
+            font-family: inherit;
+            font-size: inherit;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .button:hover {
+            background: #99FF99;
+        }
+    </style>
+</head>
+<body>
+    <div class="screen-glow"></div>
+    
+    <div class="header">
+        ╔══════════════════════════════════════════════════════════════════════════════╗
+        ║                            EMERALD MAINFRAME v2.1                            ║
+        ╚══════════════════════════════════════════════════════════════════════════════╝
+        <div class="market-summary">
+            <span>DOW: 34,567.89 ▲0.45%</span>
+            <span>S&P: 4,234.56 ▼0.12%</span>
+            <span>NASDAQ: 13,456.78 ▲0.78%</span>
+        </div>
+    </div>
+    
+    <div class="ticker-scroll">
+        <div class="ticker-content">
+            *** MARKET UPDATE *** AAPL 150.25 +2.15 *** TSLA 245.80 -3.20 *** MSFT 310.45 +2.50 *** GOOGL 2750.30 +40.25 *** BTC 45250.00 +1450.75 ***
+        </div>
+    </div>
+    
+    <div class="main-layout">
+        <div class="panel">
+            <div class="panel-title">POSITIONS</div>
+            <div class="position-item">
+                <span>AAPL</span>
+                <span class="blink">100 @ 148.50</span>
+            </div>
+            <div class="position-item">
+                <span>TSLA</span>
+                <span>-50 @ 247.20</span>
+            </div>
+            <div class="position-item">
+                <span>MSFT</span>
+                <span class="blink">75 @ 308.90</span>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <div class="panel-title">NEWS FEED</div>
+                <div style="height: 200px; overflow-y: scroll;">
+                    <div>12:45 - Fed announces rate decision</div>
+                    <div>12:30 - AAPL earnings beat estimates</div>
+                    <div>12:15 - Oil prices surge 3%</div>
+                    <div>12:00 - Tech sector rally continues</div>
+                    <div>11:45 - GDP growth revised upward</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-title">PRICE CHART - AAPL 1D</div>
+            <div class="chart-area">
+                <div class="ascii-chart">
+155.00 ┤                                    ╭─╮
+154.00 ┤                                ╭───╯ ╰╮
+153.00 ┤                            ╭───╯      ╰╮
+152.00 ┤                        ╭───╯           ╰╮
+151.00 ┤                    ╭───╯                ╰╮
+150.00 ┤                ╭───╯                     ╰─╮
+149.00 ┤            ╭───╯                           ╰╮
+148.00 ┤        ╭───╯                                ╰╮
+147.00 ┤    ╭───╯                                     ╰╮
+146.00 ┤╭───╯                                          ╰─
+       └┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─
+        09:30   10:30   11:30   12:30   13:30   14:30   15:30
+
+VOLUME: ████████████████████████████████████████████████████
+        ████████████████████████████████████████████████████
+        ████████████████████████████████████████████████████
+                </div>
+            </div>
+            
+            <div class="panel-title">MARKET DEPTH</div>
+            <div style="font-family: monospace; font-size: 14px;">
+                <div>Price    Size    Time</div>
+                <div>─────────────────────</div>
+                <div class="sell-side">150.26   500    12:45:23</div>
+                <div class="sell-side">150.27   750    12:45:22</div>
+                <div class="sell-side">150.28  1200    12:45:21</div>
+                <div style="text-align: center; color: #99FF99;">── SPREAD: $0.02 ──</div>
+                <div class="buy-side">150.24   300    12:45:24</div>
+                <div class="buy-side">150.23   850    12:45:23</div>
+                <div class="buy-side">150.22  1100    12:45:22</div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-title">ORDER BOOK</div>
+            <div style="font-family: monospace; font-size: 12px;">
+                <div>ASK    SIZE</div>
+                <div>───────────</div>
+                <div class="order-book-row sell-side">
+                    <span>150.28</span><span>1200</span>
+                </div>
+                <div class="order-book-row sell-side">
+                    <span>150.27</span><span>750</span>
+                </div>
+                <div class="order-book-row sell-side">
+                    <span>150.26</span><span>500</span>
+                </div>
+                <div style="text-align: center; margin: 5px 0;">───────────</div>
+                <div class="order-book-row buy-side">
+                    <span>150.24</span><span>300</span>
+                </div>
+                <div class="order-book-row buy-side">
+                    <span>150.23</span><span>850</span>
+                </div>
+                <div class="order-book-row buy-side">
+                    <span>150.22</span><span>1100</span>
+                </div>
+                <div>BID    SIZE</div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <div class="panel-title">ANALYTICS</div>
+                <div>RSI: 67.5</div>
+                <div>MACD: 1.25</div>
+                <div>VOL: 2.5M</div>
+                <div>AVG: 150.12</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <span><span class="status-indicator"></span>CONN: ACTIVE</span>
+        <span>MEM: 4.92GB/15.6GB</span>
+        <span>TASKS: 158</span>
+        <span>LOAD: 0.67</span>
+        <span>UPTIME: 00:13:36</span>
+    </div>
+    
+    <div class="trade-window">
+        <div class="panel-title">TRADE EXECUTION</div>
+        <div>Symbol: <input type="text" class="input-field" value="AAPL"></div>
+        <div>Quantity: <input type="text" class="input-field" value="100"></div>
+        <div>Price: <input type="text" class="input-field" value="150.25"></div>
+        <div>
+            <button class="button">BUY</button>
+            <button class="button">SELL</button>
+            <button class="button">CANCEL</button>
+        </div>
+    </div>
+</body>
+</html>
