@@ -174,6 +174,10 @@ def style_switcher_js():
 def professional_styles_js():
     return send_from_directory('.', 'professional_styles.js', mimetype='application/javascript')
 
+@app.route('/style_preload.css')
+def style_preload_css():
+    return send_from_directory('.', 'style_preload.css', mimetype='text/css')
+
 @app.route('/nighthawk_terminal.html')
 @login_required
 def nighthawk_terminal():

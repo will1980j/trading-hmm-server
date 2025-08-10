@@ -1,0 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+body {
+    background: #0f172a !important;
+    color: #f1f5f9 !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 14px !important;
+}
+
+.navbar,
+.header,
+.controls,
+.metric-card,
+.chart-container,
+.metric-section,
+.card,
+.panel,
+.widget,
+.data-input,
+.stat-card {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    color: #f1f5f9 !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+.btn,
+button,
+input[type="button"],
+input[type="submit"] {
+    background: #3b82f6 !important;
+    color: #0f172a !important;
+    border: 1px solid #3b82f6 !important;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 500 !important;
+}
+
+.metric-value,
+.price,
+.value,
+.number,
+.stat-value {
+    color: #3b82f6 !important;
+    font-weight: 600 !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+input,
+select,
+textarea {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    color: #f1f5f9 !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+.trades-table th,
+.trades-table td {
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+}
+
+.trades-table th {
+    background: #1e293b !important;
+}
+
+.positive { color: #10b981 !important; }
+.negative { color: #ef4444 !important; }
+.neutral { color: #f59e0b !important; }

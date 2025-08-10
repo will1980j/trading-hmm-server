@@ -111,17 +111,17 @@ class ProfessionalStyles {
             platinum: {
                 bg: '#f8fafc',
                 surface: '#ffffff',
-                border: '#e2e8f0',
+                border: '#94a3b8',
                 text: '#0f172a',
-                accent: '#3b82f6',
+                accent: '#1e40af',
                 font: 'Inter'
             },
             arctic: {
                 bg: '#ffffff',
-                surface: '#f8fafc',
-                border: '#cbd5e1',
-                text: '#1e293b',
-                accent: '#2563eb',
+                surface: '#f1f5f9',
+                border: '#64748b',
+                text: '#0f172a',
+                accent: '#1d4ed8',
                 font: 'Inter'
             }
         };
@@ -160,10 +160,11 @@ class ProfessionalStyles {
             input[type="button"],
             input[type="submit"] {
                 background: ${theme.accent} !important;
-                color: ${(style === 'platinum' || style === 'arctic') ? '#ffffff' : theme.bg} !important;
+                color: #ffffff !important;
                 border: 1px solid ${theme.accent} !important;
                 font-family: '${theme.font}', sans-serif !important;
                 font-weight: 500 !important;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
             }
             
             .metric-value,
@@ -179,7 +180,7 @@ class ProfessionalStyles {
             input,
             select,
             textarea {
-                background: ${(style === 'platinum' || style === 'arctic') ? '#f1f5f9' : theme.surface} !important;
+                background: ${(style === 'platinum' || style === 'arctic') ? '#e2e8f0' : theme.surface} !important;
                 border: 1px solid ${theme.border} !important;
                 color: ${theme.text} !important;
                 font-family: '${theme.font}', sans-serif !important;
@@ -192,7 +193,7 @@ class ProfessionalStyles {
             }
             
             .trades-table th {
-                background: ${(style === 'platinum' || style === 'arctic') ? '#f8fafc' : theme.surface} !important;
+                background: ${(style === 'platinum' || style === 'arctic') ? '#e2e8f0' : theme.surface} !important;
             }
             
             .positive { color: #10b981 !important; }
