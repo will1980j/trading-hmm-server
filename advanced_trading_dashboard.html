@@ -1798,8 +1798,14 @@
             await loadTradesFromDB();
             initializeCalendarYear();
             updateDashboard();
-            // Initialize D3 charts after data loads
+            
+            // Force calendar update after data loads
             setTimeout(() => {
+                console.log('Forcing calendar update after data load');
+                const filteredTrades = getFilteredTrades();
+                const rTarget = parseInt(document.getElementById('rTargetFilter').value);
+                updateTradingCalendar(filteredTrades, rTarget);
+                
                 if (typeof d3 !== 'undefined') {
                     try {
                         initD3Charts();
@@ -1811,7 +1817,7 @@
                 } else {
                     console.warn('D3 not available, skipping D3 chart initialization');
                 }
-            }, 500);
+            }, 1000);
         }
         
         function initializeCalendarYear() {
@@ -1882,9 +1888,11 @@
         }
         
         async function updateCalendarView() {
+            console.log('updateCalendarView called');
             saveFilterStates();
             const filteredTrades = getFilteredTrades();
             const rTarget = parseInt(document.getElementById('rTargetFilter').value);
+            console.log('About to update calendar with', filteredTrades.length, 'trades');
             await updateTradingCalendar(filteredTrades, rTarget);
         }
         
