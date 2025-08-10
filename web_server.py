@@ -108,6 +108,10 @@ def chatbot_js():
 def trading_empire_kb_js():
     return send_from_directory('.', 'trading_empire_kb.js', mimetype='application/javascript')
 
+@app.route('/notification_system.js')
+def notification_system_js():
+    return send_from_directory('.', 'notification_system.js', mimetype='application/javascript')
+
 # Serve images from root
 @app.route('/<path:filename>')
 def serve_files(filename):
@@ -159,6 +163,7 @@ def ai_insights():
         trading_data = data.get('data', {})
         logger.info(f"AI insights request: {prompt[:50].replace(chr(10), '').replace(chr(13), '')}...")
         logger.debug(f"Has trading data: {bool(trading_data)}")
+        
         # Enhanced system prompt with trading context
         system_prompt = """
 You are the ultimate Trading Empire Advisor - a multi-disciplinary expert combining:
@@ -402,27 +407,22 @@ def add_signal():
 def get_signals():
     try:
         if db_enabled and db:
-            # Get recent signals from database
-            cursor = db.conn.cursor()
-            cursor.execute("""
-                SELECT * FROM trading_signals 
-                ORDER BY created_at DESC 
-                LIMIT 20
-            """)
-            signals = cursor.fetchall()
-            
-            return jsonify({
-                "signals": [dict(signal) for signal in signals],
-                "count": len(signals)
-            })
-        except (ConnectionError, Exception) as e:
-            logger.error(f"Database query error: {str(e).replace(chr(10), '').replace(chr(13), '')}")
-            return jsonify({"error": "Database query failed"}), 500
-            
-            return jsonify({
-                "signals": [dict(signal) for signal in signals],
-                "count": len(signals)
-            })
+            try:
+                cursor = db.conn.cursor()
+                cursor.execute("""
+                    SELECT * FROM trading_signals 
+                    ORDER BY created_at DESC 
+                    LIMIT 20
+                """)
+                signals = cursor.fetchall()
+                
+                return jsonify({
+                    "signals": [dict(signal) for signal in signals],
+                    "count": len(signals)
+                })
+            except (ConnectionError, Exception) as e:
+                logger.error(f"Database query error: {str(e).replace(chr(10), '').replace(chr(13), '')}")
+                return jsonify({"error": "Database query failed"}), 500
         else:
             return jsonify({"error": "Database not available"}), 500
             
@@ -484,4 +484,4 @@ if __name__ == '__main__':
     port = int(environ.get('PORT', 5000))
     debug_mode = environ.get('DEBUG', 'False').lower() == 'true'
     logger.info(f"Starting server on port {port}, debug={debug_mode}")
-    app.run(host='127.0.0.1', port=port, debug=debug_mode)
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)
