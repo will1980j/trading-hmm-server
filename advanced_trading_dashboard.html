@@ -1264,250 +1264,6 @@
             // Initialize D3 charts instead of Chart.js
             initD3Charts();
         }
-
-            // Equity Chart
-            const equityCtx = document.getElementById('equityChart').getContext('2d');
-            charts.equity = new Chart(equityCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Cumulative R',
-                        data: [],
-                        borderColor: '#00ff88',
-                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: { legend: { labels: { color: 'white' } } },
-                    scales: {
-                        x: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                        y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }
-                    }
-                }
-            });
-            
-            // Daily Equity Chart
-            const dailyEquityCtx = document.getElementById('dailyEquityChart').getContext('2d');
-            charts.dailyEquity = new Chart(dailyEquityCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Daily P&L',
-                        data: [],
-                        borderColor: '#ffa502',
-                        backgroundColor: 'rgba(255, 165, 2, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: { legend: { labels: { color: 'white' } } },
-                    scales: {
-                        x: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                        y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }
-                    }
-                }
-            });
-            
-            // Weekly Equity Chart
-            const weeklyEquityCtx = document.getElementById('weeklyEquityChart').getContext('2d');
-            charts.weeklyEquity = new Chart(weeklyEquityCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Weekly P&L',
-                        data: [],
-                        borderColor: '#3742fa',
-                        backgroundColor: 'rgba(55, 66, 250, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: { legend: { labels: { color: 'white' } } },
-                    scales: {
-                        x: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                        y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }
-                    }
-                }
-            });
-            
-            // Monthly Equity Chart
-            const monthlyEquityCtx = document.getElementById('monthlyEquityChart').getContext('2d');
-            charts.monthlyEquity = new Chart(monthlyEquityCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Monthly P&L',
-                        data: [],
-                        borderColor: '#ff4757',
-                        backgroundColor: 'rgba(255, 71, 87, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: { legend: { labels: { color: 'white' } } },
-                    scales: {
-                        x: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                        y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }
-                    }
-                }
-            });
-            
-            // R-Score Distribution Chart
-            const rScoreCtx = document.getElementById('rScoreChart').getContext('2d');
-            const rLabels = ['-2R', '-1R', '0R'];
-            const rColors = ['#ff4757', '#ff6b7a', '#ffa502'];
-            
-            // Add 1R to 20R
-            for (let i = 1; i <= 20; i++) {
-                rLabels.push(i + 'R');
-                const hue = (i - 1) * 15; // Spread colors across spectrum
-                rColors.push(`hsl(${120 + hue}, 70%, 50%)`);
-            }
-            
-            charts.rScore = new Chart(rScoreCtx, {
-                type: 'bar',
-                data: {
-                    labels: rLabels,
-                    datasets: [{
-                        data: new Array(23).fill(0), // -2R, -1R, 0R, 1R-20R
-                        backgroundColor: rColors
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { ticks: { color: 'white', maxRotation: 45 }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                        y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }
-                    }
-                }
-            });
-            
-            // Day of Week Chart
-            const dayOfWeekCtx = document.getElementById('dayOfWeekChart').getContext('2d');
-            charts.dayOfWeek = new Chart(dayOfWeekCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-                    datasets: [{
-                        label: 'Expectancy',
-                        data: [0, 0, 0, 0, 0],
-                        backgroundColor: ['#ff6b7a', '#ffa502', '#00ff88', '#00d4aa', '#3742fa']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: { legend: { labels: { color: 'white' } } },
-                    scales: {
-                        x: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                        y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }
-                    }
-                }
-            });
-            
-            // Monthly Seasonality Chart
-            const seasonalityCtx = document.getElementById('seasonalityChart').getContext('2d');
-            charts.seasonality = new Chart(seasonalityCtx, {
-                type: 'line',
-                data: {
-                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-                    datasets: [{
-                        label: 'Monthly Expectancy',
-                        data: new Array(12).fill(0),
-                        borderColor: '#00ff88',
-                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: { legend: { labels: { color: 'white' } } },
-                    scales: {
-                        x: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                        y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }
-                    }
-                }
-            });
-            
-            // Rolling Performance Chart
-            const rollingCtx = document.getElementById('rollingChart').getContext('2d');
-            charts.rolling = new Chart(rollingCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: '30D Rolling Expectancy',
-                        data: [],
-                        borderColor: '#ffa502',
-                        backgroundColor: 'rgba(255, 165, 2, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: { legend: { labels: { color: 'white' } } },
-                    scales: {
-                        x: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                        y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }
-                    }
-                }
-            });
-            
-            // Session Heatmap Chart
-            const sessionHeatmapCtx = document.getElementById('sessionHeatmapChart').getContext('2d');
-            charts.sessionHeatmap = new Chart(sessionHeatmapCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['Asia', 'London', 'NY Pre', 'NY AM', 'NY Lunch', 'NY PM'],
-                    datasets: [{
-                        label: 'Win Rate %',
-                        data: [0, 0, 0, 0, 0, 0],
-                        backgroundColor: ['#ff4757', '#ffa502', '#00ff88', '#00d4aa', '#3742fa', '#5f27cd']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: { legend: { labels: { color: 'white' } } },
-                    scales: {
-                        x: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                        y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' }, min: 0, max: 100 }
-                    }
-                }
-            });
-        }
         
         function addTrade() {
             const trade = {
@@ -1919,6 +1675,19 @@
         function deleteTrade(index) {
             trades.splice(index, 1);
             updateDashboard();
+        }
+        
+        // Safe function call helper
+        function safeCall(functionName) {
+            try {
+                if (typeof window[functionName] === 'function') {
+                    window[functionName]();
+                } else {
+                    console.warn(`Function ${functionName} not found`);
+                }
+            } catch (error) {
+                console.error(`Error calling ${functionName}:`, error);
+            }
         }
         
         // Load data from database instead of sample data
@@ -3894,39 +3663,8 @@
             // Update AI insights
             safeCall("updateAIInsights");
             
-            // Update equity curve with filtered data
-            let cumulative = 0;
-            const equityData = filteredTrades.map((trade, index) => {
-                cumulative += getRValue(trade, rTarget);
-                return cumulative;
-            });
-            
-            charts.equity.data.labels = filteredTrades.map((_, i) => i + 1);
-            charts.equity.data.datasets[0].data = equityData;
-            charts.equity.update('none');
-            
-            // Update aggregate equity curves
-            updateAggregateEquity(filteredTrades, rTarget);
-            
-            // Update R-Score distribution
-            const rDistribution = new Array(23).fill(0);
-            filteredTrades.forEach(trade => {
-                const rValue = getRValue(trade, rTarget);
-                if (rValue <= -2) rDistribution[0]++;
-                else if (rValue <= -1) rDistribution[1]++;
-                else if (rValue === 0) rDistribution[2]++;
-                else if (rValue >= 1 && rValue <= 20) {
-                    const index = Math.floor(rValue) + 2;
-                    if (index < 23) rDistribution[index]++;
-                    else rDistribution[22]++;
-                }
-            });
-            
-            charts.rScore.data.datasets[0].data = rDistribution;
-            charts.rScore.update('none');
-            
-            // Update cyclical charts
-            updateCyclicalCharts(filteredTrades, rTarget);
+            // Update D3 charts with filtered data
+            updateD3Charts();
             
             // Update trading calendar
             updateTradingCalendar(filteredTrades, rTarget);
