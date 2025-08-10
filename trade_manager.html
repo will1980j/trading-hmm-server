@@ -340,7 +340,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center;">
 
             <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
-                <select id="styleSelector" onchange="changeStyle()" class="style-select">
+                <select id="styleSelector" onchange="changeStyle()" class="theme-select"
                     <option value="slate">Slate</option>
                     <option value="charcoal">Charcoal</option>
                     <option value="navy">Navy</option>
@@ -868,12 +868,17 @@
         
         function changeStyle() {
             const style = document.getElementById('styleSelector').value;
-            window.professionalStyles.setStyle(style);
+            if (window.professionalStyles) {
+                window.professionalStyles.setStyle(style);
+            }
         }
         
         function loadStyle() {
             const savedStyle = localStorage.getItem('professionalStyle') || 'slate';
-            document.getElementById('styleSelector').value = savedStyle;
+            const selector = document.getElementById('styleSelector');
+            if (selector) {
+                selector.value = savedStyle;
+            }
         }
         
         function updateDateTime() {
@@ -894,7 +899,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Loading trades from database...');
             loadTrades();
-            loadStyle();
+            setTimeout(() => {
+                loadStyle();
+            }, 100);
             updateDateTime();
             setInterval(updateDateTime, 30000);
         });
