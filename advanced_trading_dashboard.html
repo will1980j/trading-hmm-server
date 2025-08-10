@@ -1373,8 +1373,8 @@
         
         function extractRScore(reason) {
             if (!reason) return 0;
-            const match = reason.match(/(-?\d+)R/);
-            return match ? parseInt(match[1]) : 0;
+            const match = reason.match(/(-?\d+(?:\.\d+)?)R/);
+            return match ? parseFloat(match[1]) : 0;
         }
         
         function initCharts() {
@@ -1728,26 +1728,12 @@
         }
         
         function getRValue(trade, rTarget) {
-            let result;
+            const rScore = trade.rScore || 0;
             
-            // If MFE is negative, it's a loss
-            if (trade.rScore < 0) {
-                result = -1;
-            }
-            // If MFE reached the R-target, it's a win at that target
-            else if (trade.rScore >= rTarget) {
-                result = rTarget;
-            }
-            // If MFE didn't reach target but has breakeven flag (reached 1R), it's breakeven
-            else if (trade.breakeven) {
-                result = 0;
-            }
-            // If MFE didn't reach target and no breakeven flag, it's a loss
-            else {
-                result = -1;
-            }
-            
-            return result;
+            if (rScore < 0) return -1;
+            if (rScore >= rTarget) return rTarget;
+            if (trade.breakeven || rScore >= 1) return 0;
+            return -1;
         }
         
         function updateTable() {
@@ -1903,20 +1889,15 @@
         }
         
         async function updateTradingCalendar(filteredTrades, rTarget) {
-            // Load from database instead of localStorage
-            await loadTradesFromDB();
-            filteredTrades = getFilteredTrades();
-            console.log('Calendar loaded with', trades.length, 'trades from database');
-            
             const calendar = document.getElementById('tradingCalendar');
             const legend = document.getElementById('calendarLegend');
             const view = document.getElementById('calendarView').value;
             const year = parseInt(document.getElementById('calendarYear').value);
             
-            calendar.innerHTML = ''; // Clear existing content
-            legend.innerHTML = ''; // Clear legend
+            calendar.innerHTML = '';
+            legend.innerHTML = '';
             
-            console.log('Updating calendar with', filteredTrades.length, 'filtered trades');
+            console.log('Calendar update:', filteredTrades.length, 'trades, view:', view);
             
             if (view === 'heatmap') {
                 updateHeatmapCalendar(filteredTrades, rTarget, calendar, legend, year);
@@ -1938,9 +1919,13 @@
         function updateHeatmapCalendar(filteredTrades, rTarget, calendar, legend, year) {
             calendar.style.display = 'block';
             
-            // Create daily data map with proper aggregation
+            console.log('Heatmap input:', filteredTrades.length, 'trades, year:', year, 'rTarget:', rTarget);
+            if (filteredTrades.length > 0) {
+                console.log('Sample trade:', filteredTrades[0]);
+            }
+            
             const dailyData = {};
-            filteredTrades.forEach(trade => {
+            filteredTrades.forEach((trade, index) => {
                 const tradeDate = new Date(trade.date + 'T00:00:00');
                 if (tradeDate.getFullYear() === year) {
                     const dateKey = trade.date;
@@ -1952,10 +1937,13 @@
                     dailyData[dateKey].totalR += rValue;
                     if (rValue > 0) dailyData[dateKey].wins++;
                     else if (rValue < 0) dailyData[dateKey].losses++;
+                    
+                    if (index < 3) console.log('Trade', index, ':', trade.date, 'rScore:', trade.rScore, 'rValue:', rValue);
                 }
             });
             
             console.log('Heatmap daily data:', Object.keys(dailyData).length, 'days with trades');
+            console.log('Daily data sample:', Object.keys(dailyData).slice(0, 3).map(k => ({[k]: dailyData[k]})));
             
             // Create heatmap container
             const heatmapDiv = document.createElement('div');
@@ -2091,9 +2079,9 @@
         }
         
         function updateDailyCalendar(filteredTrades, rTarget, calendar) {
-            const dailyData = {};
+            console.log('Daily calendar input:', filteredTrades.length, 'trades');
             
-            // Aggregate trades by date
+            const dailyData = {};
             filteredTrades.forEach(trade => {
                 const date = trade.date;
                 if (!dailyData[date]) {
@@ -2107,6 +2095,7 @@
             });
             
             console.log('Daily calendar data:', Object.keys(dailyData).length, 'unique days');
+            console.log('Sample daily data:', Object.keys(dailyData).slice(0, 2).map(k => ({[k]: dailyData[k]})));
             
             // Create calendar entries for each unique day
             Object.keys(dailyData).sort().forEach(date => {
@@ -2133,6 +2122,8 @@
         }
         
         function updateWeeklyCalendar(filteredTrades, rTarget, calendar) {
+            console.log('Weekly calendar input:', filteredTrades.length, 'trades');
+            
             const weeklyData = {};
             filteredTrades.forEach(trade => {
                 const date = new Date(trade.date + 'T00:00:00');
@@ -2148,6 +2139,7 @@
             });
             
             console.log('Weekly calendar data:', Object.keys(weeklyData).length, 'weeks');
+            console.log('Sample weekly data:', Object.keys(weeklyData).slice(0, 2).map(k => ({[k]: weeklyData[k]})));
             
             Object.keys(weeklyData).sort().forEach(week => {
                 const weekData = weeklyData[week];
@@ -2160,20 +2152,20 @@
                 
                 const winRate = weekData.trades.length > 0 ? (weekData.wins / weekData.trades.length * 100).toFixed(0) : '0';
                 const avgR = weekData.trades.length > 0 ? (weekData.totalR / weekData.trades.length).toFixed(2) : '0.00';
-                const expectancy = weekData.trades.length > 0 ? ((weekData.wins / weekData.trades.length) * parseFloat(avgR) - ((weekData.trades.length - weekData.wins) / weekData.trades.length) * 1).toFixed(2) : '0.00';
+                const expectancy = weekData.trades.length > 0 ? (weekData.totalR / weekData.trades.length).toFixed(2) : '0.00';
                 const bestTrade = weekData.trades.length > 0 ? Math.max(...weekData.trades.map(t => getRValue(t, rTarget))).toFixed(1) : '0.0';
                 const tradingDays = new Set(weekData.trades.map(t => t.date)).size;
                 
-                const [year, weekNum] = week.split('-W');
-                const weekNumber = weekNum || '1';
-                const yearNumber = year || new Date().getFullYear();
+                const parts = week.split('-W');
+                const yearNumber = parts[0] || new Date().getFullYear();
+                const weekNumber = parts[1] || '1';
                 
                 weekDiv.innerHTML = `
                     <div class="calendar-date" style="font-size: 11px; margin-bottom: 3px;">Week ${weekNumber} ${yearNumber}</div>
                     <div class="calendar-stats" style="font-size: 9px; line-height: 1.2;">
                         ${weekData.totalR.toFixed(1)}R | ${weekData.trades.length}T<br>
-                        ${winRate}% WR | E:${expectancy}<br>
-                        ${tradingDays}D | Best:${bestTrade}R
+                        ${winRate}% WR | ${tradingDays}D<br>
+                        Best: ${bestTrade}R
                     </div>
                 `;
                 
