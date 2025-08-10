@@ -170,6 +170,10 @@ def style_selector():
 def style_switcher_js():
     return send_from_directory('.', 'style_switcher.js', mimetype='application/javascript')
 
+@app.route('/professional_styles.js')
+def professional_styles_js():
+    return send_from_directory('.', 'professional_styles.js', mimetype='application/javascript')
+
 @app.route('/nighthawk_terminal.html')
 @login_required
 def nighthawk_terminal():

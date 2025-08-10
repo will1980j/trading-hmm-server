@@ -17,7 +17,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js" integrity="sha384-" crossorigin="anonymous"></script>
     <script defer src="api_integration.js"></script>
     <script defer src="notification_system.js"></script>
-    <script defer src="style_switcher.js"></script>
+    <script defer src="professional_styles.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -737,12 +737,18 @@
         <div style="display: flex; justify-content: space-between; align-items: center;">
 
             <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
-                <select id="themeSelector" onchange="changeTheme()" class="theme-select">
-                    <option value="gradient">Ocean Gradient</option>
-                    <option value="dark">Dark Professional</option>
-                    <option value="minimal">Minimal White</option>
-                    <option value="neon">Neon Cyber</option>
-                    <option value="gold">Gold Luxury</option>
+                <select id="styleSelector" onchange="changeStyle()" class="theme-select">
+                    <option value="slate">Slate</option>
+                    <option value="charcoal">Charcoal</option>
+                    <option value="navy">Navy</option>
+                    <option value="graphite">Graphite</option>
+                    <option value="midnight">Midnight</option>
+                    <option value="steel">Steel</option>
+                    <option value="carbon">Carbon</option>
+                    <option value="obsidian">Obsidian</option>
+                    <option value="onyx">Onyx</option>
+                    <option value="platinum">Platinum</option>
+                    <option value="arctic">Arctic</option>
                 </select>
                 <a class="active nav-link" data-route="dashboard" href="/dashboard">Dashboard</a>
                 <a class="nav-link" data-route="trade-manager" href="/trade-manager">Trade Manager</a>
@@ -2251,43 +2257,19 @@
             });
         }
         
-        function changeTheme() {
-            const theme = document.getElementById('themeSelector').value;
-            const body = document.body;
-            
-            // Remove all theme classes
-            body.className = body.className.replace(/theme-\w+/g, '');
-            
-            // Add new theme class
-            body.classList.add(`theme-${theme}`);
-            
-            // Update accent colors based on theme
-            const root = document.documentElement;
-            switch(theme) {
-                case 'dark':
-                    root.style.setProperty('--accent-color', '#4a9eff');
-                    break;
-                case 'minimal':
-                    root.style.setProperty('--accent-color', '#007bff');
-                    break;
-                case 'neon':
-                    root.style.setProperty('--accent-color', '#ff0080');
-                    break;
-                case 'gold':
-                    root.style.setProperty('--accent-color', '#ffd700');
-                    break;
-                default:
-                    root.style.setProperty('--accent-color', '#00ff88');
+        function changeStyle() {
+            const style = document.getElementById('styleSelector').value;
+            if (window.professionalStyles) {
+                window.professionalStyles.setStyle(style);
             }
-            
-            // Save theme preference
-            localStorage.setItem('selectedTheme', theme);
         }
         
-        function loadTheme() {
-            const savedTheme = localStorage.getItem('selectedTheme') || 'gradient';
-            document.getElementById('themeSelector').value = savedTheme;
-            changeTheme();
+        function loadStyle() {
+            const savedStyle = localStorage.getItem('professionalStyle') || 'slate';
+            const selector = document.getElementById('styleSelector');
+            if (selector) {
+                selector.value = savedStyle;
+            }
         }
         
         function loadSampleData() {
@@ -4378,7 +4360,9 @@
             // Initialize AI Chat
             /* duplicate chat init removed */
             console.log('DOM loaded, starting initialization...');
-            loadTheme();
+            setTimeout(() => {
+                loadStyle();
+            }, 100);
             initCharts();
             // Load all data from PostgreSQL database
             trades = [];
