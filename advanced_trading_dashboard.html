@@ -13,8 +13,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Trading Analytics</title>
     <link rel="stylesheet" href="/style_preload.css">
-    <!-- External CDN resources present security risks - consider hosting locally -->
-    <script defer src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
+    <!-- Chart.js removed - using D3.js instead -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script defer src="d3_charts.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js" crossorigin="anonymous"></script>
@@ -1078,9 +1077,7 @@
         <div class="main-grid">
             <div class="chart-container">
                 <h3>Trade-by-Trade Equity</h3>
-                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;">
-                    <canvas id="equityChart"></canvas>
-                </div>
+                <div id="d3EquityChart" style="flex: 1; min-height: 280px; margin-bottom: 15px;"></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>What this shows:</strong> Your cumulative profit/loss over time, with each trade adding to or subtracting from your total R. A smooth upward line indicates consistent profitability.
                 </div>
@@ -1091,7 +1088,7 @@
             
             <div class="chart-container">
                 <h3>Daily Equity Curve</h3>
-                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="dailyEquityChart"></canvas></div>
+                <div id="d3DailyEquityChart" style="flex: 1; min-height: 280px; margin-bottom: 15px;"></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>What this shows:</strong> Your daily profit/loss aggregated by trading day. Shows which days you made or lost money and helps identify daily performance patterns.
                 </div>
@@ -1102,7 +1099,7 @@
             
             <div class="chart-container">
                 <h3>Weekly Equity Curve</h3>
-                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="weeklyEquityChart"></canvas></div>
+                <div id="d3WeeklyEquityChart" style="flex: 1; min-height: 280px; margin-bottom: 15px;"></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>What this shows:</strong> Your weekly performance over time. Each point represents a week's total profit/loss, helping identify longer-term trends and weekly consistency.
                 </div>
@@ -1113,7 +1110,7 @@
             
             <div class="chart-container">
                 <h3>Monthly Equity Curve</h3>
-                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="monthlyEquityChart"></canvas></div>
+                <div id="d3MonthlyEquityChart" style="flex: 1; min-height: 280px; margin-bottom: 15px;"></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>What this shows:</strong> Your monthly performance progression. Shows seasonal patterns and long-term account growth, with each point representing a month's total results.
                 </div>
@@ -1124,7 +1121,7 @@
             
             <div class="chart-container">
                 <h3>R-Score Distribution</h3>
-                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="rScoreChart"></canvas></div>
+                <div id="d3RScoreChart" style="flex: 1; min-height: 280px; margin-bottom: 15px;"></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>What this shows:</strong> How often you hit different R-multiples. Shows your MFE distribution and helps determine optimal profit targets based on actual trade outcomes.
                 </div>
@@ -1135,7 +1132,7 @@
             
             <div class="chart-container">
                 <h3>Day of Week Performance</h3>
-                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="dayOfWeekChart"></canvas></div>
+                <div id="d3DayOfWeekChart" style="flex: 1; min-height: 280px; margin-bottom: 15px;"></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>What this shows:</strong> Your average expectancy for each trading day (Monday-Friday). Helps identify which days of the week are most profitable for your strategy.
                 </div>
@@ -1146,7 +1143,7 @@
             
             <div class="chart-container">
                 <h3>Monthly Seasonality</h3>
-                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="seasonalityChart"></canvas></div>
+                <div id="d3SeasonalityChart" style="flex: 1; min-height: 280px; margin-bottom: 15px;"></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>What this shows:</strong> Your average expectancy for each month of the year. Reveals seasonal patterns in your trading performance and market behavior.
                 </div>
@@ -1157,7 +1154,7 @@
             
             <div class="chart-container">
                 <h3>Rolling 30D Performance</h3>
-                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="rollingChart"></canvas></div>
+                <div id="d3RollingChart" style="flex: 1; min-height: 280px; margin-bottom: 15px;"></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>What this shows:</strong> Your 30-day rolling average expectancy over time. Smooths out daily volatility to show underlying performance trends and momentum.
                 </div>
@@ -1168,7 +1165,7 @@
             
             <div class="chart-container">
                 <h3>Session Performance Heatmap</h3>
-                <div style="flex: 1; min-height: 280px; margin-bottom: 15px;"><canvas id="sessionHeatmapChart"></canvas></div>
+                <div id="d3SessionHeatmapChart" style="flex: 1; min-height: 280px; margin-bottom: 15px;"></div>
                 <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 11px; line-height: 1.4;">
                     <strong>What this shows:</strong> Win rate percentage for each trading session. Helps identify which market sessions (Asia, London, NY) work best for your strategy.
                 </div>
@@ -1218,7 +1215,6 @@
 
     <script>
         window.trades = [];
-        window.charts = window.charts || {};
         
         // Load trades from database
         async function loadTradesFromDB() {
@@ -1265,20 +1261,9 @@
         }
         
         function initCharts() {
-  // Idempotent guard
-  window.__INIT_CHARTS_COUNT = (window.__INIT_CHARTS_COUNT||0) + 1;
-  // Destroy existing charts if present to avoid "canvas already in use"
-  if (window.charts) {
-    try { if (charts.equity) charts.equity.destroy(); } catch(e) {}
-    try { if (charts.dailyEquity) charts.dailyEquity.destroy(); } catch(e) {}
-    try { if (charts.weeklyEquity) charts.weeklyEquity.destroy(); } catch(e) {}
-    try { if (charts.monthlyEquity) charts.monthlyEquity.destroy(); } catch(e) {}
-    try { if (charts.rScore) charts.rScore.destroy(); } catch(e) {}
-    try { if (charts.dayOfWeek) charts.dayOfWeek.destroy(); } catch(e) {}
-    try { if (charts.seasonality) charts.seasonality.destroy(); } catch(e) {}
-    try { if (charts.rolling) charts.rolling.destroy(); } catch(e) {}
-    try { if (charts.sessionHeatmap) charts.sessionHeatmap.destroy(); } catch(e) {}
-  }
+            // Initialize D3 charts instead of Chart.js
+            initD3Charts();
+        }
 
             // Equity Chart
             const equityCtx = document.getElementById('equityChart').getContext('2d');
@@ -1662,128 +1647,19 @@
             // Update AI insights
             safeCall("updateAIInsights");
             
-            // Update equity curve with filtered data
-            let cumulative = 0;
-            const equityData = filteredTrades.map((trade, index) => {
-                cumulative += getRValue(trade, rTarget);
-                return cumulative;
-            });
-            
-            charts.equity.data.labels = filteredTrades.map((_, i) => i + 1);
-            charts.equity.data.datasets[0].data = equityData;
-            charts.equity.update('none');
-            
-            // Update aggregate equity curves
-            updateAggregateEquity(filteredTrades, rTarget);
-            
-            // Update R-Score distribution
-            const rDistribution = new Array(23).fill(0); // -2R, -1R, 0R, 1R-20R
-            filteredTrades.forEach(trade => {
-                const rValue = getRValue(trade, rTarget);
-                if (rValue <= -2) rDistribution[0]++;
-                else if (rValue <= -1) rDistribution[1]++;
-                else if (rValue === 0) rDistribution[2]++;
-                else if (rValue >= 1 && rValue <= 20) {
-                    const index = Math.floor(rValue) + 2; // 1R = index 3, 2R = index 4, etc.
-                    if (index < 23) rDistribution[index]++;
-                    else rDistribution[22]++; // 20R+ goes to last bucket
-                }
-            });
-            
-            charts.rScore.data.datasets[0].data = rDistribution;
-            charts.rScore.update('none');
-            
-            // Update cyclical charts
-            updateCyclicalCharts(filteredTrades, rTarget);
+            // Update D3 charts with filtered data
+            updateD3Charts();
             
             // Update trading calendar
             updateTradingCalendar(filteredTrades, rTarget);
         }
         
         function updateCyclicalCharts(filteredTrades, rTarget) {
-            // Update day of week chart
-            const dayPerf = analyzeDayOfWeek(filteredTrades, rTarget);
-            charts.dayOfWeek.data.datasets[0].data = dayPerf.expectancy;
-            charts.dayOfWeek.update('none');
-            
-            // Update seasonality chart
-            const seasonalData = analyzeSeasonality(filteredTrades, rTarget);
-            charts.seasonality.data.datasets[0].data = seasonalData;
-            charts.seasonality.update('none');
-            
-            // Update rolling performance
-            const rollingData = calculateRollingPerformance(filteredTrades, rTarget, 30);
-            charts.rolling.data.labels = rollingData.labels;
-            charts.rolling.data.datasets[0].data = rollingData.values;
-            charts.rolling.update('none');
-            
-            // Update session heatmap
-            const sessionPerf = analyzeSessionPerformance(filteredTrades, rTarget);
-            charts.sessionHeatmap.data.datasets[0].data = sessionPerf;
-            charts.sessionHeatmap.update('none');
+            // D3 charts are updated in updateD3Charts()
         }
         
         function updateAggregateEquity(filteredTrades, rTarget) {
-            // Group trades by date, week, and month
-            const dailyData = {};
-            const weeklyData = {};
-            const monthlyData = {};
-            
-            filteredTrades.forEach(trade => {
-                const date = new Date(trade.date);
-                const dateStr = date.toISOString().split('T')[0];
-                const weekStr = getWeekString(date);
-                const monthStr = date.toISOString().slice(0, 7);
-                const rValue = getRValue(trade, rTarget);
-                
-                // Daily aggregation
-                if (!dailyData[dateStr]) dailyData[dateStr] = 0;
-                dailyData[dateStr] += rValue;
-                
-                // Weekly aggregation
-                if (!weeklyData[weekStr]) weeklyData[weekStr] = 0;
-                weeklyData[weekStr] += rValue;
-                
-                // Monthly aggregation
-                if (!monthlyData[monthStr]) monthlyData[monthStr] = 0;
-                monthlyData[monthStr] += rValue;
-            });
-            
-            // Convert to cumulative arrays
-            const dailyLabels = Object.keys(dailyData).sort();
-            const weeklyLabels = Object.keys(weeklyData).sort();
-            const monthlyLabels = Object.keys(monthlyData).sort();
-            
-            let dailyCumulative = 0;
-            const dailyEquityData = dailyLabels.map(date => {
-                dailyCumulative += dailyData[date];
-                return dailyCumulative;
-            });
-            
-            let weeklyCumulative = 0;
-            const weeklyEquityData = weeklyLabels.map(week => {
-                weeklyCumulative += weeklyData[week];
-                return weeklyCumulative;
-            });
-            
-            let monthlyCumulative = 0;
-            const monthlyEquityData = monthlyLabels.map(month => {
-                monthlyCumulative += monthlyData[month];
-                return monthlyCumulative;
-            });
-            
-            // Update charts
-            charts.dailyEquity.data.labels = dailyLabels;
-            charts.dailyEquity.data.datasets[0].data = dailyEquityData;
-            charts.dailyEquity.update('none');
-            
-            charts.weeklyEquity.data.labels = weeklyLabels;
-            charts.weeklyEquity.data.datasets[0].data = weeklyEquityData;
-            charts.weeklyEquity.update('none');
-            
-            charts.monthlyEquity.data.labels = monthlyLabels;
-            charts.monthlyEquity.data.datasets[0].data = monthlyEquityData;
-            charts.monthlyEquity.update('none');
+            // D3 charts handle aggregation internally
         }
         
         function getWeekString(date) {
@@ -2051,15 +1927,16 @@
             updateDashboard();
             // Initialize D3 charts after data loads
             setTimeout(() => {
-                if (typeof d3 !== 'undefined' && window.d3Charts && window.initD3EquityChart) {
+                if (typeof d3 !== 'undefined') {
                     try {
-                        initD3EquityChart();
+                        initD3Charts();
+                        updateD3Charts();
                         console.log('D3 charts initialized successfully');
                     } catch (error) {
                         console.warn('D3 chart initialization failed:', error);
                     }
                 } else {
-                    console.warn('D3 or d3Charts not available, skipping D3 chart initialization');
+                    console.warn('D3 not available, skipping D3 chart initialization');
                 }
             }, 500);
         }
