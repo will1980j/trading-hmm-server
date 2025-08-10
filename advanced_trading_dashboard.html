@@ -13,7 +13,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Trading Analytics</title>
     <link rel="stylesheet" href="/style_preload.css">
-    <!-- Chart.js removed - using D3.js instead -->
+
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="d3_charts.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js" crossorigin="anonymous"></script>
@@ -1378,7 +1378,7 @@
         }
         
         function initCharts() {
-            // Initialize D3 charts instead of Chart.js
+            // Initialize D3 charts
             initD3Charts();
         }
         
@@ -4424,7 +4424,7 @@
     var themeSel = document.getElementById('themeSelector');
     if (typeof changeTheme === 'function' && themeSel) safe(()=> changeTheme());
 
-    // Initialize charts once Chart.js is available
+    // Initialize D3 charts
     function chartsReady(){ return (typeof Chart !== 'undefined') && (window.charts); }
     function tryInitCharts(){
       if (chartsReady() && typeof initCharts === 'function') {

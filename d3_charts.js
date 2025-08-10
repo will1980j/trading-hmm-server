@@ -83,7 +83,8 @@ function updateD3Charts() {
     if (!window.d3Charts || !window.trades || window.trades.length === 0) return;
 
     const filteredTrades = getFilteredTrades();
-    const rTarget = parseInt(document.getElementById('rTargetFilter').value);
+    const rTargetElement = document.getElementById('rTargetFilter');
+    const rTarget = rTargetElement ? parseInt(rTargetElement.value) : 1;
 
     // Equity Chart
     let cumulative = 0;
@@ -194,3 +195,4 @@ function updateD3Charts() {
 
 window.initD3Charts = initD3Charts;
 window.updateD3Charts = updateD3Charts;
+window.D3Charts = D3Charts;
