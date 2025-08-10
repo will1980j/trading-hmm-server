@@ -39,10 +39,11 @@ class TradingChatbot {
     }
 
     setupSmartNotifications() {
+        const NOTIFICATION_INTERVAL = 300000; // 5 minutes
         // Check for performance issues every 5 minutes
         setInterval(() => {
             this.checkForSmartNotifications();
-        }, 300000);
+        }, NOTIFICATION_INTERVAL);
     }
 
     checkForSmartNotifications() {
@@ -509,7 +510,9 @@ class TradingChatbot {
                 'background: #ffffff; border: 1px solid #dee2e6; margin-right: auto; color: #333333; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'
             }
         `;
-        messageDiv.innerHTML = content.replace(/\n/g, '<br>');
+        // Sanitize content to prevent XSS
+        const sanitizedContent = content.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+        messageDiv.innerHTML = sanitizedContent;
         messagesDiv.appendChild(messageDiv);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
@@ -527,7 +530,10 @@ class TradingChatbot {
             const enhancedPrompt = this.buildIntelligentPrompt(message);
             const response = await fetch('/api/ai-insights', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
                 body: JSON.stringify({
                     prompt: enhancedPrompt,
                     data: {
@@ -699,11 +705,13 @@ Provide specific, actionable advice using the comprehensive business data provid
         // Find best performing session
         let bestSession = 'Unknown';
         let bestAvg = -999;
-        Object.keys(sessionPerformance).forEach(session => {
-            const avg = sessionPerformance[session].reduce((a, b) => a + b, 0) / sessionPerformance[session].length;
-            if (avg > bestAvg && sessionPerformance[session].length >= 3) {
-                bestAvg = avg;
-                bestSession = session;
+        Object.entries(sessionPerformance).forEach(([session, scores]) => {
+            if (scores.length >= 3) {
+                const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+                if (avg > bestAvg) {
+                    bestAvg = avg;
+                    bestSession = session;
+                }
             }
         });
         
@@ -860,7 +868,7 @@ Provide specific, actionable advice using the comprehensive business data provid
         const trades = this.tradingData || [];
         const losingTrades = trades.filter(t => t.rScore < 0 || t.outcome === 'loss');
         
-        if (losingTrades.length === 0) {
+        if (!losingTrades || losingTrades.length === 0) {
             return 'No losing trades to analyze - excellent performance!';
         }
         

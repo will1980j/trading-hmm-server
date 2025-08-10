@@ -1,5 +1,5 @@
-import os
-import psycopg2
+from os import getenv
+from psycopg2 import connect
 from psycopg2.extras import RealDictCursor
 from datetime import datetime, timezone
 from typing import Dict
@@ -10,11 +10,11 @@ logger = logging.getLogger(__name__)
 class RailwayDB:
     def __init__(self):
         # Railway automatically provides DATABASE_URL
-        self.db_url = os.getenv('DATABASE_URL')
+        self.db_url = getenv('DATABASE_URL')
         if not self.db_url:
             raise Exception("DATABASE_URL not found - add PostgreSQL service in Railway")
         
-        self.conn = psycopg2.connect(self.db_url, cursor_factory=RealDictCursor)
+        self.conn = connect(self.db_url, cursor_factory=RealDictCursor)
         self.setup_tables()
     
     def __enter__(self):
@@ -98,22 +98,26 @@ class RailwayDB:
         self.conn.commit()
     
     def store_market_data(self, symbol: str, data: Dict):
-        with self.conn.cursor() as cur:
-            cur.execute('''
-                INSERT INTO market_data (symbol, timestamp, open, high, low, close, volume, timeframe)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            ''', (
-                symbol,
-                datetime.now(timezone.utc),
-                data.get('open', 0),
-                data.get('high', 0),
-                data.get('low', 0),
-                data.get('close', 0),
-                data.get('volume', 0),
-                data.get('timeframe', '1m')
-            ))
-        self.conn.commit()
-        return {"status": "success"}
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute('''
+                    INSERT INTO market_data (symbol, timestamp, open, high, low, close, volume, timeframe)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ''', (
+                    symbol,
+                    datetime.now(timezone.utc),
+                    data.get('open', 0),
+                    data.get('high', 0),
+                    data.get('low', 0),
+                    data.get('close', 0),
+                    data.get('volume', 0),
+                    data.get('timeframe', '1m')
+                ))
+            self.conn.commit()
+            return {"status": "success"}
+        except Exception as e:
+            self.conn.rollback()
+            raise e
     
     def get_recent_data(self, symbol: str, limit: int = 100):
         with self.conn.cursor() as cur:
@@ -156,7 +160,7 @@ class RailwayDB:
                 level.get('type'),
                 level.get('top', 0),
                 level.get('bottom', 0),
-                level.get('strength', 0),
+                level.get('strength', 0.5),
                 level.get('active', True),
                 datetime.now(timezone.utc)
             ))

@@ -1,15 +1,16 @@
 from flask import Flask, render_template_string, send_from_directory, request, jsonify
-import os
-import json
+from os import environ
+from json import loads, dumps
 from dotenv import load_dotenv
 from openai import OpenAI
 from werkzeug.utils import secure_filename
-import html
-import logging
+from html import escape
+from logging import basicConfig, getLogger, INFO
+from csrf_protection import csrf, csrf_protect
 
 # Setup logging first
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+basicConfig(level=INFO)
+logger = getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -20,23 +21,25 @@ try:
     db = RailwayDB()
     db_enabled = True
     logger.info("Database connected successfully")
-except Exception as e:
-    logger.error(f"Database connection failed: {e}")
+except (ImportError, ConnectionError, Exception) as e:
+    logger.error(f"Database connection failed: {str(e).replace(chr(10), '').replace(chr(13), '')}")
     db = None
     db_enabled = False
 
 # Initialize OpenAI client only if API key is available
-api_key = os.getenv('OPENAI_API_KEY')
+api_key = environ.get('OPENAI_API_KEY')
 client = None
 if api_key:
     try:
         client = OpenAI(api_key=api_key)
         logger.info("OpenAI client initialized successfully")
-    except Exception as e:
-        logger.error(f"OpenAI client initialization failed: {e}")
+    except (ValueError, ConnectionError, Exception) as e:
+        logger.error(f"OpenAI client initialization failed: {str(e).replace(chr(10), '').replace(chr(13), '')}")
         client = None
 
 app = Flask(__name__)
+app.secret_key = environ.get('SECRET_KEY', 'dev-key-change-in-production')
+csrf.init_app(app)
 
 # Read HTML files and serve them
 def read_html_file(filename):
@@ -44,14 +47,14 @@ def read_html_file(filename):
         # Secure filename to prevent path traversal
         secure_name = secure_filename(filename)
         if not secure_name or secure_name != filename:
-            logger.warning(f"Invalid filename rejected: {filename}")
+            logger.warning(f"Invalid filename rejected: {filename.replace(chr(10), '').replace(chr(13), '')}")
             return "<h1>Trading Dashboard</h1><p>Invalid file request.</p><a href='/health'>Health Check</a>"
         
         with open(secure_name, 'r', encoding='utf-8') as f:
             return f.read()
     except FileNotFoundError:
-        logger.warning(f"File not found: {filename}")
-        safe_filename = html.escape(filename)
+        logger.warning(f"File not found: {filename.replace(chr(10), '').replace(chr(13), '')}")
+        safe_filename = escape(filename)
         return f"<h1>Trading Dashboard</h1><p>File {safe_filename} not found. Server is running.</p><a href='/health'>Health Check</a>"
 
 # Main routes
@@ -140,6 +143,7 @@ def api_trading_data():
 
 # OpenAI API endpoint for trading insights
 @app.route('/api/ai-insights', methods=['POST'])
+@csrf_protect
 def ai_insights():
     try:
         print("AI insights endpoint called")
@@ -153,7 +157,7 @@ def ai_insights():
         data = request.get_json()
         prompt = data.get('prompt', 'How can I trade better?')
         trading_data = data.get('data', {})
-        logger.info(f"AI insights request: {prompt[:50]}...")
+        logger.info(f"AI insights request: {prompt[:50].replace(chr(10), '').replace(chr(13), '')}...")
         logger.debug(f"Has trading data: {bool(trading_data)}")
         # Enhanced system prompt with trading context
         system_prompt = """
@@ -224,6 +228,7 @@ Provide specific, actionable advice with Australian context. Think like a CFO, C
 
 # Webhook for storing trading data
 @app.route('/webhook', methods=['GET', 'POST'])
+@csrf_protect
 def webhook():
     if request.method == 'GET':
         return jsonify({
@@ -238,7 +243,7 @@ def webhook():
         else:
             # Try to parse as JSON from raw data
             raw_data = request.get_data(as_text=True)
-            data = json.loads(raw_data) if raw_data else None
+            data = loads(raw_data) if raw_data else None
         
         if not data:
             return jsonify({"error": "No JSON data provided"}), 400
@@ -282,6 +287,7 @@ def webhook():
 
 # Bulk trade upload
 @app.route('/upload-trades', methods=['POST'])
+@csrf_protect
 def upload_trades():
     try:
         data = request.get_json()
@@ -302,7 +308,7 @@ def upload_trades():
                 })
                 stored_count += 1
             except Exception as e:
-                logger.error(f"Failed to store trade: {e}")
+        logger.error(f"Failed to store trade: {str(e).replace(chr(10), '').replace(chr(13), '')}")
         
         return jsonify({
             "status": "success",
@@ -332,21 +338,19 @@ def get_trades():
         except Exception as e:
             db.conn.rollback()
             error_msg = str(e).replace('\n', ' ').replace('\r', ' ')
-            logger.error(f"Database query error: {error_msg}")
+            logger.error(f"Database query error: {error_msg.replace(chr(10), '').replace(chr(13), '')}")
             raise e
         
-        trades = []
-        for row in cursor.fetchall():
-            trades.append({
-                'id': row['id'],
-                'symbol': row['symbol'],
-                'bias': row['signal_type'],
-                'entry': row['entry_price'],
-                'confidence': row['confidence'],
-                'reason': row['reason'],
-                'timestamp': str(row['timestamp']),
-                'created_at': str(row['created_at'])
-            })
+        trades = [{
+            'id': row['id'],
+            'symbol': row['symbol'],
+            'bias': row['signal_type'],
+            'entry': row['entry_price'],
+            'confidence': row['confidence'],
+            'reason': row['reason'],
+            'timestamp': str(row['timestamp']),
+            'created_at': str(row['created_at'])
+        } for row in cursor.fetchall()]
         
         return jsonify({"trades": trades, "count": len(trades)})
         
@@ -355,6 +359,7 @@ def get_trades():
 
 # Manual signal entry
 @app.route('/add-signal', methods=['POST'])
+@csrf_protect
 def add_signal():
     try:
         data = request.get_json() or request.form.to_dict()
@@ -405,6 +410,9 @@ def get_signals():
                 LIMIT 20
             """)
             signals = cursor.fetchall()
+        except (ConnectionError, Exception) as e:
+            logger.error(f"Database query error: {str(e).replace(chr(10), '').replace(chr(13), '')}")
+            return jsonify({"error": "Database query failed"}), 500
             
             return jsonify({
                 "signals": [dict(signal) for signal in signals],
@@ -421,7 +429,8 @@ def health_check():
     return jsonify({
         "status": "healthy", 
         "message": "Trading server running",
-        "database": "connected" if db_enabled else "offline"
+        "database": "connected" if db_enabled else "offline",
+        "csrf_token": csrf.generate_csrf_token()
     })
 
 # Prop firm endpoints
@@ -450,7 +459,7 @@ def get_prop_firms():
         return jsonify({"firms": firms})
     except Exception as e:
         error_msg = str(e).replace('\n', ' ').replace('\r', ' ')
-        logger.error(f"Prop firms query error: {error_msg}")
+        logger.error(f"Prop firms query error: {error_msg.replace(chr(10), '').replace(chr(13), '')}")
         return jsonify({"firms": []})
 
 @app.route('/api/scrape-propfirms')
@@ -467,7 +476,7 @@ def scrape_propfirms():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
+    port = int(environ.get('PORT', 5000))
+    debug_mode = environ.get('DEBUG', 'False').lower() == 'true'
     logger.info(f"Starting server on port {port}, debug={debug_mode}")
     app.run(host='127.0.0.1', port=port, debug=debug_mode)

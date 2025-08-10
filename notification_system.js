@@ -2,7 +2,9 @@
 function showNotification(message, type = 'info', duration = 5000) {
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
-    notification.textContent = message;
+    // Sanitize message to prevent XSS
+    const safeMessage = message.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    notification.textContent = safeMessage;
     
     notification.style.cssText = `
         position: fixed;

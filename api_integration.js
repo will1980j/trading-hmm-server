@@ -6,8 +6,14 @@ class TradingDashboardAPI {
 
     // Export data for external tools
     exportForGamma() {
-        const trades = JSON.parse(localStorage.getItem('tradingData')) || [];
-        const propFirms = JSON.parse(localStorage.getItem('propFirmsV2_2024-01')) || [];
+        let trades = [];
+        let propFirms = [];
+        try {
+            trades = JSON.parse(localStorage.getItem('tradingData') || '[]');
+            propFirms = JSON.parse(localStorage.getItem('propFirmsV2_2024-01') || '[]');
+        } catch (e) {
+            console.error('Error parsing localStorage data:', e);
+        }
         
         return {
             summary: this.generateSummary(trades, propFirms),
@@ -62,9 +68,15 @@ class TradingDashboardAPI {
     getMonthlyData(trades) {
         const monthly = {};
         trades.forEach(trade => {
-            const month = trade.date.substring(0, 7);
-            if (!monthly[month]) monthly[month] = 0;
-            monthly[month] += trade.profit || 0;
+            try {
+                if (trade && trade.date) {
+                    const month = trade.date.substring(0, 7);
+                    if (!monthly[month]) monthly[month] = 0;
+                    monthly[month] += trade.profit || 0;
+                }
+            } catch (e) {
+                console.error('Error processing trade data:', e);
+            }
         });
         return monthly;
     }
@@ -145,6 +157,10 @@ class TradingDashboardAPI {
     }
 
     generateKeyFindings(metrics, trades) {
+        if (!metrics || !trades) {
+            return ['⚠️ Insufficient data for analysis'];
+        }
+        
         const findings = [];
         
         if (metrics.winRate > 60) {
@@ -457,15 +473,17 @@ class TradingDashboardAPI {
 
     // Helper calculation methods
     calculateMaxDrawdown(profits) {
+        if (!profits || profits.length === 0) return 0;
+        
         let maxDrawdown = 0;
         let peak = 0;
         let cumulative = 0;
         
-        for (let profit of profits) {
+        for (const profit of profits) {
             cumulative += profit;
-            if (cumulative > peak) peak = cumulative;
+            peak = Math.max(peak, cumulative);
             const drawdown = peak > 0 ? (peak - cumulative) / peak * 100 : 0;
-            if (drawdown > maxDrawdown) maxDrawdown = drawdown;
+            maxDrawdown = Math.max(maxDrawdown, drawdown);
         }
         
         return maxDrawdown;
@@ -482,7 +500,10 @@ class TradingDashboardAPI {
     calculateProfitFactor(winningTrades, losingTrades) {
         const totalWins = winningTrades.reduce((sum, t) => sum + (parseFloat(t.rTarget) || 1), 0);
         const totalLosses = losingTrades.length;
-        return totalLosses === 0 ? (totalWins > 0 ? 999 : 0) : totalWins / totalLosses;
+        if (totalLosses === 0) {
+            return totalWins > 0 ? 999 : 0;
+        }
+        return totalWins / totalLosses;
     }
 
     // Copy to clipboard for easy sharing
@@ -500,14 +521,22 @@ class TradingDashboardAPI {
     // Get AI insights for trading data
     async getAIInsights(prompt = 'Analyze my trading performance and provide actionable insights') {
         try {
-            const trades = JSON.parse(localStorage.getItem('tradingData')) || [];
-            const propFirms = JSON.parse(localStorage.getItem('propFirmsV2_2024-01')) || [];
+            let trades = [];
+            let propFirms = [];
+            try {
+                trades = JSON.parse(localStorage.getItem('tradingData') || '[]');
+                propFirms = JSON.parse(localStorage.getItem('propFirmsV2_2024-01') || '[]');
+            } catch (e) {
+                console.error('Error parsing localStorage data:', e);
+            }
+            
             const data = this.exportForGamma();
             
             const response = await fetch('/api/ai-insights', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: JSON.stringify({
                     prompt: prompt,
@@ -523,6 +552,7 @@ class TradingDashboardAPI {
             const result = await response.json();
             return result;
         } catch (error) {
+            console.error('AI insights error:', error);
             return { error: error.message, status: 'error' };
         }
     }

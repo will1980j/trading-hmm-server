@@ -74,11 +74,11 @@ class TradingConfig:
     def from_env(cls):
         """Load configuration from environment variables"""
         try:
-            cls.MAX_DAILY_LOSS = float(os.getenv('MAX_DAILY_LOSS', cls.MAX_DAILY_LOSS))
-            cls.MAX_DAILY_PROFIT = float(os.getenv('MAX_DAILY_PROFIT', cls.MAX_DAILY_PROFIT))
-            cls.RISK_PER_TRADE = float(os.getenv('RISK_PER_TRADE', cls.RISK_PER_TRADE))
-            cls.MIN_CONFIDENCE = float(os.getenv('MIN_CONFIDENCE', cls.MIN_CONFIDENCE))
-            cls.API_PORT = int(os.getenv('PORT', cls.API_PORT))
+            cls.MAX_DAILY_LOSS = cls._get_float_env('MAX_DAILY_LOSS', cls.MAX_DAILY_LOSS)
+            cls.MAX_DAILY_PROFIT = cls._get_float_env('MAX_DAILY_PROFIT', cls.MAX_DAILY_PROFIT)
+            cls.RISK_PER_TRADE = cls._get_float_env('RISK_PER_TRADE', cls.RISK_PER_TRADE)
+            cls.MIN_CONFIDENCE = cls._get_float_env('MIN_CONFIDENCE', cls.MIN_CONFIDENCE)
+            cls.API_PORT = cls._get_int_env('PORT', cls.API_PORT)
         except (ValueError, TypeError) as e:
             raise ValueError(f"Invalid environment variable configuration: {e}")
         
@@ -88,6 +88,22 @@ class TradingConfig:
             cls.SYMBOLS = [s.strip() for s in symbols_env.split(',')]
         
         return cls
+    
+    @staticmethod
+    def _get_float_env(key: str, default: float) -> float:
+        """Safely get float environment variable"""
+        try:
+            return float(os.getenv(key, str(default)))
+        except (ValueError, TypeError):
+            return default
+    
+    @staticmethod
+    def _get_int_env(key: str, default: int) -> int:
+        """Safely get integer environment variable"""
+        try:
+            return int(os.getenv(key, str(default)))
+        except (ValueError, TypeError):
+            return default
 
 # Gap Analysis Rules (NQ-specific)
 class GapAnalysisConfig:
