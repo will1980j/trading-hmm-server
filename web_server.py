@@ -157,6 +157,19 @@ def style_preview():
 def style_preview2():
     return read_html_file('style_preview2.html')
 
+@app.route('/style_preview3.html')
+def style_preview3():
+    return read_html_file('style_preview3.html')
+
+@app.route('/styles')
+@login_required
+def style_selector():
+    return read_html_file('style_selector.html')
+
+@app.route('/style_switcher.js')
+def style_switcher_js():
+    return send_from_directory('.', 'style_switcher.js', mimetype='application/javascript')
+
 @app.route('/<path:filename>')
 def serve_files(filename):
     if filename.endswith(('.jpg', '.png', '.gif', '.ico', '.pdf')):

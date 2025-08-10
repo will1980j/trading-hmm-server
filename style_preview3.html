@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BSOD Trading System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0000AA;
+            color: #FFFFFF;
+            min-height: 100vh;
+            padding: 40px;
+            font-size: 16px;
+            line-height: 1.4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .error-header {
+            margin-bottom: 30px;
+        }
+        
+        .error-title {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        
+        .error-message {
+            margin-bottom: 15px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .trading-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin: 30px 0;
+        }
+        
+        .data-block {
+            margin-bottom: 20px;
+        }
+        
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .highlight {
+            background: #FFFFFF;
+            color: #0000AA;
+            padding: 2px 4px;
+        }
+        
+        .error-code {
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        
+        .memory-dump {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.2;
+            margin: 20px 0;
+        }
+        
+        .hex-line {
+            margin-bottom: 2px;
+        }
+        
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #FFFFFF;
+            color: #0000AA;
+            padding: 10px 40px;
+            font-weight: bold;
+        }
+        
+        .blink {
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        .table {
+            width: 100%;
+            margin: 20px 0;
+        }
+        
+        .table-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+        }
+        
+        .table-header {
+            font-weight: bold;
+            border-bottom: 1px solid #FFFFFF;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-header">
+            <div class="error-title">A problem has been detected and Trading System has been shut down to prevent damage to your portfolio.</div>
+            <div class="error-message">The end-user manually initiated the trading session.</div>
+        </div>
+        
+        <div class="section">
+            <div>If this is the first time you've seen this trading screen,</div>
+            <div>restart your trading bot. If this screen appears again, follow these steps:</div>
+        </div>
+        
+        <div class="section">
+            <div>Check to make sure any new trading strategies or algorithms are properly configured.</div>
+            <div>If this is a new installation, ask your risk management team</div>
+            <div>for any portfolio updates you might need.</div>
+        </div>
+        
+        <div class="section">
+            <div>If the problems continue, disable or remove any newly installed trading</div>
+            <div>algorithms. Disable BIOS memory options such as caching or shadowing.</div>
+            <div>If you need to use Safe Mode to remove or disable components, restart</div>
+            <div>your trading system, press F8 to select Advanced Startup Options, and then</div>
+            <div>select Safe Mode.</div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Technical Information:</div>
+            <div class="error-code">*** STOP: 0x00000042 (0x00000000, 0x00000000, 0x00000000, 0x00000000, TRADINGFMP)</div>
+        </div>
+        
+        <div class="trading-grid">
+            <div class="data-block">
+                <div class="section-title">PORTFOLIO STATUS:</div>
+                <div class="table">
+                    <div class="table-row table-header">
+                        <span>ASSET</span>
+                        <span>VALUE</span>
+                        <span>CHANGE</span>
+                    </div>
+                    <div class="table-row">
+                        <span>TOTAL_BALANCE</span>
+                        <span>$127,450.00</span>
+                        <span class="highlight">+12.5%</span>
+                    </div>
+                    <div class="table-row">
+                        <span>ACTIVE_TRADES</span>
+                        <span>12</span>
+                        <span>RUNNING</span>
+                    </div>
+                    <div class="table-row">
+                        <span>WIN_RATE</span>
+                        <span>73.2%</span>
+                        <span>OPTIMAL</span>
+                    </div>
+                    <div class="table-row">
+                        <span>RISK_LEVEL</span>
+                        <span>MODERATE</span>
+                        <span>STABLE</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="data-block">
+                <div class="section-title">SYSTEM PROCESSES:</div>
+                <div class="table">
+                    <div class="table-row table-header">
+                        <span>PROCESS</span>
+                        <span>STATUS</span>
+                        <span>CPU%</span>
+                    </div>
+                    <div class="table-row">
+                        <span>TRADING_ENGINE.EXE</span>
+                        <span class="highlight">ACTIVE</span>
+                        <span>28.6</span>
+                    </div>
+                    <div class="table-row">
+                        <span>RISK_MANAGER.EXE</span>
+                        <span>RUNNING</span>
+                        <span>11.3</span>
+                    </div>
+                    <div class="table-row">
+                        <span>MARKET_DATA.EXE</span>
+                        <span>RUNNING</span>
+                        <span>5.3</span>
+                    </div>
+                    <div class="table-row">
+                        <span>PORTFOLIO_MGR.EXE</span>
+                        <span>RUNNING</span>
+                        <span>4.7</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Beginning dump of trading memory</div>
+            <div class="memory-dump">
+                <div class="hex-line">Trading memory dump completed.</div>
+                <div class="hex-line">Contact your system administrator or technical support group for further</div>
+                <div class="hex-line">assistance.</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">MEMORY ALLOCATION:</div>
+            <div class="memory-dump">
+                <div class="hex-line">0x00000000: 54 52 41 44 49 4E 47 5F 45 4E 47 49 4E 45 00 00  TRADING_ENGINE..</div>
+                <div class="hex-line">0x00000010: 50 4F 52 54 46 4F 4C 49 4F 5F 4D 47 52 00 00 00  PORTFOLIO_MGR...</div>
+                <div class="hex-line">0x00000020: 52 49 53 4B 5F 4D 41 4E 41 47 45 52 00 00 00 00  RISK_MANAGER....</div>
+                <div class="hex-line">0x00000030: 4D 41 52 4B 45 54 5F 44 41 54 41 00 00 00 00 00  MARKET_DATA.....</div>
+                <div class="hex-line">0x00000040: 41 4C 47 4F 5F 54 52 41 44 45 52 00 00 00 00 00  ALGO_TRADER.....</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">CURRENT TRADING SESSION:</div>
+            <div class="data-row">
+                <span>SESSION_ID:</span>
+                <span>TRD_20241215_001337</span>
+            </div>
+            <div class="data-row">
+                <span>UPTIME:</span>
+                <span>00:13:36</span>
+            </div>
+            <div class="data-row">
+                <span>LAST_TRADE:</span>
+                <span>NQ1! LONG +2.5R</span>
+            </div>
+            <div class="data-row">
+                <span>NEXT_SIGNAL:</span>
+                <span class="blink">CALCULATING...</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status-bar">
+        Press CTRL+ALT+DEL to restart trading system | F1=Help F2=Setup F3=Exit F4=Restart F5=Safe Mode
+    </div>
+</body>
+</html>
