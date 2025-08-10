@@ -273,7 +273,7 @@ class TradingChatbot {
         const sessionStats = {};
         
         // Use reduce for better performance instead of forEach
-        const sessionStats = trades.reduce((stats, trade) => {
+        const sessionData = trades.reduce((stats, trade) => {
             try {
                 if (trade && trade.session) {
                     if (!stats[trade.session]) {
@@ -293,7 +293,7 @@ class TradingChatbot {
         let bestAvg = 0;
         let potentialIncrease = 0;
         
-        Object.entries(sessionStats).forEach(([session, stats]) => {
+        Object.entries(sessionData).forEach(([session, stats]) => {
             if (stats.count >= 5) {
                 const avg = stats.total / stats.count;
                 if (avg > bestAvg) {
