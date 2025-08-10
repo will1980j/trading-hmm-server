@@ -252,6 +252,14 @@
             </div>
         </div>
         
+        <div class="chart-container" style="margin-bottom: 30px;">
+            <h3>Report Generation Analytics</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div id="d3ReportUsageChart" style="height: 250px;"></div>
+                <div id="d3ReportTypeChart" style="height: 250px;"></div>
+            </div>
+        </div>
+        
         <div class="report-grid">
             <div class="report-card">
                 <div class="report-title">Monthly Performance Report</div>
@@ -345,6 +353,8 @@
         </div>
     </div>
 
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="d3_charts.js"></script>
     <script src="api_integration.js"></script>
     <script>
         function connectGamma() {
@@ -485,8 +495,97 @@
             }, 500);
         }
         
+        function initReportingCharts() {
+            if (typeof d3 === 'undefined') return;
+            
+            // Report Usage Chart
+            const usageData = [15, 23, 18, 12, 8, 6];
+            const usageLabels = ['Monthly', 'Investor', 'Risk', 'Quarterly', 'Strategy', 'Allocation'];
+            createReportBarChart('d3ReportUsageChart', usageData, usageLabels, '#00ff88');
+            
+            // Report Type Distribution
+            const typeData = [35, 25, 20, 20];
+            const typeLabels = ['Performance', 'Financial', 'Risk', 'Strategic'];
+            const typeColors = ['#00ff88', '#ffa502', '#ff4757', '#3742fa'];
+            createReportPieChart('d3ReportTypeChart', typeData, typeLabels, typeColors);
+        }
+        
+        function createReportBarChart(containerId, data, labels, color) {
+            const container = d3.select(`#${containerId}`);
+            container.selectAll('*').remove();
+            
+            const margin = {top: 20, right: 30, bottom: 40, left: 50};
+            const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+            const height = 200 - margin.top - margin.bottom;
+            
+            const svg = container.append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            const xScale = d3.scaleBand().domain(labels).range([0, width]).padding(0.1);
+            const yScale = d3.scaleLinear().domain([0, d3.max(data)]).nice().range([height, 0]);
+            
+            g.selectAll('.bar')
+                .data(data)
+                .enter().append('rect')
+                .attr('class', 'bar')
+                .attr('x', (d, i) => xScale(labels[i]))
+                .attr('width', xScale.bandwidth())
+                .attr('y', d => yScale(d))
+                .attr('height', d => height - yScale(d))
+                .attr('fill', color);
+            
+            g.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(xScale))
+                .selectAll('text').style('fill', 'white');
+            
+            g.append('g')
+                .call(d3.axisLeft(yScale))
+                .selectAll('text').style('fill', 'white');
+        }
+        
+        function createReportPieChart(containerId, data, labels, colors) {
+            const container = d3.select(`#${containerId}`);
+            container.selectAll('*').remove();
+            
+            const width = container.node().getBoundingClientRect().width;
+            const height = 200;
+            const radius = Math.min(width, height) / 2 - 10;
+            
+            const svg = container.append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${width/2},${height/2})`);
+            
+            const pie = d3.pie().value(d => d);
+            const arc = d3.arc().innerRadius(0).outerRadius(radius);
+            
+            const arcs = g.selectAll('.arc')
+                .data(pie(data))
+                .enter().append('g')
+                .attr('class', 'arc');
+            
+            arcs.append('path')
+                .attr('d', arc)
+                .attr('fill', (d, i) => colors[i]);
+            
+            arcs.append('text')
+                .attr('transform', d => `translate(${arc.centroid(d)})`)
+                .attr('text-anchor', 'middle')
+                .style('fill', 'white')
+                .style('font-size', '11px')
+                .text((d, i) => labels[i]);
+        }
+        
         // Auto-generate sample data on page load for demo
         document.addEventListener('DOMContentLoaded', function() {
+            initReportingCharts();
             // Show helpful tips
             setTimeout(() => {
                 if (!localStorage.getItem('reportingHubTips')) {

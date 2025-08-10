@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Financial Summary - Trading Analytics</title>
     <link rel="stylesheet" href="/style_preload.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -297,11 +297,22 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <div class="chart-container">
                 <h3>Monthly Performance Trend</h3>
-                <canvas id="performanceChart"></canvas>
+                <div id="d3PerformanceChart" style="height: 300px;"></div>
             </div>
             <div class="chart-container">
                 <h3>Portfolio Allocation</h3>
-                <canvas id="allocationChart"></canvas>
+                <div id="d3AllocationChart" style="height: 300px;"></div>
+            </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+            <div class="chart-container">
+                <h3>Revenue Growth</h3>
+                <div id="d3RevenueChart" style="height: 300px;"></div>
+            </div>
+            <div class="chart-container">
+                <h3>Profit Distribution</h3>
+                <div id="d3ProfitChart" style="height: 300px;"></div>
             </div>
         </div>
         
@@ -330,7 +341,7 @@
     </div>
 
     <script>
-        let performanceChart, allocationChart;
+        let d3Charts = {};
         
         function updateDateTime() {
             const now = new Date();
@@ -381,65 +392,190 @@
         }
         
         function updateCharts(fundedFirms, monthlyRevenue) {
-            // Performance Chart
-            const ctx1 = document.getElementById('performanceChart').getContext('2d');
-            if (performanceChart) performanceChart.destroy();
+            if (typeof d3 === 'undefined') {
+                console.warn('D3.js not loaded');
+                return;
+            }
             
-            performanceChart = new Chart(ctx1, {
-                type: 'line',
-                data: {
-                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                    datasets: [{
-                        label: 'Monthly Profit (AUD)',
-                        data: [monthlyRevenue * 0.6, monthlyRevenue * 0.8, monthlyRevenue, monthlyRevenue * 1.1, monthlyRevenue * 0.9, monthlyRevenue * 1.2],
-                        borderColor: '#00ff88',
-                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { labels: { color: 'white' } } },
-                    scales: {
-                        x: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                        y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }
-                    }
-                }
-            });
+            // Performance Chart
+            createD3LineChart('d3PerformanceChart', 
+                [monthlyRevenue * 0.6, monthlyRevenue * 0.8, monthlyRevenue, monthlyRevenue * 1.1, monthlyRevenue * 0.9, monthlyRevenue * 1.2],
+                ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                '#00ff88'
+            );
             
             // Allocation Chart
-            const ctx2 = document.getElementById('allocationChart').getContext('2d');
-            if (allocationChart) allocationChart.destroy();
+            createD3PieChart('d3AllocationChart',
+                [30, 25, 15, 15, 10, 5],
+                ['Salary', 'Investments', 'SMSF', 'Property', 'Emergency', 'Other'],
+                ['#00ff88', '#00d4aa', '#17a2b8', '#ffa502', '#ff4757', '#3742fa']
+            );
             
-            allocationChart = new Chart(ctx2, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Salary', 'Investments', 'SMSF', 'Property', 'Emergency', 'Other'],
-                    datasets: [{
-                        data: [30, 25, 15, 15, 10, 5],
-                        backgroundColor: [
-                            '#00ff88',
-                            '#00d4aa',
-                            '#17a2b8',
-                            '#ffa502',
-                            '#ff4757',
-                            '#3742fa'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { 
-                        legend: { 
-                            labels: { color: 'white' },
-                            position: 'bottom'
-                        } 
-                    }
-                }
-            });
+            // Revenue Growth Chart
+            const revenueData = Array.from({length: 12}, (_, i) => monthlyRevenue * (0.8 + Math.random() * 0.4));
+            createD3AreaChart('d3RevenueChart', revenueData, 
+                ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                '#ffa502'
+            );
+            
+            // Profit Distribution Chart
+            createD3BarChart('d3ProfitChart',
+                fundedFirms.map(f => f.monthlyProfit || Math.random() * 5000),
+                fundedFirms.map(f => f.name || 'Firm'),
+                '#3742fa'
+            );
+        }
+        
+        function createD3LineChart(containerId, data, labels, color) {
+            const container = d3.select(`#${containerId}`);
+            container.selectAll('*').remove();
+            
+            const margin = {top: 20, right: 30, bottom: 40, left: 50};
+            const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+            
+            const svg = container.append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            const xScale = d3.scaleBand().domain(labels).range([0, width]).padding(0.1);
+            const yScale = d3.scaleLinear().domain([0, d3.max(data)]).nice().range([height, 0]);
+            
+            const line = d3.line()
+                .x((d, i) => xScale(labels[i]) + xScale.bandwidth() / 2)
+                .y(d => yScale(d))
+                .curve(d3.curveMonotoneX);
+            
+            g.append('path')
+                .datum(data)
+                .attr('fill', 'none')
+                .attr('stroke', color)
+                .attr('stroke-width', 2)
+                .attr('d', line);
+            
+            g.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(xScale))
+                .selectAll('text').style('fill', 'white');
+            
+            g.append('g')
+                .call(d3.axisLeft(yScale))
+                .selectAll('text').style('fill', 'white');
+        }
+        
+        function createD3PieChart(containerId, data, labels, colors) {
+            const container = d3.select(`#${containerId}`);
+            container.selectAll('*').remove();
+            
+            const width = container.node().getBoundingClientRect().width;
+            const height = 250;
+            const radius = Math.min(width, height) / 2 - 10;
+            
+            const svg = container.append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${width/2},${height/2})`);
+            
+            const pie = d3.pie().value(d => d);
+            const arc = d3.arc().innerRadius(0).outerRadius(radius);
+            
+            const arcs = g.selectAll('.arc')
+                .data(pie(data))
+                .enter().append('g')
+                .attr('class', 'arc');
+            
+            arcs.append('path')
+                .attr('d', arc)
+                .attr('fill', (d, i) => colors[i]);
+            
+            arcs.append('text')
+                .attr('transform', d => `translate(${arc.centroid(d)})`)
+                .attr('text-anchor', 'middle')
+                .style('fill', 'white')
+                .style('font-size', '12px')
+                .text((d, i) => labels[i]);
+        }
+        
+        function createD3AreaChart(containerId, data, labels, color) {
+            const container = d3.select(`#${containerId}`);
+            container.selectAll('*').remove();
+            
+            const margin = {top: 20, right: 30, bottom: 40, left: 50};
+            const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+            
+            const svg = container.append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            const xScale = d3.scaleBand().domain(labels).range([0, width]);
+            const yScale = d3.scaleLinear().domain([0, d3.max(data)]).nice().range([height, 0]);
+            
+            const area = d3.area()
+                .x((d, i) => xScale(labels[i]))
+                .y0(height)
+                .y1(d => yScale(d))
+                .curve(d3.curveMonotoneX);
+            
+            g.append('path')
+                .datum(data)
+                .attr('fill', color + '40')
+                .attr('d', area);
+            
+            g.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(xScale))
+                .selectAll('text').style('fill', 'white');
+            
+            g.append('g')
+                .call(d3.axisLeft(yScale))
+                .selectAll('text').style('fill', 'white');
+        }
+        
+        function createD3BarChart(containerId, data, labels, color) {
+            const container = d3.select(`#${containerId}`);
+            container.selectAll('*').remove();
+            
+            const margin = {top: 20, right: 30, bottom: 40, left: 50};
+            const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+            
+            const svg = container.append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            const xScale = d3.scaleBand().domain(labels).range([0, width]).padding(0.1);
+            const yScale = d3.scaleLinear().domain([0, d3.max(data)]).nice().range([height, 0]);
+            
+            g.selectAll('.bar')
+                .data(data)
+                .enter().append('rect')
+                .attr('class', 'bar')
+                .attr('x', (d, i) => xScale(labels[i]))
+                .attr('width', xScale.bandwidth())
+                .attr('y', d => yScale(d))
+                .attr('height', d => height - yScale(d))
+                .attr('fill', color);
+            
+            g.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(xScale))
+                .selectAll('text').style('fill', 'white');
+            
+            g.append('g')
+                .call(d3.axisLeft(yScale))
+                .selectAll('text').style('fill', 'white');
         }
         
         function changeTheme() {
