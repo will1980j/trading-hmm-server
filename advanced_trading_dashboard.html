@@ -1934,9 +1934,9 @@
             
             const dailyData = {};
             filteredTrades.forEach((trade, index) => {
-                const tradeDate = new Date(trade.date + 'T00:00:00');
+                const tradeDate = new Date(trade.date);
                 if (tradeDate.getFullYear() === year) {
-                    const dateKey = trade.date;
+                    const dateKey = tradeDate.toISOString().split('T')[0];
                     if (!dailyData[dateKey]) {
                         dailyData[dateKey] = { trades: [], totalR: 0, wins: 0, losses: 0 };
                     }
@@ -2091,7 +2091,7 @@
             
             const dailyData = {};
             filteredTrades.forEach(trade => {
-                const date = trade.date;
+                const date = new Date(trade.date).toISOString().split('T')[0];
                 if (!dailyData[date]) {
                     dailyData[date] = { totalR: 0, wins: 0, count: 0, breakevens: 0 };
                 }
@@ -2134,7 +2134,7 @@
             
             const weeklyData = {};
             filteredTrades.forEach(trade => {
-                const date = new Date(trade.date + 'T00:00:00');
+                const date = new Date(trade.date);
                 const weekStr = getWeekString(date);
                 if (!weeklyData[weekStr]) {
                     weeklyData[weekStr] = { trades: [], totalR: 0, wins: 0, losses: 0 };
