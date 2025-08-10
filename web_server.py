@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, send_from_directory, request, jsonify
+from flask import Flask, render_template_string, send_from_directory, request, jsonify, session, redirect, url_for
 from os import environ, path
 from json import loads, dumps
 from dotenv import load_dotenv
@@ -302,6 +302,7 @@ def webhook():
 
 # Bulk trade upload
 @app.route('/upload-trades', methods=['POST'])
+@login_required
 @csrf_protect
 def upload_trades():
     try:
@@ -374,6 +375,7 @@ def get_trades():
 
 # Manual signal entry
 @app.route('/add-signal', methods=['POST'])
+@login_required
 @csrf_protect
 def add_signal():
     try:
