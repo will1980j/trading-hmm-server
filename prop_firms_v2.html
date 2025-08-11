@@ -27,6 +27,11 @@
             transition: all 0.3s ease;
         }
         
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        
         .navbar {
             background: rgba(255,255,255,0.1);
             padding: 15px;
@@ -106,8 +111,8 @@
         
         .dashboard-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
             margin-bottom: 30px;
         }
         
@@ -520,7 +525,7 @@
         
         <div class="data-input">
             <h3>Add New Prop Firm</h3>
-            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr auto auto; gap: 10px; margin-bottom: 10px;">
+            <div style="display: grid; grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr auto auto auto; gap: 8px; margin-bottom: 10px;">
                 <label style="font-size: 11px; opacity: 0.8;">Firm Name</label>
                 <label style="font-size: 11px; opacity: 0.8;">Website URL</label>
                 <label style="font-size: 11px; opacity: 0.8;">Status</label>
@@ -531,8 +536,9 @@
                 <label style="font-size: 11px; opacity: 0.8;">Currency</label>
                 <label style="font-size: 11px; opacity: 0.8;">Research</label>
                 <label style="font-size: 11px; opacity: 0.8;">Add</label>
+                <label style="font-size: 11px; opacity: 0.8;">Auto-Find</label>
             </div>
-            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr auto auto; gap: 10px; align-items: end; margin-bottom: 15px;">
+            <div style="display: grid; grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr auto auto auto; gap: 8px; align-items: end; margin-bottom: 15px;">
                 <input type="text" id="firmName" placeholder="FTMO" style="width: 100%;">
                 <div style="position: relative;">
                     <input type="text" id="firmWebsite" placeholder="https://ftmo.com" style="width: 100%;" onblur="autoResearchFirm()">
@@ -559,7 +565,7 @@
                 </select>
                 <button class="btn" onclick="autoResearchFirm()" style="background: #17a2b8;">Research</button>
                 <button class="btn" onclick="addPropFirm()">Add Firm</button>
-                <button class="btn" onclick="scrapePropFirms()" style="background: #17a2b8; margin-left: 10px;">Auto-Find Deals</button>
+                <button class="btn" onclick="scrapePropFirms()" style="background: #17a2b8;">Auto-Find Deals</button>
             </div>
         </div>
         
@@ -606,7 +612,7 @@
             <div style="margin-bottom: 15px;">
                 <label style="font-size: 12px; opacity: 0.8;">Allocation percentages must total 100%</label>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 15px;">
+            <div style="display: grid; grid-template-columns: repeat(9, 1fr); gap: 8px; margin-top: 15px;">
                 <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
                     <div style="font-size: 10px; opacity: 0.8; margin-bottom: 5px;">Salary</div>
                     <input type="number" id="salaryPercent" value="30" step="1" onchange="updateAllocations()" style="width: 50px; text-align: center;">%
@@ -641,6 +647,16 @@
                     <div style="font-size: 10px; opacity: 0.8; margin-bottom: 5px;">Emergency</div>
                     <input type="number" id="emergencyPercent" value="5" step="1" onchange="updateAllocations()" style="width: 50px; text-align: center;">%
                     <div id="emergencyAmount" style="font-size: 11px; opacity: 0.7;">$0</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <div style="font-size: 10px; opacity: 0.8; margin-bottom: 5px;">Travel</div>
+                    <input type="number" id="travelPercent" value="3" step="1" onchange="updateAllocations()" style="width: 50px; text-align: center;">%
+                    <div id="travelAmount" style="font-size: 11px; opacity: 0.7;">$0</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <div style="font-size: 10px; opacity: 0.8; margin-bottom: 5px;">Misc</div>
+                    <input type="number" id="miscPercent" value="2" step="1" onchange="updateAllocations()" style="width: 50px; text-align: center;">%
+                    <div id="miscAmount" style="font-size: 11px; opacity: 0.7;">$0</div>
                 </div>
             </div>
             <div style="margin-top: 15px; text-align: center;">
@@ -1016,7 +1032,7 @@
             const currentPerformance = parseFloat(document.getElementById('performancePercent').textContent) || 0;
             const monthlyTarget = parseFloat(document.getElementById('monthlyTargetPercent').value) || 5;
             
-            const allocations = ['salary', 'secondSkies', 'smsf', 'property', 'investments', 'debts', 'emergency'];
+            const allocations = ['salary', 'secondSkies', 'smsf', 'property', 'investments', 'debts', 'emergency', 'travel', 'misc'];
             let totalPercent = 0;
             
             allocations.forEach(allocation => {
