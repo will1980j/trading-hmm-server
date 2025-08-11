@@ -482,25 +482,27 @@ def ai_market_analysis():
         # Create market analysis prompt
         news_summary = '\n'.join([f"- {item.get('title', '')[:100]}" for item in news_items[:5]])
         
-        prompt = f"""Market Analysis for NQ Futures Trader:
+        prompt = f"""ICT Market Analysis for NQ Liquidity Grab Scalper:
         
         TRADER PROFILE:
         {trading_context}
         
-        CURRENT MARKET DATA:
+        CURRENT MARKET CONDITIONS:
         NQ Price: {futures_data.get('NQ', {}).get('price', 'N/A')}
         Market Sentiment: {get_market_sentiment()}
+        Session Context: Analyze current session for liquidity opportunities
         
-        RECENT NEWS:
+        RECENT NEWS IMPACT:
         {news_summary}
         
-        Provide:
-        1. BIAS: LONG/SHORT/NEUTRAL with confidence %
-        2. KEY LEVELS: 3 support/resistance levels for NQ
-        3. ALERTS: Any critical news impacting NQ
-        4. STRATEGY: How this aligns with the trader's approach
+        Provide ICT-focused analysis:
+        1. 1H BIAS: BULLISH/BEARISH based on FVG/IFVG context
+        2. LIQUIDITY LEVELS: Session highs/lows and pivot areas for sweeps
+        3. FVG OPPORTUNITIES: Potential gap formations for entries
+        4. SESSION TIMING: Optimal periods for liquidity grab setups
+        5. NEWS IMPACT: How news affects liquidity and volatility for scalping
         
-        Keep response concise and actionable."""
+        Focus on 1min execution opportunities within current 1H bias context."""
         
         response = client.chat.completions.create(
             model=environ.get('OPENAI_MODEL', 'gpt-4o'),
@@ -1347,18 +1349,28 @@ def assess_expansion_readiness(metrics):
 
 # Market Analysis Helper Functions
 def build_user_trading_context(trades):
-    """Build context about user's trading approach"""
+    """Build context about user's ICT liquidity grab strategy"""
     if not trades:
-        return "Systematic trader building experience base"
+        return "ICT liquidity grab scalper building systematic edge on NQ futures"
     
-    # Analyze user's trading patterns
+    # Analyze trading patterns specific to ICT strategy
     sessions = [t.get('session', 'UNKNOWN') for t in trades]
     best_session = max(set(sessions), key=sessions.count) if sessions else 'LONDON'
     
     win_rate = len([t for t in trades if t.get('rScore', 0) > 0]) / len(trades) * 100 if trades else 50
-    avg_hold = "intraday" # Simplified
+    avg_r_target = sum([abs(t.get('rScore', 1)) for t in trades]) / len(trades) if trades else 2
     
-    return f"Systematic NQ trader, {win_rate:.0f}% win rate, prefers {best_session} session, {avg_hold} timeframe"
+    # Calculate breakeven frequency (indicator of tight risk management)
+    breakevens = len([t for t in trades if t.get('breakeven', False)])
+    be_rate = (breakevens / len(trades) * 100) if trades else 0
+    
+    return f"""ICT Liquidity Grab Scalper Profile:
+    - NQ futures specialist using 1H bias + 1min execution
+    - {win_rate:.0f}% win rate with {avg_r_target:.1f}R average target
+    - {be_rate:.0f}% breakeven rate (tight risk management)
+    - Optimal session: {best_session}
+    - Strategy: FVG/IFVG entries after pivot sweeps
+    - Risk: SL below/above FVG base, 1:1 breakeven, testing R-targets"""
 
 def parse_market_analysis(ai_response):
     """Parse AI response for structured data"""
