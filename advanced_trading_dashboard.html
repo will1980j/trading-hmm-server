@@ -971,6 +971,35 @@
             </div>
         </div>
         
+        <!-- Economic News & AI Analysis -->
+        <div style="background: linear-gradient(135deg, rgba(138,43,226,0.1), rgba(75,0,130,0.1)); border: 1px solid rgba(138,43,226,0.3); border-radius: 15px; padding: 20px; margin-bottom: 25px;">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                <h3 style="color: #8a2be2; margin: 0; display: flex; align-items: center; gap: 10px;">
+                    📊 Economic Intelligence
+                    <span style="font-size: 12px; background: rgba(138,43,226,0.2); padding: 2px 8px; border-radius: 10px; font-weight: normal;">AI Powered</span>
+                </h3>
+                <div id="economicImpact" style="font-size: 14px; font-weight: 600; padding: 4px 12px; border-radius: 6px; background: rgba(255,255,255,0.1);">NEUTRAL</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 8px; font-weight: 600;">TODAY'S ECONOMIC EVENTS</div>
+                    <div id="economicEvents" style="font-size: 12px; line-height: 1.4; margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; min-height: 60px;">
+                        <div class="ai-loading">Loading economic calendar...</div>
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 8px; font-weight: 600;">AI ECONOMIC ANALYSIS</div>
+                    <div id="aiEconomicAnalysis" style="font-size: 12px; line-height: 1.4; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; min-height: 60px;">
+                        <div class="ai-loading">Analyzing economic impact on NQ futures...</div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 6px;">
+                <div style="font-size: 11px; opacity: 0.8; margin-bottom: 5px; font-weight: 600;">KEY ECONOMIC RISKS</div>
+                <div id="economicRisks" style="font-size: 12px; line-height: 1.3;">Monitoring Fed policy, inflation data, and employment trends...</div>
+            </div>
+        </div>
+        
         <!-- Strategy Overview Panel -->
         <div style="background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,212,170,0.1)); border: 1px solid rgba(0,255,136,0.2); border-radius: 15px; padding: 20px; margin-bottom: 25px;">
             <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
@@ -1975,34 +2004,154 @@
             console.log('Initializing market feeds...');
             await updateMarketNews();
             await updateMarketAnalysis();
+            await updateEconomicNews();
             
-            // Update every 2 minutes
+            // Update market news every 2 minutes
             setInterval(updateMarketNews, 120000);
             // Update AI analysis every 5 minutes
             setInterval(updateMarketAnalysis, 300000);
+            // Update economic news every 10 minutes
+            setInterval(updateEconomicNews, 600000);
+        }
+        
+        async function updateEconomicNews() {
+            try {
+                console.log('Fetching economic news...');
+                const response = await fetch('/api/economic-news');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateEconomicEvents(data.economic_news);
+                    await updateEconomicAnalysis(data.economic_news);
+                }
+            } catch (error) {
+                console.error('Error updating economic news:', error);
+                updateEconomicEventsFallback();
+            }
+        }
+        
+        function updateEconomicEvents(economicNews) {
+            const eventsEl = document.getElementById('economicEvents');
+            if (!eventsEl || !economicNews.length) {
+                if (eventsEl) {
+                    eventsEl.innerHTML = '<div style="opacity: 0.7;">No major economic events today</div>';
+                }
+                return;
+            }
+            
+            const eventsHtml = economicNews.slice(0, 3).map(item => {
+                const impactColor = item.impact === 'HIGH' ? '#ff4757' : item.impact === 'MEDIUM' ? '#ffa502' : '#2ed573';
+                return `<div style="margin-bottom: 6px; padding: 4px 0; border-left: 3px solid ${impactColor}; padding-left: 8px;">
+                    <div style="font-weight: 600; font-size: 11px;">${item.title.substring(0, 60)}...</div>
+                    <div style="font-size: 10px; opacity: 0.8;">${item.impact} Impact • ${item.source}</div>
+                </div>`;
+            }).join('');
+            
+            eventsEl.innerHTML = eventsHtml;
+        }
+        
+        async function updateEconomicAnalysis(economicNews) {
+            try {
+                const newsResponse = await fetch('/api/market-news');
+                const newsData = await newsResponse.json();
+                
+                const analysisResponse = await fetch('/api/ai-economic-analysis', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        economic_news: economicNews,
+                        futures: newsData.futures || {}
+                    })
+                });
+                
+                const analysisData = await analysisResponse.json();
+                
+                if (analysisData.status === 'success') {
+                    updateEconomicIntelligence(analysisData);
+                }
+            } catch (error) {
+                console.error('Error updating economic analysis:', error);
+                updateEconomicAnalysisFallback();
+            }
+        }
+        
+        function updateEconomicIntelligence(data) {
+            // Update impact indicator
+            const impactEl = document.getElementById('economicImpact');
+            if (impactEl) {
+                impactEl.textContent = data.impact;
+                impactEl.className = `bias-${data.impact.toLowerCase()}`;
+            }
+            
+            // Update AI analysis
+            const analysisEl = document.getElementById('aiEconomicAnalysis');
+            if (analysisEl) {
+                analysisEl.innerHTML = formatAIAnalysis(data.analysis);
+            }
+            
+            // Update economic risks
+            const risksEl = document.getElementById('economicRisks');
+            if (risksEl && data.key_events.length > 0) {
+                risksEl.textContent = data.key_events.join(' • ');
+            }
+        }
+        
+        function updateEconomicEventsFallback() {
+            const eventsEl = document.getElementById('economicEvents');
+            if (eventsEl) {
+                eventsEl.innerHTML = '<div style="opacity: 0.7;">Economic calendar loading...</div>';
+            }
+        }
+        
+        function updateEconomicAnalysisFallback() {
+            const analysisEl = document.getElementById('aiEconomicAnalysis');
+            if (analysisEl) {
+                analysisEl.innerHTML = formatAIAnalysis('Economic intelligence processing. Monitoring Fed policy decisions, inflation trends, and employment data for NQ futures impact.');
+            }
         }
         
         async function updateMarketNews() {
             try {
+                console.log('Fetching market news...');
                 const response = await fetch('/api/market-news');
                 const data = await response.json();
+                
+                console.log('Market news response:', data);
                 
                 if (data.status === 'success') {
                     updateNewsTicker(data.news);
                     updateFuturesData(data.futures);
+                } else {
+                    console.error('Market news API returned error:', data.error);
+                    updateNewsTickerFallback();
+                    updateFuturesDataFallback();
                 }
             } catch (error) {
                 console.error('Error updating market news:', error);
                 updateNewsTickerFallback();
+                updateFuturesDataFallback();
             }
         }
         
         function updateNewsTicker(news) {
             const tickerContent = document.getElementById('tickerContent');
-            if (!tickerContent || !news.length) return;
+            if (!tickerContent) {
+                console.log('No ticker content element found');
+                return;
+            }
+            
+            if (!news || !news.length) {
+                console.log('No news data available');
+                updateNewsTickerFallback();
+                return;
+            }
+            
+            console.log('Updating news ticker with', news.length, 'items');
             
             const newsText = news.map(item => 
-                `📰 ${item.title.substring(0, 100)}...`
+                `📰 ${item.title.substring(0, 120)}...`
             ).join('   •   ');
             
             tickerContent.textContent = newsText;
@@ -2010,14 +2159,27 @@
         
         function updateFuturesData(futures) {
             const futuresEl = document.getElementById('futuresData');
-            if (!futuresEl || !futures) return;
+            if (!futuresEl || !futures) {
+                console.log('No futures element or data');
+                return;
+            }
+            
+            console.log('Updating futures data:', futures);
             
             const futuresHtml = Object.entries(futures).map(([symbol, data]) => {
-                const changeClass = data.change.startsWith('+') ? 'positive' : 'negative';
-                return `<span class="${changeClass}">${symbol}: ${data.price} (${data.change})</span>`;
-            }).join('');
+                const changeClass = data.change && data.change.startsWith && data.change.startsWith('+') ? 'positive' : 
+                                  data.change && data.change.startsWith && data.change.startsWith('-') ? 'negative' : 'neutral';
+                return `<span class="${changeClass}">${symbol}: ${data.price} (${data.change || '--'})</span>`;
+            }).join(' | ');
             
             futuresEl.innerHTML = futuresHtml;
+        }
+        
+        function updateFuturesDataFallback() {
+            const futuresEl = document.getElementById('futuresData');
+            if (futuresEl) {
+                futuresEl.innerHTML = '<span class="neutral">NQ: Loading... | ES: Loading... | YM: Loading...</span>';
+            }
         }
         
         async function updateMarketAnalysis() {
@@ -2099,7 +2261,7 @@
         function updateNewsTickerFallback() {
             const tickerContent = document.getElementById('tickerContent');
             if (tickerContent) {
-                tickerContent.textContent = '📰 Market news feed connecting... • 📈 NQ futures monitoring active • 🤖 AI analysis optimizing for your trading strategy...';
+                tickerContent.textContent = '📰 Market news feed connecting... • 📈 NQ futures monitoring active • 🤖 AI analysis optimizing for your trading strategy... • 📊 Economic data processing...';
             }
         }
         
@@ -5554,3 +5716,81 @@
 <script src="/chatbot.js"></script>`n</body>
 </html>
 
+        
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleString('en-US', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                timeZoneName: 'short'
+            });
+            
+            const currentTimeEl = document.getElementById('currentDateTime');
+            if (currentTimeEl) {
+                currentTimeEl.textContent = timeString;
+            }
+        }
+        
+        function updateMarketStatus() {
+            const now = new Date();
+            const hour = now.getHours();
+            const day = now.getDay(); // 0 = Sunday, 6 = Saturday
+            
+            const marketStatusEl = document.getElementById('marketStatus');
+            if (!marketStatusEl) return;
+            
+            let statusHtml = '';
+            
+            // Market sessions (EST/EDT)
+            const sessions = [
+                { name: 'ASIA', start: 18, end: 3, status: 'closed' },
+                { name: 'LONDON', start: 3, end: 12, status: 'closed' },
+                { name: 'NY', start: 9, end: 16, status: 'closed' }
+            ];
+            
+            // Weekend check
+            if (day === 0 || day === 6) {
+                statusHtml = '<div class="market-widget"><div class="market-name">MARKETS</div><div class="market-status market-closed">WEEKEND</div></div>';
+            } else {
+                sessions.forEach(session => {
+                    let isOpen = false;
+                    if (session.start < session.end) {
+                        isOpen = hour >= session.start && hour < session.end;
+                    } else {
+                        isOpen = hour >= session.start || hour < session.end;
+                    }
+                    
+                    const statusClass = isOpen ? 'market-open' : 'market-closed';
+                    const statusText = isOpen ? 'OPEN' : 'CLOSED';
+                    
+                    statusHtml += `<div class="market-widget ${isOpen ? 'open' : ''}">
+                        <div class="market-name">${session.name}</div>
+                        <div class="market-status ${statusClass}">${statusText}</div>
+                    </div>`;
+                });
+            }
+            
+            marketStatusEl.innerHTML = statusHtml;
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing dashboard...');
+            loadFilterStates();
+            loadStyle();
+            loadDatabaseData();
+            
+            // Initialize current time display
+            updateCurrentTime();
+            updateMarketStatus();
+            setInterval(updateCurrentTime, 1000);
+            setInterval(updateMarketStatus, 60000); // Update market status every minute
+        });
+    </script>
+</body>
+</html>
