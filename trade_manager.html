@@ -27,7 +27,7 @@
         }
         
         .container {
-            max-width: 1400px;
+            max-width: 1800px;
             margin: 0 auto;
         }
         
@@ -107,8 +107,8 @@
         
         .input-labels {
             display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            gap: 10px;
+            grid-template-columns: repeat(15, 1fr);
+            gap: 8px;
             margin-bottom: 5px;
         }
         
@@ -120,28 +120,28 @@
         
         .input-grid {
             display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            gap: 10px;
+            grid-template-columns: repeat(15, 1fr);
+            gap: 8px;
             margin: 5px 0 15px 0;
         }
         
         .trades-table {
-            font-size: 13px;
+            font-size: 11px;
         }
         
         .trades-table th,
         .trades-table td {
-            padding: 8px 6px;
+            padding: 6px 4px;
             white-space: nowrap;
         }
         
         select, input {
-            padding: 8px 12px;
+            padding: 6px 8px;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             background: rgba(255,255,255,0.9);
             color: #333;
-            font-size: 14px;
+            font-size: 12px;
         }
         
         .btn {
@@ -179,7 +179,7 @@
         
         .trades-table th,
         .trades-table td {
-            padding: 10px;
+            padding: 6px 4px;
             text-align: left;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
@@ -326,6 +326,13 @@
                 <span>Entry Price</span>
                 <span>Stop Loss</span>
                 <span>Take Profit</span>
+                <span>Breakeven</span>
+                <span>MFE (R Score)</span>
+                <span>Exit Price</span>
+                <span>Position Size</span>
+                <span>Commission</span>
+                <span>Screenshot</span>
+                <span>Actions</span>
             </div>
             <div class="input-grid">
                 <input type="date" id="tradeDate" placeholder="Date">
@@ -346,27 +353,16 @@
                 <input type="number" id="entryPrice" placeholder="Entry" step="0.01" oninput="calculateTakeProfit()">
                 <input type="number" id="stopLoss" placeholder="Stop" step="0.01" oninput="calculateTakeProfit()">
                 <input type="number" id="takeProfitPrice" placeholder="TP" step="0.01" readonly style="background: rgba(255,255,255,0.7);">
-            </div>
-            
-            <div class="input-labels" style="margin-top: 15px;">
-                <span>Breakeven</span>
-                <span>MFE (R Score)</span>
-                <span>Exit Price</span>
-                <span>Position Size</span>
-                <span>Commission</span>
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-            <div class="input-grid">
                 <input type="checkbox" id="tradeBreakeven">
                 <input type="number" id="tradeRScore" placeholder="MFE R Score" step="0.1">
                 <input type="number" id="exitPrice" placeholder="Exit" step="0.01">
                 <input type="number" id="positionSize" placeholder="Contracts" step="1">
                 <input type="number" id="commission" placeholder="Fees" step="0.01">
                 <input type="file" id="screenshot" accept="image/*">
-                <button class="btn" id="tradeActionBtn" onclick="addTrade()">Add Trade</button>
-                <button class="btn" id="cancelEditBtn" onclick="cancelEdit()" style="background: #6c757d; display: none;">Cancel</button>
+                <div style="display: flex; gap: 5px;">
+                    <button class="btn" id="tradeActionBtn" onclick="addTrade()" style="padding: 8px 12px; font-size: 12px;">Add</button>
+                    <button class="btn" id="cancelEditBtn" onclick="cancelEdit()" style="background: #6c757d; display: none; padding: 8px 12px; font-size: 12px;">Cancel</button>
+                </div>
             </div>
             
             
@@ -449,7 +445,10 @@
                         <th>Stop</th>
                         <th>TP</th>
                         <th>Exit</th>
+                        <th>Breakeven</th>
                         <th>MFE R</th>
+                        <th>Position Size</th>
+                        <th>Commission</th>
                         <th>P&L</th>
                         <th>Action</th>
                     </tr>
@@ -965,11 +964,14 @@
                     <td>${(trade.stopLoss || 0).toFixed(2)}</td>
                     <td>${(trade.takeProfitPrice || 0).toFixed(2)}</td>
                     <td>${(trade.exitPrice || 0).toFixed(2)}</td>
+                    <td>${trade.breakeven ? '✓' : '-'}</td>
                     <td class="${trade.rScore > 0 ? 'positive' : trade.rScore < 0 ? 'negative' : 'neutral'}">${trade.rScore.toFixed(1)}R</td>
+                    <td>${trade.positionSize || 1}</td>
+                    <td>$${(trade.commission || 0).toFixed(2)}</td>
                     <td class="${pnl >= 0 ? 'positive' : 'negative'}">$${pnl.toFixed(2)}</td>
                     <td>
-                        <button onclick="editTrade(${trade.id})" style="background: #ffa502; border: none; padding: 3px 8px; border-radius: 3px; color: white; cursor: pointer; margin-right: 3px; font-size: 11px;">Edit</button>
-                        <button onclick="deleteTrade(${trade.id})" style="background: #ff4757; border: none; padding: 3px 8px; border-radius: 3px; color: white; cursor: pointer; font-size: 11px;">Del</button>
+                        <button onclick="editTrade(${trade.id})" style="background: #ffa502; border: none; padding: 2px 6px; border-radius: 3px; color: white; cursor: pointer; margin-right: 2px; font-size: 10px;">Edit</button>
+                        <button onclick="deleteTrade(${trade.id})" style="background: #ff4757; border: none; padding: 2px 6px; border-radius: 3px; color: white; cursor: pointer; font-size: 10px;">Del</button>
                     </td>
                 `;
             });
