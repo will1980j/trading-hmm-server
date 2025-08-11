@@ -125,6 +125,16 @@
             margin: 5px 0 15px 0;
         }
         
+        .trades-table {
+            font-size: 13px;
+        }
+        
+        .trades-table th,
+        .trades-table td {
+            padding: 8px 6px;
+            white-space: nowrap;
+        }
+        
         select, input {
             padding: 8px 12px;
             border: none;
@@ -309,16 +319,17 @@
             <h3>Add New Trade</h3>
             <div class="input-labels">
                 <span>Date</span>
+                <span>Entry Time</span>
                 <span>Bias</span>
                 <span>Session</span>
-                <span>Breakeven</span>
-                <span>MFE (R Score)</span>
+                <span>Open Price</span>
                 <span>Entry Price</span>
-                <span>Exit Price</span>
                 <span>Stop Loss</span>
+                <span>Take Profit</span>
             </div>
             <div class="input-grid">
                 <input type="date" id="tradeDate" placeholder="Date">
+                <input type="time" id="entryTime" placeholder="Entry Time">
                 <select id="tradeBias">
                     <option value="LONG">Long</option>
                     <option value="SHORT">Short</option>
@@ -331,29 +342,35 @@
                     <option value="NY LUNCH">NY Lunch</option>
                     <option value="NEW YORK PM">New York PM</option>
                 </select>
-                <input type="checkbox" id="tradeBreakeven">
-                <input type="number" id="tradeRScore" placeholder="MFE R Score" step="0.1">
-                <input type="number" id="entryPrice" placeholder="Entry" step="0.01">
-                <input type="number" id="exitPrice" placeholder="Exit" step="0.01">
-                <input type="number" id="stopLoss" placeholder="Stop" step="0.01">
+                <input type="number" id="openPrice" placeholder="Open" step="0.01">
+                <input type="number" id="entryPrice" placeholder="Entry" step="0.01" oninput="calculateTakeProfit()">
+                <input type="number" id="stopLoss" placeholder="Stop" step="0.01" oninput="calculateTakeProfit()">
+                <input type="number" id="takeProfitPrice" placeholder="TP" step="0.01" readonly style="background: rgba(255,255,255,0.7);">
             </div>
             
             <div class="input-labels" style="margin-top: 15px;">
+                <span>Breakeven</span>
+                <span>MFE (R Score)</span>
+                <span>Exit Price</span>
                 <span>Position Size</span>
                 <span>Commission</span>
-                <span>Screenshot</span>
-                <span></span>
-                <span></span>
                 <span></span>
                 <span></span>
                 <span></span>
             </div>
             <div class="input-grid">
+                <input type="checkbox" id="tradeBreakeven">
+                <input type="number" id="tradeRScore" placeholder="MFE R Score" step="0.1">
+                <input type="number" id="exitPrice" placeholder="Exit" step="0.01">
                 <input type="number" id="positionSize" placeholder="Contracts" step="1">
                 <input type="number" id="commission" placeholder="Fees" step="0.01">
                 <input type="file" id="screenshot" accept="image/*">
                 <button class="btn" id="tradeActionBtn" onclick="addTrade()">Add Trade</button>
                 <button class="btn" id="cancelEditBtn" onclick="cancelEdit()" style="background: #6c757d; display: none;">Cancel</button>
+            </div>
+            
+            
+            <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="btn" onclick="analyzeScreenshot()" style="background: #3742fa;">AI Analyze</button>
                 <button class="btn" onclick="fetchDayNews()" style="background: #2ed573;">Get News</button>
                 <button class="btn" onclick="toggleBulkMode()" id="bulkModeBtn" style="background: #ffa502;">Bulk Mode</button>
@@ -424,14 +441,15 @@
                     <tr>
                         <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
                         <th>Date</th>
+                        <th>Time</th>
                         <th>Bias</th>
                         <th>Session</th>
-                        <th>BE</th>
-                        <th>MFE R</th>
+                        <th>Open</th>
                         <th>Entry</th>
+                        <th>Stop</th>
+                        <th>TP</th>
                         <th>Exit</th>
-                        <th>Size</th>
-                        <th>Comm</th>
+                        <th>MFE R</th>
                         <th>P&L</th>
                         <th>Action</th>
                     </tr>
@@ -536,13 +554,16 @@
             const trade = {
                 id: Date.now(),
                 date: document.getElementById('tradeDate').value,
+                entryTime: document.getElementById('entryTime').value,
                 bias: document.getElementById('tradeBias').value,
                 session: document.getElementById('tradeSession').value,
+                openPrice: parseFloat(document.getElementById('openPrice').value) || 0,
+                entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
+                stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
+                takeProfitPrice: parseFloat(document.getElementById('takeProfitPrice').value) || 0,
                 breakeven: document.getElementById('tradeBreakeven').checked,
                 rScore: parseFloat(document.getElementById('tradeRScore').value) || 0,
-                entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
                 exitPrice: parseFloat(document.getElementById('exitPrice').value) || 0,
-                stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
                 positionSize: parseInt(document.getElementById('positionSize').value) || 1,
                 commission: parseFloat(document.getElementById('commission').value) || 0
             };
@@ -702,10 +723,13 @@
         
         function clearInputs() {
             document.getElementById('tradeDate').value = '';
-            document.getElementById('tradeRScore').value = '';
+            document.getElementById('entryTime').value = '';
+            document.getElementById('openPrice').value = '';
             document.getElementById('entryPrice').value = '';
-            document.getElementById('exitPrice').value = '';
             document.getElementById('stopLoss').value = '';
+            document.getElementById('takeProfitPrice').value = '';
+            document.getElementById('tradeRScore').value = '';
+            document.getElementById('exitPrice').value = '';
             document.getElementById('positionSize').value = '';
             document.getElementById('commission').value = '';
             document.getElementById('screenshot').value = '';
@@ -719,12 +743,15 @@
             editingTradeId = id;
             
             document.getElementById('tradeDate').value = trade.date;
+            document.getElementById('entryTime').value = trade.entryTime || '';
             document.getElementById('tradeBias').value = trade.bias;
             document.getElementById('tradeSession').value = trade.session;
-            document.getElementById('tradeBreakeven').checked = trade.breakeven;
-            document.getElementById('tradeRScore').value = trade.rScore;
+            document.getElementById('openPrice').value = trade.openPrice || 0;
             document.getElementById('entryPrice').value = trade.entryPrice;
             document.getElementById('stopLoss').value = trade.stopLoss;
+            document.getElementById('takeProfitPrice').value = trade.takeProfitPrice || 0;
+            document.getElementById('tradeBreakeven').checked = trade.breakeven;
+            document.getElementById('tradeRScore').value = trade.rScore;
             
             document.getElementById('tradeActionBtn').textContent = 'Update Trade';
             document.getElementById('tradeActionBtn').onclick = updateTrade;
@@ -738,12 +765,15 @@
             const updatedTrade = {
                 ...trades[tradeIndex],
                 date: document.getElementById('tradeDate').value,
+                entryTime: document.getElementById('entryTime').value,
                 bias: document.getElementById('tradeBias').value,
                 session: document.getElementById('tradeSession').value,
-                breakeven: document.getElementById('tradeBreakeven').checked,
-                rScore: parseFloat(document.getElementById('tradeRScore').value) || 0,
+                openPrice: parseFloat(document.getElementById('openPrice').value) || 0,
                 entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
-                stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0
+                stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
+                takeProfitPrice: parseFloat(document.getElementById('takeProfitPrice').value) || 0,
+                breakeven: document.getElementById('tradeBreakeven').checked,
+                rScore: parseFloat(document.getElementById('tradeRScore').value) || 0
             };
             
             trades[tradeIndex] = updatedTrade;
@@ -927,14 +957,15 @@
                 row.innerHTML = `
                     <td><input type="checkbox" class="trade-select" data-id="${trade.id}" onchange="toggleTradeSelect(${trade.id})"></td>
                     <td>${trade.date}</td>
+                    <td>${trade.entryTime || '-'}</td>
                     <td>${trade.bias}</td>
                     <td>${trade.session}</td>
-                    <td>${trade.breakeven ? '✓' : ''}</td>
-                    <td class="${trade.rScore > 0 ? 'positive' : trade.rScore < 0 ? 'negative' : 'neutral'}">${trade.rScore.toFixed(1)}R</td>
+                    <td>${(trade.openPrice || 0).toFixed(2)}</td>
                     <td>${trade.entryPrice.toFixed(2)}</td>
+                    <td>${(trade.stopLoss || 0).toFixed(2)}</td>
+                    <td>${(trade.takeProfitPrice || 0).toFixed(2)}</td>
                     <td>${(trade.exitPrice || 0).toFixed(2)}</td>
-                    <td>${trade.positionSize || 1}</td>
-                    <td>$${(trade.commission || 0).toFixed(2)}</td>
+                    <td class="${trade.rScore > 0 ? 'positive' : trade.rScore < 0 ? 'negative' : 'neutral'}">${trade.rScore.toFixed(1)}R</td>
                     <td class="${pnl >= 0 ? 'positive' : 'negative'}">$${pnl.toFixed(2)}</td>
                     <td>
                         <button onclick="editTrade(${trade.id})" style="background: #ffa502; border: none; padding: 3px 8px; border-radius: 3px; color: white; cursor: pointer; margin-right: 3px; font-size: 11px;">Edit</button>
@@ -1034,6 +1065,34 @@
             return Object.values(sessions);
         }
         
+        // Calculate Take Profit based on R-Target and Stop Loss
+        function calculateTakeProfit() {
+            const entryPrice = parseFloat(document.getElementById('entryPrice').value) || 0;
+            const stopLoss = parseFloat(document.getElementById('stopLoss').value) || 0;
+            const bias = document.getElementById('tradeBias').value;
+            const rTarget = parseFloat(document.getElementById('rTargetFilter').value) || 1;
+            
+            if (entryPrice && stopLoss) {
+                const riskAmount = Math.abs(entryPrice - stopLoss);
+                const rewardAmount = riskAmount * rTarget;
+                
+                let takeProfitPrice;
+                if (bias === 'LONG') {
+                    takeProfitPrice = entryPrice + rewardAmount;
+                } else {
+                    takeProfitPrice = entryPrice - rewardAmount;
+                }
+                
+                document.getElementById('takeProfitPrice').value = takeProfitPrice.toFixed(2);
+            }
+        }
+        
+        // Update TP when R-Target filter changes
+        function updateRTargetAndTP() {
+            calculateTakeProfit();
+            updateDisplay();
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Loading trades from database...');
             loadTrades();
@@ -1042,6 +1101,9 @@
             }, 100);
             updateDateTime();
             setInterval(updateDateTime, 30000);
+            
+            // Add event listener for R-Target changes
+            document.getElementById('rTargetFilter').addEventListener('change', updateRTargetAndTP);
         });
     </script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
