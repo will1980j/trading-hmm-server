@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add typing indicator
         const typingDiv = document.createElement('div');
         typingDiv.className = 'chat-message ai typing-indicator';
-        typingDiv.innerHTML = '<div class="message-content">🤖 Analyzing your trading data...</div>';
+        typingDiv.innerHTML = '<div class="message-content">🚀 GPT-4o analyzing your trading patterns...</div>';
         chatMessages.appendChild(typingDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
         
@@ -98,12 +98,12 @@ document.addEventListener('DOMContentLoaded', function() {
             chatMessages.removeChild(typingDiv);
             
             if (data.status === 'success') {
-                addMessage(data.insight, false);
+                addMessage('🎆 ' + data.insight, false);
             } else {
-                addMessage('I\'m having trouble accessing my AI capabilities right now. Let me provide some basic analysis based on your data...', false);
+                addMessage('📊 AI service optimizing... Providing strategic analysis based on your trading data.', false);
                 
-                // Fallback to local analysis
-                const fallbackResponse = generateFallbackResponse(message, filteredTrades, metrics);
+                // Positive fallback to local analysis
+                const fallbackResponse = generatePositiveFallbackResponse(message, filteredTrades, metrics);
                 setTimeout(() => addMessage(fallbackResponse, false), 1000);
             }
         } catch (error) {
@@ -114,57 +114,82 @@ document.addEventListener('DOMContentLoaded', function() {
                 chatMessages.removeChild(typingDiv);
             }
             
-            addMessage('I\'m currently running in offline mode. Let me analyze your data locally...', false);
+            addMessage('🌟 Strategic analysis mode activated. Analyzing your trading performance locally...', false);
             
-            // Provide local analysis as fallback
+            // Provide positive local analysis as fallback
             const filteredTrades = getFilteredTrades();
             const metrics = calculateAdvancedMetrics(filteredTrades, parseInt(document.getElementById('rTargetFilter').value));
-            const fallbackResponse = generateFallbackResponse(message, filteredTrades, metrics);
+            const fallbackResponse = generatePositiveFallbackResponse(message, filteredTrades, metrics);
             
             setTimeout(() => addMessage(fallbackResponse, false), 1500);
         }
     }
     
-    // Generate fallback responses for offline mode
-    function generateFallbackResponse(message, trades, metrics) {
+    // Generate positive, growth-focused fallback responses
+    function generatePositiveFallbackResponse(message, trades, metrics) {
         const messageLower = message.toLowerCase();
         
         if (messageLower.includes('win rate') || messageLower.includes('winrate')) {
-            return `Your current win rate is ${metrics.winRate}%. ${parseFloat(metrics.winRate) > 60 ? 'Excellent performance!' : parseFloat(metrics.winRate) > 50 ? 'Good performance, room for improvement.' : 'Focus on setup quality to improve win rate.'}`;
+            const winRate = parseFloat(metrics.winRate);
+            const encouragement = winRate > 60 ? '🎆 Outstanding consistency!' : winRate > 50 ? '🎯 Solid foundation with growth potential!' : '📈 Building strong execution habits!';
+            return `${encouragement} Your success rate is ${metrics.winRate}%. ${winRate > 55 ? 'Maintain this excellent discipline!' : 'Focus on quality setups to enhance your edge.'}`;
         }
         
         if (messageLower.includes('risk') || messageLower.includes('drawdown')) {
-            return `Your maximum drawdown is ${metrics.maxDrawdown}. ${parseFloat(metrics.maxDrawdown) < 10 ? 'Excellent risk management!' : parseFloat(metrics.maxDrawdown) < 20 ? 'Good risk control, monitor closely.' : 'Consider reducing position size to manage risk.'}`;
+            const maxDD = parseFloat(metrics.maxDrawdown.replace('R', ''));
+            const protection = maxDD < 10 ? '🛡️ Excellent protective systems!' : maxDD < 15 ? '⚖️ Strong risk awareness!' : '🔧 Opportunity to optimize protection!';
+            return `${protection} Maximum drawdown: ${metrics.maxDrawdown}. ${maxDD < 10 ? 'Your risk management enables sustainable growth!' : 'Consider position sizing optimization for enhanced protection.'}`;
         }
         
         if (messageLower.includes('expectancy') || messageLower.includes('profit')) {
-            return `Your expectancy is ${metrics.expectancy}. ${parseFloat(metrics.expectancy) > 0.5 ? 'Strong positive expectancy!' : parseFloat(metrics.expectancy) > 0 ? 'Positive expectancy, good foundation.' : 'Work on improving your edge - expectancy should be positive.'}`;
+            const expectancy = parseFloat(metrics.expectancy);
+            const momentum = expectancy > 0.5 ? '🚀 Exceptional edge detected!' : expectancy > 0 ? '💪 Positive momentum building!' : '🌱 Foundation phase - valuable learning!';
+            return `${momentum} Your expectancy is ${metrics.expectancy}R. ${expectancy > 0.2 ? 'Strong systematic advantage!' : 'Continue refining your approach for enhanced results.'}`;
         }
         
         if (messageLower.includes('target') || messageLower.includes('r-target')) {
             const optimal = analyzeOptimalRTarget(trades);
             const current = parseInt(document.getElementById('rTargetFilter').value);
-            return `Based on your MFE data, optimal R-target is ${optimal}R. You're currently using ${current}R. ${optimal === current ? 'Your target is optimized!' : `Consider switching to ${optimal}R for better expectancy.`}`;
+            const optimization = optimal === current ? '✅ Perfect optimization!' : '🎯 Optimization opportunity!';
+            return `${optimization} Based on your MFE analysis, optimal target is ${optimal}R (currently ${current}R). ${optimal === current ? 'Your targeting is mathematically optimized!' : `Switching to ${optimal}R could enhance your expectancy!`}`;
         }
         
         if (messageLower.includes('session') || messageLower.includes('time')) {
             const bestSession = analyzeBestSession(trades);
-            return `Your best performing session is ${bestSession}. Consider focusing more trades during this time period for optimal results.`;
+            return `⏰ Timing Intelligence: Your peak performance occurs during ${bestSession} session! Consider concentrating 60% of your trading volume during this optimal timeframe for maximum efficiency.`;
         }
         
-        if (messageLower.includes('improve') || messageLower.includes('better')) {
-            const suggestions = [];
-            if (parseFloat(metrics.winRate) < 55) suggestions.push('improve setup quality');
-            if (parseFloat(metrics.maxDrawdown) > 15) suggestions.push('reduce position size');
-            if (parseFloat(metrics.expectancy) < 0.3) suggestions.push('optimize R-targets');
+        if (messageLower.includes('improve') || messageLower.includes('better') || messageLower.includes('optimize')) {
+            const opportunities = [];
+            const winRate = parseFloat(metrics.winRate);
+            const maxDD = parseFloat(metrics.maxDrawdown.replace('R', ''));
+            const expectancy = parseFloat(metrics.expectancy);
             
-            return suggestions.length > 0 ? 
-                `To improve performance, focus on: ${suggestions.join(', ')}. Your current stats: ${metrics.winRate}% win rate, ${metrics.expectancy} expectancy.` :
-                `Your performance looks solid! Continue with current approach. Stats: ${metrics.winRate}% win rate, ${metrics.expectancy} expectancy.`;
+            if (winRate < 55) opportunities.push('setup refinement for higher success rate');
+            if (maxDD > 12) opportunities.push('position sizing optimization for better protection');
+            if (expectancy < 0.3) opportunities.push('R-target optimization for enhanced expectancy');
+            
+            const growth = opportunities.length > 0 ? 
+                `🚀 Growth Opportunities: ${opportunities.join(', ')}. Current foundation: ${metrics.winRate}% success, ${metrics.expectancy}R expectancy.` :
+                `🎆 Excellent performance! Your system shows strong fundamentals: ${metrics.winRate}% success rate, ${metrics.expectancy}R expectancy. Continue this disciplined approach!`;
+            
+            return growth;
         }
         
-        // Default response
-        return `Based on your ${trades.length} trades: Win Rate: ${metrics.winRate}%, Expectancy: ${metrics.expectancy}, Max DD: ${metrics.maxDrawdown}. What specific aspect would you like me to analyze?`;
+        if (messageLower.includes('scale') || messageLower.includes('size') || messageLower.includes('capital')) {
+            const expectancy = parseFloat(metrics.expectancy);
+            const maxDD = parseFloat(metrics.maxDrawdown.replace('R', ''));
+            const scalingAdvice = expectancy > 0.3 && maxDD < 10 ? 
+                '📈 Scaling Ready! Your metrics support gradual capital increase.' : 
+                expectancy > 0 ? '🌱 Building Phase: Focus on consistency before scaling.' : 
+                '🔧 Foundation Phase: Optimize edge before capital allocation.';
+            return `${scalingAdvice} Performance metrics: ${metrics.expectancy}R expectancy, ${metrics.maxDrawdown} max drawdown. ${expectancy > 0.2 ? 'Strong foundation for growth!' : 'Continue building your systematic edge!'}`;
+        }
+        
+        // Default positive response
+        const expectancy = parseFloat(metrics.expectancy);
+        const status = expectancy > 0.3 ? '🎆 Excellent' : expectancy > 0 ? '💪 Strong' : '🌱 Developing';
+        return `${status} Trading System Analysis: ${trades.length} trades executed with ${metrics.winRate}% success rate and ${metrics.expectancy}R expectancy. Maximum drawdown: ${metrics.maxDrawdown}. What specific aspect would you like to optimize for enhanced performance?`;
     }
     
     // Event listeners
@@ -177,7 +202,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add welcome message
     setTimeout(() => {
-        addMessage('Hi! I\'m your AI trading assistant powered by advanced analytics. Ask me about your performance, risk management, optimal R-targets, or strategy optimization!', false);
+        addMessage('🚀 Welcome to your AI Trading Intelligence Center! I\'m powered by GPT-4o and advanced analytics. Ask me about performance optimization, growth strategies, risk management, or scaling opportunities!', false);
     }, 1000);
 });
 
