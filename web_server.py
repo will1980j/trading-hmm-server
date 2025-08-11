@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, send_from_directory, request, jsonify, session, redirect, url_for, Markup
+from flask import Flask, render_template_string, send_from_directory, request, jsonify, session, redirect, url_for
 from os import environ, path
 from json import loads, dumps
 from dotenv import load_dotenv
@@ -6,7 +6,7 @@ from openai import OpenAI
 from werkzeug.utils import secure_filename
 from html import escape
 from logging import basicConfig, getLogger, INFO
-from markupsafe import escape as markup_escape
+from markupsafe import escape as markup_escape, Markup
 from csrf_protection import csrf, csrf_protect
 from ai_prompts import get_ai_system_prompt
 from auth import login_required, authenticate
