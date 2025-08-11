@@ -33,9 +33,12 @@ class CSRFProtection:
     
     def validate_csrf_token(self, token):
         """Validate CSRF token"""
-        if 'csrf_token' not in session:
+        try:
+            if 'csrf_token' not in session or not token:
+                return False
+            return compare_digest(session['csrf_token'], token)
+        except Exception:
             return False
-        return compare_digest(session['csrf_token'], token)
 
 def csrf_protect(f):
     """Decorator to protect routes with CSRF validation"""

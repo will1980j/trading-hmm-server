@@ -1,14 +1,14 @@
 from functools import wraps
 from flask import session, request, redirect, url_for, jsonify
-import hashlib
-import os
+from hashlib import sha256
+from os import environ
 
 # Simple authentication system
-ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD_HASH = os.environ.get('ADMIN_PASSWORD_HASH', hashlib.sha256('changeme123'.encode()).hexdigest())
+ADMIN_USERNAME = environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD_HASH = environ.get('ADMIN_PASSWORD_HASH', sha256('changeme123'.encode()).hexdigest())
 
 def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+    return sha256(password.encode()).hexdigest()
 
 def login_required(f):
     @wraps(f)

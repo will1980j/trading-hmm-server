@@ -128,15 +128,19 @@ class RailwayDB:
             raise e
     
     def get_recent_data(self, symbol: str, limit: int = 100):
-        with self.conn.cursor() as cur:
-            cur.execute('''
-                SELECT * FROM market_data 
-                WHERE symbol = %s 
-                ORDER BY timestamp DESC LIMIT %s
-            ''', (symbol, limit))
-            
-            data = cur.fetchall()
-            return type('Result', (), {'data': data})()
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute('''
+                    SELECT * FROM market_data 
+                    WHERE symbol = %s 
+                    ORDER BY timestamp DESC LIMIT %s
+                ''', (symbol, limit))
+                
+                data = cur.fetchall()
+                return type('Result', (), {'data': data})()
+        except Exception as e:
+            logging.error(f"Error retrieving recent data: {e}")
+            raise e
     
     def store_signal(self, signal: Dict):
         try:

@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, send_from_directory, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template_string, send_from_directory, request, jsonify, session, redirect, url_for, Markup
 from os import environ, path
 from json import loads, dumps
 from dotenv import load_dotenv
@@ -6,6 +6,7 @@ from openai import OpenAI
 from werkzeug.utils import secure_filename
 from html import escape
 from logging import basicConfig, getLogger, INFO
+from markupsafe import escape as markup_escape
 from csrf_protection import csrf, csrf_protect
 from ai_prompts import get_ai_system_prompt
 from auth import login_required, authenticate
@@ -28,8 +29,14 @@ try:
     db = RailwayDB()
     db_enabled = True
     logger.info("Database connected successfully")
-except (ImportError, ConnectionError, Exception) as e:
-    logger.error(f"Database connection failed: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
+except (ImportError, ConnectionError) as e:
+    safe_error = escape(str(e)[:200]).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')
+    logger.error(f"Database connection failed: {safe_error}")
+    db = None
+    db_enabled = False
+except Exception as e:
+    safe_error = escape(str(e)[:200]).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')
+    logger.error(f"Unexpected database error: {safe_error}")
     db = None
     db_enabled = False
 
@@ -54,7 +61,8 @@ def read_html_file(filename):
         # Secure filename to prevent path traversal
         secure_name = secure_filename(filename)
         if not secure_name or secure_name != filename:
-            logger.warning(f"Invalid filename rejected: {filename.replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
+            safe_filename = escape(str(filename)[:100]).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')
+            logger.warning(f"Invalid filename rejected: {safe_filename}")
             return "<h1>Trading Dashboard</h1><p>Invalid file request.</p><a href='/health'>Health Check</a>"
         
         # Use relative path for better portability
@@ -62,22 +70,33 @@ def read_html_file(filename):
         with open(file_path, 'r', encoding='utf-8') as f:
             return f.read()
     except (FileNotFoundError, IOError) as e:
-        logger.warning(f"File access error for {filename}: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
+        safe_filename = escape(str(filename)[:100]).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')
+        safe_error = escape(str(e)[:200]).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')
+        logger.warning(f"File access error for {safe_filename}: {safe_error}")
         return "<h1>Trading Dashboard</h1><p>File not found. Server is running.</p><a href='/health'>Health Check</a>"
     except Exception as e:
-        logger.error(f"Unexpected error reading file {filename}: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
+        safe_filename = escape(str(filename)[:100]).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')
+        safe_error = escape(str(e)[:200]).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')
+        logger.error(f"Unexpected error reading file {safe_filename}: {safe_error}")
         return "<h1>Trading Dashboard</h1><p>Server error. Please try again.</p><a href='/health'>Health Check</a>"
 
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        
+        if not username or not password:
+            error_msg = markup_escape('Username and password are required')
+            return render_template_string(read_html_file('login.html'), error=error_msg)
+            
         if authenticate(username, password):
             session['authenticated'] = True
             return redirect('/')
-        return render_template_string(read_html_file('login.html'), error='Invalid credentials')
+            
+        error_msg = markup_escape('Invalid credentials')
+        return render_template_string(read_html_file('login.html'), error=error_msg)
     return render_template_string(read_html_file('login.html'))
 
 @app.route('/logout')
@@ -133,22 +152,27 @@ def static_files(filename):
 
 # Serve JavaScript files from root
 @app.route('/api_integration.js')
+@login_required
 def api_integration_js():
     return send_from_directory('.', 'api_integration.js', mimetype='application/javascript')
 
 @app.route('/chatbot.js')
+@login_required
 def chatbot_js():
     return send_from_directory('.', 'chatbot.js', mimetype='application/javascript')
 
 @app.route('/trading_empire_kb.js')
+@login_required
 def trading_empire_kb_js():
     return send_from_directory('.', 'trading_empire_kb.js', mimetype='application/javascript')
 
 @app.route('/notification_system.js')
+@login_required
 def notification_system_js():
     return send_from_directory('.', 'notification_system.js', mimetype='application/javascript')
 
 @app.route('/d3_charts.js')
+@login_required
 def d3_charts_js():
     return send_from_directory('.', 'd3_charts.js', mimetype='application/javascript')
 
@@ -171,14 +195,17 @@ def style_selector():
     return read_html_file('style_selector.html')
 
 @app.route('/style_switcher.js')
+@login_required
 def style_switcher_js():
     return send_from_directory('.', 'style_switcher.js', mimetype='application/javascript')
 
 @app.route('/professional_styles.js')
+@login_required
 def professional_styles_js():
     return send_from_directory('.', 'professional_styles.js', mimetype='application/javascript')
 
 @app.route('/style_preload.css')
+@login_required
 def style_preload_css():
     return send_from_directory('.', 'style_preload.css', mimetype='text/css')
 
@@ -250,7 +277,8 @@ def ai_insights():
         data = request.get_json()
         prompt = data.get('prompt', 'How can I trade better?')
         trading_data = data.get('data', {})
-        logger.info(f"AI insights request: {prompt[:50].replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}...")
+        safe_prompt = escape(str(prompt)[:50]).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')
+        logger.info(f"AI insights request: {safe_prompt}...")
         logger.debug(f"Has trading data: {bool(trading_data)}")
         
         # Get centralized system prompt for better maintainability
@@ -404,10 +432,11 @@ def get_trades():
                 LIMIT 100
             """)
         except Exception as e:
-            db.conn.rollback()
-            error_msg = str(e).replace(NEWLINE_CHAR, ' ').replace(CARRIAGE_RETURN_CHAR, ' ')
+            if hasattr(db, 'conn') and db.conn:
+                db.conn.rollback()
+            error_msg = escape(str(e)[:200]).replace(NEWLINE_CHAR, ' ').replace(CARRIAGE_RETURN_CHAR, ' ')
             logger.error(f"Database query error: {error_msg}")
-            raise e
+            return jsonify({"trades": [], "error": "Database query failed"}), 500
         
         trades = [{
             'id': row['id'],
@@ -566,5 +595,6 @@ def scrape_propfirms():
 if __name__ == '__main__':
     port = int(environ.get('PORT', 5000))
     debug_mode = environ.get('DEBUG', 'False').lower() == 'true'
-    logger.info(f"Starting server on port {port}, debug={debug_mode}")
-    app.run(host='0.0.0.0', port=port, debug=debug_mode)
+    host = environ.get('HOST', '127.0.0.1')  # Default to localhost for security
+    logger.info(f"Starting server on {host}:{port}, debug={debug_mode}")
+    app.run(host=host, port=port, debug=debug_mode)
