@@ -176,6 +176,11 @@ def notification_system_js():
 def d3_charts_js():
     return send_from_directory('.', 'd3_charts.js', mimetype='application/javascript')
 
+@app.route('/ai_chat.js')
+@login_required
+def ai_chat_js():
+    return send_from_directory('.', 'ai_chat.js', mimetype='application/javascript')
+
 # Serve images from root
 @app.route('/style_preview.html')
 def style_preview():
@@ -316,6 +321,155 @@ def ai_insights():
             "error": str(e),
             "status": "error"
         }), 500
+
+# Dynamic AI analysis endpoints
+@app.route('/api/ai-chart-analysis', methods=['POST'])
+@login_required
+def ai_chart_analysis():
+    try:
+        if not client:
+            return jsonify({"error": "OpenAI client not available"}), 500
+            
+        data = request.get_json()
+        chart_type = data.get('chart_type', 'equity')
+        trades_data = data.get('trades', [])
+        metrics = data.get('metrics', {})
+        
+        # Build context for AI analysis
+        context = build_trading_context(trades_data, metrics)
+        
+        # Chart-specific prompts
+        chart_prompts = {
+            'equity': f"Analyze this equity curve data: {len(trades_data)} trades, current metrics: {metrics}. Provide specific insights about trend strength, drawdown patterns, and optimization recommendations.",
+            'daily': f"Analyze daily trading performance: {context}. Focus on daily volatility patterns, optimal position sizing, and risk management insights.",
+            'weekly': f"Analyze weekly performance trends: {context}. Identify momentum patterns, trend sustainability, and weekly forecasting insights.",
+            'monthly': f"Analyze monthly seasonal patterns: {context}. Provide seasonal intelligence, market cycle insights, and monthly performance forecasts.",
+            'rscore': f"Analyze R-score distribution: {context}. Calculate optimal R-targets from MFE data and provide target optimization recommendations.",
+            'dayofweek': f"Analyze day-of-week performance: {context}. Identify optimal trading schedule and provide day-specific performance insights.",
+            'seasonality': f"Analyze seasonal trading patterns: {context}. Detect market cycles, seasonal biases, and provide quarterly performance predictions.",
+            'rolling': f"Analyze rolling 30-day performance: {context}. Assess momentum strength, trend sustainability, and provide momentum-based recommendations.",
+            'session': f"Analyze session-based performance: {context}. Optimize session allocation, timing strategies, and provide session-specific insights."
+        }
+        
+        prompt = chart_prompts.get(chart_type, chart_prompts['equity'])
+        
+        response = client.chat.completions.create(
+            model=environ.get('OPENAI_MODEL', 'gpt-3.5-turbo'),
+            messages=[
+                {"role": "system", "content": "You are an expert trading analyst specializing in quantitative analysis and risk management. Provide specific, actionable insights based on trading data. Keep responses concise but insightful, focusing on practical recommendations."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=200,
+            temperature=0.7
+        )
+        
+        return jsonify({
+            "analysis": response.choices[0].message.content,
+            "chart_type": chart_type,
+            "status": "success"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in ai_chart_analysis: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ai-strategy-summary', methods=['POST'])
+@login_required
+def ai_strategy_summary():
+    try:
+        if not client:
+            return jsonify({"error": "OpenAI client not available"}), 500
+            
+        data = request.get_json()
+        trades_data = data.get('trades', [])
+        metrics = data.get('metrics', {})
+        
+        context = build_comprehensive_context(trades_data, metrics)
+        
+        prompt = f"""Analyze this comprehensive trading performance data and provide a strategic summary:
+        
+        {context}
+        
+        Provide:
+        1. Overall strategy assessment (2-3 sentences)
+        2. System health score and reasoning
+        3. Key adaptation recommendations
+        4. Next strategic action
+        5. Risk assessment and position sizing advice
+        
+        Keep response structured and actionable."""
+        
+        response = client.chat.completions.create(
+            model=environ.get('OPENAI_MODEL', 'gpt-3.5-turbo'),
+            messages=[
+                {"role": "system", "content": "You are a senior trading strategist and risk manager. Analyze trading performance data and provide strategic insights with specific, actionable recommendations. Focus on system optimization and risk management."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=400,
+            temperature=0.6
+        )
+        
+        # Parse response into components
+        ai_response = response.choices[0].message.content
+        
+        return jsonify({
+            "summary": ai_response,
+            "system_health": extract_health_score(ai_response),
+            "adaptation_score": extract_adaptation_score(ai_response),
+            "next_action": extract_next_action(ai_response),
+            "recommendation": extract_recommendation(ai_response),
+            "status": "success"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in ai_strategy_summary: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ai-risk-assessment', methods=['POST'])
+@login_required
+def ai_risk_assessment():
+    try:
+        if not client:
+            return jsonify({"error": "OpenAI client not available"}), 500
+            
+        data = request.get_json()
+        trades_data = data.get('trades', [])
+        metrics = data.get('metrics', {})
+        
+        # Build risk-focused context
+        risk_context = build_risk_context(trades_data, metrics)
+        
+        prompt = f"""Perform a comprehensive risk assessment on this trading data:
+        
+        {risk_context}
+        
+        Analyze:
+        1. Current risk exposure and vulnerabilities
+        2. Drawdown patterns and recovery analysis
+        3. Position sizing recommendations
+        4. Risk-adjusted performance insights
+        5. Specific risk mitigation strategies
+        
+        Provide actionable risk management recommendations."""
+        
+        response = client.chat.completions.create(
+            model=environ.get('OPENAI_MODEL', 'gpt-3.5-turbo'),
+            messages=[
+                {"role": "system", "content": "You are a quantitative risk analyst specializing in trading risk management. Provide detailed risk assessments with specific, measurable recommendations for risk mitigation and portfolio optimization."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=300,
+            temperature=0.5
+        )
+        
+        return jsonify({
+            "risk_assessment": response.choices[0].message.content,
+            "status": "success"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in ai_risk_assessment: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 # Webhook for storing trading data
 @app.route('/webhook', methods=['GET', 'POST'])
@@ -591,6 +745,297 @@ def scrape_propfirms():
     except (ImportError, AttributeError, Exception) as e:
         logger.error(f"Scraper error: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
         return jsonify({"error": "Scraper unavailable"}), 500
+
+# Helper functions for AI context building
+def build_trading_context(trades_data, metrics):
+    """Build comprehensive trading context for AI analysis"""
+    if not trades_data:
+        return "No trading data available"
+    
+    context = f"""Trading Performance Summary:
+    - Total Trades: {len(trades_data)}
+    - Win Rate: {metrics.get('winRate', 'N/A')}
+    - Expectancy: {metrics.get('expectancy', 'N/A')}
+    - Max Drawdown: {metrics.get('maxDrawdown', 'N/A')}
+    - Sharpe Ratio: {metrics.get('sharpeRatio', 'N/A')}
+    - Profit Factor: {metrics.get('profitFactor', 'N/A')}
+    
+    Recent Performance:
+    - Last 10 trades: {analyze_recent_trades(trades_data[-10:])}
+    - Current trend: {determine_trend(trades_data)}
+    """
+    
+    return context
+
+def build_comprehensive_context(trades_data, metrics):
+    """Build detailed context for strategy analysis"""
+    if not trades_data:
+        return "Insufficient trading data for analysis"
+    
+    # Calculate additional metrics
+    win_rate = calculate_win_rate(trades_data)
+    avg_win_loss = calculate_avg_win_loss(trades_data)
+    session_performance = analyze_session_performance(trades_data)
+    
+    context = f"""Comprehensive Trading Analysis:
+    
+    Performance Metrics:
+    - Total Trades: {len(trades_data)}
+    - Win Rate: {win_rate:.1f}%
+    - Average Win/Loss Ratio: {avg_win_loss:.2f}
+    - Best Session: {session_performance}
+    - Expectancy: {metrics.get('expectancy', 'N/A')}
+    - Sharpe Ratio: {metrics.get('sharpeRatio', 'N/A')}
+    - Maximum Drawdown: {metrics.get('maxDrawdown', 'N/A')}
+    
+    Recent Patterns:
+    - Last 20 trades trend: {determine_trend(trades_data[-20:])}
+    - Consecutive performance: {analyze_streaks(trades_data)}
+    - Risk patterns: {identify_risk_patterns(trades_data)}
+    """
+    
+    return context
+
+def build_risk_context(trades_data, metrics):
+    """Build risk-focused context for analysis"""
+    if not trades_data:
+        return "No data for risk analysis"
+    
+    # Risk-specific calculations
+    drawdown_analysis = analyze_drawdowns(trades_data)
+    volatility = calculate_volatility_metrics(trades_data)
+    risk_metrics = calculate_risk_metrics(trades_data)
+    
+    context = f"""Risk Assessment Data:
+    
+    Drawdown Analysis:
+    - Maximum Drawdown: {metrics.get('maxDrawdown', 'N/A')}
+    - Current Drawdown: {drawdown_analysis.get('current', 0):.2f}R
+    - Recovery Time: {drawdown_analysis.get('avg_recovery', 'N/A')} days
+    
+    Volatility Metrics:
+    - Return Volatility: {volatility.get('returns', 0):.3f}
+    - Recent vs Historical: {volatility.get('comparison', 'stable')}
+    
+    Risk Indicators:
+    - Consecutive Losses: {risk_metrics.get('max_consecutive_losses', 0)}
+    - Risk-Adjusted Return: {metrics.get('sharpeRatio', 'N/A')}
+    - Value at Risk (95%): {metrics.get('var95', 'N/A')}
+    
+    Position Sizing:
+    - Current approach: {risk_metrics.get('sizing_analysis', 'standard')}
+    - Kelly Criterion: {metrics.get('kellyPercent', 'N/A')}
+    """
+    
+    return context
+
+# Helper analysis functions
+def analyze_recent_trades(recent_trades):
+    """Analyze recent trading performance"""
+    if not recent_trades:
+        return "No recent trades"
+    
+    wins = sum(1 for trade in recent_trades if trade.get('rScore', 0) > 0)
+    return f"{wins}/{len(recent_trades)} wins ({wins/len(recent_trades)*100:.0f}%)"
+
+def determine_trend(trades):
+    """Determine current performance trend"""
+    if len(trades) < 5:
+        return "insufficient data"
+    
+    recent_performance = sum(trade.get('rScore', 0) for trade in trades[-5:])
+    return "positive" if recent_performance > 0 else "negative" if recent_performance < 0 else "neutral"
+
+def calculate_win_rate(trades):
+    """Calculate win rate from trades"""
+    if not trades:
+        return 0
+    wins = sum(1 for trade in trades if trade.get('rScore', 0) > 0 or trade.get('breakeven', False))
+    return (wins / len(trades)) * 100
+
+def calculate_avg_win_loss(trades):
+    """Calculate average win/loss ratio"""
+    wins = [trade.get('rScore', 0) for trade in trades if trade.get('rScore', 0) > 0]
+    losses = [abs(trade.get('rScore', 0)) for trade in trades if trade.get('rScore', 0) < 0]
+    
+    if not wins or not losses:
+        return 0
+    
+    avg_win = sum(wins) / len(wins)
+    avg_loss = sum(losses) / len(losses)
+    
+    return avg_win / avg_loss if avg_loss > 0 else 0
+
+def analyze_session_performance(trades):
+    """Analyze performance by trading session"""
+    session_stats = {}
+    for trade in trades:
+        session = trade.get('session', 'Unknown')
+        if session not in session_stats:
+            session_stats[session] = {'wins': 0, 'total': 0}
+        
+        session_stats[session]['total'] += 1
+        if trade.get('rScore', 0) > 0 or trade.get('breakeven', False):
+            session_stats[session]['wins'] += 1
+    
+    best_session = max(session_stats.items(), 
+                      key=lambda x: x[1]['wins']/x[1]['total'] if x[1]['total'] > 0 else 0,
+                      default=('Unknown', {'wins': 0, 'total': 1}))
+    
+    return f"{best_session[0]} ({best_session[1]['wins']}/{best_session[1]['total']})"
+
+def analyze_streaks(trades):
+    """Analyze winning/losing streaks"""
+    if len(trades) < 3:
+        return "insufficient data"
+    
+    current_streak = 0
+    streak_type = None
+    
+    for trade in trades[-5:]:
+        result = trade.get('rScore', 0)
+        if result > 0:
+            if streak_type == 'win':
+                current_streak += 1
+            else:
+                current_streak = 1
+                streak_type = 'win'
+        elif result < 0:
+            if streak_type == 'loss':
+                current_streak += 1
+            else:
+                current_streak = 1
+                streak_type = 'loss'
+        else:
+            current_streak = 0
+            streak_type = None
+    
+    return f"{current_streak} {streak_type} streak" if streak_type else "no streak"
+
+def identify_risk_patterns(trades):
+    """Identify risk patterns in trading"""
+    if len(trades) < 10:
+        return "building pattern recognition"
+    
+    recent_losses = sum(1 for trade in trades[-10:] if trade.get('rScore', 0) < 0)
+    
+    if recent_losses > 6:
+        return "high loss frequency detected"
+    elif recent_losses < 3:
+        return "low risk period"
+    else:
+        return "normal risk levels"
+
+def analyze_drawdowns(trades):
+    """Analyze drawdown patterns"""
+    if not trades:
+        return {'current': 0, 'avg_recovery': 0}
+    
+    # Simplified drawdown analysis
+    cumulative = 0
+    peak = 0
+    current_dd = 0
+    
+    for trade in trades:
+        cumulative += trade.get('rScore', 0)
+        if cumulative > peak:
+            peak = cumulative
+        current_dd = peak - cumulative
+    
+    return {
+        'current': current_dd,
+        'avg_recovery': 7  # Simplified
+    }
+
+def calculate_volatility_metrics(trades):
+    """Calculate volatility metrics"""
+    if len(trades) < 5:
+        return {'returns': 0, 'comparison': 'insufficient data'}
+    
+    returns = [trade.get('rScore', 0) for trade in trades]
+    mean_return = sum(returns) / len(returns)
+    variance = sum((r - mean_return) ** 2 for r in returns) / len(returns)
+    volatility = variance ** 0.5
+    
+    return {
+        'returns': volatility,
+        'comparison': 'stable'  # Simplified
+    }
+
+def calculate_risk_metrics(trades):
+    """Calculate risk-related metrics"""
+    if not trades:
+        return {'max_consecutive_losses': 0, 'sizing_analysis': 'no data'}
+    
+    # Calculate consecutive losses
+    max_consecutive = 0
+    current_consecutive = 0
+    
+    for trade in trades:
+        if trade.get('rScore', 0) < 0:
+            current_consecutive += 1
+            max_consecutive = max(max_consecutive, current_consecutive)
+        else:
+            current_consecutive = 0
+    
+    return {
+        'max_consecutive_losses': max_consecutive,
+        'sizing_analysis': 'standard'
+    }
+
+# Response parsing functions
+def extract_health_score(response):
+    """Extract system health score from AI response"""
+    # Simple keyword extraction - could be enhanced with NLP
+    if 'excellent' in response.lower():
+        return 'Excellent (85+)'
+    elif 'good' in response.lower():
+        return 'Good (70-84)'
+    elif 'fair' in response.lower():
+        return 'Fair (55-69)'
+    else:
+        return 'Needs Work (<55)'
+
+def extract_adaptation_score(response):
+    """Extract adaptation insights from AI response"""
+    if 'improving' in response.lower():
+        return 'Improving (75+)'
+    elif 'stable' in response.lower():
+        return 'Stable (60-74)'
+    elif 'declining' in response.lower():
+        return 'Declining (<45)'
+    else:
+        return 'Mixed (45-59)'
+
+def extract_next_action(response):
+    """Extract next action recommendation"""
+    # Look for action keywords
+    actions = {
+        'reduce': 'Reduce Risk',
+        'increase': 'Scale Up',
+        'review': 'Review Setup',
+        'continue': 'Continue',
+        'break': 'Take Break',
+        'adjust': 'Adjust Strategy'
+    }
+    
+    response_lower = response.lower()
+    for keyword, action in actions.items():
+        if keyword in response_lower:
+            return action
+    
+    return 'Monitor'
+
+def extract_recommendation(response):
+    """Extract main recommendation from AI response"""
+    # Extract the first sentence that contains actionable advice
+    sentences = response.split('.')
+    for sentence in sentences:
+        if any(word in sentence.lower() for word in ['recommend', 'suggest', 'should', 'consider', 'focus']):
+            return sentence.strip()
+    
+    # Fallback to first sentence
+    return sentences[0].strip() if sentences else "Continue monitoring performance"
 
 if __name__ == '__main__':
     port = int(environ.get('PORT', 5000))
