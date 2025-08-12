@@ -1,0 +1,26 @@
+//@version=5
+indicator("SS10 Test", overlay=true)
+
+// Simple test - just show when boxes are created and touched
+var array<box> testBoxes = array.new<box>()
+
+// Create a test box every 20 bars
+if bar_index % 20 == 0
+    testBox = box.new(bar_index, high, bar_index + 10, low, 
+                      bgcolor=color.new(color.red, 70), 
+                      border_color=color.red,
+                      text="TEST")
+    array.push(testBoxes, testBox)
+
+// Check if price touches any test boxes
+if array.size(testBoxes) > 0
+    for i = array.size(testBoxes) - 1 to 0
+        testBox = array.get(testBoxes, i)
+        boxTop = box.get_top(testBox)
+        boxBottom = box.get_bottom(testBox)
+        
+        if low <= boxTop and high >= boxBottom
+            box.set_text(testBox, "TOUCHED!")
+            box.set_bgcolor(testBox, color.new(color.gray, 80))
+            label.new(bar_index, high, "BOX TOUCHED", color=color.yellow, size=size.small)
+            array.remove(testBoxes, i)

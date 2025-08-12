@@ -1,0 +1,127 @@
+//@version=5
+indicator("SS10 Modular", overlay=true, max_boxes_count=500)
+
+// === INPUTS ===
+enable_bearish_fvg = input.bool(true, "Enable Bearish FVG Signals")
+
+// === HTF BIAS CALCULATION ===
+var string bias = "Neutral"
+var bull_fvg_highs = array.new<float>()
+var bull_fvg_lows = array.new<float>()
+var bear_fvg_highs = array.new<float>()
+var bear_fvg_lows = array.new<float>()
+var bull_ifvg_highs = array.new<float>()
+var bull_ifvg_lows = array.new<float>()
+var bear_ifvg_highs = array.new<float>()
+var bear_ifvg_lows = array.new<float>()
+
+if barstate.isconfirmed
+    c2_high = high[2]
+    c2_low = low[2]
+    c0_high = high
+    c0_low = low
+    
+    bullish_fvg = c2_high < c0_low
+    bearish_fvg = c2_low > c0_high
+    
+    if bullish_fvg
+        array.push(bull_fvg_highs, c0_low)
+        array.push(bull_fvg_lows, c2_high)
+        
+    if bearish_fvg
+        array.push(bear_fvg_highs, c2_low)
+        array.push(bear_fvg_lows, c0_high)
+    
+    if array.size(bull_fvg_highs) > 0
+        for i = array.size(bull_fvg_highs) - 1 to 0
+            if close < array.get(bull_fvg_lows, i)
+                array.push(bear_ifvg_highs, array.get(bull_fvg_highs, i))
+                array.push(bear_ifvg_lows, array.get(bull_fvg_lows, i))
+                array.remove(bull_fvg_highs, i)
+                array.remove(bull_fvg_lows, i)
+                bias := "Bearish"
+                
+    if array.size(bear_fvg_highs) > 0
+        for i = array.size(bear_fvg_highs) - 1 to 0
+            if close > array.get(bear_fvg_highs, i)
+                array.push(bull_ifvg_highs, array.get(bear_fvg_highs, i))
+                array.push(bull_ifvg_lows, array.get(bear_fvg_lows, i))
+                array.remove(bear_fvg_highs, i)
+                array.remove(bear_fvg_lows, i)
+                bias := "Bullish"
+                
+    if array.size(bear_ifvg_highs) > 0
+        for i = array.size(bear_ifvg_highs) - 1 to 0
+            if close > array.get(bear_ifvg_highs, i)
+                array.remove(bear_ifvg_highs, i)
+                array.remove(bear_ifvg_lows, i)
+                bias := "Bullish"
+                
+    if array.size(bull_ifvg_highs) > 0
+        for i = array.size(bull_ifvg_highs) - 1 to 0
+            if close < array.get(bull_ifvg_lows, i)
+                array.remove(bull_ifvg_highs, i)
+                array.remove(bull_ifvg_lows, i)
+                bias := "Bearish"
+
+h1_bias = request.security(syminfo.tickerid, "60", bias)
+
+// === PIVOT DETECTION ===
+var array<float> highPivots = array.new<float>()
+var array<int> highPivotTimes = array.new<int>()
+
+isHighPivot = high[1] > high and high[1] > high[2]
+
+if barstate.isconfirmed and isHighPivot
+    array.push(highPivots, high[1])
+    array.push(highPivotTimes, bar_index - 1)
+    if array.size(highPivots) > 50
+        array.shift(highPivots)
+        array.shift(highPivotTimes)
+
+// === BEARISH FVG LOGIC ===
+var int bearishFVGCount = 0
+var int lastBearishSweepBar = -1
+var array<box> activeFVGBoxes = array.new<box>()
+
+// Step 1: Check for high pivot sweep
+sweepDetected = false
+if barstate.isconfirmed and h1_bias == "Bearish" and array.size(highPivots) > 0
+    for i = array.size(highPivots) - 1 to 0
+        pivotLevel = array.get(highPivots, i)
+        if high > pivotLevel
+            lastBearishSweepBar := bar_index
+            bearishFVGCount := 0
+            sweepDetected := true
+            array.remove(highPivots, i)
+            array.remove(highPivotTimes, i)
+            break
+
+// Step 2: Detect bearish FVG
+isBearishFVG = high < low[2] and not na(low[2])
+fvgDetected = isBearishFVG
+
+// Step 3: Generate signal if conditions met
+signalGenerated = false
+if enable_bearish_fvg and fvgDetected and lastBearishSweepBar >= 0 and bar_index > lastBearishSweepBar and bearishFVGCount < 2
+    bearishFVGCount += 1
+    signalGenerated := true
+    
+    // Create FVG box
+    fvgBox = box.new(bar_index-2, high[1], bar_index, high, 
+                     bgcolor=color.new(color.red, 70), 
+                     border_color=color.red, 
+                     border_width=2, 
+                     extend=extend.right)
+    array.push(activeFVGBoxes, fvgBox)
+    
+    // Add label
+    label.new(bar_index, high[1], "FVG #" + str.tostring(bearishFVGCount), 
+              color=color.red, textcolor=color.white, size=size.small)
+
+// Visual signals
+plotshape(signalGenerated, "BEARISH FVG", shape.triangledown, location.abovebar, color=color.red, size=size.tiny)
+
+// Debug info
+plotchar(sweepDetected, "Sweep", "S", location.top, color=color.yellow, size=size.tiny)
+plotchar(fvgDetected, "FVG", "F", location.top, color=color.orange, size=size.tiny)

@@ -1,0 +1,274 @@
+//@version=5
+indicator("SS10", overlay=true, max_lines_count=500, max_boxes_count=500)
+
+// === INPUTS ===
+fvg_distance_limit = input.int(10, "FVG Distance Limit (bars after sweep)", minval=5, maxval=50)
+
+// Signal type toggles
+enable_bearish_fvg = input.bool(true, "Enable Bearish FVG Signals", group="Signal Types")
+enable_bullish_fvg = input.bool(true, "Enable Bullish FVG Signals", group="Signal Types")
+enable_bearish_ifvg = input.bool(true, "Enable Bearish IFVG Signals", group="Signal Types")
+enable_bullish_ifvg = input.bool(true, "Enable Bullish IFVG Signals", group="Signal Types")
+
+// === HTF BIAS CALCULATION (Your exact code) ===
+var string bias = "Neutral"
+var bull_fvg_highs = array.new<float>()
+var bull_fvg_lows = array.new<float>()
+var bear_fvg_highs = array.new<float>()
+var bear_fvg_lows = array.new<float>()
+var bull_ifvg_highs = array.new<float>()
+var bull_ifvg_lows = array.new<float>()
+var bear_ifvg_highs = array.new<float>()
+var bear_ifvg_lows = array.new<float>()
+
+if barstate.isconfirmed
+    c2_high = high[2]
+    c2_low = low[2]
+    c0_high = high
+    c0_low = low
+    
+    bullish_fvg = c2_high < c0_low
+    bearish_fvg = c2_low > c0_high
+    
+    if bullish_fvg
+        array.push(bull_fvg_highs, c0_low)
+        array.push(bull_fvg_lows, c2_high)
+        
+    if bearish_fvg
+        array.push(bear_fvg_highs, c2_low)
+        array.push(bear_fvg_lows, c0_high)
+    
+    if array.size(bull_fvg_highs) > 0
+        for i = array.size(bull_fvg_highs) - 1 to 0
+            if close < array.get(bull_fvg_lows, i)
+                array.push(bear_ifvg_highs, array.get(bull_fvg_highs, i))
+                array.push(bear_ifvg_lows, array.get(bull_fvg_lows, i))
+                array.remove(bull_fvg_highs, i)
+                array.remove(bull_fvg_lows, i)
+                bias := "Bearish"
+                
+    if array.size(bear_fvg_highs) > 0
+        for i = array.size(bear_fvg_highs) - 1 to 0
+            if close > array.get(bear_fvg_highs, i)
+                array.push(bull_ifvg_highs, array.get(bear_fvg_highs, i))
+                array.push(bull_ifvg_lows, array.get(bear_fvg_lows, i))
+                array.remove(bear_fvg_highs, i)
+                array.remove(bear_fvg_lows, i)
+                bias := "Bullish"
+                
+    if array.size(bear_ifvg_highs) > 0
+        for i = array.size(bear_ifvg_highs) - 1 to 0
+            if close > array.get(bear_ifvg_highs, i)
+                array.remove(bear_ifvg_highs, i)
+                array.remove(bear_ifvg_lows, i)
+                bias := "Bullish"
+                
+    if array.size(bull_ifvg_highs) > 0
+        for i = array.size(bull_ifvg_highs) - 1 to 0
+            if close < array.get(bull_ifvg_lows, i)
+                array.remove(bull_ifvg_highs, i)
+                array.remove(bull_ifvg_lows, i)
+                bias := "Bearish"
+
+// Get 1H bias
+h1_bias = request.security(syminfo.tickerid, "60", bias)
+
+// === PIVOT DETECTION ===
+var array<float> highPivots = array.new<float>()
+var array<float> lowPivots = array.new<float>()
+var array<int> highPivotTimes = array.new<int>()
+var array<int> lowPivotTimes = array.new<int>()
+
+// 3-bar pivot detection
+isHighPivot = high[1] > high and high[1] > high[2]
+isLowPivot = low[1] < low and low[1] < low[2]
+
+if barstate.isconfirmed
+    if isHighPivot
+        array.push(highPivots, high[1])
+        array.push(highPivotTimes, bar_index - 1)
+        if array.size(highPivots) > 50
+            array.shift(highPivots)
+            array.shift(highPivotTimes)
+    
+    if isLowPivot
+        array.push(lowPivots, low[1])
+        array.push(lowPivotTimes, bar_index - 1)
+        if array.size(lowPivots) > 50
+            array.shift(lowPivots)
+            array.shift(lowPivotTimes)
+
+// === PIVOT SWEEP DETECTION ===
+var bool waitingForBullishEntry = false
+var bool waitingForBearishEntry = false
+var int lastSweepBar = 0
+var int bullishFVGCount = 0
+var int bearishFVGCount = 0
+var bool bearishFVGBlocked = false  // Complete block after 2 signals
+var array<float> bearishFVGLevels = array.new<float>()
+var array<float> bullishFVGLevels = array.new<float>()
+
+// Check for pivot sweeps
+if barstate.isconfirmed
+    // Timeout waiting states after 20 bars
+    if waitingForBullishEntry and (bar_index - lastSweepBar) > 20
+        waitingForBullishEntry := false
+        bullishFVGCount := 0
+    if waitingForBearishEntry and (bar_index - lastSweepBar) > fvg_distance_limit
+        waitingForBearishEntry := false
+        bearishFVGCount := 0
+        array.clear(bearishFVGLevels)
+    
+    // BULLISH BIAS: Look for low pivot sweeps
+    if h1_bias == "Bullish" and array.size(lowPivots) > 0 and not waitingForBullishEntry
+        for i = array.size(lowPivots) - 1 to 0
+            pivotLevel = array.get(lowPivots, i)
+            if low < pivotLevel
+                waitingForBullishEntry := true
+                lastSweepBar := bar_index
+                bullishFVGCount := 0  // Reset counter
+                array.clear(bullishFVGLevels)  // Clear previous FVG levels
+                // Remove swept pivot
+                array.remove(lowPivots, i)
+                array.remove(lowPivotTimes, i)
+                break
+    
+    // BEARISH BIAS: Look for high pivot sweeps ONLY when bias is bearish
+    if h1_bias == "Bearish" and array.size(highPivots) > 0 and not waitingForBearishEntry
+        for i = array.size(highPivots) - 1 to 0
+            pivotLevel = array.get(highPivots, i)
+            if high > pivotLevel
+                waitingForBearishEntry := true
+                lastSweepBar := bar_index
+                bearishFVGCount := 0  // Reset counter
+                bearishFVGBlocked := false  // Unblock for new sweep
+                array.clear(bearishFVGLevels)  // Clear previous FVG levels
+                
+                // Debug: Show VALID bearish sweep occurred
+                label.new(bar_index, high + 2, "BEARISH SWEEP", color=color.red, textcolor=color.white, size=size.small)
+                
+                // Remove swept pivot
+                array.remove(highPivots, i)
+                array.remove(highPivotTimes, i)
+                break
+
+// === FVG/IFVG DETECTION ===
+isBullishFVG = low > high[2]
+isBearishFVG = high < low[2]
+
+// Check for IFVG (Inverse FVG) - price reacting from filled FVG zones
+isBullishIFVG = false
+isBearishIFVG = false
+
+// Bullish IFVG: Price is reacting bullishly from a previously filled bearish FVG
+if array.size(bear_ifvg_highs) > 0
+    for i = 0 to array.size(bear_ifvg_highs) - 1
+        ifvg_high = array.get(bear_ifvg_highs, i)
+        ifvg_low = array.get(bear_ifvg_lows, i)
+        // Check if current candle is reacting from this IFVG zone
+        if low <= ifvg_high and high >= ifvg_low and close > open
+            isBullishIFVG := true
+            break
+
+// Bearish IFVG: Price is reacting bearishly from a previously filled bullish FVG  
+if array.size(bull_ifvg_highs) > 0
+    for i = 0 to array.size(bull_ifvg_highs) - 1
+        ifvg_high = array.get(bull_ifvg_highs, i)
+        ifvg_low = array.get(bull_ifvg_lows, i)
+        // Check if current candle is reacting from this IFVG zone
+        if low <= ifvg_high and high >= ifvg_low and close < open
+            isBearishIFVG := true
+            break
+
+// === ENTRY SIGNAL LOGIC ===
+var float entryPrice = na
+var float stopLoss = na
+buySignal = false
+sellSignal = false
+
+// Only signal when we have the right sequence
+if barstate.isconfirmed
+    // BULLISH ENTRY: Allow first TWO bullish FVGs OR IFVGs after low sweep ONLY
+    bullish_fvg_valid = isBullishFVG and enable_bullish_fvg
+    bullish_ifvg_valid = isBullishIFVG and enable_bullish_ifvg
+    
+    if h1_bias == "Bullish" and waitingForBullishEntry and (bullish_fvg_valid or bullish_ifvg_valid) and bullishFVGCount < 2
+        buySignal := true
+        entryPrice := close
+        stopLoss := bullish_fvg_valid ? low[1] : low  // FVG uses middle candle, IFVG uses current low
+        
+        // Draw FVG/IFVG box
+        if bullish_fvg_valid
+            // Regular bullish FVG box
+            box.new(bar_index-2, high[2], bar_index+5, low, bgcolor=color.new(color.green, 70), border_color=color.green, border_width=2)
+            label.new(bar_index, low, "FVG", color=color.green, textcolor=color.white, size=size.small)
+        else if bullish_ifvg_valid
+            // Bullish IFVG box (current candle)
+            box.new(bar_index, low, bar_index+5, high, bgcolor=color.new(color.blue, 70), border_color=color.blue, border_width=2)
+            label.new(bar_index, low, "IFVG", color=color.blue, textcolor=color.white, size=size.small)
+        
+        bullishFVGCount += 1
+        // Stop waiting after 2 signals - wait for new sweep
+        if bullishFVGCount >= 2
+            waitingForBullishEntry := false
+    
+    // BEARISH ENTRY: Signal ONLY the first 2 bearish FVGs after sweep
+    if h1_bias == "Bearish" and waitingForBearishEntry and not bearishFVGBlocked
+        
+        if isBearishFVG and enable_bearish_fvg
+            bearishFVGCount += 1
+            sellSignal := true
+            entryPrice := close
+            stopLoss := high[1]  // Middle candle high of FVG
+            
+            // Draw FVG box extending to stop loss level
+            box.new(bar_index-2, stopLoss, bar_index+5, high, bgcolor=color.new(color.red, 70), border_color=color.red, border_width=2)
+            label.new(bar_index, stopLoss, "FVG #" + str.tostring(bearishFVGCount), color=color.red, textcolor=color.white, size=size.small)
+            
+            // BLOCK all further bearish FVGs after 2nd signal
+            if bearishFVGCount >= 2
+                bearishFVGBlocked := true
+                waitingForBearishEntry := false
+
+// === VISUAL SIGNALS ===
+plotshape(buySignal, "BUY SIGNAL", shape.triangleup, location.belowbar, 
+          color=color.lime, size=size.tiny, text="")
+plotshape(sellSignal, "SELL SIGNAL", shape.triangledown, location.abovebar, 
+          color=color.red, size=size.tiny, text="")
+
+// Plot stop loss levels using labels
+if buySignal
+    label.new(bar_index, stopLoss, "SL", color=color.red, textcolor=color.white, size=size.small, style=label.style_cross)
+if sellSignal
+    label.new(bar_index, stopLoss, "SL", color=color.red, textcolor=color.white, size=size.small, style=label.style_cross)
+
+// === STATUS TABLE ===
+var table statusTable = table.new(position.top_right, 2, 5, bgcolor=color.new(color.black, 80), border_width=1)
+
+if barstate.islast
+    table.cell(statusTable, 0, 0, "1H Bias", text_color=color.white)
+    bias_color = h1_bias == "Bullish" ? color.lime : h1_bias == "Bearish" ? color.red : color.gray
+    table.cell(statusTable, 1, 0, h1_bias, text_color=bias_color)
+    
+    table.cell(statusTable, 0, 1, "Waiting Entry", text_color=color.white)
+    waiting_text = waitingForBullishEntry ? "BULLISH" : waitingForBearishEntry ? "BEARISH" : "NONE"
+    waiting_color = waitingForBullishEntry ? color.lime : waitingForBearishEntry ? color.red : color.gray
+    table.cell(statusTable, 1, 1, waiting_text, text_color=waiting_color)
+    
+    table.cell(statusTable, 0, 2, "High Pivots", text_color=color.white)
+    table.cell(statusTable, 1, 2, str.tostring(array.size(highPivots)), text_color=color.yellow)
+    
+    table.cell(statusTable, 0, 3, "Low Pivots", text_color=color.white)
+    table.cell(statusTable, 1, 3, str.tostring(array.size(lowPivots)), text_color=color.yellow)
+    
+    table.cell(statusTable, 0, 4, "Setup Status", text_color=color.white)
+    status_text = "ACTIVE"
+    table.cell(statusTable, 1, 4, status_text, text_color=color.lime)
+
+// === ALERTS ===
+alertcondition(buySignal, "BUY SIGNAL", "BUY Signal Triggered - Entry: {{close}} SL: {{plot_0}}")
+alertcondition(sellSignal, "SELL SIGNAL", "SELL Signal Triggered - Entry: {{close}} SL: {{plot_1}}")
+
+// Debug plots (hidden)
+plot(buySignal ? stopLoss : na, "Buy SL", color=color.red, display=display.none)
+plot(sellSignal ? stopLoss : na, "Sell SL", color=color.red, display=display.none)

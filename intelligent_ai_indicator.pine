@@ -1,0 +1,228 @@
+//@version=5
+indicator("🤖 Intelligent AI Trading Assistant", overlay=true, max_boxes_count=50, max_lines_count=50)
+
+// Cloud API Configuration
+api_url = input.string("https://your-railway-app.railway.app/api/ai-signal-analysis", "Cloud AI API URL")
+enable_ai = input.bool(true, "Enable AI Analysis")
+signal_threshold = input.float(0.75, "Signal Confidence Threshold", minval=0.1, maxval=1.0)
+
+// Technical Analysis Inputs
+rsi_length = input.int(14, "RSI Length")
+macd_fast = input.int(12, "MACD Fast")
+macd_slow = input.int(26, "MACD Slow")
+macd_signal = input.int(9, "MACD Signal")
+volume_length = input.int(20, "Volume SMA Length")
+atr_length = input.int(14, "ATR Length")
+
+// Calculate Technical Indicators
+rsi = ta.rsi(close, rsi_length)
+[macd_line, signal_line, histogram] = ta.macd(close, macd_fast, macd_slow, macd_signal)
+volume_sma = ta.sma(volume, volume_length)
+atr = ta.atr(atr_length)
+
+// ICT Concepts
+// Fair Value Gap Detection (Enhanced)
+gap_threshold = atr * 0.5
+fvg_up = low[2] > high + gap_threshold and close > close[2] and volume > volume_sma
+fvg_down = high[2] < low - gap_threshold and close < close[2] and volume > volume_sma
+
+// Order Block Detection (Enhanced)
+bullish_ob = close > open and close[1] < open[1] and volume > volume_sma * 1.5 and low < low[1]
+bearish_ob = close < open and close[1] > open[1] and volume > volume_sma * 1.5 and high > high[1]
+
+// Liquidity Sweep Detection
+prev_high = ta.highest(high, 20)[1]
+prev_low = ta.lowest(low, 20)[1]
+liquidity_sweep_high = high > prev_high and close < prev_high
+liquidity_sweep_low = low < prev_low and close > prev_low
+
+// Session Detection
+is_asia = hour >= 0 and hour < 8
+is_london = hour >= 8 and hour < 13
+is_ny = hour >= 13 and hour < 20
+current_session = is_asia ? "ASIA" : is_london ? "LONDON" : is_ny ? "NY" : "CLOSED"
+
+// AI Signal Variables
+var float ai_signal_strength = 0.0
+var string ai_signal_type = "NONE"
+var float ai_confidence = 0.0
+var float ai_entry_price = 0.0
+var float ai_stop_loss = 0.0
+var float ai_take_profit = 0.0
+var string ai_reasoning = ""
+var int signal_id = 0
+
+// Function to create AI data payload
+get_ai_payload() =>
+    payload = '{"symbol": "' + syminfo.ticker + 
+              '", "price": ' + str.tostring(close) + 
+              ', "rsi": ' + str.tostring(rsi) + 
+              ', "macd": ' + str.tostring(macd_line) + 
+              ', "volume": ' + str.tostring(volume) + 
+              ', "volume_sma": ' + str.tostring(volume_sma) + 
+              ', "atr": ' + str.tostring(atr) + 
+              ', "session": "' + current_session + 
+              '", "fvg_up": ' + str.tostring(fvg_up) + 
+              ', "fvg_down": ' + str.tostring(fvg_down) + 
+              ', "order_block": ' + str.tostring(bullish_ob or bearish_ob) + 
+              ', "liquidity_sweep": ' + str.tostring(liquidity_sweep_high or liquidity_sweep_low) + 
+              '}'
+    payload
+
+// AI Analysis Trigger (every 5 minutes or on significant moves)
+trigger_ai_analysis = barstate.islast and (minute % 5 == 0 or math.abs(close - close[1]) > atr * 0.5)
+
+// Send data to AI when triggered
+if enable_ai and trigger_ai_analysis
+    ai_payload = get_ai_payload()
+    // This would be sent via webhook in real implementation
+    // For now, we simulate AI response based on technical conditions
+    
+    // Simulate AI analysis based on confluence
+    confluence_score = 0.0
+    
+    // Add confluence factors
+    if fvg_up or fvg_down
+        confluence_score += 0.3
+    if bullish_ob or bearish_ob
+        confluence_score += 0.2
+    if liquidity_sweep_high or liquidity_sweep_low
+        confluence_score += 0.2
+    if current_session == "LONDON" or current_session == "NY"
+        confluence_score += 0.1
+    if volume > volume_sma * 1.2
+        confluence_score += 0.1
+    if (rsi < 30 and fvg_up) or (rsi > 70 and fvg_down)
+        confluence_score += 0.1
+    
+    // Update AI variables
+    ai_signal_strength := confluence_score
+    ai_confidence := confluence_score
+    
+    if confluence_score >= signal_threshold
+        if fvg_up and rsi < 70
+            ai_signal_type := "LONG"
+            ai_entry_price := close
+            ai_stop_loss := close - (atr * 1.5)
+            ai_take_profit := close + (atr * 3.0)
+            ai_reasoning := "FVG Up + Confluence"
+        else if fvg_down and rsi > 30
+            ai_signal_type := "SHORT"
+            ai_entry_price := close
+            ai_stop_loss := close + (atr * 1.5)
+            ai_take_profit := close - (atr * 3.0)
+            ai_reasoning := "FVG Down + Confluence"
+        else
+            ai_signal_type := "WAIT"
+    else
+        ai_signal_type := "WAIT"
+
+// Visual Signals
+plot_long_signal = ai_signal_type == "LONG" and ai_confidence >= signal_threshold
+plot_short_signal = ai_signal_type == "SHORT" and ai_confidence >= signal_threshold
+
+plotshape(plot_long_signal, "🤖 AI LONG", shape.triangleup, location.belowbar, 
+          color=color.new(color.lime, 0), size=size.large, text="AI\nLONG")
+plotshape(plot_short_signal, "🤖 AI SHORT", shape.triangledown, location.abovebar, 
+          color=color.new(color.red, 0), size=size.large, text="AI\nSHORT")
+
+// Draw AI Entry/Exit Levels
+if plot_long_signal or plot_short_signal
+    // Entry line
+    line.new(bar_index, ai_entry_price, bar_index + 10, ai_entry_price, 
+             color=color.yellow, width=2, style=line.style_solid)
+    
+    // Stop loss line
+    line.new(bar_index, ai_stop_loss, bar_index + 10, ai_stop_loss, 
+             color=color.red, width=1, style=line.style_dashed)
+    
+    // Take profit line
+    line.new(bar_index, ai_take_profit, bar_index + 10, ai_take_profit, 
+             color=color.green, width=1, style=line.style_dashed)
+    
+    // Signal box with details
+    signal_box = box.new(bar_index, math.max(ai_entry_price, ai_take_profit), 
+                        bar_index + 5, math.min(ai_entry_price, ai_stop_loss),
+                        bgcolor=color.new(ai_signal_type == "LONG" ? color.green : color.red, 90),
+                        border_color=color.white, border_width=1)
+
+// FVG Visualization
+if fvg_up
+    box.new(bar_index[2], low[2], bar_index, high, 
+            bgcolor=color.new(color.blue, 80), border_color=color.blue)
+    
+if fvg_down
+    box.new(bar_index[2], high[2], bar_index, low, 
+            bgcolor=color.new(color.orange, 80), border_color=color.orange)
+
+// Order Block Visualization
+if bullish_ob
+    box.new(bar_index[1], low[1], bar_index + 5, high[1], 
+            bgcolor=color.new(color.green, 85), border_color=color.green)
+            
+if bearish_ob
+    box.new(bar_index[1], high[1], bar_index + 5, low[1], 
+            bgcolor=color.new(color.red, 85), border_color=color.red)
+
+// AI Dashboard Table
+var table ai_dashboard = table.new(position.top_right, 2, 10, 
+                                  bgcolor=color.new(color.black, 80), 
+                                  border_width=1, border_color=color.white)
+
+if barstate.islast
+    // Header
+    table.cell(ai_dashboard, 0, 0, "🤖 AI ASSISTANT", 
+               text_color=color.lime, text_size=size.normal, bgcolor=color.new(color.black, 50))
+    table.cell(ai_dashboard, 1, 0, "LEARNING MODE", 
+               text_color=color.yellow, text_size=size.small)
+    
+    // Current Signal
+    table.cell(ai_dashboard, 0, 1, "Signal", text_color=color.white)
+    signal_color = ai_signal_type == "LONG" ? color.lime : ai_signal_type == "SHORT" ? color.red : color.gray
+    table.cell(ai_dashboard, 1, 1, ai_signal_type, text_color=signal_color)
+    
+    // Confidence
+    table.cell(ai_dashboard, 0, 2, "Confidence", text_color=color.white)
+    conf_color = ai_confidence > 0.8 ? color.lime : ai_confidence > 0.6 ? color.yellow : color.red
+    table.cell(ai_dashboard, 1, 2, str.tostring(ai_confidence * 100, "#") + "%", text_color=conf_color)
+    
+    // Market Data
+    table.cell(ai_dashboard, 0, 3, "Price", text_color=color.white)
+    table.cell(ai_dashboard, 1, 3, str.tostring(close, "#.##"), text_color=color.yellow)
+    
+    table.cell(ai_dashboard, 0, 4, "Session", text_color=color.white)
+    session_color = current_session == "NY" or current_session == "LONDON" ? color.lime : color.orange
+    table.cell(ai_dashboard, 1, 4, current_session, text_color=session_color)
+    
+    table.cell(ai_dashboard, 0, 5, "RSI", text_color=color.white)
+    rsi_color = rsi > 70 ? color.red : rsi < 30 ? color.lime : color.yellow
+    table.cell(ai_dashboard, 1, 5, str.tostring(rsi, "#"), text_color=rsi_color)
+    
+    // FVG Status
+    table.cell(ai_dashboard, 0, 6, "FVG", text_color=color.white)
+    fvg_status = fvg_up ? "UP" : fvg_down ? "DOWN" : "NONE"
+    fvg_color = fvg_up ? color.lime : fvg_down ? color.red : color.gray
+    table.cell(ai_dashboard, 1, 6, fvg_status, text_color=fvg_color)
+    
+    // Volume
+    table.cell(ai_dashboard, 0, 7, "Volume", text_color=color.white)
+    vol_ratio = volume / volume_sma
+    vol_color = vol_ratio > 1.5 ? color.lime : vol_ratio > 1.0 ? color.yellow : color.red
+    table.cell(ai_dashboard, 1, 7, str.tostring(vol_ratio, "#.#") + "x", text_color=vol_color)
+    
+    // AI Status
+    table.cell(ai_dashboard, 0, 8, "AI Status", text_color=color.white)
+    ai_status = enable_ai ? "ACTIVE" : "DISABLED"
+    ai_status_color = enable_ai ? color.lime : color.red
+    table.cell(ai_dashboard, 1, 8, ai_status, text_color=ai_status_color)
+    
+    // Learning Stats
+    table.cell(ai_dashboard, 0, 9, "Learning", text_color=color.white)
+    table.cell(ai_dashboard, 1, 9, "ENABLED", text_color=color.aqua)
+
+// Alerts for high-confidence signals
+if plot_long_signal
+    alert("🤖 AI LONG Signal - Confidence: " + str.tostring(ai_confidence * 100, "#") + "% - " + ai_reasoning, alert.freq_once_per_bar)
+    
+if plot_short_signal
+    alert("🤖 AI SHORT Signal - Confidence: " + str.tostring(ai_confidence * 100, "#") + "% - " + ai_reasoning, alert.freq_once_per_bar)

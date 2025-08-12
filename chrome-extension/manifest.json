@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "AI Trading Assistant",
+  "version": "1.0",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["*://tradingview.com/*", "*://www.tradingview.com/*", "http://127.0.0.1:8080/*"],
+  "content_scripts": [{
+    "matches": ["*://tradingview.com/*", "*://www.tradingview.com/*"],
+    "js": ["content.js", "indicator_reader.js", "ai_chart_overlay.js"],
+    "run_at": "document_end"
+  }],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

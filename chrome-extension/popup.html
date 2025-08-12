@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            width: 300px;
+            padding: 16px;
+            font-family: 'Inter', sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            margin: 0;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 16px;
+            color: #00ff88;
+            font-weight: bold;
+        }
+        
+        .status {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+        
+        .status-label {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .status-value {
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .connected {
+            color: #00ff88;
+        }
+        
+        .disconnected {
+            color: #ff4757;
+        }
+        
+        .settings {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .setting-label {
+            font-size: 12px;
+        }
+        
+        input[type="checkbox"] {
+            accent-color: #00ff88;
+        }
+        
+        input[type="text"] {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            width: 120px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">AI Trading Assistant</div>
+    
+    <div class="status">
+        <span class="status-label">Server Status:</span>
+        <span class="status-value" id="serverStatus">Checking...</span>
+    </div>
+    
+    <div class="status">
+        <span class="status-label">TradingView:</span>
+        <span class="status-value" id="tvStatus">Checking...</span>
+    </div>
+    
+    <div class="status">
+        <span class="status-label">Last Analysis:</span>
+        <span class="status-value" id="lastAnalysis">Never</span>
+    </div>
+    
+    <div class="settings">
+        <div class="setting-item">
+            <span class="setting-label">Enable Analysis</span>
+            <input type="checkbox" id="enableAnalysis" checked>
+        </div>
+        
+        <div class="setting-item">
+            <span class="setting-label">Analysis Interval</span>
+            <select id="analysisInterval" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 4px; border-radius: 4px;">
+                <option value="5">5 seconds</option>
+                <option value="10" selected>10 seconds</option>
+                <option value="30">30 seconds</option>
+                <option value="60">1 minute</option>
+            </select>
+        </div>
+        
+        <div class="setting-item">
+            <span class="setting-label">Server URL</span>
+            <input type="text" id="serverUrl" value="http://localhost:5000">
+        </div>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>

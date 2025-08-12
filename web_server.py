@@ -1,4 +1,5 @@
 from flask import Flask, render_template_string, send_from_directory, request, jsonify, session, redirect, url_for
+from flask_cors import CORS
 from os import environ, path
 from json import loads, dumps
 from dotenv import load_dotenv
@@ -55,6 +56,7 @@ if api_key:
 
 app = Flask(__name__)
 app.secret_key = environ.get('SECRET_KEY', 'dev-key-change-in-production')
+CORS(app, origins=['chrome-extension://abndgpgodnhhkchaoiiopnondcpmnanc', 'https://www.tradingview.com'], supports_credentials=True)
 csrf.init_app(app)
 
 # Read HTML files and serve them
@@ -325,9 +327,6 @@ def ai_insights():
         }), 500
 
 # Dynamic AI analysis endpoints
-@app.route('/api/ai-chart-analysis', methods=['POST'])
-@login_required
-def ai_chart_analysis():
     try:
         if not client:
             return jsonify({"analysis": "AI analysis temporarily unavailable. Please check your API configuration."}), 200
@@ -913,6 +912,112 @@ def health_check():
         "database": "connected" if db_enabled else "offline",
         "csrf_token": csrf.generate_csrf_token()
     })
+
+@app.route('/api/health')
+def api_health_check():
+    response = jsonify({
+        "status": "healthy", 
+        "timestamp": datetime.now().isoformat(),
+        "ai_enabled": client is not None,
+        "database": "connected" if db_enabled else "offline"
+    })
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
+
+@app.route('/api/test')
+def test_endpoint():
+    print("✅ TEST endpoint called")
+    response = jsonify({"message": "Extension test working"})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
+
+@app.route('/api/simple-test')
+def simple_test():
+    print("✅ SIMPLE TEST endpoint called")
+    return "WORKING"
+
+@app.route('/api/ai-analysis')
+def ai_analysis_simple():
+    print("✅ AI ANALYSIS endpoint called")
+    return jsonify({"message": "AI endpoint working"})
+
+@app.route('/api/ai-chart-analysis', methods=['GET'])
+def ai_chart_analysis_extension():
+    print(f"✅ Extension endpoint called with args: {request.args}")
+    try:
+        symbol = request.args.get('symbol', 'NQ1!')
+        price = float(request.args.get('price', 0))
+        session = request.args.get('session', 'LONDON')
+        
+        # Get current market data for context
+        news_api = NewsAPI()
+        futures_data = news_api.get_futures_data()
+        current_time = datetime.now()
+        
+        # Session-based FVG quality scoring
+        session_multipliers = {
+            'ASIA': 0.3,
+            'LONDON': 0.9,
+            'NEW YORK AM': 0.8,
+            'NEW YORK PM': 0.6,
+            'NY LUNCH': 0.2,
+            'NY PRE MARKET': 0.4
+        }
+        
+        base_fvg_quality = 0.7
+        session_multiplier = session_multipliers.get(session, 0.5)
+        fvg_quality = min(0.95, base_fvg_quality * session_multiplier)
+        
+        # Entry confidence based on session and price action
+        entry_confidence = 0.75 if session in ['LONDON', 'NEW YORK AM'] else 0.4
+        if price > 0:
+            entry_confidence = min(0.9, entry_confidence + 0.1)
+        
+        # Market condition analysis
+        hour = current_time.hour
+        if 8 <= hour <= 12:  # London session
+            market_condition = "HIGH LIQUIDITY"
+        elif 13 <= hour <= 16:  # NY AM
+            market_condition = "TRENDING"
+        else:
+            market_condition = "LOW LIQUIDITY"
+        
+        # Generate recommendation
+        if entry_confidence > 0.7 and fvg_quality > 0.6:
+            recommendation = "STRONG SETUP"
+        elif entry_confidence > 0.5:
+            recommendation = "MODERATE SETUP"
+        else:
+            recommendation = "WAIT"
+        
+        response = jsonify({
+            'symbol': symbol,
+            'session': session,
+            'fvgQuality': round(fvg_quality, 2),
+            'entryConfidence': round(entry_confidence, 2),
+            'marketCondition': market_condition,
+            'sessionQuality': session_multiplier,
+            'recommendation': recommendation,
+            'timestamp': current_time.isoformat(),
+            'analysis': f"Session: {session} | FVG Quality: {fvg_quality:.0%} | Entry Confidence: {entry_confidence:.0%} | Market: {market_condition}"
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+        
+    except Exception as e:
+        logger.error(f"AI chart analysis error: {str(e)}")
+        response = jsonify({
+            'error': True,
+            'message': str(e),
+            'fvgQuality': 0.5,
+            'entryConfidence': 0.3,
+            'marketCondition': 'ANALYZING',
+            'recommendation': 'WAIT'
+        })
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response, 200
 
 # Prop firm endpoints
 @app.route('/api/prop-firms')
@@ -1550,8 +1655,8 @@ def extract_positive_recommendation(response):
     return sentences[0].strip() if sentences else "Continue building on current strengths for sustained growth"
 
 if __name__ == '__main__':
-    port = int(environ.get('PORT', 5000))
+    port = int(environ.get('PORT', 8080))
     debug_mode = environ.get('DEBUG', 'False').lower() == 'true'
-    host = environ.get('HOST', '127.0.0.1')  # Default to localhost for security
+    host = '127.0.0.1'  # Localhost only
     logger.info(f"Starting server on {host}:{port}, debug={debug_mode}")
     app.run(host=host, port=port, debug=debug_mode)

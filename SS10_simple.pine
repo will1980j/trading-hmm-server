@@ -1,0 +1,60 @@
+//@version=5
+indicator("SS10 Simple", overlay=true, max_boxes_count=500)
+
+// === INPUTS ===
+enable_bearish_fvg = input.bool(true, "Enable Bearish FVG Signals")
+
+// === HTF BIAS (simplified) ===
+h1_bias = "Bearish"  // Hardcoded for testing
+
+// === PIVOT DETECTION ===
+var array<float> highPivots = array.new<float>()
+var array<int> highPivotTimes = array.new<int>()
+
+// 3-bar pivot detection
+isHighPivot = high[1] > high and high[1] > high[2]
+
+if barstate.isconfirmed and isHighPivot
+    array.push(highPivots, high[1])
+    array.push(highPivotTimes, bar_index - 1)
+    if array.size(highPivots) > 10
+        array.shift(highPivots)
+        array.shift(highPivotTimes)
+
+// === SWEEP AND FVG TRACKING ===
+var int fvgCount = 0
+var bool sweepOccurred = false
+
+// Check for sweep
+if barstate.isconfirmed and array.size(highPivots) > 0
+    for i = array.size(highPivots) - 1 to 0
+        if high > array.get(highPivots, i)
+            sweepOccurred := true
+            fvgCount := 0
+            array.remove(highPivots, i)
+            array.remove(highPivotTimes, i)
+            break
+
+// FVG Detection and Signaling
+isBearishFVG = high < low[2]
+
+if barstate.isconfirmed and sweepOccurred and isBearishFVG and fvgCount < 2
+    fvgCount += 1
+    
+    // Create FVG box
+    fvgBox = box.new(bar_index-2, high[1], bar_index, high, 
+                     bgcolor=color.new(color.red, 70), 
+                     border_color=color.red, 
+                     border_width=2, 
+                     extend=extend.right)
+    
+    // Add label
+    label.new(bar_index, high[1], "FVG #" + str.tostring(fvgCount), 
+              color=color.red, textcolor=color.white, size=size.small)
+    
+    // Signal
+    plotshape(true, "SELL", shape.triangledown, location.abovebar, color=color.red, size=size.tiny)
+
+// Reset sweep flag after processing
+if fvgCount >= 2
+    sweepOccurred := false
