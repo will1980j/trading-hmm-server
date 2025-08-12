@@ -14,6 +14,10 @@ bearish_border_color = input.color(color.red, "Bearish FVG Border Color")
 bullish_border_color = input.color(color.green, "Bullish FVG Border Color")
 bearish_border_width = input.int(2, "Bearish FVG Border Width", minval=1, maxval=5)
 bullish_border_width = input.int(2, "Bullish FVG Border Width", minval=1, maxval=5)
+high_pivot_color = input.color(color.red, "High Pivot Color")
+low_pivot_color = input.color(color.green, "Low Pivot Color")
+pivot_line_width = input.int(1, "Pivot Line Width", minval=1, maxval=5)
+pivot_line_style = input.string("Solid", "Pivot Line Style", ["Solid", "Dashed", "Dotted"])
 
 // === HTF BIAS CALCULATION ===
 var string bias = "Neutral"
@@ -104,6 +108,9 @@ var array<int> lowPivotTimes = array.new<int>()
 isHighPivot = high[1] > high and high[1] > high[2]
 isLowPivot = low[1] < low and low[1] < low[2]
 
+// Convert line style
+lineStyle = pivot_line_style == "Dashed" ? line.style_dashed : pivot_line_style == "Dotted" ? line.style_dotted : line.style_solid
+
 if barstate.isconfirmed
     // Check for high pivot breaks
     if array.size(highLines) > 0
@@ -151,7 +158,7 @@ if barstate.isconfirmed
     
     // Create new high pivot lines (only during bearish bias)
     if isHighPivot and h1_bias == "Bearish"
-        line newLine = line.new(bar_index - 1, high[1], bar_index + 500, high[1], color=color.white, width=1)
+        line newLine = line.new(bar_index - 1, high[1], bar_index + 500, high[1], color=high_pivot_color, width=pivot_line_width, style=lineStyle)
         array.push(highLines, newLine)
         array.push(highPivots, high[1])
         array.push(highPivotTimes, bar_index - 1)
@@ -164,7 +171,7 @@ if barstate.isconfirmed
     
     // Create new low pivot lines (only during bullish bias)
     if isLowPivot and h1_bias == "Bullish"
-        line newLine = line.new(bar_index - 1, low[1], bar_index + 500, low[1], color=color.white, width=1)
+        line newLine = line.new(bar_index - 1, low[1], bar_index + 500, low[1], color=low_pivot_color, width=pivot_line_width, style=lineStyle)
         array.push(lowLines, newLine)
         array.push(lowPivots, low[1])
         array.push(lowPivotTimes, bar_index - 1)
