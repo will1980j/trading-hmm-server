@@ -152,16 +152,31 @@
         }
         
         .checkbox-input {
-            width: 18px !important;
-            height: 18px !important;
-            margin: 5px auto !important;
+            width: 16px !important;
+            height: 16px !important;
+            margin: 6px auto !important;
+            accent-color: #00ff88;
+            cursor: pointer;
         }
         
         .screenshot-btn {
             height: 28px;
             padding: 0 8px;
             font-size: 10px;
-            background: #3742fa;
+            background: linear-gradient(45deg, #3742fa, #5352ed);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(55, 66, 250, 0.2);
+        }
+        
+        .screenshot-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(55, 66, 250, 0.3);
+            background: linear-gradient(45deg, #5352ed, #3742fa);
         }
         
         .btn {
