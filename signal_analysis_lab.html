@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signal Analysis Lab - Trading Analytics</title>
+    <link rel="stylesheet" href="/style_preload.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --accent-color: #00ff88;
+            --glass-bg: rgba(255,255,255,0.08);
+            --glass-border: rgba(255,255,255,0.1);
+            --shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        
+        .navbar {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .nav-link:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .nav-link.active {
+            color: #00ff88;
+            background: rgba(0,255,136,0.15);
+            border-color: rgba(0,255,136,0.3);
+        }
+        
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ff88, #00d4aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .data-input {
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .input-group label {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        select, input {
+            padding: 10px 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.9) !important;
+            color: #333;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, var(--accent-color), #00d4aa);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(0,255,136,0.2);
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,255,136,0.4);
+            background: linear-gradient(45deg, #00d4aa, var(--accent-color));
+        }
+        
+        .trades-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            overflow: hidden;
+            font-size: 12px;
+        }
+        
+        .trades-table th,
+        .trades-table td {
+            padding: 8px 6px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .trades-table th {
+            background: rgba(255,255,255,0.1);
+            font-weight: bold;
+            font-size: 11px;
+        }
+        
+        .positive { color: #00ff88; }
+        .negative { color: #ff4757; }
+        .neutral { color: #ffa502; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            margin: 8px 0;
+            background: linear-gradient(45deg, var(--accent-color), #00d4aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-label {
+            font-size: 0.8em;
+            opacity: 0.8;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .trades-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/trade-manager" class="nav-link">Trade Manager</a>
+                <a href="/signal-analysis-lab" class="nav-link active">Signal Lab</a>
+                <a href="/prop-portfolio" class="nav-link">Prop Portfolio</a>
+                <a href="/financial-summary" class="nav-link">Financial Summary</a>
+                <a href="/reporting-hub" class="nav-link">Reporting Hub</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="header">
+            <h1>Signal Analysis Lab</h1>
+            <p>Systematic Signal Data Collection & Analysis</p>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Signals</div>
+                <div class="stat-value" id="totalSignals">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Best Signal Type</div>
+                <div class="stat-value" id="bestSignal">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Best Session</div>
+                <div class="stat-value" id="bestSession">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg MFE</div>
+                <div class="stat-value" id="avgMFE">0R</div>
+            </div>
+        </div>
+        
+        <div class="data-input">
+            <h3>Add Signal Data</h3>
+            <div class="input-grid">
+                <div class="input-group">
+                    <label>Date</label>
+                    <input type="date" id="signalDate">
+                </div>
+                <div class="input-group">
+                    <label>Entry Time (NY EST)</label>
+                    <input type="time" id="entryTime">
+                </div>
+                <div class="input-group">
+                    <label>Bias</label>
+                    <select id="bias">
+                        <option value="Bullish">Bullish</option>
+                        <option value="Bearish">Bearish</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Session</label>
+                    <select id="session">
+                        <option value="Asia">Asia</option>
+                        <option value="London">London</option>
+                        <option value="NY Pre Market">NY Pre Market</option>
+                        <option value="NY AM">NY AM</option>
+                        <option value="NY Lunch">NY Lunch</option>
+                        <option value="NY PM">NY PM</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Signal Type</label>
+                    <select id="signalType">
+                        <option value="Bullish FVG">Bullish FVG</option>
+                        <option value="Bearish FVG">Bearish FVG</option>
+                        <option value="Bullish IFVG">Bullish IFVG</option>
+                        <option value="Bearish IFVG">Bearish IFVG</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Open Price</label>
+                    <input type="number" id="openPrice" step="0.01" placeholder="23850.00">
+                </div>
+                <div class="input-group">
+                    <label>Entry Price</label>
+                    <input type="number" id="entryPrice" step="0.01" placeholder="23850.00" oninput="calculateTP()">
+                </div>
+                <div class="input-group">
+                    <label>Stop Loss</label>
+                    <input type="number" id="stopLoss" step="0.01" placeholder="23840.00" oninput="calculateTP()">
+                </div>
+                <div class="input-group">
+                    <label>Take Profit</label>
+                    <input type="number" id="takeProfit" step="0.01" readonly style="background: rgba(255,255,255,0.7) !important;">
+                </div>
+                <div class="input-group">
+                    <label>Breakeven (R)</label>
+                    <select id="breakeven">
+                        <option value="0">No BE</option>
+                        <option value="0.5">0.5R</option>
+                        <option value="1">1R</option>
+                        <option value="1.5">1.5R</option>
+                        <option value="2">2R</option>
+                        <option value="2.5">2.5R</option>
+                        <option value="3">3R</option>
+                        <option value="4">4R</option>
+                        <option value="5">5R</option>
+                        <option value="6">6R</option>
+                        <option value="7">7R</option>
+                        <option value="8">8R</option>
+                        <option value="9">9R</option>
+                        <option value="10">10R</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>MFE (R Score)</label>
+                    <input type="number" id="mfe" step="0.1" placeholder="2.5">
+                </div>
+                <div class="input-group">
+                    <label>Position Size</label>
+                    <input type="number" id="positionSize" step="1" placeholder="1" value="1">
+                </div>
+                <div class="input-group">
+                    <label>Commission</label>
+                    <input type="number" id="commission" step="0.01" placeholder="4.50" value="4.50">
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn" onclick="addSignal()">Add Signal</button>
+                <button class="btn" onclick="clearInputs()" style="background: #6c757d;">Clear</button>
+                <button class="btn" onclick="exportData()">Export CSV</button>
+                <input type="file" id="csvFile" accept=".csv" style="display: none;" onchange="importCSV(event)">
+                <button class="btn" onclick="document.getElementById('csvFile').click()">Import CSV</button>
+                <button class="btn" onclick="analyzeSignals()" style="background: #3742fa;">AI Analysis</button>
+                <button class="btn" onclick="getRecommendations()" style="background: #2ed573;">AI Recommendations</button>
+                <button class="btn" onclick="optimizeStrategy()" style="background: #ff6b7a;">Strategy Optimizer</button>
+            </div>
+        </div>
+        
+        <div class="data-input">
+            <h3>Signal Analysis Data</h3>
+            <div class="trades-container">
+                <table class="trades-table" id="signalsTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Bias</th>
+                            <th>Session</th>
+                            <th>Signal</th>
+                            <th>Open</th>
+                            <th>Entry</th>
+                            <th>Stop</th>
+                            <th>TP</th>
+                            <th>BE</th>
+                            <th>MFE</th>
+                            <th>Size</th>
+                            <th>Comm</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="signalsBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let signals = [];
+        
+        function calculateTP() {
+            const entry = parseFloat(document.getElementById('entryPrice').value) || 0;
+            const stop = parseFloat(document.getElementById('stopLoss').value) || 0;
+            const bias = document.getElementById('bias').value;
+            
+            if (entry && stop) {
+                const risk = Math.abs(entry - stop);
+                const tp = bias === 'Bullish' ? entry + risk : entry - risk;
+                document.getElementById('takeProfit').value = tp.toFixed(2);
+            }
+        }
+        
+        function addSignal() {
+            const signal = {
+                id: Date.now(),
+                date: document.getElementById('signalDate').value,
+                time: document.getElementById('entryTime').value,
+                bias: document.getElementById('bias').value,
+                session: document.getElementById('session').value,
+                signalType: document.getElementById('signalType').value,
+                openPrice: parseFloat(document.getElementById('openPrice').value) || 0,
+                entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
+                stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
+                takeProfit: parseFloat(document.getElementById('takeProfit').value) || 0,
+                breakeven: parseFloat(document.getElementById('breakeven').value) || 0,
+                mfe: parseFloat(document.getElementById('mfe').value) || 0,
+                positionSize: parseInt(document.getElementById('positionSize').value) || 1,
+                commission: parseFloat(document.getElementById('commission').value) || 0
+            };
+            
+            if (!signal.date || !signal.entryPrice || !signal.stopLoss) {
+                alert('Please fill in Date, Entry Price, and Stop Loss');
+                return;
+            }
+            
+            signals.push(signal);
+            updateDisplay();
+            clearInputs();
+        }
+        
+        function clearInputs() {
+            document.getElementById('signalDate').value = '';
+            document.getElementById('entryTime').value = '';
+            document.getElementById('openPrice').value = '';
+            document.getElementById('entryPrice').value = '';
+            document.getElementById('stopLoss').value = '';
+            document.getElementById('takeProfit').value = '';
+            document.getElementById('mfe').value = '';
+            document.getElementById('positionSize').value = '1';
+            document.getElementById('commission').value = '4.50';
+        }
+        
+        function deleteSignal(id) {
+            if (confirm('Delete this signal?')) {
+                signals = signals.filter(s => s.id !== id);
+                updateDisplay();
+            }
+        }
+        
+        function updateDisplay() {
+            updateStats();
+            updateTable();
+        }
+        
+        function updateStats() {
+            const totalSignals = signals.length;
+            
+            // Best signal type by average MFE
+            const signalTypes = {};
+            signals.forEach(s => {
+                if (!signalTypes[s.signalType]) signalTypes[s.signalType] = [];
+                signalTypes[s.signalType].push(s.mfe);
+            });
+            
+            let bestSignal = '-';
+            let bestAvg = -999;
+            Object.keys(signalTypes).forEach(type => {
+                const avg = signalTypes[type].reduce((a, b) => a + b, 0) / signalTypes[type].length;
+                if (avg > bestAvg) {
+                    bestAvg = avg;
+                    bestSignal = type;
+                }
+            });
+            
+            // Best session
+            const sessions = {};
+            signals.forEach(s => {
+                if (!sessions[s.session]) sessions[s.session] = [];
+                sessions[s.session].push(s.mfe);
+            });
+            
+            let bestSession = '-';
+            let bestSessionAvg = -999;
+            Object.keys(sessions).forEach(session => {
+                const avg = sessions[session].reduce((a, b) => a + b, 0) / sessions[session].length;
+                if (avg > bestSessionAvg) {
+                    bestSessionAvg = avg;
+                    bestSession = session;
+                }
+            });
+            
+            const avgMFE = signals.length > 0 ? 
+                (signals.reduce((sum, s) => sum + s.mfe, 0) / signals.length).toFixed(1) : 0;
+            
+            document.getElementById('totalSignals').textContent = totalSignals;
+            document.getElementById('bestSignal').textContent = bestSignal;
+            document.getElementById('bestSession').textContent = bestSession;
+            document.getElementById('avgMFE').textContent = avgMFE + 'R';
+        }
+        
+        function updateTable() {
+            const tbody = document.getElementById('signalsBody');
+            tbody.innerHTML = '';
+            
+            signals.reverse().forEach(signal => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${signal.date}</td>
+                    <td>${signal.time}</td>
+                    <td>${signal.bias}</td>
+                    <td>${signal.session}</td>
+                    <td>${signal.signalType}</td>
+                    <td>${signal.openPrice.toFixed(2)}</td>
+                    <td>${signal.entryPrice.toFixed(2)}</td>
+                    <td>${signal.stopLoss.toFixed(2)}</td>
+                    <td>${signal.takeProfit.toFixed(2)}</td>
+                    <td>${signal.breakeven}R</td>
+                    <td class="${signal.mfe > 0 ? 'positive' : signal.mfe < 0 ? 'negative' : 'neutral'}">${signal.mfe.toFixed(1)}R</td>
+                    <td>${signal.positionSize}</td>
+                    <td>$${signal.commission.toFixed(2)}</td>
+                    <td>
+                        <button onclick="deleteSignal(${signal.id})" style="background: #ff4757; border: none; padding: 4px 8px; border-radius: 4px; color: white; cursor: pointer; font-size: 10px;">Del</button>
+                    </td>
+                `;
+            });
+        }
+        
+        function exportData() {
+            const csv = 'Date,Time,Bias,Session,Signal,Open,Entry,Stop,TP,BE,MFE,Size,Commission\\n' + 
+                       signals.map(s => 
+                           `${s.date},${s.time},${s.bias},${s.session},${s.signalType},${s.openPrice},${s.entryPrice},${s.stopLoss},${s.takeProfit},${s.breakeven},${s.mfe},${s.positionSize},${s.commission}`
+                       ).join('\\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `signal_analysis_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+        
+        function importCSV(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const csv = e.target.result;
+                    const lines = csv.split('\\n');
+                    
+                    for (let i = 1; i < lines.length; i++) {
+                        if (lines[i].trim()) {
+                            const values = lines[i].split(',');
+                            const signal = {
+                                id: Date.now() + i,
+                                date: values[0],
+                                time: values[1],
+                                bias: values[2],
+                                session: values[3],
+                                signalType: values[4],
+                                openPrice: parseFloat(values[5]) || 0,
+                                entryPrice: parseFloat(values[6]) || 0,
+                                stopLoss: parseFloat(values[7]) || 0,
+                                takeProfit: parseFloat(values[8]) || 0,
+                                breakeven: parseFloat(values[9]) || 0,
+                                mfe: parseFloat(values[10]) || 0,
+                                positionSize: parseInt(values[11]) || 1,
+                                commission: parseFloat(values[12]) || 0
+                            };
+                            signals.push(signal);
+                        }
+                    }
+                    updateDisplay();
+                };
+                reader.readAsText(file);
+            }
+        }
+        
+        async function analyzeSignals() {
+            if (signals.length < 5) {
+                alert('Need at least 5 signals for meaningful AI analysis');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/ai-signal-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ signals: signals })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('AI Analysis Error: ' + data.error);
+                    return;
+                }
+                
+                showAnalysisModal('AI Signal Analysis', data.analysis);
+            } catch (error) {
+                console.error('AI Analysis error:', error);
+                alert('Failed to connect to AI analysis service');
+            }
+        }
+        
+        async function getRecommendations() {
+            if (signals.length < 3) {
+                alert('Need at least 3 signals for recommendations');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/ai-signal-recommendations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ signals: signals, focus: 'overall' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('AI Recommendations Error: ' + data.error);
+                    return;
+                }
+                
+                const recommendations = data.recommendations.join('\\n\\n• ');
+                showAnalysisModal('AI Recommendations', '• ' + recommendations);
+            } catch (error) {
+                console.error('Recommendations error:', error);
+                alert('Failed to connect to AI recommendations service');
+            }
+        }
+        
+        async function optimizeStrategy() {
+            if (signals.length < 5) {
+                alert('Need at least 5 signals for strategy optimization');
+                return;
+            }
+            
+            const focus = prompt('Focus area (signals/sessions/breakeven):', 'signals');
+            if (!focus) return;
+            
+            try {
+                const response = await fetch('/api/ai-signal-recommendations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ signals: signals, focus: focus })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Strategy Optimization Error: ' + data.error);
+                    return;
+                }
+                
+                const recommendations = data.recommendations.join('\\n\\n• ');
+                showAnalysisModal(`${focus.toUpperCase()} Optimization`, '• ' + recommendations);
+            } catch (error) {
+                console.error('Optimization error:', error);
+                alert('Failed to connect to strategy optimization service');
+            }
+        }
+        
+        function showAnalysisModal(title, content) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center;
+                z-index: 1000;
+            `;
+            
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                padding: 30px; border-radius: 20px; max-width: 80%; max-height: 80%;
+                overflow-y: auto; color: white; border: 1px solid rgba(255,255,255,0.1);
+            `;
+            
+            modalContent.innerHTML = `
+                <h2 style="margin-bottom: 20px; color: #00ff88;">${title}</h2>
+                <pre style="white-space: pre-wrap; font-family: inherit; line-height: 1.6;">${content}</pre>
+                <button onclick="this.closest('div').parentElement.remove()" 
+                        style="margin-top: 20px; padding: 10px 20px; background: #00ff88; border: none; border-radius: 8px; color: #1e3c72; font-weight: 600; cursor: pointer;">
+                    Close
+                </button>
+            `;
+            
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+        }
+        
+        function performAnalysis() {
+            const bySignal = {};
+            const bySession = {};
+            const byBE = {};
+            
+            signals.forEach(s => {
+                // By signal type
+                if (!bySignal[s.signalType]) bySignal[s.signalType] = [];
+                bySignal[s.signalType].push(s.mfe);
+                
+                // By session
+                if (!bySession[s.session]) bySession[s.session] = [];
+                bySession[s.session].push(s.mfe);
+                
+                // By breakeven
+                const beKey = s.breakeven + 'R';
+                if (!byBE[beKey]) byBE[beKey] = [];
+                byBE[beKey].push(s.mfe);
+            });
+            
+            let analysis = 'SIGNAL ANALYSIS RESULTS:\\n\\n';
+            
+            // Best signal type
+            analysis += 'SIGNAL TYPE PERFORMANCE:\\n';
+            Object.keys(bySignal).forEach(type => {
+                const avg = (bySignal[type].reduce((a, b) => a + b, 0) / bySignal[type].length).toFixed(2);
+                analysis += `${type}: ${avg}R avg (${bySignal[type].length} signals)\\n`;
+            });
+            
+            analysis += '\\nSESSION PERFORMANCE:\\n';
+            Object.keys(bySession).forEach(session => {
+                const avg = (bySession[session].reduce((a, b) => a + b, 0) / bySession[session].length).toFixed(2);
+                analysis += `${session}: ${avg}R avg (${bySession[session].length} signals)\\n`;
+            });
+            
+            analysis += '\\nBREAKEVEN ANALYSIS:\\n';
+            Object.keys(byBE).forEach(be => {
+                const avg = (byBE[be].reduce((a, b) => a + b, 0) / byBE[be].length).toFixed(2);
+                analysis += `${be}: ${avg}R avg (${byBE[be].length} signals)\\n`;
+            });
+            
+            return analysis;
+        }
+        
+        // Set today's date by default
+        document.getElementById('signalDate').value = new Date().toISOString().split('T')[0];
+        
+        // Auto-calculate TP when bias changes
+        document.getElementById('bias').addEventListener('change', calculateTP);
+    </script>
+</body>
+</html>

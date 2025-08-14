@@ -124,6 +124,11 @@ def advanced_dashboard():
 def trade_manager():
     return read_html_file('trade_manager.html')
 
+@app.route('/signal-analysis-lab')
+@login_required
+def signal_analysis_lab():
+    return read_html_file('signal_analysis_lab.html')
+
 @app.route('/prop-portfolio')
 @login_required
 def prop_portfolio():
@@ -778,6 +783,91 @@ def upload_trades():
         })
         
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# AI Signal Analysis endpoints
+@app.route('/api/ai-signal-analysis', methods=['POST'])
+@login_required
+def ai_signal_analysis():
+    try:
+        if not client:
+            return jsonify({"error": "OpenAI client not available"}), 500
+            
+        data = request.get_json()
+        signals = data.get('signals', [])
+        
+        if len(signals) < 5:
+            return jsonify({"error": "Need at least 5 signals for meaningful AI analysis"}), 400
+        
+        # Build analysis context
+        context = build_signal_context(signals)
+        
+        prompt = f"""Analyze this NQ futures trading signal data comprehensively:
+        
+        {context}
+        
+        Provide your complete analysis - look for patterns, correlations, inefficiencies, opportunities, and insights I might not have considered. Don't limit yourself to obvious metrics. What does this data really tell you about the trading approach?"""
+        
+        response = client.chat.completions.create(
+            model=environ.get('OPENAI_MODEL', 'gpt-4o'),
+            messages=[
+                {"role": "system", "content": "You are a world-class quantitative trading analyst. Analyze this data with fresh eyes - find patterns, correlations, and insights the trader might not see. Be thorough and unrestrained in your analysis."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=600,
+            temperature=0.4
+        )
+        
+        return jsonify({
+            "analysis": response.choices[0].message.content,
+            "status": "success"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in ai_signal_analysis: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ai-signal-recommendations', methods=['POST'])
+@login_required
+def ai_signal_recommendations():
+    try:
+        if not client:
+            return jsonify({"error": "OpenAI client not available"}), 500
+            
+        data = request.get_json()
+        signals = data.get('signals', [])
+        focus_area = data.get('focus', 'overall')
+        
+        context = build_focused_context(signals, focus_area)
+        
+        prompt = f"""Analyze this trading data and provide comprehensive recommendations:
+        
+        {context}
+        
+        Focus: {focus_area}
+        
+        What improvements, optimizations, or completely different approaches would you recommend? Think beyond conventional wisdom - what does the data suggest that might surprise me?"""
+        
+        response = client.chat.completions.create(
+            model=environ.get('OPENAI_MODEL', 'gpt-4o'),
+            messages=[
+                {"role": "system", "content": "You are an innovative trading strategist. Challenge assumptions, find hidden patterns, and suggest improvements the trader hasn't considered. Be creative and thorough."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=300,
+            temperature=0.5
+        )
+        
+        # Parse recommendations into list
+        recommendations = [line.strip('• -') for line in response.choices[0].message.content.split('\n') if line.strip() and ('•' in line or '-' in line)]
+        
+        return jsonify({
+            "recommendations": recommendations[:5],
+            "status": "success"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in ai_signal_recommendations: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # Get trades from database
@@ -1546,6 +1636,104 @@ def assess_expansion_readiness(metrics):
         return "approaching expansion readiness"
     else:
         return "building expansion foundation"
+
+# Signal Analysis Helper Functions
+def build_signal_context(signals):
+    """Build comprehensive signal analysis context"""
+    if not signals:
+        return "No signal data available"
+    
+    # Signal type analysis
+    signal_performance = {}
+    session_performance = {}
+    be_analysis = {}
+    
+    for signal in signals:
+        # Signal type performance
+        sig_type = signal.get('signalType', 'Unknown')
+        if sig_type not in signal_performance:
+            signal_performance[sig_type] = []
+        signal_performance[sig_type].append(signal.get('mfe', 0))
+        
+        # Session performance
+        session = signal.get('session', 'Unknown')
+        if session not in session_performance:
+            session_performance[session] = []
+        session_performance[session].append(signal.get('mfe', 0))
+        
+        # Breakeven analysis
+        be_level = f"{signal.get('breakeven', 0)}R"
+        if be_level not in be_analysis:
+            be_analysis[be_level] = []
+        be_analysis[be_level].append(signal.get('mfe', 0))
+    
+    context = f"""SIGNAL ANALYSIS DATA ({len(signals)} signals):
+    
+    SIGNAL TYPE PERFORMANCE:
+    """
+    
+    for sig_type, mfes in signal_performance.items():
+        avg_mfe = sum(mfes) / len(mfes)
+        win_rate = len([m for m in mfes if m > 0]) / len(mfes) * 100
+        context += f"\n    {sig_type}: {avg_mfe:.2f}R avg, {win_rate:.1f}% win rate ({len(mfes)} signals)"
+    
+    context += "\n\n    SESSION PERFORMANCE:"
+    for session, mfes in session_performance.items():
+        avg_mfe = sum(mfes) / len(mfes)
+        context += f"\n    {session}: {avg_mfe:.2f}R avg ({len(mfes)} signals)"
+    
+    context += "\n\n    BREAKEVEN ANALYSIS:"
+    for be_level, mfes in be_analysis.items():
+        avg_mfe = sum(mfes) / len(mfes)
+        context += f"\n    {be_level}: {avg_mfe:.2f}R avg ({len(mfes)} signals)"
+    
+    return context
+
+def build_focused_context(signals, focus_area):
+    """Build focused analysis context for specific area"""
+    if not signals:
+        return "No signal data for focused analysis"
+    
+    if focus_area == 'signals':
+        # Focus on signal type comparison
+        fvg_signals = [s for s in signals if 'FVG' in s.get('signalType', '') and 'IFVG' not in s.get('signalType', '')]
+        ifvg_signals = [s for s in signals if 'IFVG' in s.get('signalType', '')]
+        
+        fvg_avg = sum([s.get('mfe', 0) for s in fvg_signals]) / len(fvg_signals) if fvg_signals else 0
+        ifvg_avg = sum([s.get('mfe', 0) for s in ifvg_signals]) / len(ifvg_signals) if ifvg_signals else 0
+        
+        return f"""SIGNAL TYPE FOCUS:
+        FVG Signals: {len(fvg_signals)} trades, {fvg_avg:.2f}R average
+        IFVG Signals: {len(ifvg_signals)} trades, {ifvg_avg:.2f}R average
+        Performance Gap: {abs(fvg_avg - ifvg_avg):.2f}R difference"""
+    
+    elif focus_area == 'sessions':
+        # Focus on session optimization
+        london_signals = [s for s in signals if s.get('session') == 'London']
+        ny_am_signals = [s for s in signals if s.get('session') == 'NY AM']
+        
+        london_avg = sum([s.get('mfe', 0) for s in london_signals]) / len(london_signals) if london_signals else 0
+        ny_avg = sum([s.get('mfe', 0) for s in ny_am_signals]) / len(ny_am_signals) if ny_am_signals else 0
+        
+        return f"""SESSION FOCUS:
+        London: {len(london_signals)} signals, {london_avg:.2f}R average
+        NY AM: {len(ny_am_signals)} signals, {ny_avg:.2f}R average
+        Best performing sessions need optimization focus"""
+    
+    elif focus_area == 'breakeven':
+        # Focus on breakeven strategy
+        no_be = [s for s in signals if s.get('breakeven', 0) == 0]
+        with_be = [s for s in signals if s.get('breakeven', 0) > 0]
+        
+        no_be_avg = sum([s.get('mfe', 0) for s in no_be]) / len(no_be) if no_be else 0
+        be_avg = sum([s.get('mfe', 0) for s in with_be]) / len(with_be) if with_be else 0
+        
+        return f"""BREAKEVEN FOCUS:
+        No BE: {len(no_be)} signals, {no_be_avg:.2f}R average
+        With BE: {len(with_be)} signals, {be_avg:.2f}R average
+        BE Impact: {be_avg - no_be_avg:.2f}R difference"""
+    
+    return "General signal analysis context"
 
 # Market Analysis Helper Functions
 def build_user_trading_context(trades):

@@ -1,0 +1,23 @@
+// Step 4: Create Bearish IFVG boxes using stored FVG data..
+if enable_bearish_ifvg and bearishIfvgDetected and lastBearishSweepBar >= 0 and bar_index > lastBearishSweepBar and bearishIFVGCount < 1
+    bearishIFVGCount += 1
+    
+    entryPrice = ifvgTop     // Entry from top like bearish FVG
+    stopLoss = ifvgBottom    // Stop at bottom like bearish FVG
+    
+    // Use current bar index instead of historical ifvgBarIndex to avoid "too far" error
+    fvgBox = box.new(bar_index-2, ifvgBottom, bar_index, ifvgTop, 
+                     bgcolor=color.new(bearish_ifvg_color, bearish_ifvg_opacity), 
+                     border_color=bearish_ifvg_border_color, 
+                     border_width=bearish_ifvg_border_width, 
+                     extend=extend.right,
+                     text=show_bearish_ifvg_labels ? "IFVG #" + str.tostring(bearishIFVGCount) : "",
+                     text_color=color.white)
+    
+    array.push(activeFVGBoxes, fvgBox)
+    array.push(fvgEntryPrices, entryPrice)
+    array.push(fvgStopLosses, stopLoss)
+    array.push(fvgIsBearish, true)
+    array.push(fvgStartBars, -1)
+    array.push(fvgOriginalText, show_bearish_ifvg_labels ? "IFVG #" + str.tostring(bearishIFVGCount) : "")
+    array.push(fvgMaxFavorable, 0.0)

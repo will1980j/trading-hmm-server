@@ -36,55 +36,85 @@ var bull_ifvg_highs = array.new<float>()
 var bull_ifvg_lows = array.new<float>()
 var bear_ifvg_highs = array.new<float>()
 var bear_ifvg_lows = array.new<float>()
+var float allTimeHigh = na
+var float allTimeLow = na
+var bool waitingForFirstBullishFVG = false
+var float firstBullishFVGTop = 0.0
+var float firstBullishFVGBottom = 0.0
+var float firstBullishFVGMiddleHigh = 0.0
+var bool firstBullishFVGFound = false
+var int firstBullishFVGBar = 0
 
 if barstate.isconfirmed
-    c2_high = high[2]
-    c2_low = low[2]
-    c0_high = high
-    c0_low = low
+    // Update ATH/ATL
+    if na(allTimeHigh) or high > allTimeHigh
+        allTimeHigh := high
+    if na(allTimeLow) or low < allTimeLow
+        allTimeLow := low
     
-    bullish_fvg = c2_high < c0_low
-    bearish_fvg = c2_low > c0_high
-    
-    if bullish_fvg
-        array.push(bull_fvg_highs, c0_low)
-        array.push(bull_fvg_lows, c2_high)
+    // ATH/ATL bias override
+    if close > allTimeHigh[1]
+        bias := "Bullish"
+        // Reset bearish IFVG tracking
+        waitingForFirstBullishFVG := false
+        firstBullishFVGFound := false
+    else if close < allTimeLow[1]
+        bias := "Bearish"
+    else
+        // Regular FVG bias logic
+        c2_high = high[2]
+        c2_low = low[2]
+        c0_high = high
+        c0_low = low
         
-    if bearish_fvg
-        array.push(bear_fvg_highs, c2_low)
-        array.push(bear_fvg_lows, c0_high)
-    
-    if array.size(bull_fvg_highs) > 0
-        for i = array.size(bull_fvg_highs) - 1 to 0
-            if close < array.get(bull_fvg_lows, i)
-                array.push(bear_ifvg_highs, array.get(bull_fvg_highs, i))
-                array.push(bear_ifvg_lows, array.get(bull_fvg_lows, i))
-                array.remove(bull_fvg_highs, i)
-                array.remove(bull_fvg_lows, i)
-                bias := "Bearish"
-                
-    if array.size(bear_fvg_highs) > 0
-        for i = array.size(bear_fvg_highs) - 1 to 0
-            if close > array.get(bear_fvg_highs, i)
-                array.push(bull_ifvg_highs, array.get(bear_fvg_highs, i))
-                array.push(bull_ifvg_lows, array.get(bear_fvg_lows, i))
-                array.remove(bear_fvg_highs, i)
-                array.remove(bear_fvg_lows, i)
-                bias := "Bullish"
-                
-    if array.size(bear_ifvg_highs) > 0
-        for i = array.size(bear_ifvg_highs) - 1 to 0
-            if close > array.get(bear_ifvg_highs, i)
-                array.remove(bear_ifvg_highs, i)
-                array.remove(bear_ifvg_lows, i)
-                bias := "Bullish"
-                
-    if array.size(bull_ifvg_highs) > 0
-        for i = array.size(bull_ifvg_highs) - 1 to 0
-            if close < array.get(bull_ifvg_lows, i)
-                array.remove(bull_ifvg_highs, i)
-                array.remove(bull_ifvg_lows, i)
-                bias := "Bearish"
+        bullish_fvg = c2_high < c0_low
+        bearish_fvg = c2_low > c0_high
+        
+        if bullish_fvg
+            array.push(bull_fvg_highs, c0_low)
+            array.push(bull_fvg_lows, c2_high)
+            
+        if bearish_fvg
+            array.push(bear_fvg_highs, c2_low)
+            array.push(bear_fvg_lows, c0_high)
+        
+        if array.size(bull_fvg_highs) > 0
+            for i = array.size(bull_fvg_highs) - 1 to 0
+                if close < array.get(bull_fvg_lows, i)
+                    array.push(bear_ifvg_highs, array.get(bull_fvg_highs, i))
+                    array.push(bear_ifvg_lows, array.get(bull_fvg_lows, i))
+                    array.remove(bull_fvg_highs, i)
+                    array.remove(bull_fvg_lows, i)
+                    bias := "Bearish"
+                    
+        if array.size(bear_fvg_highs) > 0
+            for i = array.size(bear_fvg_highs) - 1 to 0
+                if close > array.get(bear_fvg_highs, i)
+                    array.push(bull_ifvg_highs, array.get(bear_fvg_highs, i))
+                    array.push(bull_ifvg_lows, array.get(bear_fvg_lows, i))
+                    array.remove(bear_fvg_highs, i)
+                    array.remove(bear_fvg_lows, i)
+                    bias := "Bullish"
+                    // Reset bearish IFVG tracking
+                    waitingForFirstBullishFVG := false
+                    firstBullishFVGFound := false
+                    
+        if array.size(bear_ifvg_highs) > 0
+            for i = array.size(bear_ifvg_highs) - 1 to 0
+                if close > array.get(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_lows, i)
+                    bias := "Bullish"
+                    // Reset bearish IFVG tracking
+                    waitingForFirstBullishFVG := false
+                    firstBullishFVGFound := false
+                    
+        if array.size(bull_ifvg_highs) > 0
+            for i = array.size(bull_ifvg_highs) - 1 to 0
+                if close < array.get(bull_ifvg_lows, i)
+                    array.remove(bull_ifvg_highs, i)
+                    array.remove(bull_ifvg_lows, i)
+                    bias := "Bearish"
 
 h1_bias = request.security(syminfo.tickerid, htf_bias_timeframe, bias)
 
@@ -132,7 +162,10 @@ if barstate.isconfirmed
                 if h1_bias == "Bearish"
                     lastBearishSweepBar := bar_index
                     bearishFVGCount := 0
-                    bearishIFVGCount := 0  // Reset IFVG count too
+                    // Only reset IFVG process if no FVG is currently being tracked
+                    if not firstBullishFVGFound
+                        bearishIFVGCount := 0
+                        waitingForFirstBullishFVG := true
                     sweepDetected := true
                     sweptPivotLevel := pivotLevel
                 
@@ -191,73 +224,54 @@ if barstate.isconfirmed
             array.shift(lowPivots)
             array.shift(lowPivotTimes)
 
-// === STRATEGY LOGIC ===
-// SSV7 Style Strategy:
-// 1. HTF Bias Determination: Use higher timeframe FVG invalidation to determine bias
-//    - Bullish FVG invalidated (price closes below) = Bearish bias
-//    - Bearish FVG invalidated (price closes above) = Bullish bias
-// 2. Pivot Detection: 3-bar pivot highs/lows
-//    - During bearish bias: Only show high pivots (resistance)
-//    - During bullish bias: Only show low pivots (support)
-// 3. Sweep Detection: Price breaks above/below pivot levels
-//    - Bearish bias: Wait for high pivot sweep (liquidity grab)
-//    - Bullish bias: Wait for low pivot sweep (liquidity grab)
-// 4. FVG Signals: After sweep, look for signals in bias direction
-//    - FVGs: First 2 FVGs (Bearish FVG: high < low[2], Bullish FVG: low > high[2])
-//    - IFVGs: First 1 IFVG only (Bearish IFVG: Invalidated bullish FVG, Bullish IFVG: Invalidated bearish FVG)
-// 5. Entry Rules:
-//    - Bearish signals: Enter when price touches FVG from bottom
-//    - Bullish signals: Enter when price touches FVG from top
-// 6. Exit Rules: When price runs completely through FVG box
-// 7. Performance: Track MFE (Maximum Favorable Excursion) in R multiples
-
 // === FVG DETECTION ===
 
-// Step 1: Sweep detection is handled in pivot management above
 // Initialize sweep variables
 if not barstate.isconfirmed
     sweepDetected := false
     sweptPivotLevel := 0.0
 
-// Step 2: Detect FVGs and IFVGs
+// Detect FVGs and IFVGs
 isBearishFVG = high < low[2] and not na(low[2])
 isBullishFVG = low > high[2] and not na(high[2])
 bearishFvgDetected = isBearishFVG
 bullishFvgDetected = isBullishFVG
 
-// Bearish IFVG: Use same logic as bias indicator
-var array<float> pending_bull_fvg_highs = array.new<float>()
-var array<float> pending_bull_fvg_lows = array.new<float>()
+// Sequential bearish IFVG process
+var array<float> ifvgTerminationLevels = array.new<float>()
 bearishIfvgDetected = false
 var float ifvgTop = 0.0
 var float ifvgBottom = 0.0
+var float ifvgTerminationLevel = 0.0
+var int ifvgStartBar = 0
 
-// Track bullish FVGs and detect when they get invalidated
-if barstate.isconfirmed
-    // Store new bullish FVGs
-    if isBullishFVG
-        array.push(pending_bull_fvg_highs, low)
-        array.push(pending_bull_fvg_lows, high[2])
+// Sequential IFVG logic
+if barstate.isconfirmed and h1_bias == "Bearish"
+    // Capture bullish FVGs after red pivot sweep (keep updating until one gets invalidated)
+    if isBullishFVG and (waitingForFirstBullishFVG or not firstBullishFVGFound)
+        firstBullishFVGTop := low
+        firstBullishFVGBottom := high[2]
+        firstBullishFVGMiddleHigh := high[1]
+        firstBullishFVGFound := true
+        firstBullishFVGBar := bar_index - 2
+        waitingForFirstBullishFVG := false
 
-    
-    // Check for invalidation (bearish IFVG creation)
-    if array.size(pending_bull_fvg_highs) > 0 and h1_bias == "Bearish"
-        for i = array.size(pending_bull_fvg_highs) - 1 to 0
-            if close < array.get(pending_bull_fvg_lows, i)
-                bearishIfvgDetected := true
-                ifvgTop := array.get(pending_bull_fvg_highs, i)
-                ifvgBottom := array.get(pending_bull_fvg_lows, i)
-                array.remove(pending_bull_fvg_highs, i)
-                array.remove(pending_bull_fvg_lows, i)
-                break
+// Check if first FVG gets invalidated (check every bar)
+if h1_bias == "Bearish" and firstBullishFVGFound and close < firstBullishFVGBottom
+    bearishIfvgDetected := true
+    ifvgTop := firstBullishFVGTop
+    ifvgBottom := firstBullishFVGBottom
+    ifvgTerminationLevel := firstBullishFVGMiddleHigh
+    ifvgStartBar := firstBullishFVGBar  // Use stored FVG bar location
+    // Reset process after IFVG creation
+    firstBullishFVGFound := false
+    waitingForFirstBullishFVG := true
+
+
 
 // Entry signals when price first touches FVG boxes
 bearishSignalGenerated = false
 bullishSignalGenerated = false
-
-
-
-
 
 // Update MFE for active trades (continuous tracking like reference code)
 if array.size(activeFVGBoxes) > 0
@@ -287,9 +301,11 @@ if array.size(activeFVGBoxes) > 0
         boxBottom = box.get_bottom(fvgBox)
         startBar = array.get(fvgStartBars, i)
         isBearish = array.get(fvgIsBearish, i)
+        originalText = array.get(fvgOriginalText, i)
+        isIFVG = str.contains(originalText, "IFVG")
         
-        // First touch detection
-        if startBar == -1 and (low <= boxTop and high >= boxBottom)
+        // First touch detection (skip for IFVG)
+        if startBar == -1 and not isIFVG and (low <= boxTop and high >= boxBottom)
             array.set(fvgStartBars, i, bar_index)
             array.set(fvgEntryPrices, i, isBearish ? boxBottom : boxTop)
             if isBearish
@@ -297,12 +313,15 @@ if array.size(activeFVGBoxes) > 0
             else
                 bullishSignalGenerated := true
         
-        // Termination: price pierces through opposite side of box after entry
-        else if startBar != -1
+        // Termination: price pierces through opposite side of box after entry (or always for IFVG)
+        if startBar != -1 or isIFVG
             terminate = false
-            if isBearish and close > boxTop  // Bearish: terminate when close is above box top
+            
+            if isBearish and not isIFVG and high > boxTop  // Regular bearish FVG
                 terminate := true
-            else if not isBearish and close < boxBottom  // Bullish: terminate when close is below box bottom
+            else if isBearish and isIFVG and high > boxTop  // Bearish IFVG: terminate when price wicks above box top
+                terminate := true
+            else if not isBearish and low < boxBottom  // Bullish: terminate when low wicks below box bottom
                 terminate := true
             
             if terminate
@@ -321,8 +340,10 @@ if array.size(activeFVGBoxes) > 0
                 array.remove(fvgStartBars, i)
                 array.remove(fvgOriginalText, i)
                 array.remove(fvgMaxFavorable, i)
+                if isIFVG
+                    array.remove(ifvgTerminationLevels, i)
 
-// Step 3: Create FVG boxes when detected
+// Create FVG boxes when detected
 if enable_bearish_fvg and bearishFvgDetected and h1_bias == "Bearish" and lastBearishSweepBar >= 0 and bar_index > lastBearishSweepBar and bearishFVGCount < 2
     bearishFVGCount += 1
     
@@ -334,7 +355,7 @@ if enable_bearish_fvg and bearishFvgDetected and h1_bias == "Bearish" and lastBe
                      border_color=bearish_border_color, 
                      border_width=bearish_border_width, 
                      extend=extend.right,
-                     text=show_bearish_fvg_labels ? "FVG #" + str.tostring(bearishFVGCount) : "",
+                     text=show_bearish_fvg_labels ? "FVG #" + str.tostring(bearishFVGCount) + "\nEntry: " + str.tostring(entryPrice, "#.##") + "\nSL: " + str.tostring(stopLoss, "#.##") : "",
                      text_color=color.white)
     array.push(activeFVGBoxes, fvgBox)
     array.push(fvgEntryPrices, entryPrice)
@@ -343,10 +364,7 @@ if enable_bearish_fvg and bearishFvgDetected and h1_bias == "Bearish" and lastBe
     array.push(fvgStartBars, -1)
     array.push(fvgOriginalText, show_bearish_fvg_labels ? "FVG #" + str.tostring(bearishFVGCount) : "")
     array.push(fvgMaxFavorable, 0.0)
-    
-
-    
-
+    array.push(ifvgTerminationLevels, 0.0)  // Placeholder for regular FVGs
 
 if enable_bullish_fvg and bullishFvgDetected and h1_bias == "Bullish" and lastBullishSweepBar >= 0 and bar_index > lastBullishSweepBar and bullishFVGCount < 2
     bullishFVGCount += 1
@@ -359,7 +377,7 @@ if enable_bullish_fvg and bullishFvgDetected and h1_bias == "Bullish" and lastBu
                      border_color=bullish_border_color, 
                      border_width=bullish_border_width, 
                      extend=extend.right,
-                     text=show_bullish_fvg_labels ? "FVG #" + str.tostring(bullishFVGCount) : "",
+                     text=show_bullish_fvg_labels ? "FVG #" + str.tostring(bullishFVGCount) + "\nEntry: " + str.tostring(entryPrice, "#.##") + "\nSL: " + str.tostring(stopLoss, "#.##") : "",
                      text_color=color.white)
     array.push(activeFVGBoxes, fvgBox)
     array.push(fvgEntryPrices, entryPrice)
@@ -368,15 +386,15 @@ if enable_bullish_fvg and bullishFvgDetected and h1_bias == "Bullish" and lastBu
     array.push(fvgStartBars, -1)
     array.push(fvgOriginalText, show_bullish_fvg_labels ? "FVG #" + str.tostring(bullishFVGCount) : "")
     array.push(fvgMaxFavorable, 0.0)
+    array.push(ifvgTerminationLevels, 0.0)  // Placeholder for regular FVGs
 
-// Step 4: Create Bearish IFVG boxes using stored FVG data
-if enable_bearish_ifvg and bearishIfvgDetected and lastBearishSweepBar >= 0 and bar_index > lastBearishSweepBar and bearishIFVGCount < 1
-    bearishIFVGCount += 1
+// Create Bearish IFVG boxes
+if enable_bearish_ifvg and bearishIfvgDetected and lastBearishSweepBar >= 0 and bar_index > lastBearishSweepBar
     
-    entryPrice = ifvgTop     // Entry from top like bearish FVG
-    stopLoss = ifvgBottom    // Stop at bottom like bearish FVG
+    entryPrice = ifvgTop
+    stopLoss = ifvgBottom
     
-    fvgBox = box.new(bar_index-2, ifvgBottom, bar_index, ifvgTop, 
+    fvgBox = box.new(ifvgStartBar, ifvgBottom, bar_index, ifvgTerminationLevel, 
                      bgcolor=color.new(bearish_ifvg_color, bearish_ifvg_opacity), 
                      border_color=bearish_ifvg_border_color, 
                      border_width=bearish_ifvg_border_width, 
@@ -391,7 +409,9 @@ if enable_bearish_ifvg and bearishIfvgDetected and lastBearishSweepBar >= 0 and 
     array.push(fvgStartBars, -1)
     array.push(fvgOriginalText, show_bearish_ifvg_labels ? "IFVG #" + str.tostring(bearishIFVGCount) : "")
     array.push(fvgMaxFavorable, 0.0)
+    array.push(ifvgTerminationLevels, ifvgTerminationLevel)  // Store middle candle high
 
-plotshape(bearishSignalGenerated, "BEARISH FVG", shape.triangledown, location.abovebar, color=color.red, size=size.tiny)
-plotshape(bullishSignalGenerated, "BULLISH FVG", shape.triangleup, location.belowbar, color=color.green, size=size.tiny)
+
+
+
 
