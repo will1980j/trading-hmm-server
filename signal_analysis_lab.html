@@ -96,34 +96,57 @@
         }
         
         .input-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
+            display: flex;
+            gap: 8px;
+            margin: 15px 0;
+            align-items: end;
+            flex-wrap: nowrap;
         }
         
         .input-group {
             display: flex;
             flex-direction: column;
+            min-width: 0;
         }
         
         .input-group label {
-            font-size: 12px;
+            font-size: 10px;
             opacity: 0.8;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
             font-weight: 500;
+            white-space: nowrap;
         }
         
         select, input {
-            padding: 10px 12px;
+            padding: 4px 6px;
             border: none;
-            border-radius: 8px;
-            background: rgba(255,255,255,0.9) !important;
-            color: #333;
-            font-size: 14px;
+            border-radius: 4px;
+            background: white !important;
+            color: black !important;
+            font-size: 11px;
             width: 100%;
             box-sizing: border-box;
             font-family: inherit;
+            height: 28px;
+        }
+        
+        .input-group.date { flex: 0 0 90px; }
+        .input-group.time { flex: 0 0 70px; }
+        .input-group.bias { flex: 0 0 70px; }
+        .input-group.session { flex: 0 0 80px; }
+        .input-group.signal-type { flex: 0 0 80px; }
+        .input-group.price { flex: 0 0 75px; }
+        .input-group.breakeven { flex: 0 0 60px; }
+        .input-group.mfe { flex: 0 0 55px; }
+        .input-group.size { flex: 0 0 50px; }
+        .input-group.commission { flex: 0 0 60px; }
+        
+        .add-signal-btn {
+            flex: 0 0 auto;
+            margin-left: 10px;
+            height: 28px;
+            padding: 0 12px;
+            font-size: 11px;
         }
         
         .btn {
@@ -256,61 +279,61 @@
         <div class="data-input">
             <h3>Add Signal Data</h3>
             <div class="input-grid">
-                <div class="input-group">
+                <div class="input-group date">
                     <label>Date</label>
                     <input type="date" id="signalDate">
                 </div>
-                <div class="input-group">
-                    <label>Entry Time (NY EST)</label>
+                <div class="input-group time">
+                    <label>Time</label>
                     <input type="time" id="entryTime">
                 </div>
-                <div class="input-group">
+                <div class="input-group bias">
                     <label>Bias</label>
                     <select id="bias">
-                        <option value="Bullish">Bullish</option>
-                        <option value="Bearish">Bearish</option>
+                        <option value="Bullish">Bull</option>
+                        <option value="Bearish">Bear</option>
                     </select>
                 </div>
-                <div class="input-group">
+                <div class="input-group session">
                     <label>Session</label>
                     <select id="session">
                         <option value="Asia">Asia</option>
                         <option value="London">London</option>
-                        <option value="NY Pre Market">NY Pre Market</option>
+                        <option value="NY Pre Market">NY Pre</option>
                         <option value="NY AM">NY AM</option>
-                        <option value="NY Lunch">NY Lunch</option>
+                        <option value="NY Lunch">Lunch</option>
                         <option value="NY PM">NY PM</option>
                     </select>
                 </div>
-                <div class="input-group">
-                    <label>Signal Type</label>
+                <div class="input-group signal-type">
+                    <label>Signal</label>
                     <select id="signalType">
-                        <option value="Bullish FVG">Bullish FVG</option>
-                        <option value="Bearish FVG">Bearish FVG</option>
-                        <option value="Bullish IFVG">Bullish IFVG</option>
-                        <option value="Bearish IFVG">Bearish IFVG</option>
+                        <option value="Bullish FVG">Bull FVG</option>
+                        <option value="Bearish FVG">Bear FVG</option>
+                        <option value="Bullish IFVG">Bull IFVG</option>
+                        <option value="Bearish IFVG">Bear IFVG</option>
                     </select>
                 </div>
-                <div class="input-group">
-                    <label>Open Price</label>
-                    <input type="number" id="openPrice" step="0.01" placeholder="23850.00">
+                <div class="input-group price">
+                    <label>Open</label>
+                    <input type="number" id="openPrice" step="0.01" placeholder="23850">
                 </div>
-                <div class="input-group">
-                    <label>Entry Price</label>
-                    <input type="number" id="entryPrice" step="0.01" placeholder="23850.00" oninput="calculateTP()">
+                <div class="input-group price">
+                    <label>Entry</label>
+                    <input type="number" id="entryPrice" step="0.01" placeholder="23850" oninput="calculateTP()">
                 </div>
-                <div class="input-group">
-                    <label>Stop Loss</label>
-                    <input type="number" id="stopLoss" step="0.01" placeholder="23840.00" oninput="calculateTP()">
+                <div class="input-group price">
+                    <label>Stop</label>
+                    <input type="number" id="stopLoss" step="0.01" placeholder="23840" oninput="calculateTP()">
                 </div>
-                <div class="input-group">
-                    <label>Take Profit</label>
-                    <input type="number" id="takeProfit" step="0.01" readonly style="background: rgba(255,255,255,0.7) !important;">
+                <div class="input-group price">
+                    <label>TP</label>
+                    <input type="number" id="takeProfit" step="0.01" readonly style="background: #f0f0f0 !important; color: #666 !important;">
                 </div>
-                <div class="input-group">
-                    <label>Breakeven (R)</label>
+                <div class="input-group breakeven">
+                    <label>BE</label>
                     <select id="breakeven">
-                        <option value="0">No BE</option>
+                        <option value="0">0R</option>
                         <option value="0.5">0.5R</option>
                         <option value="1">1R</option>
                         <option value="1.5">1.5R</option>
@@ -326,22 +349,22 @@
                         <option value="10">10R</option>
                     </select>
                 </div>
-                <div class="input-group">
-                    <label>MFE (R Score)</label>
+                <div class="input-group mfe">
+                    <label>MFE</label>
                     <input type="number" id="mfe" step="0.1" placeholder="2.5">
                 </div>
-                <div class="input-group">
-                    <label>Position Size</label>
+                <div class="input-group size">
+                    <label>Size</label>
                     <input type="number" id="positionSize" step="1" placeholder="1" value="1">
                 </div>
-                <div class="input-group">
-                    <label>Commission</label>
+                <div class="input-group commission">
+                    <label>Comm</label>
                     <input type="number" id="commission" step="0.01" placeholder="4.50" value="4.50">
                 </div>
+                <button class="btn add-signal-btn" onclick="addSignal()">Add</button>
             </div>
             
-            <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="btn" onclick="addSignal()">Add Signal</button>
+            <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="btn" onclick="clearInputs()" style="background: #6c757d;">Clear</button>
                 <button class="btn" onclick="exportData()">Export CSV</button>
                 <input type="file" id="csvFile" accept=".csv" style="display: none;" onchange="importCSV(event)">
