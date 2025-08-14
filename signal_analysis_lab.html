@@ -141,6 +141,8 @@
         .input-group.size { flex: 0 0 50px; }
         .input-group.commission { flex: 0 0 60px; }
         .input-group.be-achieved { flex: 0 0 40px; }
+        .input-group.news-prox { flex: 0 0 60px; }
+        .input-group.news-event { flex: 0 0 100px; }
         .input-group.screenshot { flex: 0 0 70px; }
         
         .add-signal-btn {
@@ -395,6 +397,67 @@
                     <label>Comm</label>
                     <input type="number" id="commission" step="0.01" placeholder="4.50" value="4.50">
                 </div>
+                <div class="input-group news-prox">
+                    <label>News</label>
+                    <select id="newsProximity">
+                        <option value="None">None</option>
+                        <option value="Low">Low</option>
+                        <option value="Medium">Med</option>
+                        <option value="High">High</option>
+                    </select>
+                </div>
+                <div class="input-group news-event">
+                    <label>Event</label>
+                    <select id="newsEvent">
+                        <option value="None">None</option>
+                        <option value="NFP">NFP</option>
+                        <option value="CPI">CPI</option>
+                        <option value="PPI">PPI</option>
+                        <option value="FOMC">FOMC</option>
+                        <option value="GDP">GDP</option>
+                        <option value="Retail Sales">Retail Sales</option>
+                        <option value="Unemployment">Unemployment</option>
+                        <option value="ISM PMI">ISM PMI</option>
+                        <option value="Consumer Confidence">Consumer Conf</option>
+                        <option value="Durable Goods">Durable Goods</option>
+                        <option value="Housing Data">Housing Data</option>
+                        <option value="Initial Claims">Initial Claims</option>
+                        <option value="Fed Speech">Fed Speech</option>
+                        <option value="PCE">PCE</option>
+                        <option value="Trade Balance">Trade Balance</option>
+                        <option value="Factory Orders">Factory Orders</option>
+                        <option value="Business Inventories">Biz Inventories</option>
+                        <option value="Construction Spending">Construction</option>
+                        <option value="ADP Employment">ADP Employment</option>
+                        <option value="Chicago PMI">Chicago PMI</option>
+                        <option value="Pending Home Sales">Pending Homes</option>
+                        <option value="New Home Sales">New Home Sales</option>
+                        <option value="Core CPI">Core CPI</option>
+                        <option value="Core PPI">Core PPI</option>
+                        <option value="JOLTs">JOLTs</option>
+                        <option value="Michigan Consumer">Michigan Cons</option>
+                        <option value="Personal Income">Personal Income</option>
+                        <option value="Personal Spending">Personal Spend</option>
+                        <option value="Import Price Index">Import Prices</option>
+                        <option value="Export Price Index">Export Prices</option>
+                        <option value="Productivity">Productivity</option>
+                        <option value="Unit Labor Costs">Unit Labor</option>
+                        <option value="EIA Crude">EIA Crude</option>
+                        <option value="API Crude">API Crude</option>
+                        <option value="Beige Book">Beige Book</option>
+                        <option value="FOMC Minutes">FOMC Minutes</option>
+                        <option value="Jackson Hole">Jackson Hole</option>
+                        <option value="Bank Earnings">Bank Earnings</option>
+                        <option value="Tech Earnings">Tech Earnings</option>
+                        <option value="Other Earnings">Other Earnings</option>
+                        <option value="Geopolitical">Geopolitical</option>
+                        <option value="Market Holiday">Market Holiday</option>
+                        <option value="Quad Witching">Quad Witching</option>
+                        <option value="Month End">Month End</option>
+                        <option value="Quarter End">Quarter End</option>
+                        <option value="Year End">Year End</option>
+                    </select>
+                </div>
                 <div class="input-group screenshot">
                     <label>Screenshot</label>
                     <input type="file" id="screenshot" accept="image/*" style="display: none;" onchange="handleScreenshot(event)">
@@ -434,6 +497,8 @@
                             <th>MFE</th>
                             <th>Size</th>
                             <th>Comm</th>
+                            <th>News</th>
+                            <th>Event</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -476,6 +541,8 @@
                 mfe: parseFloat(document.getElementById('mfe').value) || 0,
                 positionSize: parseInt(document.getElementById('positionSize').value) || 1,
                 commission: parseFloat(document.getElementById('commission').value) || 0,
+                newsProximity: document.getElementById('newsProximity').value,
+                newsEvent: document.getElementById('newsEvent').value,
                 screenshot: window.currentScreenshot || null
             };
             
@@ -500,6 +567,8 @@
             document.getElementById('mfe').value = '';
             document.getElementById('positionSize').value = '1';
             document.getElementById('commission').value = '4.50';
+            document.getElementById('newsProximity').value = 'None';
+            document.getElementById('newsEvent').value = 'None';
             document.getElementById('screenshot').value = '';
             window.currentScreenshot = null;
         }
@@ -594,6 +663,8 @@
                     <td class="${signal.mfe > 0 ? 'positive' : signal.mfe < 0 ? 'negative' : 'neutral'}">${signal.mfe.toFixed(1)}R</td>
                     <td>${signal.positionSize}</td>
                     <td>$${signal.commission.toFixed(2)}</td>
+                    <td>${signal.newsProximity}</td>
+                    <td>${signal.newsEvent}</td>
                     <td>
                         <button onclick="deleteSignal(${signal.id})" style="background: #ff4757; border: none; padding: 4px 8px; border-radius: 4px; color: white; cursor: pointer; font-size: 10px;">Del</button>
                     </td>
