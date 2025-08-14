@@ -143,7 +143,63 @@
         .input-group.commission { flex: 1 1 60px; }
         .input-group.be-achieved { flex: 1 1 40px; }
         .input-group.news-prox { flex: 1 1 60px; }
-        .input-group.news-event { flex: 1 1 100px; }
+        .input-group.news-event { flex: 1 1 100px; position: relative; }
+        
+        .multi-select {
+            position: relative;
+        }
+        
+        .multi-select-display {
+            padding: 4px 6px;
+            border: none;
+            border-radius: 4px;
+            background: white !important;
+            color: black !important;
+            font-size: 11px;
+            width: 100%;
+            box-sizing: border-box;
+            font-family: inherit;
+            height: 28px;
+            cursor: pointer;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        
+        .multi-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .multi-select-option {
+            padding: 6px 8px;
+            font-size: 11px;
+            color: black;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .multi-select-option:hover {
+            background: #f0f0f0;
+        }
+        
+        .multi-select-option input[type="checkbox"] {
+            width: 12px;
+            height: 12px;
+            margin: 0;
+        }
         .input-group.screenshot { flex: 1 1 70px; }
         
         .add-signal-btn {
@@ -429,55 +485,58 @@
                 </div>
                 <div class="input-group news-event">
                     <label>Event</label>
-                    <select id="newsEvent" multiple>
-                        <option value="None">None</option>
-                        <option value="NFP">NFP</option>
-                        <option value="CPI">CPI</option>
-                        <option value="PPI">PPI</option>
-                        <option value="FOMC">FOMC</option>
-                        <option value="GDP">GDP</option>
-                        <option value="Retail Sales">Retail Sales</option>
-                        <option value="Unemployment">Unemployment</option>
-                        <option value="ISM PMI">ISM PMI</option>
-                        <option value="Consumer Confidence">Consumer Conf</option>
-                        <option value="Durable Goods">Durable Goods</option>
-                        <option value="Housing Data">Housing Data</option>
-                        <option value="Initial Claims">Initial Claims</option>
-                        <option value="Fed Speech">Fed Speech</option>
-                        <option value="PCE">PCE</option>
-                        <option value="Trade Balance">Trade Balance</option>
-                        <option value="Factory Orders">Factory Orders</option>
-                        <option value="Business Inventories">Biz Inventories</option>
-                        <option value="Construction Spending">Construction</option>
-                        <option value="ADP Employment">ADP Employment</option>
-                        <option value="Chicago PMI">Chicago PMI</option>
-                        <option value="Pending Home Sales">Pending Homes</option>
-                        <option value="New Home Sales">New Home Sales</option>
-                        <option value="Core CPI">Core CPI</option>
-                        <option value="Core PPI">Core PPI</option>
-                        <option value="JOLTs">JOLTs</option>
-                        <option value="Michigan Consumer">Michigan Cons</option>
-                        <option value="Personal Income">Personal Income</option>
-                        <option value="Personal Spending">Personal Spend</option>
-                        <option value="Import Price Index">Import Prices</option>
-                        <option value="Export Price Index">Export Prices</option>
-                        <option value="Productivity">Productivity</option>
-                        <option value="Unit Labor Costs">Unit Labor</option>
-                        <option value="EIA Crude">EIA Crude</option>
-                        <option value="API Crude">API Crude</option>
-                        <option value="Beige Book">Beige Book</option>
-                        <option value="FOMC Minutes">FOMC Minutes</option>
-                        <option value="Jackson Hole">Jackson Hole</option>
-                        <option value="Bank Earnings">Bank Earnings</option>
-                        <option value="Tech Earnings">Tech Earnings</option>
-                        <option value="Other Earnings">Other Earnings</option>
-                        <option value="Geopolitical">Geopolitical</option>
-                        <option value="Market Holiday">Market Holiday</option>
-                        <option value="Quad Witching">Quad Witching</option>
-                        <option value="Month End">Month End</option>
-                        <option value="Quarter End">Quarter End</option>
-                        <option value="Year End">Year End</option>
-                    </select>
+                    <div class="multi-select">
+                        <div class="multi-select-display" id="newsEventDisplay" onclick="toggleNewsDropdown()">None</div>
+                        <div class="multi-select-dropdown" id="newsEventDropdown">
+                            <div class="multi-select-option"><input type="checkbox" value="None" onchange="updateNewsSelection()"> None</div>
+                            <div class="multi-select-option"><input type="checkbox" value="NFP" onchange="updateNewsSelection()"> NFP</div>
+                            <div class="multi-select-option"><input type="checkbox" value="CPI" onchange="updateNewsSelection()"> CPI</div>
+                            <div class="multi-select-option"><input type="checkbox" value="PPI" onchange="updateNewsSelection()"> PPI</div>
+                            <div class="multi-select-option"><input type="checkbox" value="FOMC" onchange="updateNewsSelection()"> FOMC</div>
+                            <div class="multi-select-option"><input type="checkbox" value="GDP" onchange="updateNewsSelection()"> GDP</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Retail Sales" onchange="updateNewsSelection()"> Retail Sales</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Unemployment" onchange="updateNewsSelection()"> Unemployment</div>
+                            <div class="multi-select-option"><input type="checkbox" value="ISM PMI" onchange="updateNewsSelection()"> ISM PMI</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Consumer Confidence" onchange="updateNewsSelection()"> Consumer Conf</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Durable Goods" onchange="updateNewsSelection()"> Durable Goods</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Housing Data" onchange="updateNewsSelection()"> Housing Data</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Initial Claims" onchange="updateNewsSelection()"> Initial Claims</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Fed Speech" onchange="updateNewsSelection()"> Fed Speech</div>
+                            <div class="multi-select-option"><input type="checkbox" value="PCE" onchange="updateNewsSelection()"> PCE</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Trade Balance" onchange="updateNewsSelection()"> Trade Balance</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Factory Orders" onchange="updateNewsSelection()"> Factory Orders</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Business Inventories" onchange="updateNewsSelection()"> Biz Inventories</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Construction Spending" onchange="updateNewsSelection()"> Construction</div>
+                            <div class="multi-select-option"><input type="checkbox" value="ADP Employment" onchange="updateNewsSelection()"> ADP Employment</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Chicago PMI" onchange="updateNewsSelection()"> Chicago PMI</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Pending Home Sales" onchange="updateNewsSelection()"> Pending Homes</div>
+                            <div class="multi-select-option"><input type="checkbox" value="New Home Sales" onchange="updateNewsSelection()"> New Home Sales</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Core CPI" onchange="updateNewsSelection()"> Core CPI</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Core PPI" onchange="updateNewsSelection()"> Core PPI</div>
+                            <div class="multi-select-option"><input type="checkbox" value="JOLTs" onchange="updateNewsSelection()"> JOLTs</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Michigan Consumer" onchange="updateNewsSelection()"> Michigan Cons</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Personal Income" onchange="updateNewsSelection()"> Personal Income</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Personal Spending" onchange="updateNewsSelection()"> Personal Spend</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Import Price Index" onchange="updateNewsSelection()"> Import Prices</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Export Price Index" onchange="updateNewsSelection()"> Export Prices</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Productivity" onchange="updateNewsSelection()"> Productivity</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Unit Labor Costs" onchange="updateNewsSelection()"> Unit Labor</div>
+                            <div class="multi-select-option"><input type="checkbox" value="EIA Crude" onchange="updateNewsSelection()"> EIA Crude</div>
+                            <div class="multi-select-option"><input type="checkbox" value="API Crude" onchange="updateNewsSelection()"> API Crude</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Beige Book" onchange="updateNewsSelection()"> Beige Book</div>
+                            <div class="multi-select-option"><input type="checkbox" value="FOMC Minutes" onchange="updateNewsSelection()"> FOMC Minutes</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Jackson Hole" onchange="updateNewsSelection()"> Jackson Hole</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Bank Earnings" onchange="updateNewsSelection()"> Bank Earnings</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Tech Earnings" onchange="updateNewsSelection()"> Tech Earnings</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Other Earnings" onchange="updateNewsSelection()"> Other Earnings</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Geopolitical" onchange="updateNewsSelection()"> Geopolitical</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Market Holiday" onchange="updateNewsSelection()"> Market Holiday</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Quad Witching" onchange="updateNewsSelection()"> Quad Witching</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Month End" onchange="updateNewsSelection()"> Month End</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Quarter End" onchange="updateNewsSelection()"> Quarter End</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Year End" onchange="updateNewsSelection()"> Year End</div>
+                        </div>
+                    </div>
                 </div>
                 <div class="input-group screenshot">
                     <label>Screenshot</label>
@@ -563,7 +622,7 @@
                 positionSize: parseInt(document.getElementById('positionSize').value) || 1,
                 commission: parseFloat(document.getElementById('commission').value) || 0,
                 newsProximity: document.getElementById('newsProximity').value,
-                newsEvent: Array.from(document.getElementById('newsEvent').selectedOptions).map(option => option.value).join(', '),
+                newsEvent: getSelectedNewsEvents(),
                 screenshot: window.currentScreenshot || null
             };
             
@@ -589,7 +648,7 @@
             document.getElementById('positionSize').value = '1';
             document.getElementById('commission').value = '4.50';
             document.getElementById('newsProximity').value = 'None';
-            document.getElementById('newsEvent').value = 'None';
+            clearNewsSelection();
             document.getElementById('screenshot').value = '';
             window.currentScreenshot = null;
         }
@@ -903,6 +962,52 @@
         
         // Set today's date by default
         document.getElementById('signalDate').value = new Date().toISOString().split('T')[0];
+        
+        let selectedNewsEvents = [];
+        
+        function toggleNewsDropdown() {
+            const dropdown = document.getElementById('newsEventDropdown');
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        }
+        
+        function updateNewsSelection() {
+            const checkboxes = document.querySelectorAll('#newsEventDropdown input[type="checkbox"]');
+            selectedNewsEvents = [];
+            
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedNewsEvents.push(checkbox.value);
+                }
+            });
+            
+            const display = document.getElementById('newsEventDisplay');
+            if (selectedNewsEvents.length === 0) {
+                display.textContent = 'None';
+            } else if (selectedNewsEvents.length === 1) {
+                display.textContent = selectedNewsEvents[0];
+            } else {
+                display.textContent = `${selectedNewsEvents.length} selected`;
+            }
+        }
+        
+        function getSelectedNewsEvents() {
+            return selectedNewsEvents.join(', ');
+        }
+        
+        function clearNewsSelection() {
+            const checkboxes = document.querySelectorAll('#newsEventDropdown input[type="checkbox"]');
+            checkboxes.forEach(checkbox => checkbox.checked = false);
+            selectedNewsEvents = [];
+            document.getElementById('newsEventDisplay').textContent = 'None';
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const multiSelect = event.target.closest('.multi-select');
+            if (!multiSelect) {
+                document.getElementById('newsEventDropdown').style.display = 'none';
+            }
+        });
         
         // Auto-calculate TP when bias changes
         document.getElementById('bias').addEventListener('change', calculateTP);
