@@ -97,10 +97,11 @@
         
         .input-grid {
             display: flex;
-            gap: 8px;
+            gap: 12px;
             margin: 15px 0;
             align-items: end;
             flex-wrap: nowrap;
+            width: 100%;
         }
         
         .input-group {
@@ -130,20 +131,20 @@
             height: 28px;
         }
         
-        .input-group.date { flex: 0 0 90px; }
-        .input-group.time { flex: 0 0 70px; }
-        .input-group.bias { flex: 0 0 70px; }
-        .input-group.session { flex: 0 0 80px; }
-        .input-group.signal-type { flex: 0 0 80px; }
-        .input-group.price { flex: 0 0 75px; }
-        .input-group.breakeven { flex: 0 0 60px; }
-        .input-group.mfe { flex: 0 0 55px; }
-        .input-group.size { flex: 0 0 50px; }
-        .input-group.commission { flex: 0 0 60px; }
-        .input-group.be-achieved { flex: 0 0 40px; }
-        .input-group.news-prox { flex: 0 0 60px; }
-        .input-group.news-event { flex: 0 0 100px; }
-        .input-group.screenshot { flex: 0 0 70px; }
+        .input-group.date { flex: 1 1 90px; }
+        .input-group.time { flex: 1 1 70px; }
+        .input-group.bias { flex: 1 1 70px; }
+        .input-group.session { flex: 1 1 80px; }
+        .input-group.signal-type { flex: 1 1 80px; }
+        .input-group.price { flex: 1 1 75px; }
+        .input-group.breakeven { flex: 1 1 60px; }
+        .input-group.mfe { flex: 1 1 55px; }
+        .input-group.size { flex: 1 1 50px; }
+        .input-group.commission { flex: 1 1 60px; }
+        .input-group.be-achieved { flex: 1 1 40px; }
+        .input-group.news-prox { flex: 1 1 60px; }
+        .input-group.news-event { flex: 1 1 100px; }
+        .input-group.screenshot { flex: 1 1 70px; }
         
         .add-signal-btn {
             flex: 0 0 auto;
@@ -151,6 +152,20 @@
             height: 28px;
             padding: 0 12px;
             font-size: 11px;
+            background: linear-gradient(45deg, #00ff88, #00d4aa);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 255, 136, 0.2);
+        }
+        
+        .add-signal-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 255, 136, 0.3);
+            background: linear-gradient(45deg, #00d4aa, #00ff88);
         }
         
         .checkbox-input {
