@@ -97,10 +97,35 @@ class RailwayDB:
                 )
             ''')
             
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS signal_lab_trades (
+                    id SERIAL PRIMARY KEY,
+                    date DATE,
+                    time TIME,
+                    bias VARCHAR(20),
+                    session VARCHAR(50),
+                    signal_type VARCHAR(50),
+                    open_price DECIMAL(10,2),
+                    entry_price DECIMAL(10,2),
+                    stop_loss DECIMAL(10,2),
+                    take_profit DECIMAL(10,2),
+                    be_achieved BOOLEAN DEFAULT FALSE,
+                    breakeven DECIMAL(5,1),
+                    mfe DECIMAL(5,1),
+                    position_size INTEGER DEFAULT 1,
+                    commission DECIMAL(6,2),
+                    news_proximity VARCHAR(20),
+                    news_event TEXT,
+                    screenshot TEXT,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            ''')
+            
             # Indexes for better performance
             cur.execute('CREATE INDEX IF NOT EXISTS idx_market_data_symbol_time ON market_data(symbol, timestamp DESC)')
             cur.execute('CREATE INDEX IF NOT EXISTS idx_trading_signals_symbol ON trading_signals(symbol)')
             cur.execute('CREATE INDEX IF NOT EXISTS idx_ict_levels_symbol ON ict_levels(symbol)')
+            cur.execute('CREATE INDEX IF NOT EXISTS idx_signal_lab_date ON signal_lab_trades(date DESC)')
             
         self.conn.commit()
     

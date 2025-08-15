@@ -43,17 +43,43 @@ CREATE TABLE ict_levels (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Signal Lab trades table
+CREATE TABLE signal_lab_trades (
+    id BIGSERIAL PRIMARY KEY,
+    date DATE,
+    time TIME,
+    bias VARCHAR(20),
+    session VARCHAR(50),
+    signal_type VARCHAR(50),
+    open_price DECIMAL(10,2),
+    entry_price DECIMAL(10,2),
+    stop_loss DECIMAL(10,2),
+    take_profit DECIMAL(10,2),
+    be_achieved BOOLEAN DEFAULT FALSE,
+    breakeven DECIMAL(5,1),
+    mfe DECIMAL(5,1),
+    position_size INTEGER DEFAULT 1,
+    commission DECIMAL(6,2),
+    news_proximity VARCHAR(20),
+    news_event TEXT,
+    screenshot TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Indexes for performance
 CREATE INDEX idx_market_data_symbol_time ON market_data(symbol, timestamp DESC);
 CREATE INDEX idx_signals_symbol_status ON trading_signals(symbol, status);
 CREATE INDEX idx_levels_symbol_active ON ict_levels(symbol, active);
+CREATE INDEX idx_signal_lab_date ON signal_lab_trades(date DESC);
 
 -- Enable Row Level Security (optional)
 ALTER TABLE market_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trading_signals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ict_levels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE signal_lab_trades ENABLE ROW LEVEL SECURITY;
 
 -- Allow all operations for now (adjust as needed)
 CREATE POLICY "Allow all" ON market_data FOR ALL USING (true);
 CREATE POLICY "Allow all" ON trading_signals FOR ALL USING (true);
 CREATE POLICY "Allow all" ON ict_levels FOR ALL USING (true);
+CREATE POLICY "Allow all" ON signal_lab_trades FOR ALL USING (true);

@@ -1057,6 +1057,7 @@ def create_signal_lab_trade():
              take_profit, be_achieved, breakeven, mfe, position_size, commission, 
              news_proximity, news_event, screenshot)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         """, (
             data.get('date'),
             data.get('time'),
@@ -1067,7 +1068,7 @@ def create_signal_lab_trade():
             data.get('entry_price', 0),
             data.get('stop_loss', 0),
             data.get('take_profit', 0),
-            data.get('be_achieved', 0),
+            data.get('be_achieved', False),
             data.get('breakeven', 0),
             data.get('mfe', 0),
             data.get('position_size', 1),
@@ -1077,8 +1078,8 @@ def create_signal_lab_trade():
             data.get('screenshot')
         ))
         
+        trade_id = cursor.fetchone()[0]
         db.conn.commit()
-        trade_id = cursor.lastrowid
         
         return jsonify({"id": trade_id, "status": "success"})
         
@@ -1315,37 +1316,7 @@ def scrape_propfirms():
         logger.error(f"Scraper error: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
         return jsonify({"error": "Scraper unavailable"}), 500
 
-# Create signal lab table if it doesn't exist
-def ensure_signal_lab_table():
-    try:
-        if db_enabled and db:
-            cursor = db.conn.cursor()
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS signal_lab_trades (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    date DATE,
-                    time TIME,
-                    bias VARCHAR(20),
-                    session VARCHAR(50),
-                    signal_type VARCHAR(50),
-                    open_price DECIMAL(10,2),
-                    entry_price DECIMAL(10,2),
-                    stop_loss DECIMAL(10,2),
-                    take_profit DECIMAL(10,2),
-                    be_achieved TINYINT DEFAULT 0,
-                    breakeven DECIMAL(5,1),
-                    mfe DECIMAL(5,1),
-                    position_size INT DEFAULT 1,
-                    commission DECIMAL(6,2),
-                    news_proximity VARCHAR(20),
-                    news_event TEXT,
-                    screenshot LONGTEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            db.conn.commit()
-    except Exception as e:
-        logger.error(f"Error creating signal lab table: {str(e)}")
+# Signal lab table is created in railway_db.py setup_tables()
 
 # Helper functions for AI context building
 def build_concise_context(trades_data, metrics):
@@ -2036,9 +2007,6 @@ def extract_positive_recommendation(response):
     return sentences[0].strip() if sentences else "Continue building on current strengths for sustained growth"
 
 if __name__ == '__main__':
-    # Ensure signal lab table exists
-    ensure_signal_lab_table()
-    
     port = int(environ.get('PORT', 8080))
     debug_mode = environ.get('DEBUG', 'False').lower() == 'true'
     host = '127.0.0.1'  # Localhost only
