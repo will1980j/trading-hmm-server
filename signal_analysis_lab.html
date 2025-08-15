@@ -548,6 +548,7 @@
             
             <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="btn" onclick="clearInputs()" style="background: #6c757d;">Clear</button>
+                <button class="btn" onclick="cancelEdit()" style="background: #ffa502; display: none;" id="cancelBtn">Cancel Edit</button>
                 <button class="btn" onclick="exportData()">Export CSV</button>
                 <input type="file" id="csvFile" accept=".csv" style="display: none;" onchange="importCSV(event)">
                 <button class="btn" onclick="document.getElementById('csvFile').click()">Import CSV</button>
@@ -591,6 +592,7 @@
 
     <script>
         let signals = [];
+        let editingSignalId = null;
         
         function calculateTP() {
             const entry = parseFloat(document.getElementById('entryPrice').value) || 0;
@@ -605,6 +607,11 @@
         }
         
         function addSignal() {
+            if (editingSignalId) {
+                updateSignal();
+                return;
+            }
+            
             const signal = {
                 id: Date.now(),
                 date: document.getElementById('signalDate').value,
@@ -634,6 +641,94 @@
             signals.push(signal);
             updateDisplay();
             clearInputs();
+        }
+        
+        function editSignal(id) {
+            const signal = signals.find(s => s.id === id);
+            if (!signal) return;
+            
+            // Populate form with signal data
+            document.getElementById('signalDate').value = signal.date;
+            document.getElementById('entryTime').value = signal.time;
+            document.getElementById('bias').value = signal.bias;
+            document.getElementById('session').value = signal.session;
+            document.getElementById('signalType').value = signal.signalType;
+            document.getElementById('openPrice').value = signal.openPrice;
+            document.getElementById('entryPrice').value = signal.entryPrice;
+            document.getElementById('stopLoss').value = signal.stopLoss;
+            document.getElementById('takeProfit').value = signal.takeProfit;
+            document.getElementById('beAchieved').checked = signal.beAchieved;
+            document.getElementById('breakeven').value = signal.breakeven;
+            document.getElementById('mfe').value = signal.mfe;
+            document.getElementById('positionSize').value = signal.positionSize;
+            document.getElementById('commission').value = signal.commission;
+            document.getElementById('newsProximity').value = signal.newsProximity;
+            
+            // Handle news events
+            if (signal.newsEvent) {
+                const events = signal.newsEvent.split(', ');
+                const checkboxes = document.querySelectorAll('#newsEventDropdown input[type="checkbox"]');
+                checkboxes.forEach(cb => cb.checked = events.includes(cb.value));
+                updateNewsSelection();
+            }
+            
+            // Set editing mode
+            editingSignalId = id;
+            
+            // Change button text and show cancel
+            const addBtn = document.querySelector('.add-signal-btn');
+            addBtn.textContent = 'Update';
+            addBtn.style.background = 'linear-gradient(45deg, #ffa502, #ff6348)';
+            document.getElementById('cancelBtn').style.display = 'inline-block';
+            
+            // Scroll to form
+            document.querySelector('.data-input').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function updateSignal() {
+            const signalIndex = signals.findIndex(s => s.id === editingSignalId);
+            if (signalIndex === -1) return;
+            
+            const updatedSignal = {
+                id: editingSignalId,
+                date: document.getElementById('signalDate').value,
+                time: document.getElementById('entryTime').value,
+                bias: document.getElementById('bias').value,
+                session: document.getElementById('session').value,
+                signalType: document.getElementById('signalType').value,
+                openPrice: parseFloat(document.getElementById('openPrice').value) || 0,
+                entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
+                stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
+                takeProfit: parseFloat(document.getElementById('takeProfit').value) || 0,
+                beAchieved: document.getElementById('beAchieved').checked,
+                breakeven: parseFloat(document.getElementById('breakeven').value) || 0,
+                mfe: parseFloat(document.getElementById('mfe').value) || 0,
+                positionSize: parseInt(document.getElementById('positionSize').value) || 1,
+                commission: parseFloat(document.getElementById('commission').value) || 0,
+                newsProximity: document.getElementById('newsProximity').value,
+                newsEvent: getSelectedNewsEvents(),
+                screenshot: window.currentScreenshot || signals[signalIndex].screenshot
+            };
+            
+            if (!updatedSignal.date || !updatedSignal.entryPrice || !updatedSignal.stopLoss) {
+                alert('Please fill in Date, Entry Price, and Stop Loss');
+                return;
+            }
+            
+            signals[signalIndex] = updatedSignal;
+            updateDisplay();
+            cancelEdit();
+        }
+        
+        function cancelEdit() {
+            editingSignalId = null;
+            clearInputs();
+            
+            // Reset button
+            const addBtn = document.querySelector('.add-signal-btn');
+            addBtn.textContent = 'Add';
+            addBtn.style.background = 'linear-gradient(45deg, #00ff88, #00d4aa)';
+            document.getElementById('cancelBtn').style.display = 'none';
         }
         
         function clearInputs() {
@@ -726,7 +821,7 @@
             const tbody = document.getElementById('signalsBody');
             tbody.innerHTML = '';
             
-            signals.reverse().forEach(signal => {
+            signals.slice().reverse().forEach(signal => {
                 const row = tbody.insertRow();
                 row.innerHTML = `
                     <td>${signal.date}</td>
@@ -746,6 +841,7 @@
                     <td>${signal.newsProximity}</td>
                     <td>${signal.newsEvent}</td>
                     <td>
+                        <button onclick="editSignal(${signal.id})" style="background: #3742fa; border: none; padding: 4px 8px; border-radius: 4px; color: white; cursor: pointer; font-size: 10px; margin-right: 4px;">Edit</button>
                         <button onclick="deleteSignal(${signal.id})" style="background: #ff4757; border: none; padding: 4px 8px; border-radius: 4px; color: white; cursor: pointer; font-size: 10px;">Del</button>
                     </td>
                 `;
@@ -914,50 +1010,6 @@
             
             modal.appendChild(modalContent);
             document.body.appendChild(modal);
-        }
-        
-        function performAnalysis() {
-            const bySignal = {};
-            const bySession = {};
-            const byBE = {};
-            
-            signals.forEach(s => {
-                // By signal type
-                if (!bySignal[s.signalType]) bySignal[s.signalType] = [];
-                bySignal[s.signalType].push(s.mfe);
-                
-                // By session
-                if (!bySession[s.session]) bySession[s.session] = [];
-                bySession[s.session].push(s.mfe);
-                
-                // By breakeven
-                const beKey = s.breakeven + 'R';
-                if (!byBE[beKey]) byBE[beKey] = [];
-                byBE[beKey].push(s.mfe);
-            });
-            
-            let analysis = 'SIGNAL ANALYSIS RESULTS:\\n\\n';
-            
-            // Best signal type
-            analysis += 'SIGNAL TYPE PERFORMANCE:\\n';
-            Object.keys(bySignal).forEach(type => {
-                const avg = (bySignal[type].reduce((a, b) => a + b, 0) / bySignal[type].length).toFixed(2);
-                analysis += `${type}: ${avg}R avg (${bySignal[type].length} signals)\\n`;
-            });
-            
-            analysis += '\\nSESSION PERFORMANCE:\\n';
-            Object.keys(bySession).forEach(session => {
-                const avg = (bySession[session].reduce((a, b) => a + b, 0) / bySession[session].length).toFixed(2);
-                analysis += `${session}: ${avg}R avg (${bySession[session].length} signals)\\n`;
-            });
-            
-            analysis += '\\nBREAKEVEN ANALYSIS:\\n';
-            Object.keys(byBE).forEach(be => {
-                const avg = (byBE[be].reduce((a, b) => a + b, 0) / byBE[be].length).toFixed(2);
-                analysis += `${be}: ${avg}R avg (${byBE[be].length} signals)\\n`;
-            });
-            
-            return analysis;
         }
         
         // Set today's date by default
