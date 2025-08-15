@@ -1526,6 +1526,7 @@
                         session: s.session || 'LONDON',
                         breakeven: s.outcome === 'breakeven',
                         rScore: s.r_multiple || 0,
+                        screenshot: s.screenshot_url || null,
                         r1: s.r_multiple || 0, r2: s.r_multiple || 0, r3: s.r_multiple || 0, r4: s.r_multiple || 0, r5: s.r_multiple || 0,
                         r6: s.r_multiple || 0, r7: s.r_multiple || 0, r8: s.r_multiple || 0, r9: s.r_multiple || 0, r10: s.r_multiple || 0,
                         r11: s.r_multiple || 0, r12: s.r_multiple || 0, r13: s.r_multiple || 0, r14: s.r_multiple || 0, r15: s.r_multiple || 0,
@@ -1952,9 +1953,16 @@
             tbody.innerHTML = '';
             
             const filteredTrades = getFilteredTrades();
+            const dataSource = document.getElementById('dataSourceToggle').value;
+            
             filteredTrades.slice(-10).reverse().forEach((trade, index) => {
                 const row = tbody.insertRow();
+                const screenshotCell = dataSource === 'signal-lab' && trade.screenshot ? 
+                    `<td><img src="${trade.screenshot}" style="width: 40px; height: 30px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="window.open('${trade.screenshot}', '_blank')"></td>` : 
+                    '<td></td>';
+                
                 row.innerHTML = `
+                    ${screenshotCell}
                     <td>${trade.date}</td>
                     <td>${trade.bias}</td>
                     <td>${trade.session}</td>
