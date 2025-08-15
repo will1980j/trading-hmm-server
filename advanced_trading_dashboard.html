@@ -1957,17 +1957,24 @@
             
             filteredTrades.slice(-10).reverse().forEach((trade, index) => {
                 const row = tbody.insertRow();
+                const isActiveTrade = !trade.rScore || trade.rScore === 0;
                 const screenshotCell = dataSource === 'signal-lab' && trade.screenshot ? 
                     `<td><img src="${trade.screenshot}" style="width: 40px; height: 30px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="window.open('${trade.screenshot}', '_blank')"></td>` : 
                     '<td></td>';
                 
+                if (isActiveTrade) {
+                    row.style.background = 'rgba(255, 165, 0, 0.2)';
+                    row.style.border = '1px solid rgba(255, 165, 0, 0.5)';
+                    row.title = 'Active trade - Add MFE when closed';
+                }
+                
                 row.innerHTML = `
                     ${screenshotCell}
-                    <td>${trade.date}</td>
+                    <td>${trade.date}${isActiveTrade ? ' 🔄' : ''}</td>
                     <td>${trade.bias}</td>
                     <td>${trade.session}</td>
                     <td>${trade.breakeven ? '✓' : ''}</td>
-                    <td>${trade.rScore.toFixed(1)}R</td>
+                    <td>${isActiveTrade ? 'ACTIVE' : trade.rScore.toFixed(1) + 'R'}</td>
                     <td>
                         <div class="r-columns">
                             <div class="r-value ${trade.r1 > 0 ? 'positive' : trade.r1 < 0 ? 'negative' : 'neutral'}">${trade.r1.toFixed(1)}</div>
