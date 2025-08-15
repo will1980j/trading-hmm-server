@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Migrate Signal Lab Data</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #1e3c72; color: white; }
+        .btn { background: #00ff88; border: none; padding: 10px 20px; border-radius: 5px; color: white; cursor: pointer; margin: 10px; }
+        .result { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Signal Lab Data Migration</h1>
+    <p>This tool will migrate your Signal Lab data from localStorage to the database.</p>
+    
+    <button class="btn" onclick="checkLocalStorage()">Check localStorage</button>
+    <button class="btn" onclick="migrateData()">Migrate to Database</button>
+    <button class="btn" onclick="checkDatabase()">Check Database</button>
+    
+    <div id="results"></div>
+
+    <script>
+        function log(message) {
+            const results = document.getElementById('results');
+            results.innerHTML += '<div class="result">' + message + '</div>';
+        }
+
+        function checkLocalStorage() {
+            const data = localStorage.getItem('signalLabData');
+            if (data) {
+                const signals = JSON.parse(data);
+                log(`Found ${signals.length} signals in localStorage:`);
+                signals.forEach((signal, i) => {
+                    log(`${i+1}. ${signal.date} - ${signal.bias} - ${signal.session} - MFE: ${signal.mfe || 'N/A'}`);
+                });
+            } else {
+                log('No Signal Lab data found in localStorage');
+            }
+        }
+
+        async function migrateData() {
+            const data = localStorage.getItem('signalLabData');
+            if (!data) {
+                log('No localStorage data to migrate');
+                return;
+            }
+
+            const signals = JSON.parse(data);
+            log(`Starting migration of ${signals.length} signals...`);
+
+            let migrated = 0;
+            for (const signal of signals) {
+                try {
+                    const response = await fetch('/api/signal-lab-trades', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            date: signal.date,
+                            time: signal.time || '09:30',
+                            bias: signal.bias,
+                            session: signal.session,
+                            signal_type: signal.signalType,
+                            open_price: signal.openPrice || 0,
+                            entry_price: signal.entryPrice || 0,
+                            stop_loss: signal.stopLoss || 0,
+                            take_profit: signal.takeProfit || 0,
+                            be_achieved: signal.beAchieved ? 1 : 0,
+                            breakeven: signal.breakeven || 0,
+                            mfe: signal.mfe || 0,
+                            position_size: signal.positionSize || 1,
+                            commission: signal.commission || 0,
+                            news_proximity: signal.newsProximity || 'None',
+                            news_event: signal.newsEvent || 'None',
+                            screenshot: signal.screenshot
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        migrated++;
+                        log(`✓ Migrated: ${signal.date} - ${signal.bias}`);
+                    } else {
+                        log(`✗ Failed: ${signal.date} - ${await response.text()}`);
+                    }
+                } catch (error) {
+                    log(`✗ Error migrating ${signal.date}: ${error.message}`);
+                }
+            }
+            
+            log(`Migration complete: ${migrated}/${signals.length} signals migrated`);
+        }
+
+        async function checkDatabase() {
+            try {
+                const response = await fetch('/api/signal-lab-trades');
+                const data = await response.json();
+                log(`Database contains ${data.length} signals:`);
+                data.forEach((signal, i) => {
+                    log(`${i+1}. ${signal.date} - ${signal.bias} - ${signal.session} - MFE: ${signal.mfe || 'N/A'}`);
+                });
+            } catch (error) {
+                log(`Error checking database: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

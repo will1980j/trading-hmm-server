@@ -1125,7 +1125,69 @@
                     <option value="false">Exclude BE</option>
                 </select>
             </div>
+            
+            <div class="filter-group">
+                <label>Data Migration</label>
+                <button class="btn" onclick="migrateSignalLabData()" style="background: #3742fa; padding: 8px 12px; font-size: 12px;">Migrate Signal Lab</button>
+            </div>
         </div>
+        
+        <script>
+        async function migrateSignalLabData() {
+            try {
+                const signalLabData = localStorage.getItem('signalLabData');
+                if (!signalLabData) {
+                    alert('No Signal Lab data found in localStorage');
+                    return;
+                }
+                
+                const signals = JSON.parse(signalLabData);
+                console.log('Found', signals.length, 'signals in localStorage');
+                
+                let migrated = 0;
+                for (const signal of signals) {
+                    try {
+                        const response = await fetch('/api/signal-lab-trades', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                date: signal.date,
+                                time: signal.time || '09:30',
+                                bias: signal.bias,
+                                session: signal.session,
+                                signal_type: signal.signalType,
+                                open_price: signal.openPrice || 0,
+                                entry_price: signal.entryPrice || 0,
+                                stop_loss: signal.stopLoss || 0,
+                                take_profit: signal.takeProfit || 0,
+                                be_achieved: signal.beAchieved ? 1 : 0,
+                                breakeven: signal.breakeven || 0,
+                                mfe: signal.mfe || 0,
+                                position_size: signal.positionSize || 1,
+                                commission: signal.commission || 0,
+                                news_proximity: signal.newsProximity || 'None',
+                                news_event: signal.newsEvent || 'None',
+                                screenshot: signal.screenshot
+                            })
+                        });
+                        
+                        if (response.ok) migrated++;
+                    } catch (error) {
+                        console.error('Failed to migrate signal:', error);
+                    }
+                }
+                
+                alert(`Migrated ${migrated}/${signals.length} trades to database!`);
+                if (migrated > 0) {
+                    await loadDatabaseData();
+                }
+                
+            } catch (error) {
+                console.error('Migration error:', error);
+                alert('Migration failed: ' + error.message);
+            }
+        }
+        </script>
         
         <div class="metrics-grid">
             <div class="metric-card tooltip" data-tooltip="Total number of trades in your dataset. More trades = more reliable statistics.">

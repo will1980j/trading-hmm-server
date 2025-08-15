@@ -620,43 +620,35 @@
         let signals = [];
         let editingSignalId = null;
         
-        // Load signals with localStorage fallback
+        // Load signals from database ONLY
         async function loadSignals() {
-            try {
-                const response = await fetch('/api/signal-lab-trades');
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.length > 0) {
-                        signals = data.map(trade => ({
-                            id: trade.id,
-                            date: trade.date,
-                            time: trade.time,
-                            bias: trade.bias,
-                            session: trade.session,
-                            signalType: trade.signal_type,
-                            openPrice: parseFloat(trade.open_price) || 0,
-                            entryPrice: parseFloat(trade.entry_price) || 0,
-                            stopLoss: parseFloat(trade.stop_loss) || 0,
-                            takeProfit: parseFloat(trade.take_profit) || 0,
-                            beAchieved: trade.be_achieved === 1,
-                            breakeven: parseFloat(trade.breakeven) || 0,
-                            mfe: parseFloat(trade.mfe) || 0,
-                            positionSize: parseInt(trade.position_size) || 1,
-                            commission: parseFloat(trade.commission) || 0,
-                            newsProximity: trade.news_proximity || 'None',
-                            newsEvent: trade.news_event || 'None',
-                            screenshot: trade.screenshot
-                        }));
-                        updateDisplay();
-                        return;
-                    }
-                }
-            } catch (error) {
-                console.error('Database load failed, using localStorage:', error);
+            const response = await fetch('/api/signal-lab-trades');
+            if (!response.ok) {
+                throw new Error(`Failed to load signals: ${response.status} ${response.statusText}`);
             }
             
-            // Fallback to localStorage
-            loadFromLocalStorage();
+            const data = await response.json();
+            signals = data.map(trade => ({
+                id: trade.id,
+                date: trade.date,
+                time: trade.time,
+                bias: trade.bias,
+                session: trade.session,
+                signalType: trade.signal_type,
+                openPrice: parseFloat(trade.open_price) || 0,
+                entryPrice: parseFloat(trade.entry_price) || 0,
+                stopLoss: parseFloat(trade.stop_loss) || 0,
+                takeProfit: parseFloat(trade.take_profit) || 0,
+                beAchieved: trade.be_achieved === 1,
+                breakeven: parseFloat(trade.breakeven) || 0,
+                mfe: parseFloat(trade.mfe) || 0,
+                positionSize: parseInt(trade.position_size) || 1,
+                commission: parseFloat(trade.commission) || 0,
+                newsProximity: trade.news_proximity || 'None',
+                newsEvent: trade.news_event || 'None',
+                screenshot: trade.screenshot
+            }));
+            updateDisplay();
         }
         
         // localStorage functions
@@ -672,44 +664,39 @@
             }
         }
         
-        // Save signal to database with localStorage fallback
+        // Save signal to database ONLY - no localStorage fallback
         async function saveSignalToDatabase(signal) {
-            try {
-                const response = await fetch('/api/signal-lab-trades', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        date: signal.date,
-                        time: signal.time,
-                        bias: signal.bias,
-                        session: signal.session,
-                        signal_type: signal.signalType,
-                        open_price: signal.openPrice,
-                        entry_price: signal.entryPrice,
-                        stop_loss: signal.stopLoss,
-                        take_profit: signal.takeProfit,
-                        be_achieved: signal.beAchieved ? 1 : 0,
-                        breakeven: signal.breakeven,
-                        mfe: signal.mfe,
-                        position_size: signal.positionSize,
-                        commission: signal.commission,
-                        news_proximity: signal.newsProximity,
-                        news_event: signal.newsEvent,
-                        screenshot: signal.screenshot
-                    })
-                });
-                
-                if (response.ok) {
-                    const savedSignal = await response.json();
-                    return savedSignal.id;
-                }
-            } catch (error) {
-                console.error('Database save failed, using localStorage:', error);
+            const response = await fetch('/api/signal-lab-trades', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: signal.date,
+                    time: signal.time,
+                    bias: signal.bias,
+                    session: signal.session,
+                    signal_type: signal.signalType,
+                    open_price: signal.openPrice,
+                    entry_price: signal.entryPrice,
+                    stop_loss: signal.stopLoss,
+                    take_profit: signal.takeProfit,
+                    be_achieved: signal.beAchieved ? 1 : 0,
+                    breakeven: signal.breakeven,
+                    mfe: signal.mfe,
+                    position_size: signal.positionSize,
+                    commission: signal.commission,
+                    news_proximity: signal.newsProximity,
+                    news_event: signal.newsEvent,
+                    screenshot: signal.screenshot
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Database save failed: ${response.status} ${response.statusText}`);
             }
             
-            // Fallback to localStorage
-            saveToLocalStorage();
-            return signal.id;
+            const savedSignal = await response.json();
+            console.log('Signal saved to database successfully');
+            return savedSignal.id;
         }
         
         // Update signal in database
@@ -806,11 +793,17 @@
                 return;
             }
             
-            // Always add to local array and save
-            signals.push(signal);
-            await saveSignalToDatabase(signal);
-            updateDisplay();
-            clearInputs();
+            try {
+                const savedId = await saveSignalToDatabase(signal);
+                signal.id = savedId;
+                signals.push(signal);
+                updateDisplay();
+                clearInputs();
+                console.log('Signal added successfully to database');
+            } catch (error) {
+                alert(`DATABASE ERROR: ${error.message}\n\nSignal NOT saved. Please check database connection.`);
+                console.error('Database save failed:', error);
+            }
         }
         
         function editSignal(id) {
