@@ -1558,6 +1558,57 @@
             loadDatabaseData();
         }
         
+        // Save signal to database
+        async function saveSignalToDB(signal) {
+            try {
+                const response = await fetch('/api/signals', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        direction: signal.bias,
+                        session: signal.session,
+                        outcome: signal.breakeven ? 'breakeven' : (signal.rScore > 0 ? 'win' : 'loss'),
+                        r_multiple: signal.rScore,
+                        screenshot_url: signal.screenshot || null,
+                        created_at: signal.date
+                    })
+                });
+                
+                if (response.ok) {
+                    console.log('Signal saved to database');
+                    return await response.json();
+                } else {
+                    console.error('Failed to save signal:', response.statusText);
+                }
+            } catch (error) {
+                console.error('Error saving signal:', error);
+            }
+        }
+        
+        // Update signal in database
+        async function updateSignalInDB(signalId, updates) {
+            try {
+                const response = await fetch(`/api/signals/${signalId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updates)
+                });
+                
+                if (response.ok) {
+                    console.log('Signal updated in database');
+                    return await response.json();
+                } else {
+                    console.error('Failed to update signal:', response.statusText);
+                }
+            } catch (error) {
+                console.error('Error updating signal:', error);
+            }
+        }
+        
         function extractSession(reason) {
             if (!reason) return 'LONDON';
             if (reason.includes('LONDON')) return 'LONDON';
@@ -1583,7 +1634,7 @@
             initD3Charts();
         }
         
-        function addTrade() {
+        async function addTrade() {
             const trade = {
                 date: document.getElementById('tradeDate').value,
                 bias: document.getElementById('tradeBias').value,
@@ -1595,6 +1646,12 @@
                 r3: 0, r4: 0, r5: 0, r6: 0, r7: 0, r8: 0, r9: 0, r10: 0,
                 r11: 0, r12: 0, r13: 0, r14: 0, r15: 0, r16: 0, r17: 0, r18: 0, r19: 0, r20: 0
             };
+            
+            const dataSource = document.getElementById('dataSourceToggle').value;
+            
+            if (dataSource === 'signal-lab') {
+                await saveSignalToDB(trade);
+            }
             
             trades.push(trade);
             updateDashboard();
@@ -2023,6 +2080,15 @@
             
             // Initialize market data feeds
             initializeMarketFeeds();
+            
+            // Auto-refresh data every 30 seconds to catch updates
+            setInterval(async () => {
+                const currentCount = window.trades.length;
+                await loadTradesFromDB();
+                if (window.trades.length !== currentCount) {
+                    updateDashboard();
+                }
+            }, 30000);
             
             // Force calendar update after data loads
             setTimeout(() => {
