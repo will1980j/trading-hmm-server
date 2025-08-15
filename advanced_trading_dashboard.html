@@ -1515,25 +1515,37 @@
             const dataSource = document.getElementById('dataSourceToggle').value;
             const endpoint = dataSource === 'signal-lab' ? '/api/signal-lab-trades' : '/api/trades';
             
+            console.log('Loading from endpoint:', endpoint, 'for data source:', dataSource);
+            
             try {
                 const response = await fetch(endpoint);
                 const data = await response.json();
                 
-                if (dataSource === 'signal-lab' && data.length > 0) {
-                    window.trades = data.map(s => ({
-                        date: s.date || s.created_at?.split('T')[0] || '2024-08-06',
-                        bias: s.bias || 'LONG',
-                        session: s.session || 'LONDON',
-                        breakeven: s.be_achieved || false,
-                        rScore: s.mfe || null,
-                        mfe: s.mfe || null,
-                        screenshot: s.screenshot || null,
-                        r1: s.mfe || null, r2: s.mfe || null, r3: s.mfe || null, r4: s.mfe || null, r5: s.mfe || null,
-                        r6: s.mfe || null, r7: s.mfe || null, r8: s.mfe || null, r9: s.mfe || null, r10: s.mfe || null,
-                        r11: s.mfe || null, r12: s.mfe || null, r13: s.mfe || null, r14: s.mfe || null, r15: s.mfe || null,
-                        r16: s.mfe || null, r17: s.mfe || null, r18: s.mfe || null, r19: s.mfe || null, r20: s.mfe || null
-                    }));
-                    console.log('Loaded', window.trades.length, 'signals from Signal Lab');
+                console.log('API response:', data);
+                
+                if (dataSource === 'signal-lab') {
+                    // Handle Signal Lab data - check if it's an array or has a data property
+                    const signalData = Array.isArray(data) ? data : (data.data || data.signals || []);
+                    
+                    if (signalData.length > 0) {
+                        window.trades = signalData.map(s => ({
+                            date: s.date || s.created_at?.split('T')[0] || '2024-08-06',
+                            bias: s.bias || s.direction || 'LONG',
+                            session: s.session || 'LONDON',
+                            breakeven: s.be_achieved || s.breakeven || false,
+                            rScore: s.mfe || s.r_multiple || null,
+                            mfe: s.mfe || s.r_multiple || null,
+                            screenshot: s.screenshot || s.screenshot_url || null,
+                            r1: s.mfe || s.r_multiple || null, r2: s.mfe || s.r_multiple || null, r3: s.mfe || s.r_multiple || null, r4: s.mfe || s.r_multiple || null, r5: s.mfe || s.r_multiple || null,
+                            r6: s.mfe || s.r_multiple || null, r7: s.mfe || s.r_multiple || null, r8: s.mfe || s.r_multiple || null, r9: s.mfe || s.r_multiple || null, r10: s.mfe || s.r_multiple || null,
+                            r11: s.mfe || s.r_multiple || null, r12: s.mfe || s.r_multiple || null, r13: s.mfe || s.r_multiple || null, r14: s.mfe || s.r_multiple || null, r15: s.mfe || s.r_multiple || null,
+                            r16: s.mfe || s.r_multiple || null, r17: s.mfe || s.r_multiple || null, r18: s.mfe || s.r_multiple || null, r19: s.mfe || s.r_multiple || null, r20: s.mfe || s.r_multiple || null
+                        }));
+                        console.log('Loaded', window.trades.length, 'signals from Signal Lab');
+                    } else {
+                        window.trades = [];
+                        console.log('No Signal Lab data found');
+                    }
                 } else if (data.trades) {
                     window.trades = data.trades.map(t => ({
                         date: t.created_at ? t.created_at.split('T')[0] : '2024-08-06',
@@ -1547,9 +1559,13 @@
                         r16: extractRScore(t.reason), r17: extractRScore(t.reason), r18: extractRScore(t.reason), r19: extractRScore(t.reason), r20: extractRScore(t.reason)
                     }));
                     console.log('Loaded', window.trades.length, 'trades from Trade Manager');
+                } else {
+                    window.trades = [];
+                    console.log('No data found in response');
                 }
             } catch (error) {
                 console.error('Failed to load data from database:', error);
+                window.trades = [];
             }
         }
         
