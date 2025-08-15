@@ -994,6 +994,167 @@ def get_signals():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# Signal Lab API endpoints
+@app.route('/api/signal-lab-trades', methods=['GET'])
+@login_required
+def get_signal_lab_trades():
+    try:
+        if not db_enabled or not db:
+            return jsonify([]), 200
+        
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
+                   stop_loss, take_profit, be_achieved, breakeven, mfe, position_size, 
+                   commission, news_proximity, news_event, screenshot, created_at
+            FROM signal_lab_trades 
+            ORDER BY created_at DESC
+        """)
+        
+        trades = []
+        for row in cursor.fetchall():
+            trades.append({
+                'id': row[0],
+                'date': row[1],
+                'time': row[2],
+                'bias': row[3],
+                'session': row[4],
+                'signal_type': row[5],
+                'open_price': float(row[6]) if row[6] else 0,
+                'entry_price': float(row[7]) if row[7] else 0,
+                'stop_loss': float(row[8]) if row[8] else 0,
+                'take_profit': float(row[9]) if row[9] else 0,
+                'be_achieved': row[10],
+                'breakeven': float(row[11]) if row[11] else 0,
+                'mfe': float(row[12]) if row[12] else 0,
+                'position_size': int(row[13]) if row[13] else 1,
+                'commission': float(row[14]) if row[14] else 0,
+                'news_proximity': row[15],
+                'news_event': row[16],
+                'screenshot': row[17],
+                'created_at': str(row[18])
+            })
+        
+        return jsonify(trades)
+        
+    except Exception as e:
+        logger.error(f"Error getting signal lab trades: {str(e)}")
+        return jsonify([]), 200
+
+@app.route('/api/signal-lab-trades', methods=['POST'])
+@login_required
+def create_signal_lab_trade():
+    try:
+        if not db_enabled or not db:
+            return jsonify({"error": "Database not available"}), 500
+        
+        data = request.get_json()
+        
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            INSERT INTO signal_lab_trades 
+            (date, time, bias, session, signal_type, open_price, entry_price, stop_loss, 
+             take_profit, be_achieved, breakeven, mfe, position_size, commission, 
+             news_proximity, news_event, screenshot)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            data.get('date'),
+            data.get('time'),
+            data.get('bias'),
+            data.get('session'),
+            data.get('signal_type'),
+            data.get('open_price', 0),
+            data.get('entry_price', 0),
+            data.get('stop_loss', 0),
+            data.get('take_profit', 0),
+            data.get('be_achieved', 0),
+            data.get('breakeven', 0),
+            data.get('mfe', 0),
+            data.get('position_size', 1),
+            data.get('commission', 0),
+            data.get('news_proximity', 'None'),
+            data.get('news_event', 'None'),
+            data.get('screenshot')
+        ))
+        
+        db.conn.commit()
+        trade_id = cursor.lastrowid
+        
+        return jsonify({"id": trade_id, "status": "success"})
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error creating signal lab trade: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/signal-lab-trades/<int:trade_id>', methods=['PUT'])
+@login_required
+def update_signal_lab_trade(trade_id):
+    try:
+        if not db_enabled or not db:
+            return jsonify({"error": "Database not available"}), 500
+        
+        data = request.get_json()
+        
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            UPDATE signal_lab_trades SET
+                date = %s, time = %s, bias = %s, session = %s, signal_type = %s,
+                open_price = %s, entry_price = %s, stop_loss = %s, take_profit = %s,
+                be_achieved = %s, breakeven = %s, mfe = %s, position_size = %s,
+                commission = %s, news_proximity = %s, news_event = %s, screenshot = %s
+            WHERE id = %s
+        """, (
+            data.get('date'),
+            data.get('time'),
+            data.get('bias'),
+            data.get('session'),
+            data.get('signal_type'),
+            data.get('open_price', 0),
+            data.get('entry_price', 0),
+            data.get('stop_loss', 0),
+            data.get('take_profit', 0),
+            data.get('be_achieved', 0),
+            data.get('breakeven', 0),
+            data.get('mfe', 0),
+            data.get('position_size', 1),
+            data.get('commission', 0),
+            data.get('news_proximity', 'None'),
+            data.get('news_event', 'None'),
+            data.get('screenshot'),
+            trade_id
+        ))
+        
+        db.conn.commit()
+        
+        return jsonify({"status": "success"})
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error updating signal lab trade: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/signal-lab-trades/<int:trade_id>', methods=['DELETE'])
+@login_required
+def delete_signal_lab_trade(trade_id):
+    try:
+        if not db_enabled or not db:
+            return jsonify({"error": "Database not available"}), 500
+        
+        cursor = db.conn.cursor()
+        cursor.execute("DELETE FROM signal_lab_trades WHERE id = %s", (trade_id,))
+        db.conn.commit()
+        
+        return jsonify({"status": "success"})
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error deleting signal lab trade: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/health')
 def health_check():
     return jsonify({
@@ -1153,6 +1314,38 @@ def scrape_propfirms():
     except (ImportError, AttributeError, Exception) as e:
         logger.error(f"Scraper error: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
         return jsonify({"error": "Scraper unavailable"}), 500
+
+# Create signal lab table if it doesn't exist
+def ensure_signal_lab_table():
+    try:
+        if db_enabled and db:
+            cursor = db.conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS signal_lab_trades (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    date DATE,
+                    time TIME,
+                    bias VARCHAR(20),
+                    session VARCHAR(50),
+                    signal_type VARCHAR(50),
+                    open_price DECIMAL(10,2),
+                    entry_price DECIMAL(10,2),
+                    stop_loss DECIMAL(10,2),
+                    take_profit DECIMAL(10,2),
+                    be_achieved TINYINT DEFAULT 0,
+                    breakeven DECIMAL(5,1),
+                    mfe DECIMAL(5,1),
+                    position_size INT DEFAULT 1,
+                    commission DECIMAL(6,2),
+                    news_proximity VARCHAR(20),
+                    news_event TEXT,
+                    screenshot LONGTEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            db.conn.commit()
+    except Exception as e:
+        logger.error(f"Error creating signal lab table: {str(e)}")
 
 # Helper functions for AI context building
 def build_concise_context(trades_data, metrics):
@@ -1843,6 +2036,9 @@ def extract_positive_recommendation(response):
     return sentences[0].strip() if sentences else "Continue building on current strengths for sustained growth"
 
 if __name__ == '__main__':
+    # Ensure signal lab table exists
+    ensure_signal_lab_table()
+    
     port = int(environ.get('PORT', 8080))
     debug_mode = environ.get('DEBUG', 'False').lower() == 'true'
     host = '127.0.0.1'  # Localhost only
