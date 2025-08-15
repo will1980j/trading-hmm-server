@@ -1063,6 +1063,14 @@
         
         <div class="controls">
             <div class="filter-group">
+                <label>Data Source</label>
+                <select id="dataSourceToggle" onchange="switchDataSource()" style="padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.9); color: #333; font-size: 14px; font-weight: 600;">
+                    <option value="trade-manager">📊 Trade Manager</option>
+                    <option value="signal-lab">🔬 Signal Lab</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
                 <label>Session Filter</label>
                 <div class="session-checkboxes">
                     <label><input type="checkbox" id="sessionAll" checked onchange="toggleAllSessions()"> All</label>
@@ -1504,10 +1512,27 @@
         
         // Load trades from database
         async function loadTradesFromDB() {
+            const dataSource = document.getElementById('dataSourceToggle').value;
+            const endpoint = dataSource === 'signal-lab' ? '/api/signals' : '/api/trades';
+            
             try {
-                const response = await fetch('/api/trades');
+                const response = await fetch(endpoint);
                 const data = await response.json();
-                if (data.trades) {
+                
+                if (dataSource === 'signal-lab' && data.signals) {
+                    window.trades = data.signals.map(s => ({
+                        date: s.created_at ? s.created_at.split('T')[0] : '2024-08-06',
+                        bias: s.direction || 'LONG',
+                        session: s.session || 'LONDON',
+                        breakeven: s.outcome === 'breakeven',
+                        rScore: s.r_multiple || 0,
+                        r1: s.r_multiple || 0, r2: s.r_multiple || 0, r3: s.r_multiple || 0, r4: s.r_multiple || 0, r5: s.r_multiple || 0,
+                        r6: s.r_multiple || 0, r7: s.r_multiple || 0, r8: s.r_multiple || 0, r9: s.r_multiple || 0, r10: s.r_multiple || 0,
+                        r11: s.r_multiple || 0, r12: s.r_multiple || 0, r13: s.r_multiple || 0, r14: s.r_multiple || 0, r15: s.r_multiple || 0,
+                        r16: s.r_multiple || 0, r17: s.r_multiple || 0, r18: s.r_multiple || 0, r19: s.r_multiple || 0, r20: s.r_multiple || 0
+                    }));
+                    console.log('Loaded', window.trades.length, 'signals from Signal Lab');
+                } else if (data.trades) {
                     window.trades = data.trades.map(t => ({
                         date: t.created_at ? t.created_at.split('T')[0] : '2024-08-06',
                         bias: t.bias || 'LONG',
@@ -1519,11 +1544,17 @@
                         r11: extractRScore(t.reason), r12: extractRScore(t.reason), r13: extractRScore(t.reason), r14: extractRScore(t.reason), r15: extractRScore(t.reason),
                         r16: extractRScore(t.reason), r17: extractRScore(t.reason), r18: extractRScore(t.reason), r19: extractRScore(t.reason), r20: extractRScore(t.reason)
                     }));
-                    console.log('Loaded', window.trades.length, 'trades from database');
+                    console.log('Loaded', window.trades.length, 'trades from Trade Manager');
                 }
             } catch (error) {
-                console.error('Failed to load trades from database:', error);
+                console.error('Failed to load data from database:', error);
             }
+        }
+        
+        function switchDataSource() {
+            const dataSource = document.getElementById('dataSourceToggle').value;
+            console.log('Switching to data source:', dataSource);
+            loadDatabaseData();
         }
         
         function extractSession(reason) {
@@ -1604,6 +1635,7 @@
         
         function saveFilterStates() {
             // Save UI state only (not trade data)
+            localStorage.setItem('dataSource', document.getElementById('dataSourceToggle').value);
             const sessionCheckboxes = document.querySelectorAll('.session-filter');
             const sessionStates = {};
             sessionCheckboxes.forEach(cb => {
@@ -1618,6 +1650,12 @@
         }
         
         function loadFilterStates() {
+            // Load data source
+            const savedDataSource = localStorage.getItem('dataSource');
+            if (savedDataSource) {
+                document.getElementById('dataSourceToggle').value = savedDataSource;
+            }
+            
             // Load session filters
             const savedSessionStates = JSON.parse(localStorage.getItem('sessionFilters'));
             const savedSessionAll = localStorage.getItem('sessionAll');
