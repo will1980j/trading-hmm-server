@@ -2366,10 +2366,10 @@
             console.log('Updating news ticker with', news.length, 'items');
             
             const newsText = news.map(item => 
-                `📰 ${item.title.substring(0, 120)}...`
+                `📰 <a href="${item.link}" target="_blank" style="color: #00ff88; text-decoration: none;">${item.title.substring(0, 120)}...</a>`
             ).join('   •   ');
             
-            tickerContent.textContent = newsText;
+            tickerContent.innerHTML = newsText;
         }
         
         function updateFuturesData(futures) {
