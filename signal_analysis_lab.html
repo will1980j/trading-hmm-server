@@ -344,6 +344,27 @@
             max-height: 600px;
             overflow-y: auto;
         }
+        
+        .action-btn {
+            background: #3742fa;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: white !important;
+            cursor: pointer;
+            font-size: 10px;
+            margin-right: 4px;
+        }
+        
+        .delete-btn {
+            background: #ff4757;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: white !important;
+            cursor: pointer;
+            font-size: 10px;
+        }
     </style>
 </head>
 <body>
@@ -841,8 +862,8 @@
                     <td>${signal.newsProximity}</td>
                     <td>${signal.newsEvent}</td>
                     <td>
-                        <button onclick="editSignal(${signal.id})" style="background: #3742fa; border: none; padding: 4px 8px; border-radius: 4px; color: white; cursor: pointer; font-size: 10px; margin-right: 4px;">Edit</button>
-                        <button onclick="deleteSignal(${signal.id})" style="background: #ff4757; border: none; padding: 4px 8px; border-radius: 4px; color: white; cursor: pointer; font-size: 10px;">Del</button>
+                        <button onclick="editSignal(${signal.id})" class="action-btn">Edit</button>
+                        <button onclick="deleteSignal(${signal.id})" class="delete-btn">Del</button>
                     </td>
                 `;
             });
