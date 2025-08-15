@@ -134,6 +134,11 @@ def signal_analysis_lab():
 def recover_signal_lab():
     return read_html_file('recover_signal_lab_data.html')
 
+@app.route('/check-localstorage')
+@login_required
+def check_localstorage():
+    return read_html_file('check_localStorage.html')
+
 @app.route('/prop-portfolio')
 @login_required
 def prop_portfolio():

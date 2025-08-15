@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Check localStorage</title>
+</head>
+<body>
+    <h1>localStorage Check</h1>
+    <div id="result"></div>
+    
+    <script>
+        const data = localStorage.getItem('signalLabData');
+        const result = document.getElementById('result');
+        
+        if (data) {
+            const parsed = JSON.parse(data);
+            result.innerHTML = `<h2>Found ${parsed.length} trades:</h2><pre>${JSON.stringify(parsed, null, 2)}</pre>`;
+        } else {
+            result.innerHTML = '<h2>No signalLabData found in localStorage</h2>';
+        }
+        
+        // Show all localStorage keys
+        const allKeys = Object.keys(localStorage);
+        result.innerHTML += `<h3>All localStorage keys:</h3><ul>${allKeys.map(k => `<li>${k}</li>`).join('')}</ul>`;
+    </script>
+</body>
+</html>

@@ -652,25 +652,35 @@
                 
                 // If database is empty, check localStorage for recovery
                 if (signals.length === 0) {
+                    console.log('Database empty, checking localStorage...');
                     const saved = localStorage.getItem('signalLabData');
+                    console.log('localStorage data:', saved);
                     if (saved) {
                         const localData = JSON.parse(saved);
-                        console.log(`Found ${localData.length} trades in localStorage`);
+                        console.log(`Found ${localData.length} trades in localStorage:`, localData);
                         signals = localData;
                         showRecoveryNotice(localData.length);
+                    } else {
+                        console.log('No signalLabData in localStorage');
                     }
+                } else {
+                    console.log(`Loaded ${signals.length} trades from database`);
                 }
                 
                 updateDisplay();
             } catch (error) {
                 console.error('Error loading signals:', error);
                 // Fallback to localStorage if database fails
+                console.log('Database failed, checking localStorage fallback...');
                 const saved = localStorage.getItem('signalLabData');
+                console.log('localStorage fallback data:', saved);
                 if (saved) {
                     signals = JSON.parse(saved);
-                    console.log('Loaded from localStorage fallback');
+                    console.log(`Loaded ${signals.length} trades from localStorage fallback`);
                     showRecoveryNotice(signals.length);
                     updateDisplay();
+                } else {
+                    console.log('No localStorage fallback data available');
                 }
             }
         }
