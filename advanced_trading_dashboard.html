@@ -1556,6 +1556,11 @@
         function switchDataSource() {
             const dataSource = document.getElementById('dataSourceToggle').value;
             console.log('Switching to data source:', dataSource);
+            
+            // Clear existing trades to force reload
+            window.trades = [];
+            
+            // Reload data from the selected source
             loadDatabaseData();
         }
         
@@ -2073,7 +2078,22 @@
         
         // Load data from database instead of sample data
         async function loadDatabaseData() {
+            console.log('Loading database data...');
             await loadTradesFromDB();
+            
+            // Only load sample data if no database data and not Signal Lab
+            if (window.trades.length === 0) {
+                const dataSource = document.getElementById('dataSourceToggle').value;
+                if (dataSource !== 'signal-lab') {
+                    console.log('No database data found, loading sample data for Trade Manager');
+                    loadSampleData();
+                } else {
+                    console.log('No Signal Lab data found in database');
+                }
+            } else {
+                console.log('Loaded', window.trades.length, 'trades from database');
+            }
+            
             initializeCalendarYear();
             updateDashboard();
             
@@ -2849,6 +2869,13 @@
         }
         
         function loadSampleData() {
+            // Only load sample data if no real data exists and not using Signal Lab
+            const dataSource = document.getElementById('dataSourceToggle').value;
+            if (dataSource === 'signal-lab' || window.trades.length > 0) {
+                console.log('Skipping sample data - using', dataSource, 'with', window.trades.length, 'trades');
+                return;
+            }
+            
             window.trades = [
                 { date: '2024-01-15', bias: 'LONG', session: 'LONDON', breakeven: false, rScore: 2.5, r1: 2.5, r2: 2.5, r3: 0, r4: 0, r5: 0, r6: 0, r7: 0, r8: 0, r9: 0, r10: 0, r11: 0, r12: 0, r13: 0, r14: 0, r15: 0, r16: 0, r17: 0, r18: 0, r19: 0, r20: 0 },
                 { date: '2024-01-16', bias: 'SHORT', session: 'NEW YORK AM', breakeven: true, rScore: 1, r1: 1, r2: 1, r3: 0, r4: 0, r5: 0, r6: 0, r7: 0, r8: 0, r9: 0, r10: 0, r11: 0, r12: 0, r13: 0, r14: 0, r15: 0, r16: 0, r17: 0, r18: 0, r19: 0, r20: 0 },
@@ -5824,5 +5851,52 @@
 })();
 </script>
 <!-- CHAT_FIX_END -->
-<script src="/chatbot.js"></script>`n</body>
+<script src="/chatbot.js"></script>
+    
+    <script>
+        // Initialize page when DOM is ready
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('Dashboard initializing...');
+            
+            // Clear any existing trades to ensure fresh load
+            window.trades = [];
+            
+            // Load saved filter states first
+            loadFilterStates();
+            
+            // Load style
+            loadStyle();
+            
+            // Initialize charts
+            initCharts();
+            
+            // Load data from database
+            await loadDatabaseData();
+            
+            // Update current time
+            updateCurrentTime();
+            setInterval(updateCurrentTime, 1000);
+            
+            console.log('Dashboard initialized successfully with', window.trades.length, 'trades');
+        });
+        
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleString('en-US', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                timeZoneName: 'short'
+            });
+            const timeEl = document.getElementById('currentDateTime');
+            if (timeEl) {
+                timeEl.textContent = timeString;
+            }
+        }
+    </script>
+</body>
 </html>
