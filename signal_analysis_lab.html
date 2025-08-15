@@ -999,8 +999,19 @@
             
             signals.slice().reverse().forEach(signal => {
                 const row = tbody.insertRow();
+                const isActiveTrade = !signal.mfe || signal.mfe === 0 || signal.mfe === null || signal.mfe === undefined;
+                const screenshotCell = signal.screenshot ? 
+                    `<img src="${signal.screenshot}" style="width: 30px; height: 20px; object-fit: cover; border-radius: 3px; cursor: pointer; margin-right: 5px;" onclick="window.open('${signal.screenshot}', '_blank')" title="Click to view full size">` : 
+                    '';
+                
+                if (isActiveTrade) {
+                    row.style.background = 'rgba(255, 165, 0, 0.3)';
+                    row.style.border = '2px solid rgba(255, 165, 0, 0.8)';
+                    row.title = 'ACTIVE TRADE - Add MFE when closed';
+                }
+                
                 row.innerHTML = `
-                    <td>${signal.date}</td>
+                    <td>${signal.date}${isActiveTrade ? ' 🔄' : ''}</td>
                     <td>${signal.time}</td>
                     <td>${signal.bias}</td>
                     <td>${signal.session}</td>
@@ -1011,12 +1022,13 @@
                     <td>${signal.takeProfit.toFixed(2)}</td>
                     <td>${signal.beAchieved ? '✓' : '✗'}</td>
                     <td>${signal.breakeven}R</td>
-                    <td class="${signal.mfe > 0 ? 'positive' : signal.mfe < 0 ? 'negative' : 'neutral'}">${signal.mfe.toFixed(1)}R</td>
+                    <td class="${signal.mfe > 0 ? 'positive' : signal.mfe < 0 ? 'negative' : 'neutral'}">${isActiveTrade ? '<strong style="color: #ffa502;">ACTIVE</strong>' : signal.mfe.toFixed(1) + 'R'}</td>
                     <td>${signal.positionSize}</td>
                     <td>$${signal.commission.toFixed(2)}</td>
                     <td>${signal.newsProximity}</td>
                     <td>${signal.newsEvent}</td>
                     <td>
+                        ${screenshotCell}
                         <button onclick="editSignal(${signal.id})" class="action-btn">Edit</button>
                         <button onclick="deleteSignal(${signal.id})" class="delete-btn">Del</button>
                     </td>
