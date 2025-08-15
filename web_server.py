@@ -1355,46 +1355,7 @@ def capture_daily_levels():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/level-tracking/capture-from-ai', methods=['POST'])
-@login_required
-def capture_ai_levels():
-    """Capture levels directly from AI market analysis"""
-    try:
-        from level_tracker import LevelTracker
-        
-        # Get current AI market analysis
-        news_response = await fetch('/api/market-news')
-        news_data = await news_response.json()
-        
-        # Get AI analysis
-        ai_response = await fetch('/api/ai-market-analysis', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                news: news_data.news || [],
-                futures: news_data.futures || {},
-                trades: []
-            })
-        })
-        
-        ai_data = await ai_response.json()
-        
-        if ai_data.get('analysis'):
-            tracker = LevelTracker()
-            parsed_levels = tracker.parse_ai_levels(ai_data['analysis'])
-            levels = tracker.capture_daily_levels(parsed_levels)
-            
-            return jsonify({
-                "status": "success",
-                "levels": levels,
-                "ai_analysis": ai_data['analysis'],
-                "message": "AI levels captured from market intelligence"
-            })
-        else:
-            return jsonify({"error": "No AI analysis available"}), 400
-            
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/level-tracking/accuracy')
 @login_required
