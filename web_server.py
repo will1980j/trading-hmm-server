@@ -129,6 +129,11 @@ def trade_manager():
 def signal_analysis_lab():
     return read_html_file('signal_analysis_lab.html')
 
+@app.route('/recover-signal-lab')
+@login_required
+def recover_signal_lab():
+    return read_html_file('recover_signal_lab_data.html')
+
 @app.route('/prop-portfolio')
 @login_required
 def prop_portfolio():

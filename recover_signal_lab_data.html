@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signal Lab Data Recovery</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(20px);
+        }
+        .btn {
+            background: linear-gradient(45deg, #00ff88, #00d4aa);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .status {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        .success { border-left: 4px solid #00ff88; }
+        .error { border-left: 4px solid #ff4757; }
+        .warning { border-left: 4px solid #ffa502; }
+        pre {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Signal Lab Data Recovery</h1>
+        <p>This tool will help recover your Signal Lab data that may be stored in localStorage.</p>
+        
+        <div class="status" id="status">
+            <strong>Status:</strong> Ready to check for data
+        </div>
+        
+        <button class="btn" onclick="checkLocalStorage()">1. Check localStorage</button>
+        <button class="btn" onclick="checkDatabase()">2. Check Database</button>
+        <button class="btn" onclick="migrateData()">3. Migrate to Database</button>
+        <button class="btn" onclick="clearLocalStorage()">4. Clear localStorage</button>
+        
+        <div id="results"></div>
+        
+        <div style="margin-top: 30px;">
+            <a href="/signal-analysis-lab" class="btn">← Back to Signal Lab</a>
+        </div>
+    </div>
+
+    <script>
+        let localStorageData = null;
+        let databaseData = null;
+
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.innerHTML = `<strong>Status:</strong> ${message}`;
+            status.className = `status ${type}`;
+        }
+
+        function addResult(title, content, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `<h3>${title}</h3><pre>${content}</pre>`;
+            results.appendChild(div);
+        }
+
+        function checkLocalStorage() {
+            updateStatus('Checking localStorage...', 'warning');
+            
+            try {
+                const saved = localStorage.getItem('signalLabData');
+                if (saved) {
+                    localStorageData = JSON.parse(saved);
+                    updateStatus(`Found ${localStorageData.length} trades in localStorage!`, 'success');
+                    addResult('localStorage Data Found', JSON.stringify(localStorageData, null, 2), 'success');
+                } else {
+                    localStorageData = null;
+                    updateStatus('No data found in localStorage', 'warning');
+                    addResult('localStorage Check', 'No signalLabData found in localStorage', 'warning');
+                }
+            } catch (error) {
+                updateStatus('Error checking localStorage: ' + error.message, 'error');
+                addResult('localStorage Error', error.message, 'error');
+            }
+        }
+
+        async function checkDatabase() {
+            updateStatus('Checking database...', 'warning');
+            
+            try {
+                const response = await fetch('/api/signal-lab-trades');
+                if (response.ok) {
+                    databaseData = await response.json();
+                    updateStatus(`Found ${databaseData.length} trades in database`, databaseData.length > 0 ? 'success' : 'warning');
+                    addResult('Database Data', `${databaseData.length} trades found in database`, databaseData.length > 0 ? 'success' : 'warning');
+                } else {
+                    updateStatus('Error checking database: ' + response.statusText, 'error');
+                    addResult('Database Error', `HTTP ${response.status}: ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                updateStatus('Error connecting to database: ' + error.message, 'error');
+                addResult('Database Connection Error', error.message, 'error');
+            }
+        }
+
+        async function migrateData() {
+            if (!localStorageData || localStorageData.length === 0) {
+                updateStatus('No localStorage data to migrate. Run "Check localStorage" first.', 'warning');
+                return;
+            }
+
+            updateStatus('Migrating data to database...', 'warning');
+            
+            let successCount = 0;
+            let errorCount = 0;
+            const errors = [];
+
+            for (const signal of localStorageData) {
+                try {
+                    const response = await fetch('/api/signal-lab-trades', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            date: signal.date,
+                            time: signal.time,
+                            bias: signal.bias,
+                            session: signal.session,
+                            signal_type: signal.signalType,
+                            open_price: signal.openPrice || 0,
+                            entry_price: signal.entryPrice || 0,
+                            stop_loss: signal.stopLoss || 0,
+                            take_profit: signal.takeProfit || 0,
+                            be_achieved: signal.beAchieved ? 1 : 0,
+                            breakeven: signal.breakeven || 0,
+                            mfe: signal.mfe || 0,
+                            position_size: signal.positionSize || 1,
+                            commission: signal.commission || 0,
+                            news_proximity: signal.newsProximity || 'None',
+                            news_event: signal.newsEvent || 'None',
+                            screenshot: signal.screenshot
+                        })
+                    });
+
+                    if (response.ok) {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                        errors.push(`Trade ${signal.date} ${signal.time}: ${response.statusText}`);
+                    }
+                } catch (error) {
+                    errorCount++;
+                    errors.push(`Trade ${signal.date} ${signal.time}: ${error.message}`);
+                }
+            }
+
+            if (successCount > 0) {
+                updateStatus(`Migration complete! ${successCount} trades saved to database, ${errorCount} errors`, successCount === localStorageData.length ? 'success' : 'warning');
+                addResult('Migration Results', `✅ Successfully migrated: ${successCount}\n❌ Errors: ${errorCount}\n\nErrors:\n${errors.join('\n')}`, successCount > 0 ? 'success' : 'error');
+            } else {
+                updateStatus('Migration failed - no trades were saved', 'error');
+                addResult('Migration Failed', errors.join('\n'), 'error');
+            }
+        }
+
+        function clearLocalStorage() {
+            if (confirm('Are you sure you want to clear localStorage? This will permanently delete any local Signal Lab data.')) {
+                localStorage.removeItem('signalLabData');
+                updateStatus('localStorage cleared', 'success');
+                addResult('localStorage Cleared', 'signalLabData removed from localStorage', 'success');
+                localStorageData = null;
+            }
+        }
+
+        // Auto-check on load
+        window.addEventListener('load', () => {
+            checkLocalStorage();
+            setTimeout(checkDatabase, 1000);
+        });
+    </script>
+</body>
+</html>

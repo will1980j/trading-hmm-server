@@ -620,35 +620,70 @@
         let signals = [];
         let editingSignalId = null;
         
-        // Load signals from database ONLY
+        // Load signals from database with localStorage recovery
         async function loadSignals() {
-            const response = await fetch('/api/signal-lab-trades');
-            if (!response.ok) {
-                throw new Error(`Failed to load signals: ${response.status} ${response.statusText}`);
+            try {
+                const response = await fetch('/api/signal-lab-trades');
+                if (!response.ok) {
+                    throw new Error(`Failed to load signals: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                signals = data.map(trade => ({
+                    id: trade.id,
+                    date: trade.date,
+                    time: trade.time,
+                    bias: trade.bias,
+                    session: trade.session,
+                    signalType: trade.signal_type,
+                    openPrice: parseFloat(trade.open_price) || 0,
+                    entryPrice: parseFloat(trade.entry_price) || 0,
+                    stopLoss: parseFloat(trade.stop_loss) || 0,
+                    takeProfit: parseFloat(trade.take_profit) || 0,
+                    beAchieved: trade.be_achieved === 1,
+                    breakeven: parseFloat(trade.breakeven) || 0,
+                    mfe: parseFloat(trade.mfe) || 0,
+                    positionSize: parseInt(trade.position_size) || 1,
+                    commission: parseFloat(trade.commission) || 0,
+                    newsProximity: trade.news_proximity || 'None',
+                    newsEvent: trade.news_event || 'None',
+                    screenshot: trade.screenshot
+                }));
+                
+                // If database is empty, check localStorage for recovery
+                if (signals.length === 0) {
+                    const saved = localStorage.getItem('signalLabData');
+                    if (saved) {
+                        const localData = JSON.parse(saved);
+                        console.log(`Found ${localData.length} trades in localStorage`);
+                        signals = localData;
+                        showRecoveryNotice(localData.length);
+                    }
+                }
+                
+                updateDisplay();
+            } catch (error) {
+                console.error('Error loading signals:', error);
+                // Fallback to localStorage if database fails
+                const saved = localStorage.getItem('signalLabData');
+                if (saved) {
+                    signals = JSON.parse(saved);
+                    console.log('Loaded from localStorage fallback');
+                    showRecoveryNotice(signals.length);
+                    updateDisplay();
+                }
             }
-            
-            const data = await response.json();
-            signals = data.map(trade => ({
-                id: trade.id,
-                date: trade.date,
-                time: trade.time,
-                bias: trade.bias,
-                session: trade.session,
-                signalType: trade.signal_type,
-                openPrice: parseFloat(trade.open_price) || 0,
-                entryPrice: parseFloat(trade.entry_price) || 0,
-                stopLoss: parseFloat(trade.stop_loss) || 0,
-                takeProfit: parseFloat(trade.take_profit) || 0,
-                beAchieved: trade.be_achieved === 1,
-                breakeven: parseFloat(trade.breakeven) || 0,
-                mfe: parseFloat(trade.mfe) || 0,
-                positionSize: parseInt(trade.position_size) || 1,
-                commission: parseFloat(trade.commission) || 0,
-                newsProximity: trade.news_proximity || 'None',
-                newsEvent: trade.news_event || 'None',
-                screenshot: trade.screenshot
-            }));
-            updateDisplay();
+        }
+        
+        function showRecoveryNotice(count) {
+            const notice = document.createElement('div');
+            notice.style.cssText = 'background: rgba(255,165,0,0.2); border: 2px solid #ffa502; padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center;';
+            notice.innerHTML = `
+                <strong>⚠️ DATA RECOVERY NEEDED</strong><br>
+                Found ${count} trades in localStorage but database is empty.<br>
+                <a href="/recover-signal-lab" style="color: #00ff88; text-decoration: underline; font-weight: bold;">Click here to migrate your data to database</a>
+            `;
+            document.querySelector('.container').insertBefore(notice, document.querySelector('.stats-grid'));
         }
         
         // localStorage functions
