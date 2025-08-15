@@ -1326,6 +1326,142 @@ def scrape_propfirms():
         logger.error(f"Scraper error: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
         return jsonify({"error": "Scraper unavailable"}), 500
 
+# Level tracking endpoints
+@app.route('/api/level-tracking/capture', methods=['POST'])
+@login_required
+def capture_daily_levels():
+    try:
+        from level_tracker import LevelTracker
+        tracker = LevelTracker()
+        
+        data = request.get_json() or {}
+        ai_analysis = data.get('ai_analysis')
+        
+        if ai_analysis:
+            # Parse AI analysis for levels
+            parsed_levels = tracker.parse_ai_levels(ai_analysis)
+            levels = tracker.capture_daily_levels(parsed_levels)
+            message = "AI-generated levels captured"
+        else:
+            # Use basic technical levels
+            levels = tracker.capture_daily_levels()
+            message = "Technical levels captured"
+        
+        return jsonify({
+            "status": "success",
+            "levels": levels,
+            "message": message
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/level-tracking/capture-from-ai', methods=['POST'])
+@login_required
+def capture_ai_levels():
+    """Capture levels directly from AI market analysis"""
+    try:
+        from level_tracker import LevelTracker
+        
+        # Get current AI market analysis
+        news_response = await fetch('/api/market-news')
+        news_data = await news_response.json()
+        
+        # Get AI analysis
+        ai_response = await fetch('/api/ai-market-analysis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                news: news_data.news || [],
+                futures: news_data.futures || {},
+                trades: []
+            })
+        })
+        
+        ai_data = await ai_response.json()
+        
+        if ai_data.get('analysis'):
+            tracker = LevelTracker()
+            parsed_levels = tracker.parse_ai_levels(ai_data['analysis'])
+            levels = tracker.capture_daily_levels(parsed_levels)
+            
+            return jsonify({
+                "status": "success",
+                "levels": levels,
+                "ai_analysis": ai_data['analysis'],
+                "message": "AI levels captured from market intelligence"
+            })
+        else:
+            return jsonify({"error": "No AI analysis available"}), 400
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/level-tracking/accuracy')
+@login_required
+def get_level_accuracy():
+    try:
+        from level_tracker import LevelTracker
+        tracker = LevelTracker()
+        accuracy_data = tracker.get_accuracy_report()
+        
+        return jsonify({
+            "accuracy_data": [{
+                "level_type": row[1],
+                "total_predictions": row[2],
+                "total_hits": row[3],
+                "accuracy_percentage": float(row[4]),
+                "confidence_score": float(row[5])
+            } for row in accuracy_data]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/level-tracking/analyze', methods=['POST'])
+@login_required
+def analyze_level_performance():
+    try:
+        if not client:
+            return jsonify({"error": "OpenAI client not available"}), 500
+            
+        from level_tracker import LevelTracker
+        tracker = LevelTracker()
+        accuracy_data = tracker.get_accuracy_report()
+        
+        # Build context for GPT-4 analysis
+        context = "NQ Level Accuracy Analysis:\n\n"
+        for row in accuracy_data:
+            level_type, total, hits, accuracy, confidence = row[1], row[2], row[3], float(row[4]), float(row[5])
+            context += f"{level_type.upper()}: {hits}/{total} hits ({accuracy:.1f}% accuracy, {confidence:.1f}% confidence)\n"
+        
+        prompt = f"""{context}
+        
+Analyze this NQ level tracking data and provide:
+        1. Which level types are most reliable for trading
+        2. Confidence assessment for each level type
+        3. Trading recommendations based on accuracy patterns
+        4. Areas for improvement in level prediction
+        
+        Focus on actionable insights for ICT liquidity grab strategy."""
+        
+        response = client.chat.completions.create(
+            model=environ.get('OPENAI_MODEL', 'gpt-4o'),
+            messages=[
+                {"role": "system", "content": "You are an expert quantitative analyst specializing in futures level analysis and ICT trading concepts."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=400,
+            temperature=0.3
+        )
+        
+        return jsonify({
+            "analysis": response.choices[0].message.content,
+            "accuracy_data": accuracy_data,
+            "status": "success"
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # Signal lab table is created in railway_db.py setup_tables()
 
 # Helper functions for AI context building

@@ -964,6 +964,34 @@
             </div>
         </div>
         
+        <!-- Level Accuracy Tracking -->
+        <div class="glass-panel" style="margin-bottom: 20px;">
+            <h3 style="margin-bottom: 15px; color: #00ff88;">🎯 NQ Level Accuracy Tracker</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div class="stat-card" style="text-align: center;">
+                    <div style="font-size: 12px; opacity: 0.8;">SUPPORT LEVELS</div>
+                    <div id="supportAccuracy" style="font-size: 18px; font-weight: bold; color: #00ff88;">---%</div>
+                    <div id="supportConfidence" style="font-size: 10px; opacity: 0.7;">-- confidence</div>
+                </div>
+                <div class="stat-card" style="text-align: center;">
+                    <div style="font-size: 12px; opacity: 0.8;">RESISTANCE LEVELS</div>
+                    <div id="resistanceAccuracy" style="font-size: 18px; font-weight: bold; color: #ff6b7a;">---%</div>
+                    <div id="resistanceConfidence" style="font-size: 10px; opacity: 0.7;">-- confidence</div>
+                </div>
+                <div class="stat-card" style="text-align: center;">
+                    <div style="font-size: 12px; opacity: 0.8;">PIVOT LEVELS</div>
+                    <div id="pivotAccuracy" style="font-size: 18px; font-weight: bold; color: #ffa502;">---%</div>
+                    <div id="pivotConfidence" style="font-size: 10px; opacity: 0.7;">-- confidence</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="captureAILevels()" class="btn" style="font-size: 12px; padding: 8px 16px; background: #00ff88;">Capture AI Levels</button>
+                <button onclick="captureDailyLevels()" class="btn" style="font-size: 12px; padding: 8px 16px; background: #6c757d;">Manual Levels</button>
+                <button onclick="analyzeLevelPerformance()" class="btn" style="font-size: 12px; padding: 8px 16px; background: #3742fa;">AI Analysis</button>
+            </div>
+            <div id="levelAnalysis" style="margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px; display: none;"></div>
+        </div>
+        
         <!-- Economic News & AI Analysis -->
         <div style="background: linear-gradient(135deg, rgba(138,43,226,0.1), rgba(75,0,130,0.1)); border: 1px solid rgba(138,43,226,0.3); border-radius: 15px; padding: 20px; margin-bottom: 25px;">
             <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
@@ -2220,6 +2248,7 @@
             await updateMarketNews();
             await updateMarketAnalysis();
             await updateEconomicNews();
+            await updateLevelAccuracy();
             
             // Update market news every 2 minutes
             setInterval(updateMarketNews, 120000);
@@ -2227,6 +2256,8 @@
             setInterval(updateMarketAnalysis, 300000);
             // Update economic news every 10 minutes
             setInterval(updateEconomicNews, 600000);
+            // Update level accuracy every hour
+            setInterval(updateLevelAccuracy, 3600000);
         }
         
         async function updateEconomicNews() {
@@ -5979,6 +6010,113 @@
             const timeEl = document.getElementById('currentDateTime');
             if (timeEl) {
                 timeEl.textContent = timeString;
+            }
+        }
+        
+        async function updateLevelAccuracy() {
+            try {
+                const response = await fetch('/api/level-tracking/accuracy');
+                const data = await response.json();
+                
+                if (data.accuracy_data) {
+                    data.accuracy_data.forEach(item => {
+                        const accuracyEl = document.getElementById(`${item.level_type}Accuracy`);
+                        const confidenceEl = document.getElementById(`${item.level_type}Confidence`);
+                        
+                        if (accuracyEl) {
+                            accuracyEl.textContent = `${item.accuracy_percentage.toFixed(1)}%`;
+                        }
+                        if (confidenceEl) {
+                            confidenceEl.textContent = `${item.confidence_score.toFixed(0)}% confidence`;
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error updating level accuracy:', error);
+            }
+        }
+        
+        async function captureAILevels() {
+            try {
+                // Get current AI market analysis
+                const newsResponse = await fetch('/api/market-news');
+                const newsData = await newsResponse.json();
+                
+                const aiResponse = await fetch('/api/ai-market-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        news: newsData.news || [],
+                        futures: newsData.futures || {},
+                        trades: []
+                    })
+                });
+                
+                const aiData = await aiResponse.json();
+                
+                if (aiData.analysis) {
+                    // Capture levels from AI analysis
+                    const response = await fetch('/api/level-tracking/capture', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ai_analysis: aiData.analysis })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        const levels = data.levels;
+                        alert(`AI Levels Captured!\n\nSession Highs: ${levels.session_highs?.join(', ') || 'None'}\nSession Lows: ${levels.session_lows?.join(', ') || 'None'}\nFVG Zones: ${levels.fvg_zones?.join(', ') || 'None'}\nSupport: ${levels.support?.join(', ') || 'None'}\nResistance: ${levels.resistance?.join(', ') || 'None'}`);
+                        await updateLevelAccuracy();
+                    } else {
+                        alert('Error capturing AI levels: ' + (data.error || 'Unknown error'));
+                    }
+                } else {
+                    alert('No AI analysis available');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function captureDailyLevels() {
+            try {
+                const response = await fetch('/api/level-tracking/capture', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    alert(`Technical levels captured!\n\nSupport: ${data.levels.support.join(', ')}\nResistance: ${data.levels.resistance.join(', ')}\nPivot: ${data.levels.pivot}`);
+                    await updateLevelAccuracy();
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function analyzeLevelPerformance() {
+            try {
+                const analysisEl = document.getElementById('levelAnalysis');
+                analysisEl.style.display = 'block';
+                analysisEl.innerHTML = '🤖 Analyzing with GPT-4...';
+                
+                const response = await fetch('/api/level-tracking/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    analysisEl.innerHTML = `<h4 style="color: #00ff88; margin-bottom: 10px;">🎯 AI Level Analysis</h4><pre style="white-space: pre-wrap; font-family: inherit; line-height: 1.5;">${data.analysis}</pre>`;
+                } else {
+                    analysisEl.innerHTML = `<div style="color: #ff4757;">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('levelAnalysis').innerHTML = `<div style="color: #ff4757;">Error: ${error.message}</div>`;
             }
         }
     </script>
