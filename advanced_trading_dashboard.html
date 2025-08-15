@@ -28,7 +28,7 @@
     <script defer src="notification_system.js"></script>
     <script defer src="professional_styles.js"></script>
     <script defer src="ai_chat.js"></script>
-    <script defer src="dashboard_fixes.js"></script>
+    <script src="dashboard_fixes.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -1509,25 +1509,7 @@
     <script>
         window.trades = [];
         
-        // Load trades from database
-        async function loadTradesFromDB() {
-            try {
-                const response = await fetch('/api/trades');
-                const data = await response.json();
-                if (data.trades) {
-                    window.trades = data.trades.map(t => ({
-                        date: t.created_at ? t.created_at.split('T')[0] : '2024-08-06',
-                        bias: t.bias || 'LONG',
-                        session: extractSession(t.reason) || 'LONDON',
-                        breakeven: extractBreakeven(t.reason),
-                        rScore: extractRScore(t.reason)
-                    }));
-                    console.log('Loaded', window.trades.length, 'trades from database');
-                }
-            } catch (error) {
-                console.error('Failed to load trades from database:', error);
-            }
-        }
+
         
         function extractSession(reason) {
             if (!reason) return 'LONDON';
@@ -1574,33 +1556,7 @@
             updateCharts();
         }
         
-        function updateCharts() {
-            const filteredTrades = getFilteredTrades();
-            const rTarget = parseInt(document.getElementById('rTargetFilter').value);
-            
-            // Update basic metrics
-            document.getElementById('filteredTrades').textContent = filteredTrades.length;
-            
-            const wins = filteredTrades.filter(t => t.rScore >= 1 || t.breakeven).length;
-            const winRate = filteredTrades.length > 0 ? (wins / filteredTrades.length * 100).toFixed(1) : '0.0';
-            document.getElementById('filteredWinRate').textContent = winRate + '%';
-            
-            const totalR = filteredTrades.reduce((sum, t) => sum + t.rScore, 0);
-            const expectancy = filteredTrades.length > 0 ? (totalR / filteredTrades.length).toFixed(2) : '0.00';
-            document.getElementById('expectancy').textContent = expectancy + 'R';
-            
-            const profits = filteredTrades.filter(t => t.rScore > 0);
-            const losses = filteredTrades.filter(t => t.rScore < 0);
-            const avgWin = profits.length > 0 ? profits.reduce((sum, t) => sum + t.rScore, 0) / profits.length : 0;
-            const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((sum, t) => sum + t.rScore, 0) / losses.length) : 0;
-            const profitFactor = losses.length > 0 ? (avgWin * profits.length / (avgLoss * losses.length)).toFixed(2) : 'Infinity';
-            document.getElementById('profitFactor').textContent = profitFactor;
-            
-            // Update D3 charts if available
-            if (typeof updateD3Charts === 'function') {
-                updateD3Charts();
-            }
-        }
+
         
         function updateDateTime() {
             const now = new Date();
@@ -1620,72 +1576,7 @@
             }
         }
         
-        function updateMarketStatus() {
-            const now = new Date();
-            const utcHour = now.getUTCHours();
-            const utcMinute = now.getUTCMinutes();
-            const currentUTCTime = utcHour * 60 + utcMinute;
-            
-            const markets = [
-                { name: 'ASIA', open: 22 * 60, close: 7 * 60, timezone: 'Tokyo' },
-                { name: 'LONDON', open: 7 * 60, close: 16 * 60, timezone: 'London' },
-                { name: 'NY', open: 13 * 60 + 30, close: 20 * 60, timezone: 'New York' }
-            ];
-            
-            let marketHTML = '';
-            
-            markets.forEach(market => {
-                let isOpen = false;
-                let nextEvent = '';
-                let timeToEvent = 0;
-                
-                if (market.name === 'ASIA') {
-                    isOpen = currentUTCTime >= market.open || currentUTCTime < market.close;
-                    if (isOpen) {
-                        timeToEvent = market.close > currentUTCTime ? market.close - currentUTCTime : (24 * 60) - currentUTCTime + market.close;
-                        nextEvent = 'Closes in';
-                    } else {
-                        timeToEvent = market.open - currentUTCTime;
-                        nextEvent = 'Opens in';
-                    }
-                } else {
-                    isOpen = currentUTCTime >= market.open && currentUTCTime < market.close;
-                    if (isOpen) {
-                        timeToEvent = market.close - currentUTCTime;
-                        nextEvent = 'Closes in';
-                    } else {
-                        if (currentUTCTime < market.open) {
-                            timeToEvent = market.open - currentUTCTime;
-                        } else {
-                            timeToEvent = (24 * 60) - currentUTCTime + market.open;
-                        }
-                        nextEvent = 'Opens in';
-                    }
-                }
-                
-                const hours = Math.floor(timeToEvent / 60);
-                const minutes = timeToEvent % 60;
-                const timeString = `${hours}h ${minutes}m`;
-                
-                const glowClass = isOpen ? 'open' : '';
-                
-                marketHTML += `
-                    <div class="market-widget ${glowClass}">
-                        <div class="market-name">${market.name}</div>
-                        <div class="market-status ${isOpen ? 'market-open' : 'market-closed'}">
-                            ${isOpen ? 'OPEN' : 'CLOSED'}
-                        </div>
-                        <div class="market-timer">${nextEvent}</div>
-                        <div class="market-timer" style="font-weight: 600; color: ${isOpen ? '#00ff88' : '#ffa502'};">${timeString}</div>
-                    </div>
-                `;
-            });
-            
-            const marketElement = document.getElementById('marketStatus');
-            if (marketElement) {
-                marketElement.innerHTML = marketHTML;
-            }
-        }
+
         
         function changeStyle() {
             const style = document.getElementById('styleSelector').value;
