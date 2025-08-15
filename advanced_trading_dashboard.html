@@ -1513,24 +1513,25 @@
         // Load trades from database
         async function loadTradesFromDB() {
             const dataSource = document.getElementById('dataSourceToggle').value;
-            const endpoint = dataSource === 'signal-lab' ? '/api/signals' : '/api/trades';
+            const endpoint = dataSource === 'signal-lab' ? '/api/signal-lab-trades' : '/api/trades';
             
             try {
                 const response = await fetch(endpoint);
                 const data = await response.json();
                 
-                if (dataSource === 'signal-lab' && data.signals) {
-                    window.trades = data.signals.map(s => ({
-                        date: s.created_at ? s.created_at.split('T')[0] : '2024-08-06',
-                        bias: s.direction || 'LONG',
+                if (dataSource === 'signal-lab' && data.length > 0) {
+                    window.trades = data.map(s => ({
+                        date: s.date || s.created_at?.split('T')[0] || '2024-08-06',
+                        bias: s.bias || 'LONG',
                         session: s.session || 'LONDON',
-                        breakeven: s.outcome === 'breakeven',
-                        rScore: s.r_multiple || null,
-                        screenshot: s.screenshot_url || null,
-                        r1: s.r_multiple || null, r2: s.r_multiple || null, r3: s.r_multiple || null, r4: s.r_multiple || null, r5: s.r_multiple || null,
-                        r6: s.r_multiple || null, r7: s.r_multiple || null, r8: s.r_multiple || null, r9: s.r_multiple || null, r10: s.r_multiple || null,
-                        r11: s.r_multiple || null, r12: s.r_multiple || null, r13: s.r_multiple || null, r14: s.r_multiple || null, r15: s.r_multiple || null,
-                        r16: s.r_multiple || null, r17: s.r_multiple || null, r18: s.r_multiple || null, r19: s.r_multiple || null, r20: s.r_multiple || null
+                        breakeven: s.be_achieved || false,
+                        rScore: s.mfe || null,
+                        mfe: s.mfe || null,
+                        screenshot: s.screenshot || null,
+                        r1: s.mfe || null, r2: s.mfe || null, r3: s.mfe || null, r4: s.mfe || null, r5: s.mfe || null,
+                        r6: s.mfe || null, r7: s.mfe || null, r8: s.mfe || null, r9: s.mfe || null, r10: s.mfe || null,
+                        r11: s.mfe || null, r12: s.mfe || null, r13: s.mfe || null, r14: s.mfe || null, r15: s.mfe || null,
+                        r16: s.mfe || null, r17: s.mfe || null, r18: s.mfe || null, r19: s.mfe || null, r20: s.mfe || null
                     }));
                     console.log('Loaded', window.trades.length, 'signals from Signal Lab');
                 } else if (data.trades) {
@@ -2012,31 +2013,31 @@
             
             filteredTrades.slice(-10).reverse().forEach((trade, index) => {
                 const row = tbody.insertRow();
-                const isActiveTrade = !trade.rScore || trade.rScore === 0 || (trade.rScore === null || trade.rScore === undefined);
+                const isActiveTrade = !trade.mfe || trade.mfe === 0 || trade.mfe === null || trade.mfe === undefined;
                 const screenshotCell = dataSource === 'signal-lab' && trade.screenshot ? 
                     `<td><img src="${trade.screenshot}" style="width: 40px; height: 30px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="window.open('${trade.screenshot}', '_blank')"></td>` : 
-                    '<td></td>';
+                    '<td>-</td>';
                 
                 if (isActiveTrade) {
-                    row.style.background = 'rgba(255, 165, 0, 0.2)';
-                    row.style.border = '1px solid rgba(255, 165, 0, 0.5)';
-                    row.title = 'Active trade - Add MFE when closed';
+                    row.style.background = 'rgba(255, 165, 0, 0.3)';
+                    row.style.border = '2px solid rgba(255, 165, 0, 0.8)';
+                    row.title = 'ACTIVE TRADE - Add MFE when closed';
                 }
                 
                 row.innerHTML = `
                     ${screenshotCell}
-                    <td>${trade.date}${isActiveTrade ? ' 🔄' : ''}</td>
+                    <td>${trade.date}${isActiveTrade ? ' 🔄 ACTIVE' : ''}</td>
                     <td>${trade.bias}</td>
                     <td>${trade.session}</td>
                     <td>${trade.breakeven ? '✓' : ''}</td>
-                    <td>${isActiveTrade ? 'ACTIVE' : (trade.rScore ? trade.rScore.toFixed(1) + 'R' : 'ACTIVE')}</td>
+                    <td>${isActiveTrade ? '<strong style="color: #ffa502;">ACTIVE</strong>' : (trade.mfe ? trade.mfe.toFixed(1) + 'R' : 'ACTIVE')}</td>
                     <td>
                         <div class="r-columns">
-                            <div class="r-value ${trade.r1 > 0 ? 'positive' : trade.r1 < 0 ? 'negative' : 'neutral'}">${trade.r1.toFixed(1)}</div>
-                            <div class="r-value ${trade.r2 > 0 ? 'positive' : trade.r2 < 0 ? 'negative' : 'neutral'}">${trade.r2.toFixed(1)}</div>
-                            <div class="r-value ${trade.r3 > 0 ? 'positive' : trade.r3 < 0 ? 'negative' : 'neutral'}">${trade.r3.toFixed(1)}</div>
-                            <div class="r-value ${trade.r4 > 0 ? 'positive' : trade.r4 < 0 ? 'negative' : 'neutral'}">${trade.r4.toFixed(1)}</div>
-                            <div class="r-value ${trade.r5 > 0 ? 'positive' : trade.r5 < 0 ? 'negative' : 'neutral'}">${trade.r5.toFixed(1)}</div>
+                            <div class="r-value ${trade.r1 > 0 ? 'positive' : trade.r1 < 0 ? 'negative' : 'neutral'}">${trade.r1 ? trade.r1.toFixed(1) : '0.0'}</div>
+                            <div class="r-value ${trade.r2 > 0 ? 'positive' : trade.r2 < 0 ? 'negative' : 'neutral'}">${trade.r2 ? trade.r2.toFixed(1) : '0.0'}</div>
+                            <div class="r-value ${trade.r3 > 0 ? 'positive' : trade.r3 < 0 ? 'negative' : 'neutral'}">${trade.r3 ? trade.r3.toFixed(1) : '0.0'}</div>
+                            <div class="r-value ${trade.r4 > 0 ? 'positive' : trade.r4 < 0 ? 'negative' : 'neutral'}">${trade.r4 ? trade.r4.toFixed(1) : '0.0'}</div>
+                            <div class="r-value ${trade.r5 > 0 ? 'positive' : trade.r5 < 0 ? 'negative' : 'neutral'}">${trade.r5 ? trade.r5.toFixed(1) : '0.0'}</div>
                         </div>
                     </td>
                     <td><button onclick="deleteTrade(${trades.length - 1 - index})" style="background: #ff4757; border: none; padding: 5px 10px; border-radius: 5px; color: white; cursor: pointer;">Delete</button></td>
