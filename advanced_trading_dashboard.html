@@ -1,14 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<style id="chat-hotfix">
-  /* Chat hotfix: ensure the chat is clickable and on top */
-  #aiChatWidget, #aiChatWidget * { pointer-events: auto; }
-  #aiChatWidget .chat-container { z-index: 2147483647 !important; }
-  #aiChatWidget .chat-toggle { z-index: 2147483646 !important; }
-  #chatInput { pointer-events: auto !important; }
-</style>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Trading Analytics</title>
@@ -898,7 +890,7 @@
                 </select>
                 <a class="active nav-link" data-route="dashboard" href="/dashboard">Dashboard</a>
                 <a class="nav-link" data-route="trade-manager" href="/trade-manager">Trade Manager</a>
-                <a class="nav-link" data-route="signal-analysis-lab" href="/signal-analysis-lab">Signal Lab</a>
+                <a class="nav-link" data-route="signal-analysis-lab" href="/signal-analysis-lab" style="color: white !important;">Signal Lab</a>
                 <a class="nav-link" data-route="prop-portfolio" href="/prop-portfolio">Prop Portfolio</a>
                 <a class="nav-link" data-route="financial-summary" href="/financial-summary">Financial Summary</a>
                 <a class="nav-link" data-route="reporting-hub" href="/reporting-hub">Reporting Hub</a>
