@@ -134,6 +134,11 @@ def signal_analysis_lab():
 def recover_signal_lab():
     return read_html_file('recover_signal_lab_data.html')
 
+@app.route('/migrate-signal-lab')
+@login_required
+def migrate_signal_lab_page():
+    return read_html_file('recover_signal_lab_data.html')
+
 @app.route('/check-localstorage')
 @login_required
 def check_localstorage():
@@ -1165,6 +1170,85 @@ def delete_signal_lab_trade(trade_id):
             db.conn.rollback()
         logger.error(f"Error deleting signal lab trade: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/signal-lab-migrate', methods=['POST'])
+@login_required
+def migrate_signal_lab_data():
+    """Migrate localStorage data to database"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({"error": "Database not available"}), 500
+        
+        data = request.get_json()
+        trades = data.get('trades', [])
+        
+        if not trades:
+            return jsonify({"error": "No trades provided"}), 400
+        
+        success_count = 0
+        error_count = 0
+        errors = []
+        
+        for trade in trades:
+            try:
+                cursor = db.conn.cursor()
+                cursor.execute("""
+                    INSERT INTO signal_lab_trades 
+                    (date, time, bias, session, signal_type, open_price, entry_price, stop_loss, 
+                     take_profit, be_achieved, breakeven, mfe, position_size, commission, 
+                     news_proximity, news_event, screenshot)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    trade.get('date'),
+                    trade.get('time'),
+                    trade.get('bias'),
+                    trade.get('session'),
+                    trade.get('signalType'),
+                    trade.get('openPrice', 0),
+                    trade.get('entryPrice', 0),
+                    trade.get('stopLoss', 0),
+                    trade.get('takeProfit', 0),
+                    trade.get('beAchieved', False),
+                    trade.get('breakeven', 0),
+                    trade.get('mfe', 0),
+                    trade.get('positionSize', 1),
+                    trade.get('commission', 0),
+                    trade.get('newsProximity', 'None'),
+                    trade.get('newsEvent', 'None'),
+                    trade.get('screenshot')
+                ))
+                
+                db.conn.commit()
+                success_count += 1
+                
+            except Exception as e:
+                if hasattr(db, 'conn') and db.conn:
+                    db.conn.rollback()
+                error_count += 1
+                errors.append(str(e))
+                logger.error(f"Error migrating trade: {str(e)}")
+        
+        return jsonify({
+            "status": "completed",
+            "success_count": success_count,
+            "error_count": error_count,
+            "total_trades": len(trades),
+            "errors": errors[:5]  # Return first 5 errors only
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in migration endpoint: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/check-localStorage')
+@login_required
+def check_localStorage():
+    """Endpoint to check if localStorage migration is needed"""
+    return jsonify({
+        "message": "Check localStorage on client side",
+        "database_available": db_enabled,
+        "migration_endpoint": "/api/signal-lab-migrate"
+    })
 
 @app.route('/health')
 def health_check():

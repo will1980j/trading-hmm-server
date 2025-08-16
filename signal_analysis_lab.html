@@ -654,34 +654,42 @@
                 if (signals.length === 0) {
                     console.log('Database empty, checking localStorage...');
                     const saved = localStorage.getItem('signalLabData');
-                    console.log('localStorage data:', saved);
                     if (saved) {
-                        const localData = JSON.parse(saved);
-                        console.log(`Found ${localData.length} trades in localStorage:`, localData);
-                        signals = localData;
-                        showRecoveryNotice(localData.length);
-                    } else {
-                        console.log('No signalLabData in localStorage');
+                        try {
+                            const localData = JSON.parse(saved);
+                            if (localData && localData.length > 0) {
+                                console.log(`Found ${localData.length} trades in localStorage`);
+                                signals = localData;
+                                showRecoveryNotice(localData.length);
+                            }
+                        } catch (e) {
+                            console.error('Error parsing localStorage data:', e);
+                            localStorage.removeItem('signalLabData'); // Clear corrupted data
+                        }
                     }
                 } else {
                     console.log(`Loaded ${signals.length} trades from database`);
+                    // Clear localStorage if database has data (migration completed)
+                    const saved = localStorage.getItem('signalLabData');
+                    if (saved) {
+                        console.log('Database has data, clearing localStorage...');
+                        localStorage.removeItem('signalLabData');
+                    }
                 }
                 
                 updateDisplay();
             } catch (error) {
                 console.error('Error loading signals:', error);
-                // Fallback to localStorage if database fails
-                console.log('Database failed, checking localStorage fallback...');
-                const saved = localStorage.getItem('signalLabData');
-                console.log('localStorage fallback data:', saved);
-                if (saved) {
-                    signals = JSON.parse(saved);
-                    console.log(`Loaded ${signals.length} trades from localStorage fallback`);
-                    showRecoveryNotice(signals.length);
-                    updateDisplay();
-                } else {
-                    console.log('No localStorage fallback data available');
-                }
+                // Show database error - no localStorage fallback for database-only approach
+                const errorNotice = document.createElement('div');
+                errorNotice.style.cssText = 'background: rgba(220,53,69,0.2); border: 2px solid #dc3545; padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center; color: #fff;';
+                errorNotice.innerHTML = `
+                    <strong>❌ DATABASE CONNECTION ERROR</strong><br>
+                    Unable to load Signal Lab data from database.<br>
+                    Error: ${error.message}<br>
+                    <button onclick="location.reload()" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 6px; margin-top: 10px; cursor: pointer;">Retry Connection</button>
+                `;
+                document.querySelector('.container').insertBefore(errorNotice, document.querySelector('.stats-grid'));
             }
         }
         
@@ -689,11 +697,52 @@
             const notice = document.createElement('div');
             notice.style.cssText = 'background: rgba(255,165,0,0.2); border: 2px solid #ffa502; padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center;';
             notice.innerHTML = `
-                <strong>⚠️ DATA RECOVERY NEEDED</strong><br>
-                Found ${count} trades in localStorage but database is empty.<br>
-                <a href="/recover-signal-lab" style="color: #00ff88; text-decoration: underline; font-weight: bold;">Click here to migrate your data to database</a>
+                <strong>⚠️ DATA MIGRATION REQUIRED</strong><br>
+                Found ${count} trades in localStorage that need to be migrated to database.<br>
+                <button onclick="startQuickMigration()" style="background: #00ff88; color: #1e3c72; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; margin: 10px 5px;">🚀 Migrate Now</button>
+                <a href="/recover-signal-lab" style="color: #00ff88; text-decoration: underline; font-weight: bold; margin: 10px 5px;">Advanced Migration →</a>
             `;
             document.querySelector('.container').insertBefore(notice, document.querySelector('.stats-grid'));
+        }
+        
+        async function startQuickMigration() {
+            const localData = localStorage.getItem('signalLabData');
+            if (!localData) {
+                alert('No localStorage data found');
+                return;
+            }
+            
+            try {
+                const trades = JSON.parse(localData);
+                
+                if (confirm(`Migrate ${trades.length} trades to database? This will enable proper functionality.`)) {
+                    const response = await fetch('/api/signal-lab-migrate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ trades: trades })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.status === 'completed') {
+                        if (result.success_count === trades.length) {
+                            alert(`✅ Migration Complete!\n\nSuccessfully migrated ${result.success_count} trades to database.`);
+                            
+                            // Clear localStorage after successful migration
+                            if (confirm('Clear localStorage data now? (Recommended)')) {
+                                localStorage.removeItem('signalLabData');
+                                location.reload();
+                            }
+                        } else {
+                            alert(`⚠️ Partial Migration\n\nMigrated: ${result.success_count}\nFailed: ${result.error_count}\n\nSome trades may need manual review.`);
+                        }
+                    } else {
+                        alert('Migration failed: ' + (result.error || 'Unknown error'));
+                    }
+                }
+            } catch (error) {
+                alert('Migration error: ' + error.message);
+            }
         }
         
         // localStorage functions
@@ -846,7 +895,7 @@
                 clearInputs();
                 console.log('Signal added successfully to database');
             } catch (error) {
-                alert(`DATABASE ERROR: ${error.message}\n\nSignal NOT saved. Please check database connection.`);
+                alert(`❌ DATABASE ERROR\n\n${error.message}\n\nSignal NOT saved. Database connection required for Signal Lab.`);
                 console.error('Database save failed:', error);
             }
         }
