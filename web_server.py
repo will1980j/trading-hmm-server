@@ -1018,53 +1018,52 @@ def get_signal_lab_trades():
             logger.error("Database not enabled or not available")
             return jsonify([]), 200
         
-        cursor = db.conn.cursor()
-        
-        # First check if table exists and has data
-        cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
-        count_result = cursor.fetchone()
-        total_count = count_result[0] if count_result else 0
-        logger.info(f"Total signal_lab_trades in database: {total_count}")
-        
-        cursor.execute("""
-            SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
-                   stop_loss, take_profit, be_achieved, breakeven, mfe, position_size, 
-                   commission, news_proximity, news_event, screenshot, created_at
-            FROM signal_lab_trades 
-            ORDER BY created_at DESC
-        """)
-        
-        rows = cursor.fetchall()
-        logger.info(f"Query returned {len(rows)} rows")
-        
-        trades = []
-        for row in rows:
-            trade = {
-                'id': row[0],
-                'date': row[1],
-                'time': row[2],
-                'bias': row[3],
-                'session': row[4],
-                'signal_type': row[5],
-                'open_price': float(row[6]) if row[6] else 0,
-                'entry_price': float(row[7]) if row[7] else 0,
-                'stop_loss': float(row[8]) if row[8] else 0,
-                'take_profit': float(row[9]) if row[9] else 0,
-                'be_achieved': row[10],
-                'breakeven': float(row[11]) if row[11] else 0,
-                'mfe': float(row[12]) if row[12] else 0,
-                'position_size': int(row[13]) if row[13] else 1,
-                'commission': float(row[14]) if row[14] else 0,
-                'news_proximity': row[15],
-                'news_event': row[16],
-                'screenshot': row[17],
-                'created_at': str(row[18])
-            }
-            trades.append(trade)
-            logger.debug(f"Processed trade ID {trade['id']}: {trade['date']} {trade['signal_type']}")
-        
-        logger.info(f"Returning {len(trades)} trades to client")
-        return jsonify(trades)
+        with db.conn.cursor() as cursor:
+            # First check if table exists and has data
+            cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
+            count_result = cursor.fetchone()
+            total_count = count_result[0] if count_result else 0
+            logger.info(f"Total signal_lab_trades in database: {total_count}")
+            
+            cursor.execute("""
+                SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
+                       stop_loss, take_profit, be_achieved, breakeven, mfe, position_size, 
+                       commission, news_proximity, news_event, screenshot, created_at
+                FROM signal_lab_trades 
+                ORDER BY created_at DESC
+            """)
+            
+            rows = cursor.fetchall()
+            logger.info(f"Query returned {len(rows)} rows")
+            
+            trades = []
+            for row in rows:
+                trade = {
+                    'id': row['id'],
+                    'date': str(row['date']) if row['date'] else None,
+                    'time': str(row['time']) if row['time'] else None,
+                    'bias': row['bias'],
+                    'session': row['session'],
+                    'signal_type': row['signal_type'],
+                    'open_price': float(row['open_price']) if row['open_price'] else 0,
+                    'entry_price': float(row['entry_price']) if row['entry_price'] else 0,
+                    'stop_loss': float(row['stop_loss']) if row['stop_loss'] else 0,
+                    'take_profit': float(row['take_profit']) if row['take_profit'] else 0,
+                    'be_achieved': row['be_achieved'],
+                    'breakeven': float(row['breakeven']) if row['breakeven'] else 0,
+                    'mfe': float(row['mfe']) if row['mfe'] else 0,
+                    'position_size': int(row['position_size']) if row['position_size'] else 1,
+                    'commission': float(row['commission']) if row['commission'] else 0,
+                    'news_proximity': row['news_proximity'],
+                    'news_event': row['news_event'],
+                    'screenshot': row['screenshot'],
+                    'created_at': str(row['created_at'])
+                }
+                trades.append(trade)
+                logger.debug(f"Processed trade ID {trade['id']}: {trade['date']} {trade['signal_type']}")
+            
+            logger.info(f"Returning {len(trades)} trades to client")
+            return jsonify(trades)
         
     except Exception as e:
         logger.error(f"Error getting signal lab trades: {str(e)}")
