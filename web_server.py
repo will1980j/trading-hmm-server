@@ -1066,8 +1066,10 @@ def get_signal_lab_trades():
             return jsonify(trades)
         
     except Exception as e:
-        logger.error(f"Error getting signal lab trades: {str(e)}")
-        return jsonify([]), 200
+        import traceback
+        error_details = f"{str(e)} | Traceback: {traceback.format_exc()}"
+        logger.error(f"Error getting signal lab trades: {error_details}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/signal-lab-trades', methods=['POST'])
 @login_required
