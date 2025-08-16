@@ -1020,9 +1020,9 @@ def get_signal_lab_trades():
         
         with db.conn.cursor() as cursor:
             # First check if table exists and has data
-            cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
+            cursor.execute("SELECT COUNT(*) as count FROM signal_lab_trades")
             count_result = cursor.fetchone()
-            total_count = count_result[0] if count_result else 0
+            total_count = count_result['count'] if count_result else 0
             logger.info(f"Total signal_lab_trades in database: {total_count}")
             
             cursor.execute("""
