@@ -1015,9 +1015,17 @@ def get_signals():
 def get_signal_lab_trades():
     try:
         if not db_enabled or not db:
+            logger.error("Database not enabled or not available")
             return jsonify([]), 200
         
         cursor = db.conn.cursor()
+        
+        # First check if table exists and has data
+        cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
+        count_result = cursor.fetchone()
+        total_count = count_result[0] if count_result else 0
+        logger.info(f"Total signal_lab_trades in database: {total_count}")
+        
         cursor.execute("""
             SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
                    stop_loss, take_profit, be_achieved, breakeven, mfe, position_size, 
@@ -1026,9 +1034,12 @@ def get_signal_lab_trades():
             ORDER BY created_at DESC
         """)
         
+        rows = cursor.fetchall()
+        logger.info(f"Query returned {len(rows)} rows")
+        
         trades = []
-        for row in cursor.fetchall():
-            trades.append({
+        for row in rows:
+            trade = {
                 'id': row[0],
                 'date': row[1],
                 'time': row[2],
@@ -1048,8 +1059,11 @@ def get_signal_lab_trades():
                 'news_event': row[16],
                 'screenshot': row[17],
                 'created_at': str(row[18])
-            })
+            }
+            trades.append(trade)
+            logger.debug(f"Processed trade ID {trade['id']}: {trade['date']} {trade['signal_type']}")
         
+        logger.info(f"Returning {len(trades)} trades to client")
         return jsonify(trades)
         
     except Exception as e:
