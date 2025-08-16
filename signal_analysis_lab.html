@@ -622,33 +622,45 @@
         
         // Load signals from database with localStorage recovery
         async function loadSignals() {
+            console.log('🔄 Loading signals from database...');
             try {
                 const response = await fetch('/api/signal-lab-trades');
+                console.log('API response status:', response.status, response.statusText);
+                
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API error response:', errorText);
                     throw new Error(`Failed to load signals: ${response.status} ${response.statusText}`);
                 }
                 
                 const data = await response.json();
-                signals = data.map(trade => ({
-                    id: trade.id,
-                    date: trade.date,
-                    time: trade.time,
-                    bias: trade.bias,
-                    session: trade.session,
-                    signalType: trade.signal_type,
-                    openPrice: parseFloat(trade.open_price) || 0,
-                    entryPrice: parseFloat(trade.entry_price) || 0,
-                    stopLoss: parseFloat(trade.stop_loss) || 0,
-                    takeProfit: parseFloat(trade.take_profit) || 0,
-                    beAchieved: trade.be_achieved === 1,
-                    breakeven: parseFloat(trade.breakeven) || 0,
-                    mfe: parseFloat(trade.mfe) || 0,
-                    positionSize: parseInt(trade.position_size) || 1,
-                    commission: parseFloat(trade.commission) || 0,
-                    newsProximity: trade.news_proximity || 'None',
-                    newsEvent: trade.news_event || 'None',
-                    screenshot: trade.screenshot
-                }));
+                console.log('Raw database response:', data);
+                
+                signals = data.map(trade => {
+                    console.log('Processing trade:', trade);
+                    return {
+                        id: trade.id,
+                        date: trade.date,
+                        time: trade.time,
+                        bias: trade.bias,
+                        session: trade.session,
+                        signalType: trade.signal_type,
+                        openPrice: parseFloat(trade.open_price) || 0,
+                        entryPrice: parseFloat(trade.entry_price) || 0,
+                        stopLoss: parseFloat(trade.stop_loss) || 0,
+                        takeProfit: parseFloat(trade.take_profit) || 0,
+                        beAchieved: trade.be_achieved === 1 || trade.be_achieved === true,
+                        breakeven: parseFloat(trade.breakeven) || 0,
+                        mfe: parseFloat(trade.mfe) || 0,
+                        positionSize: parseInt(trade.position_size) || 1,
+                        commission: parseFloat(trade.commission) || 0,
+                        newsProximity: trade.news_proximity || 'None',
+                        newsEvent: trade.news_event || 'None',
+                        screenshot: trade.screenshot
+                    };
+                });
+                
+                console.log('Processed signals:', signals);
                 
                 // If database is empty, check localStorage for recovery
                 if (signals.length === 0) {
@@ -668,7 +680,7 @@
                         }
                     }
                 } else {
-                    console.log(`Loaded ${signals.length} trades from database`);
+                    console.log(`✅ Loaded ${signals.length} trades from database`);
                     // Clear localStorage if database has data (migration completed)
                     const saved = localStorage.getItem('signalLabData');
                     if (saved) {
