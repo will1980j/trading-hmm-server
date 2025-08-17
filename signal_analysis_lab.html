@@ -994,11 +994,7 @@
             }
             
             try {
-                console.log('Updating signal with ID:', updatedSignal.id);
-                const apiUrl = 'https://web-production-cd33.up.railway.app/api/signal-lab-trades/' + updatedSignal.id;
-                console.log('PUT request to:', apiUrl);
-                
-                const response = await fetch(apiUrl, {
+                const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${updatedSignal.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1013,10 +1009,10 @@
                         take_profit: updatedSignal.takeProfit,
                         mfe_none: updatedSignal.mfeNone,
                         be1_level: updatedSignal.be1Level,
-                        be1_hit: updatedSignal.be1Hit ? 1 : 0,
+                        be1_hit: updatedSignal.be1Hit,
                         mfe1: updatedSignal.mfe1,
                         be2_level: updatedSignal.be2Level,
-                        be2_hit: updatedSignal.be2Hit ? 1 : 0,
+                        be2_hit: updatedSignal.be2Hit,
                         mfe2: updatedSignal.mfe2,
                         position_size: updatedSignal.positionSize,
                         commission: updatedSignal.commission,
@@ -1026,38 +1022,19 @@
                     })
                 });
                 
-                console.log('Response status:', response.status);
-                
-                if (!response.ok) {
+                if (response.ok) {
+                    const result = await response.json();
+                    signals[signalIndex] = updatedSignal;
+                    updateDisplay();
+                    cancelEdit();
+                    console.log('✅ Signal updated successfully');
+                } else {
                     const errorText = await response.text();
-                    console.log('Error response:', errorText);
-                    console.log('Response headers:', response.headers);
-                    throw new Error(`Database update failed: ${response.status} - ${errorText}`);
+                    alert(`❌ Update failed: ${response.status} - ${errorText}`);
                 }
-                
-                const result = await response.json();
-                console.log('Update successful:', result);
-                console.log('Response was OK, proceeding with local update...');
-                
-                // Only update local array after successful database update
-                signals[signalIndex] = updatedSignal;
-                updateDisplay();
-                cancelEdit();
-                console.log('✅ Signal updated successfully in database');
-                
             } catch (error) {
-                console.error('Failed to update signal in database', updatedSignal.id);
-                console.error('Full error:', error);
-                console.error('Error name:', error.name);
-                console.error('Error stack:', error.stack);
-                
-                // Try to get more details from the response
-                if (error.response) {
-                    console.error('Response status:', error.response.status);
-                    console.error('Response text:', await error.response.text());
-                }
-                
-                alert(`❌ UPDATE FAILED\n\n${error.message}\n\nChanges NOT saved to database.`);
+                console.error('Update error:', error);
+                alert(`❌ Update error: ${error.message}`);
             }
         }
         
