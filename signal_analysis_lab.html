@@ -392,32 +392,7 @@
             <p>Systematic Signal Data Collection & Analysis</p>
         </div>
         
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Total Signals</div>
-                <div class="stat-value" id="totalSignals">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">BE1 Hit Rate</div>
-                <div class="stat-value" id="be1HitRate">0%</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">BE2 Hit Rate</div>
-                <div class="stat-value" id="be2HitRate">0%</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">2R+ Signals</div>
-                <div class="stat-value" id="twoRPlusRate">0%</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Best FVG Type</div>
-                <div class="stat-value" id="bestFVG">-</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">News Impact</div>
-                <div class="stat-value" id="newsImpact">-</div>
-            </div>
-        </div>
+
         
         <div class="data-input">
             <h3>Add Signal Data</h3>
@@ -1122,82 +1097,10 @@
         }
         
         function updateDisplay() {
-            updateStats();
             updateTable();
         }
         
-        function updateStats() {
-            const totalSignals = signals.length;
-            
-            if (totalSignals === 0) {
-                document.getElementById('totalSignals').textContent = '0';
-                document.getElementById('be1HitRate').textContent = '0%';
-                document.getElementById('be2HitRate').textContent = '0%';
-                document.getElementById('twoRPlusRate').textContent = '0%';
-                document.getElementById('bestFVG').textContent = '-';
-                document.getElementById('newsImpact').textContent = '-';
-                return;
-            }
-            
-            // BE1 Hit Rate
-            const be1Hits = signals.filter(s => s.be1Hit).length;
-            const be1HitRate = ((be1Hits / totalSignals) * 100).toFixed(1);
-            
-            // BE2 Hit Rate
-            const be2Hits = signals.filter(s => s.be2Hit).length;
-            const be2HitRate = ((be2Hits / totalSignals) * 100).toFixed(1);
-            
-            // 2R+ Signals (signals that reached at least 2R MFE)
-            const twoRPlusSignals = signals.filter(s => {
-                const maxMfe = Math.max(s.mfeNone || 0, s.mfe1 || 0, s.mfe2 || 0);
-                return maxMfe >= 2;
-            }).length;
-            const twoRPlusRate = ((twoRPlusSignals / totalSignals) * 100).toFixed(1);
-            
-            // Best FVG Type (Bull vs Bear FVG performance)
-            const fvgTypes = {};
-            signals.forEach(s => {
-                const fvgType = s.signalType.includes('Bull') ? 'Bullish FVG' : 'Bearish FVG';
-                if (!fvgTypes[fvgType]) fvgTypes[fvgType] = { total: 0, twoRPlus: 0 };
-                fvgTypes[fvgType].total++;
-                const maxMfe = Math.max(s.mfeNone || 0, s.mfe1 || 0, s.mfe2 || 0);
-                if (maxMfe >= 2) fvgTypes[fvgType].twoRPlus++;
-            });
-            
-            let bestFVG = '-';
-            let bestFVGRate = -1;
-            Object.keys(fvgTypes).forEach(type => {
-                const rate = fvgTypes[type].twoRPlus / fvgTypes[type].total;
-                if (rate > bestFVGRate) {
-                    bestFVGRate = rate;
-                    bestFVG = type.replace(' FVG', '');
-                }
-            });
-            
-            // News Impact (High news vs No news performance)
-            const highNewsSignals = signals.filter(s => s.newsProximity === 'High');
-            const noNewsSignals = signals.filter(s => s.newsProximity === 'None');
-            
-            let newsImpact = '-';
-            if (highNewsSignals.length > 0 && noNewsSignals.length > 0) {
-                const highNewsAvg = highNewsSignals.reduce((sum, s) => {
-                    return sum + Math.max(s.mfeNone || 0, s.mfe1 || 0, s.mfe2 || 0);
-                }, 0) / highNewsSignals.length;
-                
-                const noNewsAvg = noNewsSignals.reduce((sum, s) => {
-                    return sum + Math.max(s.mfeNone || 0, s.mfe1 || 0, s.mfe2 || 0);
-                }, 0) / noNewsSignals.length;
-                
-                newsImpact = highNewsAvg > noNewsAvg ? 'Positive' : 'Negative';
-            }
-            
-            document.getElementById('totalSignals').textContent = totalSignals;
-            document.getElementById('be1HitRate').textContent = be1HitRate + '%';
-            document.getElementById('be2HitRate').textContent = be2HitRate + '%';
-            document.getElementById('twoRPlusRate').textContent = twoRPlusRate + '%';
-            document.getElementById('bestFVG').textContent = bestFVG;
-            document.getElementById('newsImpact').textContent = newsImpact;
-        }
+
         
         function updateTable() {
             const tbody = document.getElementById('signalsBody');
