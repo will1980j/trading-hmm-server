@@ -1018,86 +1018,71 @@ def get_signal_lab_trades():
             logger.error("Database not enabled or not available")
             return jsonify([]), 200
         
+        cursor = db.conn.cursor()
+        
+        # Simple query with error handling
         try:
-            # Rollback any pending transaction first
-            db.conn.rollback()
-            
-            with db.conn.cursor() as cursor:
-                # First check if table exists and has data
-                cursor.execute("SELECT COUNT(*) as count FROM signal_lab_trades")
-                count_result = cursor.fetchone()
-                total_count = count_result['count'] if count_result else 0
-                logger.info(f"Total signal_lab_trades in database: {total_count}")
-                
-                # Try new schema first, fallback to old schema
-                try:
-                    cursor.execute("""
-                        SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
-                               stop_loss, take_profit, 
-                               COALESCE(mfe_none, mfe, 0) as mfe_none,
-                               COALESCE(be1_level, 1) as be1_level,
-                               COALESCE(be1_hit, false) as be1_hit,
-                               COALESCE(mfe1, 0) as mfe1,
-                               COALESCE(be2_level, 2) as be2_level,
-                               COALESCE(be2_hit, false) as be2_hit,
-                               COALESCE(mfe2, 0) as mfe2,
-                               position_size, commission, news_proximity, news_event, screenshot, created_at
-                        FROM signal_lab_trades 
-                        ORDER BY created_at DESC
-                    """)
-                except Exception as e:
-                    # Rollback and try fallback
-                    db.conn.rollback()
-                    cursor.execute("""
-                        SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
-                               stop_loss, take_profit, 
-                               COALESCE(mfe, 0) as mfe_none, 1 as be1_level, false as be1_hit, 0 as mfe1,
-                               2 as be2_level, false as be2_hit, 0 as mfe2,
-                               position_size, commission, news_proximity, news_event, screenshot, created_at
-                        FROM signal_lab_trades 
-                        ORDER BY created_at DESC
-                    """)
-        except Exception as db_error:
-            # If database connection fails, rollback and re-raise
-            if hasattr(db, 'conn') and db.conn:
-                db.conn.rollback()
-            raise db_error
-                
-            rows = cursor.fetchall()
-            logger.info(f"Query returned {len(rows)} rows")
-            
-            trades = []
-            for row in rows:
-                trade = {
-                    'id': row['id'],
-                    'date': str(row['date']) if row['date'] else None,
-                    'time': str(row['time']) if row['time'] else None,
-                    'bias': row['bias'],
-                    'session': row['session'],
-                    'signal_type': row['signal_type'],
-                    'open_price': float(row['open_price']) if row['open_price'] else 0,
-                    'entry_price': float(row['entry_price']) if row['entry_price'] else 0,
-                    'stop_loss': float(row['stop_loss']) if row['stop_loss'] else 0,
-                    'take_profit': float(row['take_profit']) if row['take_profit'] else 0,
-                    'mfe_none': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
-                    'be1_level': float(row['be1_level']) if row['be1_level'] is not None else 1,
-                    'be1_hit': bool(row['be1_hit']) if row['be1_hit'] is not None else False,
-                    'mfe1': float(row['mfe1']) if row['mfe1'] is not None else 0,
-                    'be2_level': float(row['be2_level']) if row['be2_level'] is not None else 2,
-                    'be2_hit': bool(row['be2_hit']) if row['be2_hit'] is not None else False,
-                    'mfe2': float(row['mfe2']) if row['mfe2'] is not None else 0,
-                    'position_size': int(row['position_size']) if row['position_size'] else 1,
-                    'commission': float(row['commission']) if row['commission'] else 0,
-                    'news_proximity': row['news_proximity'],
-                    'news_event': row['news_event'],
-                    'screenshot': row['screenshot'],
-                    'created_at': str(row['created_at'])
-                }
-                trades.append(trade)
-                logger.debug(f"Processed trade ID {trade['id']}: {trade['date']} {trade['signal_type']}")
-            
-            logger.info(f"Returning {len(trades)} trades to client")
-            return jsonify(trades)
+            cursor.execute("""
+                SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
+                       stop_loss, take_profit, 
+                       COALESCE(mfe_none, mfe, 0) as mfe_none,
+                       COALESCE(be1_level, 1) as be1_level,
+                       COALESCE(be1_hit, false) as be1_hit,
+                       COALESCE(mfe1, 0) as mfe1,
+                       COALESCE(be2_level, 2) as be2_level,
+                       COALESCE(be2_hit, false) as be2_hit,
+                       COALESCE(mfe2, 0) as mfe2,
+                       position_size, commission, news_proximity, news_event, screenshot, created_at
+                FROM signal_lab_trades 
+                ORDER BY created_at DESC
+            """)
+        except Exception as e:
+            # Fallback to old schema
+            cursor.execute("""
+                SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
+                       stop_loss, take_profit, 
+                       COALESCE(mfe, 0) as mfe_none, 1 as be1_level, false as be1_hit, 0 as mfe1,
+                       2 as be2_level, false as be2_hit, 0 as mfe2,
+                       position_size, commission, news_proximity, news_event, screenshot, created_at
+                FROM signal_lab_trades 
+                ORDER BY created_at DESC
+            """)
+        
+        rows = cursor.fetchall()
+        logger.info(f"Query returned {len(rows)} rows")
+        
+        trades = []
+        for row in rows:
+            trade = {
+                'id': row['id'],
+                'date': str(row['date']) if row['date'] else None,
+                'time': str(row['time']) if row['time'] else None,
+                'bias': row['bias'],
+                'session': row['session'],
+                'signal_type': row['signal_type'],
+                'open_price': float(row['open_price']) if row['open_price'] else 0,
+                'entry_price': float(row['entry_price']) if row['entry_price'] else 0,
+                'stop_loss': float(row['stop_loss']) if row['stop_loss'] else 0,
+                'take_profit': float(row['take_profit']) if row['take_profit'] else 0,
+                'mfe_none': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
+                'be1_level': float(row['be1_level']) if row['be1_level'] is not None else 1,
+                'be1_hit': bool(row['be1_hit']) if row['be1_hit'] is not None else False,
+                'mfe1': float(row['mfe1']) if row['mfe1'] is not None else 0,
+                'be2_level': float(row['be2_level']) if row['be2_level'] is not None else 2,
+                'be2_hit': bool(row['be2_hit']) if row['be2_hit'] is not None else False,
+                'mfe2': float(row['mfe2']) if row['mfe2'] is not None else 0,
+                'position_size': int(row['position_size']) if row['position_size'] else 1,
+                'commission': float(row['commission']) if row['commission'] else 0,
+                'news_proximity': row['news_proximity'],
+                'news_event': row['news_event'],
+                'screenshot': row['screenshot'],
+                'created_at': str(row['created_at'])
+            }
+            trades.append(trade)
+            logger.debug(f"Processed trade ID {trade['id']}: {trade['date']} {trade['signal_type']}")
+        
+        logger.info(f"Returning {len(trades)} trades to client")
+        return jsonify(trades)
         
     except Exception as e:
         import traceback
