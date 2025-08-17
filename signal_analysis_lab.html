@@ -905,7 +905,6 @@
                 bias: document.getElementById('bias').value,
                 session: document.getElementById('session').value,
                 signalType: document.getElementById('signalType').value,
-
                 entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
                 stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
                 takeProfit: parseFloat(document.getElementById('takeProfit').value) || 0,
@@ -986,7 +985,6 @@
         function clearInputs() {
             document.getElementById('signalDate').value = '';
             document.getElementById('entryTime').value = '';
-
             document.getElementById('entryPrice').value = '';
             document.getElementById('stopLoss').value = '';
             document.getElementById('takeProfit').value = '';
@@ -1152,9 +1150,9 @@
         }
         
         function exportData() {
-            const csv = 'Date,Time,Bias,Session,Signal,Open,Entry,Stop,TP,BE,MFE,Size,Commission\\n' + 
+            const csv = 'Date,Time,Bias,Session,Signal,Entry,Stop,TP,MFE_None,BE1,Hit1,MFE1,BE2,Hit2,MFE2,Size,Commission,News,Event\\n' + 
                        signals.map(s => 
-                           `${s.date},${s.time},${s.bias},${s.session},${s.signalType},${s.openPrice},${s.entryPrice},${s.stopLoss},${s.takeProfit},${s.breakeven},${s.mfe},${s.positionSize},${s.commission}`
+                           `${s.date},${s.time},${s.bias},${s.session},${s.signalType},${s.entryPrice},${s.stopLoss},${s.takeProfit},${s.mfeNone || 0},${s.be1Level}R,${s.be1Hit ? 'Y' : 'N'},${s.mfe1 || 0},${s.be2Level}R,${s.be2Hit ? 'Y' : 'N'},${s.mfe2 || 0},${s.positionSize},${s.commission},${s.newsProximity},"${s.newsEvent}"`
                        ).join('\\n');
             
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -1183,14 +1181,20 @@
                                 bias: values[2],
                                 session: values[3],
                                 signalType: values[4],
-                                openPrice: parseFloat(values[5]) || 0,
-                                entryPrice: parseFloat(values[6]) || 0,
-                                stopLoss: parseFloat(values[7]) || 0,
-                                takeProfit: parseFloat(values[8]) || 0,
-                                breakeven: parseFloat(values[9]) || 0,
-                                mfe: parseFloat(values[10]) || 0,
-                                positionSize: parseInt(values[11]) || 1,
-                                commission: parseFloat(values[12]) || 0
+                                entryPrice: parseFloat(values[5]) || 0,
+                                stopLoss: parseFloat(values[6]) || 0,
+                                takeProfit: parseFloat(values[7]) || 0,
+                                mfeNone: parseFloat(values[8]) || 0,
+                                be1Level: parseFloat(values[9]) || 1,
+                                be1Hit: values[10] === 'Y',
+                                mfe1: parseFloat(values[11]) || 0,
+                                be2Level: parseFloat(values[12]) || 2,
+                                be2Hit: values[13] === 'Y',
+                                mfe2: parseFloat(values[14]) || 0,
+                                positionSize: parseInt(values[15]) || 1,
+                                commission: parseFloat(values[16]) || 0,
+                                newsProximity: values[17] || 'None',
+                                newsEvent: values[18] || 'None'
                             };
                             signals.push(signal);
                         }
