@@ -806,7 +806,8 @@
         // Delete signal from database
         async function deleteSignalFromDatabase(id) {
             try {
-                const response = await fetch(`/api/signal-lab-trades/${id}`, {
+                const apiUrl = 'https://web-production-cd33.up.railway.app/api/signal-lab-trades/' + id;
+                const response = await fetch(apiUrl, {
                     method: 'DELETE'
                 });
                 
@@ -867,8 +868,40 @@
             }
             
             try {
-                const savedId = await saveSignalToDatabase(signal);
-                signal.id = savedId;
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-trades', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        date: signal.date,
+                        time: signal.time,
+                        bias: signal.bias,
+                        session: signal.session,
+                        signal_type: signal.signalType,
+                        open_price: signal.openPrice,
+                        entry_price: signal.entryPrice,
+                        stop_loss: signal.stopLoss,
+                        take_profit: signal.takeProfit,
+                        mfe_none: signal.mfeNone,
+                        be1_level: signal.be1Level,
+                        be1_hit: signal.be1Hit ? 1 : 0,
+                        mfe1: signal.mfe1,
+                        be2_level: signal.be2Level,
+                        be2_hit: signal.be2Hit ? 1 : 0,
+                        mfe2: signal.mfe2,
+                        position_size: signal.positionSize,
+                        commission: signal.commission,
+                        news_proximity: signal.newsProximity,
+                        news_event: signal.newsEvent,
+                        screenshot: signal.screenshot
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Database save failed: ${response.status} ${response.statusText}`);
+                }
+                
+                const savedSignal = await response.json();
+                signal.id = savedSignal.id;
                 signals.push(signal);
                 updateDisplay();
                 clearInputs();
@@ -961,7 +994,8 @@
             
             try {
                 // Update database first
-                const response = await fetch(`/api/signal-lab-trades/${updatedSignal.id}`, {
+                const apiUrl = 'https://web-production-cd33.up.railway.app/api/signal-lab-trades/' + updatedSignal.id;
+                const response = await fetch(apiUrl, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1049,11 +1083,24 @@
         
         async function deleteSignal(id) {
             if (confirm('Delete this signal?')) {
-                // Always delete from local array first
-                signals = signals.filter(s => s.id !== id);
-                await deleteSignalFromDatabase(id);
-                saveToLocalStorage();
-                updateDisplay();
+                try {
+                    const apiUrl = 'https://web-production-cd33.up.railway.app/api/signal-lab-trades/' + id;
+                    const response = await fetch(apiUrl, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Delete failed: ${response.status}`);
+                    }
+                    
+                    // Only remove from local array after successful database delete
+                    signals = signals.filter(s => s.id !== id);
+                    updateDisplay();
+                    console.log('Signal deleted successfully from database');
+                } catch (error) {
+                    alert(`❌ DELETE FAILED\n\n${error.message}\n\nSignal NOT deleted from database.`);
+                    console.error('Database delete failed:', error);
+                }
             }
         }
         
