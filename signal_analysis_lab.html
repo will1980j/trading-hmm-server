@@ -561,7 +561,7 @@
                     </div>
                 </div>
 
-                <button class="btn add-signal-btn" onclick="addSignal()">Add</button>
+                <button class="btn add-signal-btn" onclick="console.log('Button clicked'); addSignal();">Add</button>
             </div>
             
             <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
@@ -778,6 +778,8 @@
         }
         
         async function addSignal() {
+            console.log('🔥 ADD SIGNAL FUNCTION CALLED');
+            
             if (editingSignalId) {
                 updateSignal();
                 return;
