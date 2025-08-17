@@ -1057,6 +1057,12 @@ def get_signal_lab_trades():
         rows = cursor.fetchall()
         logger.info(f"Query returned {len(rows)} rows")
         
+        if len(rows) == 0:
+            # Check if table exists and has data
+            cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
+            total_count = cursor.fetchone()[0]
+            logger.info(f"Total records in signal_lab_trades table: {total_count}")
+        
         trades = []
         for row in rows:
             trade = {

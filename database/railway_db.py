@@ -112,6 +112,13 @@ class RailwayDB:
                     be_achieved BOOLEAN DEFAULT FALSE,
                     breakeven DECIMAL(5,1),
                     mfe DECIMAL(5,1),
+                    mfe_none DECIMAL(10,2) DEFAULT 0,
+                    be1_level DECIMAL(10,2) DEFAULT 1,
+                    be1_hit BOOLEAN DEFAULT FALSE,
+                    mfe1 DECIMAL(10,2) DEFAULT 0,
+                    be2_level DECIMAL(10,2) DEFAULT 2,
+                    be2_hit BOOLEAN DEFAULT FALSE,
+                    mfe2 DECIMAL(10,2) DEFAULT 0,
                     position_size INTEGER DEFAULT 1,
                     commission DECIMAL(6,2),
                     news_proximity VARCHAR(20),
@@ -119,6 +126,18 @@ class RailwayDB:
                     screenshot TEXT,
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 )
+            ''')
+            
+            # Add missing columns to existing table if they don't exist
+            cur.execute('''
+                ALTER TABLE signal_lab_trades 
+                ADD COLUMN IF NOT EXISTS mfe_none DECIMAL(10,2) DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS be1_level DECIMAL(10,2) DEFAULT 1,
+                ADD COLUMN IF NOT EXISTS be1_hit BOOLEAN DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS mfe1 DECIMAL(10,2) DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS be2_level DECIMAL(10,2) DEFAULT 2,
+                ADD COLUMN IF NOT EXISTS be2_hit BOOLEAN DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS mfe2 DECIMAL(10,2) DEFAULT 0
             ''')
             
             # Indexes for better performance
