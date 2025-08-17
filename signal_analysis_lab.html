@@ -465,32 +465,43 @@
                     <label>TP</label>
                     <input type="number" id="takeProfit" step="0.01" readonly style="background: #f0f0f0 !important; color: #666 !important;">
                 </div>
-                <div class="input-group be-achieved">
-                    <label>BE Hit</label>
-                    <input type="checkbox" id="beAchieved" class="checkbox-input">
+                <div class="input-group breakeven">
+                    <label>BE (None)</label>
+                    <input type="number" id="mfeNone" step="0.1" placeholder="2.5">
                 </div>
                 <div class="input-group breakeven">
-                    <label>BE</label>
-                    <select id="breakeven">
-                        <option value="0">0R</option>
+                    <label>BE (1R)</label>
+                    <select id="be1Level">
                         <option value="0.5">0.5R</option>
-                        <option value="1">1R</option>
+                        <option value="1" selected>1R</option>
                         <option value="1.5">1.5R</option>
                         <option value="2">2R</option>
-                        <option value="2.5">2.5R</option>
-                        <option value="3">3R</option>
-                        <option value="4">4R</option>
-                        <option value="5">5R</option>
-                        <option value="6">6R</option>
-                        <option value="7">7R</option>
-                        <option value="8">8R</option>
-                        <option value="9">9R</option>
-                        <option value="10">10R</option>
                     </select>
+                </div>
+                <div class="input-group be-achieved">
+                    <label>Hit</label>
+                    <input type="checkbox" id="be1Hit" class="checkbox-input">
                 </div>
                 <div class="input-group mfe">
                     <label>MFE</label>
-                    <input type="number" id="mfe" step="0.1" placeholder="2.5">
+                    <input type="number" id="mfe1" step="0.1" placeholder="2.5">
+                </div>
+                <div class="input-group breakeven">
+                    <label>BE (2R)</label>
+                    <select id="be2Level">
+                        <option value="1.5">1.5R</option>
+                        <option value="2" selected>2R</option>
+                        <option value="2.5">2.5R</option>
+                        <option value="3">3R</option>
+                    </select>
+                </div>
+                <div class="input-group be-achieved">
+                    <label>Hit</label>
+                    <input type="checkbox" id="be2Hit" class="checkbox-input">
+                </div>
+                <div class="input-group mfe">
+                    <label>MFE</label>
+                    <input type="number" id="mfe2" step="0.1" placeholder="2.5">
                 </div>
                 <div class="input-group size">
                     <label>Size</label>
@@ -599,9 +610,13 @@
                             <th>Entry</th>
                             <th>Stop</th>
                             <th>TP</th>
-                            <th>Hit</th>
-                            <th>BE</th>
-                            <th>MFE</th>
+                            <th>MFE(None)</th>
+                            <th>BE1</th>
+                            <th>Hit1</th>
+                            <th>MFE1</th>
+                            <th>BE2</th>
+                            <th>Hit2</th>
+                            <th>MFE2</th>
                             <th>Size</th>
                             <th>Comm</th>
                             <th>News</th>
@@ -649,9 +664,13 @@
                         entryPrice: parseFloat(trade.entry_price) || 0,
                         stopLoss: parseFloat(trade.stop_loss) || 0,
                         takeProfit: parseFloat(trade.take_profit) || 0,
-                        beAchieved: trade.be_achieved === 1 || trade.be_achieved === true,
-                        breakeven: parseFloat(trade.breakeven) || 0,
-                        mfe: parseFloat(trade.mfe) || 0,
+                        mfeNone: parseFloat(trade.mfe_none) || 0,
+                        be1Level: parseFloat(trade.be1_level) || 1,
+                        be1Hit: trade.be1_hit === 1 || trade.be1_hit === true,
+                        mfe1: parseFloat(trade.mfe1) || 0,
+                        be2Level: parseFloat(trade.be2_level) || 2,
+                        be2Hit: trade.be2_hit === 1 || trade.be2_hit === true,
+                        mfe2: parseFloat(trade.mfe2) || 0,
                         positionSize: parseInt(trade.position_size) || 1,
                         commission: parseFloat(trade.commission) || 0,
                         newsProximity: trade.news_proximity || 'None',
@@ -785,9 +804,13 @@
                     entry_price: signal.entryPrice,
                     stop_loss: signal.stopLoss,
                     take_profit: signal.takeProfit,
-                    be_achieved: signal.beAchieved ? 1 : 0,
-                    breakeven: signal.breakeven,
-                    mfe: signal.mfe,
+                    mfe_none: signal.mfeNone,
+                    be1_level: signal.be1Level,
+                    be1_hit: signal.be1Hit ? 1 : 0,
+                    mfe1: signal.mfe1,
+                    be2_level: signal.be2Level,
+                    be2_hit: signal.be2Hit ? 1 : 0,
+                    mfe2: signal.mfe2,
                     position_size: signal.positionSize,
                     commission: signal.commission,
                     news_proximity: signal.newsProximity,
@@ -821,9 +844,13 @@
                         entry_price: signal.entryPrice,
                         stop_loss: signal.stopLoss,
                         take_profit: signal.takeProfit,
-                        be_achieved: signal.beAchieved ? 1 : 0,
-                        breakeven: signal.breakeven,
-                        mfe: signal.mfe,
+                        mfe_none: signal.mfeNone,
+                        be1_level: signal.be1Level,
+                        be1_hit: signal.be1Hit ? 1 : 0,
+                        mfe1: signal.mfe1,
+                        be2_level: signal.be2Level,
+                        be2_hit: signal.be2Hit ? 1 : 0,
+                        mfe2: signal.mfe2,
                         position_size: signal.positionSize,
                         commission: signal.commission,
                         news_proximity: signal.newsProximity,
@@ -884,9 +911,13 @@
                 entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
                 stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
                 takeProfit: parseFloat(document.getElementById('takeProfit').value) || 0,
-                beAchieved: document.getElementById('beAchieved').checked,
-                breakeven: parseFloat(document.getElementById('breakeven').value) || 0,
-                mfe: parseFloat(document.getElementById('mfe').value) || 0,
+                mfeNone: parseFloat(document.getElementById('mfeNone').value) || 0,
+                be1Level: parseFloat(document.getElementById('be1Level').value) || 1,
+                be1Hit: document.getElementById('be1Hit').checked,
+                mfe1: parseFloat(document.getElementById('mfe1').value) || 0,
+                be2Level: parseFloat(document.getElementById('be2Level').value) || 2,
+                be2Hit: document.getElementById('be2Hit').checked,
+                mfe2: parseFloat(document.getElementById('mfe2').value) || 0,
                 positionSize: parseInt(document.getElementById('positionSize').value) || 1,
                 commission: parseFloat(document.getElementById('commission').value) || 0,
                 newsProximity: document.getElementById('newsProximity').value,
@@ -926,9 +957,13 @@
             document.getElementById('entryPrice').value = signal.entryPrice;
             document.getElementById('stopLoss').value = signal.stopLoss;
             document.getElementById('takeProfit').value = signal.takeProfit;
-            document.getElementById('beAchieved').checked = signal.beAchieved;
-            document.getElementById('breakeven').value = signal.breakeven;
-            document.getElementById('mfe').value = signal.mfe;
+            document.getElementById('mfeNone').value = signal.mfeNone || 0;
+            document.getElementById('be1Level').value = signal.be1Level || 1;
+            document.getElementById('be1Hit').checked = signal.be1Hit || false;
+            document.getElementById('mfe1').value = signal.mfe1 || 0;
+            document.getElementById('be2Level').value = signal.be2Level || 2;
+            document.getElementById('be2Hit').checked = signal.be2Hit || false;
+            document.getElementById('mfe2').value = signal.mfe2 || 0;
             document.getElementById('positionSize').value = signal.positionSize;
             document.getElementById('commission').value = signal.commission;
             document.getElementById('newsProximity').value = signal.newsProximity;
@@ -969,9 +1004,13 @@
                 entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
                 stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
                 takeProfit: parseFloat(document.getElementById('takeProfit').value) || 0,
-                beAchieved: document.getElementById('beAchieved').checked,
-                breakeven: parseFloat(document.getElementById('breakeven').value) || 0,
-                mfe: parseFloat(document.getElementById('mfe').value) || 0,
+                mfeNone: parseFloat(document.getElementById('mfeNone').value) || 0,
+                be1Level: parseFloat(document.getElementById('be1Level').value) || 1,
+                be1Hit: document.getElementById('be1Hit').checked,
+                mfe1: parseFloat(document.getElementById('mfe1').value) || 0,
+                be2Level: parseFloat(document.getElementById('be2Level').value) || 2,
+                be2Hit: document.getElementById('be2Hit').checked,
+                mfe2: parseFloat(document.getElementById('mfe2').value) || 0,
                 positionSize: parseInt(document.getElementById('positionSize').value) || 1,
                 commission: parseFloat(document.getElementById('commission').value) || 0,
                 newsProximity: document.getElementById('newsProximity').value,
@@ -1010,8 +1049,11 @@
             document.getElementById('entryPrice').value = '';
             document.getElementById('stopLoss').value = '';
             document.getElementById('takeProfit').value = '';
-            document.getElementById('beAchieved').checked = false;
-            document.getElementById('mfe').value = '';
+            document.getElementById('mfeNone').value = '';
+            document.getElementById('be1Hit').checked = false;
+            document.getElementById('mfe1').value = '';
+            document.getElementById('be2Hit').checked = false;
+            document.getElementById('mfe2').value = '';
             document.getElementById('positionSize').value = '1';
             document.getElementById('commission').value = '4.50';
             document.getElementById('newsProximity').value = 'None';
@@ -1049,11 +1091,12 @@
         function updateStats() {
             const totalSignals = signals.length;
             
-            // Best signal type by average MFE
+            // Best signal type by average MFE (using highest MFE from all levels)
             const signalTypes = {};
             signals.forEach(s => {
                 if (!signalTypes[s.signalType]) signalTypes[s.signalType] = [];
-                signalTypes[s.signalType].push(s.mfe);
+                const maxMfe = Math.max(s.mfeNone || 0, s.mfe1 || 0, s.mfe2 || 0);
+                signalTypes[s.signalType].push(maxMfe);
             });
             
             let bestSignal = '-';
@@ -1070,7 +1113,8 @@
             const sessions = {};
             signals.forEach(s => {
                 if (!sessions[s.session]) sessions[s.session] = [];
-                sessions[s.session].push(s.mfe);
+                const maxMfe = Math.max(s.mfeNone || 0, s.mfe1 || 0, s.mfe2 || 0);
+                sessions[s.session].push(maxMfe);
             });
             
             let bestSession = '-';
@@ -1084,7 +1128,7 @@
             });
             
             const avgMFE = signals.length > 0 ? 
-                (signals.reduce((sum, s) => sum + s.mfe, 0) / signals.length).toFixed(1) : 0;
+                (signals.reduce((sum, s) => sum + Math.max(s.mfeNone || 0, s.mfe1 || 0, s.mfe2 || 0), 0) / signals.length).toFixed(1) : 0;
             
             document.getElementById('totalSignals').textContent = totalSignals;
             document.getElementById('bestSignal').textContent = bestSignal;
@@ -1098,7 +1142,8 @@
             
             signals.slice().reverse().forEach(signal => {
                 const row = tbody.insertRow();
-                const isActiveTrade = !signal.mfe || signal.mfe === 0 || signal.mfe === null || signal.mfe === undefined;
+                const maxMfe = Math.max(signal.mfeNone || 0, signal.mfe1 || 0, signal.mfe2 || 0);
+                const isActiveTrade = maxMfe === 0;
                 const screenshotCell = signal.screenshot ? 
                     `<img src="${signal.screenshot}" style="width: 30px; height: 20px; object-fit: cover; border-radius: 3px; cursor: pointer; margin-right: 5px;" onclick="viewScreenshot('${signal.id}')" title="Click to view full size">` : 
                     '';
@@ -1119,9 +1164,13 @@
                     <td>${signal.entryPrice.toFixed(2)}</td>
                     <td>${signal.stopLoss.toFixed(2)}</td>
                     <td>${signal.takeProfit.toFixed(2)}</td>
-                    <td>${signal.beAchieved ? '✓' : '✗'}</td>
-                    <td>${signal.breakeven}R</td>
-                    <td class="${signal.mfe > 0 ? 'positive' : signal.mfe < 0 ? 'negative' : 'neutral'}">${isActiveTrade ? '<strong style="color: #ffa502;">ACTIVE</strong>' : signal.mfe.toFixed(1) + 'R'}</td>
+                    <td class="${signal.mfeNone > 0 ? 'positive' : signal.mfeNone < 0 ? 'negative' : 'neutral'}">${signal.mfeNone ? signal.mfeNone.toFixed(1) + 'R' : '-'}</td>
+                    <td>${signal.be1Level}R</td>
+                    <td>${signal.be1Hit ? '✓' : '✗'}</td>
+                    <td class="${signal.mfe1 > 0 ? 'positive' : signal.mfe1 < 0 ? 'negative' : 'neutral'}">${signal.mfe1 ? signal.mfe1.toFixed(1) + 'R' : '-'}</td>
+                    <td>${signal.be2Level}R</td>
+                    <td>${signal.be2Hit ? '✓' : '✗'}</td>
+                    <td class="${signal.mfe2 > 0 ? 'positive' : signal.mfe2 < 0 ? 'negative' : 'neutral'}">${signal.mfe2 ? signal.mfe2.toFixed(1) + 'R' : '-'}</td>
                     <td>${signal.positionSize}</td>
                     <td>$${signal.commission.toFixed(2)}</td>
                     <td>${signal.newsProximity}</td>

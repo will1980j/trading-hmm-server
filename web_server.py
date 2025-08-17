@@ -1027,8 +1027,9 @@ def get_signal_lab_trades():
             
             cursor.execute("""
                 SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
-                       stop_loss, take_profit, be_achieved, breakeven, mfe, position_size, 
-                       commission, news_proximity, news_event, screenshot, created_at
+                       stop_loss, take_profit, mfe_none, be1_level, be1_hit, mfe1, 
+                       be2_level, be2_hit, mfe2, position_size, commission, 
+                       news_proximity, news_event, screenshot, created_at
                 FROM signal_lab_trades 
                 ORDER BY created_at DESC
             """)
@@ -1049,9 +1050,13 @@ def get_signal_lab_trades():
                     'entry_price': float(row['entry_price']) if row['entry_price'] else 0,
                     'stop_loss': float(row['stop_loss']) if row['stop_loss'] else 0,
                     'take_profit': float(row['take_profit']) if row['take_profit'] else 0,
-                    'be_achieved': row['be_achieved'],
-                    'breakeven': float(row['breakeven']) if row['breakeven'] else 0,
-                    'mfe': float(row['mfe']) if row['mfe'] else 0,
+                    'mfe_none': float(row['mfe_none']) if row['mfe_none'] else 0,
+                    'be1_level': float(row['be1_level']) if row['be1_level'] else 1,
+                    'be1_hit': row['be1_hit'],
+                    'mfe1': float(row['mfe1']) if row['mfe1'] else 0,
+                    'be2_level': float(row['be2_level']) if row['be2_level'] else 2,
+                    'be2_hit': row['be2_hit'],
+                    'mfe2': float(row['mfe2']) if row['mfe2'] else 0,
                     'position_size': int(row['position_size']) if row['position_size'] else 1,
                     'commission': float(row['commission']) if row['commission'] else 0,
                     'news_proximity': row['news_proximity'],
@@ -1084,9 +1089,9 @@ def create_signal_lab_trade():
         cursor.execute("""
             INSERT INTO signal_lab_trades 
             (date, time, bias, session, signal_type, open_price, entry_price, stop_loss, 
-             take_profit, be_achieved, breakeven, mfe, position_size, commission, 
-             news_proximity, news_event, screenshot)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             take_profit, mfe_none, be1_level, be1_hit, mfe1, be2_level, be2_hit, mfe2, 
+             position_size, commission, news_proximity, news_event, screenshot)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             data.get('date'),
@@ -1098,9 +1103,13 @@ def create_signal_lab_trade():
             data.get('entry_price', 0),
             data.get('stop_loss', 0),
             data.get('take_profit', 0),
-            data.get('be_achieved', False),
-            data.get('breakeven', 0),
-            data.get('mfe', 0),
+            data.get('mfe_none', 0),
+            data.get('be1_level', 1),
+            data.get('be1_hit', False),
+            data.get('mfe1', 0),
+            data.get('be2_level', 2),
+            data.get('be2_hit', False),
+            data.get('mfe2', 0),
             data.get('position_size', 1),
             data.get('commission', 0),
             data.get('news_proximity', 'None'),
@@ -1133,7 +1142,8 @@ def update_signal_lab_trade(trade_id):
             UPDATE signal_lab_trades SET
                 date = %s, time = %s, bias = %s, session = %s, signal_type = %s,
                 open_price = %s, entry_price = %s, stop_loss = %s, take_profit = %s,
-                be_achieved = %s, breakeven = %s, mfe = %s, position_size = %s,
+                mfe_none = %s, be1_level = %s, be1_hit = %s, mfe1 = %s,
+                be2_level = %s, be2_hit = %s, mfe2 = %s, position_size = %s,
                 commission = %s, news_proximity = %s, news_event = %s, screenshot = %s
             WHERE id = %s
         """, (
@@ -1146,9 +1156,13 @@ def update_signal_lab_trade(trade_id):
             data.get('entry_price', 0),
             data.get('stop_loss', 0),
             data.get('take_profit', 0),
-            data.get('be_achieved', 0),
-            data.get('breakeven', 0),
-            data.get('mfe', 0),
+            data.get('mfe_none', 0),
+            data.get('be1_level', 1),
+            data.get('be1_hit', False),
+            data.get('mfe1', 0),
+            data.get('be2_level', 2),
+            data.get('be2_hit', False),
+            data.get('mfe2', 0),
             data.get('position_size', 1),
             data.get('commission', 0),
             data.get('news_proximity', 'None'),
