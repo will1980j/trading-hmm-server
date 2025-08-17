@@ -589,11 +589,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="input-group screenshot">
-                    <label>Screenshot</label>
-                    <input type="file" id="screenshot" accept="image/*" style="display: none;" onchange="handleScreenshot(event)">
-                    <button class="btn screenshot-btn" onclick="document.getElementById('screenshot').click()">Upload</button>
-                </div>
+
                 <button class="btn add-signal-btn" onclick="addSignal()">Add</button>
             </div>
             
@@ -863,8 +859,7 @@
                         position_size: signal.positionSize,
                         commission: signal.commission,
                         news_proximity: signal.newsProximity,
-                        news_event: signal.newsEvent,
-                        screenshot: signal.screenshot
+                        news_event: signal.newsEvent
                     })
                 });
                 
@@ -988,8 +983,7 @@
                         position_size: updatedSignal.positionSize,
                         commission: updatedSignal.commission,
                         news_proximity: updatedSignal.newsProximity,
-                        news_event: updatedSignal.newsEvent,
-                        screenshot: updatedSignal.screenshot
+                        news_event: updatedSignal.newsEvent
                     })
                 });
                 
@@ -1036,8 +1030,6 @@
             document.getElementById('commission').value = '4.50';
             document.getElementById('newsProximity').value = 'None';
             clearNewsSelection();
-            document.getElementById('screenshot').value = '';
-            window.currentScreenshot = null;
         }
         
         async function handleScreenshot(event) {

@@ -1131,18 +1131,7 @@ def create_signal_lab_trade():
         cursor = db.conn.cursor()
         logger.info("Executing INSERT query")
         
-        # Check if screenshot analysis is requested
-        screenshot_data = data.get('screenshot')
-        analysis_result = None
-        
-        if screenshot_data and screenshot_data.startswith('data:image'):
-            try:
-                from screenshot_analyzer import analyze_trading_screenshot
-                analysis_result = analyze_trading_screenshot(screenshot_data)
-                logger.info(f"Screenshot analysis completed: {analysis_result.get('status')}")
-            except Exception as e:
-                logger.warning(f"Screenshot analysis failed: {str(e)}")
-                analysis_result = None
+
         
         cursor.execute("""
             INSERT INTO signal_lab_trades 
@@ -1630,36 +1619,7 @@ Analyze this NQ level tracking data and provide:
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Screenshot Analysis endpoint
-@app.route('/api/analyze-screenshot', methods=['POST'])
-@login_required
-def analyze_screenshot():
-    try:
-        from screenshot_analyzer import analyze_trading_screenshot
-        
-        data = request.get_json()
-        image_data = data.get('image_data')
-        
-        if not image_data:
-            return jsonify({"error": "No image data provided"}), 400
-        
-        # Analyze the screenshot
-        analysis_result = analyze_trading_screenshot(image_data)
-        
-        return jsonify(analysis_result)
-        
-    except ImportError as e:
-        logger.error(f"Import error: {str(e)}")
-        return jsonify({
-            "status": "unavailable",
-            "message": "Analysis dependencies not available"
-        }), 200
-    except Exception as e:
-        logger.error(f"Screenshot analysis error: {str(e)}")
-        return jsonify({
-            "status": "failed",
-            "error": str(e)[:100]
-        }), 200
+
 
 # Signal lab table is created in railway_db.py setup_tables()
 
