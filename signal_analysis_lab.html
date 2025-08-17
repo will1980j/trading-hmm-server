@@ -648,24 +648,21 @@
             console.log('🔄 Loading signals from database...');
             
             try {
-                const response = await fetch('/api/signal-lab-trades');
-                console.log('API Response status:', response.status);
+                // Use Railway deployment URL when on Railway, localhost otherwise
+                const baseUrl = window.location.hostname.includes('railway.app') ? '' : 'https://web-production-cd33.up.railway.app';
+                const response = await fetch(`${baseUrl}/api/signal-lab-trades`);
                 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('Raw API data:', data);
-                    console.log('Data type:', typeof data, 'Is array:', Array.isArray(data));
-                    
                     signals = Array.isArray(data) ? data : data.trades || [];
-                    console.log(`✅ Loaded ${signals.length} trades from database`);
-                    console.log('First trade:', signals[0]);
+                    console.log(`✅ Loaded ${signals.length} trades from Railway database`);
                 } else {
-                    console.log('API response not ok:', response.status, response.statusText);
-                    loadFromLocalStorage();
+                    console.log('Database API failed, using empty array');
+                    signals = [];
                 }
             } catch (error) {
                 console.log('Database error:', error);
-                loadFromLocalStorage();
+                signals = [];
             }
             
             updateDisplay();
