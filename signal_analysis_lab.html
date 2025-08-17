@@ -613,6 +613,7 @@
     </div>
 
     <script>
+        try {
         let signals = [];
         let editingSignalId = null;
         
@@ -927,24 +928,24 @@
             
             const updatedSignal = {
                 id: editingSignalId,
-                date: document.getElementById('signalDate').value,
-                time: document.getElementById('entryTime').value,
-                bias: document.getElementById('bias').value,
-                session: document.getElementById('session').value,
-                signalType: document.getElementById('signalType').value,
-                entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
-                stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
-                takeProfit: parseFloat(document.getElementById('takeProfit').value) || 0,
-                mfeNone: parseFloat(document.getElementById('mfeNone').value) || 0,
-                be1Level: parseFloat(document.getElementById('be1Level').value) || 1,
-                be1Hit: document.getElementById('be1Hit').checked,
-                mfe1: parseFloat(document.getElementById('mfe1').value) || 0,
-                be2Level: parseFloat(document.getElementById('be2Level').value) || 2,
-                be2Hit: document.getElementById('be2Hit').checked,
-                mfe2: parseFloat(document.getElementById('mfe2').value) || 0,
-                positionSize: parseInt(document.getElementById('positionSize').value) || 1,
-                commission: parseFloat(document.getElementById('commission').value) || 0,
-                newsProximity: document.getElementById('newsProximity').value,
+                date: document.getElementById('signalDate')?.value || '',
+                time: document.getElementById('entryTime')?.value || '',
+                bias: document.getElementById('bias')?.value || 'Bullish',
+                session: document.getElementById('session')?.value || 'NY AM',
+                signalType: document.getElementById('signalType')?.value || 'Bullish FVG',
+                entryPrice: parseFloat(document.getElementById('entryPrice')?.value) || 0,
+                stopLoss: parseFloat(document.getElementById('stopLoss')?.value) || 0,
+                takeProfit: parseFloat(document.getElementById('takeProfit')?.value) || 0,
+                mfeNone: parseFloat(document.getElementById('mfeNone')?.value) || 0,
+                be1Level: parseFloat(document.getElementById('be1Level')?.value) || 1,
+                be1Hit: document.getElementById('be1Hit')?.checked || false,
+                mfe1: parseFloat(document.getElementById('mfe1')?.value) || 0,
+                be2Level: parseFloat(document.getElementById('be2Level')?.value) || 2,
+                be2Hit: document.getElementById('be2Hit')?.checked || false,
+                mfe2: parseFloat(document.getElementById('mfe2')?.value) || 0,
+                positionSize: parseInt(document.getElementById('positionSize')?.value) || 1,
+                commission: parseFloat(document.getElementById('commission')?.value) || 0,
+                newsProximity: document.getElementById('newsProximity')?.value || 'None',
                 newsEvent: getSelectedNewsEvents(),
 
             };
@@ -1293,7 +1294,8 @@
         }
         
         // Set today's date by default
-        document.getElementById('signalDate').value = new Date().toISOString().split('T')[0];
+        const dateEl = document.getElementById('signalDate');
+        if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
         
         let selectedNewsEvents = [];
         
@@ -1342,7 +1344,8 @@
         });
         
         // Auto-calculate TP when bias changes
-        document.getElementById('bias').addEventListener('change', calculateTP);
+        const biasEl = document.getElementById('bias');
+        if (biasEl) biasEl.addEventListener('change', calculateTP);
         
         // View analysis function
         function viewAnalysis(signalId) {
@@ -1446,7 +1449,10 @@
             });
         }
         
-
+        } catch (error) {
+            console.error('Signal Lab JavaScript Error:', error);
+            alert('JavaScript Error: ' + error.message + '\n\nLine: ' + (error.lineNumber || 'unknown'));
+        }
     </script>
 </body>
 </html>
