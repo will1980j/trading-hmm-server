@@ -1025,14 +1025,33 @@ def get_signal_lab_trades():
             total_count = count_result['count'] if count_result else 0
             logger.info(f"Total signal_lab_trades in database: {total_count}")
             
-            cursor.execute("""
-                SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
-                       stop_loss, take_profit, mfe_none, be1_level, be1_hit, mfe1, 
-                       be2_level, be2_hit, mfe2, position_size, commission, 
-                       news_proximity, news_event, screenshot, created_at
-                FROM signal_lab_trades 
-                ORDER BY created_at DESC
-            """)
+            # Try new schema first, fallback to old schema
+            try:
+                cursor.execute("""
+                    SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
+                           stop_loss, take_profit, 
+                           COALESCE(mfe_none, mfe, 0) as mfe_none,
+                           COALESCE(be1_level, 1) as be1_level,
+                           COALESCE(be1_hit, false) as be1_hit,
+                           COALESCE(mfe1, 0) as mfe1,
+                           COALESCE(be2_level, 2) as be2_level,
+                           COALESCE(be2_hit, false) as be2_hit,
+                           COALESCE(mfe2, 0) as mfe2,
+                           position_size, commission, news_proximity, news_event, screenshot, created_at
+                    FROM signal_lab_trades 
+                    ORDER BY created_at DESC
+                """)
+            except Exception as e:
+                # Fallback to old schema
+                cursor.execute("""
+                    SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
+                           stop_loss, take_profit, 
+                           COALESCE(mfe, 0) as mfe_none, 1 as be1_level, false as be1_hit, 0 as mfe1,
+                           2 as be2_level, false as be2_hit, 0 as mfe2,
+                           position_size, commission, news_proximity, news_event, screenshot, created_at
+                    FROM signal_lab_trades 
+                    ORDER BY created_at DESC
+                """)
             
             rows = cursor.fetchall()
             logger.info(f"Query returned {len(rows)} rows")
@@ -1050,13 +1069,13 @@ def get_signal_lab_trades():
                     'entry_price': float(row['entry_price']) if row['entry_price'] else 0,
                     'stop_loss': float(row['stop_loss']) if row['stop_loss'] else 0,
                     'take_profit': float(row['take_profit']) if row['take_profit'] else 0,
-                    'mfe_none': float(row['mfe_none']) if row['mfe_none'] else 0,
-                    'be1_level': float(row['be1_level']) if row['be1_level'] else 1,
-                    'be1_hit': row['be1_hit'],
-                    'mfe1': float(row['mfe1']) if row['mfe1'] else 0,
-                    'be2_level': float(row['be2_level']) if row['be2_level'] else 2,
-                    'be2_hit': row['be2_hit'],
-                    'mfe2': float(row['mfe2']) if row['mfe2'] else 0,
+                    'mfe_none': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
+                    'be1_level': float(row['be1_level']) if row['be1_level'] is not None else 1,
+                    'be1_hit': bool(row['be1_hit']) if row['be1_hit'] is not None else False,
+                    'mfe1': float(row['mfe1']) if row['mfe1'] is not None else 0,
+                    'be2_level': float(row['be2_level']) if row['be2_level'] is not None else 2,
+                    'be2_hit': bool(row['be2_hit']) if row['be2_hit'] is not None else False,
+                    'mfe2': float(row['mfe2']) if row['mfe2'] is not None else 0,
                     'position_size': int(row['position_size']) if row['position_size'] else 1,
                     'commission': float(row['commission']) if row['commission'] else 0,
                     'news_proximity': row['news_proximity'],

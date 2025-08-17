@@ -467,10 +467,16 @@
                 </div>
                 <div class="input-group breakeven">
                     <label>BE (None)</label>
+                    <select disabled style="background: #f0f0f0 !important;">
+                        <option>None</option>
+                    </select>
+                </div>
+                <div class="input-group mfe">
+                    <label>MFE</label>
                     <input type="number" id="mfeNone" step="0.1" placeholder="2.5">
                 </div>
                 <div class="input-group breakeven">
-                    <label>BE (1R)</label>
+                    <label>BE (1)</label>
                     <select id="be1Level">
                         <option value="0.5">0.5R</option>
                         <option value="1" selected>1R</option>
@@ -479,7 +485,7 @@
                     </select>
                 </div>
                 <div class="input-group be-achieved">
-                    <label>Hit</label>
+                    <label>BE Hit</label>
                     <input type="checkbox" id="be1Hit" class="checkbox-input">
                 </div>
                 <div class="input-group mfe">
@@ -487,7 +493,7 @@
                     <input type="number" id="mfe1" step="0.1" placeholder="2.5">
                 </div>
                 <div class="input-group breakeven">
-                    <label>BE (2R)</label>
+                    <label>BE (2)</label>
                     <select id="be2Level">
                         <option value="1.5">1.5R</option>
                         <option value="2" selected>2R</option>
@@ -496,7 +502,7 @@
                     </select>
                 </div>
                 <div class="input-group be-achieved">
-                    <label>Hit</label>
+                    <label>BE Hit</label>
                     <input type="checkbox" id="be2Hit" class="checkbox-input">
                 </div>
                 <div class="input-group mfe">
