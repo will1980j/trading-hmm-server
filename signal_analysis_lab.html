@@ -796,7 +796,7 @@
                 commission: parseFloat(document.getElementById('commission').value) || 0,
                 newsProximity: document.getElementById('newsProximity').value,
                 newsEvent: getSelectedNewsEvents(),
-                screenshot: window.currentScreenshot || null
+
             };
             
             if (!signal.date || !signal.entryPrice || !signal.stopLoss) {
@@ -920,7 +920,7 @@
                 commission: parseFloat(document.getElementById('commission').value) || 0,
                 newsProximity: document.getElementById('newsProximity').value,
                 newsEvent: getSelectedNewsEvents(),
-                screenshot: window.currentScreenshot || signals[signalIndex].screenshot
+
             };
             
             if (!updatedSignal.date || !updatedSignal.entryPrice || !updatedSignal.stopLoss) {
@@ -938,7 +938,7 @@
                         bias: updatedSignal.bias,
                         session: updatedSignal.session,
                         signal_type: updatedSignal.signalType,
-                        open_price: updatedSignal.openPrice,
+
                         entry_price: updatedSignal.entryPrice,
                         stop_loss: updatedSignal.stopLoss,
                         take_profit: updatedSignal.takeProfit,
