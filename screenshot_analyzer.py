@@ -19,19 +19,19 @@ class ScreenshotAnalyzer:
             # pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
             pass
         
-        # Price patterns for OCR
+        # Enhanced price patterns for NQ futures
         self.price_patterns = [
-            r'\d{5}\.\d{2}',  # 23850.25
-            r'\d{4}\.\d{2}',  # 2385.25
-            r'\d{5}',         # 23850
-            r'\d{4}',         # 2385
+            r'\b(1[5-9]\d{3}\.\d{2})\b',  # 15000.00-19999.99
+            r'\b(1[5-9]\d{3})\b',         # 15000-19999
+            r'\b(\d{5}\.\d{1,2})\b',     # Any 5-digit decimal
+            r'\b(\d{5})\b',               # Any 5-digit number
         ]
         
-        # MFE patterns
+        # Enhanced MFE patterns
         self.mfe_patterns = [
-            r'MFE:\s*(\d+\.?\d*)[Rr]',  # MFE: 2.5R
-            r'(\d+\.?\d*)[Rr]',         # 2.5R
-            r'(\d+\.?\d*)\s*[Rr]',      # 2.5 R
+            r'MFE[:\s]*(\d+\.?\d*)[Rr]?',  # MFE: 2.5R or MFE 2.5
+            r'(\d+\.\d+)[Rr]',              # 2.5R
+            r'(\d+)[Rr]',                   # 2R
         ]
 
     def analyze_screenshot(self, image_data: str) -> Dict:
@@ -90,44 +90,97 @@ class ScreenshotAnalyzer:
 
     def _extract_prices(self, image: np.ndarray) -> Dict:
         """Phase 1: Extract price levels using OCR"""
-        # Preprocess image for better OCR
+        # Multiple preprocessing approaches
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
-        # Enhance contrast for price text
-        enhanced = cv2.convertScaleAbs(gray, alpha=2.0, beta=50)
+        # Try different preprocessing methods
+        methods = [
+            gray,  # Original
+            cv2.convertScaleAbs(gray, alpha=1.5, beta=30),  # Enhanced contrast
+            cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1],  # Binary
+            cv2.medianBlur(gray, 3),  # Noise reduction
+        ]
         
-        # OCR extraction
-        text = pytesseract.image_to_string(enhanced, config='--psm 6')
-        
-        # Extract prices using patterns
-        prices = {}
         all_prices = []
         
-        for pattern in self.price_patterns:
-            matches = re.findall(pattern, text)
-            all_prices.extend([float(match) for match in matches])
-        
-        # Sort prices and try to identify levels
-        if all_prices:
-            all_prices = sorted(set(all_prices))
+        for method_img in methods:
+            # Try different OCR configs
+            configs = [
+                '--psm 6 -c tessedit_char_whitelist=0123456789.',
+                '--psm 8 -c tessedit_char_whitelist=0123456789.',
+                '--psm 13 -c tessedit_char_whitelist=0123456789.',
+            ]
             
-            # Heuristic: assume highest is resistance, lowest is support
-            if len(all_prices) >= 2:
-                prices['entry'] = all_prices[len(all_prices)//2]  # Middle price as entry
-                prices['stop'] = min(all_prices)
-                prices['target'] = max(all_prices)
+            for config in configs:
+                try:
+                    text = pytesseract.image_to_string(method_img, config=config)
+                    
+                    # Extract prices using enhanced patterns
+                    for pattern in self.price_patterns:
+                        matches = re.findall(pattern, text)
+                        for match in matches:
+                            try:
+                                price = float(match)
+                                # Filter for realistic NQ prices (15000-20000 range)
+                                if 14000 <= price <= 25000:
+                                    all_prices.append(price)
+                            except ValueError:
+                                continue
+                except:
+                    continue
+        
+        # Process extracted prices
+        prices = {}
+        if all_prices:
+            unique_prices = sorted(set(all_prices))
+            
+            # Better price identification for NQ
+            if len(unique_prices) >= 3:
+                # Assume middle price is entry, others are levels
+                mid_idx = len(unique_prices) // 2
+                prices['entry'] = unique_prices[mid_idx]
+                prices['stop'] = min(unique_prices)
+                prices['target'] = max(unique_prices)
+            elif len(unique_prices) == 2:
+                # Two prices - likely entry and one level
+                prices['entry'] = unique_prices[0]
+                prices['target'] = unique_prices[1]
         
         return prices
 
     def _extract_mfe_values(self, image: np.ndarray) -> List[float]:
         """Extract MFE values from chart labels"""
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        text = pytesseract.image_to_string(gray, config='--psm 6')
+        
+        # Enhanced preprocessing for text detection
+        enhanced = cv2.convertScaleAbs(gray, alpha=2.0, beta=50)
         
         mfe_values = []
-        for pattern in self.mfe_patterns:
-            matches = re.findall(pattern, text, re.IGNORECASE)
-            mfe_values.extend([float(match) for match in matches])
+        
+        # Try multiple OCR approaches
+        configs = [
+            '--psm 6',
+            '--psm 8', 
+            '--psm 13',
+        ]
+        
+        for config in configs:
+            try:
+                text = pytesseract.image_to_string(enhanced, config=config)
+                
+                # Look for MFE patterns in the text
+                for pattern in self.mfe_patterns:
+                    matches = re.findall(pattern, text, re.IGNORECASE)
+                    for match in matches:
+                        try:
+                            value = float(match)
+                            # Filter realistic MFE values (0-20R range)
+                            if 0 <= value <= 20:
+                                mfe_values.append(value)
+                        except ValueError:
+                            continue
+            except:
+                continue
         
         return sorted(set(mfe_values))
 
