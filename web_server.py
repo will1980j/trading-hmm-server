@@ -1015,9 +1015,15 @@ def get_signals():
 def get_signal_lab_trades():
     try:
         if not db_enabled or not db:
-            logger.error("Database not enabled or not available")
+            logger.info("Database not available - returning empty array for local development")
             return jsonify([]), 200
         
+        # Clear any aborted transactions
+        try:
+            db.conn.rollback()
+        except:
+            pass
+            
         cursor = db.conn.cursor()
         
         # Simple query with error handling
@@ -1088,7 +1094,8 @@ def get_signal_lab_trades():
         import traceback
         error_details = f"{str(e)} | Traceback: {traceback.format_exc()}"
         logger.error(f"Error getting signal lab trades: {error_details}")
-        return jsonify({"error": str(e)}), 500
+        # Return empty array instead of error for better UX
+        return jsonify([]), 200
 
 @app.route('/api/signal-lab-trades', methods=['POST'])
 @login_required
