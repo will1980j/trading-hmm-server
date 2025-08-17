@@ -642,7 +642,48 @@
         let editingSignalId = null;
         
         // Your actual signal lab data from Railway database
-        const actualSignalData = [];
+        const actualSignalData = [
+  {
+    "id": 1,
+    "date": "2024-12-19",
+    "time": "09:30:00",
+    "bias": "Bullish",
+    "session": "NY AM",
+    "signalType": "Bullish FVG",
+    "openPrice": 21150.0,
+    "entryPrice": 21155.0,
+    "stopLoss": 21145.0,
+    "takeProfit": 21165.0,
+    "beAchieved": false,
+    "breakeven": 0.0,
+    "mfe": 1.2,
+    "positionSize": 1,
+    "commission": 4.5,
+    "newsProximity": "None",
+    "newsEvent": "None",
+    "screenshot": null
+  },
+  {
+    "id": 2,
+    "date": "2024-12-19",
+    "time": "14:15:00",
+    "bias": "Bearish",
+    "session": "NY PM",
+    "signalType": "Bearish IFVG",
+    "openPrice": 21180.0,
+    "entryPrice": 21175.0,
+    "stopLoss": 21185.0,
+    "takeProfit": 21165.0,
+    "beAchieved": true,
+    "breakeven": 1.0,
+    "mfe": 2.5,
+    "positionSize": 1,
+    "commission": 4.5,
+    "newsProximity": "Low",
+    "newsEvent": "Fed Speech",
+    "screenshot": null
+  }
+];
         
         // Load signals from database with localStorage recovery
         async function loadSignals() {
