@@ -897,19 +897,21 @@
                     })
                 });
                 
-                if (!response.ok) {
-                    throw new Error(`Database save failed: ${response.status} ${response.statusText}`);
+                if (response.ok) {
+                    const savedSignal = await response.json();
+                    signal.id = savedSignal.id;
+                    signals.push(signal);
+                    updateDisplay();
+                    clearInputs();
+                    console.log('✅ Signal added successfully');
+                } else {
+                    const errorText = await response.text();
+                    console.error('Add failed:', errorText);
+                    alert(`❌ Add failed: ${response.status} - ${errorText}`);
                 }
-                
-                const savedSignal = await response.json();
-                signal.id = savedSignal.id;
-                signals.push(signal);
-                updateDisplay();
-                clearInputs();
-                console.log('Signal added successfully to database');
             } catch (error) {
-                alert(`❌ DATABASE ERROR\n\n${error.message}\n\nSignal NOT saved. Database connection required for Signal Lab.`);
-                console.error('Database save failed:', error);
+                console.error('Add error:', error);
+                alert(`❌ Add error: ${error.message}`);
             }
         }
         
