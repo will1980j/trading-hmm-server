@@ -801,44 +801,7 @@
             return savedSignal.id;
         }
         
-        // Update signal in database
-        async function updateSignalInDatabase(signal) {
-            try {
-                const response = await fetch(`/api/signal-lab-trades/${signal.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        date: signal.date,
-                        time: signal.time,
-                        bias: signal.bias,
-                        session: signal.session,
-                        signal_type: signal.signalType,
-                        open_price: signal.openPrice,
-                        entry_price: signal.entryPrice,
-                        stop_loss: signal.stopLoss,
-                        take_profit: signal.takeProfit,
-                        mfe_none: signal.mfeNone,
-                        be1_level: signal.be1Level,
-                        be1_hit: signal.be1Hit ? 1 : 0,
-                        mfe1: signal.mfe1,
-                        be2_level: signal.be2Level,
-                        be2_hit: signal.be2Hit ? 1 : 0,
-                        mfe2: signal.mfe2,
-                        position_size: signal.positionSize,
-                        commission: signal.commission,
-                        news_proximity: signal.newsProximity,
-                        news_event: signal.newsEvent,
-                        screenshot: signal.screenshot
-                    })
-                });
-                
-                if (!response.ok) {
-                    console.error('Failed to update signal in database');
-                }
-            } catch (error) {
-                console.error('Error updating signal:', error);
-            }
-        }
+
         
         // Delete signal from database
         async function deleteSignalFromDatabase(id) {
@@ -996,12 +959,50 @@
                 return;
             }
             
-            // Always update local array first
-            signals[signalIndex] = updatedSignal;
-            await updateSignalInDatabase(updatedSignal);
-            saveToLocalStorage();
-            updateDisplay();
-            cancelEdit();
+            try {
+                // Update database first
+                const response = await fetch(`/api/signal-lab-trades/${updatedSignal.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        date: updatedSignal.date,
+                        time: updatedSignal.time,
+                        bias: updatedSignal.bias,
+                        session: updatedSignal.session,
+                        signal_type: updatedSignal.signalType,
+                        open_price: updatedSignal.openPrice,
+                        entry_price: updatedSignal.entryPrice,
+                        stop_loss: updatedSignal.stopLoss,
+                        take_profit: updatedSignal.takeProfit,
+                        mfe_none: updatedSignal.mfeNone,
+                        be1_level: updatedSignal.be1Level,
+                        be1_hit: updatedSignal.be1Hit ? 1 : 0,
+                        mfe1: updatedSignal.mfe1,
+                        be2_level: updatedSignal.be2Level,
+                        be2_hit: updatedSignal.be2Hit ? 1 : 0,
+                        mfe2: updatedSignal.mfe2,
+                        position_size: updatedSignal.positionSize,
+                        commission: updatedSignal.commission,
+                        news_proximity: updatedSignal.newsProximity,
+                        news_event: updatedSignal.newsEvent,
+                        screenshot: updatedSignal.screenshot
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Database update failed: ${response.status}`);
+                }
+                
+                // Only update local array after successful database update
+                signals[signalIndex] = updatedSignal;
+                updateDisplay();
+                cancelEdit();
+                console.log('Signal updated successfully in database');
+                
+            } catch (error) {
+                alert(`❌ UPDATE FAILED\n\n${error.message}\n\nChanges NOT saved to database.`);
+                console.error('Database update failed:', error);
+            }
         }
         
         function cancelEdit() {
