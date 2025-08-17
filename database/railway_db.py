@@ -137,14 +137,19 @@ class RailwayDB:
                 ADD COLUMN IF NOT EXISTS mfe1 DECIMAL(10,2) DEFAULT 0,
                 ADD COLUMN IF NOT EXISTS be2_level DECIMAL(10,2) DEFAULT 2,
                 ADD COLUMN IF NOT EXISTS be2_hit BOOLEAN DEFAULT FALSE,
-                ADD COLUMN IF NOT EXISTS mfe2 DECIMAL(10,2) DEFAULT 0
+                ADD COLUMN IF NOT EXISTS mfe2 DECIMAL(10,2) DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS analysis_data JSONB
             ''')
+            
+            # Create index for analysis data queries
+            cur.execute('CREATE INDEX IF NOT EXISTS idx_signal_lab_analysis ON signal_lab_trades USING GIN (analysis_data)')
             
             # Indexes for better performance
             cur.execute('CREATE INDEX IF NOT EXISTS idx_market_data_symbol_time ON market_data(symbol, timestamp DESC)')
             cur.execute('CREATE INDEX IF NOT EXISTS idx_trading_signals_symbol ON trading_signals(symbol)')
             cur.execute('CREATE INDEX IF NOT EXISTS idx_ict_levels_symbol ON ict_levels(symbol)')
             cur.execute('CREATE INDEX IF NOT EXISTS idx_signal_lab_date ON signal_lab_trades(date DESC)')
+            cur.execute('CREATE INDEX IF NOT EXISTS idx_signal_lab_created ON signal_lab_trades(created_at DESC)')
             
         self.conn.commit()
     

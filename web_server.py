@@ -1043,7 +1043,8 @@ def get_signal_lab_trades():
                        COALESCE(be2_level, 2) as be2_level,
                        COALESCE(be2_hit, false) as be2_hit,
                        COALESCE(mfe2, 0) as mfe2,
-                       position_size, commission, news_proximity, news_event, screenshot, created_at
+                       position_size, commission, news_proximity, news_event, screenshot, 
+                       analysis_data, created_at
                 FROM signal_lab_trades 
                 ORDER BY created_at DESC
             """)
@@ -1054,7 +1055,8 @@ def get_signal_lab_trades():
                        stop_loss, take_profit, 
                        COALESCE(mfe, 0) as mfe_none, 1 as be1_level, false as be1_hit, 0 as mfe1,
                        2 as be2_level, false as be2_hit, 0 as mfe2,
-                       position_size, commission, news_proximity, news_event, screenshot, created_at
+                       position_size, commission, news_proximity, news_event, screenshot, 
+                       NULL as analysis_data, created_at
                 FROM signal_lab_trades 
                 ORDER BY created_at DESC
             """)
@@ -1093,6 +1095,7 @@ def get_signal_lab_trades():
                 'news_proximity': row['news_proximity'],
                 'news_event': row['news_event'],
                 'screenshot': row['screenshot'],
+                'analysis_data': loads(row['analysis_data']) if row.get('analysis_data') else None,
                 'created_at': str(row['created_at'])
             }
             trades.append(trade)
@@ -1128,12 +1131,24 @@ def create_signal_lab_trade():
         cursor = db.conn.cursor()
         logger.info("Executing INSERT query")
         
+        # Check if screenshot analysis is requested
+        screenshot_data = data.get('screenshot')
+        analysis_result = None
+        
+        if screenshot_data and screenshot_data.startswith('data:image'):
+            try:
+                from screenshot_analyzer import analyze_trading_screenshot
+                analysis_result = analyze_trading_screenshot(screenshot_data)
+                logger.info(f"Screenshot analysis completed: {analysis_result.get('status')}")
+            except Exception as e:
+                logger.warning(f"Screenshot analysis failed: {str(e)}")
+        
         cursor.execute("""
             INSERT INTO signal_lab_trades 
             (date, time, bias, session, signal_type, open_price, entry_price, stop_loss, 
              take_profit, mfe_none, be1_level, be1_hit, mfe1, be2_level, be2_hit, mfe2, 
-             position_size, commission, news_proximity, news_event, screenshot)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             position_size, commission, news_proximity, news_event, screenshot, analysis_data)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             data.get('date'),
@@ -1156,7 +1171,8 @@ def create_signal_lab_trade():
             data.get('commission', 0),
             data.get('news_proximity', 'None'),
             data.get('news_event', 'None'),
-            data.get('screenshot')
+            data.get('screenshot'),
+            dumps(analysis_result) if analysis_result else None
         ))
         
         result = cursor.fetchone()
@@ -1195,13 +1211,26 @@ def update_signal_lab_trade(trade_id):
             return jsonify({"error": f"Trade with ID {trade_id} not found"}), 404
         
         # Perform the update
+        # Check if screenshot analysis is requested for update
+        screenshot_data = data.get('screenshot')
+        analysis_result = None
+        
+        if screenshot_data and screenshot_data.startswith('data:image'):
+            try:
+                from screenshot_analyzer import analyze_trading_screenshot
+                analysis_result = analyze_trading_screenshot(screenshot_data)
+                logger.info(f"Screenshot analysis completed for update: {analysis_result.get('status')}")
+            except Exception as e:
+                logger.warning(f"Screenshot analysis failed for update: {str(e)}")
+        
         cursor.execute("""
             UPDATE signal_lab_trades SET
                 date = %s, time = %s, bias = %s, session = %s, signal_type = %s,
                 open_price = %s, entry_price = %s, stop_loss = %s, take_profit = %s,
                 mfe_none = %s, be1_level = %s, be1_hit = %s, mfe1 = %s,
                 be2_level = %s, be2_hit = %s, mfe2 = %s, position_size = %s,
-                commission = %s, news_proximity = %s, news_event = %s, screenshot = %s
+                commission = %s, news_proximity = %s, news_event = %s, screenshot = %s,
+                analysis_data = %s
             WHERE id = %s
         """, (
             data.get('date'),
@@ -1225,6 +1254,7 @@ def update_signal_lab_trade(trade_id):
             data.get('news_proximity', 'None'),
             data.get('news_event', 'None'),
             data.get('screenshot'),
+            dumps(analysis_result) if analysis_result else None,
             trade_id
         ))
         
@@ -1598,6 +1628,37 @@ Analyze this NQ level tracking data and provide:
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# Screenshot Analysis endpoint
+@app.route('/api/analyze-screenshot', methods=['POST'])
+@login_required
+def analyze_screenshot():
+    try:
+        from screenshot_analyzer import analyze_trading_screenshot
+        
+        data = request.get_json()
+        image_data = data.get('image_data')
+        
+        if not image_data:
+            return jsonify({"error": "No image data provided"}), 400
+        
+        # Analyze the screenshot
+        analysis_result = analyze_trading_screenshot(image_data)
+        
+        return jsonify(analysis_result)
+        
+    except ImportError:
+        return jsonify({
+            "error": "Screenshot analysis dependencies not installed",
+            "status": "error",
+            "message": "Install: pip install opencv-python pytesseract pillow"
+        }), 500
+    except Exception as e:
+        logger.error(f"Screenshot analysis error: {str(e)}")
+        return jsonify({
+            "error": str(e),
+            "status": "error"
+        }), 500
 
 # Signal lab table is created in railway_db.py setup_tables()
 

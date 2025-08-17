@@ -398,16 +398,24 @@
                 <div class="stat-value" id="totalSignals">0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Best Signal Type</div>
-                <div class="stat-value" id="bestSignal">-</div>
+                <div class="stat-label">BE1 Hit Rate</div>
+                <div class="stat-value" id="be1HitRate">0%</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Best Session</div>
-                <div class="stat-value" id="bestSession">-</div>
+                <div class="stat-label">BE2 Hit Rate</div>
+                <div class="stat-value" id="be2HitRate">0%</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Avg MFE</div>
-                <div class="stat-value" id="avgMFE">0R</div>
+                <div class="stat-label">2R+ Signals</div>
+                <div class="stat-value" id="twoRPlusRate">0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Best FVG Type</div>
+                <div class="stat-value" id="bestFVG">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">News Impact</div>
+                <div class="stat-value" id="newsImpact">-</div>
             </div>
         </div>
         
@@ -1032,12 +1040,70 @@
             window.currentScreenshot = null;
         }
         
-        function handleScreenshot(event) {
+        async function handleScreenshot(event) {
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = async function(e) {
                     window.currentScreenshot = e.target.result;
+                    
+                    // Show analysis indicator
+                    const screenshotBtn = document.querySelector('.screenshot-btn');
+                    const originalText = screenshotBtn.textContent;
+                    screenshotBtn.textContent = '🤖 Analyzing...';
+                    screenshotBtn.disabled = true;
+                    
+                    try {
+                        // Analyze screenshot automatically
+                        const response = await fetch('/api/analyze-screenshot', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ image_data: e.target.result })
+                        });
+                        
+                        const analysis = await response.json();
+                        
+                        if (analysis.status === 'success') {
+                            // Auto-populate fields if analysis found data
+                            if (analysis.auto_populated) {
+                                const suggestions = analysis.auto_populated;
+                                
+                                if (suggestions.entryPrice && !document.getElementById('entryPrice').value) {
+                                    document.getElementById('entryPrice').value = suggestions.entryPrice;
+                                }
+                                if (suggestions.stopLoss && !document.getElementById('stopLoss').value) {
+                                    document.getElementById('stopLoss').value = suggestions.stopLoss;
+                                }
+                                if (suggestions.takeProfit && !document.getElementById('takeProfit').value) {
+                                    document.getElementById('takeProfit').value = suggestions.takeProfit;
+                                }
+                                if (suggestions.mfeNone && !document.getElementById('mfeNone').value) {
+                                    document.getElementById('mfeNone').value = suggestions.mfeNone;
+                                }
+                                
+                                // Show analysis results
+                                showAnalysisResults(analysis);
+                            }
+                            
+                            screenshotBtn.textContent = '✅ Analyzed';
+                            screenshotBtn.style.background = 'linear-gradient(45deg, #00ff88, #00d4aa)';
+                        } else {
+                            screenshotBtn.textContent = '⚠️ Analysis Failed';
+                            screenshotBtn.style.background = 'linear-gradient(45deg, #ff6b7a, #ff4757)';
+                        }
+                    } catch (error) {
+                        console.error('Screenshot analysis error:', error);
+                        screenshotBtn.textContent = '❌ Error';
+                        screenshotBtn.style.background = 'linear-gradient(45deg, #ff6b7a, #ff4757)';
+                    } finally {
+                        screenshotBtn.disabled = false;
+                        
+                        // Reset button after 3 seconds
+                        setTimeout(() => {
+                            screenshotBtn.textContent = originalText;
+                            screenshotBtn.style.background = 'linear-gradient(45deg, #3742fa, #5352ed)';
+                        }, 3000);
+                    }
                 };
                 reader.readAsDataURL(file);
             }
@@ -1074,49 +1140,74 @@
         function updateStats() {
             const totalSignals = signals.length;
             
-            // Best signal type by average MFE (using highest MFE from all levels)
-            const signalTypes = {};
-            signals.forEach(s => {
-                if (!signalTypes[s.signalType]) signalTypes[s.signalType] = [];
+            if (totalSignals === 0) {
+                document.getElementById('totalSignals').textContent = '0';
+                document.getElementById('be1HitRate').textContent = '0%';
+                document.getElementById('be2HitRate').textContent = '0%';
+                document.getElementById('twoRPlusRate').textContent = '0%';
+                document.getElementById('bestFVG').textContent = '-';
+                document.getElementById('newsImpact').textContent = '-';
+                return;
+            }
+            
+            // BE1 Hit Rate
+            const be1Hits = signals.filter(s => s.be1Hit).length;
+            const be1HitRate = ((be1Hits / totalSignals) * 100).toFixed(1);
+            
+            // BE2 Hit Rate
+            const be2Hits = signals.filter(s => s.be2Hit).length;
+            const be2HitRate = ((be2Hits / totalSignals) * 100).toFixed(1);
+            
+            // 2R+ Signals (signals that reached at least 2R MFE)
+            const twoRPlusSignals = signals.filter(s => {
                 const maxMfe = Math.max(s.mfeNone || 0, s.mfe1 || 0, s.mfe2 || 0);
-                signalTypes[s.signalType].push(maxMfe);
+                return maxMfe >= 2;
+            }).length;
+            const twoRPlusRate = ((twoRPlusSignals / totalSignals) * 100).toFixed(1);
+            
+            // Best FVG Type (Bull vs Bear FVG performance)
+            const fvgTypes = {};
+            signals.forEach(s => {
+                const fvgType = s.signalType.includes('Bull') ? 'Bullish FVG' : 'Bearish FVG';
+                if (!fvgTypes[fvgType]) fvgTypes[fvgType] = { total: 0, twoRPlus: 0 };
+                fvgTypes[fvgType].total++;
+                const maxMfe = Math.max(s.mfeNone || 0, s.mfe1 || 0, s.mfe2 || 0);
+                if (maxMfe >= 2) fvgTypes[fvgType].twoRPlus++;
             });
             
-            let bestSignal = '-';
-            let bestAvg = -999;
-            Object.keys(signalTypes).forEach(type => {
-                const avg = signalTypes[type].reduce((a, b) => a + b, 0) / signalTypes[type].length;
-                if (avg > bestAvg) {
-                    bestAvg = avg;
-                    bestSignal = type;
+            let bestFVG = '-';
+            let bestFVGRate = -1;
+            Object.keys(fvgTypes).forEach(type => {
+                const rate = fvgTypes[type].twoRPlus / fvgTypes[type].total;
+                if (rate > bestFVGRate) {
+                    bestFVGRate = rate;
+                    bestFVG = type.replace(' FVG', '');
                 }
             });
             
-            // Best session
-            const sessions = {};
-            signals.forEach(s => {
-                if (!sessions[s.session]) sessions[s.session] = [];
-                const maxMfe = Math.max(s.mfeNone || 0, s.mfe1 || 0, s.mfe2 || 0);
-                sessions[s.session].push(maxMfe);
-            });
+            // News Impact (High news vs No news performance)
+            const highNewsSignals = signals.filter(s => s.newsProximity === 'High');
+            const noNewsSignals = signals.filter(s => s.newsProximity === 'None');
             
-            let bestSession = '-';
-            let bestSessionAvg = -999;
-            Object.keys(sessions).forEach(session => {
-                const avg = sessions[session].reduce((a, b) => a + b, 0) / sessions[session].length;
-                if (avg > bestSessionAvg) {
-                    bestSessionAvg = avg;
-                    bestSession = session;
-                }
-            });
-            
-            const avgMFE = signals.length > 0 ? 
-                (signals.reduce((sum, s) => sum + Math.max(s.mfeNone || 0, s.mfe1 || 0, s.mfe2 || 0), 0) / signals.length).toFixed(1) : 0;
+            let newsImpact = '-';
+            if (highNewsSignals.length > 0 && noNewsSignals.length > 0) {
+                const highNewsAvg = highNewsSignals.reduce((sum, s) => {
+                    return sum + Math.max(s.mfeNone || 0, s.mfe1 || 0, s.mfe2 || 0);
+                }, 0) / highNewsSignals.length;
+                
+                const noNewsAvg = noNewsSignals.reduce((sum, s) => {
+                    return sum + Math.max(s.mfeNone || 0, s.mfe1 || 0, s.mfe2 || 0);
+                }, 0) / noNewsSignals.length;
+                
+                newsImpact = highNewsAvg > noNewsAvg ? 'Positive' : 'Negative';
+            }
             
             document.getElementById('totalSignals').textContent = totalSignals;
-            document.getElementById('bestSignal').textContent = bestSignal;
-            document.getElementById('bestSession').textContent = bestSession;
-            document.getElementById('avgMFE').textContent = avgMFE + 'R';
+            document.getElementById('be1HitRate').textContent = be1HitRate + '%';
+            document.getElementById('be2HitRate').textContent = be2HitRate + '%';
+            document.getElementById('twoRPlusRate').textContent = twoRPlusRate + '%';
+            document.getElementById('bestFVG').textContent = bestFVG;
+            document.getElementById('newsImpact').textContent = newsImpact;
         }
         
         function updateTable() {
@@ -1160,8 +1251,10 @@
                     <td>${signal.newsEvent}</td>
                     <td>
                         ${screenshotCell}
+                        ${signal.analysis_data ? `<span title="AI Analysis Available" style="color: #00ff88; margin-right: 5px;">🤖</span>` : ''}
                         <button onclick="editSignal(${signal.id})" class="action-btn">Edit</button>
                         <button onclick="deleteSignal(${signal.id})" class="delete-btn">Del</button>
+                        ${signal.analysis_data ? `<button onclick="viewAnalysis(${signal.id})" class="action-btn" style="background: #00ff88;">AI</button>` : ''}
                     </td>
                 `;
             });
@@ -1383,6 +1476,17 @@
         // Auto-calculate TP when bias changes
         document.getElementById('bias').addEventListener('change', calculateTP);
         
+        // View analysis function
+        function viewAnalysis(signalId) {
+            const signal = signals.find(s => s.id == signalId);
+            if (!signal || !signal.analysis_data) return;
+            
+            showAnalysisResults(signal.analysis_data);
+        }
+        
+        // Make functions globally available
+        window.viewAnalysis = viewAnalysis;
+        
         // Load signals when page loads
         document.addEventListener('DOMContentLoaded', loadSignals);
         
@@ -1417,6 +1521,62 @@
         
         // Make function globally available
         window.viewScreenshot = viewScreenshot;
+        
+        function showAnalysisResults(analysis) {
+            // Create analysis modal
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center;
+                z-index: 10000;
+            `;
+            
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                padding: 30px; border-radius: 20px; max-width: 600px; max-height: 80%;
+                overflow-y: auto; color: white; border: 1px solid rgba(255,255,255,0.1);
+            `;
+            
+            const analysisHtml = `
+                <h2 style="margin-bottom: 20px; color: #00ff88;">🤖 Screenshot Analysis Results</h2>
+                
+                <div style="margin-bottom: 15px;">
+                    <h3 style="color: #00d4aa; margin-bottom: 10px;">📊 Extracted Data</h3>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
+                        <p><strong>Prices Found:</strong> ${Object.keys(analysis.prices || {}).length} levels</p>
+                        <p><strong>MFE Values:</strong> ${(analysis.mfe_values || []).join(', ')}R</p>
+                        ${analysis.auto_populated ? '<p style="color: #00ff88;">✅ Fields auto-populated</p>' : ''}
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <h3 style="color: #00d4aa; margin-bottom: 10px;">🎯 Setup Quality Analysis</h3>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
+                        <p><strong>FVG Quality:</strong> ${analysis.fvg_quality || 0}/10</p>
+                        <p><strong>Confluence Score:</strong> ${analysis.confluence_score || 0}/10</p>
+                        <p><strong>Trend Strength:</strong> ${analysis.trend_strength || 0}/10</p>
+                        <p><strong>Overall Setup Quality:</strong> <span style="color: #00ff88; font-weight: bold;">${analysis.setup_quality || 0}/10</span></p>
+                    </div>
+                </div>
+                
+                <button onclick="this.closest('div').parentElement.remove()" 
+                        style="margin-top: 20px; padding: 10px 20px; background: #00ff88; border: none; border-radius: 8px; color: #1e3c72; font-weight: 600; cursor: pointer;">
+                    Close
+                </button>
+            `;
+            
+            modalContent.innerHTML = analysisHtml;
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+            
+            // Close on click outside
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            });
+        }
         
 
     </script>

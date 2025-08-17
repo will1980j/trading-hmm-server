@@ -1,0 +1,10 @@
+# Screenshot Analysis Dependencies
+opencv-python==4.8.1.78
+pytesseract==0.3.10
+Pillow==10.0.1
+numpy==1.24.3
+
+# Installation Instructions:
+# 1. Install Tesseract OCR: https://github.com/UB-Mannheim/tesseract/wiki
+# 2. Add Tesseract to PATH or update pytesseract.pytesseract.tesseract_cmd in screenshot_analyzer.py
+# 3. pip install -r requirements_screenshot.txt
