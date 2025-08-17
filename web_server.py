@@ -1159,7 +1159,7 @@ def create_signal_lab_trade():
             data.get('news_proximity', 'None'),
             data.get('news_event', 'None'),
             data.get('screenshot'),
-            dumps(analysis_result) if analysis_result else None
+            None
         ))
         
         result = cursor.fetchone()
