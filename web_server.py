@@ -1018,41 +1018,51 @@ def get_signal_lab_trades():
             logger.error("Database not enabled or not available")
             return jsonify([]), 200
         
-        with db.conn.cursor() as cursor:
-            # First check if table exists and has data
-            cursor.execute("SELECT COUNT(*) as count FROM signal_lab_trades")
-            count_result = cursor.fetchone()
-            total_count = count_result['count'] if count_result else 0
-            logger.info(f"Total signal_lab_trades in database: {total_count}")
+        try:
+            # Rollback any pending transaction first
+            db.conn.rollback()
             
-            # Try new schema first, fallback to old schema
-            try:
-                cursor.execute("""
-                    SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
-                           stop_loss, take_profit, 
-                           COALESCE(mfe_none, mfe, 0) as mfe_none,
-                           COALESCE(be1_level, 1) as be1_level,
-                           COALESCE(be1_hit, false) as be1_hit,
-                           COALESCE(mfe1, 0) as mfe1,
-                           COALESCE(be2_level, 2) as be2_level,
-                           COALESCE(be2_hit, false) as be2_hit,
-                           COALESCE(mfe2, 0) as mfe2,
-                           position_size, commission, news_proximity, news_event, screenshot, created_at
-                    FROM signal_lab_trades 
-                    ORDER BY created_at DESC
-                """)
-            except Exception as e:
-                # Fallback to old schema
-                cursor.execute("""
-                    SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
-                           stop_loss, take_profit, 
-                           COALESCE(mfe, 0) as mfe_none, 1 as be1_level, false as be1_hit, 0 as mfe1,
-                           2 as be2_level, false as be2_hit, 0 as mfe2,
-                           position_size, commission, news_proximity, news_event, screenshot, created_at
-                    FROM signal_lab_trades 
-                    ORDER BY created_at DESC
-                """)
-            
+            with db.conn.cursor() as cursor:
+                # First check if table exists and has data
+                cursor.execute("SELECT COUNT(*) as count FROM signal_lab_trades")
+                count_result = cursor.fetchone()
+                total_count = count_result['count'] if count_result else 0
+                logger.info(f"Total signal_lab_trades in database: {total_count}")
+                
+                # Try new schema first, fallback to old schema
+                try:
+                    cursor.execute("""
+                        SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
+                               stop_loss, take_profit, 
+                               COALESCE(mfe_none, mfe, 0) as mfe_none,
+                               COALESCE(be1_level, 1) as be1_level,
+                               COALESCE(be1_hit, false) as be1_hit,
+                               COALESCE(mfe1, 0) as mfe1,
+                               COALESCE(be2_level, 2) as be2_level,
+                               COALESCE(be2_hit, false) as be2_hit,
+                               COALESCE(mfe2, 0) as mfe2,
+                               position_size, commission, news_proximity, news_event, screenshot, created_at
+                        FROM signal_lab_trades 
+                        ORDER BY created_at DESC
+                    """)
+                except Exception as e:
+                    # Rollback and try fallback
+                    db.conn.rollback()
+                    cursor.execute("""
+                        SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
+                               stop_loss, take_profit, 
+                               COALESCE(mfe, 0) as mfe_none, 1 as be1_level, false as be1_hit, 0 as mfe1,
+                               2 as be2_level, false as be2_hit, 0 as mfe2,
+                               position_size, commission, news_proximity, news_event, screenshot, created_at
+                        FROM signal_lab_trades 
+                        ORDER BY created_at DESC
+                    """)
+        except Exception as db_error:
+            # If database connection fails, rollback and re-raise
+            if hasattr(db, 'conn') and db.conn:
+                db.conn.rollback()
+            raise db_error
+                
             rows = cursor.fetchall()
             logger.info(f"Query returned {len(rows)} rows")
             
