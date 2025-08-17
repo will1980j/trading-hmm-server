@@ -858,7 +858,7 @@
             document.getElementById('bias').value = signal.bias;
             document.getElementById('session').value = signal.session;
             document.getElementById('signalType').value = signal.signalType;
-            document.getElementById('openPrice').value = signal.openPrice;
+
             document.getElementById('entryPrice').value = signal.entryPrice;
             document.getElementById('stopLoss').value = signal.stopLoss;
             document.getElementById('takeProfit').value = signal.takeProfit;
@@ -905,7 +905,7 @@
                 bias: document.getElementById('bias').value,
                 session: document.getElementById('session').value,
                 signalType: document.getElementById('signalType').value,
-                openPrice: parseFloat(document.getElementById('openPrice').value) || 0,
+
                 entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
                 stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
                 takeProfit: parseFloat(document.getElementById('takeProfit').value) || 0,
@@ -986,7 +986,7 @@
         function clearInputs() {
             document.getElementById('signalDate').value = '';
             document.getElementById('entryTime').value = '';
-            document.getElementById('openPrice').value = '';
+
             document.getElementById('entryPrice').value = '';
             document.getElementById('stopLoss').value = '';
             document.getElementById('takeProfit').value = '';
