@@ -1168,8 +1168,15 @@ def update_signal_lab_trade(trade_id):
             return jsonify({"error": "Database not available"}), 500
         
         data = request.get_json()
+        logger.info(f"Updating trade {trade_id} with data: {data}")
         
+        # First check if the trade exists
         cursor = db.conn.cursor()
+        cursor.execute("SELECT id FROM signal_lab_trades WHERE id = %s", (trade_id,))
+        if not cursor.fetchone():
+            return jsonify({"error": f"Trade with ID {trade_id} not found"}), 404
+        
+        # Perform the update
         cursor.execute("""
             UPDATE signal_lab_trades SET
                 date = %s, time = %s, bias = %s, session = %s, signal_type = %s,
@@ -1203,15 +1210,21 @@ def update_signal_lab_trade(trade_id):
             trade_id
         ))
         
-        db.conn.commit()
+        rows_affected = cursor.rowcount
+        logger.info(f"Update affected {rows_affected} rows")
         
-        return jsonify({"status": "success"})
+        db.conn.commit()
+        logger.info(f"Successfully updated trade {trade_id}")
+        
+        return jsonify({"status": "success", "rows_affected": rows_affected})
         
     except Exception as e:
         if hasattr(db, 'conn') and db.conn:
             db.conn.rollback()
-        logger.error(f"Error updating signal lab trade: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        error_details = f"{str(e)} | Traceback: {traceback.format_exc()}"
+        logger.error(f"Error updating signal lab trade {trade_id}: {error_details}")
+        return jsonify({"error": str(e), "details": error_details}), 500
 
 @app.route('/api/signal-lab-trades/<int:trade_id>', methods=['DELETE'])
 @login_required

@@ -993,8 +993,10 @@
             }
             
             try {
-                // Update database first
+                console.log('Updating signal with ID:', updatedSignal.id);
                 const apiUrl = 'https://web-production-cd33.up.railway.app/api/signal-lab-trades/' + updatedSignal.id;
+                console.log('PUT request to:', apiUrl);
+                
                 const response = await fetch(apiUrl, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -1023,19 +1025,27 @@
                     })
                 });
                 
+                console.log('Response status:', response.status);
+                
                 if (!response.ok) {
-                    throw new Error(`Database update failed: ${response.status}`);
+                    const errorText = await response.text();
+                    console.log('Error response:', errorText);
+                    throw new Error(`Database update failed: ${response.status} - ${errorText}`);
                 }
+                
+                const result = await response.json();
+                console.log('Update successful:', result);
                 
                 // Only update local array after successful database update
                 signals[signalIndex] = updatedSignal;
                 updateDisplay();
                 cancelEdit();
-                console.log('Signal updated successfully in database');
+                console.log('✅ Signal updated successfully in database');
                 
             } catch (error) {
+                console.error('Failed to update signal in database', updatedSignal.id);
+                console.error('Full error:', error);
                 alert(`❌ UPDATE FAILED\n\n${error.message}\n\nChanges NOT saved to database.`);
-                console.error('Database update failed:', error);
             }
         }
         
