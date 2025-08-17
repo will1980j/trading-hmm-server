@@ -648,20 +648,24 @@
             console.log('🔄 Loading signals from database...');
             
             try {
-                // Use Railway deployment URL when on Railway, localhost otherwise
-                const baseUrl = window.location.hostname.includes('railway.app') ? '' : 'https://web-production-cd33.up.railway.app';
-                const response = await fetch(`${baseUrl}/api/signal-lab-trades`);
+                const apiUrl = 'https://web-production-cd33.up.railway.app/api/signal-lab-trades';
+                console.log('Calling API:', apiUrl);
+                
+                const response = await fetch(apiUrl);
+                console.log('Response status:', response.status);
                 
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('API returned:', data);
                     signals = Array.isArray(data) ? data : data.trades || [];
                     console.log(`✅ Loaded ${signals.length} trades from Railway database`);
                 } else {
-                    console.log('Database API failed, using empty array');
+                    const errorText = await response.text();
+                    console.log('API error:', response.status, errorText);
                     signals = [];
                 }
             } catch (error) {
-                console.log('Database error:', error);
+                console.log('Fetch error:', error);
                 signals = [];
             }
             
