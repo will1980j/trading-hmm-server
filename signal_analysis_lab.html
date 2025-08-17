@@ -651,7 +651,7 @@
                 const response = await fetch('/api/signal-lab-trades');
                 if (response.ok) {
                     const data = await response.json();
-                    signals = data.trades || [];
+                    signals = Array.isArray(data) ? data : data.trades || [];
                     console.log(`✅ Loaded ${signals.length} trades from database`);
                 } else {
                     console.log('No database connection, checking localStorage...');
