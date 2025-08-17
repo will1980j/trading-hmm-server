@@ -1112,12 +1112,22 @@ def get_signal_lab_trades():
 @login_required
 def create_signal_lab_trade():
     try:
+        logger.info("POST /api/signal-lab-trades called")
+        
         if not db_enabled or not db:
+            logger.error("Database not available")
             return jsonify({"error": "Database not available"}), 500
         
         data = request.get_json()
+        logger.info(f"Received data: {data}")
+        
+        if not data:
+            logger.error("No JSON data received")
+            return jsonify({"error": "No data provided"}), 400
         
         cursor = db.conn.cursor()
+        logger.info("Executing INSERT query")
+        
         cursor.execute("""
             INSERT INTO signal_lab_trades 
             (date, time, bias, session, signal_type, open_price, entry_price, stop_loss, 
@@ -1151,14 +1161,18 @@ def create_signal_lab_trade():
         
         trade_id = cursor.fetchone()[0]
         db.conn.commit()
+        logger.info(f"Successfully created trade with ID: {trade_id}")
         
         return jsonify({"id": trade_id, "status": "success"})
         
     except Exception as e:
         if hasattr(db, 'conn') and db.conn:
             db.conn.rollback()
-        logger.error(f"Error creating signal lab trade: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        error_msg = str(e)
+        logger.error(f"Error creating signal lab trade: {error_msg}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({"error": error_msg, "details": traceback.format_exc()}), 500
 
 @app.route('/api/signal-lab-trades/<int:trade_id>', methods=['PUT'])
 @login_required
