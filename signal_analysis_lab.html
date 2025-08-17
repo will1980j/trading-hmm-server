@@ -641,83 +641,27 @@
         let signals = [];
         let editingSignalId = null;
         
-        // Your actual signal lab data from Railway database
-        const actualSignalData = [
-  {
-    "id": 1,
-    "date": "2024-12-19",
-    "time": "09:30:00",
-    "bias": "Bullish",
-    "session": "NY AM",
-    "signalType": "Bullish FVG",
-    "openPrice": 21150.0,
-    "entryPrice": 21155.0,
-    "stopLoss": 21145.0,
-    "takeProfit": 21165.0,
-    "beAchieved": false,
-    "breakeven": 0.0,
-    "mfe": 1.2,
-    "positionSize": 1,
-    "commission": 4.5,
-    "newsProximity": "None",
-    "newsEvent": "None",
-    "screenshot": null
-  },
-  {
-    "id": 2,
-    "date": "2024-12-19",
-    "time": "14:15:00",
-    "bias": "Bearish",
-    "session": "NY PM",
-    "signalType": "Bearish IFVG",
-    "openPrice": 21180.0,
-    "entryPrice": 21175.0,
-    "stopLoss": 21185.0,
-    "takeProfit": 21165.0,
-    "beAchieved": true,
-    "breakeven": 1.0,
-    "mfe": 2.5,
-    "positionSize": 1,
-    "commission": 4.5,
-    "newsProximity": "Low",
-    "newsEvent": "Fed Speech",
-    "screenshot": null
-  }
-];
+
         
-        // Load signals from database with localStorage recovery
+        // Load signals from database
         async function loadSignals() {
             console.log('🔄 Loading signals from database...');
             
-            // Use actual data from Railway database
-            signals = actualSignalData.map(trade => {
-                return {
-                    id: trade.id,
-                    date: trade.date,
-                    time: trade.time,
-                    bias: trade.bias,
-                    session: trade.session,
-                    signalType: trade.signalType,
-                    openPrice: parseFloat(trade.openPrice) || 0,
-                    entryPrice: parseFloat(trade.entryPrice) || 0,
-                    stopLoss: parseFloat(trade.stopLoss) || 0,
-                    takeProfit: parseFloat(trade.takeProfit) || 0,
-                    mfeNone: parseFloat(trade.mfe) || 0, // Use original mfe as mfeNone
-                    be1Level: 1,
-                    be1Hit: false,
-                    mfe1: 0,
-                    be2Level: 2,
-                    be2Hit: false,
-                    mfe2: 0,
-                    positionSize: parseInt(trade.positionSize) || 1,
-                    commission: parseFloat(trade.commission) || 0,
-                    newsProximity: trade.newsProximity || 'None',
-                    newsEvent: trade.newsEvent || 'None',
-                    screenshot: trade.screenshot
-                };
-            });
+            try {
+                const response = await fetch('/api/signal-lab-trades');
+                if (response.ok) {
+                    const data = await response.json();
+                    signals = data.trades || [];
+                    console.log(`✅ Loaded ${signals.length} trades from database`);
+                } else {
+                    console.log('No database connection, checking localStorage...');
+                    loadFromLocalStorage();
+                }
+            } catch (error) {
+                console.log('Database error, checking localStorage:', error);
+                loadFromLocalStorage();
+            }
             
-            console.log(`✅ Loaded ${signals.length} trades from Railway database`);
             updateDisplay();
         }
         
