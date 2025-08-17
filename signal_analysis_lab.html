@@ -641,7 +641,7 @@
                         bias: trade.bias,
                         session: trade.session,
                         signalType: trade.signal_type,
-                        openPrice: parseFloat(trade.open_price) || 0,
+
                         entryPrice: parseFloat(trade.entry_price) || 0,
                         stopLoss: parseFloat(trade.stop_loss) || 0,
                         takeProfit: parseFloat(trade.take_profit) || 0,
@@ -999,77 +999,7 @@
             clearNewsSelection();
         }
         
-        async function handleScreenshot(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = async function(e) {
-                    window.currentScreenshot = e.target.result;
-                    
-                    // Show analysis indicator
-                    const screenshotBtn = document.querySelector('.screenshot-btn');
-                    const originalText = screenshotBtn.textContent;
-                    screenshotBtn.textContent = '🤖 Analyzing...';
-                    screenshotBtn.disabled = true;
-                    
-                    try {
-                        // Analyze screenshot automatically
-                        const response = await fetch('/api/analyze-screenshot', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ image_data: e.target.result })
-                        });
-                        
-                        const analysis = await response.json();
-                        
-                        if (analysis.status === 'success') {
-                            // Auto-populate fields if analysis found data
-                            if (analysis.auto_populated) {
-                                const suggestions = analysis.auto_populated;
-                                
-                                if (suggestions.entryPrice && !document.getElementById('entryPrice').value) {
-                                    document.getElementById('entryPrice').value = suggestions.entryPrice;
-                                }
-                                if (suggestions.stopLoss && !document.getElementById('stopLoss').value) {
-                                    document.getElementById('stopLoss').value = suggestions.stopLoss;
-                                }
-                                if (suggestions.takeProfit && !document.getElementById('takeProfit').value) {
-                                    document.getElementById('takeProfit').value = suggestions.takeProfit;
-                                }
-                                if (suggestions.mfeNone && !document.getElementById('mfeNone').value) {
-                                    document.getElementById('mfeNone').value = suggestions.mfeNone;
-                                }
-                                
-                                // Show analysis results
-                                showAnalysisResults(analysis);
-                            }
-                            
-                            screenshotBtn.textContent = '✅ Analyzed';
-                            screenshotBtn.style.background = 'linear-gradient(45deg, #00ff88, #00d4aa)';
-                        } else if (analysis.status === 'unavailable') {
-                            screenshotBtn.textContent = '📷 Uploaded';
-                            screenshotBtn.style.background = 'linear-gradient(45deg, #6c757d, #5a6268)';
-                        } else {
-                            screenshotBtn.textContent = '📷 Uploaded';
-                            screenshotBtn.style.background = 'linear-gradient(45deg, #6c757d, #5a6268)';
-                        }
-                    } catch (error) {
-                        console.error('Screenshot analysis error:', error);
-                        screenshotBtn.textContent = '📷 Uploaded';
-                        screenshotBtn.style.background = 'linear-gradient(45deg, #6c757d, #5a6268)';
-                    } finally {
-                        screenshotBtn.disabled = false;
-                        
-                        // Reset button after 3 seconds
-                        setTimeout(() => {
-                            screenshotBtn.textContent = originalText;
-                            screenshotBtn.style.background = 'linear-gradient(45deg, #3742fa, #5352ed)';
-                        }, 3000);
-                    }
-                };
-                reader.readAsDataURL(file);
-            }
-        }
+
         
         async function deleteSignal(id) {
             if (confirm('Delete this signal?')) {
