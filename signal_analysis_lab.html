@@ -758,14 +758,21 @@
         }
         
         function calculateTP() {
-            const entry = parseFloat(document.getElementById('entryPrice').value) || 0;
-            const stop = parseFloat(document.getElementById('stopLoss').value) || 0;
-            const bias = document.getElementById('bias').value;
+            const entryEl = document.getElementById('entryPrice');
+            const stopEl = document.getElementById('stopLoss');
+            const biasEl = document.getElementById('bias');
+            const tpEl = document.getElementById('takeProfit');
+            
+            if (!entryEl || !stopEl || !biasEl || !tpEl) return;
+            
+            const entry = parseFloat(entryEl.value) || 0;
+            const stop = parseFloat(stopEl.value) || 0;
+            const bias = biasEl.value;
             
             if (entry && stop) {
                 const risk = Math.abs(entry - stop);
                 const tp = bias === 'Bullish' ? entry + risk : entry - risk;
-                document.getElementById('takeProfit').value = tp.toFixed(2);
+                tpEl.value = tp.toFixed(2);
             }
         }
         
@@ -777,24 +784,24 @@
             
             const signal = {
                 id: Date.now(),
-                date: document.getElementById('signalDate').value,
-                time: document.getElementById('entryTime').value,
-                bias: document.getElementById('bias').value,
-                session: document.getElementById('session').value,
-                signalType: document.getElementById('signalType').value,
-                entryPrice: parseFloat(document.getElementById('entryPrice').value) || 0,
-                stopLoss: parseFloat(document.getElementById('stopLoss').value) || 0,
-                takeProfit: parseFloat(document.getElementById('takeProfit').value) || 0,
-                mfeNone: parseFloat(document.getElementById('mfeNone').value) || 0,
-                be1Level: parseFloat(document.getElementById('be1Level').value) || 1,
-                be1Hit: document.getElementById('be1Hit').checked,
-                mfe1: parseFloat(document.getElementById('mfe1').value) || 0,
-                be2Level: parseFloat(document.getElementById('be2Level').value) || 2,
-                be2Hit: document.getElementById('be2Hit').checked,
-                mfe2: parseFloat(document.getElementById('mfe2').value) || 0,
-                positionSize: parseInt(document.getElementById('positionSize').value) || 1,
-                commission: parseFloat(document.getElementById('commission').value) || 0,
-                newsProximity: document.getElementById('newsProximity').value,
+                date: document.getElementById('signalDate')?.value || '',
+                time: document.getElementById('entryTime')?.value || '',
+                bias: document.getElementById('bias')?.value || 'Bullish',
+                session: document.getElementById('session')?.value || 'NY AM',
+                signalType: document.getElementById('signalType')?.value || 'Bullish FVG',
+                entryPrice: parseFloat(document.getElementById('entryPrice')?.value) || 0,
+                stopLoss: parseFloat(document.getElementById('stopLoss')?.value) || 0,
+                takeProfit: parseFloat(document.getElementById('takeProfit')?.value) || 0,
+                mfeNone: parseFloat(document.getElementById('mfeNone')?.value) || 0,
+                be1Level: parseFloat(document.getElementById('be1Level')?.value) || 1,
+                be1Hit: document.getElementById('be1Hit')?.checked || false,
+                mfe1: parseFloat(document.getElementById('mfe1')?.value) || 0,
+                be2Level: parseFloat(document.getElementById('be2Level')?.value) || 2,
+                be2Hit: document.getElementById('be2Hit')?.checked || false,
+                mfe2: parseFloat(document.getElementById('mfe2')?.value) || 0,
+                positionSize: parseInt(document.getElementById('positionSize')?.value) || 1,
+                commission: parseFloat(document.getElementById('commission')?.value) || 0,
+                newsProximity: document.getElementById('newsProximity')?.value || 'None',
                 newsEvent: getSelectedNewsEvents(),
 
             };
@@ -853,25 +860,45 @@
             if (!signal) return;
             
             // Populate form with signal data
-            document.getElementById('signalDate').value = signal.date;
-            document.getElementById('entryTime').value = signal.time;
-            document.getElementById('bias').value = signal.bias;
-            document.getElementById('session').value = signal.session;
-            document.getElementById('signalType').value = signal.signalType;
-
-            document.getElementById('entryPrice').value = signal.entryPrice;
-            document.getElementById('stopLoss').value = signal.stopLoss;
-            document.getElementById('takeProfit').value = signal.takeProfit;
-            document.getElementById('mfeNone').value = signal.mfeNone || 0;
-            document.getElementById('be1Level').value = signal.be1Level || 1;
-            document.getElementById('be1Hit').checked = signal.be1Hit || false;
-            document.getElementById('mfe1').value = signal.mfe1 || 0;
-            document.getElementById('be2Level').value = signal.be2Level || 2;
-            document.getElementById('be2Hit').checked = signal.be2Hit || false;
-            document.getElementById('mfe2').value = signal.mfe2 || 0;
-            document.getElementById('positionSize').value = signal.positionSize;
-            document.getElementById('commission').value = signal.commission;
-            document.getElementById('newsProximity').value = signal.newsProximity;
+            const els = {
+                signalDate: document.getElementById('signalDate'),
+                entryTime: document.getElementById('entryTime'),
+                bias: document.getElementById('bias'),
+                session: document.getElementById('session'),
+                signalType: document.getElementById('signalType'),
+                entryPrice: document.getElementById('entryPrice'),
+                stopLoss: document.getElementById('stopLoss'),
+                takeProfit: document.getElementById('takeProfit'),
+                mfeNone: document.getElementById('mfeNone'),
+                be1Level: document.getElementById('be1Level'),
+                be1Hit: document.getElementById('be1Hit'),
+                mfe1: document.getElementById('mfe1'),
+                be2Level: document.getElementById('be2Level'),
+                be2Hit: document.getElementById('be2Hit'),
+                mfe2: document.getElementById('mfe2'),
+                positionSize: document.getElementById('positionSize'),
+                commission: document.getElementById('commission'),
+                newsProximity: document.getElementById('newsProximity')
+            };
+            
+            if (els.signalDate) els.signalDate.value = signal.date;
+            if (els.entryTime) els.entryTime.value = signal.time;
+            if (els.bias) els.bias.value = signal.bias;
+            if (els.session) els.session.value = signal.session;
+            if (els.signalType) els.signalType.value = signal.signalType;
+            if (els.entryPrice) els.entryPrice.value = signal.entryPrice;
+            if (els.stopLoss) els.stopLoss.value = signal.stopLoss;
+            if (els.takeProfit) els.takeProfit.value = signal.takeProfit;
+            if (els.mfeNone) els.mfeNone.value = signal.mfeNone || 0;
+            if (els.be1Level) els.be1Level.value = signal.be1Level || 1;
+            if (els.be1Hit) els.be1Hit.checked = signal.be1Hit || false;
+            if (els.mfe1) els.mfe1.value = signal.mfe1 || 0;
+            if (els.be2Level) els.be2Level.value = signal.be2Level || 2;
+            if (els.be2Hit) els.be2Hit.checked = signal.be2Hit || false;
+            if (els.mfe2) els.mfe2.value = signal.mfe2 || 0;
+            if (els.positionSize) els.positionSize.value = signal.positionSize;
+            if (els.commission) els.commission.value = signal.commission;
+            if (els.newsProximity) els.newsProximity.value = signal.newsProximity;
             
             // Handle news events
             if (signal.newsEvent) {
@@ -983,19 +1010,35 @@
         }
         
         function clearInputs() {
-            document.getElementById('signalDate').value = '';
-            document.getElementById('entryTime').value = '';
-            document.getElementById('entryPrice').value = '';
-            document.getElementById('stopLoss').value = '';
-            document.getElementById('takeProfit').value = '';
-            document.getElementById('mfeNone').value = '';
-            document.getElementById('be1Hit').checked = false;
-            document.getElementById('mfe1').value = '';
-            document.getElementById('be2Hit').checked = false;
-            document.getElementById('mfe2').value = '';
-            document.getElementById('positionSize').value = '1';
-            document.getElementById('commission').value = '4.50';
-            document.getElementById('newsProximity').value = 'None';
+            const els = {
+                signalDate: document.getElementById('signalDate'),
+                entryTime: document.getElementById('entryTime'),
+                entryPrice: document.getElementById('entryPrice'),
+                stopLoss: document.getElementById('stopLoss'),
+                takeProfit: document.getElementById('takeProfit'),
+                mfeNone: document.getElementById('mfeNone'),
+                be1Hit: document.getElementById('be1Hit'),
+                mfe1: document.getElementById('mfe1'),
+                be2Hit: document.getElementById('be2Hit'),
+                mfe2: document.getElementById('mfe2'),
+                positionSize: document.getElementById('positionSize'),
+                commission: document.getElementById('commission'),
+                newsProximity: document.getElementById('newsProximity')
+            };
+            
+            if (els.signalDate) els.signalDate.value = '';
+            if (els.entryTime) els.entryTime.value = '';
+            if (els.entryPrice) els.entryPrice.value = '';
+            if (els.stopLoss) els.stopLoss.value = '';
+            if (els.takeProfit) els.takeProfit.value = '';
+            if (els.mfeNone) els.mfeNone.value = '';
+            if (els.be1Hit) els.be1Hit.checked = false;
+            if (els.mfe1) els.mfe1.value = '';
+            if (els.be2Hit) els.be2Hit.checked = false;
+            if (els.mfe2) els.mfe2.value = '';
+            if (els.positionSize) els.positionSize.value = '1';
+            if (els.commission) els.commission.value = '4.50';
+            if (els.newsProximity) els.newsProximity.value = 'None';
             clearNewsSelection();
         }
         
