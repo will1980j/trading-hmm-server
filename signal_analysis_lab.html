@@ -649,16 +649,22 @@
             
             try {
                 const response = await fetch('/api/signal-lab-trades');
+                console.log('API Response status:', response.status);
+                
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('Raw API data:', data);
+                    console.log('Data type:', typeof data, 'Is array:', Array.isArray(data));
+                    
                     signals = Array.isArray(data) ? data : data.trades || [];
                     console.log(`✅ Loaded ${signals.length} trades from database`);
+                    console.log('First trade:', signals[0]);
                 } else {
-                    console.log('No database connection, checking localStorage...');
+                    console.log('API response not ok:', response.status, response.statusText);
                     loadFromLocalStorage();
                 }
             } catch (error) {
-                console.log('Database error, checking localStorage:', error);
+                console.log('Database error:', error);
                 loadFromLocalStorage();
             }
             
