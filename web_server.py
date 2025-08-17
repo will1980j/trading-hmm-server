@@ -1142,6 +1142,7 @@ def create_signal_lab_trade():
                 logger.info(f"Screenshot analysis completed: {analysis_result.get('status')}")
             except Exception as e:
                 logger.warning(f"Screenshot analysis failed: {str(e)}")
+                analysis_result = None
         
         cursor.execute("""
             INSERT INTO signal_lab_trades 
@@ -1647,18 +1648,18 @@ def analyze_screenshot():
         
         return jsonify(analysis_result)
         
-    except ImportError:
+    except ImportError as e:
+        logger.error(f"Import error: {str(e)}")
         return jsonify({
-            "error": "Screenshot analysis dependencies not installed",
-            "status": "error",
-            "message": "Install: pip install opencv-python pytesseract pillow"
-        }), 500
+            "status": "unavailable",
+            "message": "Analysis dependencies not available"
+        }), 200
     except Exception as e:
         logger.error(f"Screenshot analysis error: {str(e)}")
         return jsonify({
-            "error": str(e),
-            "status": "error"
-        }), 500
+            "status": "failed",
+            "error": str(e)[:100]
+        }), 200
 
 # Signal lab table is created in railway_db.py setup_tables()
 

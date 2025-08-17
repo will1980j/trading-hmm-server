@@ -1087,14 +1087,17 @@
                             
                             screenshotBtn.textContent = '✅ Analyzed';
                             screenshotBtn.style.background = 'linear-gradient(45deg, #00ff88, #00d4aa)';
+                        } else if (analysis.status === 'unavailable') {
+                            screenshotBtn.textContent = '📷 Uploaded';
+                            screenshotBtn.style.background = 'linear-gradient(45deg, #6c757d, #5a6268)';
                         } else {
-                            screenshotBtn.textContent = '⚠️ Analysis Failed';
-                            screenshotBtn.style.background = 'linear-gradient(45deg, #ff6b7a, #ff4757)';
+                            screenshotBtn.textContent = '📷 Uploaded';
+                            screenshotBtn.style.background = 'linear-gradient(45deg, #6c757d, #5a6268)';
                         }
                     } catch (error) {
                         console.error('Screenshot analysis error:', error);
-                        screenshotBtn.textContent = '❌ Error';
-                        screenshotBtn.style.background = 'linear-gradient(45deg, #ff6b7a, #ff4757)';
+                        screenshotBtn.textContent = '📷 Uploaded';
+                        screenshotBtn.style.background = 'linear-gradient(45deg, #6c757d, #5a6268)';
                     } finally {
                         screenshotBtn.disabled = false;
                         
