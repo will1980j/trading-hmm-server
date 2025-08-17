@@ -598,7 +598,7 @@
                 <button class="btn" onclick="analyzeSignals()" style="background: #3742fa;">AI Analysis</button>
                 <button class="btn" onclick="getRecommendations()" style="background: #2ed573;">AI Recommendations</button>
                 <button class="btn" onclick="optimizeStrategy()" style="background: #ff6b7a;">Strategy Optimizer</button>
-                <button class="btn" onclick="testUpdate()" style="background: #e74c3c;">Test Update</button>
+
             </div>
         </div>
         
@@ -906,11 +906,9 @@
                     console.log('✅ Signal added successfully');
                 } else {
                     const errorText = await response.text();
-                    console.error('Add failed:', errorText);
                     alert(`❌ Add failed: ${response.status} - ${errorText}`);
                 }
             } catch (error) {
-                console.error('Add error:', error);
                 alert(`❌ Add error: ${error.message}`);
             }
         }
@@ -1457,64 +1455,7 @@
         // Make function globally available
         window.viewScreenshot = viewScreenshot;
         
-        // Test update function
-        async function testUpdate() {
-            if (signals.length === 0) {
-                alert('No signals to test with');
-                return;
-            }
-            
-            const testSignal = signals[0];
-            console.log('Testing update with signal:', testSignal);
-            
-            try {
-                const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${testSignal.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        date: testSignal.date,
-                        time: testSignal.time,
-                        bias: testSignal.bias,
-                        session: testSignal.session,
-                        signal_type: testSignal.signalType,
-                        open_price: testSignal.openPrice,
-                        entry_price: testSignal.entryPrice,
-                        stop_loss: testSignal.stopLoss,
-                        take_profit: testSignal.takeProfit,
-                        mfe_none: testSignal.mfeNone + 0.1, // Small change
-                        be1_level: testSignal.be1Level,
-                        be1_hit: testSignal.be1Hit,
-                        mfe1: testSignal.mfe1,
-                        be2_level: testSignal.be2Level,
-                        be2_hit: testSignal.be2Hit,
-                        mfe2: testSignal.mfe2,
-                        position_size: testSignal.positionSize,
-                        commission: testSignal.commission,
-                        news_proximity: testSignal.newsProximity,
-                        news_event: testSignal.newsEvent,
-                        screenshot: testSignal.screenshot
-                    })
-                });
-                
-                console.log('Test response status:', response.status);
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('Test update successful:', result);
-                    alert('✅ Test update successful!');
-                    loadSignals(); // Reload to see changes
-                } else {
-                    const errorText = await response.text();
-                    console.log('Test update failed:', errorText);
-                    alert(`❌ Test update failed: ${response.status} - ${errorText}`);
-                }
-            } catch (error) {
-                console.error('Test update error:', error);
-                alert(`❌ Test update error: ${error.message}`);
-            }
-        }
-        
-        window.testUpdate = testUpdate;
+
     </script>
 </body>
 </html>
