@@ -1093,10 +1093,7 @@ def get_signal_lab_trades():
                 'position_size': int(row['position_size']) if row['position_size'] else 1,
                 'commission': float(row['commission']) if row['commission'] else 0,
                 'news_proximity': row['news_proximity'],
-                'news_event': row['news_event'],
-                'screenshot': row['screenshot'],
-                'analysis_data': loads(row['analysis_data']) if row.get('analysis_data') else None,
-                'created_at': str(row['created_at'])
+
             }
             trades.append(trade)
             logger.debug(f"Processed trade ID {trade['id']}: {trade['date']} {trade['signal_type']}")
