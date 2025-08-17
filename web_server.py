@@ -1159,7 +1159,11 @@ def create_signal_lab_trade():
             data.get('screenshot')
         ))
         
-        trade_id = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        if result:
+            trade_id = result['id']  # Use dict key instead of index
+        else:
+            raise Exception("INSERT failed - no ID returned")
         db.conn.commit()
         logger.info(f"Successfully created trade with ID: {trade_id}")
         
