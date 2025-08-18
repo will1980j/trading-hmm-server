@@ -561,7 +561,7 @@
                     </div>
                 </div>
 
-                <button class="btn add-signal-btn" onclick="console.log('Button clicked'); addSignal();">Add</button>
+                <button class="btn add-signal-btn" onclick="addSignal()">Add</button>
             </div>
             
             <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
@@ -778,8 +778,6 @@
         }
         
         async function addSignal() {
-            console.log('🔥 ADD SIGNAL FUNCTION CALLED');
-            
             if (editingSignalId) {
                 updateSignal();
                 return;
@@ -808,12 +806,6 @@
                 newsEvent: getSelectedNewsEvents(),
 
             };
-            
-            console.log('Validation check:', {
-                date: signal.date,
-                entryPrice: signal.entryPrice,
-                stopLoss: signal.stopLoss
-            });
             
             if (!signal.date || signal.entryPrice === 0 || signal.stopLoss === 0) {
                 alert('Please fill in Date, Entry Price, and Stop Loss');
@@ -957,12 +949,6 @@
                 newsEvent: getSelectedNewsEvents(),
 
             };
-            
-            console.log('Update validation check:', {
-                date: updatedSignal.date,
-                entryPrice: updatedSignal.entryPrice,
-                stopLoss: updatedSignal.stopLoss
-            });
             
             if (!updatedSignal.date || updatedSignal.entryPrice === 0 || updatedSignal.stopLoss === 0) {
                 alert('Please fill in Date, Entry Price, and Stop Loss');
