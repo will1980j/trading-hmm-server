@@ -1463,6 +1463,21 @@
             });
         }
         
+        // Make functions globally available
+        window.addSignal = addSignal;
+        window.editSignal = editSignal;
+        window.deleteSignal = deleteSignal;
+        window.clearInputs = clearInputs;
+        window.cancelEdit = cancelEdit;
+        window.exportData = exportData;
+        window.importCSV = importCSV;
+        window.analyzeSignals = analyzeSignals;
+        window.getRecommendations = getRecommendations;
+        window.optimizeStrategy = optimizeStrategy;
+        window.toggleNewsDropdown = toggleNewsDropdown;
+        window.updateNewsSelection = updateNewsSelection;
+        window.calculateTP = calculateTP;
+        
         } catch (error) {
             console.error('Signal Lab JavaScript Error:', error);
             alert('JavaScript Error: ' + error.message + '\n\nLine: ' + (error.lineNumber || 'unknown'));
