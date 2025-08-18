@@ -1080,8 +1080,7 @@
             
             signals.slice().reverse().forEach(signal => {
                 const row = tbody.insertRow();
-                const maxMfe = Math.max(signal.mfeNone || 0, signal.mfe1 || 0, signal.mfe2 || 0);
-                const isActiveTrade = maxMfe === 0;
+                const isActiveTrade = !signal.mfeNone || !signal.mfe1 || !signal.mfe2;
                 const screenshotCell = signal.screenshot ? 
                     `<img src="${signal.screenshot}" style="width: 30px; height: 20px; object-fit: cover; border-radius: 3px; cursor: pointer; margin-right: 5px;" onclick="viewScreenshot('${signal.id}')" title="Click to view full size">` : 
                     '';
