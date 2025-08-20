@@ -2186,11 +2186,29 @@
         }
         
         function getRValue(trade, rTarget) {
-            const rScore = trade.rScore || 0;
+            const breakevenFilter = document.getElementById('breakevenFilter').value;
             
-            if (rScore < 0) return -1;
-            if (rScore >= rTarget) return rTarget;
-            if (trade.breakeven || rScore >= 1) return 0;
+            // No BE strategy
+            if (breakevenFilter === 'no-be' || breakevenFilter === 'all') {
+                const mfe = trade.mfe || trade.mfe_none || trade.rScore || 0;
+                if (mfe === -1) return -1;
+                return mfe >= rTarget ? rTarget : -1;
+            }
+            
+            // BE = 1 strategy
+            if (breakevenFilter === 'be-1') {
+                if (!trade.be1Hit) return -1;
+                const mfe1 = trade.mfe1 || 0;
+                return mfe1 >= rTarget ? rTarget : 0;
+            }
+            
+            // BE = 2 strategy
+            if (breakevenFilter === 'be-2') {
+                if (!trade.be2Hit) return -1;
+                const mfe2 = trade.mfe2 || 0;
+                return mfe2 >= rTarget ? rTarget : 0;
+            }
+            
             return -1;
         }
         
