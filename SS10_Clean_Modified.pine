@@ -25,6 +25,9 @@ low_pivot_color = input.color(color.green, "Low Pivot Color")
 pivot_line_width = input.int(1, "Pivot Line Width", minval=1, maxval=5)
 pivot_line_style = input.string("Solid", "Pivot Line Style", ["Solid", "Dashed", "Dotted"])
 htf_bias_timeframe = input.timeframe("60", "HTF Bias Timeframe")
+show_terminated_zones = input.bool(true, "Show Terminated Zones")
+show_only_fresh_zones = input.bool(false, "Show Only Fresh Zones")
+touched_zone_color = input.color(color.yellow, "Touched Zone Color")
 
 // === HTF BIAS CALCULATION ===
 var string bias = "Neutral"
@@ -306,12 +309,16 @@ if array.size(activeFVGBoxes) > 0
         
         // First touch detection (skip for IFVG)
         if startBar == -1 and not isIFVG and (low <= boxTop and high >= boxBottom)
-            array.set(fvgStartBars, i, bar_index)
-            array.set(fvgEntryPrices, i, isBearish ? boxBottom : boxTop)
-            if isBearish
-                bearishSignalGenerated := true
+            if show_only_fresh_zones
+                box.delete(fvgBox)
             else
-                bullishSignalGenerated := true
+                array.set(fvgStartBars, i, bar_index)
+                array.set(fvgEntryPrices, i, isBearish ? boxBottom : boxTop)
+                box.set_bgcolor(fvgBox, color.new(touched_zone_color, 70))
+                if isBearish
+                    bearishSignalGenerated := true
+                else
+                    bullishSignalGenerated := true
         
         // Termination: price pierces through opposite side of box after entry (or always for IFVG)
         if startBar != -1 or isIFVG
@@ -328,10 +335,13 @@ if array.size(activeFVGBoxes) > 0
                 finalMFE = array.get(fvgMaxFavorable, i)
                 displayMFE = finalMFE > 0 ? finalMFE : -1
                 
-                box.set_text(fvgBox, "MFE: " + str.tostring(displayMFE, "#.##") + "R")
-                box.set_right(fvgBox, bar_index)
-                box.set_extend(fvgBox, extend.none)
-                box.set_bgcolor(fvgBox, color.new(color.gray, 80))
+                if show_terminated_zones
+                    box.set_text(fvgBox, "MFE: " + str.tostring(displayMFE, "#.##") + "R")
+                    box.set_right(fvgBox, bar_index)
+                    box.set_extend(fvgBox, extend.none)
+                    box.set_bgcolor(fvgBox, color.new(color.gray, 80))
+                else
+                    box.delete(fvgBox)
                 
                 array.remove(activeFVGBoxes, i)
                 array.remove(fvgEntryPrices, i)

@@ -370,6 +370,12 @@
         .btn, .add-signal-btn, .screenshot-btn, .action-btn, .delete-btn, button {
             color: white !important;
         }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
@@ -578,7 +584,7 @@
         </div>
         
         <div class="data-input">
-            <h3>Signal Analysis Data</h3>
+            <h3>Signal Analysis Data <span id="activeTradesCounter" style="background: linear-gradient(45deg, #ff6b35, #f7931e); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-left: 10px; box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3); animation: pulse 2s infinite;">0 Active</span></h3>
             <div class="trades-container">
                 <table class="trades-table" id="signalsTable">
                     <thead>
@@ -1078,9 +1084,15 @@
             const tbody = document.getElementById('signalsBody');
             tbody.innerHTML = '';
             
+            let activeTradesCount = 0;
+            
             signals.slice().reverse().forEach(signal => {
                 const row = tbody.insertRow();
                 const isActiveTrade = !signal.mfeNone || !signal.mfe1 || !signal.mfe2;
+                
+                if (isActiveTrade) {
+                    activeTradesCount++;
+                }
                 const screenshotCell = signal.screenshot ? 
                     `<img src="${signal.screenshot}" style="width: 30px; height: 20px; object-fit: cover; border-radius: 3px; cursor: pointer; margin-right: 5px;" onclick="viewScreenshot('${signal.id}')" title="Click to view full size">` : 
                     '';
@@ -1120,6 +1132,15 @@
                     </td>
                 `;
             });
+            
+            // Update active trades counter
+            const counter = document.getElementById('activeTradesCounter');
+            if (counter) {
+                counter.textContent = `${activeTradesCount} Active`;
+                counter.style.background = activeTradesCount > 0 ? 
+                    'linear-gradient(45deg, #ff6b35, #f7931e)' : 
+                    'linear-gradient(45deg, #00ff88, #00d4aa)';
+            }
         }
         
         function exportData() {
