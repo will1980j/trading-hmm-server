@@ -1248,7 +1248,82 @@
             </div>
         </div>
         
+        <!-- Signal Lab Breakeven Analysis -->
         <div class="advanced-metrics">
+            <div class="metric-section">
+                <h3>🎯 Breakeven Strategy Analysis</h3>
+                <div class="risk-metrics">
+                    <div class="risk-item tooltip" data-tooltip="Performance comparison: No breakeven vs BE at 1R vs BE at 2R. Shows which strategy works best.">
+                        <span>No BE Performance</span>
+                        <span id="noBEPerformance" class="neutral">Loading...</span>
+                    </div>
+                    <div class="risk-item tooltip" data-tooltip="Performance when using 1R breakeven. Win rate and average R per trade.">
+                        <span>BE 1R Performance</span>
+                        <span id="be1Performance" class="positive">Loading...</span>
+                    </div>
+                    <div class="risk-item tooltip" data-tooltip="Performance when using 2R breakeven. Win rate and average R per trade.">
+                        <span>BE 2R Performance</span>
+                        <span id="be2Performance" class="positive">Loading...</span>
+                    </div>
+                    <div class="risk-item tooltip" data-tooltip="Recommended breakeven strategy based on your MFE data and performance analysis.">
+                        <span>Optimal BE Strategy</span>
+                        <span id="optimalBEStrategy" class="positive">Loading...</span>
+                    </div>
+                    <div class="risk-item tooltip" data-tooltip="Number of trades currently active (missing MFE data). These need to be completed.">
+                        <span>Active Trades</span>
+                        <span id="activeTradesCount" class="neutral">Loading...</span>
+                    </div>
+                    <div class="risk-item tooltip" data-tooltip="Best performing R-target based on your MFE distribution and hit rates.">
+                        <span>Optimal R-Target</span>
+                        <span id="signalLabOptimalR" class="positive">Loading...</span>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; line-height: 1.4;">
+                    <strong>BE Analysis Summary:</strong> <span id="beAnalysisSummary">Loading breakeven strategy analysis...</span>
+                </div>
+                <div style="margin-top: 10px; padding: 12px; background: rgba(0,255,136,0.1); border-radius: 8px; border: 1px solid rgba(0,255,136,0.3);">
+                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px; color: #ffffff; font-weight: 600;">🤖 AI Breakeven Optimization:</div>
+                    <div id="aiBEAnalysis" style="font-size: 13px; line-height: 1.4; color: #ffffff;">Analyzing breakeven strategies and R-target optimization...</div>
+                </div>
+            </div>
+            
+            <div class="metric-section">
+                <h3>📊 Session & R-Target Analysis</h3>
+                <div class="risk-metrics">
+                    <div class="risk-item tooltip" data-tooltip="Best performing session based on win rate and average R per trade.">
+                        <span>Best Session</span>
+                        <span id="bestSessionAnalysis" class="positive">Loading...</span>
+                    </div>
+                    <div class="risk-item tooltip" data-tooltip="Session combination that produces the highest expectancy.">
+                        <span>Optimal Session Combo</span>
+                        <span id="optimalSessionCombo" class="positive">Loading...</span>
+                    </div>
+                    <div class="risk-item tooltip" data-tooltip="R-target that maximizes expectancy across all sessions.">
+                        <span>Best R-Target Overall</span>
+                        <span id="bestRTargetOverall" class="positive">Loading...</span>
+                    </div>
+                    <div class="risk-item tooltip" data-tooltip="R-target performance in London session specifically.">
+                        <span>London Optimal R</span>
+                        <span id="londonOptimalR" class="positive">Loading...</span>
+                    </div>
+                    <div class="risk-item tooltip" data-tooltip="R-target performance in NY AM session specifically.">
+                        <span>NY AM Optimal R</span>
+                        <span id="nyAmOptimalR" class="positive">Loading...</span>
+                    </div>
+                    <div class="risk-item tooltip" data-tooltip="Percentage of trades that are still active and need MFE completion.">
+                        <span>Active Trade %</span>
+                        <span id="activeTradePercentage" class="neutral">Loading...</span>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; line-height: 1.4;">
+                    <strong>Session/R-Target Summary:</strong> <span id="sessionRTargetSummary">Loading session and R-target analysis...</span>
+                </div>
+                <div style="margin-top: 10px; padding: 12px; background: rgba(255,165,2,0.1); border-radius: 8px; border: 1px solid rgba(255,165,2,0.3);">
+                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px; color: #ffffff; font-weight: 600;">📈 AI Session Optimization:</div>
+                    <div id="aiSessionOptimization" style="font-size: 13px; line-height: 1.4; color: #ffffff;">Processing session performance and R-target combinations...</div>
+                </div>
+            </div>
+            
             <div class="metric-section">
                 <h3>Cyclical & Seasonal Performance</h3>
                 <div class="risk-metrics">
@@ -1624,10 +1699,16 @@
                                 bias: s.bias || s.direction || 'LONG',
                                 session: s.session || 'LONDON',
                                 breakeven: s.be_achieved || s.breakeven || false,
-                                rScore: s.mfe || s.r_multiple || 0,
-                                mfe: s.mfe || s.r_multiple || 0,
+                                rScore: s.mfe_none || s.mfe || s.r_multiple || 0,
+                                mfe: s.mfe_none || s.mfe || s.r_multiple || 0,
+                                mfe1: s.mfe1 || 0,
+                                mfe2: s.mfe2 || 0,
+                                be1Hit: s.be1_hit || false,
+                                be2Hit: s.be2_hit || false,
+                                be1Level: s.be1_level || 1,
+                                be2Level: s.be2_level || 2,
                                 screenshot: s.screenshot || s.screenshot_url || null,
-                                r1: s.mfe || s.r_multiple || 0, r2: s.mfe || s.r_multiple || 0, r3: s.mfe || s.r_multiple || 0, r4: s.mfe || s.r_multiple || 0, r5: s.mfe || s.r_multiple || 0,
+                                r1: s.mfe_none || s.mfe || s.r_multiple || 0, r2: s.mfe_none || s.mfe || s.r_multiple || 0, r3: s.mfe || s.r_multiple || 0, r4: s.mfe || s.r_multiple || 0, r5: s.mfe || s.r_multiple || 0,
                                 r6: s.mfe || s.r_multiple || 0, r7: s.mfe || s.r_multiple || 0, r8: s.mfe || s.r_multiple || 0, r9: s.mfe || s.r_multiple || 0, r10: s.mfe || s.r_multiple || 0,
                                 r11: s.mfe || s.r_multiple || 0, r12: s.mfe || s.r_multiple || 0, r13: s.mfe || s.r_multiple || 0, r14: s.mfe || s.r_multiple || 0, r15: s.mfe || s.r_multiple || 0,
                                 r16: s.mfe || s.r_multiple || 0, r17: s.mfe || s.r_multiple || 0, r18: s.mfe || s.r_multiple || 0, r19: s.mfe || s.r_multiple || 0, r20: s.mfe || s.r_multiple || 0
@@ -1875,6 +1956,9 @@
             // Calculate comprehensive metrics
             const metrics = calculateAdvancedMetrics(filteredTrades, rTarget);
             
+            // Update Signal Lab specific analysis
+            updateSignalLabAnalysis(filteredTrades, rTarget);
+            
             // Update basic metrics
             document.getElementById('filteredTrades').textContent = metrics.totalTrades;
             document.getElementById('filteredWinRate').textContent = metrics.winRate + '%';
@@ -1896,6 +1980,11 @@
             
             // Update AI insights with real generative AI
             updateAIInsights();
+            
+            // Update Signal Lab analysis if using Signal Lab data
+            if (document.getElementById('dataSourceToggle').value === 'signal-lab') {
+                updateSignalLabAnalysis(filteredTrades, rTarget);
+            }
             
             // Update D3 charts with filtered data
             updateD3Charts();
@@ -6115,6 +6204,102 @@
                 document.getElementById('levelAnalysis').innerHTML = `<div style="color: #ff4757;">Error: ${error.message}</div>`;
             }
         }
+        // Signal Lab Analysis Functions
+        function updateSignalLabAnalysis(trades, rTarget) {
+            if (document.getElementById('dataSourceToggle').value !== 'signal-lab') {
+                return;
+            }
+            
+            const beAnalysis = analyzeBreakevenStrategies(trades);
+            updateBreakevenAnalysisUI(beAnalysis);
+            
+            const activeAnalysis = analyzeActiveTrades(trades);
+            updateActiveTradesUI(activeAnalysis);
+        }
+        
+        function analyzeBreakevenStrategies(trades) {
+            const strategies = {
+                none: { trades: [], totalR: 0, wins: 0 },
+                be1: { trades: [], totalR: 0, wins: 0 },
+                be2: { trades: [], totalR: 0, wins: 0 }
+            };
+            
+            trades.forEach(trade => {
+                if (trade.mfe && !trade.be1Hit && !trade.be2Hit) {
+                    strategies.none.trades.push(trade);
+                    strategies.none.totalR += trade.mfe;
+                    if (trade.mfe > 0) strategies.none.wins++;
+                }
+                
+                if (trade.be1Hit && trade.mfe1) {
+                    strategies.be1.trades.push(trade);
+                    strategies.be1.totalR += trade.mfe1;
+                    if (trade.mfe1 > 0) strategies.be1.wins++;
+                }
+                
+                if (trade.be2Hit && trade.mfe2) {
+                    strategies.be2.trades.push(trade);
+                    strategies.be2.totalR += trade.mfe2;
+                    if (trade.mfe2 > 0) strategies.be2.wins++;
+                }
+            });
+            
+            Object.keys(strategies).forEach(key => {
+                const strategy = strategies[key];
+                strategy.winRate = strategy.trades.length > 0 ? (strategy.wins / strategy.trades.length * 100).toFixed(1) : '0.0';
+                strategy.avgR = strategy.trades.length > 0 ? (strategy.totalR / strategy.trades.length).toFixed(2) : '0.00';
+                strategy.expectancy = strategy.trades.length > 0 ? (strategy.totalR / strategy.trades.length).toFixed(2) : '0.00';
+            });
+            
+            let optimalStrategy = 'none';
+            let bestExpectancy = parseFloat(strategies.none.expectancy);
+            
+            if (parseFloat(strategies.be1.expectancy) > bestExpectancy) {
+                optimalStrategy = 'be1';
+                bestExpectancy = parseFloat(strategies.be1.expectancy);
+            }
+            if (parseFloat(strategies.be2.expectancy) > bestExpectancy) {
+                optimalStrategy = 'be2';
+            }
+            
+            return { strategies, optimalStrategy };
+        }
+        
+        function analyzeActiveTrades(trades) {
+            const activeTrades = trades.filter(trade => {
+                return !trade.mfe || !trade.mfe1 || !trade.mfe2;
+            });
+            
+            const activeCount = activeTrades.length;
+            const activePercentage = trades.length > 0 ? ((activeCount / trades.length) * 100).toFixed(1) : '0.0';
+            
+            return { count: activeCount, percentage: activePercentage, trades: activeTrades };
+        }
+        
+        function updateBreakevenAnalysisUI(beAnalysis) {
+            const { strategies, optimalStrategy } = beAnalysis;
+            
+            const noBEEl = document.getElementById('noBEPerformance');
+            const be1El = document.getElementById('be1Performance');
+            const be2El = document.getElementById('be2Performance');
+            const optimalEl = document.getElementById('optimalBEStrategy');
+            
+            if (noBEEl) noBEEl.textContent = `${strategies.none.winRate}% WR, ${strategies.none.avgR}R avg`;
+            if (be1El) be1El.textContent = `${strategies.be1.winRate}% WR, ${strategies.be1.avgR}R avg`;
+            if (be2El) be2El.textContent = `${strategies.be2.winRate}% WR, ${strategies.be2.avgR}R avg`;
+            
+            const optimalText = { 'none': 'No Breakeven', 'be1': 'BE at 1R', 'be2': 'BE at 2R' };
+            if (optimalEl) optimalEl.textContent = `${optimalText[optimalStrategy]} (${strategies[optimalStrategy].expectancy}R)`;
+        }
+        
+        function updateActiveTradesUI(activeAnalysis) {
+            const activeCountEl = document.getElementById('activeTradesCount');
+            const activePercentEl = document.getElementById('activeTradePercentage');
+            
+            if (activeCountEl) activeCountEl.textContent = `${activeAnalysis.count} trades`;
+            if (activePercentEl) activePercentEl.textContent = `${activeAnalysis.percentage}%`;
+        }
+        
     </script>
 </body>
 </html>
