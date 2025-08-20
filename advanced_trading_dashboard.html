@@ -1144,10 +1144,12 @@
             </div>
             
             <div class="filter-group">
-                <label>Include Breakeven</label>
+                <label>Breakeven Strategy</label>
                 <select id="breakevenFilter" onchange="updateCharts()">
-                    <option value="true">Include BE</option>
-                    <option value="false">Exclude BE</option>
+                    <option value="all">All Strategies</option>
+                    <option value="no-be">No BE</option>
+                    <option value="be-1">BE = 1</option>
+                    <option value="be-2">BE = 2</option>
                 </select>
             </div>
             
@@ -1677,68 +1679,47 @@
             const dataSource = document.getElementById('dataSourceToggle').value;
             const endpoint = dataSource === 'signal-lab' ? '/api/signal-lab-trades' : '/api/trades';
             
-            console.log('Loading from endpoint:', endpoint, 'for data source:', dataSource);
+            console.log('Loading from endpoint:', endpoint);
             
             try {
                 const response = await fetch(endpoint);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
                 const data = await response.json();
                 
-                console.log('API response:', data);
-                console.log('Response type:', typeof data, 'Is array:', Array.isArray(data));
+                console.log('Raw API response:', data);
                 
                 if (dataSource === 'signal-lab') {
-                    // Handle Signal Lab data - should be a direct array
                     const signalData = Array.isArray(data) ? data : [];
+                    console.log('Processing', signalData.length, 'Signal Lab trades');
                     
-                    console.log('Signal data extracted:', signalData.length, 'items');
-                    
-                    if (signalData.length > 0) {
-                        window.trades = signalData.map(s => {
-                            console.log('Processing signal:', s);
-                            // Use mfe_none as primary MFE, fallback to 0 if null/undefined
-                            const mfeValue = s.mfe_none !== null && s.mfe_none !== undefined ? s.mfe_none : 0;
-                            return {
-                                date: s.date || '2024-08-06',
-                                bias: s.bias || 'LONG',
-                                session: s.session || 'LONDON',
-                                breakeven: s.be1_hit || s.be2_hit || false, // Breakeven if either BE level hit
-                                rScore: mfeValue,
-                                mfe: mfeValue,
-                                mfe1: s.mfe1 || 0,
-                                mfe2: s.mfe2 || 0,
-                                be1Hit: s.be1_hit || false,
-                                be2Hit: s.be2_hit || false,
-                                be1Level: s.be1_level || 1,
-                                be2Level: s.be2_level || 2,
-                                screenshot: s.screenshot || null,
-                                // Map MFE to all R targets for compatibility
-                                r1: mfeValue, r2: mfeValue, r3: mfeValue, r4: mfeValue, r5: mfeValue,
-                                r6: mfeValue, r7: mfeValue, r8: mfeValue, r9: mfeValue, r10: mfeValue,
-                                r11: mfeValue, r12: mfeValue, r13: mfeValue, r14: mfeValue, r15: mfeValue,
-                                r16: mfeValue, r17: mfeValue, r18: mfeValue, r19: mfeValue, r20: mfeValue
-                            };
-                        });
-                        console.log('Mapped', window.trades.length, 'signals from Signal Lab');
-                    } else {
-                        window.trades = [];
-                        console.log('No Signal Lab data found');
-                    }
-                } else if (data.trades) {
-                    window.trades = data.trades.map(t => ({
-                        date: t.created_at ? t.created_at.split('T')[0] : '2024-08-06',
+                    window.trades = signalData.map(s => {
+                        const mfe = parseFloat(s.mfe_none) || 0;
+                        return {
+                            date: s.date || '2024-01-01',
+                            bias: s.bias || 'LONG',
+                            session: s.session || 'LONDON',
+                            breakeven: Boolean(s.be1_hit || s.be2_hit),
+                            rScore: mfe,
+                            mfe: mfe,
+                            be1Hit: Boolean(s.be1_hit),
+                            be2Hit: Boolean(s.be2_hit),
+                            screenshot: s.screenshot,
+                            r1: mfe, r2: mfe, r3: mfe, r4: mfe, r5: mfe
+                        };
+                    });
+                    console.log('Mapped', window.trades.length, 'trades');
+                } else {
+                    const tradeData = data.trades || [];
+                    window.trades = tradeData.map(t => ({
+                        date: t.created_at ? t.created_at.split('T')[0] : '2024-01-01',
                         bias: t.bias || 'LONG',
                         session: extractSession(t.reason) || 'LONDON',
                         breakeven: extractBreakeven(t.reason),
                         rScore: extractRScore(t.reason),
-                        r1: extractRScore(t.reason), r2: extractRScore(t.reason), r3: extractRScore(t.reason), r4: extractRScore(t.reason), r5: extractRScore(t.reason),
-                        r6: extractRScore(t.reason), r7: extractRScore(t.reason), r8: extractRScore(t.reason), r9: extractRScore(t.reason), r10: extractRScore(t.reason),
-                        r11: extractRScore(t.reason), r12: extractRScore(t.reason), r13: extractRScore(t.reason), r14: extractRScore(t.reason), r15: extractRScore(t.reason),
-                        r16: extractRScore(t.reason), r17: extractRScore(t.reason), r18: extractRScore(t.reason), r19: extractRScore(t.reason), r20: extractRScore(t.reason)
+                        r1: extractRScore(t.reason)
                     }));
-                    console.log('Loaded', window.trades.length, 'trades from Trade Manager');
-                } else {
-                    window.trades = [];
-                    console.log('No data found in response - no trades property');
                 }
             } catch (error) {
                 console.error('Failed to load data from database:', error);
@@ -1869,12 +1850,17 @@
             const sessionCheckboxes = document.querySelectorAll('.session-filter:checked');
             const selectedSessions = Array.from(sessionCheckboxes).map(cb => cb.value);
             const biasFilter = document.getElementById('biasFilter').value;
-            const breakevenFilter = document.getElementById('breakevenFilter').value === 'true';
+            const breakevenFilter = document.getElementById('breakevenFilter').value;
             
             return trades.filter(trade => {
                 if (selectedSessions.length > 0 && !selectedSessions.includes(trade.session)) return false;
                 if (biasFilter !== 'ALL' && trade.bias !== biasFilter) return false;
-                if (!breakevenFilter && trade.breakeven) return false;
+                
+                // Breakeven strategy filter
+                if (breakevenFilter === 'no-be' && (trade.be1Hit || trade.be2Hit)) return false;
+                if (breakevenFilter === 'be-1' && (!trade.be1Hit || trade.be2Hit)) return false;
+                if (breakevenFilter === 'be-2' && !trade.be2Hit) return false;
+                
                 return true;
             });
         }
