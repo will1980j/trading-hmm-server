@@ -20,6 +20,7 @@
     <script defer src="notification_system.js"></script>
     <script defer src="professional_styles.js"></script>
     <script defer src="ai_chat.js"></script>
+    <script defer src="signal_lab_functions.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -1686,38 +1687,41 @@
                 console.log('Response type:', typeof data, 'Is array:', Array.isArray(data));
                 
                 if (dataSource === 'signal-lab') {
-                    // Handle Signal Lab data - check if it's an array or has a data property
-                    const signalData = Array.isArray(data) ? data : (data.data || data.signals || []);
+                    // Handle Signal Lab data - should be a direct array
+                    const signalData = Array.isArray(data) ? data : [];
                     
                     console.log('Signal data extracted:', signalData.length, 'items');
                     
                     if (signalData.length > 0) {
                         window.trades = signalData.map(s => {
                             console.log('Processing signal:', s);
+                            // Use mfe_none as primary MFE, fallback to 0 if null/undefined
+                            const mfeValue = s.mfe_none !== null && s.mfe_none !== undefined ? s.mfe_none : 0;
                             return {
-                                date: s.date || s.created_at?.split('T')[0] || '2024-08-06',
-                                bias: s.bias || s.direction || 'LONG',
+                                date: s.date || '2024-08-06',
+                                bias: s.bias || 'LONG',
                                 session: s.session || 'LONDON',
-                                breakeven: s.be_achieved || s.breakeven || false,
-                                rScore: s.mfe_none || s.mfe || s.r_multiple || 0,
-                                mfe: s.mfe_none || s.mfe || s.r_multiple || 0,
+                                breakeven: s.be1_hit || s.be2_hit || false, // Breakeven if either BE level hit
+                                rScore: mfeValue,
+                                mfe: mfeValue,
                                 mfe1: s.mfe1 || 0,
                                 mfe2: s.mfe2 || 0,
                                 be1Hit: s.be1_hit || false,
                                 be2Hit: s.be2_hit || false,
                                 be1Level: s.be1_level || 1,
                                 be2Level: s.be2_level || 2,
-                                screenshot: s.screenshot || s.screenshot_url || null,
-                                r1: s.mfe_none || s.mfe || s.r_multiple || 0, r2: s.mfe_none || s.mfe || s.r_multiple || 0, r3: s.mfe || s.r_multiple || 0, r4: s.mfe || s.r_multiple || 0, r5: s.mfe || s.r_multiple || 0,
-                                r6: s.mfe || s.r_multiple || 0, r7: s.mfe || s.r_multiple || 0, r8: s.mfe || s.r_multiple || 0, r9: s.mfe || s.r_multiple || 0, r10: s.mfe || s.r_multiple || 0,
-                                r11: s.mfe || s.r_multiple || 0, r12: s.mfe || s.r_multiple || 0, r13: s.mfe || s.r_multiple || 0, r14: s.mfe || s.r_multiple || 0, r15: s.mfe || s.r_multiple || 0,
-                                r16: s.mfe || s.r_multiple || 0, r17: s.mfe || s.r_multiple || 0, r18: s.mfe || s.r_multiple || 0, r19: s.mfe || s.r_multiple || 0, r20: s.mfe || s.r_multiple || 0
+                                screenshot: s.screenshot || null,
+                                // Map MFE to all R targets for compatibility
+                                r1: mfeValue, r2: mfeValue, r3: mfeValue, r4: mfeValue, r5: mfeValue,
+                                r6: mfeValue, r7: mfeValue, r8: mfeValue, r9: mfeValue, r10: mfeValue,
+                                r11: mfeValue, r12: mfeValue, r13: mfeValue, r14: mfeValue, r15: mfeValue,
+                                r16: mfeValue, r17: mfeValue, r18: mfeValue, r19: mfeValue, r20: mfeValue
                             };
                         });
-                        console.log('Mapped', window.trades.length, 'signals from Signal Lab:', window.trades);
+                        console.log('Mapped', window.trades.length, 'signals from Signal Lab');
                     } else {
                         window.trades = [];
-                        console.log('No Signal Lab data found - empty array or no data property');
+                        console.log('No Signal Lab data found');
                     }
                 } else if (data.trades) {
                     window.trades = data.trades.map(t => ({
@@ -1956,8 +1960,10 @@
             // Calculate comprehensive metrics
             const metrics = calculateAdvancedMetrics(filteredTrades, rTarget);
             
-            // Update Signal Lab specific analysis
-            updateSignalLabAnalysis(filteredTrades, rTarget);
+            // Update Signal Lab specific analysis if using Signal Lab data
+            if (document.getElementById('dataSourceToggle').value === 'signal-lab') {
+                updateSignalLabAnalysis(filteredTrades, rTarget);
+            }
             
             // Update basic metrics
             document.getElementById('filteredTrades').textContent = metrics.totalTrades;
@@ -2215,7 +2221,8 @@
             
             filteredTrades.slice(-10).reverse().forEach((trade, index) => {
                 const row = tbody.insertRow();
-                const isActiveTrade = !trade.mfe || trade.mfe === 0 || trade.mfe === null || trade.mfe === undefined;
+                const mfeValue = trade.mfe || trade.mfe_none || trade.rScore;
+                const isActiveTrade = mfeValue === null || mfeValue === undefined || mfeValue === 0;
                 const screenshotCell = dataSource === 'signal-lab' && trade.screenshot ? 
                     `<td><img src="${trade.screenshot}" style="width: 40px; height: 30px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="window.open('${trade.screenshot}', '_blank')"></td>` : 
                     '<td>-</td>';
@@ -2232,7 +2239,7 @@
                     <td>${trade.bias}</td>
                     <td>${trade.session}</td>
                     <td>${trade.breakeven ? '✓' : ''}</td>
-                    <td>${isActiveTrade ? '<strong style="color: #ffa502;">ACTIVE</strong>' : (trade.mfe ? trade.mfe.toFixed(1) + 'R' : 'ACTIVE')}</td>
+                    <td>${isActiveTrade ? '<strong style="color: #ffa502;">ACTIVE</strong>' : (mfeValue ? mfeValue.toFixed(1) + 'R' : 'ACTIVE')}</td>
                     <td>
                         <div class="r-columns">
                             <div class="r-value ${trade.r1 > 0 ? 'positive' : trade.r1 < 0 ? 'negative' : 'neutral'}">${trade.r1 ? trade.r1.toFixed(1) : '0.0'}</div>
