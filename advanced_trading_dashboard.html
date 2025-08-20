@@ -1876,16 +1876,12 @@
                 
                 // Bias filter
                 if (biasFilter !== 'ALL' && trade.bias !== biasFilter) {
-                    console.log('Filtered out by bias:', trade.bias, 'vs', biasFilter);
                     return false;
                 }
                 
-                // Breakeven strategy filter - only apply if not 'all'
-                if (breakevenFilter !== 'all') {
-                    if (breakevenFilter === 'no-be' && (trade.be1Hit || trade.be2Hit || trade.be1_hit || trade.be2_hit)) return false;
-                    if (breakevenFilter === 'be-1' && (!(trade.be1Hit || trade.be1_hit) || (trade.be2Hit || trade.be2_hit))) return false;
-                    if (breakevenFilter === 'be-2' && !(trade.be2Hit || trade.be2_hit)) return false;
-                }
+                // NOTE: We don't filter by breakeven strategy here anymore
+                // The breakeven strategy is applied in getRValue() function
+                // This allows us to analyze all 159 trades with different BE strategies
                 
                 return true;
             });
@@ -2230,30 +2226,38 @@
         function getRValue(trade, rTarget) {
             const breakevenFilter = document.getElementById('breakevenFilter').value;
             
-            // No BE strategy - use mfe_none
-            if (breakevenFilter === 'no-be' || breakevenFilter === 'all') {
+            // For 'all' - don't apply any breakeven strategy, just use raw MFE
+            if (breakevenFilter === 'all') {
                 const mfe = trade.mfe_none || trade.mfe || trade.rScore || 0;
+                if (mfe >= rTarget) return rTarget; // Hit target
                 if (mfe <= 0) return -1; // Loss
-                return mfe >= rTarget ? rTarget : -1; // Win at target or loss
+                return -1; // Didn't reach target, so it's a loss
             }
             
-            // BE = 1 strategy - must hit BE1 and check mfe1
+            // No BE strategy - use mfe_none, no breakeven protection
+            if (breakevenFilter === 'no-be') {
+                const mfe = trade.mfe_none || trade.mfe || trade.rScore || 0;
+                if (mfe >= rTarget) return rTarget; // Hit target
+                return -1; // Loss (no breakeven protection)
+            }
+            
+            // BE = 1 strategy - breakeven at 1R, then check if hit target
             if (breakevenFilter === 'be-1') {
                 const be1Hit = trade.be1Hit || trade.be1_hit || false;
                 if (!be1Hit) return -1; // Didn't reach BE1, it's a loss
                 
                 const mfe1 = trade.mfe1 || 0;
-                if (mfe1 >= rTarget) return rTarget; // Win at target
+                if (mfe1 >= rTarget) return rTarget; // Hit target after BE1
                 return 0; // Breakeven (hit BE1 but not target)
             }
             
-            // BE = 2 strategy - must hit BE2 and check mfe2
+            // BE = 2 strategy - breakeven at 2R, then check if hit target
             if (breakevenFilter === 'be-2') {
                 const be2Hit = trade.be2Hit || trade.be2_hit || false;
                 if (!be2Hit) return -1; // Didn't reach BE2, it's a loss
                 
                 const mfe2 = trade.mfe2 || 0;
-                if (mfe2 >= rTarget) return rTarget; // Win at target
+                if (mfe2 >= rTarget) return rTarget; // Hit target after BE2
                 return 0; // Breakeven (hit BE2 but not target)
             }
             
