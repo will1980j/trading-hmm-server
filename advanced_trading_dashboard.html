@@ -20,7 +20,7 @@
     <script defer src="notification_system.js"></script>
     <script defer src="professional_styles.js"></script>
     <script defer src="ai_chat.js"></script>
-    <script defer src="signal_lab_functions.js"></script>
+    <script defer src="/signal_lab_functions.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -1860,17 +1860,38 @@
             const biasFilter = document.getElementById('biasFilter').value;
             const breakevenFilter = document.getElementById('breakevenFilter').value;
             
-            return trades.filter(trade => {
-                if (selectedSessions.length > 0 && !selectedSessions.includes(trade.session)) return false;
-                if (biasFilter !== 'ALL' && trade.bias !== biasFilter) return false;
+            console.log('Filter criteria:', {
+                selectedSessions,
+                biasFilter,
+                breakevenFilter,
+                totalTrades: window.trades.length
+            });
+            
+            const filtered = window.trades.filter(trade => {
+                // Session filter - check if "All" is selected or if specific sessions are selected
+                const allSessionsChecked = document.getElementById('sessionAll')?.checked;
+                if (!allSessionsChecked && selectedSessions.length > 0 && !selectedSessions.includes(trade.session)) {
+                    return false;
+                }
                 
-                // Breakeven strategy filter
-                if (breakevenFilter === 'no-be' && (trade.be1Hit || trade.be2Hit)) return false;
-                if (breakevenFilter === 'be-1' && (!trade.be1Hit || trade.be2Hit)) return false;
-                if (breakevenFilter === 'be-2' && !trade.be2Hit) return false;
+                // Bias filter
+                if (biasFilter !== 'ALL' && trade.bias !== biasFilter) {
+                    console.log('Filtered out by bias:', trade.bias, 'vs', biasFilter);
+                    return false;
+                }
+                
+                // Breakeven strategy filter - only apply if not 'all'
+                if (breakevenFilter !== 'all') {
+                    if (breakevenFilter === 'no-be' && (trade.be1Hit || trade.be2Hit || trade.be1_hit || trade.be2_hit)) return false;
+                    if (breakevenFilter === 'be-1' && (!(trade.be1Hit || trade.be1_hit) || (trade.be2Hit || trade.be2_hit))) return false;
+                    if (breakevenFilter === 'be-2' && !(trade.be2Hit || trade.be2_hit)) return false;
+                }
                 
                 return true;
             });
+            
+            console.log('Filtered result:', filtered.length, 'trades');
+            return filtered;
         }
         
         function toggleAllSessions() {
@@ -1914,12 +1935,20 @@
                 sessionCheckboxes.forEach(cb => {
                     if (savedSessionStates.hasOwnProperty(cb.value)) {
                         cb.checked = savedSessionStates[cb.value];
+                    } else {
+                        cb.checked = true; // Default to checked if no saved state
                     }
                 });
+            } else {
+                // No saved states - check all sessions by default
+                const sessionCheckboxes = document.querySelectorAll('.session-filter');
+                sessionCheckboxes.forEach(cb => cb.checked = true);
             }
             
             if (savedSessionAll !== null) {
                 document.getElementById('sessionAll').checked = savedSessionAll === 'true';
+            } else {
+                document.getElementById('sessionAll').checked = true; // Default to all sessions
             }
             
             // Load other filters
@@ -2302,6 +2331,15 @@
                 console.error(`Error calling ${functionName}:`, error);
             }
         }
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load filter states first
+            loadFilterStates();
+            
+            // Initialize database data
+            loadDatabaseData();
+        });
         
         // Load data from database instead of sample data
         async function loadDatabaseData() {
