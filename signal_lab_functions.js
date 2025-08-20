@@ -4,38 +4,38 @@ function updateSignalLabAnalysis(filteredTrades, rTarget) {
     
     // Identify active trades (missing MFE data)
     const activeTrades = filteredTrades.filter(t => {
-        const mfe = t.mfe || t.mfe_none || t.rScore;
+        const mfe = t.mfe_none || t.mfe || t.rScore || 0;
         return mfe === null || mfe === undefined || mfe === 0;
     });
     
     const completedTrades = filteredTrades.filter(t => {
-        const mfe = t.mfe || t.mfe_none || t.rScore;
+        const mfe = t.mfe_none || t.mfe || t.rScore || 0;
         return mfe !== null && mfe !== undefined && mfe !== 0;
     });
     
     console.log('Active trades:', activeTrades.length, 'Completed trades:', completedTrades.length);
     
     // Breakeven strategy analysis using completed trades
-    const noBETrades = completedTrades.filter(t => !t.be1Hit && !t.be2Hit);
-    const be1Trades = completedTrades.filter(t => t.be1Hit && !t.be2Hit);
-    const be2Trades = completedTrades.filter(t => t.be2Hit);
+    const noBETrades = completedTrades.filter(t => !(t.be1Hit || t.be1_hit) && !(t.be2Hit || t.be2_hit));
+    const be1Trades = completedTrades.filter(t => (t.be1Hit || t.be1_hit) && !(t.be2Hit || t.be2_hit));
+    const be2Trades = completedTrades.filter(t => (t.be2Hit || t.be2_hit));
     
     console.log('BE analysis - No BE:', noBETrades.length, 'BE1:', be1Trades.length, 'BE2:', be2Trades.length);
     
     // Calculate performance for each strategy
     const noBEPerf = noBETrades.length > 0 ? {
-        winRate: (noBETrades.filter(t => (t.mfe || t.rScore || 0) > 0).length / noBETrades.length * 100).toFixed(1),
-        avgR: (noBETrades.reduce((sum, t) => sum + (t.mfe || t.rScore || 0), 0) / noBETrades.length).toFixed(2)
+        winRate: (noBETrades.filter(t => (t.mfe_none || t.mfe || t.rScore || 0) > 0).length / noBETrades.length * 100).toFixed(1),
+        avgR: (noBETrades.reduce((sum, t) => sum + (t.mfe_none || t.mfe || t.rScore || 0), 0) / noBETrades.length).toFixed(2)
     } : { winRate: '0.0', avgR: '0.00' };
     
     const be1Perf = be1Trades.length > 0 ? {
-        winRate: (be1Trades.filter(t => (t.mfe1 || t.mfe || t.rScore || 0) > 0).length / be1Trades.length * 100).toFixed(1),
-        avgR: (be1Trades.reduce((sum, t) => sum + (t.mfe1 || t.mfe || t.rScore || 0), 0) / be1Trades.length).toFixed(2)
+        winRate: (be1Trades.filter(t => (t.mfe1 || 0) > 0).length / be1Trades.length * 100).toFixed(1),
+        avgR: (be1Trades.reduce((sum, t) => sum + (t.mfe1 || 0), 0) / be1Trades.length).toFixed(2)
     } : { winRate: '0.0', avgR: '0.00' };
     
     const be2Perf = be2Trades.length > 0 ? {
-        winRate: (be2Trades.filter(t => (t.mfe2 || t.mfe || t.rScore || 0) > 0).length / be2Trades.length * 100).toFixed(1),
-        avgR: (be2Trades.reduce((sum, t) => sum + (t.mfe2 || t.mfe || t.rScore || 0), 0) / be2Trades.length).toFixed(2)
+        winRate: (be2Trades.filter(t => (t.mfe2 || 0) > 0).length / be2Trades.length * 100).toFixed(1),
+        avgR: (be2Trades.reduce((sum, t) => sum + (t.mfe2 || 0), 0) / be2Trades.length).toFixed(2)
     } : { winRate: '0.0', avgR: '0.00' };
     
     // Update UI elements with null checks
@@ -89,7 +89,7 @@ function updateSessionRTargetAnalysis(completedTrades, rTarget) {
             sessionStats[session] = { total: 0, wins: 0, totalR: 0 };
         }
         sessionStats[session].total++;
-        const mfe = trade.mfe || trade.rScore || 0;
+        const mfe = trade.mfe_none || trade.mfe || trade.rScore || 0;
         sessionStats[session].totalR += mfe;
         if (mfe > 0) sessionStats[session].wins++;
     });

@@ -1695,18 +1695,26 @@
                     console.log('Processing', signalData.length, 'Signal Lab trades');
                     
                     window.trades = signalData.map(s => {
-                        const mfe = parseFloat(s.mfe_none) || 0;
+                        const mfe_none = parseFloat(s.mfe_none) || 0;
+                        const mfe1 = parseFloat(s.mfe1) || 0;
+                        const mfe2 = parseFloat(s.mfe2) || 0;
+                        
                         return {
                             date: s.date || '2024-01-01',
                             bias: s.bias || 'LONG',
                             session: s.session || 'LONDON',
                             breakeven: Boolean(s.be1_hit || s.be2_hit),
-                            rScore: mfe,
-                            mfe: mfe,
+                            rScore: mfe_none, // Primary MFE for display
+                            mfe: mfe_none,
+                            mfe_none: mfe_none,
+                            mfe1: mfe1,
+                            mfe2: mfe2,
                             be1Hit: Boolean(s.be1_hit),
                             be2Hit: Boolean(s.be2_hit),
+                            be1_hit: Boolean(s.be1_hit),
+                            be2_hit: Boolean(s.be2_hit),
                             screenshot: s.screenshot,
-                            r1: mfe, r2: mfe, r3: mfe, r4: mfe, r5: mfe
+                            r1: mfe_none, r2: mfe_none, r3: mfe_none, r4: mfe_none, r5: mfe_none
                         };
                     });
                     console.log('Mapped', window.trades.length, 'trades');
@@ -1948,7 +1956,12 @@
             
             // Update Signal Lab specific analysis if using Signal Lab data
             if (document.getElementById('dataSourceToggle').value === 'signal-lab') {
-                updateSignalLabAnalysis(filteredTrades, rTarget);
+                console.log('Calling Signal Lab analysis with', filteredTrades.length, 'trades');
+                if (typeof updateSignalLabAnalysis === 'function') {
+                    updateSignalLabAnalysis(filteredTrades, rTarget);
+                } else {
+                    console.warn('updateSignalLabAnalysis function not available');
+                }
             }
             
             // Update basic metrics
@@ -2011,13 +2024,13 @@
             if (trades.length === 0) return getEmptyMetrics();
             
             const rValues = trades.map(t => getRValue(t, rTarget));
-            // For win rate: any trade with MFE >= 1R is a win, regardless of R-target
-            const winsForWinRate = trades.filter(t => t.rScore >= 1 || t.breakeven);
+            // For win rate: count wins (positive R values) and breakevens (0 R values)
+            const winsAndBreakevens = rValues.filter(r => r >= 0);
             const actualWins = rValues.filter(r => r > 0); // Only positive R values for profit calculations
             const losses = rValues.filter(r => r < 0);
             
             const totalTrades = trades.length;
-            const winningTrades = winsForWinRate.length; // MFE >= 1R or breakeven
+            const winningTrades = winsAndBreakevens.length; // Wins + breakevens
             const losingTrades = losses.length;
             const winRate = (winningTrades / totalTrades * 100).toFixed(1);
             
@@ -2188,25 +2201,31 @@
         function getRValue(trade, rTarget) {
             const breakevenFilter = document.getElementById('breakevenFilter').value;
             
-            // No BE strategy
+            // No BE strategy - use mfe_none
             if (breakevenFilter === 'no-be' || breakevenFilter === 'all') {
-                const mfe = trade.mfe || trade.mfe_none || trade.rScore || 0;
-                if (mfe === -1) return -1;
-                return mfe >= rTarget ? rTarget : -1;
+                const mfe = trade.mfe_none || trade.mfe || trade.rScore || 0;
+                if (mfe <= 0) return -1; // Loss
+                return mfe >= rTarget ? rTarget : -1; // Win at target or loss
             }
             
-            // BE = 1 strategy
+            // BE = 1 strategy - must hit BE1 and check mfe1
             if (breakevenFilter === 'be-1') {
-                if (!trade.be1Hit) return -1;
+                const be1Hit = trade.be1Hit || trade.be1_hit || false;
+                if (!be1Hit) return -1; // Didn't reach BE1, it's a loss
+                
                 const mfe1 = trade.mfe1 || 0;
-                return mfe1 >= rTarget ? rTarget : 0;
+                if (mfe1 >= rTarget) return rTarget; // Win at target
+                return 0; // Breakeven (hit BE1 but not target)
             }
             
-            // BE = 2 strategy
+            // BE = 2 strategy - must hit BE2 and check mfe2
             if (breakevenFilter === 'be-2') {
-                if (!trade.be2Hit) return -1;
+                const be2Hit = trade.be2Hit || trade.be2_hit || false;
+                if (!be2Hit) return -1; // Didn't reach BE2, it's a loss
+                
                 const mfe2 = trade.mfe2 || 0;
-                return mfe2 >= rTarget ? rTarget : 0;
+                if (mfe2 >= rTarget) return rTarget; // Win at target
+                return 0; // Breakeven (hit BE2 but not target)
             }
             
             return -1;
