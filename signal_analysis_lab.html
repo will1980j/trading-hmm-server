@@ -731,6 +731,7 @@
                 <button class="btn" onclick="analyzeSignals()" style="background: #3742fa;">AI Analysis</button>
                 <button class="btn" onclick="getRecommendations()" style="background: #2ed573;">AI Recommendations</button>
                 <button class="btn" onclick="optimizeStrategy()" style="background: #ff6b7a;">Strategy Optimizer</button>
+                <button class="btn" onclick="autoFillAllNews()" style="background: #ff4757;">Auto-Fill All News</button>
 
             </div>
         </div>
@@ -1922,6 +1923,84 @@
             updateDisplay();
         }
         
+        async function autoFillAllNews() {
+            if (signals.length === 0) {
+                alert('No trades found to update');
+                return;
+            }
+            
+            if (!confirm(`Auto-fill news for all ${signals.length} existing trades?\n\nThis will update news proximity and events based on economic calendar data.`)) {
+                return;
+            }
+            
+            let updatedCount = 0;
+            let errorCount = 0;
+            
+            for (const signal of signals) {
+                try {
+                    const newsData = getNewsForDate(signal.date);
+                    
+                    // Only update if there's actual news data
+                    if (newsData.proximity !== 'None') {
+                        const updatedSignal = {
+                            ...signal,
+                            newsProximity: newsData.proximity,
+                            newsEvent: newsData.events.join(', ')
+                        };
+                        
+                        // Update in database
+                        const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${signal.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                date: updatedSignal.date,
+                                time: updatedSignal.time,
+                                bias: updatedSignal.bias,
+                                session: updatedSignal.session,
+                                signal_type: updatedSignal.signalType,
+                                entry_price: updatedSignal.entryPrice,
+                                stop_loss: updatedSignal.stopLoss,
+                                take_profit: updatedSignal.takeProfit,
+                                mfe_none: updatedSignal.mfeNone,
+                                be1_level: updatedSignal.be1Level,
+                                be1_hit: updatedSignal.be1Hit,
+                                mfe1: updatedSignal.mfe1,
+                                be2_level: updatedSignal.be2Level,
+                                be2_hit: updatedSignal.be2Hit,
+                                mfe2: updatedSignal.mfe2,
+                                position_size: updatedSignal.positionSize,
+                                commission: updatedSignal.commission,
+                                news_proximity: updatedSignal.newsProximity,
+                                news_event: updatedSignal.newsEvent
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            // Update local array
+                            const signalIndex = signals.findIndex(s => s.id === signal.id);
+                            if (signalIndex !== -1) {
+                                signals[signalIndex] = updatedSignal;
+                            }
+                            updatedCount++;
+                        } else {
+                            errorCount++;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error updating signal:', signal.id, error);
+                    errorCount++;
+                }
+            }
+            
+            updateDisplay();
+            
+            if (errorCount === 0) {
+                alert(`✅ Auto-fill complete!\n\nUpdated ${updatedCount} trades with economic news data.`);
+            } else {
+                alert(`⚠️ Auto-fill completed with errors\n\nUpdated: ${updatedCount}\nErrors: ${errorCount}`);
+            }
+        }
+        
         // Make functions globally available
         window.addSignal = addSignal;
         window.editSignal = editSignal;
@@ -1938,6 +2017,7 @@
         window.calculateTP = calculateTP;
         window.changeMonth = changeMonth;
         window.selectDate = selectDate;
+        window.autoFillAllNews = autoFillAllNews;
         
         } catch (error) {
             console.error('Signal Lab JavaScript Error:', error);
