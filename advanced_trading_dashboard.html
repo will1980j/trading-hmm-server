@@ -1867,21 +1867,31 @@
                 totalTrades: window.trades.length
             });
             
+            // Debug: Show sample trade sessions
+            if (window.trades.length > 0) {
+                console.log('Sample trade sessions:', window.trades.slice(0, 5).map(t => t.session));
+            }
+            
             const filtered = window.trades.filter(trade => {
                 // Session filter - check if "All" is selected or if specific sessions are selected
                 const allSessionsChecked = document.getElementById('sessionAll')?.checked;
-                if (!allSessionsChecked && selectedSessions.length > 0 && !selectedSessions.includes(trade.session)) {
-                    return false;
+                if (!allSessionsChecked && selectedSessions.length > 0) {
+                    // Check if trade session matches any selected session (case insensitive)
+                    const tradeSession = (trade.session || '').toUpperCase();
+                    const matchesSession = selectedSessions.some(session => {
+                        const selectedSession = session.toUpperCase();
+                        return tradeSession.includes(selectedSession) || selectedSession.includes(tradeSession);
+                    });
+                    if (!matchesSession) {
+                        console.log('Filtered out by session:', trade.session, 'not in', selectedSessions);
+                        return false;
+                    }
                 }
                 
                 // Bias filter
                 if (biasFilter !== 'ALL' && trade.bias !== biasFilter) {
                     return false;
                 }
-                
-                // NOTE: We don't filter by breakeven strategy here anymore
-                // The breakeven strategy is applied in getRValue() function
-                // This allows us to analyze all 159 trades with different BE strategies
                 
                 return true;
             });
@@ -1893,6 +1903,8 @@
         function toggleAllSessions() {
             const allCheckbox = document.getElementById('sessionAll');
             const sessionCheckboxes = document.querySelectorAll('.session-filter');
+            
+            console.log('Toggle all sessions:', allCheckbox.checked);
             
             sessionCheckboxes.forEach(cb => {
                 cb.checked = allCheckbox.checked;
@@ -1941,10 +1953,17 @@
                 sessionCheckboxes.forEach(cb => cb.checked = true);
             }
             
+            const sessionAllCheckbox = document.getElementById('sessionAll');
             if (savedSessionAll !== null) {
-                document.getElementById('sessionAll').checked = savedSessionAll === 'true';
+                sessionAllCheckbox.checked = savedSessionAll === 'true';
             } else {
-                document.getElementById('sessionAll').checked = true; // Default to all sessions
+                sessionAllCheckbox.checked = true; // Default to all sessions
+            }
+            
+            // If "All" is checked, make sure all individual sessions are checked too
+            if (sessionAllCheckbox.checked) {
+                const sessionCheckboxes = document.querySelectorAll('.session-filter');
+                sessionCheckboxes.forEach(cb => cb.checked = true);
             }
             
             // Load other filters
