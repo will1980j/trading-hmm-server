@@ -295,6 +295,43 @@
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         
+        .day-counter {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            min-width: 60px;
+            transition: all 0.3s ease;
+        }
+        
+        .day-counter:hover {
+            background: rgba(0,255,136,0.2);
+            transform: translateY(-2px);
+        }
+        
+        .day-name {
+            font-size: 10px;
+            font-weight: 600;
+            opacity: 0.8;
+            margin-bottom: 4px;
+        }
+        
+        .day-count {
+            font-size: 16px;
+            font-weight: 700;
+            color: #00ff88;
+        }
+        
+        .day-emphasis {
+            background: linear-gradient(45deg, #00ff88, #00d4aa) !important;
+            color: #1e3c72 !important;
+            font-weight: 700 !important;
+            padding: 2px 6px !important;
+            border-radius: 4px !important;
+        }
+        
         .trades-table th {
             background: rgba(255,255,255,0.1);
             font-weight: bold;
@@ -585,6 +622,18 @@
         
         <div class="data-input">
             <h3>Signal Analysis Data <span id="activeTradesCounter" style="background: linear-gradient(45deg, #ff6b35, #f7931e); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-left: 10px; box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3); animation: pulse 2s infinite;">0 Active</span></h3>
+            
+            <!-- Day of Week Trade Counter -->
+            <div id="dayOfWeekCounter" style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); border-radius: 12px; padding: 15px; margin-bottom: 15px;">
+                <div style="font-size: 14px; font-weight: 600; color: #00ff88; margin-bottom: 10px;">📅 Weekly Trade Distribution</div>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: space-between;">
+                    <div class="day-counter" data-day="Monday"><span class="day-name">MON</span><span class="day-count">0</span></div>
+                    <div class="day-counter" data-day="Tuesday"><span class="day-name">TUE</span><span class="day-count">0</span></div>
+                    <div class="day-counter" data-day="Wednesday"><span class="day-name">WED</span><span class="day-count">0</span></div>
+                    <div class="day-counter" data-day="Thursday"><span class="day-name">THU</span><span class="day-count">0</span></div>
+                    <div class="day-counter" data-day="Friday"><span class="day-name">FRI</span><span class="day-count">0</span></div>
+                </div>
+            </div>
             <div class="trades-container">
                 <table class="trades-table" id="signalsTable">
                     <thead>
@@ -1085,6 +1134,7 @@
             tbody.innerHTML = '';
             
             let activeTradesCount = 0;
+            const dayCount = { Monday: 0, Tuesday: 0, Wednesday: 0, Thursday: 0, Friday: 0 };
             
             signals.slice().reverse().forEach(signal => {
                 const row = tbody.insertRow();
@@ -1092,6 +1142,13 @@
                 
                 if (isActiveTrade) {
                     activeTradesCount++;
+                }
+                
+                // Count trades by day of week
+                const tradeDate = new Date(signal.date);
+                const dayName = tradeDate.toLocaleDateString('en-US', { weekday: 'long' });
+                if (dayCount[dayName] !== undefined) {
+                    dayCount[dayName]++;
                 }
                 const screenshotCell = signal.screenshot ? 
                     `<img src="${signal.screenshot}" style="width: 30px; height: 20px; object-fit: cover; border-radius: 3px; cursor: pointer; margin-right: 5px;" onclick="viewScreenshot('${signal.id}')" title="Click to view full size">` : 
@@ -1103,8 +1160,11 @@
                     row.title = 'ACTIVE TRADE - Add MFE when closed';
                 }
                 
+                const tradeDate = new Date(signal.date);
+                const dayName = tradeDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+                
                 row.innerHTML = `
-                    <td>${signal.date}${isActiveTrade ? ' 🔄' : ''}</td>
+                    <td><span class="day-emphasis">${dayName}</span><br>${signal.date}${isActiveTrade ? ' 🔄' : ''}</td>
                     <td>${signal.time}</td>
                     <td>${signal.bias}</td>
                     <td>${signal.session}</td>
@@ -1141,6 +1201,27 @@
                     'linear-gradient(45deg, #ff6b35, #f7931e)' : 
                     'linear-gradient(45deg, #00ff88, #00d4aa)';
             }
+            
+            // Update day of week counters
+            Object.keys(dayCount).forEach(day => {
+                const dayElement = document.querySelector(`[data-day="${day}"] .day-count`);
+                if (dayElement) {
+                    dayElement.textContent = dayCount[day];
+                    
+                    // Highlight the day with most trades
+                    const maxTrades = Math.max(...Object.values(dayCount));
+                    const dayContainer = dayElement.parentElement;
+                    if (dayCount[day] === maxTrades && maxTrades > 0) {
+                        dayContainer.style.background = 'rgba(0,255,136,0.3)';
+                        dayContainer.style.border = '2px solid #00ff88';
+                    } else {
+                        dayContainer.style.background = 'rgba(255,255,255,0.05)';
+                        dayContainer.style.border = 'none';
+                    }
+                }
+            });
+            
+            console.log('📊 Day of week distribution:', dayCount);
         }
         
         function exportData() {
