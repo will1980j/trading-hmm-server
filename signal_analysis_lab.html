@@ -1648,7 +1648,20 @@
         }
         
         function getNewsForDate(dateStr) {
-            const news = economicNewsData[dateStr];
+            // Check exact match first
+            let news = economicNewsData[dateStr];
+            
+            // If no exact match, check for dates that start with the dateStr
+            if (!news || news.length === 0) {
+                const allEvents = [];
+                Object.keys(economicNewsData).forEach(key => {
+                    if (key.startsWith(dateStr)) {
+                        allEvents.push(...economicNewsData[key]);
+                    }
+                });
+                news = allEvents;
+            }
+            
             if (news && news.length > 0) {
                 return {
                     proximity: 'High',
