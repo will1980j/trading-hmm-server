@@ -1976,6 +1976,109 @@
             }
         }
         
+        function updateSignalLabAnalysis(filteredTrades, rTarget) {
+            if (filteredTrades.length === 0) {
+                // Set loading states for all Signal Lab elements
+                const elements = {
+                    'noBEPerformance': 'No data',
+                    'be1Performance': 'No data', 
+                    'be2Performance': 'No data',
+                    'optimalBEStrategy': 'No data',
+                    'activeTradesCount': '0',
+                    'signalLabOptimalR': 'No data',
+                    'beAnalysisSummary': 'No Signal Lab data available'
+                };
+                
+                Object.keys(elements).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = elements[id];
+                });
+                return;
+            }
+            
+            console.log('Updating Signal Lab analysis with', filteredTrades.length, 'trades');
+            
+            // Calculate BE win rates using the formulas from Signal Lab
+            const totalTrades = filteredTrades.length;
+            
+            // No BE: Count trades where MFE ≠ -1 (not stopped out)
+            const noBEWins = filteredTrades.filter(t => {
+                const mfe = t.mfe_none || t.mfe || 0;
+                return mfe !== -1 && mfe !== 0;
+            }).length;
+            const noBEWinRate = totalTrades > 0 ? ((noBEWins / totalTrades) * 100).toFixed(1) : '0.0';
+            
+            // BE=1R: Count trades that hit BE1 (triggered at 1R)
+            const be1Wins = filteredTrades.filter(t => t.be1Hit || t.be1_hit).length;
+            const be1WinRate = totalTrades > 0 ? ((be1Wins / totalTrades) * 100).toFixed(1) : '0.0';
+            
+            // BE=2R: Count trades that hit BE2 (triggered at 2R)
+            const be2Wins = filteredTrades.filter(t => t.be2Hit || t.be2_hit).length;
+            const be2WinRate = totalTrades > 0 ? ((be2Wins / totalTrades) * 100).toFixed(1) : '0.0';
+            
+            // Count active trades (missing MFE data)
+            const activeTrades = filteredTrades.filter(t => {
+                const mfeNone = t.mfe_none || t.mfe || 0;
+                const mfe1 = t.mfe1 || 0;
+                const mfe2 = t.mfe2 || 0;
+                return !mfeNone || !mfe1 || !mfe2;
+            }).length;
+            
+            // Determine optimal BE strategy
+            const strategies = [
+                { name: 'No BE', rate: parseFloat(noBEWinRate) },
+                { name: 'BE=1R', rate: parseFloat(be1WinRate) },
+                { name: 'BE=2R', rate: parseFloat(be2WinRate) }
+            ];
+            const optimalStrategy = strategies.reduce((best, current) => 
+                current.rate > best.rate ? current : best
+            );
+            
+            // Calculate optimal R-target based on MFE distribution
+            const mfeValues = filteredTrades.map(t => t.mfe_none || t.mfe || 0).filter(mfe => mfe > 0);
+            const avgMFE = mfeValues.length > 0 ? (mfeValues.reduce((sum, mfe) => sum + mfe, 0) / mfeValues.length) : 0;
+            const optimalR = Math.max(1, Math.min(5, Math.round(avgMFE * 0.8)));
+            
+            // Update UI elements
+            const updates = {
+                'noBEPerformance': `${noBEWinRate}% (${noBEWins}/${totalTrades})`,
+                'be1Performance': `${be1WinRate}% (${be1Wins}/${totalTrades})`,
+                'be2Performance': `${be2WinRate}% (${be2Wins}/${totalTrades})`,
+                'optimalBEStrategy': `${optimalStrategy.name} (${optimalStrategy.rate}%)`,
+                'activeTradesCount': `${activeTrades} (${((activeTrades/totalTrades)*100).toFixed(1)}%)`,
+                'signalLabOptimalR': `${optimalR}R`,
+                'activeTradePercentage': `${((activeTrades/totalTrades)*100).toFixed(1)}%`
+            };
+            
+            Object.keys(updates).forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = updates[id];
+            });
+            
+            // Generate analysis summary
+            const summary = `Analyzed ${totalTrades} Signal Lab trades. ${optimalStrategy.name} strategy performs best with ${optimalStrategy.rate}% win rate. ${activeTrades} trades need MFE completion. Optimal R-target: ${optimalR}R based on MFE distribution.`;
+            
+            const summaryEl = document.getElementById('beAnalysisSummary');
+            if (summaryEl) summaryEl.textContent = summary;
+            
+            // Update AI BE analysis
+            const aiAnalysisEl = document.getElementById('aiBEAnalysis');
+            if (aiAnalysisEl) {
+                const improvement = optimalStrategy.rate - Math.min(parseFloat(noBEWinRate), parseFloat(be1WinRate), parseFloat(be2WinRate));
+                aiAnalysisEl.textContent = `AI recommends ${optimalStrategy.name} strategy for +${improvement.toFixed(1)}% win rate improvement. Focus on completing ${activeTrades} active trades to enhance analysis accuracy. MFE data suggests ${optimalR}R target optimization.`;
+            }
+            
+            console.log('Signal Lab analysis completed:', {
+                totalTrades,
+                noBEWinRate,
+                be1WinRate, 
+                be2WinRate,
+                optimalStrategy: optimalStrategy.name,
+                activeTrades,
+                optimalR
+            });
+        }
+        
         function updateCharts() {
             // Save current filter states
             saveFilterStates();
@@ -1989,11 +2092,7 @@
             // Update Signal Lab specific analysis if using Signal Lab data
             if (document.getElementById('dataSourceToggle').value === 'signal-lab') {
                 console.log('Calling Signal Lab analysis with', filteredTrades.length, 'trades');
-                if (typeof updateSignalLabAnalysis === 'function') {
-                    updateSignalLabAnalysis(filteredTrades, rTarget);
-                } else {
-                    console.warn('updateSignalLabAnalysis function not available');
-                }
+                updateSignalLabAnalysis(filteredTrades, rTarget);
             }
             
             // Update basic metrics
@@ -2018,10 +2117,7 @@
             // Update AI insights with real generative AI
             updateAIInsights();
             
-            // Update Signal Lab analysis if using Signal Lab data
-            if (document.getElementById('dataSourceToggle').value === 'signal-lab') {
-                updateSignalLabAnalysis(filteredTrades, rTarget);
-            }
+            // Signal Lab analysis is already called above
             
             // Update D3 charts with filtered data
             updateD3Charts();
