@@ -364,6 +364,16 @@
             line-height: 1.2;
         }
         
+        .day-news {
+            font-size: 9px;
+            color: #ff4757;
+            font-weight: 600;
+            margin-top: 2px;
+            background: rgba(255,71,87,0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
         .day-trades {
             font-size: 9px;
             color: #00ff88;
@@ -1256,6 +1266,7 @@
         let currentMonth = new Date().getMonth();
         let currentYear = new Date().getFullYear();
         let selectedDate = null;
+        let economicNewsData = {}; // Cache for economic news by date
         
         function updateTable() {
             const tbody = document.getElementById('signalsBody');
@@ -1505,9 +1516,24 @@
             document.body.appendChild(modal);
         }
         
-        // Set today's date by default
+        // Set today's date by default and auto-fill news
         const dateEl = document.getElementById('signalDate');
-        if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+        if (dateEl) {
+            const today = new Date().toISOString().split('T')[0];
+            dateEl.value = today;
+            
+            // Auto-fill news for today
+            setTimeout(() => {
+                autoFillNewsFields(today);
+            }, 500);
+            
+            // Auto-fill news when date changes
+            dateEl.addEventListener('change', function() {
+                if (this.value) {
+                    autoFillNewsFields(this.value);
+                }
+            });
+        }
         
         let selectedNewsEvents = [];
         
@@ -1570,8 +1596,92 @@
         // Make functions globally available
         window.viewAnalysis = viewAnalysis;
         
+        // Load economic news data
+        async function loadEconomicNews() {
+            try {
+                const response = await fetch('/api/economic-calendar');
+                if (response.ok) {
+                    const data = await response.json();
+                    processEconomicNews(data);
+                } else {
+                    console.warn('Economic news API not available');
+                    loadFallbackNewsData();
+                }
+            } catch (error) {
+                console.error('Failed to load economic news:', error);
+                loadFallbackNewsData();
+            }
+        }
+        
+        function processEconomicNews(newsData) {
+            economicNewsData = {};
+            
+            if (newsData && newsData.events) {
+                newsData.events.forEach(event => {
+                    if (event.impact === 'HIGH' || event.impact === 'Red') {
+                        const date = event.date;
+                        if (!economicNewsData[date]) {
+                            economicNewsData[date] = [];
+                        }
+                        economicNewsData[date].push(event.title || event.name);
+                    }
+                });
+            }
+            
+            console.log('Processed economic news for', Object.keys(economicNewsData).length, 'dates');
+        }
+        
+        function loadFallbackNewsData() {
+            economicNewsData = {};
+            console.log('No economic news data available');
+        }
+        
+        function getNewsForDate(dateStr) {
+            const news = economicNewsData[dateStr];
+            if (news && news.length > 0) {
+                return {
+                    proximity: 'High',
+                    events: news
+                };
+            }
+            return {
+                proximity: 'None',
+                events: ['None']
+            };
+        }
+        
+        function autoFillNewsFields(date) {
+            const newsData = getNewsForDate(date);
+            
+            // Set news proximity
+            const proximityEl = document.getElementById('newsProximity');
+            if (proximityEl) {
+                proximityEl.value = newsData.proximity;
+            }
+            
+            // Clear all news event checkboxes first
+            const checkboxes = document.querySelectorAll('#newsEventDropdown input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = false);
+            
+            // Check the appropriate news events
+            newsData.events.forEach(eventName => {
+                const checkbox = Array.from(checkboxes).find(cb => cb.value === eventName);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+            
+            // Update the display
+            updateNewsSelection();
+            
+            console.log('Auto-filled news for', date, ':', newsData);
+        }
+        
         // Load signals when page loads
-        document.addEventListener('DOMContentLoaded', loadSignals);
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadEconomicNews();
+            loadSignals();
+        });
         
         // View screenshot function
         function viewScreenshot(signalId) {
@@ -1762,12 +1872,23 @@
                     `;
                 }
                 
+                // Check for economic news on this date
+                const newsData = getNewsForDate(dateStr);
+                let newsHtml = '';
+                if (newsData.proximity === 'High') {
+                    const newsText = newsData.events.length > 2 ? 
+                        `${newsData.events.slice(0, 2).join(', ')}+` : 
+                        newsData.events.join(', ');
+                    newsHtml = `<div class="day-news">${newsText}</div>`;
+                }
+                
                 dayElement.innerHTML = `
                     <div class="day-number">${day}</div>
                     <div class="day-data">
                         ${tradeCount > 0 ? `<div class="day-trades">${tradeCount} trades</div>` : ''}
                         ${activeCount > 0 ? `<div class="day-active">${activeCount} ACTIVE</div>` : ''}
                         ${winRatesHtml}
+                        ${newsHtml}
                     </div>
                 `;
                 
