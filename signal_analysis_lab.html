@@ -305,15 +305,14 @@
         .calendar-day {
             background: rgba(255,255,255,0.05);
             border-radius: 8px;
-            padding: 4px;
-            text-align: center;
+            padding: 6px;
             cursor: pointer;
             transition: all 0.3s ease;
             border: 2px solid transparent;
             min-height: 85px;
             display: flex;
-            flex-direction: column;
-            justify-content: center;
+            align-items: flex-start;
+            gap: 8px;
         }
         
         .calendar-day:hover {
@@ -348,9 +347,21 @@
         }
         
         .day-number {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 4px;
+            font-size: 28px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.9);
+            line-height: 1;
+            min-width: 32px;
+            flex-shrink: 0;
+        }
+        
+        .day-data {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 10px;
+            line-height: 1.2;
         }
         
         .day-trades {
@@ -1753,9 +1764,11 @@
                 
                 dayElement.innerHTML = `
                     <div class="day-number">${day}</div>
-                    ${tradeCount > 0 ? `<div class="day-trades">${tradeCount} total</div>` : ''}
-                    ${activeCount > 0 ? `<div class="day-active">${activeCount} ACTIVE</div>` : ''}
-                    ${winRatesHtml}
+                    <div class="day-data">
+                        ${tradeCount > 0 ? `<div class="day-trades">${tradeCount} trades</div>` : ''}
+                        ${activeCount > 0 ? `<div class="day-active">${activeCount} ACTIVE</div>` : ''}
+                        ${winRatesHtml}
+                    </div>
                 `;
                 
                 dayElement.onclick = () => selectDate(dateStr, tradeCount);
