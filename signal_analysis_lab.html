@@ -1617,19 +1617,29 @@
         function processEconomicNews(newsData) {
             economicNewsData = {};
             
-            if (newsData && newsData.events) {
-                newsData.events.forEach(event => {
-                    if (event.impact === 'HIGH' || event.impact === 'Red') {
+            if (newsData && Array.isArray(newsData)) {
+                newsData.forEach(event => {
+                    if (event.impact === 'HIGH' || event.impact === 'Red' || event.impact === 'high') {
                         const date = event.date;
                         if (!economicNewsData[date]) {
                             economicNewsData[date] = [];
                         }
-                        economicNewsData[date].push(event.title || event.name);
+                        economicNewsData[date].push(event.title || event.name || event.event);
+                    }
+                });
+            } else if (newsData && newsData.events) {
+                newsData.events.forEach(event => {
+                    if (event.impact === 'HIGH' || event.impact === 'Red' || event.impact === 'high') {
+                        const date = event.date;
+                        if (!economicNewsData[date]) {
+                            economicNewsData[date] = [];
+                        }
+                        economicNewsData[date].push(event.title || event.name || event.event);
                     }
                 });
             }
             
-            console.log('Processed economic news for', Object.keys(economicNewsData).length, 'dates');
+            console.log('Processed economic news for', Object.keys(economicNewsData).length, 'dates:', economicNewsData);
         }
         
         function loadFallbackNewsData() {
@@ -1929,7 +1939,20 @@
                 return;
             }
             
-            if (!confirm(`Auto-fill news for all ${signals.length} existing trades?\n\nThis will update news proximity and events based on economic calendar data.`)) {
+            // First reload economic news data
+            console.log('Reloading economic news data...');
+            await loadEconomicNews();
+            
+            // Check if we have any news data
+            const newsDateCount = Object.keys(economicNewsData).length;
+            console.log('Economic news available for', newsDateCount, 'dates');
+            
+            if (newsDateCount === 0) {
+                alert('❌ No economic news data available.\n\nThe economic calendar API may be unavailable or no HIGH impact events found.');
+                return;
+            }
+            
+            if (!confirm(`Auto-fill news for all ${signals.length} existing trades?\n\nEconomic data available for ${newsDateCount} dates.`)) {
                 return;
             }
             
@@ -1939,9 +1962,12 @@
             for (const signal of signals) {
                 try {
                     const newsData = getNewsForDate(signal.date);
+                    console.log(`Checking ${signal.date}:`, newsData);
                     
-                    // Only update if there's actual news data
-                    if (newsData.proximity !== 'None') {
+                    // Only update if there's actual news data and it's different from current
+                    if (newsData.proximity !== 'None' && 
+                        (signal.newsProximity !== newsData.proximity || signal.newsEvent !== newsData.events.join(', '))) {
+                        
                         const updatedSignal = {
                             ...signal,
                             newsProximity: newsData.proximity,
@@ -1982,8 +2008,10 @@
                                 signals[signalIndex] = updatedSignal;
                             }
                             updatedCount++;
+                            console.log(`Updated trade ${signal.id} for ${signal.date}`);
                         } else {
                             errorCount++;
+                            console.error(`Failed to update trade ${signal.id}:`, response.status);
                         }
                     }
                 } catch (error) {
