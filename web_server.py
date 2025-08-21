@@ -499,6 +499,35 @@ def get_economic_news():
         logger.error(f"Error fetching economic news: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/economic-calendar')
+@login_required
+def get_economic_calendar():
+    try:
+        import requests
+        
+        response = requests.get('https://nfs.faireconomy.media/ff_calendar_thisweek.json', timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            
+            events = []
+            for event in data:
+                if event.get('impact') in ['High', 'RED', 'high']:
+                    events.append({
+                        'date': event.get('date'),
+                        'title': event.get('title', event.get('name', 'Economic Event')),
+                        'impact': 'HIGH'
+                    })
+            
+            logger.info(f"Fetched {len(events)} high-impact economic events")
+            return jsonify({'events': events, 'status': 'success'})
+        else:
+            logger.error(f"ForexFactory API returned status {response.status_code}")
+            return jsonify({'events': [], 'error': 'API unavailable', 'status': 'error'}), 500
+        
+    except Exception as e:
+        logger.error(f"Error fetching economic calendar: {str(e)}")
+        return jsonify({'events': [], 'error': str(e), 'status': 'error'}), 500
+
 @app.route('/api/ai-economic-analysis', methods=['POST'])
 @login_required
 def ai_economic_analysis():
