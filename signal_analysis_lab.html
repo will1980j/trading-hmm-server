@@ -295,48 +295,124 @@
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         
-        .day-counter {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 15px 20px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            min-width: 100px;
-            transition: all 0.3s ease;
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
         }
         
-        .day-counter:hover {
+        .calendar-day {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 6px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            min-height: 70px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .calendar-day:hover {
             background: rgba(0,255,136,0.2);
             transform: translateY(-2px);
         }
         
-        .day-name {
-            font-size: 14px;
-            font-weight: 600;
-            opacity: 0.8;
-            margin-bottom: 8px;
+        .calendar-day.has-trades {
+            background: rgba(0,255,136,0.1);
+            border-color: rgba(0,255,136,0.3);
         }
         
-        .day-count {
-            font-size: 24px;
-            font-weight: 700;
+        .calendar-day.has-active {
+            background: rgba(255,165,0,0.2);
+            border-color: rgba(255,165,0,0.6);
+            animation: pulse-active 2s infinite;
+        }
+        
+        .calendar-day.selected {
+            background: rgba(0,255,136,0.3);
+            border-color: #00ff88;
+        }
+        
+        .calendar-day.empty {
+            opacity: 0.3;
+            cursor: default;
+        }
+        
+        .calendar-day.empty:hover {
+            background: rgba(255,255,255,0.05);
+            transform: none;
+        }
+        
+        .day-number {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .day-trades {
+            font-size: 9px;
             color: #00ff88;
+            font-weight: 500;
+            line-height: 1.2;
         }
         
         .day-active {
-            font-size: 12px;
-            font-weight: 500;
+            font-size: 9px;
             color: #ffa502;
-            margin-top: 4px;
+            font-weight: 600;
+            margin-top: 2px;
         }
         
-        .day-emphasis {
-            background: linear-gradient(45deg, #00ff88, #00d4aa) !important;
-            color: #1e3c72 !important;
-            font-weight: 700 !important;
-            padding: 2px 6px !important;
-            border-radius: 4px !important;
+        @keyframes pulse-active {
+            0% { box-shadow: 0 0 0 0 rgba(255,165,0,0.4); }
+            70% { box-shadow: 0 0 0 8px rgba(255,165,0,0); }
+            100% { box-shadow: 0 0 0 0 rgba(255,165,0,0); }
+        }
+        
+        .calendar-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .calendar-header-day {
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.7);
+            padding: 8px;
+        }
+        
+        .month-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .month-nav button {
+            background: rgba(0,255,136,0.2);
+            border: 1px solid rgba(0,255,136,0.3);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .month-nav button:hover {
+            background: rgba(0,255,136,0.3);
+        }
+        
+        .month-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #00ff88;
         }
         
         .trades-table th {
@@ -630,15 +706,34 @@
         <div class="data-input">
             <h3>Signal Analysis Data <span id="activeTradesCounter" style="background: linear-gradient(45deg, #ff6b35, #f7931e); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-left: 10px; box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3); animation: pulse 2s infinite;">0 Active</span></h3>
             
-            <!-- Day of Week Trade Counter -->
-            <div id="dayOfWeekCounter" style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); border-radius: 12px; padding: 15px; margin-bottom: 15px;">
-                <div style="font-size: 14px; font-weight: 600; color: #00ff88; margin-bottom: 10px;">📅 Weekly Trade Distribution</div>
-                <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: space-between;">
-                    <div class="day-counter" data-day="Monday"><span class="day-name">MON</span><span class="day-count">0</span><span class="day-active">0 active</span></div>
-                    <div class="day-counter" data-day="Tuesday"><span class="day-name">TUE</span><span class="day-count">0</span><span class="day-active">0 active</span></div>
-                    <div class="day-counter" data-day="Wednesday"><span class="day-name">WED</span><span class="day-count">0</span><span class="day-active">0 active</span></div>
-                    <div class="day-counter" data-day="Thursday"><span class="day-name">THU</span><span class="day-count">0</span><span class="day-active">0 active</span></div>
-                    <div class="day-counter" data-day="Friday"><span class="day-name">FRI</span><span class="day-count">0</span><span class="day-active">0 active</span></div>
+            <!-- Trading Calendar -->
+            <div id="tradingCalendar" style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); border-radius: 12px; padding: 15px; margin-bottom: 15px;">
+                <div style="font-size: 14px; font-weight: 600; color: #00ff88; margin-bottom: 15px;">📅 Trading Calendar</div>
+                
+                <div class="month-nav">
+                    <button onclick="changeMonth(-1)">← Prev</button>
+                    <div class="month-title" id="monthTitle">December 2024</div>
+                    <button onclick="changeMonth(1)">Next →</button>
+                </div>
+                
+                <div class="calendar-header">
+                    <div class="calendar-header-day">SUN</div>
+                    <div class="calendar-header-day">MON</div>
+                    <div class="calendar-header-day">TUE</div>
+                    <div class="calendar-header-day">WED</div>
+                    <div class="calendar-header-day">THU</div>
+                    <div class="calendar-header-day">FRI</div>
+                    <div class="calendar-header-day">SAT</div>
+                </div>
+                
+                <div class="calendar-grid" id="calendarGrid">
+                    <!-- Calendar days will be generated by JavaScript -->
+                </div>
+                
+                <div style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); display: flex; gap: 15px; justify-content: center;">
+                    <span><span style="color: #00ff88;">●</span> Has trades</span>
+                    <span><span style="color: #ffa502;">●</span> Active trades (need MFE)</span>
+                    <span>Click days to filter</span>
                 </div>
             </div>
             <div class="trades-container">
@@ -1136,34 +1231,28 @@
         
 
         
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+        let selectedDate = null;
+        
         function updateTable() {
             const tbody = document.getElementById('signalsBody');
             tbody.innerHTML = '';
             
             let activeTradesCount = 0;
-            const dayCount = { Monday: 0, Tuesday: 0, Wednesday: 0, Thursday: 0, Friday: 0 };
-            const dayActiveCount = { Monday: 0, Tuesday: 0, Wednesday: 0, Thursday: 0, Friday: 0 };
             
-            signals.slice().reverse().forEach(signal => {
+            // Filter signals by selected date if any
+            let displaySignals = signals;
+            if (selectedDate) {
+                displaySignals = signals.filter(signal => signal.date === selectedDate);
+            }
+            
+            displaySignals.slice().reverse().forEach(signal => {
                 const row = tbody.insertRow();
                 const isActiveTrade = !signal.mfeNone || !signal.mfe1 || !signal.mfe2;
                 
                 if (isActiveTrade) {
                     activeTradesCount++;
-                }
-                
-                // Count trades by day of week
-                try {
-                    const tradeDate = new Date(signal.date + 'T00:00:00');
-                    const dayName = tradeDate.toLocaleDateString('en-US', { weekday: 'long' });
-                    if (dayCount[dayName] !== undefined) {
-                        dayCount[dayName]++;
-                        if (isActiveTrade) {
-                            dayActiveCount[dayName]++;
-                        }
-                    }
-                } catch (e) {
-                    console.log('Date parsing error for:', signal.date);
                 }
                 const screenshotCell = signal.screenshot ? 
                     `<img src="${signal.screenshot}" style="width: 30px; height: 20px; object-fit: cover; border-radius: 3px; cursor: pointer; margin-right: 5px;" onclick="viewScreenshot('${signal.id}')" title="Click to view full size">` : 
@@ -1208,36 +1297,20 @@
             // Update active trades counter
             const counter = document.getElementById('activeTradesCounter');
             if (counter) {
-                counter.textContent = `${activeTradesCount} Active`;
-                counter.style.background = activeTradesCount > 0 ? 
-                    'linear-gradient(45deg, #ff6b35, #f7931e)' : 
-                    'linear-gradient(45deg, #00ff88, #00d4aa)';
+                const totalShown = displaySignals.length;
+                const totalAll = signals.length;
+                counter.textContent = selectedDate ? 
+                    `${totalShown}/${totalAll} (${selectedDate})` : 
+                    `${activeTradesCount} Active`;
+                counter.style.background = selectedDate ? 
+                    'linear-gradient(45deg, #3742fa, #5352ed)' : 
+                    (activeTradesCount > 0 ? 
+                        'linear-gradient(45deg, #ff6b35, #f7931e)' : 
+                        'linear-gradient(45deg, #00ff88, #00d4aa)');
             }
             
-            // Update day of week counters
-            Object.keys(dayCount).forEach(day => {
-                const dayElement = document.querySelector(`[data-day="${day}"] .day-count`);
-                const activeElement = document.querySelector(`[data-day="${day}"] .day-active`);
-                if (dayElement) {
-                    dayElement.textContent = dayCount[day];
-                    if (activeElement) {
-                        activeElement.textContent = `${dayActiveCount[day]} active`;
-                    }
-                    
-                    // Highlight the day with most trades
-                    const maxTrades = Math.max(...Object.values(dayCount));
-                    const dayContainer = dayElement.parentElement;
-                    if (dayCount[day] === maxTrades && maxTrades > 0) {
-                        dayContainer.style.background = 'rgba(0,255,136,0.3)';
-                        dayContainer.style.border = '2px solid #00ff88';
-                    } else {
-                        dayContainer.style.background = 'rgba(255,255,255,0.05)';
-                        dayContainer.style.border = 'none';
-                    }
-                }
-            });
-            
-            console.log('📊 Day of week distribution:', dayCount);
+            // Update calendar
+            updateCalendar();
         }
         
         function exportData() {
@@ -1566,6 +1639,104 @@
             });
         }
         
+        function updateCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const monthTitle = document.getElementById('monthTitle');
+            
+            if (!grid || !monthTitle) return;
+            
+            // Update month title
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                              'July', 'August', 'September', 'October', 'November', 'December'];
+            monthTitle.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+            
+            // Get first day of month and number of days
+            const firstDay = new Date(currentYear, currentMonth, 1);
+            const lastDay = new Date(currentYear, currentMonth + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startingDayOfWeek = firstDay.getDay();
+            
+            // Count trades and active trades by date
+            const tradesByDate = {};
+            const activeByDate = {};
+            signals.forEach(signal => {
+                if (signal.date) {
+                    const count = tradesByDate[signal.date] || 0;
+                    tradesByDate[signal.date] = count + 1;
+                    
+                    // Check if trade is active (missing MFE data)
+                    const isActive = !signal.mfeNone || !signal.mfe1 || !signal.mfe2;
+                    if (isActive) {
+                        const activeCount = activeByDate[signal.date] || 0;
+                        activeByDate[signal.date] = activeCount + 1;
+                    }
+                }
+            });
+            
+            // Clear grid
+            grid.innerHTML = '';
+            
+            // Add empty cells for days before month starts
+            for (let i = 0; i < startingDayOfWeek; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'calendar-day empty';
+                grid.appendChild(emptyDay);
+            }
+            
+            // Add days of the month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayElement = document.createElement('div');
+                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const tradeCount = tradesByDate[dateStr] || 0;
+                const activeCount = activeByDate[dateStr] || 0;
+                
+                dayElement.className = 'calendar-day';
+                if (tradeCount > 0) {
+                    dayElement.classList.add('has-trades');
+                }
+                if (activeCount > 0) {
+                    dayElement.classList.add('has-active');
+                }
+                if (selectedDate === dateStr) {
+                    dayElement.classList.add('selected');
+                }
+                
+                dayElement.innerHTML = `
+                    <div class="day-number">${day}</div>
+                    ${tradeCount > 0 ? `<div class="day-trades">${tradeCount} total</div>` : ''}
+                    ${activeCount > 0 ? `<div class="day-active">${activeCount} ACTIVE</div>` : ''}
+                `;
+                
+                dayElement.onclick = () => selectDate(dateStr, tradeCount);
+                grid.appendChild(dayElement);
+            }
+        }
+        
+        function changeMonth(direction) {
+            currentMonth += direction;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            } else if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            updateCalendar();
+        }
+        
+        function selectDate(dateStr, tradeCount) {
+            if (tradeCount === 0) return;
+            
+            if (selectedDate === dateStr) {
+                // Deselect if clicking same date
+                selectedDate = null;
+            } else {
+                selectedDate = dateStr;
+            }
+            
+            updateDisplay();
+        }
+        
         // Make functions globally available
         window.addSignal = addSignal;
         window.editSignal = editSignal;
@@ -1580,6 +1751,8 @@
         window.toggleNewsDropdown = toggleNewsDropdown;
         window.updateNewsSelection = updateNewsSelection;
         window.calculateTP = calculateTP;
+        window.changeMonth = changeMonth;
+        window.selectDate = selectDate;
         
         } catch (error) {
             console.error('Signal Lab JavaScript Error:', error);
