@@ -1526,7 +1526,7 @@
             // Auto-fill news for today
             setTimeout(() => {
                 autoFillNewsFields(today);
-            }, 500);
+            }, 1000);
             
             // Auto-fill news when date changes
             dateEl.addEventListener('change', function() {
@@ -1535,6 +1535,21 @@
                 }
             });
         }
+        
+        // Auto-fill news when adding new trade
+        const originalAddSignal = addSignal;
+        window.addSignal = async function() {
+            const dateValue = document.getElementById('signalDate')?.value;
+            if (dateValue) {
+                autoFillNewsFields(dateValue);
+                // Small delay to ensure news fields are populated before saving
+                setTimeout(() => {
+                    originalAddSignal();
+                }, 200);
+            } else {
+                originalAddSignal();
+            }
+        };
         
         let selectedNewsEvents = [];
         
@@ -1600,9 +1615,13 @@
         // Load economic news data
         async function loadEconomicNews() {
             try {
+                console.log('Loading economic news from API...');
                 const response = await fetch('/api/economic-calendar');
+                console.log('Economic API response status:', response.status);
+                
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('Economic API returned data:', data);
                     processEconomicNews(data);
                 } else {
                     console.warn('Economic news API not available');
@@ -1677,28 +1696,33 @@
         function autoFillNewsFields(date) {
             const newsData = getNewsForDate(date);
             
-            // Set news proximity
-            const proximityEl = document.getElementById('newsProximity');
-            if (proximityEl) {
-                proximityEl.value = newsData.proximity;
-            }
-            
-            // Clear all news event checkboxes first
-            const checkboxes = document.querySelectorAll('#newsEventDropdown input[type="checkbox"]');
-            checkboxes.forEach(cb => cb.checked = false);
-            
-            // Check the appropriate news events
-            newsData.events.forEach(eventName => {
-                const checkbox = Array.from(checkboxes).find(cb => cb.value === eventName);
-                if (checkbox) {
-                    checkbox.checked = true;
+            // Only auto-fill if there's actual news data
+            if (newsData.proximity !== 'None') {
+                // Set news proximity
+                const proximityEl = document.getElementById('newsProximity');
+                if (proximityEl) {
+                    proximityEl.value = newsData.proximity;
                 }
-            });
-            
-            // Update the display
-            updateNewsSelection();
-            
-            console.log('Auto-filled news for', date, ':', newsData);
+                
+                // Clear all news event checkboxes first
+                const checkboxes = document.querySelectorAll('#newsEventDropdown input[type="checkbox"]');
+                checkboxes.forEach(cb => cb.checked = false);
+                
+                // Check the appropriate news events
+                newsData.events.forEach(eventName => {
+                    const checkbox = Array.from(checkboxes).find(cb => cb.value === eventName);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                });
+                
+                // Update the display
+                updateNewsSelection();
+                
+                console.log('Auto-filled news for', date, ':', newsData);
+            } else {
+                console.log('No news data for', date);
+            }
         }
         
         // Load signals when page loads
