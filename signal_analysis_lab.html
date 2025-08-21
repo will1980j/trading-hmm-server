@@ -1145,10 +1145,14 @@
                 }
                 
                 // Count trades by day of week
-                const tradeDate = new Date(signal.date);
-                const dayName = tradeDate.toLocaleDateString('en-US', { weekday: 'long' });
-                if (dayCount[dayName] !== undefined) {
-                    dayCount[dayName]++;
+                try {
+                    const tradeDate = new Date(signal.date + 'T00:00:00');
+                    const dayName = tradeDate.toLocaleDateString('en-US', { weekday: 'long' });
+                    if (dayCount[dayName] !== undefined) {
+                        dayCount[dayName]++;
+                    }
+                } catch (e) {
+                    console.log('Date parsing error for:', signal.date);
                 }
                 const screenshotCell = signal.screenshot ? 
                     `<img src="${signal.screenshot}" style="width: 30px; height: 20px; object-fit: cover; border-radius: 3px; cursor: pointer; margin-right: 5px;" onclick="viewScreenshot('${signal.id}')" title="Click to view full size">` : 
@@ -1160,11 +1164,8 @@
                     row.title = 'ACTIVE TRADE - Add MFE when closed';
                 }
                 
-                const tradeDate = new Date(signal.date);
-                const dayName = tradeDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-                
                 row.innerHTML = `
-                    <td><span class="day-emphasis">${dayName}</span><br>${signal.date}${isActiveTrade ? ' 🔄' : ''}</td>
+                    <td>${signal.date}${isActiveTrade ? ' 🔄' : ''}</td>
                     <td>${signal.time}</td>
                     <td>${signal.bias}</td>
                     <td>${signal.session}</td>
