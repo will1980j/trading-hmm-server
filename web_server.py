@@ -1425,13 +1425,20 @@ def ai_analysis_simple():
     print("✅ AI ANALYSIS endpoint called")
     return jsonify({"message": "AI endpoint working"})
 
-@app.route('/api/ai-chart-analysis', methods=['GET'])
+@app.route('/api/ai-chart-analysis', methods=['GET', 'POST'])
 def ai_chart_analysis_extension():
-    print(f"✅ Extension endpoint called with args: {request.args}")
+    print(f"✅ Extension endpoint called with method: {request.method}")
     try:
-        symbol = request.args.get('symbol', 'NQ1!')
-        price = float(request.args.get('price', 0))
-        session = request.args.get('session', 'LONDON')
+        # Handle both GET and POST requests
+        if request.method == 'POST':
+            data = request.get_json() or {}
+            symbol = data.get('symbol', 'NQ1!')
+            price = float(data.get('price', 0))
+            session = data.get('session', 'LONDON')
+        else:
+            symbol = request.args.get('symbol', 'NQ1!')
+            price = float(request.args.get('price', 0))
+            session = request.args.get('session', 'LONDON')
         
         # Get current market data for context
         news_api = NewsAPI()
