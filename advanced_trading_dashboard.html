@@ -1153,6 +1153,16 @@
             </div>
             
             <div class="filter-group">
+                <label>Date Range</label>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <input type="date" id="dateFrom" onchange="updateCharts()" style="padding: 6px; font-size: 12px; width: 130px;">
+                    <span style="font-size: 12px;">to</span>
+                    <input type="date" id="dateTo" onchange="updateCharts()" style="padding: 6px; font-size: 12px; width: 130px;">
+                    <button onclick="clearDateFilter()" style="background: #6c757d; border: none; padding: 4px 8px; border-radius: 4px; color: white; font-size: 11px; cursor: pointer;">Clear</button>
+                </div>
+            </div>
+            
+            <div class="filter-group">
                 <label>Data Migration</label>
                 <button class="btn" onclick="migrateSignalLabData()" style="background: #3742fa; padding: 8px 12px; font-size: 12px;">Migrate Signal Lab</button>
             </div>
@@ -1875,6 +1885,14 @@
             }
             
             const filtered = window.trades.filter(trade => {
+                // Date range filter
+                const dateFrom = document.getElementById('dateFrom').value;
+                const dateTo = document.getElementById('dateTo').value;
+                const tradeDate = trade.date;
+                
+                if (dateFrom && tradeDate < dateFrom) return false;
+                if (dateTo && tradeDate > dateTo) return false;
+                
                 // Bias filter
                 if (biasFilter !== 'ALL' && trade.bias !== biasFilter) {
                     return false;
@@ -1955,6 +1973,12 @@
             updateCharts();
         }
         
+        function clearDateFilter() {
+            document.getElementById('dateFrom').value = '';
+            document.getElementById('dateTo').value = '';
+            updateCharts();
+        }
+        
         function saveFilterStates() {
             // Save UI state only (not trade data)
             localStorage.setItem('dataSource', document.getElementById('dataSourceToggle').value);
@@ -1969,6 +1993,8 @@
             localStorage.setItem('biasFilter', document.getElementById('biasFilter').value);
             localStorage.setItem('breakevenFilter', document.getElementById('breakevenFilter').value);
             localStorage.setItem('calendarView', document.getElementById('calendarView').value);
+            localStorage.setItem('dateFrom', document.getElementById('dateFrom').value);
+            localStorage.setItem('dateTo', document.getElementById('dateTo').value);
         }
         
         function loadFilterStates() {
@@ -2028,6 +2054,12 @@
             if (savedCalendarView) {
                 document.getElementById('calendarView').value = savedCalendarView;
             }
+            
+            // Load date filters
+            const savedDateFrom = localStorage.getItem('dateFrom');
+            const savedDateTo = localStorage.getItem('dateTo');
+            if (savedDateFrom) document.getElementById('dateFrom').value = savedDateFrom;
+            if (savedDateTo) document.getElementById('dateTo').value = savedDateTo;
         }
         
         function updateSignalLabAnalysis(filteredTrades, rTarget) {
