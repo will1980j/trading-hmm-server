@@ -1144,12 +1144,11 @@
             </div>
             
             <div class="filter-group">
-                <label>Breakeven Strategy</label>
+                <label>Breakeven Strategy (Single)</label>
                 <select id="breakevenFilter" onchange="updateCharts()">
-                    <option value="all">All Strategies</option>
-                    <option value="no-be">No BE</option>
-                    <option value="be-1">BE = 1</option>
-                    <option value="be-2">BE = 2</option>
+                    <option value="no-be" selected>No BE Strategy</option>
+                    <option value="be-1">BE = 1R Strategy</option>
+                    <option value="be-2">BE = 2R Strategy</option>
                 </select>
             </div>
             
@@ -1872,17 +1871,21 @@
                 console.log('Sample trade sessions:', window.trades.slice(0, 5).map(t => t.session));
             }
             
-            // TEMPORARY FIX: Return all trades to get analysis working
             const filtered = window.trades.filter(trade => {
-                // Bias filter only for now
+                // Bias filter
                 if (biasFilter !== 'ALL' && trade.bias !== biasFilter) {
                     return false;
                 }
+                
+                // Session filter - only apply if not all sessions are selected
+                if (selectedSessions.length > 0 && selectedSessions.length < 6) { // 6 total sessions
+                    if (!selectedSessions.includes(trade.session)) {
+                        return false;
+                    }
+                }
+                
                 return true;
             });
-            
-            // TODO: Fix session filtering later
-            // For now, just return all trades to get the breakeven analysis working
             
             console.log('Filtered result:', filtered.length, 'trades');
             return filtered;
@@ -1998,37 +2001,47 @@
             
             console.log('Updating Signal Lab analysis with', filteredTrades.length, 'trades');
             
-            // Calculate BE win rates using the formulas from Signal Lab
             const totalTrades = filteredTrades.length;
+            const currentStrategy = document.getElementById('breakevenFilter').value;
             
-            // No BE: Count trades where MFE ≠ -1 (not stopped out)
+            // Calculate performance for current selected strategy
+            const rValues = filteredTrades.map(t => getRValue(t, rTarget));
+            const wins = rValues.filter(r => r > 0).length;
+            const breakevens = rValues.filter(r => r === 0).length;
+            const losses = rValues.filter(r => r < 0).length;
+            const winRate = totalTrades > 0 ? (((wins + breakevens) / totalTrades) * 100).toFixed(1) : '0.0';
+            const expectancy = totalTrades > 0 ? (rValues.reduce((sum, r) => sum + r, 0) / totalTrades).toFixed(2) : '0.00';
+            
+            // Calculate comparison metrics for all strategies
             const noBEWins = filteredTrades.filter(t => {
                 const mfe = t.mfe_none || t.mfe || 0;
-                return mfe !== -1 && mfe !== 0;
+                return mfe >= rTarget;
             }).length;
             const noBEWinRate = totalTrades > 0 ? ((noBEWins / totalTrades) * 100).toFixed(1) : '0.0';
             
-            // BE=1R: Count trades that hit BE1 (triggered at 1R)
-            const be1Wins = filteredTrades.filter(t => t.be1Hit || t.be1_hit).length;
+            const be1Wins = filteredTrades.filter(t => {
+                const mfe = t.mfe_none || t.mfe || 0;
+                return mfe >= 1; // Hit at least 1R
+            }).length;
             const be1WinRate = totalTrades > 0 ? ((be1Wins / totalTrades) * 100).toFixed(1) : '0.0';
             
-            // BE=2R: Count trades that hit BE2 (triggered at 2R)
-            const be2Wins = filteredTrades.filter(t => t.be2Hit || t.be2_hit).length;
+            const be2Wins = filteredTrades.filter(t => {
+                const mfe = t.mfe_none || t.mfe || 0;
+                return mfe >= 2; // Hit at least 2R
+            }).length;
             const be2WinRate = totalTrades > 0 ? ((be2Wins / totalTrades) * 100).toFixed(1) : '0.0';
             
             // Count active trades (missing MFE data)
             const activeTrades = filteredTrades.filter(t => {
-                const mfeNone = t.mfe_none || t.mfe || 0;
-                const mfe1 = t.mfe1 || 0;
-                const mfe2 = t.mfe2 || 0;
-                return !mfeNone || !mfe1 || !mfe2;
+                const mfe = t.mfe_none || t.mfe || 0;
+                return mfe === 0 || mfe === null || mfe === undefined;
             }).length;
             
             // Determine optimal BE strategy
             const strategies = [
-                { name: 'No BE', rate: parseFloat(noBEWinRate) },
-                { name: 'BE=1R', rate: parseFloat(be1WinRate) },
-                { name: 'BE=2R', rate: parseFloat(be2WinRate) }
+                { name: 'No BE', rate: parseFloat(noBEWinRate), value: 'no-be' },
+                { name: 'BE=1R', rate: parseFloat(be1WinRate), value: 'be-1' },
+                { name: 'BE=2R', rate: parseFloat(be2WinRate), value: 'be-2' }
             ];
             const optimalStrategy = strategies.reduce((best, current) => 
                 current.rate > best.rate ? current : best
@@ -2037,7 +2050,7 @@
             // Calculate optimal R-target based on MFE distribution
             const mfeValues = filteredTrades.map(t => t.mfe_none || t.mfe || 0).filter(mfe => mfe > 0);
             const avgMFE = mfeValues.length > 0 ? (mfeValues.reduce((sum, mfe) => sum + mfe, 0) / mfeValues.length) : 0;
-            const optimalR = Math.max(1, Math.min(5, Math.round(avgMFE * 0.8)));
+            const optimalR = Math.max(1, Math.min(10, Math.round(avgMFE * 0.8)));
             
             // Update UI elements
             const updates = {
@@ -2055,8 +2068,9 @@
                 if (el) el.textContent = updates[id];
             });
             
-            // Generate analysis summary
-            const summary = `Analyzed ${totalTrades} Signal Lab trades. ${optimalStrategy.name} strategy performs best with ${optimalStrategy.rate}% win rate. ${activeTrades} trades need MFE completion. Optimal R-target: ${optimalR}R based on MFE distribution.`;
+            // Generate analysis summary for current strategy
+            const currentStrategyName = currentStrategy === 'no-be' ? 'No BE' : currentStrategy === 'be-1' ? 'BE=1R' : 'BE=2R';
+            const summary = `Currently analyzing ${currentStrategyName} strategy with ${totalTrades} trades. Win rate: ${winRate}%, Expectancy: ${expectancy}R. ${optimalStrategy.name} strategy shows best performance (${optimalStrategy.rate}%). ${activeTrades} trades need MFE completion. Optimal R-target: ${optimalR}R.`;
             
             const summaryEl = document.getElementById('beAnalysisSummary');
             if (summaryEl) summaryEl.textContent = summary;
@@ -2064,15 +2078,18 @@
             // Update AI BE analysis
             const aiAnalysisEl = document.getElementById('aiBEAnalysis');
             if (aiAnalysisEl) {
-                const improvement = optimalStrategy.rate - Math.min(parseFloat(noBEWinRate), parseFloat(be1WinRate), parseFloat(be2WinRate));
-                aiAnalysisEl.textContent = `AI recommends ${optimalStrategy.name} strategy for +${improvement.toFixed(1)}% win rate improvement. Focus on completing ${activeTrades} active trades to enhance analysis accuracy. MFE data suggests ${optimalR}R target optimization.`;
+                const currentPerformance = currentStrategy === 'no-be' ? parseFloat(noBEWinRate) : 
+                                         currentStrategy === 'be-1' ? parseFloat(be1WinRate) : parseFloat(be2WinRate);
+                const improvement = optimalStrategy.rate - currentPerformance;
+                const recommendation = improvement > 2 ? `Consider switching to ${optimalStrategy.name} for +${improvement.toFixed(1)}% improvement` : `Current ${currentStrategyName} strategy is near-optimal`;
+                aiAnalysisEl.textContent = `${recommendation}. Focus on completing ${activeTrades} active trades for better analysis. MFE distribution suggests ${optimalR}R target optimization.`;
             }
             
             console.log('Signal Lab analysis completed:', {
                 totalTrades,
-                noBEWinRate,
-                be1WinRate, 
-                be2WinRate,
+                currentStrategy: currentStrategyName,
+                currentWinRate: winRate,
+                currentExpectancy: expectancy,
                 optimalStrategy: optimalStrategy.name,
                 activeTrades,
                 optimalR
@@ -2337,31 +2354,27 @@
                 return -1; // Didn't reach target, so it's a loss
             }
             
-            // No BE strategy - use mfe_none, no breakeven protection
+            // No BE strategy: If MFE < rTarget = loss (-1R), if MFE >= rTarget = win (rTarget)
             if (breakevenFilter === 'no-be') {
                 const mfe = trade.mfe_none || trade.mfe || trade.rScore || 0;
-                if (mfe >= rTarget) return rTarget; // Hit target
-                return -1; // Loss (no breakeven protection)
+                if (mfe >= rTarget) return rTarget; // Hit target = win
+                return -1; // Didn't hit target = loss
             }
             
-            // BE = 1 strategy - breakeven at 1R, then check if hit target
+            // BE = 1 strategy: If MFE < 1 = loss (-1R), if MFE >= 1 and < rTarget = breakeven (0R), if MFE >= rTarget = win (rTarget)
             if (breakevenFilter === 'be-1') {
-                const be1Hit = trade.be1Hit || trade.be1_hit || false;
-                if (!be1Hit) return -1; // Didn't reach BE1, it's a loss
-                
-                const mfe1 = trade.mfe1 || 0;
-                if (mfe1 >= rTarget) return rTarget; // Hit target after BE1
-                return 0; // Breakeven (hit BE1 but not target)
+                const mfe = trade.mfe_none || trade.mfe || trade.rScore || 0;
+                if (mfe < 1) return -1; // Didn't reach 1R = loss
+                if (mfe >= rTarget) return rTarget; // Hit target = win
+                return 0; // Between 1R and target = breakeven
             }
             
-            // BE = 2 strategy - breakeven at 2R, then check if hit target
+            // BE = 2 strategy: If MFE < 2 = loss (-1R), if MFE >= 2 and < rTarget = breakeven (0R), if MFE >= rTarget = win (rTarget)
             if (breakevenFilter === 'be-2') {
-                const be2Hit = trade.be2Hit || trade.be2_hit || false;
-                if (!be2Hit) return -1; // Didn't reach BE2, it's a loss
-                
-                const mfe2 = trade.mfe2 || 0;
-                if (mfe2 >= rTarget) return rTarget; // Hit target after BE2
-                return 0; // Breakeven (hit BE2 but not target)
+                const mfe = trade.mfe_none || trade.mfe || trade.rScore || 0;
+                if (mfe < 2) return -1; // Didn't reach 2R = loss
+                if (mfe >= rTarget) return rTarget; // Hit target = win
+                return 0; // Between 2R and target = breakeven
             }
             
             return -1;
