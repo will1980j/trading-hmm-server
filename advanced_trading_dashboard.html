@@ -1099,12 +1099,12 @@
                 <label>Session Filter</label>
                 <div class="session-checkboxes">
                     <label><input type="checkbox" id="sessionAll" checked onchange="toggleAllSessions()"> All</label>
-                    <label><input type="checkbox" class="session-filter" value="ASIA" onchange="updateCharts()"> Asia</label>
-                    <label><input type="checkbox" class="session-filter" value="LONDON" onchange="updateCharts()"> London</label>
-                    <label><input type="checkbox" class="session-filter" value="NY PRE MARKET" onchange="updateCharts()"> NY Pre</label>
-                    <label><input type="checkbox" class="session-filter" value="NY AM" onchange="updateCharts()"> NY AM</label>
-                    <label><input type="checkbox" class="session-filter" value="NY LUNCH" onchange="updateCharts()"> NY Lunch</label>
-                    <label><input type="checkbox" class="session-filter" value="NY PM" onchange="updateCharts()"> NY PM</label>
+                    <label><input type="checkbox" class="session-filter" value="ASIA" onchange="handleSessionChange()"> Asia</label>
+                    <label><input type="checkbox" class="session-filter" value="LONDON" onchange="handleSessionChange()"> London</label>
+                    <label><input type="checkbox" class="session-filter" value="NY PRE MARKET" onchange="handleSessionChange()"> NY Pre</label>
+                    <label><input type="checkbox" class="session-filter" value="NY AM" onchange="handleSessionChange()"> NY AM</label>
+                    <label><input type="checkbox" class="session-filter" value="NY LUNCH" onchange="handleSessionChange()"> NY Lunch</label>
+                    <label><input type="checkbox" class="session-filter" value="NY PM" onchange="handleSessionChange()"> NY PM</label>
                 </div>
             </div>
             
@@ -1858,17 +1858,20 @@
             const selectedSessions = Array.from(sessionCheckboxes).map(cb => cb.value);
             const biasFilter = document.getElementById('biasFilter').value;
             const breakevenFilter = document.getElementById('breakevenFilter').value;
+            const sessionAllCheckbox = document.getElementById('sessionAll');
             
             console.log('Filter criteria:', {
                 selectedSessions,
                 biasFilter,
                 breakevenFilter,
+                sessionAllChecked: sessionAllCheckbox ? sessionAllCheckbox.checked : false,
                 totalTrades: window.trades.length
             });
             
             // Debug: Show sample trade sessions
             if (window.trades.length > 0) {
                 console.log('Sample trade sessions:', window.trades.slice(0, 5).map(t => t.session));
+                console.log('Available sessions in data:', [...new Set(window.trades.map(t => t.session))]);
             }
             
             const filtered = window.trades.filter(trade => {
@@ -1877,11 +1880,30 @@
                     return false;
                 }
                 
-                // Session filter - only apply if not all sessions are selected
-                if (selectedSessions.length > 0 && selectedSessions.length < 6) { // 6 total sessions
-                    if (!selectedSessions.includes(trade.session)) {
+                // Session filter logic:
+                // 1. If "All" is checked, include all trades regardless of individual checkboxes
+                // 2. If "All" is not checked, only include trades from selected sessions
+                // 3. If no sessions are selected (and "All" is not checked), include no trades
+                if (sessionAllCheckbox && sessionAllCheckbox.checked) {
+                    // "All" is checked - include all sessions
+                    return true;
+                } else if (selectedSessions.length > 0) {
+                    // Specific sessions selected - check if trade's session matches
+                    const tradeSession = trade.session || '';
+                    const sessionMatch = selectedSessions.some(selectedSession => {
+                        // Exact match or partial match for session names
+                        return tradeSession === selectedSession || 
+                               tradeSession.includes(selectedSession) ||
+                               selectedSession.includes(tradeSession);
+                    });
+                    
+                    if (!sessionMatch) {
+                        console.log(`Trade session '${tradeSession}' does not match selected sessions:`, selectedSessions);
                         return false;
                     }
+                } else {
+                    // No sessions selected and "All" not checked - exclude all trades
+                    return false;
                 }
                 
                 return true;
@@ -1897,10 +1919,39 @@
             
             console.log('Toggle all sessions:', allCheckbox.checked);
             
-            sessionCheckboxes.forEach(cb => {
-                cb.checked = allCheckbox.checked;
-            });
+            if (allCheckbox.checked) {
+                // When "All" is checked, check all individual session checkboxes
+                sessionCheckboxes.forEach(cb => {
+                    cb.checked = true;
+                });
+            } else {
+                // When "All" is unchecked, uncheck all individual session checkboxes
+                sessionCheckboxes.forEach(cb => {
+                    cb.checked = false;
+                });
+            }
             
+            updateCharts();
+        }
+        
+        function handleSessionChange() {
+            const allCheckbox = document.getElementById('sessionAll');
+            const sessionCheckboxes = document.querySelectorAll('.session-filter');
+            const checkedSessions = document.querySelectorAll('.session-filter:checked');
+            
+            // Update "All" checkbox based on individual session states
+            if (checkedSessions.length === sessionCheckboxes.length) {
+                // All individual sessions are checked
+                allCheckbox.checked = true;
+            } else if (checkedSessions.length === 0) {
+                // No individual sessions are checked
+                allCheckbox.checked = false;
+            } else {
+                // Some but not all sessions are checked - uncheck "All"
+                allCheckbox.checked = false;
+            }
+            
+            console.log('Session change - checked sessions:', checkedSessions.length, 'of', sessionCheckboxes.length);
             updateCharts();
         }
         
