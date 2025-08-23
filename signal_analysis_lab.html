@@ -845,8 +845,8 @@
                         mfe2: parseFloat(trade.mfe2) || 0,
                         positionSize: parseInt(trade.position_size) || 1,
                         commission: parseFloat(trade.commission) || 0,
-                        newsProximity: trade.news_proximity || 'None',
-                        newsEvent: trade.news_event || 'None',
+                        newsProximity: trade.newsProximity || trade.news_proximity || 'None',
+                        newsEvent: trade.newsEvent || trade.news_event || 'None',
                         screenshot: trade.screenshot
                     }));
                     console.log(`✅ Loaded ${signals.length} trades from Railway database`);
