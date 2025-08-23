@@ -1623,12 +1623,46 @@
                     const data = await response.json();
                     console.log('Economic API returned data:', data);
                     processEconomicNews(data);
+                    // Save to database
+                    await saveEconomicNewsToDatabase(data);
                 } else {
                     console.warn('Economic news API not available');
-                    loadFallbackNewsData();
+                    // Try to load from database
+                    await loadEconomicNewsFromDatabase();
                 }
             } catch (error) {
                 console.error('Failed to load economic news:', error);
+                await loadEconomicNewsFromDatabase();
+            }
+        }
+        
+        async function saveEconomicNewsToDatabase(newsData) {
+            try {
+                const response = await fetch('/api/economic-news', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ news_data: newsData })
+                });
+                if (response.ok) {
+                    console.log('Economic news saved to database');
+                }
+            } catch (error) {
+                console.error('Failed to save economic news to database:', error);
+            }
+        }
+        
+        async function loadEconomicNewsFromDatabase() {
+            try {
+                const response = await fetch('/api/economic-news');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.news_data) {
+                        processEconomicNews(data.news_data);
+                        console.log('Loaded economic news from database');
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load economic news from database:', error);
                 loadFallbackNewsData();
             }
         }
@@ -1658,6 +1692,8 @@
                 });
             }
             
+            // Save to localStorage
+            localStorage.setItem('economicNewsData', JSON.stringify(economicNewsData));
             console.log('Processed economic news for', Object.keys(economicNewsData).length, 'dates:', economicNewsData);
         }
         
