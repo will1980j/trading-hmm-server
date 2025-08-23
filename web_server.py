@@ -1176,12 +1176,17 @@ def get_signal_lab_trades():
                 'mfe2': float(row['mfe2']) if row['mfe2'] is not None else 0,
                 'position_size': int(row['position_size']) if row['position_size'] else 1,
                 'commission': float(row['commission']) if row['commission'] else 0,
-                'news_proximity': row['news_proximity'],
+                'news_proximity': row['news_proximity'] or 'None',
+                'newsEvent': row['news_event'] or 'None',
+                'newsProximity': row['news_proximity'] or 'None',
 
             }
             trades.append(trade)
             logger.debug(f"Processed trade ID {trade['id']}: {trade['date']} {trade['signal_type']}")
         
+        # Log sample of news data to verify updates
+        sample_with_news = [t for t in trades if t.get('newsProximity') == 'High'][:3]
+        logger.info(f"Sample trades with High news: {[(t['id'], t['newsProximity'], t['newsEvent'][:50] if t['newsEvent'] else 'None') for t in sample_with_news]}")
         logger.info(f"Returning {len(trades)} trades to client")
         return jsonify(trades)
         
