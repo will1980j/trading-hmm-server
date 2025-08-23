@@ -1273,7 +1273,7 @@ def update_signal_lab_trade(trade_id):
             return jsonify({"error": "Database not available"}), 500
         
         data = request.get_json()
-        logger.info(f"Updating trade {trade_id} with data: {data}")
+        logger.info(f"Updating trade {trade_id} with data keys: {list(data.keys()) if data else 'None'}")
         
         # First check if the trade exists
         cursor = db.conn.cursor()
@@ -1281,34 +1281,55 @@ def update_signal_lab_trade(trade_id):
         if not cursor.fetchone():
             return jsonify({"error": f"Trade with ID {trade_id} not found"}), 404
         
-        # Perform the update
-        # Check if screenshot analysis is requested for update
-        screenshot_data = data.get('screenshot')
-        analysis_result = None
+        # Build dynamic update query based on provided fields
+        update_fields = []
+        update_values = []
         
-        if screenshot_data and screenshot_data.startswith('data:image'):
-            try:
-                from screenshot_analyzer import analyze_trading_screenshot
-                analysis_result = analyze_trading_screenshot(screenshot_data)
-                logger.info(f"Screenshot analysis completed for update: {analysis_result.get('status')}")
-            except Exception as e:
-                logger.warning(f"Screenshot analysis failed for update: {str(e)}")
+        # Map frontend field names to database column names
+        field_mapping = {
+            'date': 'date',
+            'time': 'time', 
+            'bias': 'bias',
+            'session': 'session',
+            'signal_type': 'signal_type',
+            'entry_price': 'entry_price',
+            'stop_loss': 'stop_loss',
+            'take_profit': 'take_profit',
+            'mfe_none': 'mfe_none',
+            'be1_level': 'be1_level',
+            'be1_hit': 'be1_hit',
+            'mfe1': 'mfe1',
+            'be2_level': 'be2_level', 
+            'be2_hit': 'be2_hit',
+            'mfe2': 'mfe2',
+            'position_size': 'position_size',
+            'commission': 'commission',
+            'news_proximity': 'news_proximity',
+            'news_event': 'news_event',
+            'screenshot': 'screenshot'
+        }
         
-        cursor.execute("""
-            UPDATE signal_lab_trades SET
-                news_proximity = %s, news_event = %s
-            WHERE id = %s
-        """, (
-            data.get('news_proximity', 'None'),
-            data.get('news_event', 'None'),
-            trade_id
-        ))
+        # Add fields that are present in the request
+        for field_key, db_column in field_mapping.items():
+            if field_key in data:
+                update_fields.append(f"{db_column} = %s")
+                update_values.append(data[field_key])
         
+        if not update_fields:
+            return jsonify({"error": "No valid fields to update"}), 400
+        
+        # Add trade_id for WHERE clause
+        update_values.append(trade_id)
+        
+        # Execute update
+        update_query = f"UPDATE signal_lab_trades SET {', '.join(update_fields)} WHERE id = %s"
+        logger.info(f"Executing update query with {len(update_fields)} fields")
+        
+        cursor.execute(update_query, update_values)
         rows_affected = cursor.rowcount
-        logger.info(f"Update affected {rows_affected} rows")
         
         db.conn.commit()
-        logger.info(f"Successfully updated trade {trade_id}")
+        logger.info(f"Successfully updated trade {trade_id}, {rows_affected} rows affected")
         
         return jsonify({"status": "success", "rows_affected": rows_affected})
         
