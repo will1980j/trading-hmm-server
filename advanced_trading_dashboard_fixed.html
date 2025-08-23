@@ -15,11 +15,11 @@
     <script src="https://d3js.org/d3-brush.v3.min.js"></script>
     <script src="https://d3js.org/d3-transition.v3.min.js"></script>
     <script src="d3_charts.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js" crossorigin="anonymous"></script>
-    <script defer src="api_integration.js"></script>
-    <script defer src="notification_system.js"></script>
-    <script defer src="professional_styles.js"></script>
-    <script defer src="ai_chat.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js" crossorigin="anonymous" onerror="console.warn('TensorFlow.js failed to load')"></script>
+    <script defer src="api_integration.js" onerror="console.warn('API integration script failed to load')"></script>
+    <script defer src="notification_system.js" onerror="console.warn('Notification system script failed to load')"></script>
+    <script defer src="professional_styles.js" onerror="console.warn('Professional styles script failed to load')"></script>
+    <script defer src="ai_chat.js" onerror="console.warn('AI chat script failed to load')"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -414,6 +414,7 @@
                 console.log('Switching to data source:', dataSource);
                 
                 window.trades = [];
+                saveFilterStates();
                 loadDatabaseData();
             } catch (error) {
                 console.error('Error in switchDataSource:', error);
@@ -515,21 +516,34 @@
         }
         
         function updateCharts() {
-            const filteredTrades = getFilteredTrades();
-            const rTarget = parseInt(document.getElementById('rTargetFilter').value);
-            
-            const metrics = calculateAdvancedMetrics(filteredTrades, rTarget);
-            
-            document.getElementById('filteredTrades').textContent = metrics.totalTrades;
-            document.getElementById('filteredWinRate').textContent = metrics.winRate + '%';
-            document.getElementById('profitFactor').textContent = metrics.profitFactor;
-            document.getElementById('expectancy').textContent = metrics.expectancy + 'R';
-            
-            updateD3Charts();
+            try {
+                const filteredTrades = getFilteredTrades();
+                const rTarget = parseInt(document.getElementById('rTargetFilter').value);
+                
+                const metrics = calculateAdvancedMetrics(filteredTrades, rTarget);
+                
+                document.getElementById('filteredTrades').textContent = metrics.totalTrades;
+                document.getElementById('filteredWinRate').textContent = metrics.winRate + '%';
+                document.getElementById('profitFactor').textContent = metrics.profitFactor;
+                document.getElementById('expectancy').textContent = metrics.expectancy + 'R';
+                
+                saveFilterStates();
+                updateD3Charts();
+            } catch (error) {
+                console.error('Error updating charts:', error);
+            }
         }
         
         function updateD3Charts() {
-            console.log('D3 charts update placeholder');
+            try {
+                if (typeof window.d3ChartsManager !== 'undefined' && window.d3ChartsManager.updateCharts) {
+                    window.d3ChartsManager.updateCharts(getFilteredTrades());
+                } else {
+                    console.log('D3 charts manager not available, using placeholder');
+                }
+            } catch (error) {
+                console.error('Error updating D3 charts:', error);
+            }
         }
         
         function updateDashboard() {
@@ -581,11 +595,58 @@
             }
         }
         
+        // Define missing loadFilterStates function
+        function loadFilterStates() {
+            try {
+                const savedFilters = localStorage.getItem('dashboardFilters');
+                if (savedFilters) {
+                    const filters = JSON.parse(savedFilters);
+                    if (filters.rTarget) document.getElementById('rTargetFilter').value = filters.rTarget;
+                    if (filters.bias) document.getElementById('biasFilter').value = filters.bias;
+                    if (filters.breakeven) document.getElementById('breakevenFilter').value = filters.breakeven;
+                    if (filters.dataSource) document.getElementById('dataSourceToggle').value = filters.dataSource;
+                }
+            } catch (error) {
+                console.error('Error loading filter states:', error);
+            }
+        }
+        
+        function saveFilterStates() {
+            try {
+                const filters = {
+                    rTarget: document.getElementById('rTargetFilter').value,
+                    bias: document.getElementById('biasFilter').value,
+                    breakeven: document.getElementById('breakevenFilter').value,
+                    dataSource: document.getElementById('dataSourceToggle').value
+                };
+                localStorage.setItem('dashboardFilters', JSON.stringify(filters));
+            } catch (error) {
+                console.error('Error saving filter states:', error);
+            }
+        }
+        
+        // Prevent script conflicts and redeclarations
+        window.scriptLoadErrors = [];
+        
+        // Handle external script loading errors
+        window.addEventListener('error', function(e) {
+            if (e.target && e.target.tagName === 'SCRIPT') {
+                console.warn('Script loading error:', e.target.src);
+                window.scriptLoadErrors.push(e.target.src);
+            }
+        }, true);
+        
+        // Prevent TradingChatbot redeclaration
+        if (typeof window.TradingChatbot === 'undefined') {
+            window.TradingChatbot = null;
+        }
+        
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Dashboard initializing...');
             
             try {
+                loadFilterStates();
                 loadDatabaseData();
             } catch (error) {
                 console.error('Error loading database data:', error);
@@ -613,6 +674,8 @@
                 
             } catch (error) {
                 console.error('Error in loadDatabaseData:', error);
+                // Fallback to sample data on error
+                loadSampleData();
             }
         }
         
