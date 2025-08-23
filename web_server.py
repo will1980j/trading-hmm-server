@@ -1296,36 +1296,11 @@ def update_signal_lab_trade(trade_id):
         
         cursor.execute("""
             UPDATE signal_lab_trades SET
-                date = %s, time = %s, bias = %s, session = %s, signal_type = %s,
-                open_price = %s, entry_price = %s, stop_loss = %s, take_profit = %s,
-                mfe_none = %s, be1_level = %s, be1_hit = %s, mfe1 = %s,
-                be2_level = %s, be2_hit = %s, mfe2 = %s, position_size = %s,
-                commission = %s, news_proximity = %s, news_event = %s, screenshot = %s,
-                analysis_data = %s
+                news_proximity = %s, news_event = %s
             WHERE id = %s
         """, (
-            data.get('date'),
-            data.get('time'),
-            data.get('bias'),
-            data.get('session'),
-            data.get('signal_type'),
-            data.get('open_price', 0),
-            data.get('entry_price', 0),
-            data.get('stop_loss', 0),
-            data.get('take_profit', 0),
-            data.get('mfe_none', 0),
-            data.get('be1_level', 1),
-            data.get('be1_hit', False),
-            data.get('mfe1', 0),
-            data.get('be2_level', 2),
-            data.get('be2_hit', False),
-            data.get('mfe2', 0),
-            data.get('position_size', 1),
-            data.get('commission', 0),
             data.get('news_proximity', 'None'),
             data.get('news_event', 'None'),
-            data.get('screenshot'),
-            dumps(analysis_result) if analysis_result else None,
             trade_id
         ))
         
