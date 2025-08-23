@@ -1523,16 +1523,13 @@
             const today = new Date().toISOString().split('T')[0];
             dateEl.value = today;
             
-            // Auto-fill news for today
+            // Auto-fill news for today immediately after economic news loads
             setTimeout(() => {
                 autoFillNewsFields(today);
-            }, 1000);
+            }, 500);
             
-            // Auto-fill news when date changes
             dateEl.addEventListener('change', function() {
-                if (this.value) {
-                    autoFillNewsFields(this.value);
-                }
+                if (this.value) autoFillNewsFields(this.value);
             });
         }
         
@@ -1576,6 +1573,9 @@
             } else {
                 display.textContent = `${selectedNewsEvents.length} selected`;
             }
+            
+            // Save form state
+            saveFormState();
         }
         
         function getSelectedNewsEvents() {
@@ -1752,10 +1752,38 @@
             }
         }
         
+        // Save/restore form state
+        function saveFormState() {
+            const formState = {
+                newsProximity: document.getElementById('newsProximity')?.value,
+                selectedEvents: selectedNewsEvents
+            };
+            localStorage.setItem('signalLabFormState', JSON.stringify(formState));
+        }
+        
+        function restoreFormState() {
+            const saved = localStorage.getItem('signalLabFormState');
+            if (saved) {
+                const state = JSON.parse(saved);
+                if (state.newsProximity) {
+                    document.getElementById('newsProximity').value = state.newsProximity;
+                }
+                if (state.selectedEvents) {
+                    const checkboxes = document.querySelectorAll('#newsEventDropdown input[type="checkbox"]');
+                    checkboxes.forEach(cb => {
+                        cb.checked = state.selectedEvents.includes(cb.value);
+                    });
+                    selectedNewsEvents = state.selectedEvents;
+                    updateNewsSelection();
+                }
+            }
+        }
+        
         // Load signals when page loads
         document.addEventListener('DOMContentLoaded', async function() {
             await loadEconomicNews();
             loadSignals();
+            setTimeout(restoreFormState, 600);
         });
         
         // View screenshot function
@@ -2043,25 +2071,25 @@
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                date: updatedSignal.date,
-                                time: updatedSignal.time,
-                                bias: updatedSignal.bias,
-                                session: updatedSignal.session,
-                                signal_type: updatedSignal.signalType,
-                                entry_price: updatedSignal.entryPrice,
-                                stop_loss: updatedSignal.stopLoss,
-                                take_profit: updatedSignal.takeProfit,
-                                mfe_none: updatedSignal.mfeNone,
-                                be1_level: updatedSignal.be1Level,
-                                be1_hit: updatedSignal.be1Hit,
-                                mfe1: updatedSignal.mfe1,
-                                be2_level: updatedSignal.be2Level,
-                                be2_hit: updatedSignal.be2Hit,
-                                mfe2: updatedSignal.mfe2,
-                                position_size: updatedSignal.positionSize,
-                                commission: updatedSignal.commission,
-                                news_proximity: updatedSignal.newsProximity,
-                                news_event: updatedSignal.newsEvent
+                                date: signal.date,
+                                time: signal.time,
+                                bias: signal.bias,
+                                session: signal.session,
+                                signal_type: signal.signalType,
+                                entry_price: signal.entryPrice,
+                                stop_loss: signal.stopLoss,
+                                take_profit: signal.takeProfit,
+                                mfe_none: signal.mfeNone,
+                                be1_level: signal.be1Level,
+                                be1_hit: signal.be1Hit,
+                                mfe1: signal.mfe1,
+                                be2_level: signal.be2Level,
+                                be2_hit: signal.be2Hit,
+                                mfe2: signal.mfe2,
+                                position_size: signal.positionSize,
+                                commission: signal.commission,
+                                news_proximity: newsData.proximity,
+                                news_event: newsData.events.join(', ')
                             })
                         });
                         
