@@ -2021,6 +2021,59 @@
                     dataSourceEl.value = savedDataSource;
                 }
             
+                // Load session filters
+                const savedSessionStates = JSON.parse(localStorage.getItem('sessionFilters'));
+                const savedSessionAll = localStorage.getItem('sessionAll');
+                
+                if (savedSessionStates) {
+                    const sessionCheckboxes = document.querySelectorAll('.session-filter');
+                    sessionCheckboxes.forEach(cb => {
+                        if (savedSessionStates.hasOwnProperty(cb.value)) {
+                            cb.checked = savedSessionStates[cb.value];
+                        } else {
+                            cb.checked = true; // Default to checked if no saved state
+                        }
+                    });
+                } else {
+                    // No saved states - check all sessions by default
+                    const sessionCheckboxes = document.querySelectorAll('.session-filter');
+                    sessionCheckboxes.forEach(cb => cb.checked = true);
+                }
+                
+                const sessionAllCheckbox = document.getElementById('sessionAll');
+                if (savedSessionAll !== null) {
+                    sessionAllCheckbox.checked = savedSessionAll === 'true';
+                } else {
+                    sessionAllCheckbox.checked = true; // Default to all sessions
+                }
+                
+                // If "All" is checked, make sure all individual sessions are checked too
+                if (sessionAllCheckbox.checked) {
+                    const sessionCheckboxes = document.querySelectorAll('.session-filter');
+                    sessionCheckboxes.forEach(cb => cb.checked = true);
+                }
+                
+                // Load other filters
+                const savedRTarget = localStorage.getItem('rTargetFilter');
+                if (savedRTarget) {
+                    document.getElementById('rTargetFilter').value = savedRTarget;
+                }
+                
+                const savedBias = localStorage.getItem('biasFilter');
+                if (savedBias) {
+                    document.getElementById('biasFilter').value = savedBias;
+                }
+                
+                const savedBreakeven = localStorage.getItem('breakevenFilter');
+                if (savedBreakeven) {
+                    document.getElementById('breakevenFilter').value = savedBreakeven;
+                }
+                
+                const savedCalendarView = localStorage.getItem('calendarView');
+                if (savedCalendarView) {
+                    document.getElementById('calendarView').value = savedCalendarView;
+                }
+            
             // Load session filters
             const savedSessionStates = JSON.parse(localStorage.getItem('sessionFilters'));
             const savedSessionAll = localStorage.getItem('sessionAll');
