@@ -2601,7 +2601,9 @@
         }
         
         function generateComprehensiveAnalysis(trades, rTarget) {
-            if (trades.length < 10) {
+            // Use entire dataset, ignore current filters
+            const allTrades = window.trades || trades;
+            if (allTrades.length < 10) {
                 return {
                     summary: 'Building comprehensive strategy profile... Collect more trading data for advanced AI insights.',
                     systemHealth: 'Building...', adaptationScore: 'Learning...', nextAction: 'Trade More',
@@ -2609,7 +2611,7 @@
                 };
             }
             
-            const optimalCombo = findOptimalCombination(trades);
+            const optimalCombo = findOptimalCombination(allTrades);
             const summary = `Optimal combination: ${optimalCombo.be} + ${optimalCombo.sessions} + ${optimalCombo.rTarget}R = ${optimalCombo.expectancy.toFixed(2)}R expectancy`;
             
             return {
@@ -2621,7 +2623,9 @@
             };
         }
         
-        function findOptimalCombination(trades) {
+        function findOptimalCombination(allTrades) {
+            // Use entire dataset, ignore current filters
+            const trades = window.trades || allTrades;
             if (trades.length < 10) return { be: 'No BE', sessions: 'ALL', rTarget: 2, expectancy: 0 };
             
             const beStrategies = [['no-be', 'No BE'], ['be-1', 'BE=1R'], ['be-2', 'BE=2R']];
