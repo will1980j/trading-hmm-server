@@ -1080,7 +1080,7 @@
                     </div>
                 </div>
                 <div style="margin-top: 15px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 3px solid #00ff88;">
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">STRATEGIC RECOMMENDATION</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">OPTIMAL TRADING SETUP</div>
                     <div id="strategicRecommendation" style="font-size: 13px; font-weight: 500;">Analyzing your trading patterns and market conditions...</div>
                 </div>
             </div>
@@ -3969,15 +3969,37 @@
                 const rTarget = parseInt(document.getElementById('rTargetFilter').value);
                 const metrics = calculateAdvancedMetrics(filteredTrades, rTarget);
                 
-                // Call real AI endpoints
-                await Promise.all([
-                    updateStrategySummaryAI(filteredTrades, metrics),
-                    updateChartInsightsAI(filteredTrades, metrics, rTarget),
-                    updateRiskAssessmentAI(filteredTrades, metrics)
-                ]);
+                // Generate comprehensive analysis using entire dataset
+                const comprehensiveAnalysis = generateComprehensiveAnalysis(window.trades, rTarget);
+                
+                // Update AI Strategy Intelligence section
+                const strategySummaryEl = document.getElementById('strategySummary');
+                if (strategySummaryEl) {
+                    strategySummaryEl.textContent = comprehensiveAnalysis.summary;
+                }
+                
+                const systemHealthEl = document.getElementById('systemHealth');
+                if (systemHealthEl) {
+                    systemHealthEl.textContent = comprehensiveAnalysis.systemHealth;
+                }
+                
+                const adaptationScoreEl = document.getElementById('adaptationScore');
+                if (adaptationScoreEl) {
+                    adaptationScoreEl.textContent = comprehensiveAnalysis.adaptationScore;
+                }
+                
+                const nextActionEl = document.getElementById('nextAction');
+                if (nextActionEl) {
+                    nextActionEl.textContent = comprehensiveAnalysis.nextAction;
+                }
+                
+                const strategicRecommendationEl = document.getElementById('strategicRecommendation');
+                if (strategicRecommendationEl) {
+                    strategicRecommendationEl.textContent = comprehensiveAnalysis.recommendation;
+                }
                 
                 // Still use local analysis for some metrics
-                const optimal = analyzeOptimalRTarget(filteredTrades);
+                const optimal = analyzeOptimalRTarget(filteredTrades);rades);
                 const bestSession = analyzeBestSession(filteredTrades);
                 const riskScore = calculateRiskScore(filteredTrades);
                 const markovAnalysis = analyzeMarkovChain(filteredTrades, rTarget);
