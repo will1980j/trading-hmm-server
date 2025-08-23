@@ -12773,3 +12773,311 @@
     </script>
 </body>
 </html>
+        
+        function updateChartInsights(trades, rTarget, cyclicalAnalysis, aiAnalysis) {
+            // Update chart-specific AI insights
+            const chartElements = {
+                'equityAIAnalysis': 'Analyzing equity curve patterns and trend sustainability...',
+                'dailyAIAnalysis': 'Processing daily volatility patterns and optimal sizing...',
+                'weeklyAIAnalysis': 'Analyzing weekly momentum and trend sustainability...',
+                'monthlyAIAnalysis': 'Processing seasonal patterns and monthly forecasts...',
+                'rScoreAIAnalysis': 'Calculating optimal R-targets from MFE distribution...',
+                'dayOfWeekAIAnalysis': 'Identifying optimal trading days and schedule patterns...',
+                'seasonalityAIAnalysis': 'Detecting seasonal market cycles and performance patterns...',
+                'rollingAIAnalysis': 'Analyzing momentum strength and trend sustainability...',
+                'sessionAIAnalysis': 'Optimizing session allocation and timing strategies...'
+            };
+            
+            Object.keys(chartElements).forEach(elementId => {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.textContent = chartElements[elementId];
+                }
+            });
+        }
+        
+        // Initialize AI Chat Widget
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatToggle = document.getElementById('chatToggle');
+            const chatContainer = document.getElementById('chatContainer');
+            const chatClose = document.getElementById('chatClose');
+            const chatSend = document.getElementById('chatSend');
+            const chatInput = document.getElementById('chatInput');
+            const chatMessages = document.getElementById('chatMessages');
+            
+            if (chatToggle) {
+                chatToggle.addEventListener('click', function() {
+                    chatContainer.style.display = chatContainer.style.display === 'none' ? 'flex' : 'none';
+                });
+            }
+            
+            if (chatClose) {
+                chatClose.addEventListener('click', function() {
+                    chatContainer.style.display = 'none';
+                });
+            }
+            
+            if (chatSend) {
+                chatSend.addEventListener('click', sendChatMessage);
+            }
+            
+            if (chatInput) {
+                chatInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        sendChatMessage();
+                    }
+                });
+            }
+        });
+        
+        function sendChatMessage() {
+            const chatInput = document.getElementById('chatInput');
+            const chatMessages = document.getElementById('chatMessages');
+            
+            if (!chatInput || !chatMessages) return;
+            
+            const message = chatInput.value.trim();
+            if (!message) return;
+            
+            // Add user message
+            addChatMessage(message, 'user');
+            chatInput.value = '';
+            
+            // Simulate AI response
+            setTimeout(() => {
+                const response = generateAIChatResponse(message);
+                addChatMessage(response, 'ai');
+            }, 1000);
+        }
+        
+        function addChatMessage(message, type) {
+            const chatMessages = document.getElementById('chatMessages');
+            if (!chatMessages) return;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${type}`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = message;
+            
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function generateAIChatResponse(message) {
+            const responses = {
+                'performance': 'Based on your current data, your system shows good potential. Focus on the sessions and R-targets that work best for you.',
+                'risk': 'Your risk management appears solid. Consider the breakeven strategies we\'ve analyzed for better protection.',
+                'strategy': 'Your ICT-based approach is working. The AI suggests optimizing your session selection and R-targets.',
+                'help': 'I can help analyze your trading performance, suggest optimal R-targets, identify best sessions, and provide risk insights.',
+                'default': 'I\'m analyzing your trading data. Ask me about performance, risk management, optimal sessions, or strategy improvements.'
+            };
+            
+            const lowerMessage = message.toLowerCase();
+            
+            if (lowerMessage.includes('performance') || lowerMessage.includes('stats')) {
+                return responses.performance;
+            } else if (lowerMessage.includes('risk') || lowerMessage.includes('drawdown')) {
+                return responses.risk;
+            } else if (lowerMessage.includes('strategy') || lowerMessage.includes('improve')) {
+                return responses.strategy;
+            } else if (lowerMessage.includes('help') || lowerMessage.includes('what')) {
+                return responses.help;
+            } else {
+                return responses.default;
+            }
+        }
+        
+        // Update current time
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleString('en-US', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                timeZoneName: 'short'
+            });
+            
+            const timeElement = document.getElementById('currentDateTime');
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+        }
+        
+        // Update market status
+        function updateMarketStatus() {
+            const marketElement = document.getElementById('marketStatus');
+            if (!marketElement) return;
+            
+            const now = new Date();
+            const hour = now.getHours();
+            const day = now.getDay();
+            
+            let status = '';
+            
+            if (day === 0 || day === 6) {
+                status = '<span style="color: #6c757d;">🔴 Markets Closed (Weekend)</span>';
+            } else if (hour >= 9 && hour < 16) {
+                status = '<span style="color: #00ff88;">🟢 Markets Open</span>';
+            } else if (hour >= 16 && hour < 18) {
+                status = '<span style="color: #ffa502;">🟡 After Hours</span>';
+            } else {
+                status = '<span style="color: #6c757d;">🔴 Markets Closed</span>';
+            }
+            
+            marketElement.innerHTML = status;
+        }
+        
+        // Initialize time updates
+        setInterval(updateCurrentTime, 1000);
+        setInterval(updateMarketStatus, 60000);
+        updateCurrentTime();
+        updateMarketStatus();
+        
+    </script>
+    
+    <style>
+        /* Calendar Heatmap Styles */
+        .calendar-heatmap {
+            padding: 20px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 10px;
+        }
+        
+        .calendar-months {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+        
+        .calendar-month {
+            text-align: center;
+        }
+        
+        .calendar-month-label {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .calendar-weeks {
+            display: flex;
+            gap: 2px;
+        }
+        
+        .calendar-week {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .calendar-day-heatmap {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+        
+        .calendar-day-heatmap.no-data {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .calendar-day-heatmap.breakeven {
+            background: rgba(255,165,0,0.6);
+        }
+        
+        .calendar-day-heatmap.profit-1 {
+            background: rgba(0,255,136,0.3);
+        }
+        
+        .calendar-day-heatmap.profit-2 {
+            background: rgba(0,255,136,0.5);
+        }
+        
+        .calendar-day-heatmap.profit-3 {
+            background: rgba(0,255,136,0.7);
+        }
+        
+        .calendar-day-heatmap.profit-4 {
+            background: rgba(0,255,136,0.8);
+        }
+        
+        .calendar-day-heatmap.profit-5 {
+            background: rgba(0,255,136,1.0);
+        }
+        
+        .calendar-day-heatmap.loss-1 {
+            background: rgba(255,71,87,0.3);
+        }
+        
+        .calendar-day-heatmap.loss-2 {
+            background: rgba(255,71,87,0.5);
+        }
+        
+        .calendar-day-heatmap.loss-3 {
+            background: rgba(255,71,87,0.7);
+        }
+        
+        .calendar-day-heatmap.loss-4 {
+            background: rgba(255,71,87,0.8);
+        }
+        
+        .calendar-day-heatmap.loss-5 {
+            background: rgba(255,71,87,1.0);
+        }
+        
+        .calendar-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+        }
+        
+        .calendar-legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+        
+        .calendar-day {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            font-size: 11px;
+            margin-bottom: 5px;
+        }
+        
+        .calendar-day.calendar-profitable {
+            border-left: 3px solid #00ff88;
+        }
+        
+        .calendar-day.calendar-loss {
+            border-left: 3px solid #ff4757;
+        }
+        
+        .calendar-day.calendar-breakeven {
+            border-left: 3px solid #ffa502;
+        }
+        
+        .calendar-date {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .calendar-stats {
+            opacity: 0.8;
+            line-height: 1.3;
+        }
+    </style>
+</body>
+</html>
