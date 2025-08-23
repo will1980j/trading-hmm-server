@@ -15,11 +15,11 @@
     <script src="https://d3js.org/d3-brush.v3.min.js"></script>
     <script src="https://d3js.org/d3-transition.v3.min.js"></script>
     <script src="d3_charts.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js" crossorigin="anonymous"></script>
-    <script defer src="api_integration.js"></script>
-    <script defer src="notification_system.js"></script>
-    <script defer src="professional_styles.js"></script>
-    <script defer src="ai_chat.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js" crossorigin="anonymous" onerror="console.warn('TensorFlow.js failed to load')"></script>
+    <script defer src="api_integration.js" onerror="console.warn('API integration script failed to load')"></script>
+    <script defer src="notification_system.js" onerror="console.warn('Notification system script failed to load')"></script>
+    <script defer src="professional_styles.js" onerror="console.warn('Professional styles script failed to load')"></script>
+    <script defer src="ai_chat.js" onerror="console.warn('AI chat script failed to load')"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -238,78 +238,13 @@
             0%, 100% { opacity: 0.6; }
             50% { opacity: 1; }
         }
-        
-        .ai-loading {
-            animation: pulse 2s infinite;
-        }
-        
-        .session-checkboxes {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        
-        .session-checkboxes label {
-            font-size: 11px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .tooltip {
-            position: relative;
-            cursor: help;
-        }
-        
-        .tooltip:hover::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.9);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            white-space: nowrap;
-            z-index: 1000;
-            max-width: 300px;
-            white-space: normal;
-        }
-        
-        @keyframes scroll {
-            0% { transform: translateX(100%); }
-            100% { transform: translateX(-100%); }
-        }
-        
-        .theme-select {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 8px;
-            padding: 8px 12px;
-            font-size: 12px;
-        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" referrerpolicy="no-referrer"/>
-</head><body>
+</head>
+<body>
     <nav class="navbar">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
-                <select id="styleSelector" onchange="changeStyle()" class="theme-select">
-                    <option value="slate">Slate</option>
-                    <option value="charcoal">Charcoal</option>
-                    <option value="navy">Navy</option>
-                    <option value="graphite">Graphite</option>
-                    <option value="midnight">Midnight</option>
-                    <option value="steel">Steel</option>
-                    <option value="carbon">Carbon</option>
-                    <option value="obsidian">Obsidian</option>
-                    <option value="onyx">Onyx</option>
-                    <option value="platinum">Platinum</option>
-                    <option value="arctic">Arctic</option>
-                </select>
                 <a class="active nav-link" data-route="dashboard" href="/dashboard">Dashboard</a>
                 <a class="nav-link" data-route="trade-manager" href="/trade-manager">Trade Manager</a>
                 <a class="nav-link" data-route="signal-analysis-lab" href="/signal-analysis-lab">Signal Lab</a>
@@ -335,154 +270,6 @@
             </div>
         </div>
         
-        <!-- Real-Time News Ticker -->
-        <div style="background: linear-gradient(135deg, rgba(0,123,255,0.1), rgba(0,86,179,0.1)); border: 1px solid rgba(0,123,255,0.2); border-radius: 15px; padding: 20px; margin-bottom: 25px; overflow: hidden;">
-            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-                <h3 style="color: #007bff; margin: 0; display: flex; align-items: center; gap: 10px;">
-                    📈 Live Market Feed
-                    <span style="font-size: 12px; background: rgba(0,123,255,0.2); padding: 2px 8px; border-radius: 10px; font-weight: normal;">Real-Time</span>
-                </h3>
-                <div id="futuresData" style="display: flex; gap: 15px; font-size: 12px; font-weight: 600;">Loading futures...</div>
-            </div>
-            <div id="newsTicker" style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; height: 60px; overflow: hidden; position: relative;">
-                <div id="tickerContent" style="white-space: nowrap; animation: scroll 60s linear infinite; color: rgba(255,255,255,0.9); font-size: 14px; line-height: 1.4;">
-                    Loading market news...
-                </div>
-            </div>
-        </div>
-        
-        <!-- AI Market Intelligence -->
-        <div style="background: linear-gradient(135deg, rgba(255,165,0,0.1), rgba(255,140,0,0.1)); border: 1px solid rgba(255,165,0,0.3); border-radius: 15px; padding: 20px; margin-bottom: 25px;">
-            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-                <h3 style="color: #ffa500; margin: 0; display: flex; align-items: center; gap: 10px;">
-                    🤖 AI Market Intelligence
-                    <span style="font-size: 12px; background: rgba(255,165,0,0.2); padding: 2px 8px; border-radius: 10px; font-weight: normal;">GPT-4o Powered</span>
-                </h3>
-                <div id="marketBias" style="font-size: 14px; font-weight: 600; padding: 4px 12px; border-radius: 6px; background: rgba(255,255,255,0.1);">ANALYZING...</div>
-            </div>
-            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
-                <div>
-                    <div id="aiMarketAnalysis" style="font-size: 13px; line-height: 1.5; margin-bottom: 15px; color: rgba(255,255,255,0.9); background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; min-height: 80px;">
-                        <div class="ai-loading">🔄 ICT AI analyzing 1H bias, session structure, and FVG opportunities...</div>
-                    </div>
-                    <div id="marketAlerts" style="font-size: 12px; background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.3); border-radius: 6px; padding: 10px; min-height: 40px;">
-                        <strong>Setup Alerts:</strong> <span id="alertsList">Monitoring for pivot sweeps and FVG formations...</span>
-                    </div>
-                </div>
-                <div>
-                    <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 15px;">
-                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 8px; font-weight: 600;">NQ KEY LEVELS</div>
-                        <div id="keyLevels" style="font-size: 13px; line-height: 1.4;">
-                            <div><strong>Resistance:</strong> <span id="resistanceLevels">Loading...</span></div>
-                            <div><strong>Support:</strong> <span id="supportLevels">Loading...</span></div>
-                            <div><strong>Pivot:</strong> <span id="pivotLevel">Loading...</span></div>
-                        </div>
-                        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
-                            <div style="font-size: 11px; opacity: 0.8;">AI CONFIDENCE</div>
-                            <div id="aiConfidence" style="font-size: 16px; font-weight: 600; color: #00ff88;">75%</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Economic News & AI Analysis -->
-        <div style="background: linear-gradient(135deg, rgba(138,43,226,0.1), rgba(75,0,130,0.1)); border: 1px solid rgba(138,43,226,0.3); border-radius: 15px; padding: 20px; margin-bottom: 25px;">
-            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-                <h3 style="color: #8a2be2; margin: 0; display: flex; align-items: center; gap: 10px;">
-                    📊 Economic Intelligence
-                    <span style="font-size: 12px; background: rgba(138,43,226,0.2); padding: 2px 8px; border-radius: 10px; font-weight: normal;">AI Powered</span>
-                </h3>
-                <div id="economicImpact" style="font-size: 14px; font-weight: 600; padding: 4px 12px; border-radius: 6px; background: rgba(255,255,255,0.1);">NEUTRAL</div>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div>
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 8px; font-weight: 600;">TODAY'S ECONOMIC EVENTS</div>
-                    <div id="economicEvents" style="font-size: 12px; line-height: 1.4; margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; min-height: 60px;">
-                        <div class="ai-loading">Loading economic calendar...</div>
-                    </div>
-                </div>
-                <div>
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 8px; font-weight: 600;">AI ECONOMIC ANALYSIS</div>
-                    <div id="aiEconomicAnalysis" style="font-size: 12px; line-height: 1.4; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; min-height: 60px;">
-                        <div class="ai-loading">Analyzing economic impact on NQ futures...</div>
-                    </div>
-                </div>
-            </div>
-            <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 6px;">
-                <div style="font-size: 11px; opacity: 0.8; margin-bottom: 5px; font-weight: 600;">KEY ECONOMIC RISKS</div>
-                <div id="economicRisks" style="font-size: 12px; line-height: 1.3;">Monitoring Fed policy, inflation data, and employment trends...</div>
-            </div>
-        </div>
-        
-        <!-- Strategy Overview Panel -->
-        <div style="background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,212,170,0.1)); border: 1px solid rgba(0,255,136,0.2); border-radius: 15px; padding: 20px; margin-bottom: 25px;">
-            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-                <h3 style="color: #00ff88; margin: 0; display: flex; align-items: center; gap: 10px;">
-                    🎯 ICT Liquidity Grab Strategy
-                    <span style="font-size: 12px; background: rgba(0,255,136,0.2); padding: 2px 8px; border-radius: 10px; font-weight: normal;">Active System</span>
-                </h3>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
-                <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 15px;">
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 8px; font-weight: 600;">BIAS DETERMINATION</div>
-                    <div style="font-size: 13px; line-height: 1.4;">
-                        • <strong>1H FVG/IFVG</strong> respect/violation<br>
-                        • Color-coded bias indicator<br>
-                        • Session structure confirmation
-                    </div>
-                </div>
-                <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 15px;">
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 8px; font-weight: 600;">ENTRY CRITERIA</div>
-                    <div style="font-size: 13px; line-height: 1.4;">
-                        • <strong>1min pivot sweep</strong> completion<br>
-                        • <strong>FVG/IFVG formation</strong> confirmation<br>
-                        • Entry at gap top/bottom
-                    </div>
-                </div>
-                <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 15px;">
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 8px; font-weight: 600;">RISK MANAGEMENT</div>
-                    <div style="font-size: 13px; line-height: 1.4;">
-                        • <strong>SL:</strong> Below/above FVG base<br>
-                        • <strong>BE:</strong> 1:1 risk/reward<br>
-                        • <strong>TP:</strong> Testing R-targets
-                    </div>
-                </div>
-            </div>
-            <div style="margin-top: 15px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 3px solid #00ff88;">
-                <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">STRATEGY NOTES</div>
-                <div style="font-size: 13px; font-weight: 500;">High-frequency NQ scalping using ICT concepts. Multiple setups per session targeting liquidity grabs with precise FVG-based entries and tight risk management.</div>
-            </div>
-        </div>
-        
-        <div class="controls" style="margin-bottom: 20px;">
-            <div style="background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,212,170,0.1)); border: 1px solid rgba(0,255,136,0.2); border-radius: 15px; padding: 20px; margin-bottom: 25px;">
-                <h3 style="color: #00ff88; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                    AI Strategy Intelligence
-                    <span style="font-size: 12px; background: rgba(0,255,136,0.2); padding: 2px 8px; border-radius: 10px; font-weight: normal;">Live Analysis</span>
-                </h3>
-                <div id="strategySummary" style="font-size: 14px; line-height: 1.6; margin-bottom: 15px; color: rgba(255,255,255,0.9);">Initializing comprehensive strategy analysis...</div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 15px;">
-                    <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 5px;">SYSTEM HEALTH</div>
-                        <div id="systemHealth" style="font-size: 16px; font-weight: 600; color: #00ff88;">Analyzing...</div>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 5px;">ADAPTATION SCORE</div>
-                        <div id="adaptationScore" style="font-size: 16px; font-weight: 600; color: #ffa502;">Learning...</div>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 5px;">NEXT ACTION</div>
-                        <div id="nextAction" style="font-size: 16px; font-weight: 600; color: #3742fa;">Processing...</div>
-                    </div>
-                </div>
-                <div style="margin-top: 15px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 3px solid #00ff88;">
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">STRATEGIC RECOMMENDATION</div>
-                    <div id="strategicRecommendation" style="font-size: 13px; font-weight: 500;">Analyzing your trading patterns and market conditions...</div>
-                </div>
-            </div>
-        </div>
-        
         <div class="controls">
             <div class="filter-group">
                 <label>Data Source</label>
@@ -493,19 +280,6 @@
             </div>
             
             <div class="filter-group">
-                <label>Session Filter</label>
-                <div class="session-checkboxes">
-                    <label><input type="checkbox" id="sessionAll" checked onchange="toggleAllSessions()"> All</label>
-                    <label><input type="checkbox" class="session-filter" value="ASIA" onchange="updateCharts()"> Asia</label>
-                    <label><input type="checkbox" class="session-filter" value="LONDON" onchange="updateCharts()"> London</label>
-                    <label><input type="checkbox" class="session-filter" value="NY PRE MARKET" onchange="updateCharts()"> NY Pre</label>
-                    <label><input type="checkbox" class="session-filter" value="NEW YORK AM" onchange="updateCharts()"> NY AM</label>
-                    <label><input type="checkbox" class="session-filter" value="NY LUNCH" onchange="updateCharts()"> NY Lunch</label>
-                    <label><input type="checkbox" class="session-filter" value="NEW YORK PM" onchange="updateCharts()"> NY PM</label>
-                </div>
-            </div>
-            
-            <div class="filter-group">
                 <label>R Target</label>
                 <select id="rTargetFilter" onchange="updateCharts()">
                     <option value="1">1R Target</option>
@@ -513,21 +287,6 @@
                     <option value="3">3R Target</option>
                     <option value="4">4R Target</option>
                     <option value="5">5R Target</option>
-                    <option value="6">6R Target</option>
-                    <option value="7">7R Target</option>
-                    <option value="8">8R Target</option>
-                    <option value="9">9R Target</option>
-                    <option value="10">10R Target</option>
-                    <option value="11">11R Target</option>
-                    <option value="12">12R Target</option>
-                    <option value="13">13R Target</option>
-                    <option value="14">14R Target</option>
-                    <option value="15">15R Target</option>
-                    <option value="16">16R Target</option>
-                    <option value="17">17R Target</option>
-                    <option value="18">18R Target</option>
-                    <option value="19">19R Target</option>
-                    <option value="20">20R Target</option>
                 </select>
             </div>
             
@@ -551,37 +310,21 @@
         </div>
         
         <div class="metrics-grid">
-            <div class="metric-card tooltip" data-tooltip="Total number of trades in your dataset. More trades = more reliable statistics.">
+            <div class="metric-card">
                 <div class="metric-label">Total Trades</div>
                 <div class="metric-value" id="filteredTrades">0</div>
             </div>
-            <div class="metric-card tooltip" data-tooltip="Percentage of winning trades. Good: >50%, Excellent: >60%. Includes breakeven trades as wins.">
+            <div class="metric-card">
                 <div class="metric-label">Win Rate</div>
                 <div class="metric-value positive" id="filteredWinRate">0%</div>
             </div>
-            <div class="metric-card tooltip" data-tooltip="Gross profit ÷ gross loss. Good: >1.25, Excellent: >2.0. Measures how much you make vs lose.">
+            <div class="metric-card">
                 <div class="metric-label">Profit Factor</div>
                 <div class="metric-value" id="profitFactor">0.00</div>
             </div>
-            <div class="metric-card tooltip" data-tooltip="Average R per trade. Positive = profitable system. Good: >0.2R, Excellent: >0.5R.">
+            <div class="metric-card">
                 <div class="metric-label">Expectancy</div>
                 <div class="metric-value" id="expectancy">0.00R</div>
-            </div>
-            <div class="metric-card tooltip" data-tooltip="Risk-adjusted return. Good: >1.0, Excellent: >2.0. Higher = better return per unit of risk.">
-                <div class="metric-label">Sharpe Ratio</div>
-                <div class="metric-value" id="sharpeRatio">0.00</div>
-            </div>
-            <div class="metric-card tooltip" data-tooltip="Largest peak-to-trough loss. Lower is better. Good: <10R, Acceptable: <20R.">
-                <div class="metric-label">Max Drawdown</div>
-                <div class="metric-value negative" id="maxDrawdown">0.00R</div>
-            </div>
-            <div class="metric-card tooltip" data-tooltip="Total return ÷ max drawdown. Good: >2.0, Excellent: >5.0. Measures profit vs worst loss.">
-                <div class="metric-label">Recovery Factor</div>
-                <div class="metric-value" id="recoveryFactor">0.00</div>
-            </div>
-            <div class="metric-card tooltip" data-tooltip="Optimal position size based on win rate and avg win/loss. Good: 10-25%, Dangerous: >50%.">
-                <div class="metric-label">Kelly %</div>
-                <div class="metric-value" id="kellyPercent">0.00%</div>
             </div>
         </div>
         
@@ -601,71 +344,10 @@
                 <div id="d3WeeklyEquityChart" style="flex: 1; min-height: 280px;"></div>
             </div>
         </div>
-        
-        <div class="main-grid">
-            <div class="chart-container">
-                <h3>R-Score Distribution</h3>
-                <div id="d3RScoreChart" style="flex: 1; min-height: 280px;"></div>
-            </div>
-            
-            <div class="chart-container">
-                <h3>Day of Week Performance</h3>
-                <div id="d3DayOfWeekChart" style="flex: 1; min-height: 280px;"></div>
-            </div>
-            
-            <div class="chart-container">
-                <h3>Seasonality Analysis</h3>
-                <div id="d3SeasonalityChart" style="flex: 1; min-height: 280px;"></div>
-            </div>
-        </div>
-        
-        <div class="main-grid">
-            <div class="chart-container">
-                <h3>Rolling 30-Day Performance</h3>
-                <div id="d3RollingChart" style="flex: 1; min-height: 280px;"></div>
-            </div>
-            
-            <div class="chart-container">
-                <h3>Session Performance</h3>
-                <div id="d3SessionChart" style="flex: 1; min-height: 280px;"></div>
-            </div>
-            
-            <div class="chart-container">
-                <h3>Monthly Performance</h3>
-                <div id="d3MonthlyChart" style="flex: 1; min-height: 280px;"></div>
-            </div>
-        </div>
-        
-        <!-- Risk Assessment Panel -->
-        <div style="background: linear-gradient(135deg, rgba(255,71,87,0.1), rgba(220,20,60,0.1)); border: 1px solid rgba(255,71,87,0.2); border-radius: 15px; padding: 20px; margin-top: 25px;">
-            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-                <h3 style="color: #ff4757; margin: 0; display: flex; align-items: center; gap: 10px;">
-                    🛡️ AI Risk Assessment
-                    <span style="font-size: 12px; background: rgba(255,71,87,0.2); padding: 2px 8px; border-radius: 10px; font-weight: normal;">Protective Intelligence</span>
-                </h3>
-            </div>
-            <div id="riskAssessment" style="font-size: 14px; line-height: 1.6; color: rgba(255,255,255,0.9); background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
-                <div class="ai-loading">Analyzing risk patterns and protective measures...</div>
-            </div>
-        </div>
     </div>
 
     <script>
-        // Prevent script conflicts
-        if (typeof window.TradingChatbot === 'undefined') {
-            window.TradingChatbot = null;
-        }
-        
         window.trades = [];
-        window.scriptLoadErrors = [];
-        
-        // Handle external script loading errors
-        window.addEventListener('error', function(e) {
-            if (e.target && e.target.tagName === 'SCRIPT') {
-                console.warn('Script loading error:', e.target.src);
-                window.scriptLoadErrors.push(e.target.src);
-            }
-        }, true);
         
         // Load trades from database
         async function loadTradesFromDB() {
@@ -764,20 +446,10 @@
                 const biasFilterEl = document.getElementById('biasFilter');
                 const biasFilter = biasFilterEl ? biasFilterEl.value : 'ALL';
                 
-                const sessionFilters = Array.from(document.querySelectorAll('.session-filter:checked')).map(cb => cb.value);
-                const includeAllSessions = document.getElementById('sessionAll').checked;
-                
                 return window.trades.filter(trade => {
                     if (biasFilter !== 'ALL' && trade.bias !== biasFilter) {
                         return false;
                     }
-                    
-                    if (!includeAllSessions && sessionFilters.length > 0) {
-                        if (!sessionFilters.includes(trade.session)) {
-                            return false;
-                        }
-                    }
-                    
                     return true;
                 });
             } catch (error) {
@@ -786,116 +458,60 @@
             }
         }
         
-        function toggleAllSessions() {
-            try {
-                const allCheckbox = document.getElementById('sessionAll');
-                const sessionCheckboxes = document.querySelectorAll('.session-filter');
-                
-                sessionCheckboxes.forEach(cb => {
-                    cb.checked = allCheckbox.checked;
-                });
-                
-                updateCharts();
-            } catch (error) {
-                console.error('Error in toggleAllSessions:', error);
-            }
-        }
-        
         function getRValue(trade, rTarget) {
-            try {
-                const breakevenFilter = document.getElementById('breakevenFilter').value;
-                
-                if (breakevenFilter === 'no-be') {
-                    const mfe = trade.mfe_none || trade.mfe || trade.rScore || 0;
-                    if (mfe >= rTarget) return rTarget;
-                    return -1;
-                }
-                
-                if (breakevenFilter === 'be-1') {
-                    const mfe = trade.mfe_none || trade.mfe || trade.rScore || 0;
-                    if (mfe < 1) return -1;
-                    if (mfe >= rTarget) return rTarget;
-                    return 0;
-                }
-                
-                if (breakevenFilter === 'be-2') {
-                    const mfe = trade.mfe_none || trade.mfe || trade.rScore || 0;
-                    if (mfe < 2) return -1;
-                    if (mfe >= rTarget) return rTarget;
-                    return 0;
-                }
-                
-                return -1;
-            } catch (error) {
-                console.error('Error in getRValue:', error);
+            const breakevenFilter = document.getElementById('breakevenFilter').value;
+            
+            if (breakevenFilter === 'no-be') {
+                const mfe = trade.mfe_none || trade.mfe || trade.rScore || 0;
+                if (mfe >= rTarget) return rTarget;
                 return -1;
             }
+            
+            if (breakevenFilter === 'be-1') {
+                const mfe = trade.mfe_none || trade.mfe || trade.rScore || 0;
+                if (mfe < 1) return -1;
+                if (mfe >= rTarget) return rTarget;
+                return 0;
+            }
+            
+            if (breakevenFilter === 'be-2') {
+                const mfe = trade.mfe_none || trade.mfe || trade.rScore || 0;
+                if (mfe < 2) return -1;
+                if (mfe >= rTarget) return rTarget;
+                return 0;
+            }
+            
+            return -1;
         }
         
         function calculateAdvancedMetrics(trades, rTarget) {
-            try {
-                if (trades.length === 0) return getEmptyMetrics();
-                
-                const rValues = trades.map(t => getRValue(t, rTarget));
-                const winsAndBreakevens = rValues.filter(r => r >= 0);
-                const actualWins = rValues.filter(r => r > 0);
-                const losses = rValues.filter(r => r < 0);
-                
-                const totalTrades = trades.length;
-                const winningTrades = winsAndBreakevens.length;
-                const losingTrades = losses.length;
-                const winRate = (winningTrades / totalTrades * 100).toFixed(1);
-                
-                const totalR = rValues.reduce((sum, r) => sum + r, 0);
-                const avgWin = actualWins.length > 0 ? actualWins.reduce((sum, r) => sum + r, 0) / actualWins.length : 0;
-                const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((sum, r) => sum + r, 0) / losses.length) : 0;
-                
-                const profitFactor = losingTrades > 0 ? ((avgWin * actualWins.length) / (avgLoss * losingTrades)).toFixed(2) : 'Infinity';
-                const expectancy = (totalR / totalTrades).toFixed(2);
-                
-                // Calculate Sharpe Ratio
-                const returns = rValues;
-                const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-                const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length;
-                const stdDev = Math.sqrt(variance);
-                const sharpeRatio = stdDev > 0 ? (avgReturn / stdDev).toFixed(2) : '0.00';
-                
-                // Calculate Max Drawdown
-                let peak = 0;
-                let maxDrawdown = 0;
-                let cumulative = 0;
-                
-                for (const r of rValues) {
-                    cumulative += r;
-                    if (cumulative > peak) {
-                        peak = cumulative;
-                    }
-                    const drawdown = peak - cumulative;
-                    if (drawdown > maxDrawdown) {
-                        maxDrawdown = drawdown;
-                    }
-                }
-                
-                // Recovery Factor
-                const recoveryFactor = maxDrawdown > 0 ? (totalR / maxDrawdown).toFixed(2) : '0.00';
-                
-                // Kelly Percentage
-                const kellyPercent = avgLoss > 0 ? ((winRate/100 * avgWin - (1-winRate/100) * avgLoss) / avgWin * 100).toFixed(2) : '0.00';
-                
-                return {
-                    totalTrades, winRate, profitFactor, expectancy, sharpeRatio,
-                    maxDrawdown: maxDrawdown.toFixed(2), recoveryFactor, kellyPercent
-                };
-            } catch (error) {
-                console.error('Error in calculateAdvancedMetrics:', error);
-                return getEmptyMetrics();
-            }
+            if (trades.length === 0) return getEmptyMetrics();
+            
+            const rValues = trades.map(t => getRValue(t, rTarget));
+            const winsAndBreakevens = rValues.filter(r => r >= 0);
+            const actualWins = rValues.filter(r => r > 0);
+            const losses = rValues.filter(r => r < 0);
+            
+            const totalTrades = trades.length;
+            const winningTrades = winsAndBreakevens.length;
+            const losingTrades = losses.length;
+            const winRate = (winningTrades / totalTrades * 100).toFixed(1);
+            
+            const totalR = rValues.reduce((sum, r) => sum + r, 0);
+            const avgWin = actualWins.length > 0 ? actualWins.reduce((sum, r) => sum + r, 0) / actualWins.length : 0;
+            const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((sum, r) => sum + r, 0) / losses.length) : 0;
+            
+            const profitFactor = losingTrades > 0 ? ((avgWin * actualWins.length) / (avgLoss * losingTrades)).toFixed(2) : 'Infinity';
+            const expectancy = (winRate/100 * avgWin + (1-winRate/100) * (avgLoss * -1)).toFixed(2);
+            
+            return {
+                totalTrades, winRate, profitFactor, expectancy
+            };
         }
         
         function getEmptyMetrics() {
             return {
-                totalTrades: 0, winRate: '0.0', profitFactor: '0.00', expectancy: '0.00',
-                sharpeRatio: '0.00', maxDrawdown: '0.00', recoveryFactor: '0.00', kellyPercent: '0.00'
+                totalTrades: 0, winRate: '0.0', profitFactor: '0.00', expectancy: '0.00'
             };
         }
         
@@ -910,14 +526,9 @@
                 document.getElementById('filteredWinRate').textContent = metrics.winRate + '%';
                 document.getElementById('profitFactor').textContent = metrics.profitFactor;
                 document.getElementById('expectancy').textContent = metrics.expectancy + 'R';
-                document.getElementById('sharpeRatio').textContent = metrics.sharpeRatio;
-                document.getElementById('maxDrawdown').textContent = metrics.maxDrawdown + 'R';
-                document.getElementById('recoveryFactor').textContent = metrics.recoveryFactor;
-                document.getElementById('kellyPercent').textContent = metrics.kellyPercent + '%';
                 
                 saveFilterStates();
                 updateD3Charts();
-                updateAIAnalysis();
             } catch (error) {
                 console.error('Error updating charts:', error);
             }
@@ -936,68 +547,55 @@
         }
         
         function updateDashboard() {
-            try {
-                updateCharts();
-                loadMarketData();
-                loadEconomicData();
-            } catch (error) {
-                console.error('Error updating dashboard:', error);
-            }
+            updateCharts();
         }
         
         function updateCurrentTime() {
-            try {
-                const now = new Date();
-                const timeString = now.toLocaleString('en-US', {
-                    weekday: 'short',
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    timeZoneName: 'short'
-                });
-                
-                const timeEl = document.getElementById('currentDateTime');
-                if (timeEl) {
-                    timeEl.textContent = timeString;
-                }
-            } catch (error) {
-                console.error('Error updating time:', error);
+            const now = new Date();
+            const timeString = now.toLocaleString('en-US', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                timeZoneName: 'short'
+            });
+            
+            const timeEl = document.getElementById('currentDateTime');
+            if (timeEl) {
+                timeEl.textContent = timeString;
             }
         }
         
         function updateMarketStatus() {
-            try {
-                const now = new Date();
-                const utcHour = now.getUTCHours();
-                const utcMinute = now.getUTCMinutes();
-                const currentTime = utcHour * 60 + utcMinute;
-                
-                const markets = [
-                    { name: 'ASIA', open: 0, close: 9 * 60, timezone: 'JST' },
-                    { name: 'LONDON', open: 8 * 60, close: 16 * 60, timezone: 'GMT' },
-                    { name: 'NY AM', open: 14.5 * 60, close: 17 * 60, timezone: 'EST' }
-                ];
-                
-                const statusEl = document.getElementById('marketStatus');
-                if (statusEl) {
-                    statusEl.innerHTML = markets.map(market => {
-                        const isOpen = currentTime >= market.open && currentTime <= market.close;
-                        const statusClass = isOpen ? 'market-open' : 'market-closed';
-                        const statusText = isOpen ? 'OPEN' : 'CLOSED';
-                        
-                        return `<div style="padding: 8px 12px; border-radius: 6px; background: ${isOpen ? 'rgba(0,255,136,0.2)' : 'rgba(255,71,87,0.2)'}; color: ${isOpen ? '#00ff88' : '#ff4757'}; font-size: 12px; font-weight: 600;">
-                            ${market.name}: ${statusText}
-                        </div>`;
-                    }).join('');
-                }
-            } catch (error) {
-                console.error('Error updating market status:', error);
+            const now = new Date();
+            const utcHour = now.getUTCHours();
+            const utcMinute = now.getUTCMinutes();
+            const currentTime = utcHour * 60 + utcMinute;
+            
+            const markets = [
+                { name: 'ASIA', open: 0, close: 9 * 60, timezone: 'JST' },
+                { name: 'LONDON', open: 8 * 60, close: 16 * 60, timezone: 'GMT' },
+                { name: 'NY AM', open: 14.5 * 60, close: 17 * 60, timezone: 'EST' }
+            ];
+            
+            const statusEl = document.getElementById('marketStatus');
+            if (statusEl) {
+                statusEl.innerHTML = markets.map(market => {
+                    const isOpen = currentTime >= market.open && currentTime <= market.close;
+                    const statusClass = isOpen ? 'market-open' : 'market-closed';
+                    const statusText = isOpen ? 'OPEN' : 'CLOSED';
+                    
+                    return `<div style="padding: 8px 12px; border-radius: 6px; background: ${isOpen ? 'rgba(0,255,136,0.2)' : 'rgba(255,71,87,0.2)'}; color: ${isOpen ? '#00ff88' : '#ff4757'}; font-size: 12px; font-weight: 600;">
+                        ${market.name}: ${statusText}
+                    </div>`;
+                }).join('');
             }
         }
         
+        // Define missing loadFilterStates function
         function loadFilterStates() {
             try {
                 const savedFilters = localStorage.getItem('dashboardFilters');
@@ -1027,132 +625,33 @@
             }
         }
         
-        async function loadMarketData() {
-            try {
-                const response = await fetch('/api/market-news');
-                if (response.ok) {
-                    const data = await response.json();
-                    updateNewsTicker(data.news);
-                    updateFuturesData(data.futures);
-                }
-            } catch (error) {
-                console.error('Error loading market data:', error);
+        // Prevent script conflicts and redeclarations
+        window.scriptLoadErrors = [];
+        
+        // Handle external script loading errors
+        window.addEventListener('error', function(e) {
+            if (e.target && e.target.tagName === 'SCRIPT') {
+                console.warn('Script loading error:', e.target.src);
+                window.scriptLoadErrors.push(e.target.src);
             }
+        }, true);
+        
+        // Prevent TradingChatbot redeclaration
+        if (typeof window.TradingChatbot === 'undefined') {
+            window.TradingChatbot = null;
         }
         
-        async function loadEconomicData() {
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Dashboard initializing...');
+            
             try {
-                const response = await fetch('/api/economic-calendar');
-                if (response.ok) {
-                    const data = await response.json();
-                    updateEconomicEvents(data.events);
-                }
+                loadFilterStates();
+                loadDatabaseData();
             } catch (error) {
-                console.error('Error loading economic data:', error);
+                console.error('Error loading database data:', error);
             }
-        }
-        
-        function updateNewsTicker(news) {
-            try {
-                const tickerEl = document.getElementById('tickerContent');
-                if (tickerEl && news && news.length > 0) {
-                    const newsText = news.slice(0, 10).map(item => item.title).join(' • ');
-                    tickerEl.textContent = newsText;
-                }
-            } catch (error) {
-                console.error('Error updating news ticker:', error);
-            }
-        }
-        
-        function updateFuturesData(futures) {
-            try {
-                const futuresEl = document.getElementById('futuresData');
-                if (futuresEl && futures) {
-                    const futuresText = Object.entries(futures).map(([symbol, data]) => 
-                        `${symbol}: ${data.price || 'N/A'}`
-                    ).join(' | ');
-                    futuresEl.textContent = futuresText;
-                }
-            } catch (error) {
-                console.error('Error updating futures data:', error);
-            }
-        }
-        
-        function updateEconomicEvents(events) {
-            try {
-                const eventsEl = document.getElementById('economicEvents');
-                if (eventsEl && events && events.length > 0) {
-                    const eventsHtml = events.slice(0, 5).map(event => 
-                        `<div style="margin-bottom: 5px;">• ${event.title}</div>`
-                    ).join('');
-                    eventsEl.innerHTML = eventsHtml;
-                }
-            } catch (error) {
-                console.error('Error updating economic events:', error);
-            }
-        }
-        
-        async function updateAIAnalysis() {
-            try {
-                const trades = getFilteredTrades();
-                const metrics = calculateAdvancedMetrics(trades, parseInt(document.getElementById('rTargetFilter').value));
-                
-                // Update AI Market Analysis
-                const marketResponse = await fetch('/api/ai-market-analysis', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ trades, metrics })
-                });
-                
-                if (marketResponse.ok) {
-                    const marketData = await marketResponse.json();
-                    document.getElementById('aiMarketAnalysis').innerHTML = marketData.analysis;
-                    document.getElementById('marketBias').textContent = marketData.bias;
-                }
-                
-                // Update Strategy Summary
-                const strategyResponse = await fetch('/api/ai-strategy-summary', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ trades, metrics })
-                });
-                
-                if (strategyResponse.ok) {
-                    const strategyData = await strategyResponse.json();
-                    document.getElementById('strategySummary').textContent = strategyData.summary;
-                    document.getElementById('systemHealth').textContent = strategyData.system_health;
-                    document.getElementById('adaptationScore').textContent = strategyData.adaptation_score;
-                    document.getElementById('nextAction').textContent = strategyData.next_action;
-                    document.getElementById('strategicRecommendation').textContent = strategyData.recommendation;
-                }
-                
-                // Update Risk Assessment
-                const riskResponse = await fetch('/api/ai-risk-assessment', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ trades, metrics })
-                });
-                
-                if (riskResponse.ok) {
-                    const riskData = await riskResponse.json();
-                    document.getElementById('riskAssessment').innerHTML = riskData.risk_assessment;
-                }
-                
-            } catch (error) {
-                console.error('Error updating AI analysis:', error);
-            }
-        }
-        
-        function changeStyle() {
-            try {
-                const styleSelector = document.getElementById('styleSelector');
-                if (styleSelector && typeof window.changeTheme === 'function') {
-                    window.changeTheme(styleSelector.value);
-                }
-            } catch (error) {
-                console.error('Error changing style:', error);
-            }
-        }
+        });
         
         async function loadDatabaseData() {
             console.log('Loading database data...');
@@ -1175,52 +674,30 @@
                 
             } catch (error) {
                 console.error('Error in loadDatabaseData:', error);
+                // Fallback to sample data on error
                 loadSampleData();
             }
         }
         
         function loadSampleData() {
-            try {
-                const dataSource = document.getElementById('dataSourceToggle').value;
-                if (dataSource === 'signal-lab' || window.trades.length > 0) {
-                    console.log('Skipping sample data - using', dataSource, 'with', window.trades.length, 'trades');
-                    return;
-                }
-                
-                window.trades = [
-                    { date: '2024-01-15', bias: 'LONG', session: 'LONDON', breakeven: false, rScore: 2.5 },
-                    { date: '2024-01-16', bias: 'SHORT', session: 'NEW YORK AM', breakeven: true, rScore: 1 },
-                    { date: '2024-01-17', bias: 'LONG', session: 'LONDON', breakeven: false, rScore: -1 }
-                ];
-                updateDashboard();
-            } catch (error) {
-                console.error('Error loading sample data:', error);
+            const dataSource = document.getElementById('dataSourceToggle').value;
+            if (dataSource === 'signal-lab' || window.trades.length > 0) {
+                console.log('Skipping sample data - using', dataSource, 'with', window.trades.length, 'trades');
+                return;
             }
-        }
-        
-        // Initialize page
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Dashboard initializing...');
             
-            try {
-                loadFilterStates();
-                loadDatabaseData();
-            } catch (error) {
-                console.error('Error loading database data:', error);
-            }
-        });
-        
-        // Start timers
-        try {
-            setInterval(updateCurrentTime, 1000);
-            setInterval(updateMarketStatus, 60000);
-            setInterval(loadMarketData, 300000); // 5 minutes
-            setInterval(updateAIAnalysis, 600000); // 10 minutes
-            updateCurrentTime();
-            updateMarketStatus();
-        } catch (error) {
-            console.error('Error starting timers:', error);
+            window.trades = [
+                { date: '2024-01-15', bias: 'LONG', session: 'LONDON', breakeven: false, rScore: 2.5 },
+                { date: '2024-01-16', bias: 'SHORT', session: 'NEW YORK AM', breakeven: true, rScore: 1 },
+                { date: '2024-01-17', bias: 'LONG', session: 'LONDON', breakeven: false, rScore: -1 }
+            ];
+            updateDashboard();
         }
+        
+        setInterval(updateCurrentTime, 1000);
+        setInterval(updateMarketStatus, 60000);
+        updateCurrentTime();
+        updateMarketStatus();
     </script>
 
 </body>
