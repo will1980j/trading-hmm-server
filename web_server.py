@@ -1167,6 +1167,7 @@ def get_signal_lab_trades():
                 'entry_price': float(row['entry_price']) if row['entry_price'] else 0,
                 'stop_loss': float(row['stop_loss']) if row['stop_loss'] else 0,
                 'take_profit': float(row['take_profit']) if row['take_profit'] else 0,
+                'mfe': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
                 'mfe_none': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
                 'be1_level': float(row['be1_level']) if row['be1_level'] is not None else 1,
                 'be1_hit': bool(row['be1_hit']) if row['be1_hit'] is not None else False,
@@ -1335,8 +1336,17 @@ def update_signal_lab_trade(trade_id):
         rows_affected = cursor.rowcount
         logger.info(f"Rows affected: {rows_affected}")
         
+        # Ensure transaction is committed immediately
         db.conn.commit()
         logger.info(f"Transaction committed for trade {trade_id}")
+        
+        # Verify the update was persisted
+        cursor.execute("SELECT news_proximity, news_event FROM signal_lab_trades WHERE id = %s", (trade_id,))
+        verification = cursor.fetchone()
+        if verification:
+            logger.info(f"Verification - Trade {trade_id}: news_proximity={verification['news_proximity']}, news_event={verification['news_event'][:50] if verification['news_event'] else 'None'}...")
+        else:
+            logger.error(f"Verification failed - Trade {trade_id} not found after update")
         
         return jsonify({"status": "success", "rows_affected": rows_affected, "updated_fields": len(update_fields)})
         
