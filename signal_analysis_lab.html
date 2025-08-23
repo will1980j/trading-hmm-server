@@ -2097,6 +2097,7 @@
                             signal.newsProximity = newsData.proximity;
                             signal.newsEvent = newsData.events.join(', ');
                             updatedCount++;
+                            console.log(`✅ Updated ${signal.id}: ${newsData.proximity}`);
                         } else {
                             const errorText = await response.text();
                             console.error(`❌ UPDATE FAILED ${signal.id}:`, response.status, errorText);
