@@ -1273,7 +1273,7 @@ def update_signal_lab_trade(trade_id):
             return jsonify({"error": "Database not available"}), 500
         
         data = request.get_json()
-        logger.info(f"Updating trade {trade_id} with data keys: {list(data.keys()) if data else 'None'}")
+        logger.info(f"PUT /api/signal-lab-trades/{trade_id} - Data: {data}")
         
         # First check if the trade exists
         cursor = db.conn.cursor()
@@ -1323,15 +1323,17 @@ def update_signal_lab_trade(trade_id):
         
         # Execute update
         update_query = f"UPDATE signal_lab_trades SET {', '.join(update_fields)} WHERE id = %s"
-        logger.info(f"Executing update query with {len(update_fields)} fields")
+        logger.info(f"SQL: {update_query}")
+        logger.info(f"Values: {update_values}")
         
         cursor.execute(update_query, update_values)
         rows_affected = cursor.rowcount
+        logger.info(f"Rows affected: {rows_affected}")
         
         db.conn.commit()
-        logger.info(f"Successfully updated trade {trade_id}, {rows_affected} rows affected")
+        logger.info(f"Transaction committed for trade {trade_id}")
         
-        return jsonify({"status": "success", "rows_affected": rows_affected})
+        return jsonify({"status": "success", "rows_affected": rows_affected, "updated_fields": len(update_fields)})
         
     except Exception as e:
         if hasattr(db, 'conn') and db.conn:

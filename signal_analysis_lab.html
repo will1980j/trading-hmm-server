@@ -2066,41 +2066,36 @@
                             newsEvent: newsData.events.join(', ')
                         };
                         
-                        // Update in database
+                        // Update in database - only send news fields
+                        const updateData = {
+                            news_proximity: newsData.proximity,
+                            news_event: newsData.events.join(', ')
+                        };
+                        
+                        console.log(`🔄 Updating ${signal.id} with:`, updateData);
+                        
                         const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${signal.id}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                date: signal.date,
-                                time: signal.time,
-                                bias: signal.bias,
-                                session: signal.session,
-                                signal_type: signal.signalType,
-                                entry_price: signal.entryPrice,
-                                stop_loss: signal.stopLoss,
-                                take_profit: signal.takeProfit,
-                                mfe_none: signal.mfeNone,
-                                be1_level: signal.be1Level,
-                                be1_hit: signal.be1Hit,
-                                mfe1: signal.mfe1,
-                                be2_level: signal.be2Level,
-                                be2_hit: signal.be2Hit,
-                                mfe2: signal.mfe2,
-                                position_size: signal.positionSize,
-                                commission: signal.commission,
-                                news_proximity: newsData.proximity,
-                                news_event: newsData.events.join(', ')
-                            })
+                            body: JSON.stringify(updateData)
                         });
                         
+                        const responseText = await response.text();
+                        console.log(`📡 Response ${signal.id}:`, response.status, responseText);
+                        
                         if (response.ok) {
-                            signal.newsProximity = newsData.proximity;
-                            signal.newsEvent = newsData.events.join(', ');
-                            updatedCount++;
-                            console.log(`✅ Updated ${signal.id}: ${newsData.proximity}`);
+                            const result = JSON.parse(responseText);
+                            if (result.rows_affected > 0) {
+                                signal.newsProximity = newsData.proximity;
+                                signal.newsEvent = newsData.events.join(', ');
+                                updatedCount++;
+                                console.log(`✅ Updated ${signal.id}: ${newsData.proximity} (${result.rows_affected} rows)`);
+                            } else {
+                                console.error(`⚠️ NO ROWS AFFECTED ${signal.id}`);
+                                errorCount++;
+                            }
                         } else {
-                            const errorText = await response.text();
-                            console.error(`❌ UPDATE FAILED ${signal.id}:`, response.status, errorText);
+                            console.error(`❌ UPDATE FAILED ${signal.id}:`, response.status, responseText);
                             errorCount++;
                         }
                     }
