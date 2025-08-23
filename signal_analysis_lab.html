@@ -1281,7 +1281,7 @@
                 displaySignals = signals.filter(signal => signal.date === selectedDate);
             }
             
-            displaySignals.slice().reverse().forEach(signal => {
+            displaySignals.forEach(signal => {
                 const row = tbody.insertRow();
                 const isActiveTrade = !signal.mfeNone || !signal.mfe1 || !signal.mfe2;
                 
