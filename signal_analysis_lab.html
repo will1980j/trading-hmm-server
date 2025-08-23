@@ -1615,24 +1615,22 @@
         // Load economic news data
         async function loadEconomicNews() {
             try {
-                console.log('Loading economic news from API...');
-                const response = await fetch('/api/economic-calendar');
-                console.log('Economic API response status:', response.status);
+                // First try to load from database
+                await loadEconomicNewsFromDatabase();
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('Economic API returned data:', data);
-                    processEconomicNews(data);
-                    // Save to database
-                    await saveEconomicNewsToDatabase(data);
-                } else {
-                    console.warn('Economic news API not available');
-                    // Try to load from database
-                    await loadEconomicNewsFromDatabase();
+                // If no data in database, try API
+                if (Object.keys(economicNewsData).length === 0) {
+                    console.log('No cached data, loading from API...');
+                    const response = await fetch('/api/economic-calendar');
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        processEconomicNews(data);
+                        await saveEconomicNewsToDatabase(data);
+                    }
                 }
             } catch (error) {
                 console.error('Failed to load economic news:', error);
-                await loadEconomicNewsFromDatabase();
             }
         }
         
@@ -1698,9 +1696,8 @@
                 });
             }
             
-            // Save to localStorage
             localStorage.setItem('economicNewsData', JSON.stringify(economicNewsData));
-            console.log('Processed economic news for', Object.keys(economicNewsData).length, 'dates:', economicNewsData);
+            console.log('✅ Economic news processed:', Object.keys(economicNewsData).length, 'dates');
         }
         
         function loadFallbackNewsData() {
@@ -1737,33 +1734,21 @@
         
         function autoFillNewsFields(date) {
             const newsData = getNewsForDate(date);
+            console.log('📅 Auto-fill for', date, ':', newsData);
             
-            // Only auto-fill if there's actual news data
             if (newsData.proximity !== 'None') {
-                // Set news proximity
-                const proximityEl = document.getElementById('newsProximity');
-                if (proximityEl) {
-                    proximityEl.value = newsData.proximity;
-                }
+                document.getElementById('newsProximity').value = newsData.proximity;
                 
-                // Clear all news event checkboxes first
                 const checkboxes = document.querySelectorAll('#newsEventDropdown input[type="checkbox"]');
                 checkboxes.forEach(cb => cb.checked = false);
                 
-                // Check the appropriate news events
                 newsData.events.forEach(eventName => {
                     const checkbox = Array.from(checkboxes).find(cb => cb.value === eventName);
-                    if (checkbox) {
-                        checkbox.checked = true;
-                    }
+                    if (checkbox) checkbox.checked = true;
                 });
                 
-                // Update the display
                 updateNewsSelection();
-                
-                console.log('Auto-filled news for', date, ':', newsData);
-            } else {
-                console.log('No news data for', date);
+                console.log('✅ News auto-filled');
             }
         }
         
