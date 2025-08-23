@@ -20,7 +20,7 @@
     <script defer src="notification_system.js"></script>
     <script defer src="professional_styles.js"></script>
     <script defer src="ai_chat.js"></script>
-    <script defer src="/signal_lab_functions.js"></script>
+    <!-- <script defer src="/signal_lab_functions.js"></script> -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -1685,8 +1685,10 @@
         
         // Load trades from database
         async function loadTradesFromDB() {
-            const dataSource = document.getElementById('dataSourceToggle').value;
-            const endpoint = dataSource === 'signal-lab' ? '/api/signal-lab-trades' : '/api/trades';
+            try {
+                const dataSourceEl = document.getElementById('dataSourceToggle');
+                const dataSource = dataSourceEl ? dataSourceEl.value : 'signal-lab';
+                const endpoint = dataSource === 'signal-lab' ? '/api/signal-lab-trades' : '/api/trades';
             
             console.log('Loading from endpoint:', endpoint);
             
@@ -1745,14 +1747,19 @@
         }
         
         function switchDataSource() {
-            const dataSource = document.getElementById('dataSourceToggle').value;
-            console.log('Switching to data source:', dataSource);
-            
-            // Clear existing trades to force reload
-            window.trades = [];
-            
-            // Reload data from the selected source
-            loadDatabaseData();
+            try {
+                const dataSourceEl = document.getElementById('dataSourceToggle');
+                const dataSource = dataSourceEl ? dataSourceEl.value : 'signal-lab';
+                console.log('Switching to data source:', dataSource);
+                
+                // Clear existing trades to force reload
+                window.trades = [];
+                
+                // Reload data from the selected source
+                loadDatabaseData();
+            } catch (error) {
+                console.error('Error in switchDataSource:', error);
+            }
         }
         
         // Save signal to database
@@ -1864,11 +1871,15 @@
         }
         
         function getFilteredTrades() {
-            const sessionCheckboxes = document.querySelectorAll('.session-filter:checked');
-            const selectedSessions = Array.from(sessionCheckboxes).map(cb => cb.value);
-            const biasFilter = document.getElementById('biasFilter').value;
-            const breakevenFilter = document.getElementById('breakevenFilter').value;
-            const sessionAllCheckbox = document.getElementById('sessionAll');
+            try {
+                const sessionCheckboxes = document.querySelectorAll('.session-filter:checked');
+                const selectedSessions = Array.from(sessionCheckboxes).map(cb => cb.value);
+                const biasFilterEl = document.getElementById('biasFilter');
+                const breakevenFilterEl = document.getElementById('breakevenFilter');
+                const sessionAllCheckbox = document.getElementById('sessionAll');
+                
+                const biasFilter = biasFilterEl ? biasFilterEl.value : 'ALL';
+                const breakevenFilter = breakevenFilterEl ? breakevenFilterEl.value : 'no-be';
             
             console.log('Filter criteria:', {
                 selectedSessions,
@@ -1927,8 +1938,12 @@
                 return true;
             });
             
-            console.log('Filtered result:', filtered.length, 'trades');
-            return filtered;
+                console.log('Filtered result:', filtered.length, 'trades');
+                return filtered;
+            } catch (error) {
+                console.error('Error in getFilteredTrades:', error);
+                return window.trades || [];
+            }
         }
         
         function toggleAllSessions() {
@@ -1998,9 +2013,13 @@
         }
         
         function loadFilterStates() {
-            // Load data source - default to signal-lab
-            const savedDataSource = localStorage.getItem('dataSource') || 'signal-lab';
-            document.getElementById('dataSourceToggle').value = savedDataSource;
+            try {
+                // Load data source - default to signal-lab
+                const savedDataSource = localStorage.getItem('dataSource') || 'signal-lab';
+                const dataSourceEl = document.getElementById('dataSourceToggle');
+                if (dataSourceEl) {
+                    dataSourceEl.value = savedDataSource;
+                }
             
             // Load session filters
             const savedSessionStates = JSON.parse(localStorage.getItem('sessionFilters'));
@@ -2055,11 +2074,16 @@
                 document.getElementById('calendarView').value = savedCalendarView;
             }
             
-            // Load date filters
-            const savedDateFrom = localStorage.getItem('dateFrom');
-            const savedDateTo = localStorage.getItem('dateTo');
-            if (savedDateFrom) document.getElementById('dateFrom').value = savedDateFrom;
-            if (savedDateTo) document.getElementById('dateTo').value = savedDateTo;
+                // Load date filters
+                const savedDateFrom = localStorage.getItem('dateFrom');
+                const savedDateTo = localStorage.getItem('dateTo');
+                const dateFromEl = document.getElementById('dateFrom');
+                const dateToEl = document.getElementById('dateTo');
+                if (savedDateFrom && dateFromEl) dateFromEl.value = savedDateFrom;
+                if (savedDateTo && dateToEl) dateToEl.value = savedDateTo;
+            } catch (error) {
+                console.error('Error in loadFilterStates:', error);
+            }
         }
         
         function updateSignalLabAnalysis(filteredTrades, rTarget) {
@@ -2936,17 +2960,28 @@
         
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Dashboard initializing...');
+            
             // Load filter states first
-            loadFilterStates();
+            try {
+                loadFilterStates();
+            } catch (error) {
+                console.error('Error loading filter states:', error);
+            }
             
             // Initialize database data
-            loadDatabaseData();
+            try {
+                loadDatabaseData();
+            } catch (error) {
+                console.error('Error loading database data:', error);
+            }
         });
         
         // Load data from database instead of sample data
         async function loadDatabaseData() {
             console.log('Loading database data...');
-            await loadTradesFromDB();
+            try {
+                await loadTradesFromDB();
             
             // Only load sample data if no database data and not Signal Lab
             if (window.trades.length === 0) {
@@ -2976,25 +3011,33 @@
                 }
             }, 30000);
             
-            // Force calendar update after data loads
-            setTimeout(() => {
-                console.log('Forcing calendar update after data load');
-                const filteredTrades = getFilteredTrades();
-                const rTarget = parseInt(document.getElementById('rTargetFilter').value);
-                updateTradingCalendar(filteredTrades, rTarget);
-                
-                if (typeof d3 !== 'undefined') {
+                // Force calendar update after data loads
+                setTimeout(() => {
+                    console.log('Forcing calendar update after data load');
                     try {
-                        initD3Charts();
-                        updateD3Charts();
-                        console.log('D3 charts initialized successfully');
+                        const filteredTrades = getFilteredTrades();
+                        const rTargetEl = document.getElementById('rTargetFilter');
+                        const rTarget = rTargetEl ? parseInt(rTargetEl.value) : 1;
+                        updateTradingCalendar(filteredTrades, rTarget);
+                        
+                        if (typeof d3 !== 'undefined') {
+                            try {
+                                initD3Charts();
+                                updateD3Charts();
+                                console.log('D3 charts initialized successfully');
+                            } catch (error) {
+                                console.warn('D3 chart initialization failed:', error);
+                            }
+                        } else {
+                            console.warn('D3 not available, skipping D3 chart initialization');
+                        }
                     } catch (error) {
-                        console.warn('D3 chart initialization failed:', error);
+                        console.error('Error in post-load initialization:', error);
                     }
-                } else {
-                    console.warn('D3 not available, skipping D3 chart initialization');
-                }
-            }, 1000);
+                }, 1000);
+            } catch (error) {
+                console.error('Error in loadDatabaseData:', error);
+            }
         }
         
         // Market Data Functions
