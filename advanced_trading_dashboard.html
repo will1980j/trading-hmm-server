@@ -1689,8 +1689,8 @@
                 const dataSourceEl = document.getElementById('dataSourceToggle');
                 const dataSource = dataSourceEl ? dataSourceEl.value : 'signal-lab';
                 const endpoint = dataSource === 'signal-lab' ? '/api/signal-lab-trades' : '/api/trades';
-            
-            console.log('Loading from endpoint:', endpoint);
+                
+                console.log('Loading from endpoint:', endpoint);
             
             try {
                 const response = await fetch(endpoint);
