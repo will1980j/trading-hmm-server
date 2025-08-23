@@ -2216,12 +2216,12 @@
             
             const aiAnalysisEl = document.getElementById('aiBEAnalysis');
             if (aiAnalysisEl) {
-                aiAnalysisEl.textContent = `Optimal: ${optimalCombo.be} + ${optimalCombo.sessions} + ${optimalCombo.rTarget}R = ${optimalCombo.expectancy.toFixed(2)}R expectancy. Current: ${expectancy}R.`;
+                aiAnalysisEl.innerHTML = `<strong>USE: ${optimalCombo.be} Strategy</strong><br>Expected Return: ${optimalCombo.expectancy.toFixed(2)}R per trade<br>Current Strategy: ${expectancy}R per trade`;
             }
             
             const aiSessionEl = document.getElementById('aiSessionOptimization');
             if (aiSessionEl) {
-                aiSessionEl.textContent = `Best combination: ${optimalCombo.be} strategy on ${optimalCombo.sessions} with ${optimalCombo.rTarget}R targets for maximum expectancy.`;
+                aiSessionEl.innerHTML = `<strong>TRADE: ${optimalCombo.sessions} Sessions</strong><br><strong>TARGET: ${optimalCombo.rTarget}R</strong><br>This combination maximizes long-term expectancy.`;
             }
             
             console.log('Signal Lab analysis completed:', {
@@ -2619,7 +2619,7 @@
                 systemHealth: optimalCombo.expectancy > 0.3 ? 'Excellent' : optimalCombo.expectancy > 0 ? 'Good' : 'Poor',
                 adaptationScore: '95%',
                 nextAction: `Use ${optimalCombo.be}`,
-                recommendation: `Switch to ${optimalCombo.be} strategy, focus on ${optimalCombo.sessions} sessions, use ${optimalCombo.rTarget}R targets for ${optimalCombo.expectancy.toFixed(2)}R expectancy.`
+                recommendation: `OPTIMAL SETUP: Use ${optimalCombo.be} strategy, trade only ${optimalCombo.sessions} sessions, set ${optimalCombo.rTarget}R targets. Expected: ${optimalCombo.expectancy.toFixed(2)}R per trade.`
             };
         }
         
