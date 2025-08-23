@@ -2094,16 +2094,13 @@
                         });
                         
                         if (response.ok) {
-                            // Update local array
-                            const signalIndex = signals.findIndex(s => s.id === signal.id);
-                            if (signalIndex !== -1) {
-                                signals[signalIndex] = updatedSignal;
-                            }
+                            signal.newsProximity = newsData.proximity;
+                            signal.newsEvent = newsData.events.join(', ');
                             updatedCount++;
-                            console.log(`Updated trade ${signal.id} for ${signal.date}`);
                         } else {
+                            const errorText = await response.text();
+                            console.error(`❌ UPDATE FAILED ${signal.id}:`, response.status, errorText);
                             errorCount++;
-                            console.error(`Failed to update trade ${signal.id}:`, response.status);
                         }
                     }
                 } catch (error) {
