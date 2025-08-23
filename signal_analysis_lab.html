@@ -1645,6 +1645,8 @@
                 });
                 if (response.ok) {
                     console.log('Economic news saved to database');
+                } else {
+                    console.warn('Failed to save economic news to database:', response.status);
                 }
             } catch (error) {
                 console.error('Failed to save economic news to database:', error);
@@ -1659,6 +1661,10 @@
                     if (data.news_data) {
                         processEconomicNews(data.news_data);
                         console.log('Loaded economic news from database');
+                    } else if (data.economic_news) {
+                        // Fallback to API format
+                        processEconomicNews(data.economic_news);
+                        console.log('Loaded economic news from API fallback');
                     }
                 }
             } catch (error) {

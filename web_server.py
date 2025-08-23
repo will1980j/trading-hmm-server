@@ -483,21 +483,76 @@ def get_market_news():
         logger.error(f"Error fetching market news: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/economic-news')
+@app.route('/api/economic-news', methods=['GET', 'POST'])
 @login_required
-def get_economic_news():
-    try:
-        news_api = NewsAPI()
-        economic_news = news_api.get_economic_news(limit=10)
-        
-        return jsonify({
-            'economic_news': economic_news,
-            'timestamp': datetime.now().isoformat(),
-            'status': 'success'
-        })
-    except Exception as e:
-        logger.error(f"Error fetching economic news: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+def economic_news_data():
+    if request.method == 'POST':
+        # Save economic news data to database
+        try:
+            if not db_enabled or not db:
+                return jsonify({'error': 'Database not available'}), 500
+            
+            data = request.get_json()
+            news_data = data.get('news_data', {})
+            
+            cursor = db.conn.cursor()
+            cursor.execute("""
+                INSERT INTO economic_news_cache (news_data, created_at) 
+                VALUES (%s, NOW())
+                ON CONFLICT (id) DO UPDATE SET 
+                news_data = EXCLUDED.news_data, 
+                created_at = EXCLUDED.created_at
+            """, (dumps(news_data),))
+            
+            db.conn.commit()
+            return jsonify({'status': 'success', 'message': 'Economic news saved'})
+            
+        except Exception as e:
+            if hasattr(db, 'conn') and db.conn:
+                db.conn.rollback()
+            logger.error(f"Error saving economic news: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+    
+    else:
+        # Get economic news data from database
+        try:
+            if not db_enabled or not db:
+                # Fallback to API call
+                news_api = NewsAPI()
+                economic_news = news_api.get_economic_news(limit=10)
+                return jsonify({
+                    'economic_news': economic_news,
+                    'timestamp': datetime.now().isoformat(),
+                    'status': 'success'
+                })
+            
+            cursor = db.conn.cursor()
+            cursor.execute("""
+                SELECT news_data FROM economic_news_cache 
+                ORDER BY created_at DESC LIMIT 1
+            """)
+            
+            result = cursor.fetchone()
+            if result:
+                news_data = loads(result['news_data']) if isinstance(result['news_data'], str) else result['news_data']
+                return jsonify({
+                    'news_data': news_data,
+                    'timestamp': datetime.now().isoformat(),
+                    'status': 'success'
+                })
+            else:
+                # No cached data, try API
+                news_api = NewsAPI()
+                economic_news = news_api.get_economic_news(limit=10)
+                return jsonify({
+                    'economic_news': economic_news,
+                    'timestamp': datetime.now().isoformat(),
+                    'status': 'success'
+                })
+                
+        except Exception as e:
+            logger.error(f"Error fetching economic news: {str(e)}")
+            return jsonify({'error': str(e)}), 500
 
 @app.route('/api/economic-calendar')
 @login_required
@@ -1653,6 +1708,22 @@ Analyze this NQ level tracking data and provide:
         return jsonify({"error": str(e)}), 500
 
 
+
+# Add economic news cache table creation
+try:
+    if db_enabled and db:
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS economic_news_cache (
+                id SERIAL PRIMARY KEY,
+                news_data JSONB NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        db.conn.commit()
+        logger.info("Economic news cache table ready")
+except Exception as e:
+    logger.error(f"Error creating economic news cache table: {str(e)}")
 
 # Signal lab table is created in railway_db.py setup_tables()
 
