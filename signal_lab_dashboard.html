@@ -6,6 +6,7 @@
     <title>Signal Lab Dashboard - Performance Analytics</title>
     <link rel="stylesheet" href="/style_preload.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -296,6 +297,16 @@
                 </div>
                 
                 <div class="control-group">
+                    <label>View Type</label>
+                    <select id="viewType">
+                        <option value="trade">Trade by Trade</option>
+                        <option value="daily">Daily View</option>
+                        <option value="weekly">Weekly View</option>
+                        <option value="monthly">Monthly View</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
                     <label>Sessions</label>
                     <div class="session-checkboxes">
                         <div class="checkbox-item">
@@ -375,6 +386,7 @@
                     signals = trades.map(trade => ({
                         id: trade.id,
                         date: trade.date,
+                        time: trade.time,
                         session: trade.session,
                         mfeNone: parseFloat(trade.mfe_none || trade.mfe) || 0,
                         be1Level: parseFloat(trade.be1_level) || 1,
@@ -446,6 +458,7 @@
             const beStrategy = document.getElementById('beStrategy').value;
             const rTarget = parseFloat(document.getElementById('rTarget').value) || 2;
             const selectedSessions = getSelectedSessions();
+            const viewType = document.getElementById('viewType').value;
             
             // Filter signals by selected sessions
             const filteredSignals = signals.filter(signal => 
@@ -458,18 +471,23 @@
             }
             
             // Calculate results for each trade
-            const results = filteredSignals.map(signal => 
-                calculateTradeResult(signal, beStrategy, rTarget)
-            );
+            const tradeResults = filteredSignals.map(signal => ({
+                ...signal,
+                result: calculateTradeResult(signal, beStrategy, rTarget)
+            }));
+            
+            // Aggregate data based on view type
+            const aggregatedData = aggregateData(tradeResults, viewType);
             
             // Calculate statistics
+            const results = tradeResults.map(t => t.result);
             const stats = calculateStatistics(results, rTarget);
             
             // Update stats display
             updateStatsDisplay(stats, filteredSignals.length);
             
             // Update chart
-            updateChart(results, rTarget);
+            updateChart(aggregatedData, rTarget, viewType);
         }
         
         function calculateStatistics(results, rTarget) {
@@ -526,14 +544,55 @@
             expectancyEl.style.webkitTextFillColor = 'transparent';
         }
         
-        function updateChart(results, rTarget) {
+        function aggregateData(tradeResults, viewType) {
+            if (viewType === 'trade') {
+                return tradeResults.sort((a, b) => new Date(a.date + ' ' + (a.time || '00:00')) - new Date(b.date + ' ' + (b.time || '00:00')));
+            }
+            
+            const grouped = {};
+            
+            tradeResults.forEach(trade => {
+                let key;
+                const date = new Date(trade.date);
+                
+                switch(viewType) {
+                    case 'daily':
+                        key = trade.date;
+                        break;
+                    case 'weekly':
+                        const weekStart = new Date(date);
+                        weekStart.setDate(date.getDate() - date.getDay());
+                        key = weekStart.toISOString().split('T')[0];
+                        break;
+                    case 'monthly':
+                        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                        break;
+                }
+                
+                if (!grouped[key]) {
+                    grouped[key] = { date: key, results: [] };
+                }
+                grouped[key].results.push(trade.result);
+            });
+            
+            return Object.values(grouped).map(group => ({
+                date: group.date,
+                result: group.results.reduce((sum, r) => sum + r, 0)
+            })).sort((a, b) => new Date(a.date) - new Date(b.date));
+        }
+        
+        function updateChart(data, rTarget, viewType) {
             const ctx = document.getElementById('performanceChart').getContext('2d');
             
             // Calculate cumulative performance
             let cumulative = 0;
-            const cumulativeData = results.map((result, index) => {
+            const cumulativeData = data.map((item, index) => {
+                const result = viewType === 'trade' ? item.result : item.result;
                 cumulative += result;
-                return { x: index + 1, y: cumulative };
+                return { 
+                    x: viewType === 'trade' ? item.date : item.date, 
+                    y: cumulative 
+                };
             });
             
             // Destroy existing chart
@@ -581,9 +640,19 @@
                     },
                     scales: {
                         x: {
+                            type: 'time',
+                            time: {
+                                unit: viewType === 'trade' || viewType === 'daily' ? 'day' : 
+                                      viewType === 'weekly' ? 'week' : 'month',
+                                displayFormats: {
+                                    day: 'MMM dd',
+                                    week: 'MMM dd',
+                                    month: 'MMM yyyy'
+                                }
+                            },
                             title: {
                                 display: true,
-                                text: 'Trade Number',
+                                text: 'Date',
                                 color: '#ffffff',
                                 font: {
                                     family: 'Inter',
