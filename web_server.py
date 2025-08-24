@@ -812,7 +812,7 @@ def ai_strategy_optimization():
         
         Focus on actionable insights for systematic trading."""
         
-        response = client.chat.completions.create(
+        response = openai.chat.completions.create(
             model=environ.get('OPENAI_MODEL', 'gpt-4o'),
             messages=[
                 {"role": "system", "content": "You are an expert quantitative trading strategist specializing in futures optimization and systematic trading. Provide clear, actionable analysis."},
