@@ -852,17 +852,51 @@ def ai_strategy_optimization():
         
         context += f"\n\nTOTAL DATASET: {total_trades} trades analyzed"
         
+        # Get statistical analysis results for comparison
+        statistical_results = None
+        try:
+            cursor = db.conn.cursor()
+            cursor.execute("""
+                SELECT session, 
+                       COALESCE(mfe_none, mfe, 0) as mfe_none,
+                       COALESCE(mfe1, 0) as mfe1,
+                       COALESCE(mfe2, 0) as mfe2,
+                       COALESCE(be1_hit, false) as be1_hit,
+                       COALESCE(be2_hit, false) as be2_hit
+                FROM signal_lab_trades 
+                WHERE COALESCE(mfe_none, mfe, 0) != 0
+            """)
+            stat_trades = cursor.fetchall()
+            if len(stat_trades) >= 10:
+                statistical_results = calculate_optimal_r_target(stat_trades)
+        except:
+            pass
+        
         prompt = f"""{context}
         
-        Provide strategic analysis of this optimization:
+        **CRITICAL VALIDATION REQUIREMENT:**
+        The statistical analysis found: {statistical_results['optimal_strategy']['r_target']}R + {statistical_results['optimal_strategy']['be_strategy']} = {statistical_results['optimal_strategy']['expectancy']:.3f}R expectancy if statistical_results and statistical_results.get('optimal_strategy') else 'Statistical analysis pending'}
         
-        1. **Strategy Validation**: Is this optimal combination statistically significant?
-        2. **Risk Assessment**: What are the risks of this strategy?
-        3. **Implementation**: Key considerations for executing this strategy
-        4. **Market Context**: How does this align with NQ futures trading?
-        5. **Scaling Potential**: Can this strategy handle larger position sizes?
+        **YOUR TASK: REPLICATE THIS EXACT METHODOLOGY**
         
-        Focus on actionable insights for systematic trading."""
+        You MUST perform the same mathematical analysis:
+        1. Test R-targets from 1R to {statistical_results['max_mfe_in_data']:.0f}R (actual max MFE) if statistical_results else 'max MFE'}
+        2. Test BE strategies: none, be1, be2
+        3. Calculate expectancy for each combination: (Win% × Avg Win) - (Loss% × Avg Loss)
+        4. Weight: 50% expectancy + 25% win rate + 15% sample size + 10% consistency
+        5. Find highest scoring combination
+        
+        **VALIDATION CHECK:**
+        Your result MUST match or closely approximate: {best_combination.get('rTarget', 'N/A')}R target with {best_combination.get('beStrategy', 'N/A')} strategy.
+        
+        If you get a different result, explain the mathematical discrepancy step-by-step.
+        
+        Provide:
+        1. **Mathematical Verification**: Show your R-target calculation matches the statistical result
+        2. **Expectancy Validation**: Confirm the expectancy calculation methodology
+        3. **Strategic Analysis**: Only AFTER validating the math, provide strategic insights
+        
+        Focus on mathematical accuracy first, strategic insights second."""
         
         import requests
         response = requests.post(
@@ -2632,8 +2666,15 @@ def calculate_optimal_r_target(trades):
     import statistics
     from collections import defaultdict
     
-    # Test R-targets from 1 to 100 in 1R increments
-    r_targets = list(range(1, 101))  # 1 to 100
+    # Get MFE distribution to understand the actual range
+    mfe_values = [float(t['mfe_none']) for t in trades if float(t['mfe_none']) > 0]
+    max_mfe = max(mfe_values) if mfe_values else 10
+    
+    # Test R-targets from 1 to actual maximum MFE (no artificial cap)
+    r_targets = list(range(1, int(max_mfe) + 1))  # Test up to actual max MFE
+    
+    logger.info(f"Testing R-targets from 1 to {max(r_targets)} (Max MFE in data: {max_mfe:.2f}R)")
+    logger.info(f"Total trades for analysis: {len(trades)}")
     be_strategies = ['none', 'be1', 'be2']
     sessions = ['Asia', 'London', 'NY Pre Market', 'NY AM', 'NY Lunch', 'NY PM']
     
@@ -2712,9 +2753,9 @@ def calculate_optimal_r_target(trades):
                 
                 # Calculate overall score (weighted combination)
                 overall_score = (
-                    total_expectancy * 40 +  # 40% weight on expectancy
-                    (total_win_rate / 100) * 30 +  # 30% weight on win rate
-                    (significance_score / 100) * 20 +  # 20% weight on sample size
+                    total_expectancy * 50 +  # 50% weight on expectancy (increased)
+                    (total_win_rate / 100) * 25 +  # 25% weight on win rate
+                    (significance_score / 100) * 15 +  # 15% weight on sample size
                     (consistency / 100) * 10  # 10% weight on consistency
                 )
                 
@@ -2729,6 +2770,10 @@ def calculate_optimal_r_target(trades):
                     'overall_score': overall_score,
                     'session_breakdown': session_results
                 })
+                
+                # Debug logging for top results
+                if len(results) <= 10:
+                    logger.info(f"R-Target {r_target}R + {be_strategy}: {total_expectancy:.3f}R expectancy, {total_win_rate:.1f}% WR, Score: {overall_score:.3f}")
     
     # Sort by overall score
     results.sort(key=lambda x: x['overall_score'], reverse=True)
@@ -2750,11 +2795,18 @@ def calculate_optimal_r_target(trades):
         }
     }
     
+    # Additional validation
+    if optimal:
+        logger.info(f"OPTIMAL FOUND: {optimal['r_target']}R + {optimal['be_strategy']} = {optimal['expectancy']:.3f}R expectancy")
+        logger.info(f"Sample size: {optimal['sample_size']}, Win rate: {optimal['win_rate']:.1f}%")
+    
     return {
         'optimal_strategy': optimal,
         'top_10_results': results[:10],
         'mfe_statistics': mfe_stats,
         'total_trades_analyzed': len(trades),
+        'max_mfe_in_data': max_mfe,
+        'r_target_range_tested': f"1R to {max(r_targets)}R",
         'recommendation': generate_r_target_recommendation(optimal, mfe_stats)
     }
 
