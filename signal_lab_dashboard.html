@@ -907,13 +907,14 @@
                     bestCombination,
                     topResults: results.sort((a, b) => b.expectancy - a.expectancy).slice(0, 10),
                     totalTrades: signals.length,
+                    tradeData: signals,
                     dateRange: {
                         start: Math.min(...signals.map(s => new Date(s.date))),
                         end: Math.max(...signals.map(s => new Date(s.date)))
                     }
                 };
                 
-                const response = await fetch('/api/ai-strategy-optimization', {
+                const response = await fetch('https://trading-hmm-server-production.up.railway.app/api/ai-strategy-optimization', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(analysisData)
@@ -986,9 +987,9 @@
                     </div>
                     
                     ${aiAnalysis ? `
-                        <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-top: 15px;">
-                            <h4 style="color: #00d4aa; margin-bottom: 10px;">🤖 AI Analysis:</h4>
-                            <div style="line-height: 1.6; white-space: pre-wrap;">${aiAnalysis}</div>
+                        <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-top: 20px;">
+                            <h4 style="color: #00d4aa; margin-bottom: 15px; font-size: 18px;">🤖 GPT-4 Strategic Analysis</h4>
+                            <div style="line-height: 1.8; font-size: 15px; color: rgba(255,255,255,0.9);">${formatAIAnalysis(aiAnalysis)}</div>
                         </div>
                     ` : ''}
                     
@@ -1028,9 +1029,23 @@
             document.querySelector('#performanceChart').scrollIntoView({ behavior: 'smooth' });
         }
         
+        function formatAIAnalysis(analysis) {
+            return analysis
+                .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #00ff88; font-weight: 600;">$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em style="color: #00d4aa;">$1</em>')
+                .replace(/\n\n/g, '</p><p style="margin: 12px 0;">')
+                .replace(/\n/g, '<br>')
+                .replace(/^/, '<p style="margin: 12px 0;">')
+                .replace(/$/, '</p>')
+                .replace(/\d{1,2}:\d{2}/g, '<span style="background: rgba(0,255,136,0.2); padding: 2px 6px; border-radius: 4px; font-weight: 600;">$&</span>')
+                .replace(/(\d+\.\d+R|\d+R)/g, '<span style="color: #00ff88; font-weight: 600;">$1</span>')
+                .replace(/(\d+\.\d+%|\d+%)/g, '<span style="color: #00d4aa; font-weight: 600;">$1</span>');
+        }
+        
         // Make functions globally available
         window.updateAnalysis = updateAnalysis;
         window.applyOptimalStrategy = applyOptimalStrategy;
+        window.formatAIAnalysis = formatAIAnalysis;
     </script>
 </body>
 </html>
