@@ -161,6 +161,13 @@
             background: rgba(255,255,255,0.1);
         }
         
+        .checkbox-item[data-session="Asia"] { border-left: 4px solid #ffa502; }
+        .checkbox-item[data-session="London"] { border-left: 4px solid #3742fa; }
+        .checkbox-item[data-session="NY Pre Market"] { border-left: 4px solid #26de81; }
+        .checkbox-item[data-session="NY AM"] { border-left: 4px solid #00ff88; }
+        .checkbox-item[data-session="NY Lunch"] { border-left: 4px solid #ffffff; }
+        .checkbox-item[data-session="NY PM"] { border-left: 4px solid #a55eea; }
+        
         .checkbox-item input[type="checkbox"] {
             width: 16px;
             height: 16px;
@@ -318,27 +325,27 @@
                 <div class="control-group">
                     <label>Sessions</label>
                     <div class="session-checkboxes">
-                        <div class="checkbox-item">
+                        <div class="checkbox-item" data-session="Asia">
                             <input type="checkbox" id="sessionAsia" value="Asia" checked>
                             <label for="sessionAsia">Asia</label>
                         </div>
-                        <div class="checkbox-item">
+                        <div class="checkbox-item" data-session="London">
                             <input type="checkbox" id="sessionLondon" value="London" checked>
                             <label for="sessionLondon">London</label>
                         </div>
-                        <div class="checkbox-item">
+                        <div class="checkbox-item" data-session="NY Pre Market">
                             <input type="checkbox" id="sessionNYPre" value="NY Pre Market" checked>
                             <label for="sessionNYPre">NY Pre</label>
                         </div>
-                        <div class="checkbox-item">
+                        <div class="checkbox-item" data-session="NY AM">
                             <input type="checkbox" id="sessionNYAM" value="NY AM" checked>
                             <label for="sessionNYAM">NY AM</label>
                         </div>
-                        <div class="checkbox-item">
+                        <div class="checkbox-item" data-session="NY Lunch">
                             <input type="checkbox" id="sessionNYLunch" value="NY Lunch" checked>
                             <label for="sessionNYLunch">NY Lunch</label>
                         </div>
-                        <div class="checkbox-item">
+                        <div class="checkbox-item" data-session="NY PM">
                             <input type="checkbox" id="sessionNYPM" value="NY PM" checked>
                             <label for="sessionNYPM">NY PM</label>
                         </div>
@@ -370,6 +377,11 @@
                 <div class="stat-value" id="totalTrades">-</div>
                 <div class="stat-label">Total Trades</div>
             </div>
+        </div>
+        
+        <div class="chart-container">
+            <h3 style="margin-bottom: 20px; color: #00ff88;">🤖 AI Strategy Optimization</h3>
+            <div id="aiAnalysis" class="loading">Analyzing all strategy combinations...</div>
         </div>
         
         <div class="chart-container">
@@ -407,6 +419,7 @@
                     }));
                     
                     console.log(`✅ Loaded ${signals.length} signals`);
+                    await runAIOptimization();
                     updateAnalysis();
                 } else {
                     console.error('Failed to load signals');
@@ -645,12 +658,12 @@
             
             // Session background zones
             const sessionColors = {
-                'Asia': 'rgba(255, 107, 122, 0.1)',
-                'London': 'rgba(0, 255, 136, 0.1)', 
-                'NY Pre Market': 'rgba(255, 165, 2, 0.1)',
-                'NY AM': 'rgba(55, 66, 250, 0.1)',
-                'NY Lunch': 'rgba(165, 94, 234, 0.1)',
-                'NY PM': 'rgba(38, 222, 129, 0.1)'
+                'Asia': 'rgba(255, 165, 2, 0.1)',
+                'London': 'rgba(55, 66, 250, 0.1)', 
+                'NY Pre Market': 'rgba(38, 222, 129, 0.1)',
+                'NY AM': 'rgba(0, 255, 136, 0.1)',
+                'NY Lunch': 'rgba(255, 255, 255, 0.1)',
+                'NY PM': 'rgba(165, 94, 234, 0.1)'
             };
             
             const showSessionOverlay = document.getElementById('sessionOverlay').checked;
@@ -798,8 +811,220 @@
             setupAutoUpdate();
         });
         
-        // Make function globally available
+        // AI Strategy Optimization
+        async function runAIOptimization() {
+            if (signals.length < 10) {
+                document.getElementById('aiAnalysis').innerHTML = '📊 Need at least 10 trades for meaningful optimization analysis';
+                return;
+            }
+            
+            document.getElementById('aiAnalysis').innerHTML = '🤖 Analyzing all strategy combinations...';
+            
+            try {
+                // Test all combinations
+                const beStrategies = ['none', 'be1', 'be2'];
+                // Calculate R-targets from 1 to highest MFE in dataset
+                const allMFEs = signals.flatMap(s => [s.mfeNone, s.mfe1, s.mfe2]).filter(mfe => mfe > 0);
+                const maxMFE = allMFEs.length > 0 ? Math.max(...allMFEs) : 5;
+                const rTargets = [];
+                for (let r = 1; r <= Math.ceil(maxMFE); r++) {
+                    rTargets.push(r);
+                }
+                const allSessions = ['Asia', 'London', 'NY Pre Market', 'NY AM', 'NY Lunch', 'NY PM'];
+                
+                let bestCombination = null;
+                let bestExpectancy = -999;
+                const results = [];
+                
+                // Test all BE strategies
+                for (const beStrategy of beStrategies) {
+                    // Test all R-targets
+                    for (const rTarget of rTargets) {
+                        // Test individual sessions
+                        for (const session of allSessions) {
+                            const sessionSignals = signals.filter(s => s.session === session);
+                            if (sessionSignals.length >= 5) {
+                                const tradeResults = sessionSignals.map(signal => 
+                                    calculateTradeResult(signal, beStrategy, rTarget)
+                                );
+                                const stats = calculateStatistics(tradeResults, rTarget);
+                                
+                                results.push({
+                                    beStrategy,
+                                    rTarget,
+                                    sessions: [session],
+                                    expectancy: stats.expectancy,
+                                    winRate: stats.winRate,
+                                    totalTrades: sessionSignals.length
+                                });
+                                
+                                if (stats.expectancy > bestExpectancy && sessionSignals.length >= 10) {
+                                    bestExpectancy = stats.expectancy;
+                                    bestCombination = {
+                                        beStrategy,
+                                        rTarget,
+                                        sessions: [session],
+                                        expectancy: stats.expectancy,
+                                        winRate: stats.winRate,
+                                        totalTrades: sessionSignals.length
+                                    };
+                                }
+                            }
+                        }
+                        
+                        // Test session combinations (top performing pairs)
+                        const topSessions = ['London', 'NY AM', 'NY Pre Market'];
+                        for (let i = 0; i < topSessions.length; i++) {
+                            for (let j = i + 1; j < topSessions.length; j++) {
+                                const sessionCombo = [topSessions[i], topSessions[j]];
+                                const comboSignals = signals.filter(s => sessionCombo.includes(s.session));
+                                
+                                if (comboSignals.length >= 10) {
+                                    const tradeResults = comboSignals.map(signal => 
+                                        calculateTradeResult(signal, beStrategy, rTarget)
+                                    );
+                                    const stats = calculateStatistics(tradeResults, rTarget);
+                                    
+                                    if (stats.expectancy > bestExpectancy) {
+                                        bestExpectancy = stats.expectancy;
+                                        bestCombination = {
+                                            beStrategy,
+                                            rTarget,
+                                            sessions: sessionCombo,
+                                            expectancy: stats.expectancy,
+                                            winRate: stats.winRate,
+                                            totalTrades: comboSignals.length
+                                        };
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Send to GPT-4 for analysis
+                const analysisData = {
+                    bestCombination,
+                    topResults: results.sort((a, b) => b.expectancy - a.expectancy).slice(0, 10),
+                    totalTrades: signals.length,
+                    dateRange: {
+                        start: Math.min(...signals.map(s => new Date(s.date))),
+                        end: Math.max(...signals.map(s => new Date(s.date)))
+                    }
+                };
+                
+                const response = await fetch('/api/ai-strategy-optimization', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(analysisData)
+                });
+                
+                if (response.ok) {
+                    const aiResult = await response.json();
+                    displayAIRecommendation(aiResult.analysis, bestCombination);
+                } else {
+                    displayAIRecommendation(null, bestCombination);
+                }
+                
+            } catch (error) {
+                console.error('AI optimization error:', error);
+                document.getElementById('aiAnalysis').innerHTML = '⚠️ AI analysis temporarily unavailable';
+            }
+        }
+        
+        function displayAIRecommendation(aiAnalysis, bestCombination) {
+            if (!bestCombination) {
+                document.getElementById('aiAnalysis').innerHTML = '📊 Insufficient data for optimization (need 10+ trades per strategy)';
+                return;
+            }
+            
+            const beStrategyText = {
+                'none': 'No Breakeven',
+                'be1': 'Breakeven at 1R',
+                'be2': 'Breakeven at 2R'
+            };
+            
+            const sessionsText = bestCombination.sessions.length === 1 ? 
+                bestCombination.sessions[0] : 
+                bestCombination.sessions.join(' + ');
+            
+            const recommendationHtml = `
+                <div style="background: rgba(0,255,136,0.1); border: 2px solid #00ff88; border-radius: 15px; padding: 20px; margin-bottom: 20px;">
+                    <h3 style="color: #00ff88; margin-bottom: 15px;">🏆 OPTIMAL STRATEGY RECOMMENDATION</h3>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; color: #00ff88;">${beStrategyText[bestCombination.beStrategy]}</div>
+                            <div style="font-size: 12px; opacity: 0.8;">BE Strategy</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; color: #00ff88;">${bestCombination.rTarget}R</div>
+                            <div style="font-size: 12px; opacity: 0.8;">R-Target</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; color: #00ff88;">${sessionsText}</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Sessions</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; color: #00ff88;">${bestCombination.expectancy.toFixed(3)}R</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Expectancy</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; color: #00ff88;">${bestCombination.winRate.toFixed(1)}%</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Win Rate</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; color: #00ff88;">${bestCombination.totalTrades}</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Sample Size</div>
+                        </div>
+                    </div>
+                    
+                    ${aiAnalysis ? `
+                        <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-top: 15px;">
+                            <h4 style="color: #00d4aa; margin-bottom: 10px;">🤖 AI Analysis:</h4>
+                            <div style="line-height: 1.6; white-space: pre-wrap;">${aiAnalysis}</div>
+                        </div>
+                    ` : ''}
+                    
+                    <button onclick="applyOptimalStrategy()" style="
+                        background: linear-gradient(45deg, #00ff88, #00d4aa);
+                        border: none; padding: 12px 24px; border-radius: 8px;
+                        color: white; font-weight: 600; cursor: pointer;
+                        margin-top: 15px; transition: all 0.3s ease;
+                    ">Apply This Strategy →</button>
+                </div>
+            `;
+            
+            document.getElementById('aiAnalysis').innerHTML = recommendationHtml;
+            
+            // Store optimal strategy globally
+            window.optimalStrategy = bestCombination;
+        }
+        
+        function applyOptimalStrategy() {
+            if (!window.optimalStrategy) return;
+            
+            const strategy = window.optimalStrategy;
+            
+            // Update form controls
+            document.getElementById('beStrategy').value = strategy.beStrategy;
+            document.getElementById('rTarget').value = strategy.rTarget;
+            
+            // Update session checkboxes
+            document.querySelectorAll('.session-checkboxes input[type="checkbox"]').forEach(cb => {
+                cb.checked = strategy.sessions.includes(cb.value);
+            });
+            
+            // Update analysis
+            updateAnalysis();
+            
+            // Scroll to chart
+            document.querySelector('#performanceChart').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Make functions globally available
         window.updateAnalysis = updateAnalysis;
+        window.applyOptimalStrategy = applyOptimalStrategy;
     </script>
 </body>
 </html>
