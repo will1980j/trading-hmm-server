@@ -48,8 +48,9 @@ api_key = environ.get('OPENAI_API_KEY')
 client = None
 if api_key:
     try:
-        import openai
-        openai.api_key = api_key
+        # Use environment variable approach to avoid constructor issues
+        import os
+        os.environ['OPENAI_API_KEY'] = api_key
         client = OpenAI()
         logger.info("OpenAI client initialized successfully")
     except Exception as e:
@@ -57,6 +58,7 @@ if api_key:
         client = None
 else:
     logger.warning("OPENAI_API_KEY not found in environment variables")
+    client = None
 
 app = Flask(__name__)
 app.secret_key = environ.get('SECRET_KEY', 'dev-key-change-in-production')
