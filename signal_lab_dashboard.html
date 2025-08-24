@@ -408,26 +408,32 @@
             <div class="stat-card">
                 <div class="stat-value" id="expectancy">-</div>
                 <div class="stat-label">Expectancy</div>
+                <div class="stat-analysis" id="expectancyAnalysis" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3; min-height: 40px;">Loading analysis...</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="winRate">-</div>
                 <div class="stat-label">Win Rate</div>
+                <div class="stat-analysis" id="winRateAnalysis" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3; min-height: 40px;">Loading analysis...</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="lossRate">-</div>
                 <div class="stat-label">Loss Rate</div>
+                <div class="stat-analysis" id="lossRateAnalysis" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3; min-height: 40px;">Loading analysis...</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="consecutiveLosses">-</div>
                 <div class="stat-label">Max Consecutive Losses</div>
+                <div class="stat-analysis" id="consecutiveLossesAnalysis" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3; min-height: 40px;">Loading analysis...</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="consecutiveWins">-</div>
                 <div class="stat-label">Max Consecutive Wins</div>
+                <div class="stat-analysis" id="consecutiveWinsAnalysis" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3; min-height: 40px;">Loading analysis...</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="totalTrades">-</div>
                 <div class="stat-label">Total Trades</div>
+                <div class="stat-analysis" id="totalTradesAnalysis" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3; min-height: 40px;">Loading analysis...</div>
             </div>
         </div>
         
@@ -569,6 +575,9 @@
             
             // Update stats display
             updateStatsDisplay(stats, filteredSignals.length);
+            
+            // Get AI analysis for each stat
+            analyzeStats(stats, filteredSignals.length, beStrategy, rTarget, selectedSessions);
             
             // Update chart
             updateChart(aggregatedData, rTarget, viewType);
@@ -1092,6 +1101,8 @@
             document.getElementById('consecutiveLosses').textContent = '-';
             document.getElementById('consecutiveWins').textContent = '-';
             document.getElementById('totalTrades').textContent = '0';
+            
+            document.querySelectorAll('.stat-analysis').forEach(el => el.textContent = 'No data available');
             
             d3.select('#performanceChart').selectAll('*').remove();
             d3.select('#performanceChart').append('div')
@@ -1713,6 +1724,47 @@
             }
         }
         
+        // AI Stats Analysis Function
+        async function analyzeStats(stats, totalTrades, beStrategy, rTarget, sessions) {
+            if (!stats || totalTrades < 5) {
+                document.querySelectorAll('.stat-analysis').forEach(el => el.textContent = 'Need more data');
+                return;
+            }
+            
+            const context = `ICT NQ Strategy: ${beStrategy} BE, ${rTarget}R target, ${sessions.join('+')} sessions. ${totalTrades} trades: ${stats.expectancy.toFixed(2)}R expectancy, ${stats.winRate.toFixed(1)}% win rate, ${stats.maxConsecutiveLosses} max losses, ${stats.maxConsecutiveWins} max wins.`;
+            
+            const analyses = {
+                expectancy: `Expectancy ${stats.expectancy.toFixed(2)}R in context of ICT strategy`,
+                winRate: `Win rate ${stats.winRate.toFixed(1)}% for ${beStrategy} breakeven strategy`,
+                lossRate: `Loss rate ${stats.lossRate.toFixed(1)}% impact on account growth`,
+                consecutiveLosses: `Max ${stats.maxConsecutiveLosses} consecutive losses risk management`,
+                consecutiveWins: `Max ${stats.maxConsecutiveWins} consecutive wins momentum analysis`,
+                totalTrades: `${totalTrades} trades statistical significance for strategy`
+            };
+            
+            for (const [stat, prompt] of Object.entries(analyses)) {
+                try {
+                    const response = await fetch('/api/ai-insights', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            prompt: `${context} Analyze: ${prompt}. 2-3 sentences max, strategic context.`,
+                            data: { stats, totalTrades }
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        document.getElementById(`${stat}Analysis`).textContent = result.insight || 'Analysis pending';
+                    } else {
+                        document.getElementById(`${stat}Analysis`).textContent = 'Analysis optimizing';
+                    }
+                } catch (error) {
+                    document.getElementById(`${stat}Analysis`).textContent = 'Analysis pending';
+                }
+            }
+        }
+        
         // Make functions globally available
         window.updateAnalysis = updateAnalysis;
         window.applyOptimalStrategy = applyOptimalStrategy;
@@ -1721,6 +1773,7 @@
         window.analyzeOptimalRTarget = analyzeOptimalRTarget;
         window.applyOptimalRTarget = applyOptimalRTarget;
         window.toggleAIDetails = toggleAIDetails;
+        window.analyzeStats = analyzeStats;
     </script>
 </body>
 </html>
