@@ -546,7 +546,11 @@
         
         function aggregateData(tradeResults, viewType) {
             if (viewType === 'trade') {
-                return tradeResults.sort((a, b) => new Date(a.date + ' ' + (a.time || '00:00')) - new Date(b.date + ' ' + (b.time || '00:00')));
+                return tradeResults.sort((a, b) => {
+                    const dateA = new Date(a.date + 'T' + (a.time || '00:00:00'));
+                    const dateB = new Date(b.date + 'T' + (b.time || '00:00:00'));
+                    return dateA - dateB;
+                });
             }
             
             const grouped = {};
@@ -589,10 +593,16 @@
             const cumulativeData = data.map((item, index) => {
                 const result = viewType === 'trade' ? item.result : item.result;
                 cumulative += result;
-                return { 
-                    x: viewType === 'trade' ? item.date : item.date, 
-                    y: cumulative 
-                };
+                
+                let xValue;
+                if (viewType === 'trade') {
+                    // Use full datetime for trade-by-trade view
+                    xValue = new Date(item.date + 'T' + (item.time || '00:00:00'));
+                } else {
+                    xValue = item.date;
+                }
+                
+                return { x: xValue, y: cumulative };
             });
             
             // Destroy existing chart
@@ -642,9 +652,11 @@
                         x: {
                             type: 'time',
                             time: {
-                                unit: viewType === 'trade' || viewType === 'daily' ? 'day' : 
+                                unit: viewType === 'trade' ? 'hour' : 
+                                      viewType === 'daily' ? 'day' : 
                                       viewType === 'weekly' ? 'week' : 'month',
                                 displayFormats: {
+                                    hour: 'MMM dd HH:mm',
                                     day: 'MMM dd',
                                     week: 'MMM dd',
                                     month: 'MMM yyyy'
