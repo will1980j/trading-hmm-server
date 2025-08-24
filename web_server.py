@@ -2663,229 +2663,298 @@ def api_analyze_trade_times():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/optimal-r-target-analysis', methods=['GET'])
+@app.route('/api/optimal-r-target-analysis', methods=['GET', 'POST'])
 @login_required
 def optimal_r_target_analysis():
     try:
         if not db_enabled or not db:
             return jsonify({"error": "Database not available"}), 500
+        
+        # Get selected sessions from request
+        selected_sessions = None
+        if request.method == 'POST':
+            data = request.get_json()
+            selected_sessions = data.get('sessions', None)
+        elif request.args.get('sessions'):
+            selected_sessions = request.args.get('sessions').split(',')
             
         cursor = db.conn.cursor()
-        cursor.execute("""
-            SELECT session, 
-                   COALESCE(mfe_none, mfe, 0) as mfe_none,
-                   COALESCE(mfe1, 0) as mfe1,
-                   COALESCE(mfe2, 0) as mfe2,
-                   COALESCE(be1_hit, false) as be1_hit,
-                   COALESCE(be2_hit, false) as be2_hit
-            FROM signal_lab_trades 
-            WHERE COALESCE(mfe_none, mfe, 0) != 0
-        """)
+        
+        # Build query with session filter if provided
+        if selected_sessions:
+            placeholders = ','.join(['%s'] * len(selected_sessions))
+            query = f"""
+                SELECT session, 
+                       COALESCE(mfe_none, mfe, 0) as mfe_none,
+                       COALESCE(mfe1, 0) as mfe1,
+                       COALESCE(mfe2, 0) as mfe2,
+                       COALESCE(be1_hit, false) as be1_hit,
+                       COALESCE(be2_hit, false) as be2_hit
+                FROM signal_lab_trades 
+                WHERE COALESCE(mfe_none, mfe, 0) != 0
+                AND session IN ({placeholders})
+            """
+            cursor.execute(query, selected_sessions)
+        else:
+            cursor.execute("""
+                SELECT session, 
+                       COALESCE(mfe_none, mfe, 0) as mfe_none,
+                       COALESCE(mfe1, 0) as mfe1,
+                       COALESCE(mfe2, 0) as mfe2,
+                       COALESCE(be1_hit, false) as be1_hit,
+                       COALESCE(be2_hit, false) as be2_hit
+                FROM signal_lab_trades 
+                WHERE COALESCE(mfe_none, mfe, 0) != 0
+            """)
         
         trades = cursor.fetchall()
         
         if len(trades) < 10:
             return jsonify({"error": "Need at least 10 trades for statistical analysis"}), 400
             
-        analysis = calculate_optimal_r_target(trades)
+        analysis = calculate_optimal_r_target(trades, selected_sessions)
         return jsonify(analysis)
         
     except Exception as e:
         logger.error(f"Error in optimal R-target analysis: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-def calculate_optimal_r_target(trades):
-    """Calculate statistically optimal R-target based on MFE distribution and expectancy"""
+def calculate_optimal_r_target(trades, selected_sessions=None):
+    """Calculate statistically optimal R-target using cumulative probability logic"""
     import statistics
     from collections import defaultdict
     
-    # Get MFE distribution to understand the actual range
-    mfe_values = [float(t['mfe_none']) for t in trades if float(t['mfe_none']) > 0]
-    max_mfe = max(mfe_values) if mfe_values else 10
+    # Filter trades by selected sessions if provided
+    if selected_sessions:
+        trades = [t for t in trades if t['session'] in selected_sessions]
+        logger.info(f"Filtered to {len(trades)} trades for sessions: {selected_sessions}")
     
-    # Test R-targets from 1 to reasonable maximum (cap at 10R for practical trading)
-    r_targets = list(range(1, min(11, int(max_mfe) + 1)))  # Test 1R to 10R max
+    # Get MFE distribution (filter reasonable values)
+    mfe_values = [float(t['mfe_none']) for t in trades if t['mfe_none'] is not None and -10 <= float(t['mfe_none']) <= 50]
+    positive_mfes = [mfe for mfe in mfe_values if mfe > 0]
+    max_mfe = max(positive_mfes) if positive_mfes else 5
     
-    logger.info(f"Testing R-targets from 1 to {max(r_targets)} (Max MFE in data: {max_mfe:.2f}R)")
-    logger.info(f"Total trades for analysis: {len(trades)}")
+    logger.info(f"MFE Analysis: {len(mfe_values)} total values, {len(positive_mfes)} positive, max: {max_mfe:.2f}R")
+    
+    # Test R-targets from 1 to reasonable maximum (cap at 15R for practical trading)
+    r_targets = list(range(1, min(16, int(max_mfe) + 1)))
+    
     be_strategies = ['none', 'be1', 'be2']
     sessions = ['Asia', 'London', 'NY Pre Market', 'NY AM', 'NY Lunch', 'NY PM']
     
     results = []
+    session_specific_results = {}
     
+    # Calculate for each BE strategy
     for be_strategy in be_strategies:
         for r_target in r_targets:
-            # Calculate results for each session
-            session_results = {}
             
-            for session in sessions:
-                session_trades = [t for t in trades if t['session'] == session]
-                if len(session_trades) < 5:  # Need minimum sample size
-                    continue
-                    
-                trade_results = []
-                for trade in session_trades:
-                    # Get appropriate MFE based on BE strategy
-                    if be_strategy == 'none':
-                        mfe = float(trade['mfe_none'])
-                    elif be_strategy == 'be1':
-                        mfe = float(trade['mfe1']) if trade['be1_hit'] else float(trade['mfe_none'])
-                    else:  # be2
-                        mfe = float(trade['mfe2']) if trade['be2_hit'] else float(trade['mfe_none'])
-                    
-                    # Calculate trade result with proper logic
-                    if mfe <= 0:  # No favorable movement
-                        result = -1
-                    elif be_strategy == 'none':
-                        # Simple: hit target or lose
-                        result = r_target if mfe >= r_target else -1
-                    elif be_strategy == 'be1':
-                        if mfe < 1:
-                            result = -1  # Didn't reach BE level
-                        elif mfe >= r_target:
-                            result = r_target  # Hit target
-                        else:
-                            result = 0  # Hit BE but not target
-                    else:  # be2
-                        if mfe < 2:
-                            result = -1  # Didn't reach BE level
-                        elif mfe >= r_target:
-                            result = r_target  # Hit target
-                        else:
-                            result = 0  # Hit BE but not target
-                    
-                    trade_results.append(result)
+            # Calculate for ALL sessions combined
+            all_session_results = []
+            for trade in trades:
+                mfe = float(trade['mfe_none']) if trade['mfe_none'] is not None else 0
                 
-                if trade_results:
-                    wins = len([r for r in trade_results if r > 0])
-                    losses = len([r for r in trade_results if r < 0])
-                    breakevens = len([r for r in trade_results if r == 0])
-                    
-                    # Validate we have meaningful data
-                    if wins + losses == 0:
-                        continue  # Skip if no wins or losses
-                    
-                    win_rate = (wins + breakevens) / len(trade_results) * 100
-                    expectancy = sum(trade_results) / len(trade_results)
-                    
-                    # Skip unrealistic results
-                    if win_rate < 1 or win_rate > 99:
-                        logger.warning(f"Unrealistic win rate {win_rate:.1f}% for {be_strategy} + {r_target}R in {session}")
-                        continue
-                    
-                    # Include all combinations for analysis
-                    session_results[session] = {
-                        'expectancy': expectancy,
-                        'win_rate': win_rate,
-                        'sample_size': len(trade_results),
-                        'wins': wins,
-                        'losses': losses,
-                        'breakevens': breakevens
-                    }
+                # Apply BE strategy logic
+                if be_strategy == 'be1' and trade.get('be1_hit'):
+                    mfe = float(trade.get('mfe1', 0))
+                elif be_strategy == 'be2' and trade.get('be2_hit'):
+                    mfe = float(trade.get('mfe2', 0))
+                
+                # CUMULATIVE PROBABILITY LOGIC: If MFE >= r_target, ALL lower targets would hit
+                if mfe <= 0:
+                    result = -1  # Loss
+                elif be_strategy == 'none':
+                    result = r_target if mfe >= r_target else -1
+                elif be_strategy == 'be1':
+                    if mfe < 1:
+                        result = -1  # Didn't reach BE
+                    elif mfe >= r_target:
+                        result = r_target  # Hit target
+                    else:
+                        result = 0  # BE but not target
+                else:  # be2
+                    if mfe < 2:
+                        result = -1  # Didn't reach BE
+                    elif mfe >= r_target:
+                        result = r_target  # Hit target
+                    else:
+                        result = 0  # BE but not target
+                
+                all_session_results.append(result)
             
-            # Calculate overall metrics across all sessions
-            if session_results:
-                total_expectancy = statistics.mean([s['expectancy'] for s in session_results.values()])
-                total_win_rate = statistics.mean([s['win_rate'] for s in session_results.values()])
-                total_sample = sum([s['sample_size'] for s in session_results.values()])
+            if len(all_session_results) >= 10:  # Minimum sample size
+                wins = len([r for r in all_session_results if r > 0])
+                losses = len([r for r in all_session_results if r < 0])
+                breakevens = len([r for r in all_session_results if r == 0])
                 
-                # Calculate statistical significance (simplified)
-                significance_score = min(100, (total_sample / 50) * 100)  # 50+ trades = 100% significance
+                win_rate = (wins + breakevens) / len(all_session_results) * 100
+                expectancy = sum(all_session_results) / len(all_session_results)
                 
-                # Calculate consistency (lower std dev = higher consistency)
-                expectancies = [s['expectancy'] for s in session_results.values()]
-                consistency = 100 - min(100, statistics.stdev(expectancies) * 50) if len(expectancies) > 1 else 50
-                
-                # Calculate overall score (weighted combination)
-                overall_score = (
-                    total_expectancy * 50 +  # 50% weight on expectancy (increased)
-                    (total_win_rate / 100) * 25 +  # 25% weight on win rate
-                    (significance_score / 100) * 15 +  # 15% weight on sample size
-                    (consistency / 100) * 10  # 10% weight on consistency
-                )
+                # Calculate hit probability (cumulative logic)
+                hit_probability = wins / len(all_session_results) * 100
                 
                 results.append({
                     'be_strategy': be_strategy,
                     'r_target': r_target,
-                    'expectancy': total_expectancy,
-                    'win_rate': total_win_rate,
-                    'sample_size': total_sample,
-                    'significance_score': significance_score,
-                    'consistency': consistency,
-                    'overall_score': overall_score,
-                    'session_breakdown': session_results
+                    'expectancy': expectancy,
+                    'win_rate': win_rate,
+                    'hit_probability': hit_probability,
+                    'sample_size': len(all_session_results),
+                    'wins': wins,
+                    'losses': losses,
+                    'breakevens': breakevens,
+                    'sessions': 'ALL' if not selected_sessions else '+'.join(selected_sessions)
                 })
+            
+            # Calculate for individual sessions
+            for session in sessions:
+                session_trades = [t for t in trades if t['session'] == session]
+                if len(session_trades) < 5:  # Minimum sample size per session
+                    continue
                 
-                # Debug logging for top results
-                if len(results) <= 10:
-                    logger.info(f"R-Target {r_target}R + {be_strategy}: {total_expectancy:.3f}R expectancy, {total_win_rate:.1f}% WR, Score: {overall_score:.3f}")
+                session_results = []
+                for trade in session_trades:
+                    mfe = float(trade['mfe_none']) if trade['mfe_none'] is not None else 0
+                    
+                    if be_strategy == 'be1' and trade.get('be1_hit'):
+                        mfe = float(trade.get('mfe1', 0))
+                    elif be_strategy == 'be2' and trade.get('be2_hit'):
+                        mfe = float(trade.get('mfe2', 0))
+                    
+                    # Same cumulative logic
+                    if mfe <= 0:
+                        result = -1
+                    elif be_strategy == 'none':
+                        result = r_target if mfe >= r_target else -1
+                    elif be_strategy == 'be1':
+                        if mfe < 1:
+                            result = -1
+                        elif mfe >= r_target:
+                            result = r_target
+                        else:
+                            result = 0
+                    else:  # be2
+                        if mfe < 2:
+                            result = -1
+                        elif mfe >= r_target:
+                            result = r_target
+                        else:
+                            result = 0
+                    
+                    session_results.append(result)
+                
+                if session_results:
+                    wins = len([r for r in session_results if r > 0])
+                    losses = len([r for r in session_results if r < 0])
+                    breakevens = len([r for r in session_results if r == 0])
+                    
+                    win_rate = (wins + breakevens) / len(session_results) * 100
+                    expectancy = sum(session_results) / len(session_results)
+                    hit_probability = wins / len(session_results) * 100
+                    
+                    session_key = f"{session}_{be_strategy}_{r_target}"
+                    session_specific_results[session_key] = {
+                        'session': session,
+                        'be_strategy': be_strategy,
+                        'r_target': r_target,
+                        'expectancy': expectancy,
+                        'win_rate': win_rate,
+                        'hit_probability': hit_probability,
+                        'sample_size': len(session_results),
+                        'wins': wins,
+                        'losses': losses,
+                        'breakevens': breakevens
+                    }
     
-    # Sort by overall score
-    results.sort(key=lambda x: x['overall_score'], reverse=True)
+    # Sort results by expectancy
+    results.sort(key=lambda x: x['expectancy'], reverse=True)
     
-    # Find optimal R-target
+    # Find best overall strategy
     optimal = results[0] if results else None
     
-    # Statistical analysis
-    mfe_values = [float(t['mfe_none']) for t in trades if float(t['mfe_none']) > 0]
+    # Find best strategy for each BE type
+    be_specific_best = {}
+    for be_strategy in be_strategies:
+        be_results = [r for r in results if r['be_strategy'] == be_strategy]
+        if be_results:
+            be_specific_best[be_strategy] = be_results[0]
+    
+    # Find best strategy for each session
+    session_best = {}
+    for session in sessions:
+        session_results = [r for r in session_specific_results.values() if r['session'] == session]
+        if session_results:
+            session_results.sort(key=lambda x: x['expectancy'], reverse=True)
+            session_best[session] = session_results[0]
+    
+    # MFE statistics
     mfe_stats = {
-        'mean': statistics.mean(mfe_values),
-        'median': statistics.median(mfe_values),
-        'std_dev': statistics.stdev(mfe_values),
+        'mean': statistics.mean(positive_mfes) if positive_mfes else 0,
+        'median': statistics.median(positive_mfes) if positive_mfes else 0,
         'percentiles': {
-            '25th': statistics.quantiles(mfe_values, n=4)[0],
-            '50th': statistics.quantiles(mfe_values, n=4)[1],
-            '75th': statistics.quantiles(mfe_values, n=4)[2],
-            '90th': statistics.quantiles(mfe_values, n=10)[8]
+            '50th': statistics.median(positive_mfes) if positive_mfes else 0,
+            '75th': statistics.quantiles(positive_mfes, n=4)[2] if len(positive_mfes) >= 4 else 0,
+            '90th': statistics.quantiles(positive_mfes, n=10)[8] if len(positive_mfes) >= 10 else 0
         }
     }
     
-    # Additional validation
     if optimal:
-        logger.info(f"OPTIMAL FOUND: {optimal['r_target']}R + {optimal['be_strategy']} = {optimal['expectancy']:.3f}R expectancy")
-        logger.info(f"Sample size: {optimal['sample_size']}, Win rate: {optimal['win_rate']:.1f}%")
+        logger.info(f"OPTIMAL STRATEGY: {optimal['r_target']}R + {optimal['be_strategy']} = {optimal['expectancy']:.3f}R expectancy ({optimal['hit_probability']:.1f}% hit rate)")
     
     return {
         'optimal_strategy': optimal,
-        'top_10_results': results[:10],
+        'be_specific_best': be_specific_best,
+        'session_specific_best': session_best,
+        'all_results': results[:20],  # Top 20 results
+        'session_results': session_specific_results,
         'mfe_statistics': mfe_stats,
         'total_trades_analyzed': len(trades),
         'max_mfe_in_data': max_mfe,
-        'r_target_range_tested': f"1R to {max(r_targets)}R",
-        'recommendation': generate_r_target_recommendation(optimal, mfe_stats)
+        'selected_sessions': selected_sessions or 'ALL',
+        'recommendation': generate_enhanced_recommendation(optimal, be_specific_best, session_best, mfe_stats)
     }
 
-def generate_r_target_recommendation(optimal, mfe_stats):
-    """Generate human-readable recommendation"""
+def generate_enhanced_recommendation(optimal, be_specific_best, session_best, mfe_stats):
+    """Generate comprehensive recommendation with session-specific advice"""
     if not optimal:
         return "Insufficient data for recommendation"
     
     be_names = {'none': 'No BE', 'be1': 'BE at 1R', 'be2': 'BE at 2R'}
     
-    recommendation = f"""**OPTIMAL R-TARGET ANALYSIS**
+    recommendation = f"""**📊 STATISTICAL R-TARGET ANALYSIS**
 
-**🎯 RECOMMENDED STRATEGY:**
-• R-Target: **{optimal['r_target']}R**
-• BE Strategy: **{be_names[optimal['be_strategy']]}**
-• Expected Return: **{optimal['expectancy']:.3f}R per trade**
-• Win Rate: **{optimal['win_rate']:.1f}%**
-• Statistical Confidence: **{optimal['significance_score']:.0f}%**
+**🏆 OVERALL BEST STRATEGY:**
+• **{optimal['r_target']}R + {be_names[optimal['be_strategy']]}**
+• Expectancy: **{optimal['expectancy']:.3f}R per trade**
+• Hit Probability: **{optimal['hit_probability']:.1f}%** (cumulative logic)
+• Sample: {optimal['sample_size']} trades
 
-**📊 MFE DISTRIBUTION INSIGHTS:**
-• Average MFE: **{mfe_stats['mean']:.2f}R**
-• 75% of trades reach: **{mfe_stats['percentiles']['75th']:.2f}R**
-• 90% of trades reach: **{mfe_stats['percentiles']['90th']:.2f}R**
+**🎯 BREAKEVEN STRATEGY COMPARISON:**"""
+    
+    for be_strategy, result in be_specific_best.items():
+        recommendation += f"\n• **{be_names[be_strategy]}**: {result['r_target']}R target → {result['expectancy']:.3f}R expectancy ({result['hit_probability']:.1f}% hit rate)"
+    
+    recommendation += "\n\n**⏰ SESSION-SPECIFIC RECOMMENDATIONS:**"
+    
+    for session, result in session_best.items():
+        recommendation += f"\n• **{session}**: {result['r_target']}R + {be_names[result['be_strategy']]} → {result['expectancy']:.3f}R ({result['hit_probability']:.1f}% hit)"
+    
+    recommendation += f"""
 
-**💡 KEY INSIGHTS:**
-• Your {optimal['r_target']}R target captures optimal risk-reward balance
-• {optimal['win_rate']:.0f}% win rate provides sustainable edge
-• {be_names[optimal['be_strategy']]} maximizes expectancy
-• Based on {optimal['sample_size']} trades across all sessions
+**📈 MFE DISTRIBUTION INSIGHTS:**
+• 50% of trades reach: **{mfe_stats['percentiles']['50th']:.1f}R**
+• 75% of trades reach: **{mfe_stats['percentiles']['75th']:.1f}R**
+• 90% of trades reach: **{mfe_stats['percentiles']['90th']:.1f}R**
 
-**⚠️ IMPLEMENTATION NOTES:**
-• Target is statistically optimized for your trading style
-• Consider market conditions and session volatility
-• Monitor performance and adjust if market regime changes"""
+**💡 CUMULATIVE PROBABILITY LOGIC:**
+• If MFE = 10R, then 1R, 2R, 3R...10R ALL would have hit
+• Higher R-targets have lower hit probability but same reward when hit
+• Optimal balance between hit probability and reward size
+
+**⚡ IMPLEMENTATION:**
+• Use **{optimal['r_target']}R** as your primary target
+• Apply **{be_names[optimal['be_strategy']]}** for risk management
+• Consider session-specific targets for optimization"""
     
     return recommendation
 
