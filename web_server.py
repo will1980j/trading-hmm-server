@@ -2900,6 +2900,7 @@ def calculate_optimal_r_target(trades, selected_sessions=None):
     mfe_stats = {
         'mean': statistics.mean(positive_mfes) if positive_mfes else 0,
         'median': statistics.median(positive_mfes) if positive_mfes else 0,
+        'std_dev': statistics.stdev(positive_mfes) if len(positive_mfes) > 1 else 0,
         'percentiles': {
             '50th': statistics.median(positive_mfes) if positive_mfes else 0,
             '75th': statistics.quantiles(positive_mfes, n=4)[2] if len(positive_mfes) >= 4 else 0,
@@ -2915,6 +2916,7 @@ def calculate_optimal_r_target(trades, selected_sessions=None):
         'be_specific_best': be_specific_best,
         'session_specific_best': session_best,
         'all_results': results[:20],  # Top 20 results
+        'top_10_results': results[:10],  # Top 10 results for frontend compatibility
         'session_results': session_specific_results,
         'mfe_statistics': mfe_stats,
         'total_trades_analyzed': len(trades),
