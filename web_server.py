@@ -819,6 +819,12 @@ def ai_strategy_optimization():
         top_results = data.get('topResults', [])
         total_trades = data.get('totalTrades', 0)
         
+        # Get detailed trade data for time analysis
+        trade_data = data.get('tradeData', [])
+        
+        # Build time analysis
+        time_analysis = analyze_trade_times(trade_data)
+        
         # Build analysis context
         context = f"""SIGNAL LAB STRATEGY OPTIMIZATION ANALYSIS:
         
@@ -829,6 +835,9 @@ def ai_strategy_optimization():
         - Expectancy: {best_combination.get('expectancy', 0):.3f}R
         - Win Rate: {best_combination.get('winRate', 0):.1f}%
         - Sample Size: {best_combination.get('totalTrades', 0)} trades
+        
+        TIME PATTERN ANALYSIS:
+        {time_analysis}
         
         TOP 5 ALTERNATIVES:
         """
@@ -874,6 +883,7 @@ def ai_strategy_optimization():
         
         return jsonify({
             "analysis": response.choices[0].message.content,
+            "time_patterns": extract_time_patterns(response.choices[0].message.content),
             "status": "success"
         })
         
@@ -2564,6 +2574,87 @@ def parse_market_analysis(ai_response):
         'confidence': confidence,
         'alerts': alerts
     }
+
+def analyze_trade_times(trade_data):
+    """Analyze trade times for patterns and success rates"""
+    if not trade_data:
+        return "No trade time data available for analysis"
+    
+    from collections import defaultdict
+    import re
+    
+    # Group trades by time
+    time_performance = defaultdict(list)
+    hourly_performance = defaultdict(list)
+    
+    for trade in trade_data:
+        time_str = trade.get('time', '')
+        mfe = trade.get('mfe', 0)
+        
+        if time_str and mfe is not None:
+            # Extract hour and minute
+            time_match = re.match(r'(\d{1,2}):(\d{2})', time_str)
+            if time_match:
+                hour = int(time_match.group(1))
+                minute = int(time_match.group(2))
+                
+                # Group by exact time
+                time_key = f"{hour:02d}:{minute:02d}"
+                time_performance[time_key].append(mfe)
+                
+                # Group by hour
+                hourly_performance[hour].append(mfe)
+    
+    # Find best performing times
+    best_times = []
+    for time_key, mfes in time_performance.items():
+        if len(mfes) >= 3:  # At least 3 trades
+            avg_mfe = sum(mfes) / len(mfes)
+            win_rate = len([m for m in mfes if m > 0]) / len(mfes) * 100
+            best_times.append((time_key, avg_mfe, win_rate, len(mfes)))
+    
+    # Sort by expectancy
+    best_times.sort(key=lambda x: x[1], reverse=True)
+    
+    # Find best performing hours
+    best_hours = []
+    for hour, mfes in hourly_performance.items():
+        if len(mfes) >= 5:  # At least 5 trades
+            avg_mfe = sum(mfes) / len(mfes)
+            win_rate = len([m for m in mfes if m > 0]) / len(mfes) * 100
+            best_hours.append((hour, avg_mfe, win_rate, len(mfes)))
+    
+    best_hours.sort(key=lambda x: x[1], reverse=True)
+    
+    analysis = "MINUTE-LEVEL TIME ANALYSIS:\n"
+    analysis += "\nTOP PERFORMING ENTRY TIMES:\n"
+    
+    for i, (time_key, avg_mfe, win_rate, count) in enumerate(best_times[:10]):
+        analysis += f"{i+1}. {time_key} - {avg_mfe:.2f}R avg, {win_rate:.1f}% win rate ({count} trades)\n"
+    
+    analysis += "\nTOP PERFORMING HOURS:\n"
+    for i, (hour, avg_mfe, win_rate, count) in enumerate(best_hours[:8]):
+        analysis += f"{i+1}. {hour:02d}:XX - {avg_mfe:.2f}R avg, {win_rate:.1f}% win rate ({count} trades)\n"
+    
+    return analysis
+
+def extract_time_patterns(ai_response):
+    """Extract time patterns from AI response"""
+    import re
+    
+    patterns = []
+    
+    # Look for time patterns in the response
+    time_matches = re.findall(r'(\d{1,2}:\d{2})', ai_response)
+    hour_matches = re.findall(r'(\d{1,2}:\d{2}-\d{1,2}:\d{2})', ai_response)
+    
+    if time_matches:
+        patterns.extend(time_matches[:5])  # Top 5 times
+    
+    if hour_matches:
+        patterns.extend(hour_matches[:3])  # Top 3 time ranges
+    
+    return patterns if patterns else ['Analysis in progress']
 
 # Positive response parsing functions
 def extract_positive_health_score(response):
