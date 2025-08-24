@@ -380,6 +380,11 @@
         </div>
         
         <div class="chart-container">
+            <h3 style="margin-bottom: 20px; color: #38ef7d;">⏰ Time Analysis for Selected Sessions</h3>
+            <div id="timeAnalysis" class="loading">Analyzing optimal entry times...</div>
+        </div>
+        
+        <div class="chart-container">
             <h3 style="margin-bottom: 20px; color: #00ff88;">AI Strategy Optimization</h3>
             <div id="aiAnalysis" class="loading">Analyzing all strategy combinations...</div>
         </div>
@@ -419,6 +424,7 @@
                     }));
                     
                     console.log(`✅ Loaded ${signals.length} signals`);
+                    await runTimeAnalysis();
                     await runAIOptimization();
                     updateAnalysis();
                 } else {
@@ -801,7 +807,10 @@
             
             // Session checkboxes
             document.querySelectorAll('.session-checkboxes input[type="checkbox"]').forEach(cb => {
-                cb.addEventListener('change', updateAnalysis);
+                cb.addEventListener('change', () => {
+                    runTimeAnalysis();
+                    updateAnalysis();
+                });
             });
         }
         
@@ -1054,10 +1063,86 @@
             return formatted;
         }
         
+        // Time Analysis Function
+        async function runTimeAnalysis() {
+            const selectedSessions = getSelectedSessions();
+            
+            if (selectedSessions.length === 0 || signals.length === 0) {
+                document.getElementById('timeAnalysis').innerHTML = '📈 Select sessions to view time analysis';
+                return;
+            }
+            
+            document.getElementById('timeAnalysis').innerHTML = 'Analyzing optimal entry times...';
+            
+            try {
+                const response = await fetch('/api/analyze-trade-times', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessions: selectedSessions })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    displayTimeAnalysis(result.analysis, selectedSessions);
+                } else {
+                    document.getElementById('timeAnalysis').innerHTML = '❌ Time analysis failed';
+                }
+            } catch (error) {
+                console.error('Time analysis error:', error);
+                document.getElementById('timeAnalysis').innerHTML = `❌ Time Analysis Error: ${error.message}`;
+            }
+        }
+        
+        function displayTimeAnalysis(analysis, sessions) {
+            const sessionColors = {
+                'Asia': '#ffa502',
+                'London': '#3742fa',
+                'NY Pre Market': '#26de81',
+                'NY AM': '#00ff88',
+                'NY Lunch': '#ffffff',
+                'NY PM': '#a55eea'
+            };
+            
+            const sessionBadges = sessions.map(session => 
+                `<span style="background: ${sessionColors[session] || '#666'}; color: #000; padding: 4px 12px; border-radius: 15px; font-weight: 600; margin-right: 8px;">${session}</span>`
+            ).join('');
+            
+            const timeAnalysisHtml = `
+                <div style="background: linear-gradient(135deg, #2d1b69 0%, #11998e 100%); border: 2px solid #38ef7d; border-radius: 15px; padding: 25px;">
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="color: #38ef7d; margin-bottom: 10px; font-size: 20px;">⏰ Optimal Entry Times Analysis</h3>
+                        <div style="margin-bottom: 15px;">
+                            <span style="color: rgba(255,255,255,0.8); font-size: 14px;">Sessions: </span>
+                            ${sessionBadges}
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; border-left: 4px solid #38ef7d;">
+                        <div style="color: #e8f4fd; font-size: 15px; line-height: 1.8;">${formatTimeAnalysis(analysis)}</div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('timeAnalysis').innerHTML = timeAnalysisHtml;
+        }
+        
+        function formatTimeAnalysis(analysis) {
+            return analysis
+                .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #38ef7d;">$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em style="color: #26de81;">$1</em>')
+                .replace(/\d{1,2}:\d{2}/g, '<span style="background: #38ef7d; color: #000; padding: 2px 8px; border-radius: 4px; font-weight: 600;">$&</span>')
+                .replace(/(\d+\.\d+R|\d+R)/g, '<span style="color: #38ef7d; font-weight: 600;">$1</span>')
+                .replace(/(\d+\.\d+%|\d+%)/g, '<span style="color: #26de81; font-weight: 600;">$1</span>')
+                .replace(/→/g, '<span style="color: #38ef7d; font-size: 18px;">→</span>')
+                .replace(/•/g, '<span style="color: #38ef7d;">•</span>')
+                .replace(/\n/g, '<br>');
+        }
+        
         // Make functions globally available
         window.updateAnalysis = updateAnalysis;
         window.applyOptimalStrategy = applyOptimalStrategy;
         window.formatAIAnalysis = formatAIAnalysis;
+        window.runTimeAnalysis = runTimeAnalysis;
     </script>
 </body>
 </html>

@@ -2575,68 +2575,144 @@ def parse_market_analysis(ai_response):
         'alerts': alerts
     }
 
-def analyze_trade_times(trade_data):
-    """Analyze trade times for patterns and success rates"""
-    if not trade_data:
-        return "No trade time data available for analysis"
-    
-    from collections import defaultdict
-    import re
-    
-    # Group trades by time
-    time_performance = defaultdict(list)
-    hourly_performance = defaultdict(list)
-    
-    for trade in trade_data:
-        time_str = trade.get('time', '')
-        mfe = trade.get('mfe', 0)
+@app.route('/api/analyze-trade-times', methods=['POST'])
+@login_required
+def api_analyze_trade_times():
+    try:
+        data = request.get_json()
+        selected_sessions = data.get('sessions', [])
         
-        if time_str and mfe is not None:
-            # Extract hour and minute
-            time_match = re.match(r'(\d{1,2}):(\d{2})', time_str)
-            if time_match:
-                hour = int(time_match.group(1))
-                minute = int(time_match.group(2))
+        if not selected_sessions:
+            return jsonify({"error": "No sessions selected"}), 400
+            
+        analysis = analyze_trade_times(selected_sessions)
+        return jsonify({"analysis": analysis})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def analyze_trade_times(selected_sessions=None):
+    """Analyze trade times for patterns and success rates"""
+    try:
+        if not db_enabled or not db:
+            return "Database not available for time analysis"
+        
+        cursor = db.conn.cursor()
+        
+        # Build query with session filter
+        if selected_sessions:
+            placeholders = ','.join(['%s'] * len(selected_sessions))
+            query = f"""
+                SELECT time, session, COALESCE(mfe_none, mfe, 0) as mfe
+                FROM signal_lab_trades 
+                WHERE session IN ({placeholders})
+                AND time IS NOT NULL
+                ORDER BY time
+            """
+            cursor.execute(query, selected_sessions)
+        else:
+            cursor.execute("""
+                SELECT time, session, COALESCE(mfe_none, mfe, 0) as mfe
+                FROM signal_lab_trades 
+                WHERE time IS NOT NULL
+                ORDER BY time
+            """)
+        
+        trades = cursor.fetchall()
+        
+        if not trades:
+            return "No trade time data available for selected sessions"
+        
+        from collections import defaultdict
+        import re
+        
+        # Group trades by time
+        time_performance = defaultdict(list)
+        hourly_performance = defaultdict(list)
+        session_times = defaultdict(lambda: defaultdict(list))
+        
+        for trade in trades:
+            time_str = trade['time']
+            mfe = float(trade['mfe']) if trade['mfe'] is not None else 0
+            session = trade['session']
+            
+            if time_str:
+                # Convert time to string if it's a time object
+                if hasattr(time_str, 'strftime'):
+                    time_str = time_str.strftime('%H:%M')
+                else:
+                    time_str = str(time_str)
                 
-                # Group by exact time
-                time_key = f"{hour:02d}:{minute:02d}"
-                time_performance[time_key].append(mfe)
-                
-                # Group by hour
-                hourly_performance[hour].append(mfe)
-    
-    # Find best performing times
-    best_times = []
-    for time_key, mfes in time_performance.items():
-        if len(mfes) >= 3:  # At least 3 trades
-            avg_mfe = sum(mfes) / len(mfes)
-            win_rate = len([m for m in mfes if m > 0]) / len(mfes) * 100
-            best_times.append((time_key, avg_mfe, win_rate, len(mfes)))
-    
-    # Sort by expectancy
-    best_times.sort(key=lambda x: x[1], reverse=True)
-    
-    # Find best performing hours
-    best_hours = []
-    for hour, mfes in hourly_performance.items():
-        if len(mfes) >= 5:  # At least 5 trades
-            avg_mfe = sum(mfes) / len(mfes)
-            win_rate = len([m for m in mfes if m > 0]) / len(mfes) * 100
-            best_hours.append((hour, avg_mfe, win_rate, len(mfes)))
-    
-    best_hours.sort(key=lambda x: x[1], reverse=True)
-    
-    analysis = "**MINUTE-LEVEL TIME ANALYSIS**\n\n"
-    analysis += "**TOP PERFORMING ENTRY TIMES:**\n"
-    
-    for i, (time_key, avg_mfe, win_rate, count) in enumerate(best_times[:5]):
-        analysis += f"• {time_key} → {avg_mfe:.2f}R expectancy, {win_rate:.1f}% win rate ({count} trades)\n"
-    
-    analysis += "\n**TOP PERFORMING HOURS:**\n"
-    for i, (hour, avg_mfe, win_rate, count) in enumerate(best_hours[:5]):
-        analysis += f"• {hour:02d}:XX → {avg_mfe:.2f}R expectancy, {win_rate:.1f}% win rate ({count} trades)\n"
-    
-    return analysis
+                # Extract hour and minute
+                time_match = re.match(r'(\d{1,2}):(\d{2})', time_str)
+                if time_match:
+                    hour = int(time_match.group(1))
+                    minute = int(time_match.group(2))
+                    
+                    # Group by exact time
+                    time_key = f"{hour:02d}:{minute:02d}"
+                    time_performance[time_key].append(mfe)
+                    
+                    # Group by hour
+                    hourly_performance[hour].append(mfe)
+                    
+                    # Group by session and time
+                    session_times[session][time_key].append(mfe)
+        
+        # Find best performing times
+        best_times = []
+        for time_key, mfes in time_performance.items():
+            if len(mfes) >= 2:  # At least 2 trades
+                avg_mfe = sum(mfes) / len(mfes)
+                win_rate = len([m for m in mfes if m > 0]) / len(mfes) * 100
+                best_times.append((time_key, avg_mfe, win_rate, len(mfes)))
+        
+        # Sort by expectancy
+        best_times.sort(key=lambda x: x[1], reverse=True)
+        
+        # Find best performing hours
+        best_hours = []
+        for hour, mfes in hourly_performance.items():
+            if len(mfes) >= 3:  # At least 3 trades
+                avg_mfe = sum(mfes) / len(mfes)
+                win_rate = len([m for m in mfes if m > 0]) / len(mfes) * 100
+                best_hours.append((hour, avg_mfe, win_rate, len(mfes)))
+        
+        best_hours.sort(key=lambda x: x[1], reverse=True)
+        
+        # Build analysis
+        sessions_text = ", ".join(selected_sessions) if selected_sessions else "All Sessions"
+        analysis = f"**TIME ANALYSIS FOR {sessions_text.upper()}**\n\n"
+        
+        if best_times:
+            analysis += "**🎯 TOP PERFORMING ENTRY TIMES:**\n"
+            for i, (time_key, avg_mfe, win_rate, count) in enumerate(best_times[:5]):
+                analysis += f"• **{time_key}** → {avg_mfe:.2f}R expectancy, {win_rate:.1f}% win rate ({count} trades)\n"
+        
+        if best_hours:
+            analysis += "\n**⏰ TOP PERFORMING HOURS:**\n"
+            for i, (hour, avg_mfe, win_rate, count) in enumerate(best_hours[:5]):
+                analysis += f"• **{hour:02d}:XX** → {avg_mfe:.2f}R expectancy, {win_rate:.1f}% win rate ({count} trades)\n"
+        
+        # Session-specific analysis
+        if selected_sessions and len(selected_sessions) > 1:
+            analysis += "\n**📊 SESSION BREAKDOWN:**\n"
+            for session in selected_sessions:
+                session_data = session_times.get(session, {})
+                if session_data:
+                    best_session_time = max(session_data.items(), 
+                                          key=lambda x: sum(x[1])/len(x[1]) if x[1] else 0)
+                    if best_session_time[1]:  # Has data
+                        avg_mfe = sum(best_session_time[1]) / len(best_session_time[1])
+                        analysis += f"• **{session}**: Best at {best_session_time[0]} ({avg_mfe:.2f}R avg)\n"
+        
+        analysis += f"\n*Analysis based on {len(trades)} trades from selected sessions*"
+        
+        return analysis
+        
+    except Exception as e:
+        logger.error(f"Error in analyze_trade_times: {str(e)}")
+        return f"Time analysis error: {str(e)}"
 
 def extract_time_patterns(ai_response):
     """Extract time patterns from AI response"""
