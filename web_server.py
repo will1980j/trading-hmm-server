@@ -896,9 +896,8 @@ def ai_strategy_optimization():
         1. {max_mfe_info}
         2. Test BE strategies: none, be1, be2
         3. Calculate expectancy for each combination: (Win% × Avg Win) - (Loss% × Avg Loss)
-        4. CRITICAL: Only consider combinations with win rate ≥ 40% (realistic trading threshold)
-        5. Weight: 50% expectancy + 25% win rate + 15% sample size + 10% consistency
-        6. Find highest scoring combination from viable options
+        4. Weight: 50% expectancy + 25% win rate + 15% sample size + 10% consistency
+        5. Find highest scoring combination from all options
         
         **VALIDATION CHECK:**
         Your result MUST match or closely approximate: {best_combination.get('rTarget', 'N/A')}R target with {best_combination.get('beStrategy', 'N/A')} strategy.
@@ -2743,8 +2742,7 @@ def calculate_optimal_r_target(trades):
                     win_rate = (wins + breakevens) / len(trade_results) * 100
                     expectancy = sum(trade_results) / len(trade_results)
                     
-                    # Only include if win rate is above 40% (realistic trading threshold)
-                    if win_rate >= 40.0:
+                    # Include all combinations for analysis
                         session_results[session] = {
                             'expectancy': expectancy,
                             'win_rate': win_rate,
