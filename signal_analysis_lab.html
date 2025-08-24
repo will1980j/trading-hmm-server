@@ -1914,18 +1914,18 @@
                     }
                     
                     // Calculate wins for each BE approach
-                    // No BE: MFE != -1 (not stopped out)
-                    if (signal.mfeNone && signal.mfeNone !== -1) {
+                    // No BE: MFE != -1 (not stopped out) OR active trade (no MFE yet)
+                    if ((signal.mfeNone && signal.mfeNone !== -1) || (!signal.mfeNone && isActive)) {
                         winRatesByDate[signal.date].noBE++;
                     }
                     
-                    // BE=1: BE1 was hit (triggered at 1R)
-                    if (signal.be1Hit) {
+                    // BE=1: BE1 was hit (triggered at 1R) OR active trade (assume winner)
+                    if (signal.be1Hit || (!signal.mfe1 && isActive)) {
                         winRatesByDate[signal.date].be1++;
                     }
                     
-                    // BE=2: BE2 was hit (triggered at 2R)
-                    if (signal.be2Hit) {
+                    // BE=2: BE2 was hit (triggered at 2R) OR active trade (assume winner)
+                    if (signal.be2Hit || (!signal.mfe2 && isActive)) {
                         winRatesByDate[signal.date].be2++;
                     }
                 }
