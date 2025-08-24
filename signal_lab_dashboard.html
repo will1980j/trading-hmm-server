@@ -1933,16 +1933,16 @@
             const context = `ICT NQ Strategy: ${beStrategy} BE, ${rTarget}R target, ${sessions.join('+')} sessions. ${totalTrades} trades: ${stats.expectancy.toFixed(2)}R expectancy, ${stats.winRate.toFixed(1)}% win rate, ${stats.maxConsecutiveLosses} max losses, ${stats.maxConsecutiveWins} max wins.`;
             
             const analyses = {
-                totalR: `Total ${stats.totalR.toFixed(2)}R performance across ${totalTrades} trades`,
-                avgRPerTrade: `Average ${stats.avgRPerTrade.toFixed(3)}R per trade consistency analysis`,
-                bestTrade: `Best trade ${stats.bestTrade.toFixed(2)}R upside potential`,
-                worstTrade: `Worst trade ${stats.worstTrade.toFixed(2)}R downside risk`,
-                expectancy: `Expectancy ${stats.expectancy.toFixed(2)}R in context of ICT strategy`,
-                winRate: `Win rate ${stats.winRate.toFixed(1)}% for ${beStrategy} breakeven strategy`,
-                lossRate: `Loss rate ${stats.lossRate.toFixed(1)}% impact on account growth`,
-                consecutiveLosses: `Max ${stats.maxConsecutiveLosses} consecutive losses risk management`,
-                consecutiveWins: `Max ${stats.maxConsecutiveWins} consecutive wins momentum analysis`,
-                totalTrades: `${totalTrades} trades statistical significance for strategy`
+                totalR: `${stats.totalR.toFixed(2)}R total. ${stats.totalR < 0 ? 'Stop trading Asia/NY Lunch. Switch to London+NY AM only' : stats.totalR < 5 ? 'Add NY Pre Market session. Test 3R targets' : 'Scale position size 25%'}`,
+                avgRPerTrade: `${stats.avgRPerTrade.toFixed(3)}R average. ${stats.avgRPerTrade < 0.1 ? 'Change to No BE strategy. Avoid NY Lunch' : stats.avgRPerTrade < 0.3 ? 'Test 2.5R targets. Skip Asia session' : 'Increase R-targets to 3R+'}`,
+                bestTrade: `${stats.bestTrade.toFixed(2)}R best. ${stats.bestTrade < 2 ? 'Increase R-targets to 3R minimum' : stats.bestTrade > 5 ? 'Use trailing stops at 3R+' : 'Current targets optimal'}`,
+                worstTrade: `${stats.worstTrade.toFixed(2)}R worst. ${stats.worstTrade < -2 ? 'Switch to BE=1R strategy immediately' : stats.worstTrade < -1.5 ? 'Tighten stops. Avoid low-volume sessions' : 'Risk management adequate'}`,
+                expectancy: `${stats.expectancy.toFixed(2)}R expectancy. ${stats.expectancy < 0 ? 'Stop all trading. Review strategy completely' : stats.expectancy < 0.2 ? 'Switch to London-only trading' : 'Add more volume in best sessions'}`,
+                winRate: `${stats.winRate.toFixed(1)}% wins. ${stats.winRate < 40 ? 'Change to No BE strategy. Focus London only' : stats.winRate < 60 ? 'Test BE=2R. Add NY Pre Market' : 'Scale up position size'}`,
+                lossRate: `${stats.lossRate.toFixed(1)}% losses. ${stats.lossRate > 60 ? 'Stop Asia/NY Lunch immediately' : stats.lossRate > 40 ? 'Switch to BE=1R strategy' : 'Current loss rate acceptable'}`,
+                consecutiveLosses: `${stats.maxConsecutiveLosses} max losses. ${stats.maxConsecutiveLosses > 5 ? 'Reduce position size 50%. Stop after 3 losses' : stats.maxConsecutiveLosses > 3 ? 'Implement daily loss limits' : 'Streak control good'}`,
+                consecutiveWins: `${stats.maxConsecutiveWins} max wins. ${stats.maxConsecutiveWins < 3 ? 'Focus on London+NY AM only' : stats.maxConsecutiveWins > 5 ? 'Scale up during win streaks' : 'Maintain current approach'}`,
+                totalTrades: `${totalTrades} trades. ${totalTrades < 20 ? 'Need 50+ trades for reliable data' : totalTrades < 50 ? 'Add NY Pre Market for more volume' : 'Sample size sufficient for optimization'}`
             };
             
             for (const [stat, prompt] of Object.entries(analyses)) {
@@ -1951,7 +1951,7 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
-                            prompt: `${context} Analyze: ${prompt}. 2-3 sentences max, strategic context.`,
+                            prompt: `${context} Give specific actionable advice to improve this metric. Examples: 'Stop trading Asia', 'Change to No BE', 'Use 3R targets', 'Add NY Pre Market'. Be direct and specific, not generic advice.`,
                             data: { stats, totalTrades }
                         })
                     });
