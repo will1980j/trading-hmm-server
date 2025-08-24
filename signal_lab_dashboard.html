@@ -337,7 +337,7 @@
                 </div>
             </div>
             
-            <button class="update-btn" onclick="updateAnalysis()">🔄 Update Analysis</button>
+
         </div>
         
         <div class="stats-grid" id="statsGrid">
@@ -721,9 +721,22 @@
             }
         }
         
+        // Auto-update when filters change
+        function setupAutoUpdate() {
+            document.getElementById('beStrategy').addEventListener('change', updateAnalysis);
+            document.getElementById('rTarget').addEventListener('input', updateAnalysis);
+            document.getElementById('viewType').addEventListener('change', updateAnalysis);
+            
+            // Session checkboxes
+            document.querySelectorAll('.session-checkboxes input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', updateAnalysis);
+            });
+        }
+        
         // Load data when page loads
         document.addEventListener('DOMContentLoaded', function() {
             loadSignals();
+            setupAutoUpdate();
         });
         
         // Make function globally available
