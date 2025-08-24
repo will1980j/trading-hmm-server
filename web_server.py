@@ -48,19 +48,15 @@ api_key = environ.get('OPENAI_API_KEY')
 client = None
 if api_key:
     try:
-        client = OpenAI(api_key=api_key)
+        import openai
+        openai.api_key = api_key
+        client = OpenAI()
         logger.info("OpenAI client initialized successfully")
-    except TypeError as e:
-        # Handle version compatibility issues
-        try:
-            client = OpenAI()
-            logger.info("OpenAI client initialized with default settings")
-        except Exception as e2:
-            logger.error(f"OpenAI client initialization failed: {str(e2).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
-            client = None
-    except (ValueError, ConnectionError, Exception) as e:
+    except Exception as e:
         logger.error(f"OpenAI client initialization failed: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
         client = None
+else:
+    logger.warning("OPENAI_API_KEY not found in environment variables")
 
 app = Flask(__name__)
 app.secret_key = environ.get('SECRET_KEY', 'dev-key-change-in-production')
