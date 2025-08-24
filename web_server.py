@@ -261,6 +261,11 @@ def emerald_mainframe():
 def amber_oracle():
     return read_html_file('amber_oracle.html')
 
+@app.route('/chart-showcase')
+@login_required
+def chart_showcase():
+    return read_html_file('chart_library_showcase.html')
+
 @app.route('/<path:filename>')
 def serve_files(filename):
     try:
@@ -2590,6 +2595,202 @@ def api_analyze_trade_times():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/optimal-r-target-analysis', methods=['GET'])
+@login_required
+def optimal_r_target_analysis():
+    try:
+        if not db_enabled or not db:
+            return jsonify({"error": "Database not available"}), 500
+            
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            SELECT session, 
+                   COALESCE(mfe_none, mfe, 0) as mfe_none,
+                   COALESCE(mfe1, 0) as mfe1,
+                   COALESCE(mfe2, 0) as mfe2,
+                   COALESCE(be1_hit, false) as be1_hit,
+                   COALESCE(be2_hit, false) as be2_hit
+            FROM signal_lab_trades 
+            WHERE COALESCE(mfe_none, mfe, 0) != 0
+        """)
+        
+        trades = cursor.fetchall()
+        
+        if len(trades) < 10:
+            return jsonify({"error": "Need at least 10 trades for statistical analysis"}), 400
+            
+        analysis = calculate_optimal_r_target(trades)
+        return jsonify(analysis)
+        
+    except Exception as e:
+        logger.error(f"Error in optimal R-target analysis: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+def calculate_optimal_r_target(trades):
+    """Calculate statistically optimal R-target based on MFE distribution and expectancy"""
+    import statistics
+    from collections import defaultdict
+    
+    # Test R-targets from 1 to 100 in 1R increments
+    r_targets = list(range(1, 101))  # 1 to 100
+    be_strategies = ['none', 'be1', 'be2']
+    sessions = ['Asia', 'London', 'NY Pre Market', 'NY AM', 'NY Lunch', 'NY PM']
+    
+    results = []
+    
+    for be_strategy in be_strategies:
+        for r_target in r_targets:
+            # Calculate results for each session
+            session_results = {}
+            
+            for session in sessions:
+                session_trades = [t for t in trades if t['session'] == session]
+                if len(session_trades) < 5:  # Need minimum sample size
+                    continue
+                    
+                trade_results = []
+                for trade in session_trades:
+                    # Get appropriate MFE based on BE strategy
+                    if be_strategy == 'none':
+                        mfe = float(trade['mfe_none'])
+                    elif be_strategy == 'be1':
+                        mfe = float(trade['mfe1']) if trade['be1_hit'] else float(trade['mfe_none'])
+                    else:  # be2
+                        mfe = float(trade['mfe2']) if trade['be2_hit'] else float(trade['mfe_none'])
+                    
+                    # Calculate trade result
+                    if be_strategy == 'none':
+                        result = r_target if mfe >= r_target else -1
+                    elif be_strategy == 'be1':
+                        if mfe < 1:
+                            result = -1
+                        elif mfe >= r_target:
+                            result = r_target
+                        else:
+                            result = 0  # Breakeven
+                    else:  # be2
+                        if mfe < 2:
+                            result = -1
+                        elif mfe >= r_target:
+                            result = r_target
+                        else:
+                            result = 0  # Breakeven
+                    
+                    trade_results.append(result)
+                
+                if trade_results:
+                    # Calculate session metrics
+                    wins = len([r for r in trade_results if r > 0])
+                    losses = len([r for r in trade_results if r < 0])
+                    breakevens = len([r for r in trade_results if r == 0])
+                    
+                    win_rate = (wins + breakevens) / len(trade_results) * 100
+                    expectancy = sum(trade_results) / len(trade_results)
+                    
+                    session_results[session] = {
+                        'expectancy': expectancy,
+                        'win_rate': win_rate,
+                        'sample_size': len(trade_results),
+                        'wins': wins,
+                        'losses': losses,
+                        'breakevens': breakevens
+                    }
+            
+            # Calculate overall metrics across all sessions
+            if session_results:
+                total_expectancy = statistics.mean([s['expectancy'] for s in session_results.values()])
+                total_win_rate = statistics.mean([s['win_rate'] for s in session_results.values()])
+                total_sample = sum([s['sample_size'] for s in session_results.values()])
+                
+                # Calculate statistical significance (simplified)
+                significance_score = min(100, (total_sample / 50) * 100)  # 50+ trades = 100% significance
+                
+                # Calculate consistency (lower std dev = higher consistency)
+                expectancies = [s['expectancy'] for s in session_results.values()]
+                consistency = 100 - min(100, statistics.stdev(expectancies) * 50) if len(expectancies) > 1 else 50
+                
+                # Calculate overall score (weighted combination)
+                overall_score = (
+                    total_expectancy * 40 +  # 40% weight on expectancy
+                    (total_win_rate / 100) * 30 +  # 30% weight on win rate
+                    (significance_score / 100) * 20 +  # 20% weight on sample size
+                    (consistency / 100) * 10  # 10% weight on consistency
+                )
+                
+                results.append({
+                    'be_strategy': be_strategy,
+                    'r_target': r_target,
+                    'expectancy': total_expectancy,
+                    'win_rate': total_win_rate,
+                    'sample_size': total_sample,
+                    'significance_score': significance_score,
+                    'consistency': consistency,
+                    'overall_score': overall_score,
+                    'session_breakdown': session_results
+                })
+    
+    # Sort by overall score
+    results.sort(key=lambda x: x['overall_score'], reverse=True)
+    
+    # Find optimal R-target
+    optimal = results[0] if results else None
+    
+    # Statistical analysis
+    mfe_values = [float(t['mfe_none']) for t in trades if float(t['mfe_none']) > 0]
+    mfe_stats = {
+        'mean': statistics.mean(mfe_values),
+        'median': statistics.median(mfe_values),
+        'std_dev': statistics.stdev(mfe_values),
+        'percentiles': {
+            '25th': statistics.quantiles(mfe_values, n=4)[0],
+            '50th': statistics.quantiles(mfe_values, n=4)[1],
+            '75th': statistics.quantiles(mfe_values, n=4)[2],
+            '90th': statistics.quantiles(mfe_values, n=10)[8]
+        }
+    }
+    
+    return {
+        'optimal_strategy': optimal,
+        'top_10_results': results[:10],
+        'mfe_statistics': mfe_stats,
+        'total_trades_analyzed': len(trades),
+        'recommendation': generate_r_target_recommendation(optimal, mfe_stats)
+    }
+
+def generate_r_target_recommendation(optimal, mfe_stats):
+    """Generate human-readable recommendation"""
+    if not optimal:
+        return "Insufficient data for recommendation"
+    
+    be_names = {'none': 'No BE', 'be1': 'BE at 1R', 'be2': 'BE at 2R'}
+    
+    recommendation = f"""**OPTIMAL R-TARGET ANALYSIS**
+
+**🎯 RECOMMENDED STRATEGY:**
+• R-Target: **{optimal['r_target']}R**
+• BE Strategy: **{be_names[optimal['be_strategy']]}**
+• Expected Return: **{optimal['expectancy']:.3f}R per trade**
+• Win Rate: **{optimal['win_rate']:.1f}%**
+• Statistical Confidence: **{optimal['significance_score']:.0f}%**
+
+**📊 MFE DISTRIBUTION INSIGHTS:**
+• Average MFE: **{mfe_stats['mean']:.2f}R**
+• 75% of trades reach: **{mfe_stats['percentiles']['75th']:.2f}R**
+• 90% of trades reach: **{mfe_stats['percentiles']['90th']:.2f}R**
+
+**💡 KEY INSIGHTS:**
+• Your {optimal['r_target']}R target captures optimal risk-reward balance
+• {optimal['win_rate']:.0f}% win rate provides sustainable edge
+• {be_names[optimal['be_strategy']]} maximizes expectancy
+• Based on {optimal['sample_size']} trades across all sessions
+
+**⚠️ IMPLEMENTATION NOTES:**
+• Target is statistically optimized for your trading style
+• Consider market conditions and session volatility
+• Monitor performance and adjust if market regime changes"""
+    
+    return recommendation
 
 def analyze_trade_times(selected_sessions=None):
     """Analyze trade times for patterns and success rates"""

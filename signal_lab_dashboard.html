@@ -301,7 +301,10 @@
                 
                 <div class="control-group">
                     <label>R-Target</label>
-                    <input type="number" id="rTarget" min="0" max="500" step="0.5" value="2" placeholder="2.0">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="number" id="rTarget" min="0" max="500" step="0.5" value="2" placeholder="2.0" style="flex: 1;">
+                        <button onclick="analyzeOptimalRTarget()" style="background: linear-gradient(45deg, #ff6b7a, #ee5a6f); border: none; padding: 8px 12px; border-radius: 8px; color: white; font-size: 12px; cursor: pointer; white-space: nowrap;">Find Optimal</button>
+                    </div>
                 </div>
                 
                 <div class="control-group">
@@ -380,20 +383,25 @@
         </div>
         
         <div class="chart-container">
+            <h3 style="margin-bottom: 20px; color: #00ff88;">📈 Trade-by-Trade Performance</h3>
+            <div class="chart-wrapper">
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-container">
             <h3 style="margin-bottom: 20px; color: #38ef7d;">⏰ Time Analysis for Selected Sessions</h3>
             <div id="timeAnalysis" class="loading">Analyzing optimal entry times...</div>
+        </div>
+        
+        <div id="rTargetAnalysisSection" class="chart-container" style="display: none;">
+            <h3 style="margin-bottom: 20px; color: #ff6b7a;">🎯 Optimal R-Target Analysis</h3>
+            <div id="rTargetAnalysis"></div>
         </div>
         
         <div class="chart-container">
             <h3 style="margin-bottom: 20px; color: #00ff88;">AI Strategy Optimization</h3>
             <div id="aiAnalysis" class="loading">Analyzing all strategy combinations...</div>
-        </div>
-        
-        <div class="chart-container">
-            <h3 style="margin-bottom: 20px; color: #00ff88;">📈 Trade-by-Trade Performance</h3>
-            <div class="chart-wrapper">
-                <canvas id="performanceChart"></canvas>
-            </div>
         </div>
     </div>
 
@@ -1138,11 +1146,129 @@
                 .replace(/\n/g, '<br>');
         }
         
+        // R-Target Analysis Function
+        async function analyzeOptimalRTarget() {
+            document.getElementById('rTargetAnalysisSection').style.display = 'block';
+            document.getElementById('rTargetAnalysis').innerHTML = 'Analyzing optimal R-target across all strategies and sessions...';
+            
+            try {
+                const response = await fetch('/api/optimal-r-target-analysis');
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    displayRTargetAnalysis(result);
+                } else {
+                    const error = await response.json();
+                    document.getElementById('rTargetAnalysis').innerHTML = `❌ ${error.error || 'Analysis failed'}`;
+                }
+            } catch (error) {
+                console.error('R-Target analysis error:', error);
+                document.getElementById('rTargetAnalysis').innerHTML = `❌ Analysis Error: ${error.message}`;
+            }
+        }
+        
+        function displayRTargetAnalysis(result) {
+            const optimal = result.optimal_strategy;
+            const mfeStats = result.mfe_statistics;
+            
+            if (!optimal) {
+                document.getElementById('rTargetAnalysis').innerHTML = '📈 Insufficient data for optimal R-target analysis';
+                return;
+            }
+            
+            const beStrategyText = {
+                'none': 'No Breakeven',
+                'be1': 'Breakeven at 1R',
+                'be2': 'Breakeven at 2R'
+            };
+            
+            const analysisHtml = `
+                <div style="background: linear-gradient(135deg, #ff6b7a 0%, #ee5a6f 100%); border: 2px solid #ff6b7a; border-radius: 15px; padding: 25px;">
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="color: #ffffff; margin-bottom: 15px; font-size: 20px;">🎯 STATISTICALLY OPTIMAL R-TARGET</h3>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 24px; font-weight: bold; color: #ffffff;">${optimal.r_target}R</div>
+                            <div style="font-size: 12px; opacity: 0.9;">Optimal Target</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${beStrategyText[optimal.be_strategy]}</div>
+                            <div style="font-size: 12px; opacity: 0.9;">BE Strategy</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${optimal.expectancy.toFixed(3)}R</div>
+                            <div style="font-size: 12px; opacity: 0.9;">Expectancy</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${optimal.win_rate.toFixed(1)}%</div>
+                            <div style="font-size: 12px; opacity: 0.9;">Win Rate</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${optimal.significance_score.toFixed(0)}%</div>
+                            <div style="font-size: 12px; opacity: 0.9;">Confidence</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${optimal.sample_size}</div>
+                            <div style="font-size: 12px; opacity: 0.9;">Sample Size</div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <h4 style="color: #ffffff; margin-bottom: 15px;">📊 MFE Distribution Analysis</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; color: #ffffff; font-size: 14px;">
+                            <div>Average MFE: <strong>${mfeStats.mean.toFixed(2)}R</strong></div>
+                            <div>75th Percentile: <strong>${mfeStats.percentiles['75th'].toFixed(2)}R</strong></div>
+                            <div>90th Percentile: <strong>${mfeStats.percentiles['90th'].toFixed(2)}R</strong></div>
+                            <div>Standard Deviation: <strong>${mfeStats.std_dev.toFixed(2)}R</strong></div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <h4 style="color: #ffffff; margin-bottom: 15px;">🔄 Top Alternative Strategies</h4>
+                        <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">
+                            ${result.top_10_results.slice(1, 4).map((alt, idx) => 
+                                `${idx + 2}. ${beStrategyText[alt.be_strategy]} + ${alt.r_target}R = ${alt.expectancy.toFixed(3)}R expectancy (${alt.win_rate.toFixed(1)}% WR)`
+                            ).join('<br>')}
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center;">
+                        <button onclick="applyOptimalRTarget(${optimal.r_target}, '${optimal.be_strategy}')" style="
+                            background: linear-gradient(45deg, #ffffff, #f0f0f0);
+                            border: none; padding: 12px 24px; border-radius: 8px;
+                            color: #ff6b7a; font-weight: 600; cursor: pointer;
+                            margin-right: 10px; transition: all 0.3s ease;
+                        ">Apply Optimal Settings</button>
+                        <button onclick="document.getElementById('rTargetAnalysisSection').style.display='none'" style="
+                            background: rgba(255,255,255,0.1);
+                            border: 1px solid rgba(255,255,255,0.3); padding: 12px 24px; border-radius: 8px;
+                            color: #ffffff; font-weight: 600; cursor: pointer;
+                            transition: all 0.3s ease;
+                        ">Close Analysis</button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('rTargetAnalysis').innerHTML = analysisHtml;
+        }
+        
+        function applyOptimalRTarget(rTarget, beStrategy) {
+            document.getElementById('rTarget').value = rTarget;
+            document.getElementById('beStrategy').value = beStrategy;
+            updateAnalysis();
+            document.getElementById('rTargetAnalysisSection').style.display = 'none';
+            alert(`Applied optimal settings: ${rTarget}R target with ${beStrategy === 'none' ? 'No BE' : beStrategy === 'be1' ? 'BE at 1R' : 'BE at 2R'}`);
+        }
+        
         // Make functions globally available
         window.updateAnalysis = updateAnalysis;
         window.applyOptimalStrategy = applyOptimalStrategy;
         window.formatAIAnalysis = formatAIAnalysis;
         window.runTimeAnalysis = runTimeAnalysis;
+        window.analyzeOptimalRTarget = analyzeOptimalRTarget;
+        window.applyOptimalRTarget = applyOptimalRTarget;
     </script>
 </body>
 </html>

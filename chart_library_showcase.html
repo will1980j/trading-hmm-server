@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chart Library Showcase - Trading Dashboard</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .library-section {
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .library-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ff88, #00d4aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .library-description {
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+        
+        .chart-container {
+            height: 400px;
+            width: 100%;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .pros-cons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .pros, .cons {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .pros h4 {
+            color: #00ff88;
+        }
+        
+        .cons h4 {
+            color: #ff6b7a;
+        }
+        
+        .select-button {
+            background: linear-gradient(45deg, #00ff88, #00d4aa);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+        }
+        
+        .select-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,255,136,0.4);
+        }
+    </style>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- ApexCharts -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    
+    <!-- D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Chart Library Showcase</h1>
+            <p>Compare different chart libraries for your trading dashboard</p>
+        </div>
+        
+        <!-- Chart.js Section -->
+        <div class="library-section">
+            <div class="library-title">Chart.js (Current)</div>
+            <div class="library-description">Simple, clean charts with basic animations</div>
+            <div class="chart-container">
+                <canvas id="chartjs-demo"></canvas>
+            </div>
+            <div class="pros-cons">
+                <div class="pros">
+                    <h4>✅ Pros</h4>
+                    <ul>
+                        <li>Easy to implement</li>
+                        <li>Good documentation</li>
+                        <li>Lightweight</li>
+                        <li>Already integrated</li>
+                    </ul>
+                </div>
+                <div class="cons">
+                    <h4>❌ Cons</h4>
+                    <ul>
+                        <li>Basic visual appeal</li>
+                        <li>Limited animations</li>
+                        <li>No 3D effects</li>
+                        <li>Simple gradients only</li>
+                    </ul>
+                </div>
+            </div>
+            <button class="select-button" onclick="selectLibrary('chartjs')">Keep Chart.js</button>
+        </div>
+        
+        <!-- ApexCharts Section -->
+        <div class="library-section">
+            <div class="library-title">ApexCharts (Recommended)</div>
+            <div class="library-description">Modern, beautiful charts with stunning animations and gradients</div>
+            <div class="chart-container">
+                <div id="apexcharts-demo"></div>
+            </div>
+            <div class="pros-cons">
+                <div class="pros">
+                    <h4>✅ Pros</h4>
+                    <ul>
+                        <li>Stunning visual effects</li>
+                        <li>Smooth animations</li>
+                        <li>Beautiful gradients</li>
+                        <li>Trading-focused features</li>
+                        <li>Easy migration</li>
+                    </ul>
+                </div>
+                <div class="cons">
+                    <h4>❌ Cons</h4>
+                    <ul>
+                        <li>Slightly larger file size</li>
+                        <li>More configuration options</li>
+                    </ul>
+                </div>
+            </div>
+            <button class="select-button" onclick="selectLibrary('apexcharts')">Choose ApexCharts</button>
+        </div>
+        
+        <!-- Plotly.js Section -->
+        <div class="library-section">
+            <div class="library-title">Plotly.js</div>
+            <div class="library-description">Professional scientific visualization with 3D capabilities</div>
+            <div class="chart-container">
+                <div id="plotly-demo"></div>
+            </div>
+            <div class="pros-cons">
+                <div class="pros">
+                    <h4>✅ Pros</h4>
+                    <ul>
+                        <li>3D charts available</li>
+                        <li>Advanced interactions</li>
+                        <li>Scientific precision</li>
+                        <li>Heatmaps & surfaces</li>
+                    </ul>
+                </div>
+                <div class="cons">
+                    <h4>❌ Cons</h4>
+                    <ul>
+                        <li>Large file size</li>
+                        <li>Complex for simple charts</li>
+                        <li>Slower performance</li>
+                    </ul>
+                </div>
+            </div>
+            <button class="select-button" onclick="selectLibrary('plotly')">Choose Plotly</button>
+        </div>
+        
+        <!-- D3.js Section -->
+        <div class="library-section">
+            <div class="library-title">D3.js</div>
+            <div class="library-description">Ultimate customization with particle effects and morphing animations</div>
+            <div class="chart-container">
+                <div id="d3-demo"></div>
+            </div>
+            <div class="pros-cons">
+                <div class="pros">
+                    <h4>✅ Pros</h4>
+                    <ul>
+                        <li>Unlimited customization</li>
+                        <li>Stunning animations</li>
+                        <li>Particle effects</li>
+                        <li>NYTimes-level graphics</li>
+                    </ul>
+                </div>
+                <div class="cons">
+                    <h4>❌ Cons</h4>
+                    <ul>
+                        <li>Steep learning curve</li>
+                        <li>More development time</li>
+                        <li>Complex implementation</li>
+                    </ul>
+                </div>
+            </div>
+            <button class="select-button" onclick="selectLibrary('d3')">Choose D3.js</button>
+        </div>
+    </div>
+
+    <script>
+        // Sample trading data
+        const tradingData = {
+            dates: ['2024-01-01', '2024-01-02', '2024-01-03', '2024-01-04', '2024-01-05', '2024-01-06', '2024-01-07'],
+            cumulative: [0, 2.5, 1.8, 4.2, 3.1, 6.8, 8.5],
+            trades: [0, 2.5, -0.7, 2.4, -1.1, 3.7, 1.7]
+        };
+        
+        // Chart.js Demo
+        function createChartJS() {
+            const ctx = document.getElementById('chartjs-demo').getContext('2d');
+            
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(0, 255, 136, 0.8)');
+            gradient.addColorStop(1, 'rgba(0, 255, 136, 0.1)');
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: tradingData.dates,
+                    datasets: [{
+                        label: 'Cumulative R',
+                        data: tradingData.cumulative,
+                        borderColor: '#00ff88',
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#ffffff' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#ffffff' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        y: {
+                            ticks: { color: '#ffffff' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // ApexCharts Demo
+        function createApexCharts() {
+            const options = {
+                series: [{
+                    name: 'Cumulative R',
+                    data: tradingData.cumulative.map((val, idx) => ({
+                        x: tradingData.dates[idx],
+                        y: val
+                    }))
+                }],
+                chart: {
+                    type: 'area',
+                    height: 350,
+                    background: 'transparent',
+                    animations: {
+                        enabled: true,
+                        easing: 'easeinout',
+                        speed: 800
+                    },
+                    toolbar: { show: false }
+                },
+                dataLabels: { enabled: false },
+                stroke: {
+                    curve: 'smooth',
+                    width: 3,
+                    colors: ['#00ff88']
+                },
+                fill: {
+                    type: 'gradient',
+                    gradient: {
+                        shadeIntensity: 1,
+                        opacityFrom: 0.8,
+                        opacityTo: 0.1,
+                        stops: [0, 100],
+                        colorStops: [{
+                            offset: 0,
+                            color: '#00ff88',
+                            opacity: 0.8
+                        }, {
+                            offset: 100,
+                            color: '#00ff88',
+                            opacity: 0.1
+                        }]
+                    }
+                },
+                grid: {
+                    borderColor: 'rgba(255, 255, 255, 0.1)'
+                },
+                xaxis: {
+                    type: 'datetime',
+                    labels: { style: { colors: '#ffffff' } }
+                },
+                yaxis: {
+                    labels: { style: { colors: '#ffffff' } }
+                },
+                theme: { mode: 'dark' }
+            };
+            
+            const chart = new ApexCharts(document.querySelector("#apexcharts-demo"), options);
+            chart.render();
+        }
+        
+        // Plotly.js Demo
+        function createPlotly() {
+            const trace = {
+                x: tradingData.dates,
+                y: tradingData.cumulative,
+                type: 'scatter',
+                mode: 'lines+markers',
+                fill: 'tonexty',
+                fillcolor: 'rgba(0, 255, 136, 0.3)',
+                line: {
+                    color: '#00ff88',
+                    width: 3,
+                    shape: 'spline'
+                },
+                marker: {
+                    color: '#00ff88',
+                    size: 8,
+                    line: { color: '#ffffff', width: 2 }
+                },
+                name: 'Cumulative R'
+            };
+            
+            const layout = {
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                font: { color: '#ffffff' },
+                xaxis: {
+                    gridcolor: 'rgba(255, 255, 255, 0.1)',
+                    color: '#ffffff'
+                },
+                yaxis: {
+                    gridcolor: 'rgba(255, 255, 255, 0.1)',
+                    color: '#ffffff'
+                },
+                margin: { t: 30, r: 30, b: 30, l: 30 }
+            };
+            
+            Plotly.newPlot('plotly-demo', [trace], layout, {responsive: true});
+        }
+        
+        // D3.js Demo
+        function createD3() {
+            const container = d3.select("#d3-demo");
+            const width = container.node().getBoundingClientRect().width - 40;
+            const height = 350;
+            
+            const svg = container.append("svg")
+                .attr("width", width)
+                .attr("height", height);
+            
+            const margin = {top: 20, right: 30, bottom: 40, left: 50};
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+            
+            const g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+            
+            // Scales
+            const xScale = d3.scaleTime()
+                .domain(d3.extent(tradingData.dates.map(d => new Date(d))))
+                .range([0, innerWidth]);
+            
+            const yScale = d3.scaleLinear()
+                .domain(d3.extent(tradingData.cumulative))
+                .range([innerHeight, 0]);
+            
+            // Line generator
+            const line = d3.line()
+                .x((d, i) => xScale(new Date(tradingData.dates[i])))
+                .y(d => yScale(d))
+                .curve(d3.curveCardinal);
+            
+            // Area generator
+            const area = d3.area()
+                .x((d, i) => xScale(new Date(tradingData.dates[i])))
+                .y0(innerHeight)
+                .y1(d => yScale(d))
+                .curve(d3.curveCardinal);
+            
+            // Gradient
+            const gradient = svg.append("defs")
+                .append("linearGradient")
+                .attr("id", "area-gradient")
+                .attr("gradientUnits", "userSpaceOnUse")
+                .attr("x1", 0).attr("y1", 0)
+                .attr("x2", 0).attr("y2", height);
+            
+            gradient.append("stop")
+                .attr("offset", "0%")
+                .attr("stop-color", "#00ff88")
+                .attr("stop-opacity", 0.8);
+            
+            gradient.append("stop")
+                .attr("offset", "100%")
+                .attr("stop-color", "#00ff88")
+                .attr("stop-opacity", 0.1);
+            
+            // Add area
+            g.append("path")
+                .datum(tradingData.cumulative)
+                .attr("fill", "url(#area-gradient)")
+                .attr("d", area)
+                .style("opacity", 0)
+                .transition()
+                .duration(1000)
+                .style("opacity", 1);
+            
+            // Add line
+            g.append("path")
+                .datum(tradingData.cumulative)
+                .attr("fill", "none")
+                .attr("stroke", "#00ff88")
+                .attr("stroke-width", 3)
+                .attr("d", line)
+                .attr("stroke-dasharray", function() {
+                    return this.getTotalLength();
+                })
+                .attr("stroke-dashoffset", function() {
+                    return this.getTotalLength();
+                })
+                .transition()
+                .duration(2000)
+                .attr("stroke-dashoffset", 0);
+            
+            // Add dots with animation
+            g.selectAll(".dot")
+                .data(tradingData.cumulative)
+                .enter().append("circle")
+                .attr("class", "dot")
+                .attr("cx", (d, i) => xScale(new Date(tradingData.dates[i])))
+                .attr("cy", d => yScale(d))
+                .attr("r", 0)
+                .attr("fill", "#00ff88")
+                .attr("stroke", "#ffffff")
+                .attr("stroke-width", 2)
+                .transition()
+                .delay((d, i) => i * 200)
+                .duration(500)
+                .attr("r", 6);
+            
+            // Axes
+            g.append("g")
+                .attr("transform", `translate(0,${innerHeight})`)
+                .call(d3.axisBottom(xScale).tickFormat(d3.timeFormat("%m/%d")))
+                .selectAll("text")
+                .style("fill", "#ffffff");
+            
+            g.append("g")
+                .call(d3.axisLeft(yScale))
+                .selectAll("text")
+                .style("fill", "#ffffff");
+        }
+        
+        // Initialize all charts
+        document.addEventListener('DOMContentLoaded', function() {
+            createChartJS();
+            createApexCharts();
+            createPlotly();
+            createD3();
+        });
+        
+        // Selection function
+        function selectLibrary(library) {
+            const selections = {
+                'chartjs': 'Chart.js - Simple and reliable',
+                'apexcharts': 'ApexCharts - Beautiful and modern (Recommended)',
+                'plotly': 'Plotly.js - Professional and feature-rich',
+                'd3': 'D3.js - Ultimate customization'
+            };
+            
+            if (confirm(`You selected: ${selections[library]}\n\nWould you like me to implement this for your Signal Lab Dashboard?`)) {
+                alert(`Great choice! I'll implement ${selections[library]} for your dashboard.`);
+                // Here you would trigger the implementation
+            }
+        }
+    </script>
+</body>
+</html>
