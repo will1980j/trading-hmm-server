@@ -752,9 +752,9 @@ def ai_strategy_optimization():
     try:
         if not client:
             return jsonify({
-                "analysis": "Strategy optimization analysis optimizing. Current data suggests focusing on high-probability setups with controlled risk management.",
-                "status": "success"
-            }), 200
+                "error": "OpenAI GPT-4 not available - API key not configured",
+                "status": "error"
+            }), 500
             
         data = request.get_json()
         best_combination = data.get('bestCombination', {})
@@ -810,9 +810,9 @@ def ai_strategy_optimization():
     except Exception as e:
         logger.error(f"Error in ai_strategy_optimization: {str(e)}")
         return jsonify({
-            "analysis": "Strategy optimization complete. The recommended combination shows strong statistical edge with controlled risk parameters for systematic execution.",
-            "status": "success"
-        }), 200
+            "error": f"GPT-4 analysis failed: {str(e)}",
+            "status": "error"
+        }), 500
 
 @app.route('/api/ai-risk-assessment', methods=['POST'])
 @login_required

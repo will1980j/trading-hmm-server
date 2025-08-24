@@ -380,7 +380,7 @@
         </div>
         
         <div class="chart-container">
-            <h3 style="margin-bottom: 20px; color: #00ff88;">🤖 AI Strategy Optimization</h3>
+            <h3 style="margin-bottom: 20px; color: #00ff88;">AI Strategy Optimization</h3>
             <div id="aiAnalysis" class="loading">Analyzing all strategy combinations...</div>
         </div>
         
@@ -818,7 +818,7 @@
                 return;
             }
             
-            document.getElementById('aiAnalysis').innerHTML = '🤖 Analyzing all strategy combinations...';
+            document.getElementById('aiAnalysis').innerHTML = 'Analyzing all strategy combinations...';
             
             try {
                 // Test all combinations
@@ -921,14 +921,20 @@
                 
                 if (response.ok) {
                     const aiResult = await response.json();
+                    if (aiResult.error) {
+                        document.getElementById('aiAnalysis').innerHTML = `❌ ${aiResult.error}`;
+                        return;
+                    }
                     displayAIRecommendation(aiResult.analysis, bestCombination);
                 } else {
-                    displayAIRecommendation(null, bestCombination);
+                    const errorResult = await response.json();
+                    document.getElementById('aiAnalysis').innerHTML = `❌ GPT-4 Error: ${errorResult.error || 'API unavailable'}`;
+                    return;
                 }
                 
             } catch (error) {
                 console.error('AI optimization error:', error);
-                document.getElementById('aiAnalysis').innerHTML = '⚠️ AI analysis temporarily unavailable';
+                document.getElementById('aiAnalysis').innerHTML = `❌ AI Analysis Failed: ${error.message}`;
             }
         }
         
