@@ -422,6 +422,10 @@
                 <div class="stat-label">Max Consecutive Losses</div>
             </div>
             <div class="stat-card">
+                <div class="stat-value" id="consecutiveWins">-</div>
+                <div class="stat-label">Max Consecutive Wins</div>
+            </div>
+            <div class="stat-card">
                 <div class="stat-value" id="totalTrades">-</div>
                 <div class="stat-label">Total Trades</div>
             </div>
@@ -588,17 +592,25 @@
             
             const expectancy = total > 0 ? (((wins + breakevens) / total) * avgWin) - ((losses / total) * avgLoss) : 0;
             
-            // Calculate max consecutive losses
+            // Calculate max consecutive losses (only wins reset, not BEs)
             let maxConsecutiveLosses = 0;
-            let currentConsecutive = 0;
+            let currentConsecutiveLosses = 0;
+            
+            // Calculate max consecutive wins
+            let maxConsecutiveWins = 0;
+            let currentConsecutiveWins = 0;
             
             results.forEach(result => {
                 if (result < 0) {
-                    currentConsecutive++;
-                    maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentConsecutive);
-                } else {
-                    currentConsecutive = 0;
+                    currentConsecutiveLosses++;
+                    maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentConsecutiveLosses);
+                    currentConsecutiveWins = 0;
+                } else if (result > 0) {
+                    currentConsecutiveWins++;
+                    maxConsecutiveWins = Math.max(maxConsecutiveWins, currentConsecutiveWins);
+                    currentConsecutiveLosses = 0;
                 }
+                // Breakevens (result === 0) don't reset either counter
             });
             
             return {
@@ -606,6 +618,7 @@
                 winRate,
                 lossRate,
                 maxConsecutiveLosses,
+                maxConsecutiveWins,
                 total
             };
         }
@@ -615,6 +628,7 @@
             document.getElementById('winRate').textContent = stats.winRate.toFixed(1) + '%';
             document.getElementById('lossRate').textContent = stats.lossRate.toFixed(1) + '%';
             document.getElementById('consecutiveLosses').textContent = stats.maxConsecutiveLosses;
+            document.getElementById('consecutiveWins').textContent = stats.maxConsecutiveWins;
             document.getElementById('totalTrades').textContent = totalTrades;
             
             // Color code expectancy
@@ -1076,6 +1090,7 @@
             document.getElementById('winRate').textContent = '-';
             document.getElementById('lossRate').textContent = '-';
             document.getElementById('consecutiveLosses').textContent = '-';
+            document.getElementById('consecutiveWins').textContent = '-';
             document.getElementById('totalTrades').textContent = '0';
             
             d3.select('#performanceChart').selectAll('*').remove();
