@@ -872,15 +872,28 @@ def ai_strategy_optimization():
         except:
             pass
         
+        stat_info = ""
+        if statistical_results and statistical_results.get('optimal_strategy'):
+            opt = statistical_results['optimal_strategy']
+            stat_info = f"Statistical analysis found: {opt['r_target']}R + {opt['be_strategy']} = {opt['expectancy']:.3f}R expectancy"
+        else:
+            stat_info = "Statistical analysis pending"
+        
+        max_mfe_info = ""
+        if statistical_results:
+            max_mfe_info = f"Test R-targets from 1R to {statistical_results['max_mfe_in_data']:.0f}R (actual max MFE)"
+        else:
+            max_mfe_info = "Test R-targets from 1R to max MFE"
+        
         prompt = f"""{context}
         
         **CRITICAL VALIDATION REQUIREMENT:**
-        The statistical analysis found: {statistical_results['optimal_strategy']['r_target']}R + {statistical_results['optimal_strategy']['be_strategy']} = {statistical_results['optimal_strategy']['expectancy']:.3f}R expectancy if statistical_results and statistical_results.get('optimal_strategy') else 'Statistical analysis pending'}
+        {stat_info}
         
         **YOUR TASK: REPLICATE THIS EXACT METHODOLOGY**
         
         You MUST perform the same mathematical analysis:
-        1. Test R-targets from 1R to {statistical_results['max_mfe_in_data']:.0f}R (actual max MFE) if statistical_results else 'max MFE'}
+        1. {max_mfe_info}
         2. Test BE strategies: none, be1, be2
         3. Calculate expectancy for each combination: (Win% × Avg Win) - (Loss% × Avg Loss)
         4. Weight: 50% expectancy + 25% win rate + 15% sample size + 10% consistency
