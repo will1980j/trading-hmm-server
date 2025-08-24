@@ -3,12 +3,7 @@ from flask_cors import CORS
 from os import environ, path
 from json import loads, dumps
 from dotenv import load_dotenv
-try:
-    import openai
-    from openai import OpenAI
-except ImportError:
-    openai = None
-    OpenAI = None
+# No OpenAI library needed - using direct HTTP
 from werkzeug.utils import secure_filename
 from html import escape
 from logging import basicConfig, getLogger, INFO
@@ -48,20 +43,14 @@ except Exception as e:
     db = None
     db_enabled = False
 
-# Initialize OpenAI v1.0+ client
+# Direct HTTP OpenAI API
 api_key = environ.get('OPENAI_API_KEY')
-client = None
-logger.info("🚀 ATTEMPTING OPENAI INITIALIZATION - VERSION 5.0 - V1.0+ CLIENT")
-if api_key and OpenAI:
-    try:
-        client = OpenAI(api_key=api_key)
-        logger.info("✅ SUCCESS: OpenAI v1.0+ client initialized - VERSION 5.0")
-    except Exception as e:
-        logger.error(f"❌ OpenAI initialization failed: {str(e)}")
-        client = None
+client = api_key if api_key else None
+logger.info("🚀 OPENAI DIRECT HTTP - VERSION 8.0 - FINAL")
+if client:
+    logger.info("✅ SUCCESS: OpenAI HTTP API ready - VERSION 8.0")
 else:
-    logger.warning("⚠️ OPENAI_API_KEY not found or OpenAI not available")
-    client = None
+    logger.warning("⚠️ OPENAI_API_KEY not found")
 
 app = Flask(__name__)
 app.secret_key = environ.get('SECRET_KEY', 'dev-key-change-in-production')
@@ -343,15 +332,27 @@ def ai_insights():
             context_info += f"\n\nRecent Trades: {len(recent)} trades with outcomes: {[t.get('outcome', 'unknown') for t in recent]}"
         
         model_name = environ.get('OPENAI_MODEL', 'gpt-3.5-turbo')
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": system_prompt + context_info},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=500,
-            temperature=0.8
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': model_name,
+                'messages': [
+                    {"role": "system", "content": system_prompt + context_info},
+                    {"role": "user", "content": prompt}
+                ],
+                'max_tokens': 500,
+                'temperature': 0.8
+            }
         )
+        response_data = response.json()
+        
+        class MockResponse:
+            def __init__(self, content):
+                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
+        
+        response = MockResponse(response_data['choices'][0]['message']['content'])
         
         logger.info("OpenAI API call successful")
         return jsonify({
@@ -393,15 +394,27 @@ def ai_insights():
         
         prompt = chart_insights.get(chart_type, chart_insights['equity'])
         
-        response = client.chat.completions.create(
-            model=environ.get('OPENAI_MODEL', 'gpt-4o'),
-            messages=[
-                {"role": "system", "content": get_chart_analysis_prompt()},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=150,
-            temperature=0.6
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': environ.get('OPENAI_MODEL', 'gpt-4o'),
+                'messages': [
+                    {"role": "system", "content": get_chart_analysis_prompt()},
+                    {"role": "user", "content": prompt}
+                ],
+                'max_tokens': 150,
+                'temperature': 0.6
+            }
         )
+        response_data = response.json()
+        
+        class MockResponse:
+            def __init__(self, content):
+                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
+        
+        response = MockResponse(response_data['choices'][0]['message']['content'])
         
         return jsonify({
             "analysis": response.choices[0].message.content,
@@ -446,15 +459,27 @@ def ai_strategy_summary():
         
         Maintain an encouraging, growth-focused tone throughout."""
         
-        response = client.chat.completions.create(
-            model=environ.get('OPENAI_MODEL', 'gpt-4o'),
-            messages=[
-                {"role": "system", "content": get_strategy_summary_prompt()},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=500,
-            temperature=0.5
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': environ.get('OPENAI_MODEL', 'gpt-4o'),
+                'messages': [
+                    {"role": "system", "content": get_strategy_summary_prompt()},
+                    {"role": "user", "content": prompt}
+                ],
+                'max_tokens': 500,
+                'temperature': 0.5
+            }
         )
+        response_data = response.json()
+        
+        class MockResponse:
+            def __init__(self, content):
+                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
+        
+        response = MockResponse(response_data['choices'][0]['message']['content'])
         
         ai_response = response.choices[0].message.content
         
@@ -632,15 +657,27 @@ def ai_economic_analysis():
         
         Focus on actionable insights for NQ scalping strategy."""
         
-        response = client.chat.completions.create(
-            model=environ.get('OPENAI_MODEL', 'gpt-4o'),
-            messages=[
-                {"role": "system", "content": "You are an expert economic analyst providing real-time market intelligence for futures traders. Focus on actionable insights."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=250,
-            temperature=0.4
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': environ.get('OPENAI_MODEL', 'gpt-4o'),
+                'messages': [
+                    {"role": "system", "content": "You are an expert economic analyst providing real-time market intelligence for futures traders. Focus on actionable insights."},
+                    {"role": "user", "content": prompt}
+                ],
+                'max_tokens': 250,
+                'temperature': 0.4
+            }
         )
+        response_data = response.json()
+        
+        class MockResponse:
+            def __init__(self, content):
+                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
+        
+        response = MockResponse(response_data['choices'][0]['message']['content'])
         
         ai_response = response.choices[0].message.content
         
@@ -721,15 +758,27 @@ def ai_market_analysis():
         
         Focus on 1min execution opportunities within current 1H bias context."""
         
-        response = client.chat.completions.create(
-            model=environ.get('OPENAI_MODEL', 'gpt-4o'),
-            messages=[
-                {"role": "system", "content": "You are an expert NQ futures analyst providing real-time market intelligence. Focus on actionable insights for systematic traders."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=300,
-            temperature=0.4
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': environ.get('OPENAI_MODEL', 'gpt-4o'),
+                'messages': [
+                    {"role": "system", "content": "You are an expert NQ futures analyst providing real-time market intelligence. Focus on actionable insights for systematic traders."},
+                    {"role": "user", "content": prompt}
+                ],
+                'max_tokens': 300,
+                'temperature': 0.4
+            }
         )
+        response_data = response.json()
+        
+        class MockResponse:
+            def __init__(self, content):
+                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
+        
+        response = MockResponse(response_data['choices'][0]['message']['content'])
         
         ai_response = response.choices[0].message.content
         
@@ -801,15 +850,27 @@ def ai_strategy_optimization():
         
         Focus on actionable insights for systematic trading."""
         
-        response = client.chat.completions.create(
-            model=environ.get('OPENAI_MODEL', 'gpt-4o'),
-            messages=[
-                {"role": "system", "content": "You are an expert quantitative trading strategist specializing in futures optimization and systematic trading. Provide clear, actionable analysis."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=400,
-            temperature=0.3
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': environ.get('OPENAI_MODEL', 'gpt-4o'),
+                'messages': [
+                    {"role": "system", "content": "You are an expert quantitative trading strategist specializing in futures optimization and systematic trading. Provide clear, actionable analysis."},
+                    {"role": "user", "content": prompt}
+                ],
+                'max_tokens': 400,
+                'temperature': 0.3
+            }
         )
+        response_data = response.json()
+        
+        class MockResponse:
+            def __init__(self, content):
+                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
+        
+        response = MockResponse(response_data['choices'][0]['message']['content'])
         
         return jsonify({
             "analysis": response.choices[0].message.content,
@@ -852,15 +913,27 @@ def ai_risk_assessment():
         
         Focus on how smart risk management enables greater opportunities."""
         
-        response = client.chat.completions.create(
-            model=environ.get('OPENAI_MODEL', 'gpt-4o'),
-            messages=[
-                {"role": "system", "content": get_risk_assessment_prompt()},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=250,
-            temperature=0.4
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': environ.get('OPENAI_MODEL', 'gpt-4o'),
+                'messages': [
+                    {"role": "system", "content": get_risk_assessment_prompt()},
+                    {"role": "user", "content": prompt}
+                ],
+                'max_tokens': 250,
+                'temperature': 0.4
+            }
         )
+        response_data = response.json()
+        
+        class MockResponse:
+            def __init__(self, content):
+                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
+        
+        response = MockResponse(response_data['choices'][0]['message']['content'])
         
         return jsonify({
             "risk_assessment": response.choices[0].message.content,
@@ -994,15 +1067,27 @@ def ai_signal_analysis():
         
         Provide your complete analysis - look for patterns, correlations, inefficiencies, opportunities, and insights I might not have considered. Don't limit yourself to obvious metrics. What does this data really tell you about the trading approach?"""
         
-        response = client.chat.completions.create(
-            model=environ.get('OPENAI_MODEL', 'gpt-4o'),
-            messages=[
-                {"role": "system", "content": "You are a world-class quantitative trading analyst. Analyze this data with fresh eyes - find patterns, correlations, and insights the trader might not see. Be thorough and unrestrained in your analysis."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=600,
-            temperature=0.4
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': environ.get('OPENAI_MODEL', 'gpt-4o'),
+                'messages': [
+                    {"role": "system", "content": "You are a world-class quantitative trading analyst. Analyze this data with fresh eyes - find patterns, correlations, and insights the trader might not see. Be thorough and unrestrained in your analysis."},
+                    {"role": "user", "content": prompt}
+                ],
+                'max_tokens': 600,
+                'temperature': 0.4
+            }
         )
+        response_data = response.json()
+        
+        class MockResponse:
+            def __init__(self, content):
+                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
+        
+        response = MockResponse(response_data['choices'][0]['message']['content'])
         
         return jsonify({
             "analysis": response.choices[0].message.content,
@@ -1034,15 +1119,27 @@ def ai_signal_recommendations():
         
         What improvements, optimizations, or completely different approaches would you recommend? Think beyond conventional wisdom - what does the data suggest that might surprise me?"""
         
-        response = client.chat.completions.create(
-            model=environ.get('OPENAI_MODEL', 'gpt-4o'),
-            messages=[
-                {"role": "system", "content": "You are an innovative trading strategist. Challenge assumptions, find hidden patterns, and suggest improvements the trader hasn't considered. Be creative and thorough."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=300,
-            temperature=0.5
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': environ.get('OPENAI_MODEL', 'gpt-4o'),
+                'messages': [
+                    {"role": "system", "content": "You are an innovative trading strategist. Challenge assumptions, find hidden patterns, and suggest improvements the trader hasn't considered. Be creative and thorough."},
+                    {"role": "user", "content": prompt}
+                ],
+                'max_tokens': 300,
+                'temperature': 0.5
+            }
         )
+        response_data = response.json()
+        
+        class MockResponse:
+            def __init__(self, content):
+                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
+        
+        response = MockResponse(response_data['choices'][0]['message']['content'])
         
         # Parse recommendations into list
         recommendations = [line.strip('• -') for line in response.choices[0].message.content.split('\n') if line.strip() and ('•' in line or '-' in line)]
@@ -1551,7 +1648,7 @@ def api_health_check():
     response = jsonify({
         "status": "healthy", 
         "timestamp": datetime.now().isoformat(),
-        "ai_enabled": client is not None,
+        "ai_enabled": bool(client),
         "database": "connected" if db_enabled else "offline"
     })
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -1782,15 +1879,27 @@ Analyze this NQ level tracking data and provide:
         
         Focus on actionable insights for ICT liquidity grab strategy."""
         
-        response = client.chat.completions.create(
-            model=environ.get('OPENAI_MODEL', 'gpt-4o'),
-            messages=[
-                {"role": "system", "content": "You are an expert quantitative analyst specializing in futures level analysis and ICT trading concepts."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=400,
-            temperature=0.3
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': environ.get('OPENAI_MODEL', 'gpt-4o'),
+                'messages': [
+                    {"role": "system", "content": "You are an expert quantitative analyst specializing in futures level analysis and ICT trading concepts."},
+                    {"role": "user", "content": prompt}
+                ],
+                'max_tokens': 400,
+                'temperature': 0.3
+            }
         )
+        response_data = response.json()
+        
+        class MockResponse:
+            def __init__(self, content):
+                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
+        
+        response = MockResponse(response_data['choices'][0]['message']['content'])
         
         return jsonify({
             "analysis": response.choices[0].message.content,
