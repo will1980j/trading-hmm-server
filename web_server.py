@@ -2872,6 +2872,15 @@ def calculate_optimal_r_target(trades, selected_sessions=None):
     # Find best overall strategy
     optimal = results[0] if results else None
     
+    # Add significance score to optimal strategy
+    if optimal:
+        # Calculate significance score based on sample size and expectancy
+        sample_weight = min(1.0, optimal['sample_size'] / 50)  # Weight by sample size
+        expectancy_weight = max(0, optimal['expectancy']) / 2  # Weight by expectancy
+        hit_rate_weight = optimal['hit_probability'] / 100  # Weight by hit rate
+        
+        optimal['significance_score'] = (sample_weight * 0.4 + expectancy_weight * 0.4 + hit_rate_weight * 0.2) * 100
+    
     # Find best strategy for each BE type
     be_specific_best = {}
     for be_strategy in be_strategies:
