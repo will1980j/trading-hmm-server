@@ -354,7 +354,7 @@ def ai_insights():
             context_info += f"\n\nRecent Trades: {len(recent)} trades with outcomes: {[t.get('outcome', 'unknown') for t in recent]}"
         
         model_name = environ.get('OPENAI_MODEL', 'gpt-3.5-turbo')
-        response = client.chat.completions.create(
+        response = openai.chat.completions.create(
             model=model_name,
             messages=[
                 {"role": "system", "content": system_prompt + context_info},
@@ -404,7 +404,7 @@ def ai_insights():
         
         prompt = chart_insights.get(chart_type, chart_insights['equity'])
         
-        response = client.chat.completions.create(
+        response = openai.chat.completions.create(
             model=environ.get('OPENAI_MODEL', 'gpt-4o'),
             messages=[
                 {"role": "system", "content": get_chart_analysis_prompt()},
@@ -457,7 +457,7 @@ def ai_strategy_summary():
         
         Maintain an encouraging, growth-focused tone throughout."""
         
-        response = client.chat.completions.create(
+        response = openai.chat.completions.create(
             model=environ.get('OPENAI_MODEL', 'gpt-4o'),
             messages=[
                 {"role": "system", "content": get_strategy_summary_prompt()},
@@ -643,7 +643,7 @@ def ai_economic_analysis():
         
         Focus on actionable insights for NQ scalping strategy."""
         
-        response = client.chat.completions.create(
+        response = openai.chat.completions.create(
             model=environ.get('OPENAI_MODEL', 'gpt-4o'),
             messages=[
                 {"role": "system", "content": "You are an expert economic analyst providing real-time market intelligence for futures traders. Focus on actionable insights."},
@@ -732,7 +732,7 @@ def ai_market_analysis():
         
         Focus on 1min execution opportunities within current 1H bias context."""
         
-        response = client.chat.completions.create(
+        response = openai.chat.completions.create(
             model=environ.get('OPENAI_MODEL', 'gpt-4o'),
             messages=[
                 {"role": "system", "content": "You are an expert NQ futures analyst providing real-time market intelligence. Focus on actionable insights for systematic traders."},
@@ -863,7 +863,7 @@ def ai_risk_assessment():
         
         Focus on how smart risk management enables greater opportunities."""
         
-        response = client.chat.completions.create(
+        response = openai.chat.completions.create(
             model=environ.get('OPENAI_MODEL', 'gpt-4o'),
             messages=[
                 {"role": "system", "content": get_risk_assessment_prompt()},
@@ -1005,7 +1005,7 @@ def ai_signal_analysis():
         
         Provide your complete analysis - look for patterns, correlations, inefficiencies, opportunities, and insights I might not have considered. Don't limit yourself to obvious metrics. What does this data really tell you about the trading approach?"""
         
-        response = client.chat.completions.create(
+        response = openai.chat.completions.create(
             model=environ.get('OPENAI_MODEL', 'gpt-4o'),
             messages=[
                 {"role": "system", "content": "You are a world-class quantitative trading analyst. Analyze this data with fresh eyes - find patterns, correlations, and insights the trader might not see. Be thorough and unrestrained in your analysis."},
@@ -1045,7 +1045,7 @@ def ai_signal_recommendations():
         
         What improvements, optimizations, or completely different approaches would you recommend? Think beyond conventional wisdom - what does the data suggest that might surprise me?"""
         
-        response = client.chat.completions.create(
+        response = openai.chat.completions.create(
             model=environ.get('OPENAI_MODEL', 'gpt-4o'),
             messages=[
                 {"role": "system", "content": "You are an innovative trading strategist. Challenge assumptions, find hidden patterns, and suggest improvements the trader hasn't considered. Be creative and thorough."},
@@ -1793,7 +1793,7 @@ Analyze this NQ level tracking data and provide:
         
         Focus on actionable insights for ICT liquidity grab strategy."""
         
-        response = client.chat.completions.create(
+        response = openai.chat.completions.create(
             model=environ.get('OPENAI_MODEL', 'gpt-4o'),
             messages=[
                 {"role": "system", "content": "You are an expert quantitative analyst specializing in futures level analysis and ICT trading concepts."},
