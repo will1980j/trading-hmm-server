@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/style_preload.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -307,6 +308,14 @@
                 </div>
                 
                 <div class="control-group">
+                    <label>Session Overlay</label>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="sessionOverlay" checked>
+                        <label for="sessionOverlay">Show Session Zones</label>
+                    </div>
+                </div>
+                
+                <div class="control-group">
                     <label>Sessions</label>
                     <div class="session-checkboxes">
                         <div class="checkbox-item">
@@ -506,7 +515,7 @@
             const avgWin = winResults.length > 0 ? winResults.reduce((a, b) => a + b, 0) / winResults.length : 0;
             const avgLoss = lossResults.length > 0 ? Math.abs(lossResults.reduce((a, b) => a + b, 0) / lossResults.length) : 0;
             
-            const expectancy = total > 0 ? ((wins / total) * avgWin) - ((losses / total) * avgLoss) : 0;
+            const expectancy = total > 0 ? (((wins + breakevens) / total) * avgWin) - ((losses / total) * avgLoss) : 0;
             
             // Calculate max consecutive losses
             let maxConsecutiveLosses = 0;
@@ -614,70 +623,52 @@
                 performanceChart.destroy();
             }
             
-            // Session colors
+            // Create beautiful gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(0, 255, 136, 0.8)');
+            gradient.addColorStop(1, 'rgba(0, 255, 136, 0.1)');
+            
+            const datasets = [{
+                label: 'Cumulative Performance (R)',
+                data: cumulativeData,
+                borderColor: '#00ff88',
+                backgroundColor: gradient,
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#00ff88',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }];
+            
+            // Session background zones
             const sessionColors = {
-                'Asia': '#ff6b7a',
-                'London': '#00ff88', 
-                'NY Pre Market': '#ffa502',
-                'NY AM': '#3742fa',
-                'NY Lunch': '#a55eea',
-                'NY PM': '#26de81'
+                'Asia': 'rgba(255, 107, 122, 0.1)',
+                'London': 'rgba(0, 255, 136, 0.1)', 
+                'NY Pre Market': 'rgba(255, 165, 2, 0.1)',
+                'NY AM': 'rgba(55, 66, 250, 0.1)',
+                'NY Lunch': 'rgba(165, 94, 234, 0.1)',
+                'NY PM': 'rgba(38, 222, 129, 0.1)'
             };
             
-            // Create datasets by session for trade-by-trade view
-            let datasets;
-            if (viewType === 'trade') {
-                const sessionData = {};
-                
+            const showSessionOverlay = document.getElementById('sessionOverlay').checked;
+            let annotations = {};
+            
+            if (showSessionOverlay && viewType === 'trade') {
                 data.forEach((item, index) => {
                     const session = item.session || 'Unknown';
-                    if (!sessionData[session]) {
-                        sessionData[session] = [];
-                    }
-                    
-                    let cumulative = 0;
-                    for (let i = 0; i <= index; i++) {
-                        cumulative += data[i].result;
-                    }
-                    
                     const xValue = new Date(item.date + 'T' + (item.time || '00:00:00'));
-                    sessionData[session].push({ x: xValue, y: cumulative });
+                    
+                    annotations[`session_${index}`] = {
+                        type: 'box',
+                        xMin: index === 0 ? xValue : new Date(data[index-1].date + 'T' + (data[index-1].time || '00:00:00')),
+                        xMax: xValue,
+                        backgroundColor: sessionColors[session] || 'rgba(255, 255, 255, 0.05)',
+                        borderWidth: 0
+                    };
                 });
-                
-                datasets = Object.keys(sessionData).map(session => ({
-                    label: session,
-                    data: sessionData[session],
-                    borderColor: sessionColors[session] || '#ffffff',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    fill: false,
-                    tension: 0.4,
-                    pointBackgroundColor: sessionColors[session] || '#ffffff',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 1,
-                    pointRadius: 3,
-                    pointHoverRadius: 5
-                }));
-            } else {
-                // Single dataset for aggregated views
-                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-                gradient.addColorStop(0, 'rgba(0, 255, 136, 0.8)');
-                gradient.addColorStop(1, 'rgba(0, 255, 136, 0.1)');
-                
-                datasets = [{
-                    label: 'Cumulative Performance (R)',
-                    data: cumulativeData,
-                    borderColor: '#00ff88',
-                    backgroundColor: gradient,
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: '#00ff88',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }];
             }
             
             performanceChart = new Chart(ctx, {
@@ -698,6 +689,9 @@
                                     weight: '600'
                                 }
                             }
+                        },
+                        annotation: {
+                            annotations: annotations
                         }
                     },
                     scales: {
@@ -790,6 +784,7 @@
             document.getElementById('beStrategy').addEventListener('change', updateAnalysis);
             document.getElementById('rTarget').addEventListener('input', updateAnalysis);
             document.getElementById('viewType').addEventListener('change', updateAnalysis);
+            document.getElementById('sessionOverlay').addEventListener('change', updateAnalysis);
             
             // Session checkboxes
             document.querySelectorAll('.session-checkboxes input[type="checkbox"]').forEach(cb => {
