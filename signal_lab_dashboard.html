@@ -215,19 +215,27 @@
         }
         
         .chart-container {
-            background: rgba(255,255,255,0.08);
-            border-radius: 20px;
-            padding: 30px;
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%);
+            border-radius: 25px;
+            padding: 35px;
+            backdrop-filter: blur(25px);
+            border: 2px solid rgba(0,255,136,0.2);
+            box-shadow: 
+                0 20px 40px rgba(0,0,0,0.15),
+                0 0 20px rgba(0,255,136,0.1),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            margin-bottom: 35px;
+            position: relative;
+            overflow: hidden;
         }
         
         .chart-wrapper {
             position: relative;
             height: 600px;
             width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            background: linear-gradient(135deg, rgba(0,0,0,0.05) 0%, rgba(30,60,114,0.05) 100%);
         }
         
         .update-btn {
@@ -271,6 +279,31 @@
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.05); }
+        }
+        
+        .premium-tooltip {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .dot-group {
+            transition: all 0.3s ease;
+        }
+        
+        .chart-container {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .chart-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 49%, rgba(0,255,136,0.02) 50%, transparent 51%);
+            pointer-events: none;
+            z-index: 1;
         }
     </style>
 </head>
@@ -676,87 +709,80 @@
             const containerRect = container.node().getBoundingClientRect();
             const width = containerRect.width;
             const height = 600;
-            const margin = {top: 20, right: 60, bottom: 60, left: 60};
+            const margin = {top: 30, right: 80, bottom: 80, left: 80};
             const innerWidth = width - margin.left - margin.right;
             const innerHeight = height - margin.top - margin.bottom;
             
-            // Create SVG with advanced features
+            // Create SVG with premium styling
             const svg = container.append('svg')
                 .attr('width', width)
                 .attr('height', height)
-                .style('background', 'transparent');
+                .style('background', 'linear-gradient(135deg, rgba(30,60,114,0.1) 0%, rgba(42,82,152,0.1) 100%)')
+                .style('border-radius', '15px')
+                .style('overflow', 'hidden');
             
-            // Create defs for gradients, filters, and patterns
+            // Advanced defs for premium effects
             const defs = svg.append('defs');
             
-            // Animated gradient
-            const gradient = defs.append('linearGradient')
-                .attr('id', 'area-gradient')
-                .attr('gradientUnits', 'userSpaceOnUse')
-                .attr('x1', 0).attr('y1', 0)
-                .attr('x2', 0).attr('y2', innerHeight);
+            // Multi-stop gradient for area
+            const areaGradient = defs.append('linearGradient')
+                .attr('id', 'premium-area-gradient')
+                .attr('x1', '0%').attr('y1', '0%')
+                .attr('x2', '0%').attr('y2', '100%');
             
-            gradient.append('stop')
+            areaGradient.append('stop')
                 .attr('offset', '0%')
                 .attr('stop-color', '#00ff88')
-                .attr('stop-opacity', 0.8);
+                .attr('stop-opacity', 0.9);
             
-            gradient.append('stop')
+            areaGradient.append('stop')
+                .attr('offset', '50%')
+                .attr('stop-color', '#00d4aa')
+                .attr('stop-opacity', 0.6);
+            
+            areaGradient.append('stop')
                 .attr('offset', '100%')
-                .attr('stop-color', '#00ff88')
+                .attr('stop-color', '#26de81')
                 .attr('stop-opacity', 0.1);
             
-            // Glow filter
-            const filter = defs.append('filter')
-                .attr('id', 'glow');
+            // Premium glow filter
+            const glowFilter = defs.append('filter')
+                .attr('id', 'premium-glow')
+                .attr('x', '-50%').attr('y', '-50%')
+                .attr('width', '200%').attr('height', '200%');
             
-            filter.append('feGaussianBlur')
-                .attr('stdDeviation', '3')
+            glowFilter.append('feGaussianBlur')
+                .attr('stdDeviation', '4')
                 .attr('result', 'coloredBlur');
             
-            const feMerge = filter.append('feMerge');
+            const feMerge = glowFilter.append('feMerge');
             feMerge.append('feMergeNode').attr('in', 'coloredBlur');
             feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
             
-            // Particle system for background
-            const particleCount = 50;
-            const particles = d3.range(particleCount).map(() => ({
-                x: Math.random() * width,
-                y: Math.random() * height,
-                vx: (Math.random() - 0.5) * 0.5,
-                vy: (Math.random() - 0.5) * 0.5,
-                radius: Math.random() * 2 + 1,
-                opacity: Math.random() * 0.3 + 0.1
-            }));
+            // Animated background pattern
+            const pattern = defs.append('pattern')
+                .attr('id', 'grid-pattern')
+                .attr('width', 40)
+                .attr('height', 40)
+                .attr('patternUnits', 'userSpaceOnUse');
             
-            // Animate particles
-            function animateParticles() {
-                svg.selectAll('.particle')
-                    .data(particles)
-                    .join('circle')
-                    .attr('class', 'particle')
-                    .attr('cx', d => d.x)
-                    .attr('cy', d => d.y)
-                    .attr('r', d => d.radius)
-                    .attr('fill', '#00ff88')
-                    .attr('opacity', d => d.opacity);
-                
-                particles.forEach(p => {
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    
-                    if (p.x < 0 || p.x > width) p.vx *= -1;
-                    if (p.y < 0 || p.y > height) p.vy *= -1;
-                });
-            }
+            pattern.append('path')
+                .attr('d', 'M 40 0 L 0 0 0 40')
+                .attr('fill', 'none')
+                .attr('stroke', 'rgba(0,255,136,0.05)')
+                .attr('stroke-width', 1);
             
-            // Start particle animation
-            setInterval(animateParticles, 50);
+            // Add animated background
+            svg.append('rect')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('fill', 'url(#grid-pattern)')
+                .style('opacity', 0.3);
             
             const g = svg.append('g')
                 .attr('transform', `translate(${margin.left},${margin.top})`);
             
-            // Scales
+            // Enhanced scales
             const xScale = d3.scaleTime()
                 .domain(d3.extent(data, d => d.x))
                 .range([0, innerWidth]);
@@ -766,7 +792,7 @@
                 .nice()
                 .range([innerHeight, 0]);
             
-            // Session colors
+            // Premium session colors with gradients
             const sessionColors = {
                 'Asia': '#ffa502',
                 'London': '#3742fa',
@@ -776,45 +802,53 @@
                 'NY PM': '#a55eea'
             };
             
-            // Session background zones (if enabled)
+            // Enhanced session zones with animations
             if (document.getElementById('sessionOverlay').checked && viewType === 'trade') {
                 const sessionZones = g.append('g').attr('class', 'session-zones');
                 
                 data.forEach((d, i) => {
                     if (i < data.length - 1) {
-                        sessionZones.append('rect')
+                        const zone = sessionZones.append('rect')
                             .attr('x', xScale(d.x))
                             .attr('y', 0)
                             .attr('width', xScale(data[i + 1].x) - xScale(d.x))
                             .attr('height', innerHeight)
                             .attr('fill', sessionColors[d.session] || '#666')
-                            .attr('opacity', 0.1)
-                            .style('pointer-events', 'none');
+                            .attr('opacity', 0)
+                            .style('pointer-events', 'none')
+                            .style('mix-blend-mode', 'multiply');
+                        
+                        zone.transition()
+                            .delay(i * 50)
+                            .duration(800)
+                            .attr('opacity', 0.08);
                     }
                 });
             }
             
-            // Line and area generators
+            // Premium curve generators
             const line = d3.line()
                 .x(d => xScale(d.x))
                 .y(d => yScale(d.y))
-                .curve(d3.curveCardinal.tension(0.3));
+                .curve(d3.curveCatmullRom.alpha(0.5));
             
             const area = d3.area()
                 .x(d => xScale(d.x))
                 .y0(innerHeight)
                 .y1(d => yScale(d.y))
-                .curve(d3.curveCardinal.tension(0.3));
+                .curve(d3.curveCatmullRom.alpha(0.5));
             
-            // Add area with morphing animation
+            // Animated area with premium gradient
             const areaPath = g.append('path')
                 .datum(data)
-                .attr('fill', 'url(#area-gradient)')
+                .attr('fill', 'url(#premium-area-gradient)')
                 .attr('d', area)
-                .style('opacity', 0);
+                .style('opacity', 0)
+                .style('filter', 'url(#premium-glow)');
             
             areaPath.transition()
-                .duration(1500)
+                .duration(2000)
+                .ease(d3.easeQuadInOut)
                 .style('opacity', 1)
                 .attrTween('d', function() {
                     const interpolate = d3.interpolate(0, 1);
@@ -824,14 +858,17 @@
                     };
                 });
             
-            // Add main line with drawing animation
+            // Premium main line with multiple effects
             const linePath = g.append('path')
                 .datum(data)
                 .attr('fill', 'none')
                 .attr('stroke', '#00ff88')
-                .attr('stroke-width', 3)
-                .attr('filter', 'url(#glow)')
-                .attr('d', line);
+                .attr('stroke-width', 4)
+                .attr('stroke-linecap', 'round')
+                .attr('stroke-linejoin', 'round')
+                .attr('filter', 'url(#premium-glow)')
+                .attr('d', line)
+                .style('drop-shadow', '0 0 10px rgba(0,255,136,0.5)');
             
             const totalLength = linePath.node().getTotalLength();
             
@@ -839,141 +876,168 @@
                 .attr('stroke-dasharray', totalLength + ' ' + totalLength)
                 .attr('stroke-dashoffset', totalLength)
                 .transition()
-                .duration(2000)
-                .ease(d3.easeLinear)
+                .duration(3000)
+                .ease(d3.easeQuadInOut)
                 .attr('stroke-dashoffset', 0);
             
-            // Interactive dots with hover effects
+            // Premium interactive dots with advanced animations
             const dots = g.selectAll('.dot')
                 .data(data)
-                .enter().append('circle')
+                .enter().append('g')
+                .attr('class', 'dot-group')
+                .attr('transform', d => `translate(${xScale(d.x)}, ${yScale(d.y)})`);
+            
+            // Outer glow ring
+            dots.append('circle')
+                .attr('class', 'dot-glow')
+                .attr('r', 0)
+                .attr('fill', 'none')
+                .attr('stroke', d => sessionColors[d.session] || '#00ff88')
+                .attr('stroke-width', 2)
+                .attr('opacity', 0.3);
+            
+            // Main dot
+            const mainDots = dots.append('circle')
                 .attr('class', 'dot')
-                .attr('cx', d => xScale(d.x))
-                .attr('cy', d => yScale(d.y))
                 .attr('r', 0)
                 .attr('fill', d => sessionColors[d.session] || '#00ff88')
                 .attr('stroke', '#ffffff')
-                .attr('stroke-width', 2)
+                .attr('stroke-width', 3)
                 .style('cursor', 'pointer')
-                .style('filter', 'url(#glow)');
+                .style('filter', 'url(#premium-glow)');
             
-            // Animate dots appearance
+            // Animate dots with staggered timing
             dots.transition()
-                .delay((d, i) => i * 100)
-                .duration(500)
-                .attr('r', 6)
-                .on('end', function() {
-                    // Add pulsing animation
-                    d3.select(this)
-                        .transition()
-                        .duration(2000)
-                        .ease(d3.easeSinInOut)
-                        .attr('r', 8)
-                        .transition()
-                        .duration(2000)
-                        .ease(d3.easeSinInOut)
-                        .attr('r', 6)
-                        .on('end', function repeat() {
-                            d3.select(this)
-                                .transition()
-                                .duration(2000)
-                                .ease(d3.easeSinInOut)
-                                .attr('r', 8)
-                                .transition()
-                                .duration(2000)
-                                .ease(d3.easeSinInOut)
-                                .attr('r', 6)
-                                .on('end', repeat);
-                        });
-                });
+                .delay((d, i) => i * 80)
+                .duration(600)
+                .ease(d3.easeBackOut.overshoot(1.2))
+                .select('.dot')
+                .attr('r', 8);
             
-            // Tooltip
+            dots.transition()
+                .delay((d, i) => i * 80 + 300)
+                .duration(400)
+                .select('.dot-glow')
+                .attr('r', 15);
+            
+            // Premium tooltip with animations
             const tooltip = d3.select('body').append('div')
-                .attr('class', 'chart-tooltip')
+                .attr('class', 'premium-tooltip')
                 .style('position', 'absolute')
-                .style('background', 'rgba(0,0,0,0.9)')
+                .style('background', 'linear-gradient(135deg, rgba(0,0,0,0.95), rgba(30,60,114,0.95))')
                 .style('color', '#fff')
-                .style('padding', '10px')
-                .style('border-radius', '8px')
-                .style('border', '1px solid #00ff88')
-                .style('font-size', '12px')
+                .style('padding', '15px 20px')
+                .style('border-radius', '12px')
+                .style('border', '2px solid #00ff88')
+                .style('font-size', '13px')
+                .style('font-family', 'Inter, sans-serif')
                 .style('pointer-events', 'none')
                 .style('opacity', 0)
-                .style('z-index', '1000');
+                .style('z-index', '10000')
+                .style('backdrop-filter', 'blur(10px)')
+                .style('box-shadow', '0 20px 40px rgba(0,0,0,0.3), 0 0 20px rgba(0,255,136,0.2)');
             
-            // Dot interactions
+            // Enhanced dot interactions
             dots.on('mouseover', function(event, d) {
-                d3.select(this)
+                const dot = d3.select(this);
+                
+                dot.select('.dot')
                     .transition()
                     .duration(200)
-                    .attr('r', 12)
+                    .ease(d3.easeBackOut)
+                    .attr('r', 14)
                     .attr('stroke-width', 4);
                 
-                tooltip.transition()
+                dot.select('.dot-glow')
+                    .transition()
                     .duration(200)
-                    .style('opacity', 1);
+                    .attr('r', 25)
+                    .attr('opacity', 0.6);
+                
+                tooltip.transition()
+                    .duration(300)
+                    .ease(d3.easeQuadOut)
+                    .style('opacity', 1)
+                    .style('transform', 'translateY(-5px)');
                 
                 const formatTime = d3.timeFormat('%Y-%m-%d %H:%M');
+                const resultColor = d.result > 0 ? '#00ff88' : d.result < 0 ? '#ff4757' : '#ffa502';
+                
                 tooltip.html(`
-                    <strong>Trade ${d.index + 1}</strong><br/>
-                    Time: ${formatTime(d.x)}<br/>
-                    Session: ${d.session}<br/>
-                    Result: ${d.result > 0 ? '+' : ''}${d.result.toFixed(2)}R<br/>
-                    Cumulative: ${d.y.toFixed(2)}R
+                    <div style="font-weight: 700; font-size: 14px; margin-bottom: 8px; color: #00ff88;">Trade ${d.index + 1}</div>
+                    <div style="margin-bottom: 4px;"><span style="opacity: 0.8;">Time:</span> ${formatTime(d.x)}</div>
+                    <div style="margin-bottom: 4px;"><span style="opacity: 0.8;">Session:</span> <span style="color: ${sessionColors[d.session]}; font-weight: 600;">${d.session}</span></div>
+                    <div style="margin-bottom: 4px;"><span style="opacity: 0.8;">Result:</span> <span style="color: ${resultColor}; font-weight: 700;">${d.result > 0 ? '+' : ''}${d.result.toFixed(2)}R</span></div>
+                    <div><span style="opacity: 0.8;">Cumulative:</span> <span style="font-weight: 600;">${d.y.toFixed(2)}R</span></div>
                 `)
-                .style('left', (event.pageX + 10) + 'px')
+                .style('left', (event.pageX + 15) + 'px')
                 .style('top', (event.pageY - 10) + 'px');
             })
             .on('mouseout', function() {
-                d3.select(this)
+                const dot = d3.select(this);
+                
+                dot.select('.dot')
                     .transition()
-                    .duration(200)
-                    .attr('r', 6)
-                    .attr('stroke-width', 2);
+                    .duration(300)
+                    .attr('r', 8)
+                    .attr('stroke-width', 3);
+                
+                dot.select('.dot-glow')
+                    .transition()
+                    .duration(300)
+                    .attr('r', 15)
+                    .attr('opacity', 0.3);
                 
                 tooltip.transition()
                     .duration(200)
-                    .style('opacity', 0);
+                    .style('opacity', 0)
+                    .style('transform', 'translateY(0px)');
             });
             
-            // Axes with custom styling
+            // Premium axes with enhanced styling
             const xAxis = d3.axisBottom(xScale)
                 .tickFormat(d3.timeFormat(viewType === 'trade' ? '%m/%d %H:%M' : '%m/%d'))
                 .tickSize(-innerHeight)
-                .tickPadding(10);
+                .tickPadding(15);
             
             const yAxis = d3.axisLeft(yScale)
                 .tickFormat(d => d.toFixed(1) + 'R')
                 .tickSize(-innerWidth)
-                .tickPadding(10);
+                .tickPadding(15);
             
-            g.append('g')
+            const xAxisGroup = g.append('g')
                 .attr('class', 'x-axis')
                 .attr('transform', `translate(0,${innerHeight})`)
-                .call(xAxis)
-                .selectAll('text')
-                .style('fill', '#ffffff')
-                .style('font-family', 'Inter')
-                .attr('transform', 'rotate(-45)')
+                .call(xAxis);
+            
+            const yAxisGroup = g.append('g')
+                .attr('class', 'y-axis')
+                .call(yAxis);
+            
+            // Style axes with premium effects
+            [xAxisGroup, yAxisGroup].forEach(axis => {
+                axis.selectAll('text')
+                    .style('fill', 'rgba(255,255,255,0.9)')
+                    .style('font-family', 'Inter, sans-serif')
+                    .style('font-weight', '500')
+                    .style('font-size', '12px');
+                
+                axis.selectAll('.tick line')
+                    .style('stroke', 'rgba(255,255,255,0.08)')
+                    .style('stroke-dasharray', '3,3')
+                    .style('stroke-width', 1);
+                
+                axis.select('.domain')
+                    .style('stroke', 'rgba(255,255,255,0.2)')
+                    .style('stroke-width', 2);
+            });
+            
+            // Rotate x-axis labels
+            xAxisGroup.selectAll('text')
+                .attr('transform', 'rotate(-35)')
                 .style('text-anchor', 'end');
             
-            g.append('g')
-                .attr('class', 'y-axis')
-                .call(yAxis)
-                .selectAll('text')
-                .style('fill', '#ffffff')
-                .style('font-family', 'Inter');
-            
-            // Style grid lines
-            g.selectAll('.tick line')
-                .style('stroke', 'rgba(255, 255, 255, 0.1)')
-                .style('stroke-dasharray', '2,2');
-            
-            // Remove domain lines
-            g.selectAll('.domain')
-                .style('stroke', 'rgba(255, 255, 255, 0.3)');
-            
-            // Add zero line if data crosses zero
+            // Premium zero line
             const yExtent = d3.extent(data, d => d.y);
             if (yExtent[0] < 0 && yExtent[1] > 0) {
                 g.append('line')
@@ -982,10 +1046,26 @@
                     .attr('y1', yScale(0))
                     .attr('y2', yScale(0))
                     .style('stroke', '#ff6b7a')
-                    .style('stroke-width', 2)
-                    .style('stroke-dasharray', '5,5')
-                    .style('opacity', 0.7);
+                    .style('stroke-width', 3)
+                    .style('stroke-dasharray', '8,4')
+                    .style('opacity', 0.8)
+                    .style('filter', 'url(#premium-glow)');
             }
+            
+            // Add performance indicators
+            const performance = data[data.length - 1]?.y || 0;
+            const performanceColor = performance > 0 ? '#00ff88' : '#ff4757';
+            
+            g.append('text')
+                .attr('x', innerWidth - 10)
+                .attr('y', 20)
+                .attr('text-anchor', 'end')
+                .style('fill', performanceColor)
+                .style('font-family', 'Inter, sans-serif')
+                .style('font-weight', '700')
+                .style('font-size', '16px')
+                .style('filter', 'url(#premium-glow)')
+                .text(`${performance > 0 ? '+' : ''}${performance.toFixed(2)}R`);
         }
         
         function showNoData() {
