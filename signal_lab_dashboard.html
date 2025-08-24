@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Signal Lab Dashboard - Performance Analytics</title>
     <link rel="stylesheet" href="/style_preload.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -385,7 +383,7 @@
         <div class="chart-container">
             <h3 style="margin-bottom: 20px; color: #00ff88;">📈 Trade-by-Trade Performance</h3>
             <div class="chart-wrapper">
-                <canvas id="performanceChart"></canvas>
+                <div id="performanceChart" style="width: 100%; height: 500px;"></div>
             </div>
         </div>
         
@@ -407,7 +405,6 @@
 
     <script>
         let signals = [];
-        let performanceChart = null;
         
         // Load signals from database
         async function loadSignals() {
@@ -626,7 +623,17 @@
         }
         
         function updateChart(data, rTarget, viewType) {
-            const ctx = document.getElementById('performanceChart').getContext('2d');
+            // Clear existing chart
+            d3.select('#performanceChart').selectAll('*').remove();
+            
+            if (!data || data.length === 0) {
+                d3.select('#performanceChart').append('div')
+                    .style('text-align', 'center')
+                    .style('padding', '50px')
+                    .style('color', 'rgba(255,255,255,0.7)')
+                    .text('No data available for selected filters');
+                return;
+            }
             
             // Calculate cumulative performance
             let cumulative = 0;
@@ -636,161 +643,338 @@
                 
                 let xValue;
                 if (viewType === 'trade') {
-                    // Use full datetime for trade-by-trade view
                     xValue = new Date(item.date + 'T' + (item.time || '00:00:00'));
                 } else {
-                    xValue = item.date;
+                    xValue = new Date(item.date);
                 }
                 
-                return { x: xValue, y: cumulative };
+                return { 
+                    x: xValue, 
+                    y: cumulative, 
+                    result: result,
+                    session: item.session || 'Unknown',
+                    index: index
+                };
             });
             
-            // Destroy existing chart
-            if (performanceChart) {
-                performanceChart.destroy();
-            }
+            createD3Chart(cumulativeData, viewType);
+        }
+        
+        function createD3Chart(data, viewType) {
+            const container = d3.select('#performanceChart');
+            const containerRect = container.node().getBoundingClientRect();
+            const width = containerRect.width;
+            const height = 500;
+            const margin = {top: 20, right: 60, bottom: 60, left: 60};
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
             
-            // Create beautiful gradient
-            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(0, 255, 136, 0.8)');
-            gradient.addColorStop(1, 'rgba(0, 255, 136, 0.1)');
+            // Create SVG with advanced features
+            const svg = container.append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .style('background', 'transparent');
             
-            const datasets = [{
-                label: 'Cumulative Performance (R)',
-                data: cumulativeData,
-                borderColor: '#00ff88',
-                backgroundColor: gradient,
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: '#00ff88',
-                pointBorderColor: '#ffffff',
-                pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }];
+            // Create defs for gradients, filters, and patterns
+            const defs = svg.append('defs');
             
-            // Session background zones
-            const sessionColors = {
-                'Asia': 'rgba(255, 165, 2, 0.1)',
-                'London': 'rgba(55, 66, 250, 0.1)', 
-                'NY Pre Market': 'rgba(38, 222, 129, 0.1)',
-                'NY AM': 'rgba(0, 255, 136, 0.1)',
-                'NY Lunch': 'rgba(255, 255, 255, 0.1)',
-                'NY PM': 'rgba(165, 94, 234, 0.1)'
-            };
+            // Animated gradient
+            const gradient = defs.append('linearGradient')
+                .attr('id', 'area-gradient')
+                .attr('gradientUnits', 'userSpaceOnUse')
+                .attr('x1', 0).attr('y1', 0)
+                .attr('x2', 0).attr('y2', innerHeight);
             
-            const showSessionOverlay = document.getElementById('sessionOverlay').checked;
-            let annotations = {};
+            gradient.append('stop')
+                .attr('offset', '0%')
+                .attr('stop-color', '#00ff88')
+                .attr('stop-opacity', 0.8);
             
-            if (showSessionOverlay && viewType === 'trade') {
-                data.forEach((item, index) => {
-                    const session = item.session || 'Unknown';
-                    const xValue = new Date(item.date + 'T' + (item.time || '00:00:00'));
+            gradient.append('stop')
+                .attr('offset', '100%')
+                .attr('stop-color', '#00ff88')
+                .attr('stop-opacity', 0.1);
+            
+            // Glow filter
+            const filter = defs.append('filter')
+                .attr('id', 'glow');
+            
+            filter.append('feGaussianBlur')
+                .attr('stdDeviation', '3')
+                .attr('result', 'coloredBlur');
+            
+            const feMerge = filter.append('feMerge');
+            feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+            feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+            
+            // Particle system for background
+            const particleCount = 50;
+            const particles = d3.range(particleCount).map(() => ({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5,
+                radius: Math.random() * 2 + 1,
+                opacity: Math.random() * 0.3 + 0.1
+            }));
+            
+            // Animate particles
+            function animateParticles() {
+                svg.selectAll('.particle')
+                    .data(particles)
+                    .join('circle')
+                    .attr('class', 'particle')
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y)
+                    .attr('r', d => d.radius)
+                    .attr('fill', '#00ff88')
+                    .attr('opacity', d => d.opacity);
+                
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
                     
-                    annotations[`session_${index}`] = {
-                        type: 'box',
-                        xMin: index === 0 ? xValue : new Date(data[index-1].date + 'T' + (data[index-1].time || '00:00:00')),
-                        xMax: xValue,
-                        backgroundColor: sessionColors[session] || 'rgba(255, 255, 255, 0.05)',
-                        borderWidth: 0
-                    };
+                    if (p.x < 0 || p.x > width) p.vx *= -1;
+                    if (p.y < 0 || p.y > height) p.vy *= -1;
                 });
             }
             
-            performanceChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: '#ffffff',
-                                font: {
-                                    family: 'Inter',
-                                    size: 14,
-                                    weight: '600'
-                                }
-                            }
-                        },
-                        annotation: {
-                            annotations: annotations
-                        }
-                    },
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: viewType === 'trade' ? 'hour' : 
-                                      viewType === 'daily' ? 'day' : 
-                                      viewType === 'weekly' ? 'week' : 'month',
-                                displayFormats: {
-                                    hour: 'MMM dd HH:mm',
-                                    day: 'MMM dd',
-                                    week: 'MMM dd',
-                                    month: 'MMM yyyy'
-                                }
-                            },
-                            title: {
-                                display: true,
-                                text: 'Date',
-                                color: '#ffffff',
-                                font: {
-                                    family: 'Inter',
-                                    size: 14,
-                                    weight: '600'
-                                }
-                            },
-                            ticks: {
-                                color: '#ffffff',
-                                font: {
-                                    family: 'Inter'
-                                }
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Cumulative R',
-                                color: '#ffffff',
-                                font: {
-                                    family: 'Inter',
-                                    size: 14,
-                                    weight: '600'
-                                }
-                            },
-                            ticks: {
-                                color: '#ffffff',
-                                font: {
-                                    family: 'Inter'
-                                },
-                                callback: function(value) {
-                                    return value.toFixed(1) + 'R';
-                                }
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            }
-                        }
-                    },
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
-                    elements: {
-                        point: {
-                            hoverBackgroundColor: '#00d4aa'
-                        }
+            // Start particle animation
+            setInterval(animateParticles, 50);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            // Scales
+            const xScale = d3.scaleTime()
+                .domain(d3.extent(data, d => d.x))
+                .range([0, innerWidth]);
+            
+            const yScale = d3.scaleLinear()
+                .domain(d3.extent(data, d => d.y))
+                .nice()
+                .range([innerHeight, 0]);
+            
+            // Session colors
+            const sessionColors = {
+                'Asia': '#ffa502',
+                'London': '#3742fa',
+                'NY Pre Market': '#26de81',
+                'NY AM': '#00ff88',
+                'NY Lunch': '#ffffff',
+                'NY PM': '#a55eea'
+            };
+            
+            // Session background zones (if enabled)
+            if (document.getElementById('sessionOverlay').checked && viewType === 'trade') {
+                const sessionZones = g.append('g').attr('class', 'session-zones');
+                
+                data.forEach((d, i) => {
+                    if (i < data.length - 1) {
+                        sessionZones.append('rect')
+                            .attr('x', xScale(d.x))
+                            .attr('y', 0)
+                            .attr('width', xScale(data[i + 1].x) - xScale(d.x))
+                            .attr('height', innerHeight)
+                            .attr('fill', sessionColors[d.session] || '#666')
+                            .attr('opacity', 0.1)
+                            .style('pointer-events', 'none');
                     }
-                }
+                });
+            }
+            
+            // Line and area generators
+            const line = d3.line()
+                .x(d => xScale(d.x))
+                .y(d => yScale(d.y))
+                .curve(d3.curveCardinal.tension(0.3));
+            
+            const area = d3.area()
+                .x(d => xScale(d.x))
+                .y0(innerHeight)
+                .y1(d => yScale(d.y))
+                .curve(d3.curveCardinal.tension(0.3));
+            
+            // Add area with morphing animation
+            const areaPath = g.append('path')
+                .datum(data)
+                .attr('fill', 'url(#area-gradient)')
+                .attr('d', area)
+                .style('opacity', 0);
+            
+            areaPath.transition()
+                .duration(1500)
+                .style('opacity', 1)
+                .attrTween('d', function() {
+                    const interpolate = d3.interpolate(0, 1);
+                    return function(t) {
+                        const subset = data.slice(0, Math.ceil(t * data.length));
+                        return area(subset);
+                    };
+                });
+            
+            // Add main line with drawing animation
+            const linePath = g.append('path')
+                .datum(data)
+                .attr('fill', 'none')
+                .attr('stroke', '#00ff88')
+                .attr('stroke-width', 3)
+                .attr('filter', 'url(#glow)')
+                .attr('d', line);
+            
+            const totalLength = linePath.node().getTotalLength();
+            
+            linePath
+                .attr('stroke-dasharray', totalLength + ' ' + totalLength)
+                .attr('stroke-dashoffset', totalLength)
+                .transition()
+                .duration(2000)
+                .ease(d3.easeLinear)
+                .attr('stroke-dashoffset', 0);
+            
+            // Interactive dots with hover effects
+            const dots = g.selectAll('.dot')
+                .data(data)
+                .enter().append('circle')
+                .attr('class', 'dot')
+                .attr('cx', d => xScale(d.x))
+                .attr('cy', d => yScale(d.y))
+                .attr('r', 0)
+                .attr('fill', d => sessionColors[d.session] || '#00ff88')
+                .attr('stroke', '#ffffff')
+                .attr('stroke-width', 2)
+                .style('cursor', 'pointer')
+                .style('filter', 'url(#glow)');
+            
+            // Animate dots appearance
+            dots.transition()
+                .delay((d, i) => i * 100)
+                .duration(500)
+                .attr('r', 6)
+                .on('end', function() {
+                    // Add pulsing animation
+                    d3.select(this)
+                        .transition()
+                        .duration(2000)
+                        .ease(d3.easeSinInOut)
+                        .attr('r', 8)
+                        .transition()
+                        .duration(2000)
+                        .ease(d3.easeSinInOut)
+                        .attr('r', 6)
+                        .on('end', function repeat() {
+                            d3.select(this)
+                                .transition()
+                                .duration(2000)
+                                .ease(d3.easeSinInOut)
+                                .attr('r', 8)
+                                .transition()
+                                .duration(2000)
+                                .ease(d3.easeSinInOut)
+                                .attr('r', 6)
+                                .on('end', repeat);
+                        });
+                });
+            
+            // Tooltip
+            const tooltip = d3.select('body').append('div')
+                .attr('class', 'chart-tooltip')
+                .style('position', 'absolute')
+                .style('background', 'rgba(0,0,0,0.9)')
+                .style('color', '#fff')
+                .style('padding', '10px')
+                .style('border-radius', '8px')
+                .style('border', '1px solid #00ff88')
+                .style('font-size', '12px')
+                .style('pointer-events', 'none')
+                .style('opacity', 0)
+                .style('z-index', '1000');
+            
+            // Dot interactions
+            dots.on('mouseover', function(event, d) {
+                d3.select(this)
+                    .transition()
+                    .duration(200)
+                    .attr('r', 12)
+                    .attr('stroke-width', 4);
+                
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', 1);
+                
+                const formatTime = d3.timeFormat('%Y-%m-%d %H:%M');
+                tooltip.html(`
+                    <strong>Trade ${d.index + 1}</strong><br/>
+                    Time: ${formatTime(d.x)}<br/>
+                    Session: ${d.session}<br/>
+                    Result: ${d.result > 0 ? '+' : ''}${d.result.toFixed(2)}R<br/>
+                    Cumulative: ${d.y.toFixed(2)}R
+                `)
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 10) + 'px');
+            })
+            .on('mouseout', function() {
+                d3.select(this)
+                    .transition()
+                    .duration(200)
+                    .attr('r', 6)
+                    .attr('stroke-width', 2);
+                
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', 0);
             });
+            
+            // Axes with custom styling
+            const xAxis = d3.axisBottom(xScale)
+                .tickFormat(d3.timeFormat(viewType === 'trade' ? '%m/%d %H:%M' : '%m/%d'))
+                .tickSize(-innerHeight)
+                .tickPadding(10);
+            
+            const yAxis = d3.axisLeft(yScale)
+                .tickFormat(d => d.toFixed(1) + 'R')
+                .tickSize(-innerWidth)
+                .tickPadding(10);
+            
+            g.append('g')
+                .attr('class', 'x-axis')
+                .attr('transform', `translate(0,${innerHeight})`)
+                .call(xAxis)
+                .selectAll('text')
+                .style('fill', '#ffffff')
+                .style('font-family', 'Inter')
+                .attr('transform', 'rotate(-45)')
+                .style('text-anchor', 'end');
+            
+            g.append('g')
+                .attr('class', 'y-axis')
+                .call(yAxis)
+                .selectAll('text')
+                .style('fill', '#ffffff')
+                .style('font-family', 'Inter');
+            
+            // Style grid lines
+            g.selectAll('.tick line')
+                .style('stroke', 'rgba(255, 255, 255, 0.1)')
+                .style('stroke-dasharray', '2,2');
+            
+            // Remove domain lines
+            g.selectAll('.domain')
+                .style('stroke', 'rgba(255, 255, 255, 0.3)');
+            
+            // Add zero line if data crosses zero
+            const yExtent = d3.extent(data, d => d.y);
+            if (yExtent[0] < 0 && yExtent[1] > 0) {
+                g.append('line')
+                    .attr('x1', 0)
+                    .attr('x2', innerWidth)
+                    .attr('y1', yScale(0))
+                    .attr('y2', yScale(0))
+                    .style('stroke', '#ff6b7a')
+                    .style('stroke-width', 2)
+                    .style('stroke-dasharray', '5,5')
+                    .style('opacity', 0.7);
+            }
         }
         
         function showNoData() {
@@ -800,10 +984,12 @@
             document.getElementById('consecutiveLosses').textContent = '-';
             document.getElementById('totalTrades').textContent = '0';
             
-            if (performanceChart) {
-                performanceChart.destroy();
-                performanceChart = null;
-            }
+            d3.select('#performanceChart').selectAll('*').remove();
+            d3.select('#performanceChart').append('div')
+                .style('text-align', 'center')
+                .style('padding', '50px')
+                .style('color', 'rgba(255,255,255,0.5)')
+                .text('No data available');
         }
         
         // Auto-update when filters change
