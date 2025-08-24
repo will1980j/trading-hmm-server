@@ -262,6 +262,16 @@
             color: rgba(255,255,255,0.5);
             font-style: italic;
         }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
     </style>
 </head>
 <body>
@@ -1145,7 +1155,7 @@
         
         function displayAIRecommendation(aiAnalysis, bestCombination) {
             if (!bestCombination) {
-                document.getElementById('aiAnalysis').innerHTML = '📊 Insufficient data for optimization (need 10+ trades per strategy)';
+                document.getElementById('aiAnalysis').innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.7);">📊 Insufficient data for optimization (need 10+ trades per strategy)</div>';
                 return;
             }
             
@@ -1159,56 +1169,73 @@
                 bestCombination.sessions[0] : 
                 bestCombination.sessions.join(' + ');
             
+            // Parse AI analysis into structured sections
+            const aiSections = parseAIAnalysis(aiAnalysis);
+            
             const recommendationHtml = `
-                <div style="background: rgba(0,255,136,0.1); border: 2px solid #00ff88; border-radius: 15px; padding: 20px; margin-bottom: 20px;">
-                    <h3 style="color: #00ff88; margin-bottom: 15px;">🏆 OPTIMAL STRATEGY RECOMMENDATION</h3>
-                    
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
-                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #00ff88;">${beStrategyText[bestCombination.beStrategy]}</div>
-                            <div style="font-size: 12px; opacity: 0.8;">BE Strategy</div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #00ff88;">${bestCombination.rTarget}R</div>
-                            <div style="font-size: 12px; opacity: 0.8;">R-Target</div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #00ff88;">${sessionsText}</div>
-                            <div style="font-size: 12px; opacity: 0.8;">Sessions</div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #00ff88;">${bestCombination.expectancy.toFixed(3)}R</div>
-                            <div style="font-size: 12px; opacity: 0.8;">Expectancy</div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #00ff88;">${bestCombination.winRate.toFixed(1)}%</div>
-                            <div style="font-size: 12px; opacity: 0.8;">Win Rate</div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #00ff88;">${bestCombination.totalTrades}</div>
-                            <div style="font-size: 12px; opacity: 0.8;">Sample Size</div>
+                <div style="background: linear-gradient(135deg, #00ff88 0%, #00d4aa 100%); border-radius: 20px; padding: 0; overflow: hidden; box-shadow: 0 20px 40px rgba(0,255,136,0.3);">
+                    <!-- Hero Header -->
+                    <div style="background: linear-gradient(135deg, rgba(0,0,0,0.2), rgba(0,0,0,0.1)); padding: 30px; text-align: center; position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="%23ffffff" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>'); opacity: 0.3;"></div>
+                        <div style="position: relative; z-index: 1;">
+                            <div style="font-size: 48px; margin-bottom: 10px;">🏆</div>
+                            <h3 style="color: #ffffff; margin: 0 0 8px 0; font-size: 28px; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">OPTIMAL STRATEGY</h3>
+                            <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 16px; font-weight: 500;">AI-Powered Performance Optimization</p>
                         </div>
                     </div>
                     
-                    ${aiAnalysis ? `
-                        <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-top: 20px;">
-                            <h4 style="color: #00d4aa; margin-bottom: 15px; font-size: 18px;">🤖 GPT-4 Strategic Analysis</h4>
-                            <div style="line-height: 1.8; font-size: 15px; color: rgba(255,255,255,0.9);">${formatAIAnalysis(aiAnalysis)}</div>
+                    <!-- Strategy Metrics Dashboard -->
+                    <div style="background: rgba(255,255,255,0.95); color: #333; padding: 25px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                            ${createMetricCard('🎯', beStrategyText[bestCombination.beStrategy], 'BE Strategy', '#00ff88')}
+                            ${createMetricCard('📊', bestCombination.rTarget + 'R', 'R-Target', '#00d4aa')}
+                            ${createMetricCard('⏰', sessionsText, 'Sessions', '#26de81')}
+                            ${createMetricCard('💰', bestCombination.expectancy.toFixed(3) + 'R', 'Expectancy', '#00ff88')}
+                            ${createMetricCard('🎲', bestCombination.winRate.toFixed(1) + '%', 'Win Rate', '#00d4aa')}
+                            ${createMetricCard('📈', bestCombination.totalTrades.toString(), 'Sample Size', '#26de81')}
                         </div>
-                    ` : ''}
+                        
+                        <!-- Performance Gauge -->
+                        <div style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 15px; padding: 20px; margin-bottom: 25px; text-align: center;">
+                            <h4 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📊 Strategy Performance Score</h4>
+                            <div style="position: relative; width: 200px; height: 100px; margin: 0 auto;">
+                                ${createPerformanceGauge(bestCombination.expectancy, bestCombination.winRate)}
+                            </div>
+                            <div style="margin-top: 15px; font-size: 14px; color: #666;">
+                                Score: <strong style="color: #00ff88;">${calculatePerformanceScore(bestCombination.expectancy, bestCombination.winRate)}/100</strong>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                            <button onclick="applyOptimalStrategy()" style="
+                                background: linear-gradient(45deg, #00ff88, #00d4aa);
+                                border: none; padding: 15px 30px; border-radius: 12px;
+                                color: white; font-weight: 700; cursor: pointer;
+                                font-size: 16px; box-shadow: 0 4px 15px rgba(0,255,136,0.3);
+                                transition: all 0.3s ease; text-transform: uppercase;
+                                letter-spacing: 0.5px;
+                            ">🚀 Apply Strategy</button>
+                            <button onclick="toggleAIDetails()" style="
+                                background: linear-gradient(45deg, #667eea, #764ba2);
+                                border: none; padding: 15px 30px; border-radius: 12px;
+                                color: white; font-weight: 700; cursor: pointer;
+                                font-size: 16px; box-shadow: 0 4px 15px rgba(102,126,234,0.3);
+                                transition: all 0.3s ease;
+                            ">🤖 View AI Analysis</button>
+                        </div>
+                    </div>
                     
-                    <button onclick="applyOptimalStrategy()" style="
-                        background: linear-gradient(45deg, #00ff88, #00d4aa);
-                        border: none; padding: 12px 24px; border-radius: 8px;
-                        color: white; font-weight: 600; cursor: pointer;
-                        margin-top: 15px; transition: all 0.3s ease;
-                    ">Apply This Strategy →</button>
+                    <!-- AI Analysis Panel (Initially Hidden) -->
+                    <div id="aiDetailsPanel" style="display: none; background: linear-gradient(135deg, #2d3748, #4a5568); padding: 25px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                            ${aiSections.map(section => createAIAnalysisCard(section)).join('')}
+                        </div>
+                    </div>
                 </div>
             `;
             
             document.getElementById('aiAnalysis').innerHTML = recommendationHtml;
-            
-            // Store optimal strategy globally
             window.optimalStrategy = bestCombination;
         }
         
@@ -1298,22 +1325,44 @@
                 'NY PM': '#a55eea'
             };
             
+            // Parse analysis into structured sections
+            const sections = parseTimeAnalysis(analysis);
+            
             const sessionBadges = sessions.map(session => 
-                `<span style="background: ${sessionColors[session] || '#666'}; color: #000; padding: 4px 12px; border-radius: 15px; font-weight: 600; margin-right: 8px;">${session}</span>`
+                `<span style="background: ${sessionColors[session] || '#666'}; color: #000; padding: 6px 16px; border-radius: 20px; font-weight: 600; margin-right: 10px; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">${session}</span>`
             ).join('');
             
             const timeAnalysisHtml = `
-                <div style="background: linear-gradient(135deg, #2d1b69 0%, #11998e 100%); border: 2px solid #38ef7d; border-radius: 15px; padding: 25px;">
-                    <div style="margin-bottom: 20px;">
-                        <h3 style="color: #38ef7d; margin-bottom: 10px; font-size: 20px;">⏰ Optimal Entry Times Analysis</h3>
-                        <div style="margin-bottom: 15px;">
-                            <span style="color: rgba(255,255,255,0.8); font-size: 14px;">Sessions: </span>
-                            ${sessionBadges}
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; padding: 0; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+                    <!-- Header Section -->
+                    <div style="background: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05)); padding: 25px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                            <div>
+                                <h3 style="color: #ffffff; margin: 0 0 8px 0; font-size: 24px; font-weight: 700;">⏰ Time Analysis Dashboard</h3>
+                                <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 14px;">Optimal entry timing patterns across selected sessions</p>
+                            </div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                ${sessionBadges}
+                            </div>
                         </div>
                     </div>
                     
-                    <div style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; border-left: 4px solid #38ef7d;">
-                        <div style="color: #e8f4fd; font-size: 15px; line-height: 1.8;">${formatTimeAnalysis(analysis)}</div>
+                    <!-- Main Content Grid -->
+                    <div style="padding: 25px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
+                            ${sections.map(section => createTimeAnalysisCard(section, sessionColors)).join('')}
+                        </div>
+                        
+                        <!-- Time Heatmap Visualization -->
+                        <div style="margin-top: 25px; background: rgba(255,255,255,0.08); border-radius: 15px; padding: 20px;">
+                            <h4 style="color: #ffffff; margin: 0 0 15px 0; font-size: 18px;">📊 Trading Session Timeline</h4>
+                            <div id="timeHeatmap" style="height: 80px; position: relative; background: linear-gradient(90deg, #ffa502 0%, #ffa502 16.67%, #3742fa 16.67%, #3742fa 33.33%, #26de81 33.33%, #26de81 50%, #00ff88 50%, #00ff88 66.67%, #ffffff 66.67%, #ffffff 83.33%, #a55eea 83.33%, #a55eea 100%); border-radius: 10px; overflow: hidden;">
+                                ${createTimelineMarkers(sessions)}
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; color: rgba(255,255,255,0.7);">
+                                <span>00:00 UTC</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>24:00</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -1449,6 +1498,124 @@
             alert(`Applied optimal settings: ${rTarget}R target with ${beStrategy === 'none' ? 'No BE' : beStrategy === 'be1' ? 'BE at 1R' : 'BE at 2R'}`);
         }
         
+        // Helper functions for enhanced UI
+        function parseTimeAnalysis(analysis) {
+            const sections = analysis.split(/\n\s*\n/).filter(s => s.trim());
+            return sections.map((section, index) => {
+                const lines = section.split('\n');
+                const title = lines[0].replace(/\*\*/g, '').replace(/^\d+\.\s*/, '').trim();
+                const content = lines.slice(1).join('\n');
+                return { title, content, index, icon: getTimeAnalysisIcon(index) };
+            });
+        }
+        
+        function getTimeAnalysisIcon(index) {
+            const icons = ['🎯', '⏰', '📊', '🔥', '💡', '📈', '⚡', '🎲'];
+            return icons[index % icons.length];
+        }
+        
+        function createTimeAnalysisCard(section, sessionColors) {
+            return `
+                <div style="background: rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s ease; cursor: pointer;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.2)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                        <div style="font-size: 24px; margin-right: 12px;">${section.icon}</div>
+                        <h4 style="color: #ffffff; margin: 0; font-size: 16px; font-weight: 600;">${section.title}</h4>
+                    </div>
+                    <div style="color: rgba(255,255,255,0.9); font-size: 14px; line-height: 1.6;">
+                        ${formatTimeAnalysis(section.content)}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function createTimelineMarkers(sessions) {
+            const sessionTimes = {
+                'Asia': { start: 0, end: 16.67 },
+                'London': { start: 16.67, end: 33.33 },
+                'NY Pre Market': { start: 33.33, end: 50 },
+                'NY AM': { start: 50, end: 66.67 },
+                'NY Lunch': { start: 66.67, end: 83.33 },
+                'NY PM': { start: 83.33, end: 100 }
+            };
+            
+            return sessions.map(session => {
+                const time = sessionTimes[session];
+                if (!time) return '';
+                return `<div style="position: absolute; top: 10px; left: ${time.start}%; width: ${time.end - time.start}%; height: 60px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #000; font-size: 12px; backdrop-filter: blur(5px);">${session}</div>`;
+            }).join('');
+        }
+        
+        function parseAIAnalysis(analysis) {
+            if (!analysis) return [];
+            const sections = analysis.split(/\n\s*\n/).filter(s => s.trim());
+            return sections.map((section, index) => {
+                const lines = section.split('\n');
+                const title = lines[0].replace(/\*\*/g, '').replace(/^\d+\.\s*/, '').replace(/^#{1,4}\s*/, '').trim();
+                const content = lines.slice(1).join('\n');
+                return { title, content, index, icon: getAIAnalysisIcon(index) };
+            });
+        }
+        
+        function getAIAnalysisIcon(index) {
+            const icons = ['🧠', '📊', '⚡', '🎯', '💡', '🔍', '📈', '🚀'];
+            return icons[index % icons.length];
+        }
+        
+        function createMetricCard(icon, value, label, color) {
+            return `
+                <div style="background: linear-gradient(135deg, #ffffff, #f8f9fa); border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-left: 4px solid ${color}; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                    <div style="font-size: 28px; margin-bottom: 8px;">${icon}</div>
+                    <div style="font-size: 20px; font-weight: 700; color: ${color}; margin-bottom: 4px;">${value}</div>
+                    <div style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">${label}</div>
+                </div>
+            `;
+        }
+        
+        function createPerformanceGauge(expectancy, winRate) {
+            const score = calculatePerformanceScore(expectancy, winRate);
+            const angle = (score / 100) * 180;
+            const color = score >= 80 ? '#00ff88' : score >= 60 ? '#ffa502' : '#ff4757';
+            
+            return `
+                <svg width="200" height="100" viewBox="0 0 200 100">
+                    <path d="M 20 80 A 80 80 0 0 1 180 80" stroke="#e9ecef" stroke-width="8" fill="none"/>
+                    <path d="M 20 80 A 80 80 0 0 1 ${20 + 160 * (angle / 180)} ${80 - 80 * Math.sin(angle * Math.PI / 180)}" stroke="${color}" stroke-width="8" fill="none" stroke-linecap="round"/>
+                    <circle cx="100" cy="80" r="6" fill="${color}"/>
+                    <text x="100" y="95" text-anchor="middle" font-size="12" fill="#666" font-weight="600">${score}%</text>
+                </svg>
+            `;
+        }
+        
+        function calculatePerformanceScore(expectancy, winRate) {
+            const expectancyScore = Math.min(Math.max((expectancy + 1) * 40, 0), 60);
+            const winRateScore = Math.min(winRate * 0.4, 40);
+            return Math.round(expectancyScore + winRateScore);
+        }
+        
+        function createAIAnalysisCard(section) {
+            return `
+                <div style="background: rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);">
+                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                        <div style="font-size: 24px; margin-right: 12px;">${section.icon}</div>
+                        <h4 style="color: #ffffff; margin: 0; font-size: 16px; font-weight: 600;">${section.title}</h4>
+                    </div>
+                    <div style="color: rgba(255,255,255,0.9); font-size: 14px; line-height: 1.6;">
+                        ${formatAIAnalysis(section.content)}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function toggleAIDetails() {
+            const panel = document.getElementById('aiDetailsPanel');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                panel.style.animation = 'slideDown 0.3s ease';
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+        
         // Make functions globally available
         window.updateAnalysis = updateAnalysis;
         window.applyOptimalStrategy = applyOptimalStrategy;
@@ -1456,6 +1623,7 @@
         window.runTimeAnalysis = runTimeAnalysis;
         window.analyzeOptimalRTarget = analyzeOptimalRTarget;
         window.applyOptimalRTarget = applyOptimalRTarget;
+        window.toggleAIDetails = toggleAIDetails;
     </script>
 </body>
 </html>
