@@ -129,6 +129,11 @@ def trade_manager():
 def signal_analysis_lab():
     return read_html_file('signal_analysis_lab.html')
 
+@app.route('/signal-lab-dashboard')
+@login_required
+def signal_lab_dashboard():
+    return read_html_file('signal_lab_dashboard.html')
+
 @app.route('/chart-extractor')
 @login_required
 def chart_extractor():

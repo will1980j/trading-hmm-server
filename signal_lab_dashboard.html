@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signal Lab Dashboard - Performance Analytics</title>
+    <link rel="stylesheet" href="/style_preload.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --accent-color: #00ff88;
+            --glass-bg: rgba(255,255,255,0.08);
+            --glass-border: rgba(255,255,255,0.1);
+            --shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        
+        .navbar {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .nav-link:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .nav-link.active {
+            color: #00ff88;
+            background: rgba(0,255,136,0.15);
+            border-color: rgba(0,255,136,0.3);
+        }
+        
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ff88, #00d4aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .controls-panel {
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .control-group label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #00ff88;
+        }
+        
+        select, input[type="number"] {
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        select:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #00ff88;
+            box-shadow: 0 0 0 3px rgba(0,255,136,0.2);
+        }
+        
+        select option {
+            background: #2a5298;
+            color: white;
+        }
+        
+        .session-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 8px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .checkbox-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #00ff88;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            margin: 8px 0;
+            background: linear-gradient(45deg, var(--accent-color), #00d4aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        .chart-container {
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 500px;
+            width: 100%;
+        }
+        
+        .update-btn {
+            background: linear-gradient(45deg, #00ff88, #00d4aa);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(0,255,136,0.2);
+        }
+        
+        .update-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,255,136,0.4);
+            background: linear-gradient(45deg, #00d4aa, #00ff88);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: rgba(255,255,255,0.5);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/trade-manager" class="nav-link">Trade Manager</a>
+                <a href="/signal-analysis-lab" class="nav-link">Signal Lab</a>
+                <a href="/signal-lab-dashboard" class="nav-link active">Lab Dashboard</a>
+                <a href="/prop-portfolio" class="nav-link">Prop Portfolio</a>
+                <a href="/financial-summary" class="nav-link">Financial Summary</a>
+                <a href="/reporting-hub" class="nav-link">Reporting Hub</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="header">
+            <h1>Signal Lab Dashboard</h1>
+            <p>Advanced Performance Analytics & Strategy Optimization</p>
+        </div>
+        
+        <div class="controls-panel">
+            <h3 style="margin-bottom: 20px; color: #00ff88;">📊 Analysis Controls</h3>
+            
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label>BE Strategy</label>
+                    <select id="beStrategy">
+                        <option value="none">No BE</option>
+                        <option value="be1">BE = 1R</option>
+                        <option value="be2">BE = 2R</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>R-Target</label>
+                    <input type="number" id="rTarget" min="0" max="500" step="0.5" value="2" placeholder="2.0">
+                </div>
+                
+                <div class="control-group">
+                    <label>Sessions</label>
+                    <div class="session-checkboxes">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="sessionAsia" value="Asia" checked>
+                            <label for="sessionAsia">Asia</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="sessionLondon" value="London" checked>
+                            <label for="sessionLondon">London</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="sessionNYPre" value="NY Pre Market" checked>
+                            <label for="sessionNYPre">NY Pre</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="sessionNYAM" value="NY AM" checked>
+                            <label for="sessionNYAM">NY AM</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="sessionNYLunch" value="NY Lunch" checked>
+                            <label for="sessionNYLunch">NY Lunch</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="sessionNYPM" value="NY PM" checked>
+                            <label for="sessionNYPM">NY PM</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="update-btn" onclick="updateAnalysis()">🔄 Update Analysis</button>
+        </div>
+        
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-value" id="expectancy">-</div>
+                <div class="stat-label">Expectancy</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="winRate">-</div>
+                <div class="stat-label">Win Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="lossRate">-</div>
+                <div class="stat-label">Loss Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="consecutiveLosses">-</div>
+                <div class="stat-label">Max Consecutive Losses</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalTrades">-</div>
+                <div class="stat-label">Total Trades</div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h3 style="margin-bottom: 20px; color: #00ff88;">📈 Trade-by-Trade Performance</h3>
+            <div class="chart-wrapper">
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let signals = [];
+        let performanceChart = null;
+        
+        // Load signals from database
+        async function loadSignals() {
+            try {
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-trades');
+                if (response.ok) {
+                    const data = await response.json();
+                    const trades = Array.isArray(data) ? data : data.trades || [];
+                    
+                    signals = trades.map(trade => ({
+                        id: trade.id,
+                        date: trade.date,
+                        session: trade.session,
+                        mfeNone: parseFloat(trade.mfe_none || trade.mfe) || 0,
+                        be1Level: parseFloat(trade.be1_level) || 1,
+                        be1Hit: Boolean(trade.be1_hit),
+                        mfe1: parseFloat(trade.mfe1) || 0,
+                        be2Level: parseFloat(trade.be2_level) || 2,
+                        be2Hit: Boolean(trade.be2_hit),
+                        mfe2: parseFloat(trade.mfe2) || 0
+                    }));
+                    
+                    console.log(`✅ Loaded ${signals.length} signals`);
+                    updateAnalysis();
+                } else {
+                    console.error('Failed to load signals');
+                }
+            } catch (error) {
+                console.error('Error loading signals:', error);
+            }
+        }
+        
+        function getSelectedSessions() {
+            const sessions = [];
+            document.querySelectorAll('.session-checkboxes input[type="checkbox"]:checked').forEach(cb => {
+                sessions.push(cb.value);
+            });
+            return sessions;
+        }
+        
+        function calculateTradeResult(signal, beStrategy, rTarget) {
+            let mfe;
+            
+            // Get the appropriate MFE based on BE strategy
+            switch(beStrategy) {
+                case 'none':
+                    mfe = signal.mfeNone;
+                    break;
+                case 'be1':
+                    mfe = signal.mfe1;
+                    break;
+                case 'be2':
+                    mfe = signal.mfe2;
+                    break;
+                default:
+                    mfe = signal.mfeNone;
+            }
+            
+            // Handle active trades (no MFE data) - assume they're winners at R-Target
+            if (!mfe || mfe === 0) {
+                return rTarget; // Assume active trades hit target
+            }
+            
+            // Apply BE strategy logic
+            if (beStrategy === 'none') {
+                return mfe < 0 ? -1 : (mfe >= rTarget ? rTarget : -1);
+            } else if (beStrategy === 'be1') {
+                if (mfe < 1) return -1;
+                if (mfe >= 1 && mfe < rTarget) return 0;
+                if (mfe >= rTarget) return rTarget;
+            } else if (beStrategy === 'be2') {
+                if (mfe < 2) return -1;
+                if (mfe >= 2 && mfe < rTarget) return 0;
+                if (mfe >= rTarget) return rTarget;
+            }
+            
+            return -1;
+        }
+        
+        function updateAnalysis() {
+            const beStrategy = document.getElementById('beStrategy').value;
+            const rTarget = parseFloat(document.getElementById('rTarget').value) || 2;
+            const selectedSessions = getSelectedSessions();
+            
+            // Filter signals by selected sessions
+            const filteredSignals = signals.filter(signal => 
+                selectedSessions.includes(signal.session)
+            );
+            
+            if (filteredSignals.length === 0) {
+                showNoData();
+                return;
+            }
+            
+            // Calculate results for each trade
+            const results = filteredSignals.map(signal => 
+                calculateTradeResult(signal, beStrategy, rTarget)
+            );
+            
+            // Calculate statistics
+            const stats = calculateStatistics(results, rTarget);
+            
+            // Update stats display
+            updateStatsDisplay(stats, filteredSignals.length);
+            
+            // Update chart
+            updateChart(results, rTarget);
+        }
+        
+        function calculateStatistics(results, rTarget) {
+            const wins = results.filter(r => r > 0).length;
+            const losses = results.filter(r => r < 0).length;
+            const breakevens = results.filter(r => r === 0).length;
+            const total = results.length;
+            
+            const winRate = total > 0 ? (wins / total) * 100 : 0;
+            const lossRate = total > 0 ? (losses / total) * 100 : 0;
+            
+            // Calculate expectancy
+            const avgWin = wins > 0 ? results.filter(r => r > 0).reduce((a, b) => a + b, 0) / wins : 0;
+            const avgLoss = losses > 0 ? Math.abs(results.filter(r => r < 0).reduce((a, b) => a + b, 0) / losses) : 0;
+            const expectancy = (winRate / 100) * avgWin - (lossRate / 100) * avgLoss;
+            
+            // Calculate max consecutive losses
+            let maxConsecutiveLosses = 0;
+            let currentConsecutive = 0;
+            
+            results.forEach(result => {
+                if (result < 0) {
+                    currentConsecutive++;
+                    maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentConsecutive);
+                } else {
+                    currentConsecutive = 0;
+                }
+            });
+            
+            return {
+                expectancy,
+                winRate,
+                lossRate,
+                maxConsecutiveLosses,
+                total
+            };
+        }
+        
+        function updateStatsDisplay(stats, totalTrades) {
+            document.getElementById('expectancy').textContent = stats.expectancy.toFixed(2) + 'R';
+            document.getElementById('winRate').textContent = stats.winRate.toFixed(1) + '%';
+            document.getElementById('lossRate').textContent = stats.lossRate.toFixed(1) + '%';
+            document.getElementById('consecutiveLosses').textContent = stats.maxConsecutiveLosses;
+            document.getElementById('totalTrades').textContent = totalTrades;
+            
+            // Color code expectancy
+            const expectancyEl = document.getElementById('expectancy');
+            if (stats.expectancy > 0) {
+                expectancyEl.style.background = 'linear-gradient(45deg, #00ff88, #00d4aa)';
+            } else {
+                expectancyEl.style.background = 'linear-gradient(45deg, #ff4757, #ff6b7a)';
+            }
+            expectancyEl.style.webkitBackgroundClip = 'text';
+            expectancyEl.style.webkitTextFillColor = 'transparent';
+        }
+        
+        function updateChart(results, rTarget) {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            
+            // Calculate cumulative performance
+            let cumulative = 0;
+            const cumulativeData = results.map((result, index) => {
+                cumulative += result;
+                return { x: index + 1, y: cumulative };
+            });
+            
+            // Destroy existing chart
+            if (performanceChart) {
+                performanceChart.destroy();
+            }
+            
+            // Create beautiful gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(0, 255, 136, 0.8)');
+            gradient.addColorStop(1, 'rgba(0, 255, 136, 0.1)');
+            
+            performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Cumulative Performance (R)',
+                        data: cumulativeData,
+                        borderColor: '#00ff88',
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#00ff88',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#ffffff',
+                                font: {
+                                    family: 'Inter',
+                                    size: 14,
+                                    weight: '600'
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Trade Number',
+                                color: '#ffffff',
+                                font: {
+                                    family: 'Inter',
+                                    size: 14,
+                                    weight: '600'
+                                }
+                            },
+                            ticks: {
+                                color: '#ffffff',
+                                font: {
+                                    family: 'Inter'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Cumulative R',
+                                color: '#ffffff',
+                                font: {
+                                    family: 'Inter',
+                                    size: 14,
+                                    weight: '600'
+                                }
+                            },
+                            ticks: {
+                                color: '#ffffff',
+                                font: {
+                                    family: 'Inter'
+                                },
+                                callback: function(value) {
+                                    return value.toFixed(1) + 'R';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    elements: {
+                        point: {
+                            hoverBackgroundColor: '#00d4aa'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function showNoData() {
+            document.getElementById('expectancy').textContent = '-';
+            document.getElementById('winRate').textContent = '-';
+            document.getElementById('lossRate').textContent = '-';
+            document.getElementById('consecutiveLosses').textContent = '-';
+            document.getElementById('totalTrades').textContent = '0';
+            
+            if (performanceChart) {
+                performanceChart.destroy();
+                performanceChart = null;
+            }
+        }
+        
+        // Load data when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSignals();
+        });
+        
+        // Make function globally available
+        window.updateAnalysis = updateAnalysis;
+    </script>
+</body>
+</html>
