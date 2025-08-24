@@ -1933,16 +1933,16 @@
             const context = `ICT NQ Strategy: ${beStrategy} BE, ${rTarget}R target, ${sessions.join('+')} sessions. ${totalTrades} trades: ${stats.expectancy.toFixed(2)}R expectancy, ${stats.winRate.toFixed(1)}% win rate, ${stats.maxConsecutiveLosses} max losses, ${stats.maxConsecutiveWins} max wins.`;
             
             const analyses = {
-                totalR: `${stats.totalR < 0 ? 'Stop Asia/NY Lunch' : stats.totalR < 5 ? 'Add NY Pre Market' : 'Scale position size'}`,
-                avgRPerTrade: `${stats.avgRPerTrade < 0.1 ? 'Change to No BE' : stats.avgRPerTrade < 0.3 ? 'Test 2.5R targets' : 'Increase to 3R+'}`,
-                bestTrade: `${stats.bestTrade < 2 ? 'Use 3R minimum targets' : stats.bestTrade > 5 ? 'Add trailing stops' : 'Targets optimal'}`,
-                worstTrade: `${stats.worstTrade < -2 ? 'Switch to BE=1R' : stats.worstTrade < -1.5 ? 'Tighten stops' : 'Risk control good'}`,
-                expectancy: `${stats.expectancy < 0 ? 'Stop all trading' : stats.expectancy < 0.2 ? 'London only' : 'Scale up volume'}`,
-                winRate: `${stats.winRate < 40 ? 'Change to No BE' : stats.winRate < 60 ? 'Test BE=2R' : 'Scale position size'}`,
-                lossRate: `${stats.lossRate > 60 ? 'Stop Asia/NY Lunch' : stats.lossRate > 40 ? 'Switch to BE=1R' : 'Loss rate acceptable'}`,
-                consecutiveLosses: `${stats.maxConsecutiveLosses > 5 ? 'Reduce size 50%' : stats.maxConsecutiveLosses > 3 ? 'Daily loss limits' : 'Streak control good'}`,
-                consecutiveWins: `${stats.maxConsecutiveWins < 3 ? 'London+NY AM only' : stats.maxConsecutiveWins > 5 ? 'Scale during streaks' : 'Maintain approach'}`,
-                totalTrades: `${totalTrades < 20 ? 'Need 50+ trades' : totalTrades < 50 ? 'Add NY Pre Market' : 'Sample size good'}`
+                totalR: `• Stop Asia session<br>• Add NY Pre Market<br>• Test 3R targets<br>• Scale position size`,
+                avgRPerTrade: `• Change to No BE<br>• Test 2.5R targets<br>• Skip NY Lunch<br>• Focus London only`,
+                bestTrade: `• Use 3R minimum<br>• Add trailing stops<br>• Test higher targets<br>• Scale during wins`,
+                worstTrade: `• Switch to BE=1R<br>• Tighten stop losses<br>• Avoid Asia session<br>• Reduce position size`,
+                expectancy: `• Stop Asia/NY Lunch<br>• Change to No BE<br>• London only trading<br>• Test 3R targets`,
+                winRate: `• Change to No BE<br>• Test BE=2R strategy<br>• Add NY Pre Market<br>• Focus best sessions`,
+                lossRate: `• Stop Asia session<br>• Switch to BE=1R<br>• Avoid NY Lunch<br>• Tighten stops`,
+                consecutiveLosses: `• Reduce size 50%<br>• Daily loss limits<br>• Stop after 3 losses<br>• London only trading`,
+                consecutiveWins: `• Scale during streaks<br>• Add more volume<br>• Test higher targets<br>• Focus London+NY AM`,
+                totalTrades: `• Add NY Pre Market<br>• Trade more London<br>• Skip low-volume sessions<br>• Need 50+ trades`
             };
             
             for (const [stat, prompt] of Object.entries(analyses)) {
@@ -1951,7 +1951,7 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
-                            prompt: `${context} Give one short actionable fix. Examples: 'Stop Asia', 'Change to No BE', 'Use 3R targets'. Max 4 words.`,
+                            prompt: `${context} Give 4 bullet points of actionable advice to improve this metric. Each bullet one line only. Examples: '• Stop Asia session', '• Change to No BE', '• Use 3R targets', '• Add NY Pre Market'.`,
                             data: { stats, totalTrades }
                         })
                     });
