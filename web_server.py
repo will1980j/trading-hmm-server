@@ -2703,8 +2703,8 @@ def calculate_optimal_r_target(trades):
     mfe_values = [float(t['mfe_none']) for t in trades if float(t['mfe_none']) > 0]
     max_mfe = max(mfe_values) if mfe_values else 10
     
-    # Test R-targets from 1 to actual maximum MFE (no artificial cap)
-    r_targets = list(range(1, int(max_mfe) + 1))  # Test up to actual max MFE
+    # Test R-targets from 1 to reasonable maximum (cap at 10R for practical trading)
+    r_targets = list(range(1, min(11, int(max_mfe) + 1)))  # Test 1R to 10R max
     
     logger.info(f"Testing R-targets from 1 to {max(r_targets)} (Max MFE in data: {max_mfe:.2f}R)")
     logger.info(f"Total trades for analysis: {len(trades)}")
@@ -2733,34 +2733,45 @@ def calculate_optimal_r_target(trades):
                     else:  # be2
                         mfe = float(trade['mfe2']) if trade['be2_hit'] else float(trade['mfe_none'])
                     
-                    # Calculate trade result
-                    if be_strategy == 'none':
+                    # Calculate trade result with proper logic
+                    if mfe <= 0:  # No favorable movement
+                        result = -1
+                    elif be_strategy == 'none':
+                        # Simple: hit target or lose
                         result = r_target if mfe >= r_target else -1
                     elif be_strategy == 'be1':
                         if mfe < 1:
-                            result = -1
+                            result = -1  # Didn't reach BE level
                         elif mfe >= r_target:
-                            result = r_target
+                            result = r_target  # Hit target
                         else:
-                            result = 0  # Breakeven
+                            result = 0  # Hit BE but not target
                     else:  # be2
                         if mfe < 2:
-                            result = -1
+                            result = -1  # Didn't reach BE level
                         elif mfe >= r_target:
-                            result = r_target
+                            result = r_target  # Hit target
                         else:
-                            result = 0  # Breakeven
+                            result = 0  # Hit BE but not target
                     
                     trade_results.append(result)
                 
                 if trade_results:
-                    # Calculate session metrics
                     wins = len([r for r in trade_results if r > 0])
                     losses = len([r for r in trade_results if r < 0])
                     breakevens = len([r for r in trade_results if r == 0])
                     
+                    # Validate we have meaningful data
+                    if wins + losses == 0:
+                        continue  # Skip if no wins or losses
+                    
                     win_rate = (wins + breakevens) / len(trade_results) * 100
                     expectancy = sum(trade_results) / len(trade_results)
+                    
+                    # Skip unrealistic results
+                    if win_rate < 1 or win_rate > 99:
+                        logger.warning(f"Unrealistic win rate {win_rate:.1f}% for {be_strategy} + {r_target}R in {session}")
+                        continue
                     
                     # Include all combinations for analysis
                     session_results[session] = {
