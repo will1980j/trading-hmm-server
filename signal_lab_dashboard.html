@@ -332,7 +332,7 @@
         </div>
         
         <div class="controls-panel">
-            <h3 style="margin-bottom: 20px; color: #00ff88;">📊 Analysis Controls</h3>
+            <h3 style="margin-bottom: 20px; color: #00ff88;">Analysis Controls</h3>
             
             <div class="controls-grid">
                 <div class="control-group">
@@ -405,7 +405,7 @@
         </div>
         
         <div class="chart-container" style="margin-bottom: 20px;">
-            <h3 style="margin-bottom: 20px; color: #00ff88;">💰 Total R Performance</h3>
+            <h3 style="margin-bottom: 20px; color: #00ff88;">Total R Performance</h3>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
                 <div class="stat-card">
                     <div class="stat-value" id="totalR">-</div>
@@ -464,19 +464,19 @@
         </div>
         
         <div class="chart-container">
-            <h3 style="margin-bottom: 20px; color: #00ff88;">📈 Trade-by-Trade Performance</h3>
+            <h3 style="margin-bottom: 20px; color: #00ff88;">Trade-by-Trade Performance</h3>
             <div class="chart-wrapper">
                 <div id="performanceChart" style="width: 100%; height: 600px;"></div>
             </div>
         </div>
         
         <div class="chart-container">
-            <h3 style="margin-bottom: 20px; color: #38ef7d;">⏰ Time Analysis for Selected Sessions</h3>
+            <h3 style="margin-bottom: 20px; color: #38ef7d;">Time Analysis for Selected Sessions</h3>
             <div id="timeAnalysis" class="loading">Analyzing optimal entry times...</div>
         </div>
         
         <div id="rTargetAnalysisSection" class="chart-container" style="display: none;">
-            <h3 style="margin-bottom: 20px; color: #ff6b7a;">🎯 Optimal R-Target Analysis</h3>
+            <h3 style="margin-bottom: 20px; color: #ff6b7a;">Optimal R-Target Analysis</h3>
             <div id="rTargetAnalysis"></div>
         </div>
         
@@ -1340,7 +1340,7 @@
         // AI Strategy Optimization
         async function runAIOptimization() {
             if (signals.length < 10) {
-                document.getElementById('aiAnalysis').innerHTML = '📊 Need at least 10 trades for meaningful optimization analysis';
+                document.getElementById('aiAnalysis').innerHTML = 'Need at least 10 trades for meaningful optimization analysis';
                 return;
             }
             
@@ -1449,25 +1449,25 @@
                 if (response.ok) {
                     const aiResult = await response.json();
                     if (aiResult.error) {
-                        document.getElementById('aiAnalysis').innerHTML = `❌ ${aiResult.error}`;
+                        document.getElementById('aiAnalysis').innerHTML = `${aiResult.error}`;
                         return;
                     }
                     displayAIRecommendation(aiResult.analysis, bestCombination);
                 } else {
                     const errorResult = await response.json();
-                    document.getElementById('aiAnalysis').innerHTML = `❌ GPT-4 Error: ${errorResult.error || 'API unavailable'}`;
+                    document.getElementById('aiAnalysis').innerHTML = `GPT-4 Error: ${errorResult.error || 'API unavailable'}`;
                     return;
                 }
                 
             } catch (error) {
                 console.error('AI optimization error:', error);
-                document.getElementById('aiAnalysis').innerHTML = `❌ AI Analysis Failed: ${error.message}`;
+                document.getElementById('aiAnalysis').innerHTML = `AI Analysis Failed: ${error.message}`;
             }
         }
         
         function displayAIRecommendation(aiAnalysis, bestCombination) {
             if (!bestCombination) {
-                document.getElementById('aiAnalysis').innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.7);">📊 Insufficient data for optimization (need 10+ trades per strategy)</div>';
+                document.getElementById('aiAnalysis').innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.7);">Insufficient data for optimization (need 10+ trades per strategy)</div>';
                 return;
             }
             
@@ -1489,7 +1489,7 @@
                     <!-- Hero Header -->
                     <div style="background: linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,255,136,0.05)); padding: 30px; text-align: center; position: relative; overflow: hidden; border-bottom: 1px solid rgba(0,255,136,0.2);">
                         <div style="position: relative; z-index: 1;">
-                            <div style="font-size: 48px; margin-bottom: 10px;">🏆</div>
+                            <div style="font-size: 48px; margin-bottom: 10px;"></div>
                             <h3 style="color: #00ff88; margin: 0 0 8px 0; font-size: 28px; font-weight: 800;">OPTIMAL STRATEGY</h3>
                             <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 16px; font-weight: 500;">AI-Powered Performance Optimization</p>
                         </div>
@@ -1508,7 +1508,7 @@
                         
                         <!-- Performance Gauge -->
                         <div style="background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: 15px; padding: 20px; margin-bottom: 25px; text-align: center;">
-                            <h4 style="margin: 0 0 15px 0; color: #00ff88; font-size: 18px;">📊 Strategy Performance Score</h4>
+                            <h4 style="margin: 0 0 15px 0; color: #00ff88; font-size: 18px;">Strategy Performance Score</h4>
                             <div style="position: relative; width: 200px; height: 100px; margin: 0 auto;">
                                 ${createPerformanceGauge(bestCombination.expectancy, bestCombination.winRate)}
                             </div>
@@ -1526,14 +1526,14 @@
                                 font-size: 16px; box-shadow: 0 4px 15px rgba(0,255,136,0.3);
                                 transition: all 0.3s ease; text-transform: uppercase;
                                 letter-spacing: 0.5px;
-                            ">🚀 Apply Strategy</button>
+                            ">Apply Strategy</button>
                             <button onclick="toggleAIDetails()" style="
                                 background: linear-gradient(45deg, #667eea, #764ba2);
                                 border: none; padding: 15px 30px; border-radius: 12px;
                                 color: white; font-weight: 700; cursor: pointer;
                                 font-size: 16px; box-shadow: 0 4px 15px rgba(102,126,234,0.3);
                                 transition: all 0.3s ease;
-                            ">🤖 View AI Analysis</button>
+                            ">View AI Analysis</button>
                         </div>
                     </div>
                     
@@ -1601,7 +1601,7 @@
             const selectedSessions = getSelectedSessions();
             
             if (selectedSessions.length === 0 || signals.length === 0) {
-                document.getElementById('timeAnalysis').innerHTML = '📈 Select sessions to view time analysis';
+                document.getElementById('timeAnalysis').innerHTML = 'Select sessions to view time analysis';
                 return;
             }
             
@@ -1618,11 +1618,11 @@
                     const result = await response.json();
                     displayTimeAnalysis(result.analysis, selectedSessions);
                 } else {
-                    document.getElementById('timeAnalysis').innerHTML = '❌ Time analysis failed';
+                    document.getElementById('timeAnalysis').innerHTML = 'Time analysis failed';
                 }
             } catch (error) {
                 console.error('Time analysis error:', error);
-                document.getElementById('timeAnalysis').innerHTML = `❌ Time Analysis Error: ${error.message}`;
+                document.getElementById('timeAnalysis').innerHTML = `Time Analysis Error: ${error.message}`;
             }
         }
         
@@ -1649,7 +1649,7 @@
                     <div style="background: linear-gradient(135deg, rgba(56,239,125,0.1), rgba(56,239,125,0.05)); padding: 25px; border-bottom: 1px solid rgba(56,239,125,0.2);">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                             <div>
-                                <h3 style="color: #38ef7d; margin: 0 0 8px 0; font-size: 24px; font-weight: 700;">⏰ Time Analysis Dashboard</h3>
+                                <h3 style="color: #38ef7d; margin: 0 0 8px 0; font-size: 24px; font-weight: 700;">Time Analysis Dashboard</h3>
                                 <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 14px;">Optimal entry timing patterns across selected sessions</p>
                             </div>
                             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
@@ -1666,7 +1666,7 @@
                         
                         <!-- Time Heatmap Visualization -->
                         <div style="margin-top: 25px; background: rgba(56,239,125,0.05); border: 1px solid rgba(56,239,125,0.2); border-radius: 15px; padding: 20px;">
-                            <h4 style="color: #38ef7d; margin: 0 0 15px 0; font-size: 18px;">📊 Trading Session Timeline</h4>
+                            <h4 style="color: #38ef7d; margin: 0 0 15px 0; font-size: 18px;">Trading Session Timeline</h4>
                             <div id="timeHeatmap" style="height: 80px; position: relative; background: linear-gradient(90deg, rgba(255,165,2,0.3) 0%, rgba(255,165,2,0.3) 16.67%, rgba(55,66,250,0.3) 16.67%, rgba(55,66,250,0.3) 33.33%, rgba(38,222,129,0.3) 33.33%, rgba(38,222,129,0.3) 50%, rgba(0,255,136,0.3) 50%, rgba(0,255,136,0.3) 66.67%, rgba(255,255,255,0.2) 66.67%, rgba(255,255,255,0.2) 83.33%, rgba(165,94,234,0.3) 83.33%, rgba(165,94,234,0.3) 100%); border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
                                 ${createTimelineMarkers(sessions)}
                             </div>
@@ -1706,11 +1706,11 @@
                     displayRTargetAnalysis(result);
                 } else {
                     const error = await response.json();
-                    document.getElementById('rTargetAnalysis').innerHTML = `❌ ${error.error || 'Analysis failed'}`;
+                    document.getElementById('rTargetAnalysis').innerHTML = `${error.error || 'Analysis failed'}`;
                 }
             } catch (error) {
                 console.error('R-Target analysis error:', error);
-                document.getElementById('rTargetAnalysis').innerHTML = `❌ Analysis Error: ${error.message}`;
+                document.getElementById('rTargetAnalysis').innerHTML = `Analysis Error: ${error.message}`;
             }
         }
         
@@ -1719,7 +1719,7 @@
             const mfeStats = result.mfe_statistics;
             
             if (!optimal) {
-                document.getElementById('rTargetAnalysis').innerHTML = '📈 Insufficient data for optimal R-target analysis';
+                document.getElementById('rTargetAnalysis').innerHTML = 'Insufficient data for optimal R-target analysis';
                 return;
             }
             
@@ -1732,7 +1732,7 @@
             const analysisHtml = `
                 <div style="background: linear-gradient(135deg, #ff6b7a 0%, #ee5a6f 100%); border: 2px solid #ff6b7a; border-radius: 15px; padding: 25px;">
                     <div style="margin-bottom: 20px;">
-                        <h3 style="color: #ffffff; margin-bottom: 15px; font-size: 20px;">🎯 STATISTICALLY OPTIMAL R-TARGET</h3>
+                        <h3 style="color: #ffffff; margin-bottom: 15px; font-size: 20px;">STATISTICALLY OPTIMAL R-TARGET</h3>
                     </div>
                     
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
@@ -1763,7 +1763,7 @@
                     </div>
                     
                     <div style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-                        <h4 style="color: #ffffff; margin-bottom: 15px;">📊 MFE Distribution Analysis</h4>
+                        <h4 style="color: #ffffff; margin-bottom: 15px;">MFE Distribution Analysis</h4>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; color: #ffffff; font-size: 14px;">
                             <div>Average MFE: <strong>${mfeStats.mean.toFixed(2)}R</strong></div>
                             <div>75th Percentile: <strong>${mfeStats.percentiles['75th'].toFixed(2)}R</strong></div>
@@ -1773,7 +1773,7 @@
                     </div>
                     
                     <div style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-                        <h4 style="color: #ffffff; margin-bottom: 15px;">🔄 Top Alternative Strategies</h4>
+                        <h4 style="color: #ffffff; margin-bottom: 15px;">Top Alternative Strategies</h4>
                         <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">
                             ${result.top_10_results.slice(1, 4).map((alt, idx) => 
                                 `${idx + 2}. ${beStrategyText[alt.be_strategy]} + ${alt.r_target}R = ${alt.expectancy.toFixed(3)}R expectancy (${alt.win_rate.toFixed(1)}% WR)`
@@ -1821,8 +1821,7 @@
         }
         
         function getTimeAnalysisIcon(index) {
-            const icons = ['🎯', '⏰', '📊', '🔥', '💡', '📈', '⚡', '🎲'];
-            return icons[index % icons.length];
+            return '';
         }
         
         function createTimeAnalysisCard(section, sessionColors) {
@@ -1868,14 +1867,13 @@
         }
         
         function getAIAnalysisIcon(index) {
-            const icons = ['🧠', '📊', '⚡', '🎯', '💡', '🔍', '📈', '🚀'];
-            return icons[index % icons.length];
+            return '';
         }
         
         function createMetricCard(icon, value, label, color) {
             return `
                 <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border-left: 4px solid ${color}; transition: all 0.3s ease; backdrop-filter: blur(10px);" onmouseover="this.style.transform='scale(1.05)'; this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.transform='scale(1)'; this.style.background='rgba(255,255,255,0.05)'">
-                    <div style="font-size: 28px; margin-bottom: 8px;">${icon}</div>
+                    <div style="font-size: 28px; margin-bottom: 8px;"></div>
                     <div style="font-size: 20px; font-weight: 700; color: ${color}; margin-bottom: 4px;">${value}</div>
                     <div style="font-size: 12px; color: rgba(255,255,255,0.7); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">${label}</div>
                 </div>
