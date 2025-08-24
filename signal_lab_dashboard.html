@@ -506,7 +506,7 @@
             const avgWin = winResults.length > 0 ? winResults.reduce((a, b) => a + b, 0) / winResults.length : 0;
             const avgLoss = lossResults.length > 0 ? Math.abs(lossResults.reduce((a, b) => a + b, 0) / lossResults.length) : 0;
             
-            const expectancy = ((wins / total) * avgWin) - ((losses / total) * avgLoss);
+            const expectancy = total > 0 ? ((wins / total) * avgWin) - ((losses / total) * avgLoss) : 0;
             
             // Calculate max consecutive losses
             let maxConsecutiveLosses = 0;
@@ -614,28 +614,76 @@
                 performanceChart.destroy();
             }
             
-            // Create beautiful gradient
-            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(0, 255, 136, 0.8)');
-            gradient.addColorStop(1, 'rgba(0, 255, 136, 0.1)');
+            // Session colors
+            const sessionColors = {
+                'Asia': '#ff6b7a',
+                'London': '#00ff88', 
+                'NY Pre Market': '#ffa502',
+                'NY AM': '#3742fa',
+                'NY Lunch': '#a55eea',
+                'NY PM': '#26de81'
+            };
+            
+            // Create datasets by session for trade-by-trade view
+            let datasets;
+            if (viewType === 'trade') {
+                const sessionData = {};
+                
+                data.forEach((item, index) => {
+                    const session = item.session || 'Unknown';
+                    if (!sessionData[session]) {
+                        sessionData[session] = [];
+                    }
+                    
+                    let cumulative = 0;
+                    for (let i = 0; i <= index; i++) {
+                        cumulative += data[i].result;
+                    }
+                    
+                    const xValue = new Date(item.date + 'T' + (item.time || '00:00:00'));
+                    sessionData[session].push({ x: xValue, y: cumulative });
+                });
+                
+                datasets = Object.keys(sessionData).map(session => ({
+                    label: session,
+                    data: sessionData[session],
+                    borderColor: sessionColors[session] || '#ffffff',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    pointBackgroundColor: sessionColors[session] || '#ffffff',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 1,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                }));
+            } else {
+                // Single dataset for aggregated views
+                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                gradient.addColorStop(0, 'rgba(0, 255, 136, 0.8)');
+                gradient.addColorStop(1, 'rgba(0, 255, 136, 0.1)');
+                
+                datasets = [{
+                    label: 'Cumulative Performance (R)',
+                    data: cumulativeData,
+                    borderColor: '#00ff88',
+                    backgroundColor: gradient,
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#00ff88',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }];
+            }
             
             performanceChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    datasets: [{
-                        label: 'Cumulative Performance (R)',
-                        data: cumulativeData,
-                        borderColor: '#00ff88',
-                        backgroundColor: gradient,
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: '#00ff88',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
