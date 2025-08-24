@@ -3,7 +3,10 @@ from flask_cors import CORS
 from os import environ, path
 from json import loads, dumps
 from dotenv import load_dotenv
-from openai import OpenAI
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 from werkzeug.utils import secure_filename
 from html import escape
 from logging import basicConfig, getLogger, INFO
@@ -43,21 +46,21 @@ except Exception as e:
     db = None
     db_enabled = False
 
-# Initialize OpenAI client only if API key is available
+# Initialize OpenAI client - FIXED VERSION
 api_key = environ.get('OPENAI_API_KEY')
 client = None
-if api_key:
+logger.info("🚀 ATTEMPTING OPENAI INITIALIZATION - VERSION 2.0 - TIMESTAMP: 2025-08-24-10:06")
+if api_key and OpenAI:
     try:
-        # Use environment variable approach to avoid constructor issues
         import os
         os.environ['OPENAI_API_KEY'] = api_key
         client = OpenAI()
-        logger.info("OpenAI client initialized successfully")
+        logger.info("✅ SUCCESS: OpenAI client initialized - VERSION 2.0")
     except Exception as e:
-        logger.error(f"OpenAI client initialization failed: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
+        logger.error(f"❌ OpenAI initialization failed: {str(e)}")
         client = None
 else:
-    logger.warning("OPENAI_API_KEY not found in environment variables")
+    logger.warning("⚠️ OPENAI_API_KEY not found or OpenAI not available")
     client = None
 
 app = Flask(__name__)
