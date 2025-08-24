@@ -1173,19 +1173,18 @@
             const aiSections = parseAIAnalysis(aiAnalysis);
             
             const recommendationHtml = `
-                <div style="background: linear-gradient(135deg, #00ff88 0%, #00d4aa 100%); border-radius: 20px; padding: 0; overflow: hidden; box-shadow: 0 20px 40px rgba(0,255,136,0.3);">
+                <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(0,255,136,0.3); border-radius: 20px; padding: 0; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.1); backdrop-filter: blur(20px);">
                     <!-- Hero Header -->
-                    <div style="background: linear-gradient(135deg, rgba(0,0,0,0.2), rgba(0,0,0,0.1)); padding: 30px; text-align: center; position: relative; overflow: hidden;">
-                        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="%23ffffff" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>'); opacity: 0.3;"></div>
+                    <div style="background: linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,255,136,0.05)); padding: 30px; text-align: center; position: relative; overflow: hidden; border-bottom: 1px solid rgba(0,255,136,0.2);">
                         <div style="position: relative; z-index: 1;">
                             <div style="font-size: 48px; margin-bottom: 10px;">🏆</div>
-                            <h3 style="color: #ffffff; margin: 0 0 8px 0; font-size: 28px; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">OPTIMAL STRATEGY</h3>
-                            <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 16px; font-weight: 500;">AI-Powered Performance Optimization</p>
+                            <h3 style="color: #00ff88; margin: 0 0 8px 0; font-size: 28px; font-weight: 800;">OPTIMAL STRATEGY</h3>
+                            <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 16px; font-weight: 500;">AI-Powered Performance Optimization</p>
                         </div>
                     </div>
                     
                     <!-- Strategy Metrics Dashboard -->
-                    <div style="background: rgba(255,255,255,0.95); color: #333; padding: 25px;">
+                    <div style="background: rgba(0,0,0,0.1); color: #fff; padding: 25px;">
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 25px;">
                             ${createMetricCard('🎯', beStrategyText[bestCombination.beStrategy], 'BE Strategy', '#00ff88')}
                             ${createMetricCard('📊', bestCombination.rTarget + 'R', 'R-Target', '#00d4aa')}
@@ -1196,12 +1195,12 @@
                         </div>
                         
                         <!-- Performance Gauge -->
-                        <div style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 15px; padding: 20px; margin-bottom: 25px; text-align: center;">
-                            <h4 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📊 Strategy Performance Score</h4>
+                        <div style="background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: 15px; padding: 20px; margin-bottom: 25px; text-align: center;">
+                            <h4 style="margin: 0 0 15px 0; color: #00ff88; font-size: 18px;">📊 Strategy Performance Score</h4>
                             <div style="position: relative; width: 200px; height: 100px; margin: 0 auto;">
                                 ${createPerformanceGauge(bestCombination.expectancy, bestCombination.winRate)}
                             </div>
-                            <div style="margin-top: 15px; font-size: 14px; color: #666;">
+                            <div style="margin-top: 15px; font-size: 14px; color: rgba(255,255,255,0.8);">
                                 Score: <strong style="color: #00ff88;">${calculatePerformanceScore(bestCombination.expectancy, bestCombination.winRate)}/100</strong>
                             </div>
                         </div>
@@ -1333,12 +1332,12 @@
             ).join('');
             
             const timeAnalysisHtml = `
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; padding: 0; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+                <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(56,239,125,0.3); border-radius: 20px; padding: 0; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.1); backdrop-filter: blur(20px);">
                     <!-- Header Section -->
-                    <div style="background: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05)); padding: 25px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <div style="background: linear-gradient(135deg, rgba(56,239,125,0.1), rgba(56,239,125,0.05)); padding: 25px; border-bottom: 1px solid rgba(56,239,125,0.2);">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                             <div>
-                                <h3 style="color: #ffffff; margin: 0 0 8px 0; font-size: 24px; font-weight: 700;">⏰ Time Analysis Dashboard</h3>
+                                <h3 style="color: #38ef7d; margin: 0 0 8px 0; font-size: 24px; font-weight: 700;">⏰ Time Analysis Dashboard</h3>
                                 <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 14px;">Optimal entry timing patterns across selected sessions</p>
                             </div>
                             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
@@ -1354,9 +1353,9 @@
                         </div>
                         
                         <!-- Time Heatmap Visualization -->
-                        <div style="margin-top: 25px; background: rgba(255,255,255,0.08); border-radius: 15px; padding: 20px;">
-                            <h4 style="color: #ffffff; margin: 0 0 15px 0; font-size: 18px;">📊 Trading Session Timeline</h4>
-                            <div id="timeHeatmap" style="height: 80px; position: relative; background: linear-gradient(90deg, #ffa502 0%, #ffa502 16.67%, #3742fa 16.67%, #3742fa 33.33%, #26de81 33.33%, #26de81 50%, #00ff88 50%, #00ff88 66.67%, #ffffff 66.67%, #ffffff 83.33%, #a55eea 83.33%, #a55eea 100%); border-radius: 10px; overflow: hidden;">
+                        <div style="margin-top: 25px; background: rgba(56,239,125,0.05); border: 1px solid rgba(56,239,125,0.2); border-radius: 15px; padding: 20px;">
+                            <h4 style="color: #38ef7d; margin: 0 0 15px 0; font-size: 18px;">📊 Trading Session Timeline</h4>
+                            <div id="timeHeatmap" style="height: 80px; position: relative; background: linear-gradient(90deg, rgba(255,165,2,0.3) 0%, rgba(255,165,2,0.3) 16.67%, rgba(55,66,250,0.3) 16.67%, rgba(55,66,250,0.3) 33.33%, rgba(38,222,129,0.3) 33.33%, rgba(38,222,129,0.3) 50%, rgba(0,255,136,0.3) 50%, rgba(0,255,136,0.3) 66.67%, rgba(255,255,255,0.2) 66.67%, rgba(255,255,255,0.2) 83.33%, rgba(165,94,234,0.3) 83.33%, rgba(165,94,234,0.3) 100%); border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
                                 ${createTimelineMarkers(sessions)}
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; color: rgba(255,255,255,0.7);">
@@ -1541,7 +1540,7 @@
             return sessions.map(session => {
                 const time = sessionTimes[session];
                 if (!time) return '';
-                return `<div style="position: absolute; top: 10px; left: ${time.start}%; width: ${time.end - time.start}%; height: 60px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #000; font-size: 12px; backdrop-filter: blur(5px);">${session}</div>`;
+                return `<div style="position: absolute; top: 10px; left: ${time.start}%; width: ${time.end - time.start}%; height: 60px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #fff; font-size: 12px; backdrop-filter: blur(5px);">${session}</div>`;
             }).join('');
         }
         
@@ -1563,10 +1562,10 @@
         
         function createMetricCard(icon, value, label, color) {
             return `
-                <div style="background: linear-gradient(135deg, #ffffff, #f8f9fa); border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-left: 4px solid ${color}; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border-left: 4px solid ${color}; transition: all 0.3s ease; backdrop-filter: blur(10px);" onmouseover="this.style.transform='scale(1.05)'; this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.transform='scale(1)'; this.style.background='rgba(255,255,255,0.05)'">
                     <div style="font-size: 28px; margin-bottom: 8px;">${icon}</div>
                     <div style="font-size: 20px; font-weight: 700; color: ${color}; margin-bottom: 4px;">${value}</div>
-                    <div style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">${label}</div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.7); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">${label}</div>
                 </div>
             `;
         }
