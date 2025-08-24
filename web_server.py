@@ -2626,15 +2626,15 @@ def analyze_trade_times(trade_data):
     
     best_hours.sort(key=lambda x: x[1], reverse=True)
     
-    analysis = "MINUTE-LEVEL TIME ANALYSIS:\n"
-    analysis += "\nTOP PERFORMING ENTRY TIMES:\n"
+    analysis = "**MINUTE-LEVEL TIME ANALYSIS**\n\n"
+    analysis += "**TOP PERFORMING ENTRY TIMES:**\n"
     
-    for i, (time_key, avg_mfe, win_rate, count) in enumerate(best_times[:10]):
-        analysis += f"{i+1}. {time_key} - {avg_mfe:.2f}R avg, {win_rate:.1f}% win rate ({count} trades)\n"
+    for i, (time_key, avg_mfe, win_rate, count) in enumerate(best_times[:5]):
+        analysis += f"• {time_key} → {avg_mfe:.2f}R expectancy, {win_rate:.1f}% win rate ({count} trades)\n"
     
-    analysis += "\nTOP PERFORMING HOURS:\n"
-    for i, (hour, avg_mfe, win_rate, count) in enumerate(best_hours[:8]):
-        analysis += f"{i+1}. {hour:02d}:XX - {avg_mfe:.2f}R avg, {win_rate:.1f}% win rate ({count} trades)\n"
+    analysis += "\n**TOP PERFORMING HOURS:**\n"
+    for i, (hour, avg_mfe, win_rate, count) in enumerate(best_hours[:5]):
+        analysis += f"• {hour:02d}:XX → {avg_mfe:.2f}R expectancy, {win_rate:.1f}% win rate ({count} trades)\n"
     
     return analysis
 

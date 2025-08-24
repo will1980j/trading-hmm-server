@@ -1030,16 +1030,28 @@
         }
         
         function formatAIAnalysis(analysis) {
-            return analysis
-                .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #00ff88; font-weight: 600;">$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em style="color: #00d4aa;">$1</em>')
-                .replace(/\n\n/g, '</p><p style="margin: 12px 0;">')
-                .replace(/\n/g, '<br>')
-                .replace(/^/, '<p style="margin: 12px 0;">')
-                .replace(/$/, '</p>')
-                .replace(/\d{1,2}:\d{2}/g, '<span style="background: rgba(0,255,136,0.2); padding: 2px 6px; border-radius: 4px; font-weight: 600;">$&</span>')
-                .replace(/(\d+\.\d+R|\d+R)/g, '<span style="color: #00ff88; font-weight: 600;">$1</span>')
-                .replace(/(\d+\.\d+%|\d+%)/g, '<span style="color: #00d4aa; font-weight: 600;">$1</span>');
+            const sections = analysis.split(/\n\s*\n/);
+            let formatted = '';
+            
+            sections.forEach(section => {
+                if (section.trim()) {
+                    if (section.match(/^\*\*|^\d+\.|^#{1,4}/)) {
+                        formatted += `<div style="margin: 20px 0 10px 0; font-size: 16px; font-weight: 700; color: #00ff88;">${section.replace(/\*\*/g, '').replace(/^\d+\.\s*/, '').replace(/^#{1,4}\s*/, '')}</div>`;
+                    } else {
+                        const cleanContent = section
+                            .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #00ff88;">$1</strong>')
+                            .replace(/\*(.*?)\*/g, '<em style="color: #00d4aa;">$1</em>')
+                            .replace(/\d{1,2}:\d{2}/g, '<span style="background: #00ff88; color: #000; padding: 2px 8px; border-radius: 4px; font-weight: 600;">$&</span>')
+                            .replace(/(\d+\.\d+R|\d+R)/g, '<span style="color: #00ff88; font-weight: 600;">$1</span>')
+                            .replace(/(\d+\.\d+%|\d+%)/g, '<span style="color: #00d4aa; font-weight: 600;">$1</span>')
+                            .replace(/\n/g, '<br>');
+                        
+                        formatted += `<div style="margin: 8px 0; line-height: 1.6; color: rgba(255,255,255,0.9);">${cleanContent}</div>`;
+                    }
+                }
+            });
+            
+            return formatted;
         }
         
         // Make functions globally available
