@@ -4,8 +4,10 @@ from os import environ, path
 from json import loads, dumps
 from dotenv import load_dotenv
 try:
+    import openai
     from openai import OpenAI
 except ImportError:
+    openai = None
     OpenAI = None
 from werkzeug.utils import secure_filename
 from html import escape
@@ -46,21 +48,30 @@ except Exception as e:
     db = None
     db_enabled = False
 
-# Initialize OpenAI client - FIXED VERSION
+# Initialize OpenAI client - LEGACY VERSION
 api_key = environ.get('OPENAI_API_KEY')
 client = None
-logger.info("🚀 ATTEMPTING OPENAI INITIALIZATION - VERSION 2.0 - TIMESTAMP: 2025-08-24-10:06")
-if api_key and OpenAI:
+logger.info("🚀 ATTEMPTING OPENAI INITIALIZATION - VERSION 3.0 - LEGACY MODE")
+if api_key and openai:
     try:
-        import os
-        os.environ['OPENAI_API_KEY'] = api_key
-        client = OpenAI()
-        logger.info("✅ SUCCESS: OpenAI client initialized - VERSION 2.0")
+        # Use legacy openai.api_key approach
+        openai.api_key = api_key
+        # Create a simple wrapper class
+        class OpenAIWrapper:
+            def __init__(self):
+                pass
+            
+            @property
+            def chat(self):
+                return openai.ChatCompletion if hasattr(openai, 'ChatCompletion') else None
+        
+        client = OpenAIWrapper()
+        logger.info("✅ SUCCESS: OpenAI legacy client initialized - VERSION 3.0")
     except Exception as e:
-        logger.error(f"❌ OpenAI initialization failed: {str(e)}")
+        logger.error(f"❌ OpenAI legacy initialization failed: {str(e)}")
         client = None
 else:
-    logger.warning("⚠️ OPENAI_API_KEY not found or OpenAI not available")
+    logger.warning("⚠️ OPENAI_API_KEY not found or openai not available")
     client = None
 
 app = Flask(__name__)
