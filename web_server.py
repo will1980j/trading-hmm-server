@@ -48,27 +48,17 @@ except Exception as e:
     db = None
     db_enabled = False
 
-# Initialize OpenAI client - LEGACY VERSION
+# Initialize OpenAI - DIRECT API KEY APPROACH
 api_key = environ.get('OPENAI_API_KEY')
 client = None
-logger.info("🚀 ATTEMPTING OPENAI INITIALIZATION - VERSION 3.0 - LEGACY MODE")
+logger.info("🚀 ATTEMPTING OPENAI INITIALIZATION - VERSION 4.0 - DIRECT API")
 if api_key and openai:
     try:
-        # Use legacy openai.api_key approach
         openai.api_key = api_key
-        # Create a simple wrapper class
-        class OpenAIWrapper:
-            def __init__(self):
-                pass
-            
-            @property
-            def chat(self):
-                return openai.ChatCompletion if hasattr(openai, 'ChatCompletion') else None
-        
-        client = OpenAIWrapper()
-        logger.info("✅ SUCCESS: OpenAI legacy client initialized - VERSION 3.0")
+        client = True  # Simple flag to indicate OpenAI is available
+        logger.info("✅ SUCCESS: OpenAI direct API initialized - VERSION 4.0")
     except Exception as e:
-        logger.error(f"❌ OpenAI legacy initialization failed: {str(e)}")
+        logger.error(f"❌ OpenAI initialization failed: {str(e)}")
         client = None
 else:
     logger.warning("⚠️ OPENAI_API_KEY not found or openai not available")
