@@ -19,6 +19,21 @@ import math
 NEWLINE_CHAR = '\n'
 CARRIAGE_RETURN_CHAR = '\r'
 
+# Security constants
+MAX_LOG_LENGTH = 200
+SAFE_CHARS = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.')
+
+def sanitize_log_input(text):
+    """Sanitize input for logging to prevent log injection"""
+    if not text:
+        return 'None'
+    # Convert to string and limit length
+    text = str(text)[:MAX_LOG_LENGTH]
+    # Remove newlines and carriage returns
+    text = text.replace(NEWLINE_CHAR, ' ').replace(CARRIAGE_RETURN_CHAR, ' ')
+    # Filter to safe characters only
+    return ''.join(c if c in SAFE_CHARS or c.isspace() else '_' for c in text)
+
 # Setup logging first
 basicConfig(level=INFO)
 logger = getLogger(__name__)
@@ -33,12 +48,12 @@ try:
     db_enabled = True
     logger.info("Database connected successfully")
 except (ImportError, ConnectionError) as e:
-    safe_error = escape(str(e)[:200]).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')
+    safe_error = sanitize_log_input(str(e))
     logger.error(f"Database connection failed: {safe_error}")
     db = None
     db_enabled = False
 except Exception as e:
-    safe_error = escape(str(e)[:200]).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')
+    safe_error = sanitize_log_input(str(e))
     logger.error(f"Unexpected database error: {safe_error}")
     db = None
     db_enabled = False
@@ -319,7 +334,7 @@ def ai_insights():
         data = request.get_json()
         prompt = data.get('prompt', 'How can I trade better?')
         trading_data = data.get('data', {})
-        safe_prompt = escape(str(prompt)[:50]).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')
+        safe_prompt = sanitize_log_input(str(prompt)[:50])
         logger.info(f"AI insights request: {safe_prompt}...")
         logger.debug(f"Has trading data: {bool(trading_data)}")
         
@@ -349,7 +364,8 @@ def ai_insights():
                 ],
                 'max_tokens': 500,
                 'temperature': 0.8
-            }
+            },
+            timeout=30
         )
         response_data = response.json()
         
@@ -364,8 +380,11 @@ def ai_insights():
             "insight": response.choices[0].message.content,
             "status": "success"
         })
+    except requests.RequestException as e:
+        logger.error(f"HTTP request error in ai_insights: {sanitize_log_input(str(e))}")
+        return jsonify({"error": "Network error", "status": "error"}), 500
     except Exception as e:
-        logger.error(f"Error in ai_insights: {str(e)}")
+        logger.error(f"Error in ai_insights: {sanitize_log_input(str(e))}")
         return jsonify({
             "error": str(e),
             "status": "error"
@@ -411,7 +430,8 @@ def ai_insights():
                 ],
                 'max_tokens': 150,
                 'temperature': 0.6
-            }
+            },
+            timeout=30
         )
         response_data = response.json()
         
@@ -869,8 +889,8 @@ def ai_strategy_optimization():
             stat_trades = cursor.fetchall()
             if len(stat_trades) >= 10:
                 statistical_results = calculate_optimal_r_target(stat_trades)
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Error in statistical analysis: {sanitize_log_input(str(e))}")
         
         stat_info = ""
         if statistical_results and statistical_results.get('optimal_strategy'):
@@ -1033,7 +1053,7 @@ def webhook():
             return jsonify({"error": "No JSON data provided"}), 400
         
         # Sanitize log input to prevent log injection
-        data_type = str(type(data).__name__).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')
+        data_type = sanitize_log_input(type(data).__name__)
         logger.info(f"Webhook received data: {data_type}")
         
         if db_enabled and db:
@@ -1095,7 +1115,7 @@ def upload_trades():
                 })
                 stored_count += 1
             except Exception as e:
-                logger.error(f"Failed to store trade: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
+                logger.error(f"Failed to store trade: {sanitize_log_input(str(e))}")
         
         return jsonify({
             "status": "success",
@@ -1351,8 +1371,8 @@ def get_signal_lab_trades():
         # Clear any aborted transactions
         try:
             db.conn.rollback()
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Error rolling back transaction: {sanitize_log_input(str(e))}")
             
         cursor = db.conn.cursor()
         
@@ -1844,7 +1864,7 @@ def get_prop_firms():
         
         return jsonify({"firms": firms})
     except (ConnectionError, ValueError, Exception) as e:
-        error_msg = str(e).replace(NEWLINE_CHAR, ' ').replace(CARRIAGE_RETURN_CHAR, ' ')
+        error_msg = sanitize_log_input(str(e))
         logger.error(f"Prop firms query error: {error_msg}")
         return jsonify({"firms": []})
 
@@ -1860,7 +1880,7 @@ def scrape_propfirms():
             "message": f"Scraped {firms_found} prop firms"
         })
     except (ImportError, AttributeError, Exception) as e:
-        logger.error(f"Scraper error: {str(e).replace(NEWLINE_CHAR, '').replace(CARRIAGE_RETURN_CHAR, '')}")
+        logger.error(f"Scraper error: {sanitize_log_input(str(e))}")
         return jsonify({"error": "Scraper unavailable"}), 500
 
 # Level tracking endpoints
@@ -2743,14 +2763,14 @@ def calculate_optimal_r_target(trades):
                     expectancy = sum(trade_results) / len(trade_results)
                     
                     # Include all combinations for analysis
-                        session_results[session] = {
-                            'expectancy': expectancy,
-                            'win_rate': win_rate,
-                            'sample_size': len(trade_results),
-                            'wins': wins,
-                            'losses': losses,
-                            'breakevens': breakevens
-                        }
+                    session_results[session] = {
+                        'expectancy': expectancy,
+                        'win_rate': win_rate,
+                        'sample_size': len(trade_results),
+                        'wins': wins,
+                        'losses': losses,
+                        'breakevens': breakevens
+                    }
             
             # Calculate overall metrics across all sessions
             if session_results:

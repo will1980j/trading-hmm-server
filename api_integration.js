@@ -92,6 +92,7 @@ class TradingDashboardAPI {
             } catch (error) {
                 console.error('Error processing trade data:', error);
                 // Skip this trade and continue processing
+                return monthly;
             }
         });
         return monthly;
@@ -157,7 +158,21 @@ class TradingDashboardAPI {
         };
         } catch (error) {
             console.error('Error calculating advanced metrics:', error);
-            throw new Error('Failed to calculate trading metrics');
+            // Return safe defaults instead of throwing
+            return {
+                totalTrades: 0,
+                winRate: 0,
+                avgWin: 0,
+                avgLoss: 1,
+                totalR: 0,
+                maxDrawdown: 0,
+                sharpeRatio: 0,
+                profitFactor: 0,
+                fundedAccounts: 0,
+                totalCapital: 0,
+                monthlyProfit: 0,
+                successRate: 0
+            };
         }
     }
 
@@ -180,6 +195,15 @@ class TradingDashboardAPI {
     generateKeyFindings(metrics, trades) {
         if (!metrics || !trades) {
             return ['⚠️ Insufficient data for analysis'];
+        }
+        
+        // Validate metrics object has required properties
+        const requiredProps = ['winRate', 'profitFactor', 'fundedAccounts', 'maxDrawdown', 'successRate'];
+        for (const prop of requiredProps) {
+            if (typeof metrics[prop] === 'undefined') {
+                console.warn(`Missing metric property: ${prop}`);
+                return ['⚠️ Invalid metrics data'];
+            }
         }
         
         const findings = [];
@@ -511,7 +535,7 @@ class TradingDashboardAPI {
     calculateSharpeRatio(profits) {
         if (!profits.length) return 0;
         const mean = profits.reduce((sum, p) => sum + p, 0) / profits.length;
-        const variance = profits.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / profits.length;
+        const variance = profits.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / (profits.length - 1); // Use sample variance
         const stdDev = Math.sqrt(variance);
         return stdDev === 0 ? 0 : mean / stdDev;
     }
@@ -541,6 +565,16 @@ class TradingDashboardAPI {
         return `${this.baseUrl}/api/trading-data?format=gamma&timestamp=${Date.now()}`;
     }
 
+    // Safe CSRF token retrieval
+    getCSRFToken() {
+        try {
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        } catch (e) {
+            console.warn('CSRF token not available:', e);
+            return '';
+        }
+    }
+
     // Get AI insights for trading data
     async getAIInsights(prompt = 'Analyze my trading performance and provide actionable insights') {
         try {
@@ -560,7 +594,7 @@ class TradingDashboardAPI {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-Token': this.getCSRFToken()
+                    'X-CSRF-Token': this.getCSRFToken() || ''
                 },
                 body: JSON.stringify({
                     prompt: prompt,

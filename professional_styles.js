@@ -8,13 +8,24 @@ class ProfessionalStyles {
     init() {
         this.applyStyle(this.currentStyle);
         window.addEventListener('storage', (e) => {
-            if (e.key === 'professionalStyle') {
-                this.applyStyle(e.newValue);
+            if (e.key === 'professionalStyle' && e.newValue) {
+                // Validate style name to prevent XSS
+                const validStyles = ['slate', 'charcoal', 'navy', 'graphite', 'midnight', 'steel', 'carbon', 'obsidian', 'onyx', 'platinum', 'arctic'];
+                if (validStyles.includes(e.newValue)) {
+                    this.applyStyle(e.newValue);
+                }
             }
         });
     }
     
     applyStyle(style) {
+        // Validate and sanitize style input
+        const validStyles = ['slate', 'charcoal', 'navy', 'graphite', 'midnight', 'steel', 'carbon', 'obsidian', 'onyx', 'platinum', 'arctic'];
+        if (!validStyles.includes(style)) {
+            console.warn('Invalid style name:', style);
+            return;
+        }
+        
         console.log('Applying style:', style);
         this.removeExistingStyles();
         

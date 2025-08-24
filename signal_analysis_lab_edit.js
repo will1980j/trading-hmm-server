@@ -69,7 +69,12 @@ function updateSignal() {
     };
     
     if (!updatedSignal.date || !updatedSignal.entryPrice || !updatedSignal.stopLoss) {
-        alert('Please fill in Date, Entry Price, and Stop Loss');
+        // Use safer notification instead of alert
+        if (typeof showNotification === 'function') {
+            showNotification('Please fill in Date, Entry Price, and Stop Loss', 'error');
+        } else {
+            console.warn('Please fill in Date, Entry Price, and Stop Loss');
+        }
         return;
     }
     
@@ -117,7 +122,12 @@ function addSignal() {
     };
     
     if (!signal.date || !signal.entryPrice || !signal.stopLoss) {
-        alert('Please fill in Date, Entry Price, and Stop Loss');
+        // Use safer notification instead of alert
+        if (typeof showNotification === 'function') {
+            showNotification('Please fill in Date, Entry Price, and Stop Loss', 'error');
+        } else {
+            console.warn('Please fill in Date, Entry Price, and Stop Loss');
+        }
         return;
     }
     

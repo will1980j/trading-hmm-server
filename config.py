@@ -58,7 +58,7 @@ class TradingConfig:
     
     # API Settings
     API_PORT = 5001
-    API_HOST = '0.0.0.0'
+    API_HOST = '127.0.0.1'  # Localhost only for security
     
     # Logging
     LOG_LEVEL = 'INFO'
@@ -78,7 +78,8 @@ class TradingConfig:
             'MAX_DAILY_PROFIT': ('_get_float_env', cls.MAX_DAILY_PROFIT),
             'RISK_PER_TRADE': ('_get_float_env', cls.RISK_PER_TRADE),
             'MIN_CONFIDENCE': ('_get_float_env', cls.MIN_CONFIDENCE),
-            'API_PORT': ('_get_int_env', cls.API_PORT)
+            'API_PORT': ('_get_int_env', cls.API_PORT),
+            'API_HOST': ('_get_str_env', cls.API_HOST)
         }
         
         try:
@@ -114,6 +115,16 @@ class TradingConfig:
             return int(os.getenv(key, str(default)))
         except (ValueError, TypeError):
             return default
+    
+    @staticmethod
+    def _get_str_env(key: str, default: str) -> str:
+        """Safely get string environment variable with validation"""
+        value = os.getenv(key, default)
+        # Validate API_HOST to prevent binding to all interfaces accidentally
+        if key == 'API_HOST' and value == '0.0.0.0':
+            import warnings
+            warnings.warn("API_HOST set to 0.0.0.0 - this binds to all interfaces. Use 127.0.0.1 for localhost only.")
+        return value
 
 # Gap Analysis Rules (NQ-specific)
 class GapAnalysisConfig:

@@ -23,13 +23,14 @@
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: #fff;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             min-height: 100vh;
         }
         
         .container {
-            max-width: 1800px;
-            margin: 0 auto;
+            max-width: 100%;
+            margin: 0;
+            padding: 0 10px;
         }
         
         .navbar {
@@ -225,7 +226,7 @@
         
         .chart-wrapper {
             position: relative;
-            height: 500px;
+            height: 600px;
             width: 100%;
         }
         
@@ -383,7 +384,7 @@
         <div class="chart-container">
             <h3 style="margin-bottom: 20px; color: #00ff88;">📈 Trade-by-Trade Performance</h3>
             <div class="chart-wrapper">
-                <div id="performanceChart" style="width: 100%; height: 500px;"></div>
+                <div id="performanceChart" style="width: 100%; height: 600px;"></div>
             </div>
         </div>
         
@@ -664,7 +665,7 @@
             const container = d3.select('#performanceChart');
             const containerRect = container.node().getBoundingClientRect();
             const width = containerRect.width;
-            const height = 500;
+            const height = 600;
             const margin = {top: 20, right: 60, bottom: 60, left: 60};
             const innerWidth = width - margin.left - margin.right;
             const innerHeight = height - margin.top - margin.bottom;

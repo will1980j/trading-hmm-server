@@ -128,7 +128,8 @@ class D3Charts {
             .on("mouseover", (event, d, i) => {
                 const index = data.indexOf(d);
                 this.tooltip.transition().duration(200).style("opacity", .9);
-                this.tooltip.html(`Point ${index + 1}<br/>Value: ${d.toFixed(2)}`)
+                const sanitizedValue = d && typeof d === 'number' ? d.toFixed(2) : 'N/A';
+                this.tooltip.html(`Point ${index + 1}<br/>Value: ${sanitizedValue}`)
                     .style("left", (event.pageX + 10) + "px")
                     .style("top", (event.pageY - 28) + "px");
                 d3.select(event.target).transition().duration(100).attr("r", 6);
@@ -231,7 +232,9 @@ class D3Charts {
             .on("mouseover", (event, d, i) => {
                 const index = data.indexOf(d);
                 this.tooltip.transition().duration(200).style("opacity", .9);
-                this.tooltip.html(`${labels[index]}<br/>Value: ${d.toFixed(2)}`)
+                const sanitizedLabel = labels && labels[index] ? String(labels[index]).slice(0, 50) : 'N/A';
+                const sanitizedValue = d && typeof d === 'number' ? d.toFixed(2) : 'N/A';
+                this.tooltip.html(`${sanitizedLabel}<br/>Value: ${sanitizedValue}`)
                     .style("left", (event.pageX + 10) + "px")
                     .style("top", (event.pageY - 28) + "px");
                 d3.select(event.target)
