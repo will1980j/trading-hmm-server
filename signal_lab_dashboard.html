@@ -951,22 +951,26 @@
                     .style('transform', 'scaleY(1)');
             });
             
-            // Moving average and trend calculations
-            const movingAvg = [];
-            const window = Math.min(10, Math.floor(data.length / 3));
-            for (let i = window - 1; i < data.length; i++) {
-                const avg = data.slice(i - window + 1, i + 1).reduce((sum, d) => sum + d.y, 0) / window;
-                movingAvg.push({ x: data[i].x, y: avg });
+            // Premium background zones with subtle gradients
+            const profitZone = yExtent[1] > 0 ? yExtent[1] * 0.7 : 0;
+            const lossZone = yExtent[0] < 0 ? yExtent[0] * 0.7 : 0;
+            
+            // Subtle performance zones
+            if (profitZone > 0) {
+                g.append('rect')
+                    .attr('x', 0).attr('y', yScale(yExtent[1]))
+                    .attr('width', innerWidth).attr('height', yScale(profitZone) - yScale(yExtent[1]))
+                    .attr('fill', '#00ff88').attr('opacity', 0.03)
+                    .style('pointer-events', 'none');
             }
             
-            const n = data.length;
-            const sumX = data.reduce((sum, d, i) => sum + i, 0);
-            const sumY = data.reduce((sum, d) => sum + d.y, 0);
-            const sumXY = data.reduce((sum, d, i) => sum + i * d.y, 0);
-            const sumXX = data.reduce((sum, d, i) => sum + i * i, 0);
-            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-            const intercept = (sumY - slope * sumX) / n;
-            const trendLine = data.map((d, i) => ({ x: d.x, y: slope * i + intercept }));
+            if (lossZone < 0) {
+                g.append('rect')
+                    .attr('x', 0).attr('y', yScale(lossZone))
+                    .attr('width', innerWidth).attr('height', yScale(yExtent[0]) - yScale(lossZone))
+                    .attr('fill', '#ff4757').attr('opacity', 0.03)
+                    .style('pointer-events', 'none');
+            }
             
             // Premium session colors with gradients
             const sessionColors = {
@@ -978,47 +982,22 @@
                 'NY PM': '#a55eea'
             };
             
-            // Enhanced trend and moving average lines with volatility bands
-            if (document.getElementById('volatilityBands')?.checked && movingAvg.length > 1) {
-                const stdDev = Math.sqrt(data.reduce((sum, d, i) => {
-                    if (i >= window - 1) {
-                        const ma = movingAvg[i - window + 1].y;
-                        return sum + Math.pow(d.y - ma, 2);
-                    }
-                    return sum;
-                }, 0) / Math.max(1, data.length - window + 1));
+            // Premium volatility bands (simplified)
+            if (document.getElementById('volatilityBands')?.checked && data.length > 5) {
+                const stdDev = Math.sqrt(data.reduce((sum, d) => sum + Math.pow(d.y - (data[data.length - 1].y / data.length), 2), 0) / data.length);
+                const avgY = data.reduce((sum, d) => sum + d.y, 0) / data.length;
                 
-                const upperBand = movingAvg.map(d => ({ x: d.x, y: d.y + stdDev * 2 }));
-                const lowerBand = movingAvg.map(d => ({ x: d.x, y: d.y - stdDev * 2 }));
+                g.append('rect')
+                    .attr('x', 0).attr('y', yScale(avgY + stdDev))
+                    .attr('width', innerWidth).attr('height', yScale(avgY - stdDev) - yScale(avgY + stdDev))
+                    .attr('fill', '#00d4aa').attr('opacity', 0.08)
+                    .style('pointer-events', 'none');
                 
-                g.append('path')
-                    .datum(upperBand.concat(lowerBand.reverse()))
-                    .attr('fill', '#00d4aa')
-                    .attr('opacity', 0.1)
-                    .attr('d', d3.line().x(d => xScale(d.x)).y(d => yScale(d.y)));
-            }
-            
-            if (trendLine.length > 1) {
-                g.append('path')
-                    .datum(trendLine)
-                    .attr('fill', 'none')
-                    .attr('stroke', '#ffffff')
-                    .attr('stroke-width', 3)
-                    .attr('stroke-dasharray', '8,4')
-                    .attr('opacity', 0.6)
-                    .attr('d', d3.line().x(d => xScale(d.x)).y(d => yScale(d.y)))
-                    .style('filter', 'url(#premium-glow)');
-            }
-            
-            if (movingAvg.length > 1) {
-                g.append('path')
-                    .datum(movingAvg)
-                    .attr('fill', 'none')
-                    .attr('stroke', '#00d4aa')
-                    .attr('stroke-width', 3)
-                    .attr('opacity', 0.8)
-                    .attr('d', d3.line().x(d => xScale(d.x)).y(d => yScale(d.y)))
-                    .style('filter', 'url(#premium-glow)');
+                g.append('line')
+                    .attr('x1', 0).attr('x2', innerWidth)
+                    .attr('y1', yScale(avgY)).attr('y2', yScale(avgY))
+                    .attr('stroke', '#00d4aa').attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '4,4').attr('opacity', 0.5);
             }
             
             // Heat map overlay
@@ -1354,41 +1333,59 @@
                 .attr('transform', 'rotate(-35)')
                 .style('text-anchor', 'end');
             
-            // Enhanced zero line with confidence bands and brush
+            // Premium zero line with glow effect
             if (yExtent[0] < 0 && yExtent[1] > 0) {
-                const stdDev = Math.sqrt(data.reduce((sum, d) => sum + Math.pow(d.y - data[data.length - 1].y / data.length, 2), 0) / data.length);
-                
-                g.append('rect')
-                    .attr('x', 0)
-                    .attr('y', yScale(stdDev))
-                    .attr('width', innerWidth)
-                    .attr('height', yScale(-stdDev) - yScale(stdDev))
-                    .attr('fill', '#00ff88')
-                    .attr('opacity', 0.05);
-                
                 g.append('line')
-                    .attr('x1', 0)
-                    .attr('x2', innerWidth)
-                    .attr('y1', yScale(0))
-                    .attr('y2', yScale(0))
-                    .style('stroke', '#ff6b7a')
-                    .style('stroke-width', 3)
-                    .style('stroke-dasharray', '8,4')
-                    .style('opacity', 0.8)
+                    .attr('x1', 0).attr('x2', innerWidth)
+                    .attr('y1', yScale(0)).attr('y2', yScale(0))
+                    .style('stroke', '#ffffff')
+                    .style('stroke-width', 2)
+                    .style('stroke-dasharray', '6,3')
+                    .style('opacity', 0.6)
                     .style('filter', 'url(#premium-glow)');
             }
             
-            const brush = d3.brushX()
-                .extent([[0, 0], [innerWidth, innerHeight]])
-                .on('end', function(event) {
-                    if (!event.selection) return;
-                    const [x0, x1] = event.selection.map(xScale.invert);
-                });
-            
-            g.append('g')
-                .attr('class', 'brush')
-                .call(brush)
-                .style('opacity', 0.1);
+            // Premium legend display
+            if (document.getElementById('showLegend')?.checked) {
+                const legend = g.append('g').attr('class', 'premium-legend')
+                    .attr('transform', `translate(${innerWidth - 150}, 20)`);
+                
+                const legendBg = legend.append('rect')
+                    .attr('width', 140).attr('height', 80)
+                    .attr('fill', 'rgba(0,0,0,0.7)')
+                    .attr('stroke', 'rgba(255,255,255,0.2)')
+                    .attr('rx', 8).style('backdrop-filter', 'blur(10px)');
+                
+                legend.append('text')
+                    .attr('x', 10).attr('y', 20)
+                    .style('fill', '#00ff88').style('font-size', '11px').style('font-weight', '600')
+                    .text('Performance');
+                
+                legend.append('circle')
+                    .attr('cx', 15).attr('cy', 35).attr('r', 4)
+                    .attr('fill', '#00ff88');
+                legend.append('text')
+                    .attr('x', 25).attr('y', 39)
+                    .style('fill', '#fff').style('font-size', '10px')
+                    .text('Winning Trade');
+                
+                legend.append('circle')
+                    .attr('cx', 15).attr('cy', 50).attr('r', 4)
+                    .attr('fill', '#ff4757');
+                legend.append('text')
+                    .attr('x', 25).attr('y', 54)
+                    .style('fill', '#fff').style('font-size', '10px')
+                    .text('Losing Trade');
+                
+                legend.append('circle')
+                    .attr('cx', 15).attr('cy', 65).attr('r', 4)
+                    .attr('fill', '#ffa502').attr('stroke', '#fff').attr('stroke-width', 2)
+                    .style('stroke-dasharray', '2,2');
+                legend.append('text')
+                    .attr('x', 25).attr('y', 69)
+                    .style('fill', '#fff').style('font-size', '10px')
+                    .text('Breakeven');
+            }
             
             // Enhanced performance indicators with pulsing and stats
             const performance = data[data.length - 1]?.y || 0;
@@ -1424,21 +1421,20 @@
                     });
             }
             
-            g.append('text')
-                .attr('x', 10)
-                .attr('y', 20)
-                .style('fill', '#00d4aa')
-                .style('font-size', '12px')
-                .style('opacity', 0.7)
-                .text(`MA${window}: ${movingAvg[movingAvg.length - 1]?.y.toFixed(2)}R`);
+            // Premium chart statistics overlay
+            const totalReturn = performance;
+            const tradeCount = data.length;
+            const avgReturn = totalReturn / tradeCount;
             
             g.append('text')
-                .attr('x', 10)
-                .attr('y', 35)
-                .style('fill', '#ffffff')
-                .style('font-size', '12px')
-                .style('opacity', 0.5)
-                .text(`Trend: ${slope > 0 ? '↗' : slope < 0 ? '↘' : '→'} ${(slope * data.length).toFixed(2)}R`);
+                .attr('x', 10).attr('y', 20)
+                .style('fill', '#00d4aa').style('font-size', '12px').style('opacity', 0.7)
+                .text(`Trades: ${tradeCount}`);
+            
+            g.append('text')
+                .attr('x', 10).attr('y', 35)
+                .style('fill', '#ffffff').style('font-size', '12px').style('opacity', 0.5)
+                .text(`Avg: ${avgReturn.toFixed(3)}R`);
         }
         
         function showNoData() {
