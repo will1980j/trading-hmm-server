@@ -2746,8 +2746,8 @@ def calculate_optimal_r_target(trades, selected_sessions=None):
     logger.info(f"MFE Analysis: {len(mfe_values)} total values, {len(positive_mfes)} positive, max: {max_mfe:.2f}R")
     logger.info(f"MFE Distribution: {mfe_ranges}")
     
-    # Test R-targets from 1 to reasonable maximum (cap at 15R for practical trading)
-    r_targets = list(range(1, min(16, int(max_mfe) + 1)))
+    # Test R-targets from 1 to practical maximum (cap at 6R for realistic trading)
+    r_targets = list(range(1, min(7, int(max_mfe) + 1)))
     
     be_strategies = ['none', 'be1', 'be2']
     sessions = ['Asia', 'London', 'NY Pre Market', 'NY AM', 'NY Lunch', 'NY PM']
@@ -2902,18 +2902,21 @@ def calculate_optimal_r_target(trades, selected_sessions=None):
         # Risk-adjusted expectancy (penalize negative expectancy heavily)
         risk_adj_expectancy = expectancy if expectancy > 0 else expectancy * 2
         
-        # Cumulative probability bonus (higher R-targets with decent hit rates get bonus)
-        cumulative_bonus = (r_target * 0.1) * (hit_prob / 100) if hit_prob > 20 else 0
+        # Hit rate penalty for unrealistic targets (< 15% hit rate heavily penalized)
+        hit_rate_penalty = 0 if hit_prob >= 15 else (15 - hit_prob) * 0.05
         
-        # Consistency score (balanced win rate preferred)
-        consistency_score = 1 - abs(hit_prob - 60) / 100  # Optimal around 60%
+        # R-target realism penalty (targets > 5R get penalized)
+        r_target_penalty = max(0, (r_target - 5) * 0.1) if r_target > 5 else 0
         
-        # Combined score with modern weighting
+        # Cumulative probability bonus (only for reasonable hit rates > 25%)
+        cumulative_bonus = (r_target * 0.05) * (hit_prob / 100) if hit_prob > 25 else 0
+        
+        # Combined score with realistic weighting
         result['advanced_score'] = (
-            risk_adj_expectancy * 0.5 +  # Primary: expectancy
-            cumulative_bonus * 0.2 +     # Cumulative probability bonus
-            consistency_score * 0.2 +    # Consistency
-            sample_confidence * 0.1       # Sample confidence
+            risk_adj_expectancy * 0.7 -   # Primary: expectancy (increased weight)
+            hit_rate_penalty -            # Penalize unrealistic hit rates
+            r_target_penalty +            # Penalize unrealistic R-targets
+            cumulative_bonus * 0.3        # Bonus for realistic cumulative probability
         )
         
         # Traditional significance score for compatibility
