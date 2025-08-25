@@ -2734,7 +2734,17 @@ def calculate_optimal_r_target(trades, selected_sessions=None):
     positive_mfes = [mfe for mfe in mfe_values if mfe > 0]
     max_mfe = max(positive_mfes) if positive_mfes else 5
     
+    # Debug MFE distribution
+    mfe_ranges = {
+        '0-1R': len([m for m in positive_mfes if 0 < m < 1]),
+        '1-2R': len([m for m in positive_mfes if 1 <= m < 2]),
+        '2-3R': len([m for m in positive_mfes if 2 <= m < 3]),
+        '3-4R': len([m for m in positive_mfes if 3 <= m < 4]),
+        '4R+': len([m for m in positive_mfes if m >= 4])
+    }
+    
     logger.info(f"MFE Analysis: {len(mfe_values)} total values, {len(positive_mfes)} positive, max: {max_mfe:.2f}R")
+    logger.info(f"MFE Distribution: {mfe_ranges}")
     
     # Test R-targets from 1 to reasonable maximum (cap at 15R for practical trading)
     r_targets = list(range(1, min(16, int(max_mfe) + 1)))
@@ -2764,21 +2774,24 @@ def calculate_optimal_r_target(trades, selected_sessions=None):
                 if mfe <= 0:
                     result = -1  # Loss
                 elif be_strategy == 'none':
+                    # No BE: either hit target for full R or lose full 1R
                     result = r_target if mfe >= r_target else -1
                 elif be_strategy == 'be1':
+                    # BE at 1R: if MFE < 1R = loss, if MFE >= target = target, else breakeven
                     if mfe < 1:
                         result = -1  # Didn't reach BE
                     elif mfe >= r_target:
                         result = r_target  # Hit target
                     else:
-                        result = 0  # BE but not target
+                        result = 0  # BE but didn't hit target
                 else:  # be2
+                    # BE at 2R: if MFE < 2R = loss, if MFE >= target = target, else breakeven
                     if mfe < 2:
                         result = -1  # Didn't reach BE
                     elif mfe >= r_target:
                         result = r_target  # Hit target
                     else:
-                        result = 0  # BE but not target
+                        result = 0  # BE but didn't hit target
                 
                 all_session_results.append(result)
             
@@ -2792,6 +2805,12 @@ def calculate_optimal_r_target(trades, selected_sessions=None):
                 
                 # Calculate hit probability (cumulative logic)
                 hit_probability = wins / len(all_session_results) * 100
+                
+                # Debug specific case
+                if be_strategy == 'be2' and r_target == 3:
+                    logger.info(f"DEBUG BE2+3R: {wins}W/{losses}L/{breakevens}BE = {expectancy:.3f}R expectancy")
+                    sample_results = all_session_results[:10]
+                    logger.info(f"Sample results: {sample_results}")
                 
                 results.append({
                     'be_strategy': be_strategy,
@@ -2821,25 +2840,28 @@ def calculate_optimal_r_target(trades, selected_sessions=None):
                     elif be_strategy == 'be2' and trade.get('be2_hit'):
                         mfe = float(trade.get('mfe2', 0))
                     
-                    # Same cumulative logic
+                    # Same cumulative logic - proper implementation
                     if mfe <= 0:
                         result = -1
                     elif be_strategy == 'none':
+                        # No BE: binary outcome - either hit target or lose
                         result = r_target if mfe >= r_target else -1
                     elif be_strategy == 'be1':
+                        # BE=1R: Must reach 1R first, then either hit target or breakeven
                         if mfe < 1:
-                            result = -1
+                            result = -1  # Loss - didn't reach BE
                         elif mfe >= r_target:
-                            result = r_target
+                            result = r_target  # Hit target
                         else:
-                            result = 0
+                            result = 0  # Breakeven
                     else:  # be2
+                        # BE=2R: Must reach 2R first, then either hit target or breakeven
                         if mfe < 2:
-                            result = -1
+                            result = -1  # Loss - didn't reach BE
                         elif mfe >= r_target:
-                            result = r_target
+                            result = r_target  # Hit target
                         else:
-                            result = 0
+                            result = 0  # Breakeven
                     
                     session_results.append(result)
                 
@@ -2866,20 +2888,45 @@ def calculate_optimal_r_target(trades, selected_sessions=None):
                         'breakevens': breakevens
                     }
     
-    # Sort results by expectancy
-    results.sort(key=lambda x: x['expectancy'], reverse=True)
-    
-    # Find best overall strategy
-    optimal = results[0] if results else None
-    
-    # Add significance score to optimal strategy
-    if optimal:
-        # Calculate significance score based on sample size and expectancy
-        sample_weight = min(1.0, optimal['sample_size'] / 50)  # Weight by sample size
-        expectancy_weight = max(0, optimal['expectancy']) / 2  # Weight by expectancy
-        hit_rate_weight = optimal['hit_probability'] / 100  # Weight by hit rate
+    # Calculate advanced scoring for each result
+    for result in results:
+        # Cumulative probability scoring - higher R-targets get bonus for risk-adjusted returns
+        r_target = result['r_target']
+        expectancy = result['expectancy']
+        hit_prob = result['hit_probability']
+        sample_size = result['sample_size']
         
-        optimal['significance_score'] = (sample_weight * 0.4 + expectancy_weight * 0.4 + hit_rate_weight * 0.2) * 100
+        # Sample size confidence (sigmoid curve)
+        sample_confidence = 1 / (1 + math.exp(-(sample_size - 30) / 10))
+        
+        # Risk-adjusted expectancy (penalize negative expectancy heavily)
+        risk_adj_expectancy = expectancy if expectancy > 0 else expectancy * 2
+        
+        # Cumulative probability bonus (higher R-targets with decent hit rates get bonus)
+        cumulative_bonus = (r_target * 0.1) * (hit_prob / 100) if hit_prob > 20 else 0
+        
+        # Consistency score (balanced win rate preferred)
+        consistency_score = 1 - abs(hit_prob - 60) / 100  # Optimal around 60%
+        
+        # Combined score with modern weighting
+        result['advanced_score'] = (
+            risk_adj_expectancy * 0.5 +  # Primary: expectancy
+            cumulative_bonus * 0.2 +     # Cumulative probability bonus
+            consistency_score * 0.2 +    # Consistency
+            sample_confidence * 0.1       # Sample confidence
+        )
+        
+        # Traditional significance score for compatibility
+        sample_weight = min(1.0, sample_size / 50)
+        expectancy_weight = max(0, expectancy) / 2
+        hit_rate_weight = hit_prob / 100
+        result['significance_score'] = (sample_weight * 0.4 + expectancy_weight * 0.4 + hit_rate_weight * 0.2) * 100
+    
+    # Sort by advanced score first, then expectancy
+    results.sort(key=lambda x: (x['advanced_score'], x['expectancy']), reverse=True)
+    
+    # Find best overall strategy using advanced scoring
+    optimal = results[0] if results else None
     
     # Find best strategy for each BE type
     be_specific_best = {}
@@ -2909,7 +2956,19 @@ def calculate_optimal_r_target(trades, selected_sessions=None):
     }
     
     if optimal:
-        logger.info(f"OPTIMAL STRATEGY: {optimal['r_target']}R + {optimal['be_strategy']} = {optimal['expectancy']:.3f}R expectancy ({optimal['hit_probability']:.1f}% hit rate)")
+        logger.info(f"OPTIMAL STRATEGY: {optimal['r_target']}R + {optimal['be_strategy']} = {optimal['expectancy']:.3f}R expectancy ({optimal['hit_probability']:.1f}% hit rate) [Score: {optimal['advanced_score']:.3f}]")
+        
+        # Debug: Show top 5 strategies with advanced scoring
+        logger.info("TOP 5 STRATEGIES (Advanced Scoring):")
+        for i, result in enumerate(results[:5]):
+            logger.info(f"{i+1}. {result['r_target']}R + {result['be_strategy']}: {result['expectancy']:.3f}R expectancy, {result['win_rate']:.1f}% WR, Score: {result['advanced_score']:.3f}")
+        
+        # Debug: Show BE strategy comparison for same R-target
+        if optimal['r_target'] >= 2:
+            same_target_results = [r for r in results if r['r_target'] == optimal['r_target']]
+            logger.info(f"COMPARISON FOR {optimal['r_target']}R TARGET:")
+            for result in same_target_results:
+                logger.info(f"  {result['be_strategy']}: {result['expectancy']:.3f}R expectancy, Score: {result['advanced_score']:.3f}, {result['wins']}W/{result['losses']}L/{result['breakevens']}BE")
     
     return {
         'optimal_strategy': optimal,
