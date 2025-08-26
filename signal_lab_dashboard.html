@@ -789,7 +789,11 @@
             
             // Calculate cumulative performance
             let cumulative = 0;
-            const cumulativeData = data.map((item, index) => {
+            const cumulativeData = data.filter(item => {
+                const date = new Date(item.date);
+                const dayOfWeek = date.getDay();
+                return dayOfWeek !== 0 && dayOfWeek !== 6; // Filter out weekends
+            }).map((item, index) => {
                 const result = viewType === 'trade' ? item.result : item.result;
                 cumulative += result;
                 
