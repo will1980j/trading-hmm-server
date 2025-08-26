@@ -932,18 +932,11 @@
             const g = svg.append('g')
                 .attr('transform', `translate(${margin.left},${margin.top})`);
             
-            // Enhanced scales with performance zones - filter out weekends
-            const filteredData = data.filter(d => {
-                const dayOfWeek = d.x.getDay();
-                return dayOfWeek !== 0 && dayOfWeek !== 6; // Remove weekends
-            });
-            
-            const xScale = d3.scaleTime()
-                .domain(d3.extent(filteredData, d => d.x))
-                .range([0, innerWidth]);
-            
-            // Use filtered data for all chart elements
-            data = filteredData;
+            // Use ordinal scale to eliminate weekend gaps completely
+            const xScale = d3.scaleBand()
+                .domain(data.map((d, i) => i))
+                .range([0, innerWidth])
+                .padding(0.1);
             
             const yExtent = d3.extent(data, d => d.y);
             const yScale = d3.scaleLinear()
@@ -1097,12 +1090,12 @@
             
             // Premium curve generators
             const line = d3.line()
-                .x(d => xScale(d.x))
+                .x((d, i) => xScale(i) + xScale.bandwidth() / 2)
                 .y(d => yScale(d.y))
                 .curve(d3.curveCatmullRom.alpha(0.5));
             
             const area = d3.area()
-                .x(d => xScale(d.x))
+                .x((d, i) => xScale(i) + xScale.bandwidth() / 2)
                 .y0(innerHeight)
                 .y1(d => yScale(d.y))
                 .curve(d3.curveCatmullRom.alpha(0.5));
@@ -1154,7 +1147,7 @@
                 .data(data)
                 .enter().append('g')
                 .attr('class', 'dot-group')
-                .attr('transform', d => `translate(${xScale(d.x)}, ${yScale(d.y)})`);
+                .attr('transform', (d, i) => `translate(${xScale(i) + xScale.bandwidth() / 2}, ${yScale(d.y)})`);
             
             // Outer glow ring
             dots.append('circle')
@@ -1249,16 +1242,17 @@
                 
                 // Particle effects for significant trades
                 if (Math.abs(d.result) > 3) {
+                    const xPos = xScale(d.index) + xScale.bandwidth() / 2;
                     for (let i = 0; i < 5; i++) {
                         g.append('circle')
-                            .attr('cx', xScale(d.x))
+                            .attr('cx', xPos)
                             .attr('cy', yScale(d.y))
                             .attr('r', 2)
                             .attr('fill', d.result > 0 ? '#00ff88' : '#ff4757')
                             .attr('opacity', 0.8)
                             .transition()
                             .duration(1000)
-                            .attr('cx', xScale(d.x) + (Math.random() - 0.5) * 40)
+                            .attr('cx', xPos + (Math.random() - 0.5) * 40)
                             .attr('cy', yScale(d.y) + (Math.random() - 0.5) * 40)
                             .attr('opacity', 0)
                             .remove();
@@ -1317,7 +1311,10 @@
             
             // Premium axes with enhanced styling
             const xAxis = d3.axisBottom(xScale)
-                .tickFormat(d3.timeFormat(viewType === 'trade' ? '%m/%d %H:%M' : '%m/%d'))
+                .tickFormat((d, i) => {
+                    const date = data[d] ? data[d].x : new Date();
+                    return d3.timeFormat(viewType === 'trade' ? '%m/%d %H:%M' : '%m/%d')(date);
+                })
                 .tickSize(-innerHeight)
                 .tickPadding(15);
             
