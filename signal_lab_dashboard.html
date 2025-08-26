@@ -726,7 +726,11 @@
         
         function aggregateData(tradeResults, viewType) {
             if (viewType === 'trade') {
-                return tradeResults.sort((a, b) => {
+                return tradeResults.filter(trade => {
+                    const date = new Date(trade.date);
+                    const dayOfWeek = date.getDay();
+                    return dayOfWeek !== 0 && dayOfWeek !== 6; // Filter out Sunday (0) and Saturday (6)
+                }).sort((a, b) => {
                     const dateA = new Date(a.date + 'T' + (a.time || '00:00:00'));
                     const dateB = new Date(b.date + 'T' + (b.time || '00:00:00'));
                     return dateA - dateB;
@@ -736,8 +740,13 @@
             const grouped = {};
             
             tradeResults.forEach(trade => {
-                let key;
                 const date = new Date(trade.date);
+                const dayOfWeek = date.getDay();
+                
+                // Skip weekend days
+                if (dayOfWeek === 0 || dayOfWeek === 6) return;
+                
+                let key;
                 
                 switch(viewType) {
                     case 'daily':
