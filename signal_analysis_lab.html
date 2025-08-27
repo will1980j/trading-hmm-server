@@ -562,7 +562,7 @@
                 </div>
                 <div class="input-group time">
                     <label>Time (24hr)</label>
-                    <input type="text" id="entryTime" pattern="[0-9]{2}:[0-9]{2}" placeholder="20:08" maxlength="5">
+                    <input type="text" id="entryTime" pattern="[0-9]{2}:[0-9]{2}" placeholder="20:08" maxlength="5" oninput="formatTimeInput(this)">
                 </div>
                 <div class="input-group bias">
                     <label>Bias</label>
@@ -2115,6 +2115,17 @@
             }
         }
         
+        function formatTimeInput(input) {
+            let value = input.value.replace(/[^0-9]/g, '');
+            if (value.length === 4) {
+                const hours = value.substring(0, 2);
+                const minutes = value.substring(2, 4);
+                if (hours <= 23 && minutes <= 59) {
+                    input.value = hours + ':' + minutes;
+                }
+            }
+        }
+        
         // Make functions globally available
         window.addSignal = addSignal;
         window.editSignal = editSignal;
@@ -2132,6 +2143,7 @@
         window.changeMonth = changeMonth;
         window.selectDate = selectDate;
         window.autoFillAllNews = autoFillAllNews;
+        window.formatTimeInput = formatTimeInput;
         
         } catch (error) {
             console.error('Signal Lab JavaScript Error:', error);
