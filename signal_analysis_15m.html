@@ -854,21 +854,25 @@
         }
         
         function calculateTP() {
-            const entryEl = document.getElementById('entryPrice');
-            const stopEl = document.getElementById('stopLoss');
-            const biasEl = document.getElementById('bias');
-            const tpEl = document.getElementById('takeProfit');
-            
-            if (!entryEl || !stopEl || !biasEl || !tpEl) return;
-            
-            const entry = parseFloat(entryEl.value) || 0;
-            const stop = parseFloat(stopEl.value) || 0;
-            const bias = biasEl.value;
-            
-            if (entry && stop) {
-                const risk = Math.abs(entry - stop);
-                const tp = bias === 'Bullish' ? entry + risk : entry - risk;
-                tpEl.value = tp.toFixed(2);
+            try {
+                const entryEl = document.getElementById('entryPrice');
+                const stopEl = document.getElementById('stopLoss');
+                const biasEl = document.getElementById('bias');
+                const tpEl = document.getElementById('takeProfit');
+                
+                if (!entryEl || !stopEl || !biasEl || !tpEl) return;
+                
+                const entry = parseFloat(entryEl.value) || 0;
+                const stop = parseFloat(stopEl.value) || 0;
+                const bias = biasEl.value;
+                
+                if (entry && stop) {
+                    const risk = Math.abs(entry - stop);
+                    const tp = bias === 'Bullish' ? entry + risk : entry - risk;
+                    tpEl.value = tp.toFixed(2);
+                }
+            } catch (error) {
+                console.error('calculateTP error:', error);
             }
         }
         
@@ -1381,12 +1385,31 @@
             }
         });
         
-        // Auto-calculate TP when inputs change
-        document.getElementById('bias').addEventListener('change', calculateTP);
-        document.getElementById('rTarget').addEventListener('change', calculateTP);
+        // Auto-calculate TP when inputs change (with null checks)
+        const biasEl = document.getElementById('bias');
+        if (biasEl) biasEl.addEventListener('change', calculateTP);
         
         // Set today's date by default
         document.getElementById('signalDate').value = new Date().toISOString().split('T')[0];
+        
+        // Make functions globally available immediately
+        window.addSignal = addSignal;
+        window.editSignal = editSignal;
+        window.deleteSignal = deleteSignal;
+        window.clearInputs = clearInputs;
+        window.cancelEdit = cancelEdit;
+        window.exportData = exportData;
+        window.importCSV = importCSV;
+        window.analyzeSignals = analyzeSignals;
+        window.getRecommendations = getRecommendations;
+        window.optimizeStrategy = optimizeStrategy;
+        window.autoFillAllNews = autoFillAllNews;
+        window.toggleNewsDropdown = toggleNewsDropdown;
+        window.updateNewsSelection = updateNewsSelection;
+        window.calculateTP = calculateTP;
+        window.formatTimeInput = formatTimeInput;
+        window.changeMonth = changeMonth;
+        window.selectDate = selectDate;
         
         // Load signals when page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -1567,36 +1590,21 @@
             }
         }
         
-        // Set today's date by default
-        document.getElementById('signalDate').value = new Date().toISOString().split('T')[0];
-        
         // Load signals when page loads
         document.addEventListener('DOMContentLoaded', async function() {
+            // Set today's date by default (with null check)
+            const dateEl = document.getElementById('signalDate');
+            if (dateEl) {
+                dateEl.value = new Date().toISOString().split('T')[0];
+            }
+            
+            // Auto-calculate TP when inputs change (with null checks)
+            const biasEl = document.getElementById('bias');
+            if (biasEl) biasEl.addEventListener('change', calculateTP);
+            
             await loadEconomicNews();
             loadSignals();
         });
-        
-        // Auto-calculate TP when inputs change
-        document.getElementById('bias').addEventListener('change', calculateTP);
-        
-        // Make functions globally available
-        window.addSignal = addSignal;
-        window.editSignal = editSignal;
-        window.deleteSignal = deleteSignal;
-        window.clearInputs = clearInputs;
-        window.cancelEdit = cancelEdit;
-        window.exportData = exportData;
-        window.importCSV = importCSV;
-        window.analyzeSignals = analyzeSignals;
-        window.getRecommendations = getRecommendations;
-        window.optimizeStrategy = optimizeStrategy;
-        window.autoFillAllNews = autoFillAllNews;
-        window.toggleNewsDropdown = toggleNewsDropdown;
-        window.updateNewsSelection = updateNewsSelection;
-        window.calculateTP = calculateTP;
-        window.formatTimeInput = formatTimeInput;
-        window.changeMonth = changeMonth;
-        window.selectDate = selectDate;
         
         } catch (error) {
             console.error('15M Signal Lab JavaScript Error:', error);
