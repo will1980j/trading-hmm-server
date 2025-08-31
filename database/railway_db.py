@@ -155,6 +155,19 @@ class RailwayDB:
                     analysis_data JSONB,
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 )
+            ''');
+            
+            # Add missing columns to existing 15M table if they don't exist
+            cur.execute('''
+                ALTER TABLE signal_lab_15m_trades 
+                ADD COLUMN IF NOT EXISTS mfe_none DECIMAL(10,2) DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS be1_level DECIMAL(10,2) DEFAULT 1,
+                ADD COLUMN IF NOT EXISTS be1_hit BOOLEAN DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS mfe1 DECIMAL(10,2) DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS be2_level DECIMAL(10,2) DEFAULT 2,
+                ADD COLUMN IF NOT EXISTS be2_hit BOOLEAN DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS mfe2 DECIMAL(10,2) DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS analysis_data JSONB
             ''')
             
             # Add missing columns to existing table if they don't exist
@@ -181,6 +194,7 @@ class RailwayDB:
             cur.execute('CREATE INDEX IF NOT EXISTS idx_signal_lab_created ON signal_lab_trades(created_at DESC)')
             cur.execute('CREATE INDEX IF NOT EXISTS idx_signal_lab_15m_date ON signal_lab_15m_trades(date DESC)')
             cur.execute('CREATE INDEX IF NOT EXISTS idx_signal_lab_15m_created ON signal_lab_15m_trades(created_at DESC)')
+            cur.execute('CREATE INDEX IF NOT EXISTS idx_signal_lab_15m_analysis ON signal_lab_15m_trades USING GIN (analysis_data)')
             
         self.conn.commit()
     
