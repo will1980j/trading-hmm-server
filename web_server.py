@@ -1764,7 +1764,6 @@ def get_signal_lab_15m_trades():
                 'bias': row['bias'],
                 'session': row['session'],
                 'signal_type': row['signal_type'],
-                'open_price': float(row['open_price']) if row['open_price'] else 0,
                 'entry_price': float(row['entry_price']) if row['entry_price'] else 0,
                 'stop_loss': float(row['stop_loss']) if row['stop_loss'] else 0,
                 'take_profit': float(row['take_profit']) if row['take_profit'] else 0,
@@ -1820,10 +1819,10 @@ def create_signal_lab_15m_trade():
         
         cursor.execute("""
             INSERT INTO signal_lab_15m_trades 
-            (date, time, bias, session, signal_type, open_price, entry_price, stop_loss, 
+            (date, time, bias, session, signal_type, entry_price, stop_loss, 
              take_profit, mfe_none, be1_level, be1_hit, mfe1, be2_level, be2_hit, mfe2, 
              position_size, commission, news_proximity, news_event, screenshot, analysis_data)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             data.get('date'),
@@ -1831,7 +1830,6 @@ def create_signal_lab_15m_trade():
             data.get('bias'),
             data.get('session'),
             data.get('signal_type'),
-            data.get('open_price', 0),
             data.get('entry_price', 0),
             data.get('stop_loss', 0),
             data.get('take_profit', 0),
