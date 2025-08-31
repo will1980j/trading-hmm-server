@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>15M Signal Analysis Lab - Trading Analytics</title>
+    <link rel="stylesheet" href="/style_preload.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --accent-color: #ff6b35;
+            --glass-bg: rgba(255,255,255,0.08);
+            --glass-border: rgba(255,255,255,0.1);
+            --shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2d1b69 0%, #11998e 100%);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        
+        .navbar {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .nav-link:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .nav-link.active {
+            color: #ff6b35;
+            background: rgba(255,107,53,0.15);
+            border-color: rgba(255,107,53,0.3);
+        }
+        
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .data-input {
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .input-grid {
+            display: flex;
+            gap: 12px;
+            margin: 15px 0;
+            align-items: end;
+            flex-wrap: nowrap;
+            width: 100%;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        
+        .input-group label {
+            font-size: 10px;
+            opacity: 0.8;
+            margin-bottom: 2px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        select, input {
+            padding: 4px 6px;
+            border: none;
+            border-radius: 4px;
+            background: white !important;
+            color: black !important;
+            font-size: 11px;
+            width: 100%;
+            box-sizing: border-box;
+            font-family: inherit;
+            height: 28px;
+        }
+        
+        .input-group.date { flex: 1 1 90px; }
+        .input-group.time { flex: 1 1 70px; }
+        .input-group.bias { flex: 1 1 70px; }
+        .input-group.session { flex: 1 1 80px; }
+        .input-group.signal-type { flex: 1 1 100px; }
+        .input-group.price { flex: 1 1 75px; }
+        .input-group.target { flex: 1 1 60px; }
+        .input-group.mfe { flex: 1 1 55px; }
+        .input-group.size { flex: 1 1 50px; }
+        .input-group.commission { flex: 1 1 60px; }
+        .input-group.news-prox { flex: 1 1 60px; }
+        .input-group.news-event { flex: 1 1 100px; position: relative; }
+        
+        .add-signal-btn {
+            flex: 0 0 auto;
+            margin-left: 10px;
+            height: 28px;
+            padding: 0 12px;
+            font-size: 11px;
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(255, 107, 53, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .add-signal-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+            background: linear-gradient(45deg, #f7931e, #ff6b35);
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, var(--accent-color), #f7931e);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(255,107,53,0.2);
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255,107,53,0.4);
+            background: linear-gradient(45deg, #f7931e, var(--accent-color));
+        }
+        
+        .trades-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            overflow: hidden;
+            font-size: 12px;
+        }
+        
+        .trades-table th,
+        .trades-table td {
+            padding: 8px 6px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .trades-table th {
+            background: rgba(255,255,255,0.1);
+            font-weight: bold;
+            font-size: 11px;
+        }
+        
+        .positive { color: #00ff88; }
+        .negative { color: #ff4757; }
+        .neutral { color: #ffa502; }
+        
+        .trades-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .action-btn {
+            background: #3742fa;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: white !important;
+            cursor: pointer;
+            font-size: 10px;
+            margin-right: 4px;
+        }
+        
+        .delete-btn {
+            background: #ff4757;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: white !important;
+            cursor: pointer;
+            font-size: 10px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            margin: 8px 0;
+            background: linear-gradient(45deg, var(--accent-color), #f7931e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-label {
+            font-size: 0.8em;
+            opacity: 0.8;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .multi-select {
+            position: relative;
+        }
+        
+        .multi-select-display {
+            padding: 4px 6px;
+            border: none;
+            border-radius: 4px;
+            background: white !important;
+            color: black !important;
+            font-size: 11px;
+            width: 100%;
+            box-sizing: border-box;
+            font-family: inherit;
+            height: 28px;
+            cursor: pointer;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        
+        .multi-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .multi-select-option {
+            padding: 6px 8px;
+            font-size: 11px;
+            color: black;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .multi-select-option:hover {
+            background: #f0f0f0;
+        }
+        
+        .multi-select-option input[type="checkbox"] {
+            width: 12px;
+            height: 12px;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/trade-manager" class="nav-link">Trade Manager</a>
+                <a href="/signal-analysis-lab" class="nav-link">1M Signal Lab</a>
+                <a href="/signal-analysis-15m" class="nav-link active">15M Signal Lab</a>
+                <a href="/signal-lab-dashboard" class="nav-link">Lab Dashboard</a>
+                <a href="/prop-portfolio" class="nav-link">Prop Portfolio</a>
+                <a href="/financial-summary" class="nav-link">Financial Summary</a>
+                <a href="/reporting-hub" class="nav-link">Reporting Hub</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="header">
+            <h1>15M Signal Analysis Lab</h1>
+            <p>15-Minute Timeframe Strategy Data Collection & Analysis</p>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Signals</div>
+                <div class="stat-value" id="totalSignals">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value" id="winRate">0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg R-Multiple</div>
+                <div class="stat-value" id="avgR">0.0R</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Best Session</div>
+                <div class="stat-value" id="bestSession">-</div>
+            </div>
+        </div>
+        
+        <div class="data-input">
+            <h3>Add 15M Signal Data</h3>
+            <div class="input-grid">
+                <div class="input-group date">
+                    <label>Date</label>
+                    <input type="date" id="signalDate">
+                </div>
+                <div class="input-group time">
+                    <label>Time (24hr)</label>
+                    <input type="text" id="entryTime" pattern="[0-9]{2}:[0-9]{2}" placeholder="14:30" maxlength="5" oninput="formatTimeInput(this)">
+                </div>
+                <div class="input-group bias">
+                    <label>Bias</label>
+                    <select id="bias">
+                        <option value="Bullish">Bull</option>
+                        <option value="Bearish">Bear</option>
+                    </select>
+                </div>
+                <div class="input-group session">
+                    <label>Session</label>
+                    <select id="session">
+                        <option value="Asia">Asia</option>
+                        <option value="London">London</option>
+                        <option value="NY Pre Market">NY Pre</option>
+                        <option value="NY AM">NY AM</option>
+                        <option value="NY Lunch">Lunch</option>
+                        <option value="NY PM">NY PM</option>
+                    </select>
+                </div>
+                <div class="input-group signal-type">
+                    <label>Signal Type</label>
+                    <select id="signalType">
+                        <option value="15M Order Block">15M OB</option>
+                        <option value="15M Fair Value Gap">15M FVG</option>
+                        <option value="15M Breaker Block">15M BB</option>
+                        <option value="15M Mitigation Block">15M MB</option>
+                        <option value="15M Liquidity Sweep">15M LS</option>
+                        <option value="15M Market Structure">15M MS</option>
+                        <option value="15M Imbalance">15M IMB</option>
+                        <option value="15M Rejection Block">15M RB</option>
+                    </select>
+                </div>
+                <div class="input-group price">
+                    <label>Entry</label>
+                    <input type="number" id="entryPrice" step="0.01" placeholder="15850" oninput="calculateTP()">
+                </div>
+                <div class="input-group price">
+                    <label>Stop Loss</label>
+                    <input type="number" id="stopLoss" step="0.01" placeholder="15800" oninput="calculateTP()">
+                </div>
+                <div class="input-group target">
+                    <label>R-Target</label>
+                    <select id="rTarget">
+                        <option value="1">1R</option>
+                        <option value="1.5">1.5R</option>
+                        <option value="2" selected>2R</option>
+                        <option value="2.5">2.5R</option>
+                        <option value="3">3R</option>
+                        <option value="4">4R</option>
+                        <option value="5">5R</option>
+                    </select>
+                </div>
+                <div class="input-group price">
+                    <label>Take Profit</label>
+                    <input type="number" id="takeProfit" step="0.01" readonly style="background: #f0f0f0 !important; color: #666 !important;">
+                </div>
+                <div class="input-group mfe">
+                    <label>MFE (R)</label>
+                    <input type="number" id="mfe" step="0.1" placeholder="2.5">
+                </div>
+                <div class="input-group size">
+                    <label>Size</label>
+                    <input type="number" id="positionSize" step="1" placeholder="1" value="1">
+                </div>
+                <div class="input-group commission">
+                    <label>Comm</label>
+                    <input type="number" id="commission" step="0.01" placeholder="4.50" value="4.50">
+                </div>
+                <div class="input-group news-prox">
+                    <label>News</label>
+                    <select id="newsProximity">
+                        <option value="None">None</option>
+                        <option value="Low">Low</option>
+                        <option value="Medium">Med</option>
+                        <option value="High">High</option>
+                    </select>
+                </div>
+                <div class="input-group news-event">
+                    <label>Event</label>
+                    <div class="multi-select">
+                        <div class="multi-select-display" id="newsEventDisplay" onclick="toggleNewsDropdown()">None</div>
+                        <div class="multi-select-dropdown" id="newsEventDropdown">
+                            <div class="multi-select-option"><input type="checkbox" value="None" onchange="updateNewsSelection()"> None</div>
+                            <div class="multi-select-option"><input type="checkbox" value="NFP" onchange="updateNewsSelection()"> NFP</div>
+                            <div class="multi-select-option"><input type="checkbox" value="CPI" onchange="updateNewsSelection()"> CPI</div>
+                            <div class="multi-select-option"><input type="checkbox" value="PPI" onchange="updateNewsSelection()"> PPI</div>
+                            <div class="multi-select-option"><input type="checkbox" value="FOMC" onchange="updateNewsSelection()"> FOMC</div>
+                            <div class="multi-select-option"><input type="checkbox" value="GDP" onchange="updateNewsSelection()"> GDP</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Fed Speech" onchange="updateNewsSelection()"> Fed Speech</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Retail Sales" onchange="updateNewsSelection()"> Retail Sales</div>
+                            <div class="multi-select-option"><input type="checkbox" value="Unemployment" onchange="updateNewsSelection()"> Unemployment</div>
+                            <div class="multi-select-option"><input type="checkbox" value="ISM PMI" onchange="updateNewsSelection()"> ISM PMI</div>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn add-signal-btn" onclick="addSignal()">Add</button>
+            </div>
+            
+            <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn" onclick="clearInputs()" style="background: #6c757d;">Clear</button>
+                <button class="btn" onclick="cancelEdit()" style="background: #ffa502; display: none;" id="cancelBtn">Cancel Edit</button>
+                <button class="btn" onclick="exportData()">Export CSV</button>
+                <input type="file" id="csvFile" accept=".csv" style="display: none;" onchange="importCSV(event)">
+                <button class="btn" onclick="document.getElementById('csvFile').click()">Import CSV</button>
+                <button class="btn" onclick="analyzeSignals()" style="background: #3742fa;">AI Analysis</button>
+            </div>
+        </div>
+        
+        <div class="data-input">
+            <h3>15M Signal Data <span id="signalCounter" style="background: linear-gradient(45deg, #ff6b35, #f7931e); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-left: 10px; box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);">0 Signals</span></h3>
+            
+            <div class="trades-container">
+                <table class="trades-table" id="signalsTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Bias</th>
+                            <th>Session</th>
+                            <th>Signal Type</th>
+                            <th>Entry</th>
+                            <th>Stop</th>
+                            <th>R-Target</th>
+                            <th>Take Profit</th>
+                            <th>MFE (R)</th>
+                            <th>Size</th>
+                            <th>Comm</th>
+                            <th>News</th>
+                            <th>Event</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="signalsBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let signals = [];
+        let editingSignalId = null;
+        let selectedNewsEvents = [];
+        
+        // Load signals from database
+        async function loadSignals() {
+            console.log('🔄 Loading 15M signals from database...');
+            
+            try {
+                const response = await fetch('/api/signal-lab-15m-trades');
+                console.log('Response status:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('API returned:', data);
+                    const trades = Array.isArray(data) ? data : data.trades || [];
+                    
+                    signals = trades.map(trade => ({
+                        id: trade.id,
+                        date: trade.date,
+                        time: trade.time,
+                        bias: trade.bias,
+                        session: trade.session,
+                        signalType: trade.signal_type,
+                        entryPrice: parseFloat(trade.entry_price) || 0,
+                        stopLoss: parseFloat(trade.stop_loss) || 0,
+                        rTarget: parseFloat(trade.r_target) || 2,
+                        takeProfit: parseFloat(trade.take_profit) || 0,
+                        mfe: parseFloat(trade.mfe) || 0,
+                        positionSize: parseInt(trade.position_size) || 1,
+                        commission: parseFloat(trade.commission) || 0,
+                        newsProximity: trade.news_proximity || 'None',
+                        newsEvent: trade.news_event || 'None'
+                    }));
+                    console.log(`✅ Loaded ${signals.length} 15M trades from database`);
+                } else {
+                    const errorText = await response.text();
+                    console.log('API error:', response.status, errorText);
+                    signals = [];
+                }
+            } catch (error) {
+                console.log('Fetch error:', error);
+                signals = [];
+            }
+            
+            updateDisplay();
+        }
+        
+        function calculateTP() {
+            const entryEl = document.getElementById('entryPrice');
+            const stopEl = document.getElementById('stopLoss');
+            const biasEl = document.getElementById('bias');
+            const rTargetEl = document.getElementById('rTarget');
+            const tpEl = document.getElementById('takeProfit');
+            
+            if (!entryEl || !stopEl || !biasEl || !rTargetEl || !tpEl) return;
+            
+            const entry = parseFloat(entryEl.value) || 0;
+            const stop = parseFloat(stopEl.value) || 0;
+            const bias = biasEl.value;
+            const rTarget = parseFloat(rTargetEl.value) || 2;
+            
+            if (entry && stop) {
+                const risk = Math.abs(entry - stop);
+                const reward = risk * rTarget;
+                const tp = bias === 'Bullish' ? entry + reward : entry - reward;
+                tpEl.value = tp.toFixed(2);
+            }
+        }
+        
+        async function addSignal() {
+            if (editingSignalId) {
+                updateSignal();
+                return;
+            }
+            
+            const signal = {
+                id: Date.now(),
+                date: document.getElementById('signalDate')?.value || '',
+                time: document.getElementById('entryTime')?.value || '',
+                bias: document.getElementById('bias')?.value || 'Bullish',
+                session: document.getElementById('session')?.value || 'NY AM',
+                signalType: document.getElementById('signalType')?.value || '15M Order Block',
+                entryPrice: parseFloat(document.getElementById('entryPrice')?.value) || 0,
+                stopLoss: parseFloat(document.getElementById('stopLoss')?.value) || 0,
+                rTarget: parseFloat(document.getElementById('rTarget')?.value) || 2,
+                takeProfit: parseFloat(document.getElementById('takeProfit')?.value) || 0,
+                mfe: parseFloat(document.getElementById('mfe')?.value) || 0,
+                positionSize: parseInt(document.getElementById('positionSize')?.value) || 1,
+                commission: parseFloat(document.getElementById('commission')?.value) || 0,
+                newsProximity: document.getElementById('newsProximity')?.value || 'None',
+                newsEvent: getSelectedNewsEvents()
+            };
+            
+            if (!signal.date || signal.entryPrice === 0 || signal.stopLoss === 0) {
+                alert('Please fill in Date, Entry Price, and Stop Loss');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/signal-lab-15m-trades', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        date: signal.date,
+                        time: signal.time,
+                        bias: signal.bias,
+                        session: signal.session,
+                        signal_type: signal.signalType,
+                        entry_price: signal.entryPrice,
+                        stop_loss: signal.stopLoss,
+                        r_target: signal.rTarget,
+                        take_profit: signal.takeProfit,
+                        mfe: signal.mfe,
+                        position_size: signal.positionSize,
+                        commission: signal.commission,
+                        news_proximity: signal.newsProximity,
+                        news_event: signal.newsEvent
+                    })
+                });
+                
+                if (response.ok) {
+                    const savedSignal = await response.json();
+                    signal.id = savedSignal.id;
+                    signals.push(signal);
+                    updateDisplay();
+                    clearInputs();
+                    console.log('✅ 15M Signal added successfully');
+                } else {
+                    const errorText = await response.text();
+                    alert(`❌ Add failed: ${response.status} - ${errorText}`);
+                }
+            } catch (error) {
+                alert(`❌ Add error: ${error.message}`);
+            }
+        }
+        
+        function editSignal(id) {
+            const signal = signals.find(s => s.id === id);
+            if (!signal) return;
+            
+            // Populate form with signal data
+            document.getElementById('signalDate').value = signal.date;
+            document.getElementById('entryTime').value = signal.time;
+            document.getElementById('bias').value = signal.bias;
+            document.getElementById('session').value = signal.session;
+            document.getElementById('signalType').value = signal.signalType;
+            document.getElementById('entryPrice').value = signal.entryPrice;
+            document.getElementById('stopLoss').value = signal.stopLoss;
+            document.getElementById('rTarget').value = signal.rTarget;
+            document.getElementById('takeProfit').value = signal.takeProfit;
+            document.getElementById('mfe').value = signal.mfe || 0;
+            document.getElementById('positionSize').value = signal.positionSize;
+            document.getElementById('commission').value = signal.commission;
+            document.getElementById('newsProximity').value = signal.newsProximity;
+            
+            // Handle news events
+            if (signal.newsEvent) {
+                const events = signal.newsEvent.split(', ');
+                const checkboxes = document.querySelectorAll('#newsEventDropdown input[type="checkbox"]');
+                checkboxes.forEach(cb => cb.checked = events.includes(cb.value));
+                updateNewsSelection();
+            }
+            
+            // Set editing mode
+            editingSignalId = id;
+            
+            // Change button text and show cancel
+            const addBtn = document.querySelector('.add-signal-btn');
+            addBtn.textContent = 'Update';
+            addBtn.style.background = 'linear-gradient(45deg, #ffa502, #ff6348)';
+            document.getElementById('cancelBtn').style.display = 'inline-block';
+            
+            // Scroll to form
+            document.querySelector('.data-input').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        async function updateSignal() {
+            const signalIndex = signals.findIndex(s => s.id === editingSignalId);
+            if (signalIndex === -1) return;
+            
+            const updatedSignal = {
+                id: editingSignalId,
+                date: document.getElementById('signalDate')?.value || '',
+                time: document.getElementById('entryTime')?.value || '',
+                bias: document.getElementById('bias')?.value || 'Bullish',
+                session: document.getElementById('session')?.value || 'NY AM',
+                signalType: document.getElementById('signalType')?.value || '15M Order Block',
+                entryPrice: parseFloat(document.getElementById('entryPrice')?.value) || 0,
+                stopLoss: parseFloat(document.getElementById('stopLoss')?.value) || 0,
+                rTarget: parseFloat(document.getElementById('rTarget')?.value) || 2,
+                takeProfit: parseFloat(document.getElementById('takeProfit')?.value) || 0,
+                mfe: parseFloat(document.getElementById('mfe')?.value) || 0,
+                positionSize: parseInt(document.getElementById('positionSize')?.value) || 1,
+                commission: parseFloat(document.getElementById('commission')?.value) || 0,
+                newsProximity: document.getElementById('newsProximity')?.value || 'None',
+                newsEvent: getSelectedNewsEvents()
+            };
+            
+            if (!updatedSignal.date || updatedSignal.entryPrice === 0 || updatedSignal.stopLoss === 0) {
+                alert('Please fill in Date, Entry Price, and Stop Loss');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/signal-lab-15m-trades/${updatedSignal.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        date: updatedSignal.date,
+                        time: updatedSignal.time,
+                        bias: updatedSignal.bias,
+                        session: updatedSignal.session,
+                        signal_type: updatedSignal.signalType,
+                        entry_price: updatedSignal.entryPrice,
+                        stop_loss: updatedSignal.stopLoss,
+                        r_target: updatedSignal.rTarget,
+                        take_profit: updatedSignal.takeProfit,
+                        mfe: updatedSignal.mfe,
+                        position_size: updatedSignal.positionSize,
+                        commission: updatedSignal.commission,
+                        news_proximity: updatedSignal.newsProximity,
+                        news_event: updatedSignal.newsEvent
+                    })
+                });
+                
+                if (response.ok) {
+                    signals[signalIndex] = updatedSignal;
+                    updateDisplay();
+                    cancelEdit();
+                    console.log('✅ 15M Signal updated successfully');
+                } else {
+                    const errorText = await response.text();
+                    alert(`❌ Update failed: ${response.status} - ${errorText}`);
+                }
+            } catch (error) {
+                console.error('Update error:', error);
+                alert(`❌ Update error: ${error.message}`);
+            }
+        }
+        
+        function cancelEdit() {
+            editingSignalId = null;
+            clearInputs();
+            
+            // Reset button
+            const addBtn = document.querySelector('.add-signal-btn');
+            addBtn.textContent = 'Add';
+            addBtn.style.background = 'linear-gradient(45deg, #ff6b35, #f7931e)';
+            document.getElementById('cancelBtn').style.display = 'none';
+        }
+        
+        function clearInputs() {
+            document.getElementById('signalDate').value = '';
+            document.getElementById('entryTime').value = '';
+            document.getElementById('entryPrice').value = '';
+            document.getElementById('stopLoss').value = '';
+            document.getElementById('takeProfit').value = '';
+            document.getElementById('mfe').value = '';
+            document.getElementById('positionSize').value = '1';
+            document.getElementById('commission').value = '4.50';
+            document.getElementById('newsProximity').value = 'None';
+            clearNewsSelection();
+        }
+        
+        async function deleteSignal(id) {
+            if (confirm('Delete this 15M signal?')) {
+                try {
+                    const response = await fetch(`/api/signal-lab-15m-trades/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Delete failed: ${response.status}`);
+                    }
+                    
+                    signals = signals.filter(s => s.id !== id);
+                    updateDisplay();
+                    console.log('15M Signal deleted successfully from database');
+                } catch (error) {
+                    alert(`❌ DELETE FAILED\n\n${error.message}\n\nSignal NOT deleted from database.`);
+                    console.error('Database delete failed:', error);
+                }
+            }
+        }
+        
+        function updateDisplay() {
+            updateTable();
+            updateStats();
+        }
+        
+        function updateTable() {
+            const tbody = document.getElementById('signalsBody');
+            tbody.innerHTML = '';
+            
+            signals.forEach(signal => {
+                const row = tbody.insertRow();
+                
+                row.innerHTML = `
+                    <td>${signal.date}</td>
+                    <td>${signal.time}</td>
+                    <td>${signal.bias}</td>
+                    <td>${signal.session}</td>
+                    <td>${signal.signalType}</td>
+                    <td>${(signal.entryPrice || 0).toFixed(2)}</td>
+                    <td>${(signal.stopLoss || 0).toFixed(2)}</td>
+                    <td>${signal.rTarget}R</td>
+                    <td>${(signal.takeProfit || 0).toFixed(2)}</td>
+                    <td class="${signal.mfe > 0 ? 'positive' : signal.mfe < 0 ? 'negative' : 'neutral'}">${signal.mfe ? signal.mfe.toFixed(1) + 'R' : '-'}</td>
+                    <td>${signal.positionSize}</td>
+                    <td>$${signal.commission.toFixed(2)}</td>
+                    <td>${signal.newsProximity}</td>
+                    <td>${signal.newsEvent}</td>
+                    <td>
+                        <button onclick="editSignal(${signal.id})" class="action-btn">Edit</button>
+                        <button onclick="deleteSignal(${signal.id})" class="delete-btn">Del</button>
+                    </td>
+                `;
+            });
+            
+            // Update counter
+            const counter = document.getElementById('signalCounter');
+            if (counter) {
+                counter.textContent = `${signals.length} Signals`;
+            }
+        }
+        
+        function updateStats() {
+            const totalSignals = signals.length;
+            const wins = signals.filter(s => s.mfe > 0).length;
+            const winRate = totalSignals > 0 ? (wins / totalSignals * 100).toFixed(1) : 0;
+            
+            const avgR = totalSignals > 0 ? 
+                (signals.reduce((sum, s) => sum + (s.mfe || 0), 0) / totalSignals).toFixed(2) : 0;
+            
+            // Calculate best session
+            const sessionStats = {};
+            signals.forEach(s => {
+                if (!sessionStats[s.session]) {
+                    sessionStats[s.session] = { total: 0, wins: 0 };
+                }
+                sessionStats[s.session].total++;
+                if (s.mfe > 0) sessionStats[s.session].wins++;
+            });
+            
+            let bestSession = '-';
+            let bestWinRate = 0;
+            Object.keys(sessionStats).forEach(session => {
+                const rate = sessionStats[session].wins / sessionStats[session].total;
+                if (rate > bestWinRate) {
+                    bestWinRate = rate;
+                    bestSession = session;
+                }
+            });
+            
+            document.getElementById('totalSignals').textContent = totalSignals;
+            document.getElementById('winRate').textContent = winRate + '%';
+            document.getElementById('avgR').textContent = avgR + 'R';
+            document.getElementById('bestSession').textContent = bestSession;
+        }
+        
+        function exportData() {
+            const csv = 'Date,Time,Bias,Session,SignalType,Entry,Stop,RTarget,TakeProfit,MFE,Size,Commission,News,Event\n' + 
+                       signals.map(s => 
+                           `${s.date},${s.time},${s.bias},${s.session},${s.signalType},${s.entryPrice},${s.stopLoss},${s.rTarget},${s.takeProfit},${s.mfe || 0},${s.positionSize},${s.commission},${s.newsProximity},"${s.newsEvent}"`
+                       ).join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `15m_signal_analysis_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+        
+        function importCSV(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const csv = e.target.result;
+                    const lines = csv.split('\n');
+                    
+                    for (let i = 1; i < lines.length; i++) {
+                        if (lines[i].trim()) {
+                            const values = lines[i].split(',');
+                            const signal = {
+                                id: Date.now() + i,
+                                date: values[0],
+                                time: values[1],
+                                bias: values[2],
+                                session: values[3],
+                                signalType: values[4],
+                                entryPrice: parseFloat(values[5]) || 0,
+                                stopLoss: parseFloat(values[6]) || 0,
+                                rTarget: parseFloat(values[7]) || 2,
+                                takeProfit: parseFloat(values[8]) || 0,
+                                mfe: parseFloat(values[9]) || 0,
+                                positionSize: parseInt(values[10]) || 1,
+                                commission: parseFloat(values[11]) || 0,
+                                newsProximity: values[12] || 'None',
+                                newsEvent: values[13] || 'None'
+                            };
+                            signals.push(signal);
+                        }
+                    }
+                    updateDisplay();
+                };
+                reader.readAsText(file);
+            }
+        }
+        
+        async function analyzeSignals() {
+            if (signals.length < 3) {
+                alert('Need at least 3 signals for meaningful AI analysis');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/ai-signal-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ signals: signals, timeframe: '15M' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('AI Analysis Error: ' + data.error);
+                    return;
+                }
+                
+                showAnalysisModal('15M Signal AI Analysis', data.analysis);
+            } catch (error) {
+                console.error('AI Analysis error:', error);
+                alert('Failed to connect to AI analysis service');
+            }
+        }
+        
+        function showAnalysisModal(title, content) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center;
+                z-index: 1000;
+            `;
+            
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: linear-gradient(135deg, #2d1b69 0%, #11998e 100%);
+                padding: 30px; border-radius: 20px; max-width: 80%; max-height: 80%;
+                overflow-y: auto; color: white; border: 1px solid rgba(255,255,255,0.1);
+            `;
+            
+            modalContent.innerHTML = `
+                <h2 style="margin-bottom: 20px; color: #ff6b35;">${title}</h2>
+                <pre style="white-space: pre-wrap; font-family: inherit; line-height: 1.6;">${content}</pre>
+                <button onclick="this.closest('div').parentElement.remove()" 
+                        style="margin-top: 20px; padding: 10px 20px; background: #ff6b35; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer;">
+                    Close
+                </button>
+            `;
+            
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+        }
+        
+        // News event functions
+        function toggleNewsDropdown() {
+            const dropdown = document.getElementById('newsEventDropdown');
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        }
+        
+        function updateNewsSelection() {
+            const checkboxes = document.querySelectorAll('#newsEventDropdown input[type="checkbox"]');
+            selectedNewsEvents = [];
+            
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedNewsEvents.push(checkbox.value);
+                }
+            });
+            
+            const display = document.getElementById('newsEventDisplay');
+            if (selectedNewsEvents.length === 0) {
+                display.textContent = 'None';
+            } else if (selectedNewsEvents.length === 1) {
+                display.textContent = selectedNewsEvents[0];
+            } else {
+                display.textContent = `${selectedNewsEvents.length} selected`;
+            }
+        }
+        
+        function getSelectedNewsEvents() {
+            return selectedNewsEvents.join(', ');
+        }
+        
+        function clearNewsSelection() {
+            const checkboxes = document.querySelectorAll('#newsEventDropdown input[type="checkbox"]');
+            checkboxes.forEach(checkbox => checkbox.checked = false);
+            selectedNewsEvents = [];
+            document.getElementById('newsEventDisplay').textContent = 'None';
+        }
+        
+        function formatTimeInput(input) {
+            let value = input.value.replace(/[^0-9]/g, '');
+            if (value.length === 4) {
+                const hours = value.substring(0, 2);
+                const minutes = value.substring(2, 4);
+                if (hours <= 23 && minutes <= 59) {
+                    input.value = hours + ':' + minutes;
+                }
+            }
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const multiSelect = event.target.closest('.multi-select');
+            if (!multiSelect) {
+                document.getElementById('newsEventDropdown').style.display = 'none';
+            }
+        });
+        
+        // Auto-calculate TP when inputs change
+        document.getElementById('bias').addEventListener('change', calculateTP);
+        document.getElementById('rTarget').addEventListener('change', calculateTP);
+        
+        // Set today's date by default
+        document.getElementById('signalDate').value = new Date().toISOString().split('T')[0];
+        
+        // Load signals when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSignals();
+        });
+        
+        // Make functions globally available
+        window.addSignal = addSignal;
+        window.editSignal = editSignal;
+        window.deleteSignal = deleteSignal;
+        window.clearInputs = clearInputs;
+        window.cancelEdit = cancelEdit;
+        window.exportData = exportData;
+        window.importCSV = importCSV;
+        window.analyzeSignals = analyzeSignals;
+        window.toggleNewsDropdown = toggleNewsDropdown;
+        window.updateNewsSelection = updateNewsSelection;
+        window.calculateTP = calculateTP;
+        window.formatTimeInput = formatTimeInput;
+    </script>
+</body>
+</html>

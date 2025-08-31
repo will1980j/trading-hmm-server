@@ -142,6 +142,11 @@ def trade_manager():
 def signal_analysis_lab():
     return read_html_file('signal_analysis_lab.html')
 
+@app.route('/signal-analysis-15m')
+@login_required
+def signal_analysis_15m():
+    return read_html_file('signal_analysis_15m.html')
+
 @app.route('/signal-lab-dashboard')
 @login_required
 def signal_lab_dashboard():
@@ -1715,6 +1720,210 @@ def check_localStorage():
         "database_available": db_enabled,
         "migration_endpoint": "/api/signal-lab-migrate"
     })
+
+# 15M Signal Lab API endpoints
+@app.route('/api/signal-lab-15m-trades', methods=['GET'])
+@login_required
+def get_signal_lab_15m_trades():
+    try:
+        if not db_enabled or not db:
+            logger.info("Database not available - returning empty array for local development")
+            return jsonify([]), 200
+        
+        cursor = db.conn.cursor()
+        
+        try:
+            cursor.execute("""
+                SELECT id, date, time, bias, session, signal_type, entry_price, 
+                       stop_loss, r_target, take_profit, mfe, position_size, 
+                       commission, news_proximity, news_event, created_at
+                FROM signal_lab_15m_trades 
+                ORDER BY created_at DESC
+            """)
+        except Exception as e:
+            logger.error(f"Query error: {sanitize_log_input(str(e))}")
+            return jsonify([]), 200
+        
+        rows = cursor.fetchall()
+        logger.info(f"Query returned {len(rows)} 15M signal rows")
+        
+        trades = []
+        for row in rows:
+            trade = {
+                'id': row['id'],
+                'date': str(row['date']) if row['date'] else None,
+                'time': str(row['time']) if row['time'] else None,
+                'bias': row['bias'],
+                'session': row['session'],
+                'signal_type': row['signal_type'],
+                'entry_price': float(row['entry_price']) if row['entry_price'] else 0,
+                'stop_loss': float(row['stop_loss']) if row['stop_loss'] else 0,
+                'r_target': float(row['r_target']) if row['r_target'] else 2,
+                'take_profit': float(row['take_profit']) if row['take_profit'] else 0,
+                'mfe': float(row['mfe']) if row['mfe'] is not None else 0,
+                'position_size': int(row['position_size']) if row['position_size'] else 1,
+                'commission': float(row['commission']) if row['commission'] else 0,
+                'news_proximity': row['news_proximity'] or 'None',
+                'news_event': row['news_event'] or 'None'
+            }
+            trades.append(trade)
+        
+        logger.info(f"Returning {len(trades)} 15M trades to client")
+        return jsonify(trades)
+        
+    except Exception as e:
+        import traceback
+        error_details = f"{str(e)} | Traceback: {traceback.format_exc()}"
+        logger.error(f"Error getting 15M signal lab trades: {error_details}")
+        return jsonify([]), 200
+
+@app.route('/api/signal-lab-15m-trades', methods=['POST'])
+@login_required
+def create_signal_lab_15m_trade():
+    try:
+        logger.info("POST /api/signal-lab-15m-trades called")
+        
+        if not db_enabled or not db:
+            logger.error("Database not available")
+            return jsonify({"error": "Database not available"}), 500
+        
+        data = request.get_json()
+        logger.info(f"Received 15M data: {data}")
+        
+        if not data:
+            logger.error("No JSON data received")
+            return jsonify({"error": "No data provided"}), 400
+        
+        cursor = db.conn.cursor()
+        logger.info("Executing 15M INSERT query")
+        
+        cursor.execute("""
+            INSERT INTO signal_lab_15m_trades 
+            (date, time, bias, session, signal_type, entry_price, stop_loss, 
+             r_target, take_profit, mfe, position_size, commission, news_proximity, news_event)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (
+            data.get('date'),
+            data.get('time'),
+            data.get('bias'),
+            data.get('session'),
+            data.get('signal_type'),
+            data.get('entry_price', 0),
+            data.get('stop_loss', 0),
+            data.get('r_target', 2),
+            data.get('take_profit', 0),
+            data.get('mfe', 0),
+            data.get('position_size', 1),
+            data.get('commission', 0),
+            data.get('news_proximity', 'None'),
+            data.get('news_event', 'None')
+        ))
+        
+        result = cursor.fetchone()
+        if result:
+            trade_id = result['id']
+        else:
+            raise Exception("INSERT failed - no ID returned")
+        db.conn.commit()
+        logger.info(f"Successfully created 15M trade with ID: {trade_id}")
+        
+        return jsonify({"id": trade_id, "status": "success"})
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        error_msg = str(e)
+        logger.error(f"Error creating 15M signal lab trade: {error_msg}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({"error": error_msg, "details": traceback.format_exc()}), 500
+
+@app.route('/api/signal-lab-15m-trades/<int:trade_id>', methods=['PUT'])
+@login_required
+def update_signal_lab_15m_trade(trade_id):
+    try:
+        if not db_enabled or not db:
+            return jsonify({"error": "Database not available"}), 500
+        
+        data = request.get_json()
+        logger.info(f"PUT /api/signal-lab-15m-trades/{trade_id} - Data: {data}")
+        
+        cursor = db.conn.cursor()
+        cursor.execute("SELECT id FROM signal_lab_15m_trades WHERE id = %s", (trade_id,))
+        if not cursor.fetchone():
+            return jsonify({"error": f"15M Trade with ID {trade_id} not found"}), 404
+        
+        # Build dynamic update query
+        update_fields = []
+        update_values = []
+        
+        field_mapping = {
+            'date': 'date',
+            'time': 'time', 
+            'bias': 'bias',
+            'session': 'session',
+            'signal_type': 'signal_type',
+            'entry_price': 'entry_price',
+            'stop_loss': 'stop_loss',
+            'r_target': 'r_target',
+            'take_profit': 'take_profit',
+            'mfe': 'mfe',
+            'position_size': 'position_size',
+            'commission': 'commission',
+            'news_proximity': 'news_proximity',
+            'news_event': 'news_event'
+        }
+        
+        for field_key, db_column in field_mapping.items():
+            if field_key in data:
+                update_fields.append(f"{db_column} = %s")
+                update_values.append(data[field_key])
+        
+        if not update_fields:
+            return jsonify({"error": "No valid fields to update"}), 400
+        
+        update_values.append(trade_id)
+        
+        update_query = f"UPDATE signal_lab_15m_trades SET {', '.join(update_fields)} WHERE id = %s"
+        logger.info(f"15M SQL: {update_query}")
+        logger.info(f"15M Values: {update_values}")
+        
+        cursor.execute(update_query, update_values)
+        rows_affected = cursor.rowcount
+        logger.info(f"15M Rows affected: {rows_affected}")
+        
+        db.conn.commit()
+        logger.info(f"15M Transaction committed for trade {trade_id}")
+        
+        return jsonify({"status": "success", "rows_affected": rows_affected, "updated_fields": len(update_fields)})
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        import traceback
+        error_details = f"{str(e)} | Traceback: {traceback.format_exc()}"
+        logger.error(f"Error updating 15M signal lab trade {trade_id}: {error_details}")
+        return jsonify({"error": str(e), "details": error_details}), 500
+
+@app.route('/api/signal-lab-15m-trades/<int:trade_id>', methods=['DELETE'])
+@login_required
+def delete_signal_lab_15m_trade(trade_id):
+    try:
+        if not db_enabled or not db:
+            return jsonify({"error": "Database not available"}), 500
+        
+        cursor = db.conn.cursor()
+        cursor.execute("DELETE FROM signal_lab_15m_trades WHERE id = %s", (trade_id,))
+        db.conn.commit()
+        
+        return jsonify({"status": "success"})
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error deleting 15M signal lab trade: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/health')
 def health_check():
