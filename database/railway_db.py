@@ -140,6 +140,9 @@ class RailwayDB:
                     entry_price DECIMAL(10,2),
                     stop_loss DECIMAL(10,2),
                     take_profit DECIMAL(10,2),
+                    be_achieved BOOLEAN DEFAULT FALSE,
+                    breakeven DECIMAL(5,1),
+                    mfe DECIMAL(5,1),
                     mfe_none DECIMAL(10,2) DEFAULT 0,
                     be1_level DECIMAL(10,2) DEFAULT 1,
                     be1_hit BOOLEAN DEFAULT FALSE,
@@ -160,6 +163,10 @@ class RailwayDB:
             # Add missing columns to existing 15M table if they don't exist
             cur.execute('''
                 ALTER TABLE signal_lab_15m_trades 
+                ADD COLUMN IF NOT EXISTS open_price DECIMAL(10,2),
+                ADD COLUMN IF NOT EXISTS be_achieved BOOLEAN DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS breakeven DECIMAL(5,1),
+                ADD COLUMN IF NOT EXISTS mfe DECIMAL(5,1),
                 ADD COLUMN IF NOT EXISTS mfe_none DECIMAL(10,2) DEFAULT 0,
                 ADD COLUMN IF NOT EXISTS be1_level DECIMAL(10,2) DEFAULT 1,
                 ADD COLUMN IF NOT EXISTS be1_hit BOOLEAN DEFAULT FALSE,
