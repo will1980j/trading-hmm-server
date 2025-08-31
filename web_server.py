@@ -1809,6 +1809,12 @@ def create_signal_lab_15m_trade():
             logger.error("No JSON data received")
             return jsonify({"error": "No data provided"}), 400
         
+        # Reset any aborted transaction
+        try:
+            db.conn.rollback()
+        except Exception as e:
+            logger.error(f"Error rolling back transaction: {str(e)}")
+        
         cursor = db.conn.cursor()
         logger.info("Executing 15M INSERT query")
         
