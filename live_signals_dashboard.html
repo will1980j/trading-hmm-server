@@ -326,8 +326,16 @@
         
         // WebSocket connection for real-time signals
         function initializeWebSocket() {
-            const wsUrl = window.location.protocol === 'https:' ? 'wss://' : 'ws://' + window.location.host + '/ws/signals';
-            wsConnection = new WebSocket(wsUrl);
+            try {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws/signals`;
+                console.log('Connecting to WebSocket:', wsUrl);
+                wsConnection = new WebSocket(wsUrl);
+            } catch (error) {
+                console.error('WebSocket connection failed:', error);
+                updateConnectionStatus(false);
+                return;
+            }
             
             wsConnection.onopen = function() {
                 console.log('WebSocket connected');
@@ -345,7 +353,18 @@
                 console.log('WebSocket disconnected');
                 updateConnectionStatus(false);
                 // Reconnect after 5 seconds
-                setTimeout(initializeWebSocket, 5000);
+                setTimeout(() => {
+                    try {
+                        initializeWebSocket();
+                    } catch (error) {
+                        console.error('WebSocket reconnection failed:', error);
+                    }
+                }, 5000);
+            };
+            
+            wsConnection.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                updateConnectionStatus(false);
             };
         }
         
