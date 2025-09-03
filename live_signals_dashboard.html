@@ -326,46 +326,15 @@
         
         // WebSocket connection for real-time signals
         function initializeWebSocket() {
-            try {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/ws/signals`;
-                console.log('Connecting to WebSocket:', wsUrl);
-                wsConnection = new WebSocket(wsUrl);
-            } catch (error) {
-                console.error('WebSocket connection failed:', error);
-                updateConnectionStatus(false);
-                return;
-            }
+            // Skip WebSocket for now - server doesn't have WebSocket endpoint
+            console.log('WebSocket disabled - using polling instead');
+            updateConnectionStatus(false);
             
-            wsConnection.onopen = function() {
-                console.log('WebSocket connected');
-                updateConnectionStatus(true);
-            };
+            // Poll for new signals every 10 seconds
+            setInterval(loadHistoricalSignals, 10000);
+            return;
             
-            wsConnection.onmessage = function(event) {
-                const signal = JSON.parse(event.data);
-                addNewSignal(signal);
-                updateMetrics();
-                updateAIAnalysis();
-            };
-            
-            wsConnection.onclose = function() {
-                console.log('WebSocket disconnected');
-                updateConnectionStatus(false);
-                // Reconnect after 5 seconds
-                setTimeout(() => {
-                    try {
-                        initializeWebSocket();
-                    } catch (error) {
-                        console.error('WebSocket reconnection failed:', error);
-                    }
-                }, 5000);
-            };
-            
-            wsConnection.onerror = function(error) {
-                console.error('WebSocket error:', error);
-                updateConnectionStatus(false);
-            };
+
         }
         
         // Load historical signals
@@ -408,20 +377,21 @@
         // Create signal element
         function createSignalElement(signal) {
             const div = document.createElement('div');
-            div.className = `signal-item signal-${signal.bias.toLowerCase()}`;
+            div.className = `signal-item signal-${(signal.bias || 'neutral').toLowerCase()}`;
             
-            const typeClass = signal.type.includes('IFVG') ? 'signal-ifvg' : '';
+            const signalType = signal.signal_type || signal.type || 'UNKNOWN';
+            const typeClass = signalType.includes('IFVG') ? 'signal-ifvg' : '';
             if (typeClass) div.className += ` ${typeClass}`;
             
             div.innerHTML = `
                 <div class="signal-header">
-                    <div class="signal-type">${signal.type}</div>
+                    <div class="signal-type">${signalType}</div>
                     <div class="signal-time">${formatTime(signal.timestamp)}</div>
                 </div>
                 <div class="signal-details">
-                    <div><strong>${signal.symbol}</strong> | ${signal.timeframe}</div>
-                    <div>Price: ${signal.price} | Bias: ${signal.bias}</div>
-                    <div>Strength: ${signal.strength}% | Volume: ${signal.volume || 'N/A'}</div>
+                    <div><strong>${signal.symbol || 'UNKNOWN'}</strong> | ${signal.timeframe || '1m'}</div>
+                    <div>Price: ${signal.price || 0} | Bias: ${signal.bias || 'Neutral'}</div>
+                    <div>Strength: ${signal.strength || 0}% | Volume: ${signal.volume || 'N/A'}</div>
                     ${signal.level2 ? `<div>L2: ${signal.level2.spread} spread</div>` : ''}
                 </div>
             `;
