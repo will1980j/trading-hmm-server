@@ -1800,34 +1800,36 @@ def get_live_signals():
 def capture_live_signal():
     """Webhook endpoint for TradingView to send live signals"""
     try:
-        # Handle both JSON and form data from TradingView
+        # Handle TradingView webhook - they send the alert message as raw text
+        raw_data = request.get_data(as_text=True)
+        logger.info(f"Raw webhook data: {raw_data[:500]}")
+        
         data = None
         
-        if request.content_type == 'application/json':
-            data = request.get_json()
-        else:
-            # TradingView sends as form data or raw text
+        # Try to parse as JSON first
+        if raw_data:
             try:
-                raw_data = request.get_data(as_text=True)
-                if raw_data:
-                    data = loads(raw_data)
+                data = loads(raw_data)
             except:
-                # If JSON parsing fails, try form data
-                form_data = request.form.to_dict()
-                if form_data:
-                    # Check if the entire JSON is in one form field
-                    for key, value in form_data.items():
-                        try:
-                            data = loads(value)
-                            break
-                        except:
-                            continue
-                    if not data:
-                        data = form_data
+                # If not JSON, treat as plain text alert message
+                data = {'alert_message': raw_data}
         
-        if not data:
-            logger.error(f"No data received - Content-Type: {request.content_type}, Raw: {request.get_data(as_text=True)[:200]}")
-            return jsonify({"error": "No data provided"}), 400
+        # Also check form data
+        if not data and request.form:
+            form_data = request.form.to_dict()
+            if form_data:
+                data = form_data
+        
+        # Create default signal if no structured data
+        if not data or not isinstance(data, dict):
+            data = {
+                'symbol': 'NQ1!',
+                'bias': 'Neutral',
+                'signal_type': 'WEBHOOK_TEST',
+                'price': 0,
+                'strength': 50,
+                'timeframe': '1m'
+            }
         
         logger.info(f"Webhook received data: {type(data)} - {str(data)[:200]}...")
         
