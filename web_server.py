@@ -1826,10 +1826,10 @@ def capture_live_signal():
                         data = form_data
         
         if not data:
-            logger.error("No data received in webhook")
+            logger.error(f"No data received - Content-Type: {request.content_type}, Raw: {request.get_data(as_text=True)[:200]}")
             return jsonify({"error": "No data provided"}), 400
         
-        logger.info(f"Webhook received data: {data}")
+        logger.info(f"Webhook received data: {type(data)} - {str(data)[:200]}...")
         
         if not db_enabled or not db:
             return jsonify({"error": "Database not available"}), 500
@@ -1941,7 +1941,8 @@ def capture_live_signal():
     except Exception as e:
         if hasattr(db, 'conn') and db.conn:
             db.conn.rollback()
-        logger.error(f"Error capturing live signal: {str(e)}")
+        logger.error(f"Error capturing live signal: {str(e)} - Content-Type: {request.content_type}")
+        logger.error(f"Raw request data: {request.get_data(as_text=True)[:500]}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ai-signal-analysis-live', methods=['POST'])
