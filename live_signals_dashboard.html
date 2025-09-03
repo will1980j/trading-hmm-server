@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Signal Dashboard - FVG/IFVG Real-time Analytics</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+            color: #fff;
+            overflow-x: hidden;
+        }
+        
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+        
+        .header {
+            grid-column: 1 / -1;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .sidebar {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            overflow-y: auto;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-rows: 200px 1fr;
+            gap: 10px;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        
+        .metric-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            opacity: 0.7;
+            text-transform: uppercase;
+        }
+        
+        .signals-container {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            overflow-y: auto;
+        }
+        
+        .analysis-panel {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            overflow-y: auto;
+        }
+        
+        .signal-item {
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+        }
+        
+        .signal-item:hover {
+            background: rgba(255,255,255,0.08);
+            transform: translateX(5px);
+        }
+        
+        .signal-bullish { border-left-color: #00ff88; }
+        .signal-bearish { border-left-color: #ff4757; }
+        .signal-ifvg { border-left-color: #3742fa; }
+        
+        .signal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .signal-type {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .signal-time {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        
+        .signal-details {
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .timeframe-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .timeframe-tab {
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .timeframe-tab.active {
+            background: #00ff88;
+            color: #000;
+        }
+        
+        .correlation-matrix {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .correlation-item {
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 12px;
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-live { background: #00ff88; animation: pulse 2s infinite; }
+        .status-offline { background: #ff4757; }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .ai-analysis {
+            background: rgba(0,255,136,0.1);
+            border: 1px solid rgba(0,255,136,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .strength-meter {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+        
+        .strength-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4757, #ffa502, #00ff88);
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <h1>🎯 Live Signal Dashboard</h1>
+            <div>
+                <span class="status-indicator status-live"></span>
+                <span>Live Feed Active</span>
+                <span style="margin-left: 20px; font-size: 14px;" id="lastUpdate">Last: --:--</span>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <h3>Timeframes</h3>
+            <div class="timeframe-tabs">
+                <button class="timeframe-tab active" onclick="switchTimeframe('1m')">1M</button>
+                <button class="timeframe-tab" onclick="switchTimeframe('5m')">5M</button>
+                <button class="timeframe-tab" onclick="switchTimeframe('15m')">15M</button>
+                <button class="timeframe-tab" onclick="switchTimeframe('1h')">1H</button>
+            </div>
+            
+            <h3>Symbol Correlations</h3>
+            <div class="correlation-matrix" id="correlationMatrix">
+                <div class="correlation-item">
+                    <div>NQ vs ES</div>
+                    <div style="color: #00ff88;">+0.87</div>
+                </div>
+                <div class="correlation-item">
+                    <div>NQ vs YM</div>
+                    <div style="color: #ffa502;">+0.65</div>
+                </div>
+                <div class="correlation-item">
+                    <div>NQ vs RTY</div>
+                    <div style="color: #ff4757;">-0.23</div>
+                </div>
+            </div>
+            
+            <h3>Signal Filters</h3>
+            <div style="margin: 10px 0;">
+                <label><input type="checkbox" checked> Bullish FVG</label><br>
+                <label><input type="checkbox" checked> Bearish FVG</label><br>
+                <label><input type="checkbox" checked> Bullish IFVG</label><br>
+                <label><input type="checkbox" checked> Bearish IFVG</label><br>
+                <label><input type="checkbox" checked> ATH/ATL Bias</label>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value" id="totalSignals">0</div>
+                    <div class="metric-label">Total Signals</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="bullishSignals">0</div>
+                    <div class="metric-label">Bullish</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="bearishSignals">0</div>
+                    <div class="metric-label">Bearish</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="signalStrength">--</div>
+                    <div class="metric-label">Avg Strength</div>
+                </div>
+            </div>
+            
+            <div class="signals-container">
+                <h3>Live Signals Feed</h3>
+                <div id="signalsFeed">
+                    <!-- Signals will be populated here -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="analysis-panel">
+            <h3>🤖 AI Analysis</h3>
+            <div class="ai-analysis" id="aiAnalysis">
+                <div>Analyzing signal patterns...</div>
+            </div>
+            
+            <h3>Signal Strength</h3>
+            <div style="margin: 10px 0;">
+                <div>Current Signal</div>
+                <div class="strength-meter">
+                    <div class="strength-fill" style="width: 0%" id="strengthMeter"></div>
+                </div>
+                <div style="font-size: 12px; opacity: 0.7;" id="strengthText">No active signal</div>
+            </div>
+            
+            <h3>Level 2 Data</h3>
+            <div id="level2Data" style="font-size: 12px; line-height: 1.4;">
+                <div>Bid/Ask Spread: --</div>
+                <div>Volume Imbalance: --</div>
+                <div>Order Flow: --</div>
+            </div>
+            
+            <h3>Divergence Alerts</h3>
+            <div id="divergenceAlerts">
+                <div style="font-size: 12px; opacity: 0.7;">No divergences detected</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTimeframe = '1m';
+        let signals = [];
+        let wsConnection = null;
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeWebSocket();
+            loadHistoricalSignals();
+            startMetricsUpdate();
+        });
+        
+        // WebSocket connection for real-time signals
+        function initializeWebSocket() {
+            const wsUrl = 'wss://web-production-cd33.up.railway.app/ws/signals';
+            wsConnection = new WebSocket(wsUrl);
+            
+            wsConnection.onopen = function() {
+                console.log('WebSocket connected');
+                updateConnectionStatus(true);
+            };
+            
+            wsConnection.onmessage = function(event) {
+                const signal = JSON.parse(event.data);
+                addNewSignal(signal);
+                updateMetrics();
+                updateAIAnalysis();
+            };
+            
+            wsConnection.onclose = function() {
+                console.log('WebSocket disconnected');
+                updateConnectionStatus(false);
+                // Reconnect after 5 seconds
+                setTimeout(initializeWebSocket, 5000);
+            };
+        }
+        
+        // Load historical signals
+        async function loadHistoricalSignals() {
+            try {
+                const response = await fetch('/api/live-signals?timeframe=' + currentTimeframe);
+                const data = await response.json();
+                signals = data.signals || [];
+                updateSignalsFeed();
+                updateMetrics();
+            } catch (error) {
+                console.error('Error loading signals:', error);
+            }
+        }
+        
+        // Add new signal to feed
+        function addNewSignal(signal) {
+            signals.unshift(signal);
+            if (signals.length > 100) {
+                signals = signals.slice(0, 100); // Keep last 100 signals
+            }
+            updateSignalsFeed();
+            updateLastUpdateTime();
+        }
+        
+        // Update signals feed display
+        function updateSignalsFeed() {
+            const feed = document.getElementById('signalsFeed');
+            feed.innerHTML = '';
+            
+            signals.forEach(signal => {
+                const signalElement = createSignalElement(signal);
+                feed.appendChild(signalElement);
+            });
+        }
+        
+        // Create signal element
+        function createSignalElement(signal) {
+            const div = document.createElement('div');
+            div.className = `signal-item signal-${signal.bias.toLowerCase()}`;
+            
+            const typeClass = signal.type.includes('IFVG') ? 'signal-ifvg' : '';
+            if (typeClass) div.className += ` ${typeClass}`;
+            
+            div.innerHTML = `
+                <div class="signal-header">
+                    <div class="signal-type">${signal.type}</div>
+                    <div class="signal-time">${formatTime(signal.timestamp)}</div>
+                </div>
+                <div class="signal-details">
+                    <div><strong>${signal.symbol}</strong> | ${signal.timeframe}</div>
+                    <div>Price: ${signal.price} | Bias: ${signal.bias}</div>
+                    <div>Strength: ${signal.strength}% | Volume: ${signal.volume || 'N/A'}</div>
+                    ${signal.level2 ? `<div>L2: ${signal.level2.spread} spread</div>` : ''}
+                </div>
+            `;
+            
+            return div;
+        }
+        
+        // Update metrics
+        function updateMetrics() {
+            const total = signals.length;
+            const bullish = signals.filter(s => s.bias === 'Bullish').length;
+            const bearish = signals.filter(s => s.bias === 'Bearish').length;
+            const avgStrength = signals.length > 0 ? 
+                (signals.reduce((sum, s) => sum + s.strength, 0) / signals.length).toFixed(1) : '--';
+            
+            document.getElementById('totalSignals').textContent = total;
+            document.getElementById('bullishSignals').textContent = bullish;
+            document.getElementById('bearishSignals').textContent = bearish;
+            document.getElementById('signalStrength').textContent = avgStrength + '%';
+        }
+        
+        // Switch timeframe
+        function switchTimeframe(timeframe) {
+            currentTimeframe = timeframe;
+            
+            // Update active tab
+            document.querySelectorAll('.timeframe-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Reload signals for new timeframe
+            loadHistoricalSignals();
+        }
+        
+        // Update AI analysis
+        async function updateAIAnalysis() {
+            if (signals.length < 5) return;
+            
+            try {
+                const response = await fetch('/api/ai-signal-analysis-live', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        signals: signals.slice(0, 20),
+                        timeframe: currentTimeframe 
+                    })
+                });
+                
+                const data = await response.json();
+                document.getElementById('aiAnalysis').innerHTML = `
+                    <div><strong>Pattern Recognition:</strong></div>
+                    <div>${data.pattern || 'Analyzing...'}</div>
+                    <div style="margin-top: 10px;"><strong>Recommendation:</strong></div>
+                    <div>${data.recommendation || 'Processing...'}</div>
+                `;
+            } catch (error) {
+                console.error('AI analysis error:', error);
+            }
+        }
+        
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            const indicator = document.querySelector('.status-indicator');
+            const text = indicator.nextElementSibling;
+            
+            if (connected) {
+                indicator.className = 'status-indicator status-live';
+                text.textContent = 'Live Feed Active';
+            } else {
+                indicator.className = 'status-indicator status-offline';
+                text.textContent = 'Reconnecting...';
+            }
+        }
+        
+        // Update last update time
+        function updateLastUpdateTime() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = 
+                `Last: ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        }
+        
+        // Format timestamp
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+        
+        // Start metrics update interval
+        function startMetricsUpdate() {
+            setInterval(() => {
+                updateCorrelations();
+                updateLevel2Data();
+                checkDivergences();
+            }, 5000);
+        }
+        
+        // Update correlations (mock data for now)
+        function updateCorrelations() {
+            // This would connect to real correlation data
+            const correlations = [
+                { pair: 'NQ vs ES', value: (Math.random() * 0.4 + 0.6).toFixed(2) },
+                { pair: 'NQ vs YM', value: (Math.random() * 0.3 + 0.5).toFixed(2) },
+                { pair: 'NQ vs RTY', value: (Math.random() * 0.6 - 0.3).toFixed(2) }
+            ];
+            
+            const matrix = document.getElementById('correlationMatrix');
+            matrix.innerHTML = correlations.map(corr => `
+                <div class="correlation-item">
+                    <div>${corr.pair}</div>
+                    <div style="color: ${corr.value > 0.5 ? '#00ff88' : corr.value > 0 ? '#ffa502' : '#ff4757'};">
+                        ${corr.value > 0 ? '+' : ''}${corr.value}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Update Level 2 data (mock)
+        function updateLevel2Data() {
+            const spread = (Math.random() * 2 + 0.5).toFixed(2);
+            const imbalance = (Math.random() * 200 - 100).toFixed(0);
+            const flow = Math.random() > 0.5 ? 'Bullish' : 'Bearish';
+            
+            document.getElementById('level2Data').innerHTML = `
+                <div>Bid/Ask Spread: ${spread} pts</div>
+                <div>Volume Imbalance: ${imbalance}%</div>
+                <div>Order Flow: ${flow}</div>
+            `;
+        }
+        
+        // Check for divergences
+        function checkDivergences() {
+            // Mock divergence detection
+            const hasDivergence = Math.random() > 0.8;
+            const alertsDiv = document.getElementById('divergenceAlerts');
+            
+            if (hasDivergence) {
+                alertsDiv.innerHTML = `
+                    <div style="color: #ff4757; font-weight: bold;">
+                        ⚠️ Divergence Alert: NQ bullish, ES bearish
+                    </div>
+                `;
+            } else {
+                alertsDiv.innerHTML = `
+                    <div style="font-size: 12px; opacity: 0.7;">No divergences detected</div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

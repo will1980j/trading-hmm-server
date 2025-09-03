@@ -1751,6 +1751,197 @@ def check_localStorage():
         "migration_endpoint": "/api/signal-lab-migrate"
     })
 
+# Live Signals API endpoints
+@app.route('/live-signals-dashboard')
+@login_required
+def live_signals_dashboard():
+    return read_html_file('live_signals_dashboard.html')
+
+@app.route('/api/live-signals', methods=['GET'])
+@login_required
+def get_live_signals():
+    try:
+        timeframe = request.args.get('timeframe', '1m')
+        limit = int(request.args.get('limit', 50))
+        
+        if not db_enabled or not db:
+            return jsonify({'signals': []})
+        
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            SELECT * FROM live_signals 
+            WHERE timeframe = %s 
+            ORDER BY timestamp DESC 
+            LIMIT %s
+        """, (timeframe, limit))
+        
+        signals = [dict(row) for row in cursor.fetchall()]
+        return jsonify({'signals': signals, 'count': len(signals)})
+        
+    except Exception as e:
+        logger.error(f"Error getting live signals: {str(e)}")
+        return jsonify({'signals': [], 'error': str(e)})
+
+@app.route('/api/live-signals', methods=['POST'])
+def capture_live_signal():
+    """Webhook endpoint for TradingView to send live signals"""
+    try:
+        data = request.get_json()
+        
+        if not db_enabled or not db:
+            return jsonify({"error": "Database not available"}), 500
+        
+        # Extract signal data from TradingView webhook
+        signal = {
+            'symbol': data.get('symbol', 'NQ1!'),
+            'timeframe': data.get('timeframe', '1m'),
+            'signal_type': data.get('signal_type', 'FVG'),
+            'bias': data.get('bias', 'Neutral'),
+            'price': float(data.get('price', 0)),
+            'strength': float(data.get('strength', 50)),
+            'volume': data.get('volume'),
+            'ath': data.get('ath'),
+            'atl': data.get('atl'),
+            'fvg_high': data.get('fvg_high'),
+            'fvg_low': data.get('fvg_low'),
+            'level2_data': data.get('level2'),
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            INSERT INTO live_signals 
+            (symbol, timeframe, signal_type, bias, price, strength, volume, 
+             ath, atl, fvg_high, fvg_low, level2_data, raw_data, timestamp)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            RETURNING id
+        """, (
+            signal['symbol'], signal['timeframe'], signal['signal_type'],
+            signal['bias'], signal['price'], signal['strength'], signal['volume'],
+            signal['ath'], signal['atl'], signal['fvg_high'], signal['fvg_low'],
+            dumps(signal.get('level2_data', {})), dumps(data)
+        ))
+        
+        result = cursor.fetchone()
+        signal_id = result['id']
+        db.conn.commit()
+        
+        # Trigger AI analysis for pattern recognition
+        # analyze_signal_patterns.delay(signal_id)  # Uncomment when Celery is set up
+        analyze_signal_patterns(signal_id)  # Direct call for now
+        
+        logger.info(f"Live signal captured: {signal['symbol']} {signal['signal_type']} at {signal['price']}")
+        
+        return jsonify({
+            "status": "success",
+            "signal_id": signal_id,
+            "message": "Signal captured successfully"
+        })
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error capturing live signal: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ai-signal-analysis-live', methods=['POST'])
+@login_required
+def ai_signal_analysis_live():
+    try:
+        if not client:
+            return jsonify({"pattern": "AI analysis offline", "recommendation": "Manual analysis required"})
+            
+        data = request.get_json()
+        signals = data.get('signals', [])
+        timeframe = data.get('timeframe', '1m')
+        
+        if len(signals) < 3:
+            return jsonify({"pattern": "Insufficient data", "recommendation": "Collecting signals..."})
+        
+        # Build context for AI analysis
+        context = build_live_signal_context(signals, timeframe)
+        
+        prompt = f"""Real-time FVG/IFVG Signal Analysis:
+        
+        {context}
+        
+        Provide immediate trading insights:
+        1. PATTERN: Current market structure and signal quality
+        2. BIAS: Overall directional bias from recent signals
+        3. STRENGTH: Signal confluence and reliability
+        4. RECOMMENDATION: Immediate action or wait signal
+        
+        Focus on actionable real-time insights for live trading."""
+        
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': environ.get('OPENAI_MODEL', 'gpt-4o'),
+                'messages': [
+                    {"role": "system", "content": "You are an expert real-time trading analyst specializing in FVG/IFVG patterns and market structure. Provide concise, actionable insights."},
+                    {"role": "user", "content": prompt}
+                ],
+                'max_tokens': 200,
+                'temperature': 0.3
+            }
+        )
+        response_data = response.json()
+        
+        ai_response = response_data['choices'][0]['message']['content']
+        
+        # Parse response for structured data
+        pattern = extract_pattern_from_response(ai_response)
+        recommendation = extract_recommendation_from_response(ai_response)
+        
+        return jsonify({
+            "pattern": pattern,
+            "recommendation": recommendation,
+            "full_analysis": ai_response,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in live AI analysis: {str(e)}")
+        return jsonify({
+            "pattern": "Analysis processing...",
+            "recommendation": "Monitor signals for patterns"
+        })
+
+@app.route('/api/signal-correlations', methods=['GET'])
+@login_required
+def get_signal_correlations():
+    """Get correlation analysis between different symbols"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'correlations': []})
+        
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            SELECT symbol, bias, COUNT(*) as signal_count,
+                   AVG(strength) as avg_strength
+            FROM live_signals 
+            WHERE timestamp > NOW() - INTERVAL '1 hour'
+            GROUP BY symbol, bias
+            ORDER BY signal_count DESC
+        """)
+        
+        correlations = [dict(row) for row in cursor.fetchall()]
+        
+        # Calculate divergences
+        divergences = detect_signal_divergences(correlations)
+        
+        return jsonify({
+            'correlations': correlations,
+            'divergences': divergences,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting correlations: {str(e)}")
+        return jsonify({'correlations': [], 'error': str(e)})
+
 # 15M Signal Lab API endpoints
 @app.route('/api/signal-lab-15m-trades', methods=['GET'])
 @login_required
@@ -3448,6 +3639,177 @@ def extract_time_patterns(ai_response):
         patterns.extend(hour_matches[:3])  # Top 3 time ranges
     
     return patterns if patterns else ['Analysis in progress']
+
+# Live Signal Analysis Helper Functions
+def build_live_signal_context(signals, timeframe):
+    """Build context for live signal AI analysis"""
+    if not signals:
+        return "No recent signals available"
+    
+    # Analyze recent signal patterns
+    bullish_count = len([s for s in signals if s.get('bias') == 'Bullish'])
+    bearish_count = len([s for s in signals if s.get('bias') == 'Bearish'])
+    
+    # Signal type distribution
+    fvg_count = len([s for s in signals if 'FVG' in s.get('type', '') and 'IFVG' not in s.get('type', '')])
+    ifvg_count = len([s for s in signals if 'IFVG' in s.get('type', '')])
+    
+    # Average strength
+    avg_strength = sum([s.get('strength', 50) for s in signals]) / len(signals)
+    
+    # Recent price action
+    recent_prices = [s.get('price', 0) for s in signals[:5]]
+    price_trend = "ascending" if len(recent_prices) > 1 and recent_prices[0] > recent_prices[-1] else "descending"
+    
+    context = f"""LIVE SIGNAL ANALYSIS ({timeframe} timeframe):
+    
+    Recent Signals: {len(signals)} in last period
+    Bias Distribution: {bullish_count} Bullish, {bearish_count} Bearish
+    Signal Types: {fvg_count} FVG, {ifvg_count} IFVG
+    Average Strength: {avg_strength:.1f}%
+    Price Trend: {price_trend}
+    
+    Latest Signals:
+    """
+    
+    for i, signal in enumerate(signals[:3]):
+        context += f"\n    {i+1}. {signal.get('type', 'Unknown')} - {signal.get('bias', 'Neutral')} at {signal.get('price', 0)} (Strength: {signal.get('strength', 0)}%)"
+    
+    return context
+
+def extract_pattern_from_response(ai_response):
+    """Extract pattern analysis from AI response"""
+    lines = ai_response.split('\n')
+    for line in lines:
+        if 'PATTERN:' in line.upper() or 'pattern' in line.lower():
+            return line.split(':', 1)[-1].strip()
+    
+    # Fallback to first meaningful line
+    for line in lines:
+        if len(line.strip()) > 10:
+            return line.strip()[:100]
+    
+    return "Pattern analysis in progress"
+
+def extract_recommendation_from_response(ai_response):
+    """Extract recommendation from AI response"""
+    lines = ai_response.split('\n')
+    for line in lines:
+        if 'RECOMMENDATION:' in line.upper() or 'recommend' in line.lower():
+            return line.split(':', 1)[-1].strip()
+    
+    # Look for action words
+    action_words = ['buy', 'sell', 'wait', 'hold', 'enter', 'exit', 'monitor']
+    for line in lines:
+        if any(word in line.lower() for word in action_words):
+            return line.strip()[:100]
+    
+    return "Monitor signals for clear direction"
+
+def detect_signal_divergences(correlations):
+    """Detect divergences between correlated symbols"""
+    divergences = []
+    
+    # Group by symbol
+    symbol_data = {}
+    for corr in correlations:
+        symbol = corr['symbol']
+        if symbol not in symbol_data:
+            symbol_data[symbol] = {'bullish': 0, 'bearish': 0}
+        
+        if corr['bias'] == 'Bullish':
+            symbol_data[symbol]['bullish'] = corr['signal_count']
+        else:
+            symbol_data[symbol]['bearish'] = corr['signal_count']
+    
+    # Check for divergences between correlated pairs
+    correlated_pairs = [('NQ1!', 'ES1!'), ('NQ1!', 'YM1!'), ('ES1!', 'RTY1!')]
+    
+    for symbol1, symbol2 in correlated_pairs:
+        if symbol1 in symbol_data and symbol2 in symbol_data:
+            s1_bias = 'Bullish' if symbol_data[symbol1]['bullish'] > symbol_data[symbol1]['bearish'] else 'Bearish'
+            s2_bias = 'Bullish' if symbol_data[symbol2]['bullish'] > symbol_data[symbol2]['bearish'] else 'Bearish'
+            
+            if s1_bias != s2_bias:
+                divergences.append({
+                    'pair': f"{symbol1} vs {symbol2}",
+                    'divergence': f"{symbol1} {s1_bias}, {symbol2} {s2_bias}",
+                    'strength': abs(symbol_data[symbol1]['bullish'] - symbol_data[symbol1]['bearish']) + 
+                               abs(symbol_data[symbol2]['bullish'] - symbol_data[symbol2]['bearish'])
+                })
+    
+    return divergences
+
+# Async task for signal pattern analysis (placeholder for Celery)
+def analyze_signal_patterns(signal_id):
+    """Analyze signal patterns for machine learning insights"""
+    try:
+        if not db_enabled or not db:
+            return
+        
+        cursor = db.conn.cursor()
+        cursor.execute("SELECT * FROM live_signals WHERE id = %s", (signal_id,))
+        signal = cursor.fetchone()
+        
+        if not signal:
+            return
+        
+        # Get recent signals for pattern analysis
+        cursor.execute("""
+            SELECT * FROM live_signals 
+            WHERE symbol = %s AND timeframe = %s 
+            AND timestamp > NOW() - INTERVAL '1 hour'
+            ORDER BY timestamp DESC LIMIT 20
+        """, (signal['symbol'], signal['timeframe']))
+        
+        recent_signals = cursor.fetchall()
+        
+        # Perform pattern analysis
+        patterns = analyze_signal_sequence(recent_signals)
+        
+        # Store AI analysis results
+        cursor.execute("""
+            UPDATE live_signals 
+            SET ai_analysis = %s 
+            WHERE id = %s
+        """, (dumps(patterns), signal_id))
+        
+        db.conn.commit()
+        logger.info(f"Pattern analysis completed for signal {signal_id}")
+        
+    except Exception as e:
+        logger.error(f"Error in pattern analysis: {str(e)}")
+
+def analyze_signal_sequence(signals):
+    """Analyze sequence of signals for patterns"""
+    if len(signals) < 3:
+        return {'pattern': 'insufficient_data', 'confidence': 0}
+    
+    # Analyze bias changes
+    bias_changes = 0
+    for i in range(1, len(signals)):
+        if signals[i]['bias'] != signals[i-1]['bias']:
+            bias_changes += 1
+    
+    # Analyze strength trends
+    strengths = [s['strength'] for s in signals if s['strength']]
+    avg_strength = sum(strengths) / len(strengths) if strengths else 50
+    
+    # Determine pattern
+    if bias_changes == 0:
+        pattern = 'trending'
+    elif bias_changes > len(signals) * 0.5:
+        pattern = 'choppy'
+    else:
+        pattern = 'transitioning'
+    
+    return {
+        'pattern': pattern,
+        'confidence': min(100, avg_strength + (len(signals) * 5)),
+        'bias_changes': bias_changes,
+        'avg_strength': avg_strength,
+        'signal_count': len(signals)
+    }
 
 # Positive response parsing functions
 def extract_positive_health_score(response):

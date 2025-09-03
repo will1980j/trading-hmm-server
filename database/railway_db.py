@@ -207,8 +207,34 @@ class RailwayDB:
                 ADD COLUMN IF NOT EXISTS analysis_data JSONB
             ''')
             
+            # Create live signals table
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS live_signals (
+                    id SERIAL PRIMARY KEY,
+                    symbol VARCHAR(20) NOT NULL,
+                    timeframe VARCHAR(10) NOT NULL,
+                    signal_type VARCHAR(50) NOT NULL,
+                    bias VARCHAR(20) NOT NULL,
+                    price DECIMAL(12,4) NOT NULL,
+                    strength DECIMAL(5,2) DEFAULT 50,
+                    volume BIGINT,
+                    ath DECIMAL(12,4),
+                    atl DECIMAL(12,4),
+                    fvg_high DECIMAL(12,4),
+                    fvg_low DECIMAL(12,4),
+                    level2_data JSONB,
+                    raw_data JSONB,
+                    ai_analysis JSONB,
+                    timestamp TIMESTAMPTZ DEFAULT NOW(),
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            ''')
+            
             # Create index for analysis data queries
             cur.execute('CREATE INDEX IF NOT EXISTS idx_signal_lab_analysis ON signal_lab_trades USING GIN (analysis_data)')
+            cur.execute('CREATE INDEX IF NOT EXISTS idx_live_signals_symbol_time ON live_signals(symbol, timestamp DESC)')
+            cur.execute('CREATE INDEX IF NOT EXISTS idx_live_signals_timeframe ON live_signals(timeframe, timestamp DESC)')
+            cur.execute('CREATE INDEX IF NOT EXISTS idx_live_signals_analysis ON live_signals USING GIN (ai_analysis)')
             
             # Indexes for better performance
             cur.execute('CREATE INDEX IF NOT EXISTS idx_market_data_symbol_time ON market_data(symbol, timestamp DESC)')
