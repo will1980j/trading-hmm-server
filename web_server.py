@@ -1642,6 +1642,35 @@ def delete_signal_lab_trade(trade_id):
         logger.error(f"Error deleting signal lab trade: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/signal-lab-trades/bulk-delete', methods=['DELETE'])
+@login_required
+def bulk_delete_signal_lab_trades():
+    try:
+        if not db_enabled or not db:
+            return jsonify({"error": "Database not available"}), 500
+        
+        cursor = db.conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
+        count_before = cursor.fetchone()[0]
+        
+        cursor.execute("DELETE FROM signal_lab_trades")
+        rows_deleted = cursor.rowcount
+        db.conn.commit()
+        
+        logger.info(f"Bulk deleted {rows_deleted} trades from signal_lab_trades table")
+        
+        return jsonify({
+            "status": "success",
+            "rows_deleted": rows_deleted,
+            "message": f"Deleted all {rows_deleted} entries from 1M signal table"
+        })
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error bulk deleting signal lab trades: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/signal-lab-migrate', methods=['POST'])
 @login_required
 def migrate_signal_lab_data():
