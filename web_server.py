@@ -1651,7 +1651,8 @@ def bulk_delete_signal_lab_trades():
         
         cursor = db.conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
-        count_before = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        count_before = result['count'] if result else 0
         
         cursor.execute("DELETE FROM signal_lab_trades")
         rows_deleted = cursor.rowcount
