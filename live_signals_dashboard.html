@@ -355,38 +355,14 @@
                 const response = await fetch('/api/live-signals?timeframe=' + currentTimeframe);
                 const data = await response.json();
                 signals = data.signals || [];
-                
-                // If no real signals, show sample data
-                if (signals.length === 0) {
-                    signals = generateSampleSignals();
-                }
-                
                 updateSignalsFeed();
                 updateMetrics();
             } catch (error) {
                 console.error('Error loading signals:', error);
-                // Fallback to sample data
-                signals = generateSampleSignals();
+                signals = [];
                 updateSignalsFeed();
                 updateMetrics();
             }
-        }
-        
-        function generateSampleSignals() {
-            return [
-                {
-                    symbol: 'NQ1!', timeframe: '1m', type: 'BULLISH_FVG', bias: 'Bullish',
-                    price: 20150.25, strength: 85, volume: 1250, timestamp: Date.now() - 300000
-                },
-                {
-                    symbol: 'NQ1!', timeframe: '1m', type: 'BEARISH_IFVG', bias: 'Bearish', 
-                    price: 20145.75, strength: 72, volume: 980, timestamp: Date.now() - 600000
-                },
-                {
-                    symbol: 'ES1!', timeframe: '5m', type: 'ATH_BIAS', bias: 'Bullish',
-                    price: 5125.50, strength: 91, volume: 2100, timestamp: Date.now() - 900000
-                }
-            ];
         }
         
         // Add new signal to feed
@@ -529,52 +505,57 @@
             }, 5000);
         }
         
-        // Update correlations (mock data for now)
-        function updateCorrelations() {
-            // This would connect to real correlation data
-            const correlations = [
-                { pair: 'NQ vs ES', value: (Math.random() * 0.4 + 0.6).toFixed(2) },
-                { pair: 'NQ vs YM', value: (Math.random() * 0.3 + 0.5).toFixed(2) },
-                { pair: 'NQ vs RTY', value: (Math.random() * 0.6 - 0.3).toFixed(2) }
-            ];
-            
-            const matrix = document.getElementById('correlationMatrix');
-            matrix.innerHTML = correlations.map(corr => `
-                <div class="correlation-item">
-                    <div>${corr.pair}</div>
-                    <div style="color: ${corr.value > 0.5 ? '#00ff88' : corr.value > 0 ? '#ffa502' : '#ff4757'};">
-                        ${corr.value > 0 ? '+' : ''}${corr.value}
-                    </div>
-                </div>
-            `).join('');
+        // Update correlations from API
+        async function updateCorrelations() {
+            try {
+                const response = await fetch('/api/signal-correlations');
+                const data = await response.json();
+                
+                if (data.correlations && data.correlations.length > 0) {
+                    const matrix = document.getElementById('correlationMatrix');
+                    matrix.innerHTML = data.correlations.slice(0, 3).map(corr => `
+                        <div class="correlation-item">
+                            <div>${corr.symbol}</div>
+                            <div style="color: ${corr.avg_strength > 70 ? '#00ff88' : corr.avg_strength > 50 ? '#ffa502' : '#ff4757'};">
+                                ${corr.avg_strength.toFixed(1)}%
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading correlations:', error);
+            }
         }
         
-        // Update Level 2 data (mock)
+        // Update Level 2 data from provider
         function updateLevel2Data() {
-            const spread = (Math.random() * 2 + 0.5).toFixed(2);
-            const imbalance = (Math.random() * 200 - 100).toFixed(0);
-            const flow = Math.random() > 0.5 ? 'Bullish' : 'Bearish';
-            
+            // Real Level 2 data would come from level2_provider
             document.getElementById('level2Data').innerHTML = `
-                <div>Bid/Ask Spread: ${spread} pts</div>
-                <div>Volume Imbalance: ${imbalance}%</div>
-                <div>Order Flow: ${flow}</div>
+                <div>Bid/Ask Spread: --</div>
+                <div>Volume Imbalance: --</div>
+                <div>Order Flow: --</div>
             `;
         }
         
-        // Check for divergences
-        function checkDivergences() {
-            // Mock divergence detection
-            const hasDivergence = Math.random() > 0.8;
-            const alertsDiv = document.getElementById('divergenceAlerts');
-            
-            if (hasDivergence) {
-                alertsDiv.innerHTML = `
-                    <div style="color: #ff4757; font-weight: bold;">
-                        ⚠️ Divergence Alert: NQ bullish, ES bearish
-                    </div>
-                `;
-            } else {
+        // Check for divergences from API
+        async function checkDivergences() {
+            try {
+                const response = await fetch('/api/signal-correlations');
+                const data = await response.json();
+                const alertsDiv = document.getElementById('divergenceAlerts');
+                
+                if (data.divergences && data.divergences.length > 0) {
+                    alertsDiv.innerHTML = data.divergences.map(div => `
+                        <div style="color: #ff4757; font-weight: bold;">
+                            ⚠️ ${div.divergence}
+                        </div>
+                    `).join('');
+                } else {
+                    alertsDiv.innerHTML = `
+                        <div style="font-size: 12px; opacity: 0.7;">No divergences detected</div>
+                    `;
+                }
+            } catch (error) {
                 alertsDiv.innerHTML = `
                     <div style="font-size: 12px; opacity: 0.7;">No divergences detected</div>
                 `;
