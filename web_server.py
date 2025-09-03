@@ -1800,7 +1800,36 @@ def get_live_signals():
 def capture_live_signal():
     """Webhook endpoint for TradingView to send live signals"""
     try:
-        data = request.get_json()
+        # Handle both JSON and form data from TradingView
+        data = None
+        
+        if request.content_type == 'application/json':
+            data = request.get_json()
+        else:
+            # TradingView sends as form data or raw text
+            try:
+                raw_data = request.get_data(as_text=True)
+                if raw_data:
+                    data = loads(raw_data)
+            except:
+                # If JSON parsing fails, try form data
+                form_data = request.form.to_dict()
+                if form_data:
+                    # Check if the entire JSON is in one form field
+                    for key, value in form_data.items():
+                        try:
+                            data = loads(value)
+                            break
+                        except:
+                            continue
+                    if not data:
+                        data = form_data
+        
+        if not data:
+            logger.error("No data received in webhook")
+            return jsonify({"error": "No data provided"}), 400
+        
+        logger.info(f"Webhook received data: {data}")
         
         if not db_enabled or not db:
             return jsonify({"error": "Database not available"}), 500
