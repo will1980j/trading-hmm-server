@@ -15,7 +15,7 @@ from datetime import datetime
 from auth import login_required, authenticate
 import math
 
-# Constants
+# Constants - Updated for Railway deployment
 NEWLINE_CHAR = '\n'
 CARRIAGE_RETURN_CHAR = '\r'
 
@@ -3886,6 +3886,6 @@ def extract_positive_recommendation(response):
 if __name__ == '__main__':
     port = int(environ.get('PORT', 8080))
     debug_mode = environ.get('DEBUG', 'False').lower() == 'true'
-    host = '127.0.0.1'  # Localhost only
+    host = '0.0.0.0'  # Accept external connections
     logger.info(f"Starting server on {host}:{port}, debug={debug_mode}")
     app.run(host=host, port=port, debug=debug_mode)

@@ -1,9 +1,3 @@
-# API Keys and Secrets
-.env
-*.key
-config.json
-
-# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -12,21 +6,19 @@ __pycache__/
 env/
 venv/
 .venv/
-
-# Node
-node_modules/
-npm-debug.log*
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
 *.log
-logs/
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
+.env
+.DS_Store
