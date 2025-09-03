@@ -1925,6 +1925,32 @@ def ai_signal_analysis_live():
             "recommendation": "Monitor signals for patterns"
         })
 
+@app.route('/api/live-signals/clear-all', methods=['DELETE'])
+def clear_all_live_signals():
+    """Clear all live signals from database"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        cursor = db.conn.cursor()
+        cursor.execute("DELETE FROM live_signals")
+        rows_deleted = cursor.rowcount
+        db.conn.commit()
+        
+        logger.info(f"Cleared {rows_deleted} live signals from database")
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Cleared {rows_deleted} live signals',
+            'rows_deleted': rows_deleted
+        })
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error clearing live signals: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/signal-correlations', methods=['GET'])
 @login_required
 def get_signal_correlations():
