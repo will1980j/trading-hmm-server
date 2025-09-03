@@ -1805,8 +1805,10 @@ def capture_live_signal():
         if not db_enabled or not db:
             return jsonify({"error": "Database not available"}), 500
         
-        # Extract signal data from TradingView webhook - focus on triangle bias
+        # Extract signal data from TradingView webhook - focus on triangle bias with HTF context
         triangle_bias = data.get('bias', 'Neutral')  # This is the key signal
+        htf_status = data.get('htf_status', '')  # HTF alignment status
+        htf_aligned = data.get('htf_aligned', False)  # Whether HTF is aligned
         
         signal = {
             'symbol': data.get('symbol', 'NQ1!'),
@@ -1816,21 +1818,22 @@ def capture_live_signal():
             'price': float(data.get('price', 0)),
             'strength': float(data.get('strength', 50)),
             'fvg_detail': data.get('signal_type', 'FVG'),  # Store original FVG/IFVG detail
+            'htf_status': htf_status,  # Store HTF timeframe status
+            'htf_aligned': htf_aligned,  # Store HTF alignment flag
             'timestamp': datetime.now().isoformat()
         }
         
         cursor = db.conn.cursor()
         cursor.execute("""
             INSERT INTO live_signals 
-            (symbol, timeframe, signal_type, bias, price, strength, volume, 
-             ath, atl, fvg_high, fvg_low, level2_data, raw_data, timestamp)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            (symbol, timeframe, signal_type, bias, price, strength, 
+             htf_status, htf_aligned, timestamp)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
             RETURNING id
         """, (
             signal['symbol'], signal['timeframe'], signal['signal_type'],
-            signal['bias'], signal['price'], signal['strength'], signal['volume'],
-            signal['ath'], signal['atl'], signal['fvg_high'], signal['fvg_low'],
-            dumps(signal.get('level2_data', {})), dumps(data)
+            signal['bias'], signal['price'], signal['strength'], 
+            signal.get('htf_status', ''), signal.get('htf_aligned', False)
         ))
         
         result = cursor.fetchone()
@@ -1854,12 +1857,48 @@ def capture_live_signal():
         except ImportError:
             pass  # Level 2 data not available
         
-        # Run ML analysis in background
+        # Run ML analysis and divergence detection
         analyze_signal_patterns(signal_id)
+        
+        # Check for NQ divergence opportunities
+        if signal['symbol'] in ['NQ1!', 'ES1!', 'YM1!', 'RTY1!', 'DXY']:
+            divergence_opportunities = detect_nq_divergence_opportunities(signal, all_signals=None)
+            if divergence_opportunities:
+                # Create NQ divergence signal
+                for opp in divergence_opportunities:
+                    cursor.execute("""
+                        INSERT INTO live_signals 
+                        (symbol, timeframe, signal_type, bias, price, strength, 
+                         htf_status, htf_aligned, timestamp)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                        RETURNING id
+                    """, (
+                        'NQ1!', '1m', f"DIVERGENCE_{opp['type']}", opp['bias'],
+                        opp['nq_price'], opp['strength'], opp['htf_status'], opp['htf_aligned']
+                    ))
+                    
+                    div_signal_id = cursor.fetchone()['id']
+                    db.conn.commit()
+                    
+                    # Broadcast divergence signal
+                    div_signal = {
+                        'id': div_signal_id,
+                        'symbol': 'NQ1!',
+                        'timeframe': '1m',
+                        'signal_type': f"DIVERGENCE_{opp['type']}",
+                        'bias': opp['bias'],
+                        'price': opp['nq_price'],
+                        'strength': opp['strength'],
+                        'htf_status': opp['htf_status'],
+                        'htf_aligned': opp['htf_aligned'],
+                        'divergence_detail': opp['detail']
+                    }
+                    socketio.emit('new_signal', div_signal, namespace='/')
+                    logger.info(f"NQ divergence opportunity: {opp['detail']}")
         
         logger.info(f"Live signal captured: {signal['symbol']} {signal['signal_type']} at {signal['price']}")
         
-        # Broadcast signal to all connected clients
+        # Broadcast original signal to all connected clients
         enhanced_signal = dict(signal)
         enhanced_signal['id'] = signal_id
         socketio.emit('new_signal', enhanced_signal, namespace='/')
@@ -3833,6 +3872,86 @@ def detect_signal_divergences_old(correlations):
     return divergences
 
 # Async task for signal pattern analysis (placeholder for Celery)
+def detect_nq_divergence_opportunities(current_signal, all_signals=None):
+    """Detect NQ divergence trading opportunities based on correlated ticker analysis"""
+    try:
+        if not db_enabled or not db:
+            return []
+        
+        cursor = db.conn.cursor()
+        
+        # Get recent signals from all correlated tickers (last 30 minutes)
+        cursor.execute("""
+            SELECT symbol, bias, strength, price, htf_status, htf_aligned, timestamp
+            FROM live_signals 
+            WHERE timestamp > NOW() - INTERVAL '30 minutes'
+            AND symbol IN ('NQ1!', 'ES1!', 'YM1!', 'RTY1!', 'DXY')
+            ORDER BY timestamp DESC
+        """)
+        
+        recent_signals = [dict(row) for row in cursor.fetchall()]
+        
+        # Group by symbol and get latest bias
+        symbol_bias = {}
+        for signal in recent_signals:
+            symbol = signal['symbol']
+            if symbol not in symbol_bias or signal['timestamp'] > symbol_bias[symbol]['timestamp']:
+                symbol_bias[symbol] = signal
+        
+        opportunities = []
+        
+        # Define correlation expectations
+        positive_correlations = [('NQ1!', 'ES1!'), ('NQ1!', 'YM1!'), ('ES1!', 'YM1!')]
+        negative_correlations = [('NQ1!', 'DXY'), ('ES1!', 'DXY'), ('YM1!', 'DXY')]
+        
+        # Check for divergences that create NQ opportunities
+        for symbol1, symbol2 in positive_correlations:
+            if symbol1 in symbol_bias and symbol2 in symbol_bias:
+                bias1 = symbol_bias[symbol1]['bias']
+                bias2 = symbol_bias[symbol2]['bias']
+                
+                # Positive correlation divergence (should move together but don't)
+                if bias1 != bias2:
+                    # If NQ is involved, create opportunity
+                    if symbol1 == 'NQ1!' or symbol2 == 'NQ1!':
+                        nq_data = symbol_bias.get('NQ1!', {})
+                        if nq_data and nq_data.get('htf_aligned', False):
+                            opportunities.append({
+                                'type': 'POSITIVE_DIVERGENCE',
+                                'bias': nq_data['bias'],
+                                'nq_price': nq_data['price'],
+                                'strength': min(95, nq_data['strength'] + 15),  # Boost for divergence
+                                'htf_status': nq_data['htf_status'],
+                                'htf_aligned': True,
+                                'detail': f"NQ {bias1} vs {symbol2} {bias2} - Indices diverging"
+                            })
+        
+        # Check negative correlations (should move opposite)
+        for symbol1, symbol2 in negative_correlations:
+            if symbol1 in symbol_bias and symbol2 in symbol_bias:
+                bias1 = symbol_bias[symbol1]['bias']
+                bias2 = symbol_bias[symbol2]['bias']
+                
+                # Negative correlation divergence (should be opposite but same)
+                if bias1 == bias2:
+                    nq_data = symbol_bias.get('NQ1!', {})
+                    if nq_data and nq_data.get('htf_aligned', False):
+                        opportunities.append({
+                            'type': 'NEGATIVE_DIVERGENCE',
+                            'bias': nq_data['bias'],
+                            'nq_price': nq_data['price'],
+                            'strength': min(98, nq_data['strength'] + 20),  # Higher boost for DXY divergence
+                            'htf_status': nq_data['htf_status'],
+                            'htf_aligned': True,
+                            'detail': f"NQ & DXY both {bias1} - Institutional flow detected"
+                        })
+        
+        return opportunities
+        
+    except Exception as e:
+        logger.error(f"Error detecting NQ divergences: {str(e)}")
+        return []
+
 def analyze_signal_patterns(signal_id):
     """Analyze signal patterns for machine learning insights"""
     try:

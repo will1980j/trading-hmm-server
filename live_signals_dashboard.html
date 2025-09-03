@@ -126,6 +126,15 @@
         .signal-bearish { color: #ff4757; }
         .signal-neutral { color: #ffa502; }
         
+        .divergence-signal {
+            background: rgba(255, 215, 0, 0.1) !important;
+            border-left: 3px solid #FFD700;
+        }
+        
+        .divergence-signal:hover {
+            background: rgba(255, 215, 0, 0.2) !important;
+        }
+        
         .no-signals {
             text-align: center;
             padding: 40px 20px;
@@ -286,9 +295,10 @@
                                 <th>Time</th>
                                 <th>Symbol</th>
                                 <th>Triangle Bias</th>
+                                <th>HTF Status</th>
                                 <th>Price</th>
                                 <th>Strength</th>
-                                <th>Institutional Alert</th>
+                                <th>Institutional</th>
                             </tr>
                         </thead>
                         <tbody id="signalsFeed">
@@ -440,33 +450,56 @@
             const bias = signal.bias || 'Neutral';
             const biasClass = `signal-${bias.toLowerCase()}`;
             
+            // Check if this is a divergence signal
+            const isDivergence = signal.signal_type && signal.signal_type.includes('DIVERGENCE');
+            
             // Show triangle direction with arrow and details
             const arrow = bias === 'Bullish' ? '▲' : bias === 'Bearish' ? '▼' : '◆';
-            const fvgDetail = signal.fvg_detail || signal.signal_type || 'FVG';
+            let signalDetail = signal.fvg_detail || signal.signal_type || 'FVG';
+            
+            // Special handling for divergence signals
+            if (isDivergence) {
+                const divType = signal.signal_type.replace('DIVERGENCE_', '');
+                signalDetail = `${divType} DIV`;
+            }
+            
             const triangleDisplay = `
                 <div class="${biasClass}"><strong>${arrow} ${bias.toUpperCase()}</strong></div>
                 <div style="font-size: 10px; opacity: 0.8;">
-                    ${fvgDetail} @ ${signal.price || 0}<br>
-                    Strength: ${Math.round(signal.strength || 0)}%
+                    ${signalDetail}<br>
+                    ${Math.round(signal.strength || 0)}%
                 </div>
             `;
             
-            // Check for institutional alerts
+            // HTF Status display
+            const htfStatus = signal.htf_status || '--';
+            const htfAligned = signal.htf_aligned;
+            const htfDisplay = htfAligned ? 
+                `<div style="color: #00ff88; font-size: 10px;">✓ ALIGNED<br>${htfStatus}</div>` :
+                `<div style="color: #ffa502; font-size: 10px;">⚠ PARTIAL<br>${htfStatus}</div>`;
+            
+            // Enhanced institutional alerts for divergences
             let institutionalAlert = '--';
-            if (signal.ai_analysis) {
+            if (isDivergence) {
+                institutionalAlert = '🚨 DIVERGENCE';
+            } else if (signal.ai_analysis) {
                 try {
                     const analysis = JSON.parse(signal.ai_analysis);
                     if (analysis.divergences_detected > 0) {
-                        institutionalAlert = '🚨 INSTITUTIONAL';
+                        institutionalAlert = '🚨 INST';
                     }
                 } catch (e) {}
             }
             
+            // Add special styling for divergence signals
+            const rowClass = isDivergence ? `${biasClass} divergence-signal` : biasClass;
+            
             return `
-                <tr class="${biasClass}">
+                <tr class="${rowClass}">
                     <td>${formatTime(signal.timestamp)}</td>
                     <td><strong>${signal.symbol || 'N/A'}</strong></td>
                     <td>${triangleDisplay}</td>
+                    <td>${htfDisplay}</td>
                     <td>${signal.price || 0}</td>
                     <td>${Math.round(signal.strength || 0)}%</td>
                     <td>${institutionalAlert}</td>

@@ -1,0 +1,228 @@
+//@version=5
+indicator("Live FVG/IFVG Signal with HTF Bias", overlay=true)
+
+// Webhook settings
+webhook_url = input.string("https://web-production-cd33.up.railway.app/api/live-signals", "Webhook URL")
+enable_webhooks = input.bool(true, "Enable Webhooks")
+
+// HTF Timeframe selection (same as scanner)
+use_daily = input.bool(true, "Daily", group="HTF Bias Filter")
+use_4h = input.bool(true, "4H", group="HTF Bias Filter")
+use_1h = input.bool(true, "1H", group="HTF Bias Filter")
+use_15m = input.bool(true, "15M", group="HTF Bias Filter")
+use_5m = input.bool(true, "5M", group="HTF Bias Filter")
+
+// Visual settings
+show_htf_status = input.bool(true, "Show HTF Status", group="Display")
+show_background = input.bool(false, "Show Background Color", group="Display")
+htf_aligned_only = input.bool(false, "HTF Aligned Triangles Only", group="Display")
+triangle_size = input.string("Normal", "Triangle Size", options=["Tiny", "Small", "Normal", "Large", "Huge"], group="Display", confirm=true)
+table_position = input.string("Top Right", "Table Position", options=["Top Left", "Top Right", "Bottom Left", "Bottom Right", "Middle Left", "Middle Right"], group="Display")
+bull_color = input.color(color.green, "Bullish Color", group="Display")
+bear_color = input.color(color.red, "Bearish Color", group="Display")
+neutral_color = input.color(color.gray, "Neutral Color", group="Display")
+table_bg_color = input.color(color.new(color.black, 80), "Table Background", group="Display")
+table_border_color = input.color(color.gray, "Table Border", group="Display")
+
+// === HTF BIAS CALCULATION (Same logic as scanner) ===
+var string bias = "Neutral"
+var float ath = na
+var float atl = na
+var bull_fvg_highs = array.new<float>()
+var bull_fvg_lows = array.new<float>()
+var bear_fvg_highs = array.new<float>()
+var bear_fvg_lows = array.new<float>()
+var bull_ifvg_highs = array.new<float>()
+var bull_ifvg_lows = array.new<float>()
+var bear_ifvg_highs = array.new<float>()
+var bear_ifvg_lows = array.new<float>()
+
+if barstate.isconfirmed
+    // Update all-time high/low
+    ath := na(ath) ? high : math.max(ath, high)
+    atl := na(atl) ? low : math.min(atl, low)
+    
+    // Check for ATH/ATL bias changes
+    if close > ath[1] and bias != "Bullish"
+        bias := "Bullish"
+    else if close < atl[1] and bias != "Bearish"
+        bias := "Bearish"
+    
+    c2_high = high[2]
+    c2_low = low[2]
+    c0_high = high
+    c0_low = low
+    
+    bullish_fvg = c2_high < c0_low
+    bearish_fvg = c2_low > c0_high
+    
+    if bullish_fvg
+        array.push(bull_fvg_highs, c0_low)
+        array.push(bull_fvg_lows, c2_high)
+        
+    if bearish_fvg
+        array.push(bear_fvg_highs, c2_low)
+        array.push(bear_fvg_lows, c0_high)
+    
+    // IFVG logic (same as scanner)
+    if array.size(bull_fvg_highs) > 0
+        for i = array.size(bull_fvg_highs) - 1 to 0
+            if close < array.get(bull_fvg_lows, i)
+                array.push(bear_ifvg_highs, array.get(bull_fvg_highs, i))
+                array.push(bear_ifvg_lows, array.get(bull_fvg_lows, i))
+                array.remove(bull_fvg_highs, i)
+                array.remove(bull_fvg_lows, i)
+                bias := "Bearish"
+                
+    if array.size(bear_fvg_highs) > 0
+        for i = array.size(bear_fvg_highs) - 1 to 0
+            if close > array.get(bear_fvg_highs, i)
+                array.push(bull_ifvg_highs, array.get(bear_fvg_highs, i))
+                array.push(bull_ifvg_lows, array.get(bear_fvg_lows, i))
+                array.remove(bear_fvg_highs, i)
+                array.remove(bear_fvg_lows, i)
+                bias := "Bullish"
+                
+    if array.size(bear_ifvg_highs) > 0
+        for i = array.size(bear_ifvg_highs) - 1 to 0
+            if close > array.get(bear_ifvg_highs, i)
+                array.remove(bear_ifvg_highs, i)
+                array.remove(bear_ifvg_lows, i)
+                bias := "Bullish"
+                
+    if array.size(bull_ifvg_highs) > 0
+        for i = array.size(bull_ifvg_highs) - 1 to 0
+            if close < array.get(bull_ifvg_lows, i)
+                array.remove(bull_ifvg_highs, i)
+                array.remove(bull_ifvg_lows, i)
+                bias := "Bearish"
+
+// === GET HTF BIAS ===
+daily_bias = request.security(syminfo.tickerid, "1D", bias)
+h4_bias = request.security(syminfo.tickerid, "240", bias)
+h1_bias = request.security(syminfo.tickerid, "60", bias)
+m15_bias = request.security(syminfo.tickerid, "15", bias)
+m5_bias = request.security(syminfo.tickerid, "5", bias)
+
+// Check HTF alignment
+daily_bull_ok = not use_daily or daily_bias == "Bullish"
+daily_bear_ok = not use_daily or daily_bias == "Bearish"
+h4_bull_ok = not use_4h or h4_bias == "Bullish"
+h4_bear_ok = not use_4h or h4_bias == "Bearish"
+h1_bull_ok = not use_1h or h1_bias == "Bullish"
+h1_bear_ok = not use_1h or h1_bias == "Bearish"
+m15_bull_ok = not use_15m or m15_bias == "Bullish"
+m15_bear_ok = not use_15m or m15_bias == "Bearish"
+m5_bull_ok = not use_5m or m5_bias == "Bullish"
+m5_bear_ok = not use_5m or m5_bias == "Bearish"
+
+htf_bullish = daily_bull_ok and h4_bull_ok and h1_bull_ok and m15_bull_ok and m5_bull_ok
+htf_bearish = daily_bear_ok and h4_bear_ok and h1_bear_ok and m15_bear_ok and m5_bear_ok
+
+// === SIGNAL DETECTION ===
+signal_strength = 50.0
+
+// FVG Detection on current timeframe
+c2_high = high[2]
+c2_low = low[2]
+c0_high = high
+c0_low = low
+
+bullish_fvg_signal = c2_high < c0_low
+bearish_fvg_signal = c2_low > c0_high
+
+// IFVG Detection (when bias changes)
+bullish_ifvg_signal = bias != bias[1] and bias == "Bullish"
+bearish_ifvg_signal = bias != bias[1] and bias == "Bearish"
+
+// Enhanced strength based on HTF alignment
+if htf_bullish and bias == "Bullish"
+    signal_strength := 85.0
+else if htf_bearish and bias == "Bearish"
+    signal_strength := 85.0
+else if htf_bullish or htf_bearish
+    signal_strength := 70.0
+
+// === HTF STATUS DISPLAY ===
+get_table_position() =>
+    switch table_position
+        "Top Left" => position.top_left
+        "Top Right" => position.top_right
+        "Bottom Left" => position.bottom_left
+        "Bottom Right" => position.bottom_right
+        "Middle Left" => position.middle_left
+        "Middle Right" => position.middle_right
+        => position.top_right
+
+var table htf_table = table.new(get_table_position(), 6, 2, bgcolor=table_bg_color, border_width=1, border_color=table_border_color)
+
+if show_htf_status and barstate.islast
+    // Header row
+    table.cell(htf_table, 0, 0, "Daily", text_color=color.white, bgcolor=color.new(table_border_color, 50))
+    table.cell(htf_table, 1, 0, "4H", text_color=color.white, bgcolor=color.new(table_border_color, 50))
+    table.cell(htf_table, 2, 0, "1H", text_color=color.white, bgcolor=color.new(table_border_color, 50))
+    table.cell(htf_table, 3, 0, "15M", text_color=color.white, bgcolor=color.new(table_border_color, 50))
+    table.cell(htf_table, 4, 0, "5M", text_color=color.white, bgcolor=color.new(table_border_color, 50))
+    table.cell(htf_table, 5, 0, "Signal", text_color=color.white, bgcolor=color.new(table_border_color, 50))
+    
+    // Data row with bias colors
+    daily_color = use_daily ? (daily_bias == "Bullish" ? bull_color : daily_bias == "Bearish" ? bear_color : neutral_color) : neutral_color
+    h4_color = use_4h ? (h4_bias == "Bullish" ? bull_color : h4_bias == "Bearish" ? bear_color : neutral_color) : neutral_color
+    h1_color = use_1h ? (h1_bias == "Bullish" ? bull_color : h1_bias == "Bearish" ? bear_color : neutral_color) : neutral_color
+    m15_color = use_15m ? (m15_bias == "Bullish" ? bull_color : m15_bias == "Bearish" ? bear_color : neutral_color) : neutral_color
+    m5_color = use_5m ? (m5_bias == "Bullish" ? bull_color : m5_bias == "Bearish" ? bear_color : neutral_color) : neutral_color
+    
+    table.cell(htf_table, 0, 1, use_daily ? daily_bias : "OFF", text_color=daily_color, bgcolor=color.new(daily_color, 90))
+    table.cell(htf_table, 1, 1, use_4h ? h4_bias : "OFF", text_color=h4_color, bgcolor=color.new(h4_color, 90))
+    table.cell(htf_table, 2, 1, use_1h ? h1_bias : "OFF", text_color=h1_color, bgcolor=color.new(h1_color, 90))
+    table.cell(htf_table, 3, 1, use_15m ? m15_bias : "OFF", text_color=m15_color, bgcolor=color.new(m15_color, 90))
+    table.cell(htf_table, 4, 1, use_5m ? m5_bias : "OFF", text_color=m5_color, bgcolor=color.new(m5_color, 90))
+    
+    signal_text = htf_bullish ? "BULL" : htf_bearish ? "BEAR" : "WAIT"
+    signal_color = htf_bullish ? bull_color : htf_bearish ? bear_color : neutral_color
+    table.cell(htf_table, 5, 1, signal_text, text_color=color.white, bgcolor=color.new(signal_color, 70))
+
+// === WEBHOOK ALERTS ===
+if enable_webhooks and barstate.isconfirmed
+    // Build HTF status string
+    htf_status = ""
+    htf_status := htf_status + (use_daily ? "D:" + daily_bias + " " : "")
+    htf_status := htf_status + (use_4h ? "4H:" + h4_bias + " " : "")
+    htf_status := htf_status + (use_1h ? "1H:" + h1_bias + " " : "")
+    htf_status := htf_status + (use_15m ? "15M:" + m15_bias + " " : "")
+    htf_status := htf_status + (use_5m ? "5M:" + m5_bias : "")
+    
+    // Send bullish FVG signal
+    if bullish_fvg_signal
+        alert('{"symbol":"' + syminfo.tickerid + '","timeframe":"1m","signal_type":"BULLISH_FVG","bias":"Bullish","price":' + str.tostring(close) + ',"strength":' + str.tostring(signal_strength) + ',"htf_status":"' + htf_status + '","htf_aligned":' + str.tostring(htf_bullish) + '}', alert.freq_once_per_bar)
+    
+    // Send bearish FVG signal  
+    if bearish_fvg_signal
+        alert('{"symbol":"' + syminfo.tickerid + '","timeframe":"1m","signal_type":"BEARISH_FVG","bias":"Bearish","price":' + str.tostring(close) + ',"strength":' + str.tostring(signal_strength) + ',"htf_status":"' + htf_status + '","htf_aligned":' + str.tostring(htf_bearish) + '}', alert.freq_once_per_bar)
+    
+    // Send bullish IFVG signal
+    if bullish_ifvg_signal
+        alert('{"symbol":"' + syminfo.tickerid + '","timeframe":"1m","signal_type":"BULLISH_IFVG","bias":"Bullish","price":' + str.tostring(close) + ',"strength":' + str.tostring(signal_strength) + ',"htf_status":"' + htf_status + '","htf_aligned":' + str.tostring(htf_bullish) + '}', alert.freq_once_per_bar)
+    
+    // Send bearish IFVG signal
+    if bearish_ifvg_signal
+        alert('{"symbol":"' + syminfo.tickerid + '","timeframe":"1m","signal_type":"BEARISH_IFVG","bias":"Bearish","price":' + str.tostring(close) + ',"strength":' + str.tostring(signal_strength) + ',"htf_status":"' + htf_status + '","htf_aligned":' + str.tostring(htf_bearish) + '}', alert.freq_once_per_bar)
+
+// Visual signals - bias change triangles (filtered by HTF if enabled)
+show_bull_triangle = htf_aligned_only ? (bias != bias[1] and bias == "Bullish" and htf_bullish) : (bias != bias[1] and bias == "Bullish")
+show_bear_triangle = htf_aligned_only ? (bias != bias[1] and bias == "Bearish" and htf_bearish) : (bias != bias[1] and bias == "Bearish")
+
+plotshape(triangle_size == "Tiny" and show_bull_triangle, "Bias Bullish Tiny", shape.triangleup, location.belowbar, bull_color, size=size.tiny)
+plotshape(triangle_size == "Small" and show_bull_triangle, "Bias Bullish Small", shape.triangleup, location.belowbar, bull_color, size=size.small)
+plotshape(triangle_size == "Normal" and show_bull_triangle, "Bias Bullish Normal", shape.triangleup, location.belowbar, bull_color, size=size.normal)
+plotshape(triangle_size == "Large" and show_bull_triangle, "Bias Bullish Large", shape.triangleup, location.belowbar, bull_color, size=size.large)
+plotshape(triangle_size == "Huge" and show_bull_triangle, "Bias Bullish Huge", shape.triangleup, location.belowbar, bull_color, size=size.huge)
+
+plotshape(triangle_size == "Tiny" and show_bear_triangle, "Bias Bearish Tiny", shape.triangledown, location.abovebar, bear_color, size=size.tiny)
+plotshape(triangle_size == "Small" and show_bear_triangle, "Bias Bearish Small", shape.triangledown, location.abovebar, bear_color, size=size.small)
+plotshape(triangle_size == "Normal" and show_bear_triangle, "Bias Bearish Normal", shape.triangledown, location.abovebar, bear_color, size=size.normal)
+plotshape(triangle_size == "Large" and show_bear_triangle, "Bias Bearish Large", shape.triangledown, location.abovebar, bear_color, size=size.large)
+plotshape(triangle_size == "Huge" and show_bear_triangle, "Bias Bearish Huge", shape.triangledown, location.abovebar, bear_color, size=size.huge)
+
+// Optional background color
+bgcolor(show_background ? (bias == "Bullish" ? color.new(bull_color, 95) : bias == "Bearish" ? color.new(bear_color, 95) : na) : na)
