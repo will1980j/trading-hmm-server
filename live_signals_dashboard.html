@@ -380,12 +380,26 @@
         
         // Add new signal to feed
         function addNewSignal(signal) {
+            // Remove any existing signal with same ID to prevent duplicates
+            signals = signals.filter(s => s.id !== signal.id);
+            
             signals.unshift(signal);
-            if (signals.length > 100) {
-                signals = signals.slice(0, 100); // Keep last 100 signals
+            if (signals.length > 50) {
+                signals = signals.slice(0, 50); // Keep last 50 signals for better performance
             }
             updateSignalsFeed();
             updateLastUpdateTime();
+            
+            // Highlight new signal briefly
+            setTimeout(() => {
+                const newSignalElement = document.querySelector('.signal-item');
+                if (newSignalElement) {
+                    newSignalElement.style.backgroundColor = 'rgba(0,255,136,0.2)';
+                    setTimeout(() => {
+                        newSignalElement.style.backgroundColor = '';
+                    }, 2000);
+                }
+            }, 100);
         }
         
         // Update signals feed display

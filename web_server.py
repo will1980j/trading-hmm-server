@@ -1934,6 +1934,39 @@ def ai_signal_analysis_live():
             "recommendation": "Monitor signals for patterns"
         })
 
+@app.route('/api/live-signals/delete-test', methods=['POST'])
+def delete_test_signals():
+    """Delete all test signals from database"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            DELETE FROM live_signals 
+            WHERE signal_type LIKE '%TEST%' 
+            OR signal_type LIKE '%FIX%'
+            OR signal_type LIKE '%DEBUG%'
+            OR signal_type LIKE '%BULLISH_FVG%'
+            OR price = 20150.2500
+        """)
+        rows_deleted = cursor.rowcount
+        db.conn.commit()
+        
+        logger.info(f"Deleted {rows_deleted} test signals from database")
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Deleted {rows_deleted} test signals',
+            'rows_deleted': rows_deleted
+        })
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error deleting test signals: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/live-signals/clear-all', methods=['DELETE'])
 def clear_all_live_signals():
     """Clear all live signals from database"""
@@ -3815,11 +3848,40 @@ def analyze_signal_patterns(signal_id):
         
         all_signals = [dict(row) for row in cursor.fetchall()]
         
-        # Basic pattern analysis (skip ML for now)
+        # Enhanced ML analysis with divergence detection
+        from divergence_alerts import divergence_detector
+        
+        # Get correlation data for divergence analysis
+        cursor.execute("""
+            SELECT symbol, bias, COUNT(*) as signal_count, AVG(strength) as avg_strength
+            FROM live_signals 
+            WHERE timestamp > NOW() - INTERVAL '1 hour'
+            GROUP BY symbol, bias
+        """)
+        correlation_data = [dict(row) for row in cursor.fetchall()]
+        
+        # Detect divergences
+        divergences = divergence_detector.analyze_divergences(all_signals[:10])
+        
+        # Calculate divergence strength factor
+        divergence_factor = 1.0
+        if divergences:
+            # Boost signal strength if it aligns with divergences
+            for div in divergences:
+                if signal['symbol'] in div.get('symbols', []):
+                    if div['type'] == 'REGULAR_DIVERGENCE':
+                        divergence_factor += 0.2  # 20% boost for divergence confirmation
+                    elif div['type'] == 'HIDDEN_DIVERGENCE':
+                        divergence_factor += 0.1  # 10% boost for hidden divergence
+        
+        # Enhanced pattern analysis
         patterns = analyze_signal_sequence(all_signals[:20])
-        patterns['ml_prediction'] = 0.5
-        patterns['ml_confidence'] = 50
-        patterns['key_features'] = []
+        patterns['divergence_factor'] = divergence_factor
+        patterns['divergences_detected'] = len(divergences)
+        patterns['correlation_strength'] = calculate_correlation_strength(correlation_data, signal['symbol'])
+        patterns['ml_prediction'] = min(0.95, 0.5 * divergence_factor)
+        patterns['ml_confidence'] = min(100, 50 * divergence_factor)
+        patterns['key_features'] = [f"Divergence factor: {divergence_factor:.2f}", f"Correlations: {len(correlation_data)}"]
         
         # Store enhanced AI analysis
         cursor.execute("""
@@ -3829,10 +3891,29 @@ def analyze_signal_patterns(signal_id):
         """, (dumps(patterns), signal_id))
         
         db.conn.commit()
-        logger.info(f"Pattern analysis completed for signal {signal_id}")
+        logger.info(f"Enhanced ML analysis completed for signal {signal_id}: divergence_factor={patterns.get('divergence_factor', 1.0):.2f}")
+        
+        # Update signal strength based on divergence analysis
+        if patterns.get('divergence_factor', 1.0) > 1.0:
+            enhanced_strength = min(100, signal['strength'] * patterns['divergence_factor'])
+            cursor.execute(
+                "UPDATE live_signals SET strength = %s WHERE id = %s",
+                (enhanced_strength, signal_id)
+            )
+            db.conn.commit()
+            logger.info(f"Signal {signal_id} strength enhanced from {signal['strength']} to {enhanced_strength}")
         
     except Exception as e:
         logger.error(f"Error in ML analysis: {str(e)}")
+
+def calculate_correlation_strength(correlation_data, symbol):
+    """Calculate correlation strength for a symbol"""
+    symbol_correlations = [c for c in correlation_data if c['symbol'] == symbol]
+    if not symbol_correlations:
+        return 0.5
+    
+    total_strength = sum(c['avg_strength'] for c in symbol_correlations)
+    return min(1.0, total_strength / (len(symbol_correlations) * 100))
 
 def analyze_signal_sequence(signals):
     """Analyze sequence of signals for patterns"""
