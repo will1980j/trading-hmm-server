@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Signal Dashboard - FVG/IFVG Real-time Analytics</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -327,15 +328,36 @@
         
         // WebSocket connection for real-time signals
         function initializeWebSocket() {
-            // Skip WebSocket for now - server doesn't have WebSocket endpoint
-            console.log('WebSocket disabled - using polling instead');
-            updateConnectionStatus(false);
-            
-            // Poll for new signals every 10 seconds
-            setInterval(loadHistoricalSignals, 10000);
-            return;
-            
-
+            try {
+                // Connect to SocketIO
+                const socket = io();
+                
+                socket.on('connect', function() {
+                    console.log('WebSocket connected');
+                    updateConnectionStatus(true);
+                });
+                
+                socket.on('disconnect', function() {
+                    console.log('WebSocket disconnected');
+                    updateConnectionStatus(false);
+                });
+                
+                socket.on('new_signal', function(signal) {
+                    console.log('New signal received:', signal);
+                    addNewSignal(signal);
+                    updateMetrics();
+                    updateAIAnalysis();
+                });
+                
+                // Fallback polling every 30 seconds
+                setInterval(loadHistoricalSignals, 30000);
+                
+            } catch (error) {
+                console.error('WebSocket connection failed:', error);
+                updateConnectionStatus(false);
+                // Fallback to polling
+                setInterval(loadHistoricalSignals, 10000);
+            }
         }
         
         // Load historical signals
@@ -510,14 +532,17 @@
                 
                 if (data.correlations && data.correlations.length > 0) {
                     const matrix = document.getElementById('correlationMatrix');
-                    matrix.innerHTML = data.correlations.slice(0, 3).map(corr => `
-                        <div class="correlation-item">
-                            <div>${corr.symbol}</div>
-                            <div style="color: ${corr.avg_strength > 70 ? '#00ff88' : corr.avg_strength > 50 ? '#ffa502' : '#ff4757'};">
-                                ${corr.avg_strength.toFixed(1)}%
+                    matrix.innerHTML = data.correlations.slice(0, 3).map(corr => {
+                        const strength = parseFloat(corr.avg_strength) || 0;
+                        return `
+                            <div class="correlation-item">
+                                <div>${corr.symbol || 'N/A'}</div>
+                                <div style="color: ${strength > 70 ? '#00ff88' : strength > 50 ? '#ffa502' : '#ff4757'};">
+                                    ${strength.toFixed(1)}%
+                                </div>
                             </div>
-                        </div>
-                    `).join('');
+                        `;
+                    }).join('');
                 }
             } catch (error) {
                 console.error('Error loading correlations:', error);

@@ -1,5 +1,6 @@
 from flask import Flask, render_template_string, send_from_directory, request, jsonify, session, redirect, url_for
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 from os import environ, path
 from json import loads, dumps
 from dotenv import load_dotenv
@@ -71,6 +72,9 @@ app = Flask(__name__)
 app.secret_key = environ.get('SECRET_KEY', 'dev-key-change-in-production')
 CORS(app, origins=['chrome-extension://abndgpgodnhhkchaoiiopnondcpmnanc', 'https://www.tradingview.com'], supports_credentials=True)
 csrf.init_app(app)
+
+# Initialize SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # Read HTML files and serve them
 def read_html_file(filename):
@@ -1847,6 +1851,11 @@ def capture_live_signal():
         analyze_signal_patterns(signal_id)
         
         logger.info(f"Live signal captured: {signal['symbol']} {signal['signal_type']} at {signal['price']}")
+        
+        # Broadcast signal to all connected clients
+        enhanced_signal = dict(signal)
+        enhanced_signal['id'] = signal_id
+        socketio.emit('new_signal', enhanced_signal, namespace='/')
         
         return jsonify({
             "status": "success",
@@ -3913,5 +3922,5 @@ if __name__ == '__main__':
     port = int(environ.get('PORT', 8080))
     debug_mode = environ.get('DEBUG', 'False').lower() == 'true'
     host = '0.0.0.0'  # Accept external connections
-    logger.info(f"Starting server on {host}:{port}, debug={debug_mode}")
-    app.run(host=host, port=port, debug=debug_mode)
+    logger.info(f"Starting SocketIO server on {host}:{port}, debug={debug_mode}")
+    socketio.run(app, host=host, port=port, debug=debug_mode)
