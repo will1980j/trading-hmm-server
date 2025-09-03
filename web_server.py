@@ -1844,27 +1844,22 @@ def capture_live_signal():
         signal = {
             'symbol': data.get('symbol', 'NQ1!'),
             'timeframe': data.get('timeframe', '1m'),
-            'signal_type': f"TRIANGLE_{triangle_bias.upper()}",  # Simplified to triangle direction
+            'signal_type': f"BIAS_{triangle_bias.upper()}",
             'bias': triangle_bias,
-            'price': float(data.get('price', 0)),
-            'strength': float(data.get('strength', 50)),
-            'fvg_detail': data.get('signal_type', 'FVG'),  # Store original FVG/IFVG detail
-            'htf_status': htf_status,  # Store HTF timeframe status
-            'htf_aligned': htf_aligned,  # Store HTF alignment flag
+            'price': float(data.get('price', 0)) if data.get('price') else 0,
+            'strength': float(data.get('strength', 50)) if data.get('strength') else 50,
             'timestamp': datetime.now().isoformat()
         }
         
         cursor = db.conn.cursor()
         cursor.execute("""
             INSERT INTO live_signals 
-            (symbol, timeframe, signal_type, bias, price, strength, 
-             htf_status, htf_aligned, timestamp)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            (symbol, timeframe, signal_type, bias, price, strength, timestamp)
+            VALUES (%s, %s, %s, %s, %s, %s, NOW())
             RETURNING id
         """, (
             signal['symbol'], signal['timeframe'], signal['signal_type'],
-            signal['bias'], signal['price'], signal['strength'], 
-            signal.get('htf_status', ''), signal.get('htf_aligned', False)
+            signal['bias'], signal['price'], signal['strength']
         ))
         
         result = cursor.fetchone()
@@ -1899,13 +1894,12 @@ def capture_live_signal():
                 for opp in divergence_opportunities:
                     cursor.execute("""
                         INSERT INTO live_signals 
-                        (symbol, timeframe, signal_type, bias, price, strength, 
-                         htf_status, htf_aligned, timestamp)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                        (symbol, timeframe, signal_type, bias, price, strength, timestamp)
+                        VALUES (%s, %s, %s, %s, %s, %s, NOW())
                         RETURNING id
                     """, (
                         'NQ1!', '1m', f"DIVERGENCE_{opp['type']}", opp['bias'],
-                        opp['nq_price'], opp['strength'], opp['htf_status'], opp['htf_aligned']
+                        opp['nq_price'], opp['strength']
                     ))
                     
                     div_signal_id = cursor.fetchone()['id']
