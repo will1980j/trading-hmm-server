@@ -1050,16 +1050,26 @@ def webhook():
             "usage": "Send POST with JSON data"
         })
     try:
-        # Handle different content types
+        # Handle TradingView webhook data (may not have correct Content-Type)
+        data = None
+        
+        # Try JSON first
         if request.is_json:
             data = request.get_json()
         else:
-            # Try to parse as JSON from raw data
-            raw_data = request.get_data(as_text=True)
-            data = loads(raw_data) if raw_data else None
+            # TradingView may send without proper Content-Type, try parsing raw data
+            try:
+                raw_data = request.get_data(as_text=True)
+                if raw_data:
+                    data = loads(raw_data)
+            except:
+                # If JSON parsing fails, try form data
+                data = request.form.to_dict()
+                if not data:
+                    data = request.args.to_dict()
         
         if not data:
-            return jsonify({"error": "No JSON data provided"}), 400
+            return jsonify({"error": "No data provided"}), 400
         
         # Sanitize log input to prevent log injection
         data_type = sanitize_log_input(type(data).__name__)
