@@ -212,7 +212,7 @@
 <body>
     <div class="dashboard-container">
         <div class="header">
-            <h1>🎯 Live Signal Dashboard</h1>
+            <h1>Live Signal Dashboard</h1>
             <div>
                 <span class="status-indicator status-live"></span>
                 <span>Live Feed Active</span>
@@ -345,11 +345,13 @@
                 signals = data.signals || [];
                 updateSignalsFeed();
                 updateMetrics();
+                updateLastUpdateTime();
             } catch (error) {
                 console.error('Error loading signals:', error);
                 signals = [];
                 updateSignalsFeed();
                 updateMetrics();
+                updateLastUpdateTime();
             }
         }
         
@@ -463,15 +465,15 @@
                 text.textContent = 'Live Feed Active';
             } else {
                 indicator.className = 'status-indicator status-offline';
-                text.textContent = 'Reconnecting...';
+                text.textContent = 'Polling for Signals';
             }
         }
         
         // Update last update time
         function updateLastUpdateTime() {
             const now = new Date();
-            document.getElementById('lastUpdate').textContent = 
-                `Last: ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            document.getElementById('lastUpdate').textContent = `Last: ${timeString}`;
         }
         
         // Format timestamp
