@@ -1933,17 +1933,29 @@ def get_signal_correlations():
         cursor = db.conn.cursor()
         cursor.execute("""
             SELECT symbol, bias, COUNT(*) as signal_count,
-                   AVG(strength) as avg_strength
+                   AVG(strength) as avg_strength,
+                   MAX(timestamp) as latest_signal
             FROM live_signals 
-            WHERE timestamp > NOW() - INTERVAL '1 hour'
+            WHERE timestamp > NOW() - INTERVAL '2 hours'
             GROUP BY symbol, bias
-            ORDER BY signal_count DESC
+            ORDER BY latest_signal DESC, signal_count DESC
         """)
         
         correlations = [dict(row) for row in cursor.fetchall()]
         
-        # Calculate divergences
-        divergences = detect_signal_divergences(correlations)
+        # Enhanced divergence detection
+        from divergence_alerts import divergence_detector
+        
+        # Get recent signals for divergence analysis
+        cursor.execute("""
+            SELECT symbol, bias, strength, timestamp
+            FROM live_signals 
+            WHERE timestamp > NOW() - INTERVAL '1 hour'
+            ORDER BY timestamp DESC
+        """)
+        recent_signals = [dict(row) for row in cursor.fetchall()]
+        
+        divergences = divergence_detector.analyze_divergences(recent_signals)
         
         return jsonify({
             'correlations': correlations,
@@ -3719,7 +3731,7 @@ def extract_recommendation_from_response(ai_response):
     
     return "Monitor signals for clear direction"
 
-def detect_signal_divergences(correlations):
+def detect_signal_divergences_old(correlations):
     """Detect divergences between correlated symbols"""
     divergences = []
     
