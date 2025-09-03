@@ -578,9 +578,12 @@
                     `;
                 }
             } catch (error) {
-                alertsDiv.innerHTML = `
-                    <div style="font-size: 12px; opacity: 0.7;">No divergences detected</div>
-                `;
+                const alertsDiv = document.getElementById('divergenceAlerts');
+                if (alertsDiv) {
+                    alertsDiv.innerHTML = `
+                        <div style="font-size: 12px; opacity: 0.7;">No divergences detected</div>
+                    `;
+                }
             }
         }
     </script>
