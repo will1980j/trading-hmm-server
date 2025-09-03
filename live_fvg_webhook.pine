@@ -53,20 +53,20 @@ calculate_signal_strength(signal_type, price_level) =>
     math.min(100, strength)
 
 // === Webhook Function ===
-send_webhook(signal_data) =>
+send_webhook(string signal_type, string signal_bias, float signal_price, float signal_strength, float fvg_high_val, float fvg_low_val) =>
     if enable_webhooks
         // Create JSON payload
         json_payload = '{"symbol":"' + syminfo.tickerid + 
                       '","timeframe":"' + timeframe.period + 
-                      '","signal_type":"' + signal_data.get("type") + 
-                      '","bias":"' + signal_data.get("bias") + 
-                      '","price":' + str.tostring(signal_data.get("price")) + 
-                      ',"strength":' + str.tostring(signal_data.get("strength")) + 
+                      '","signal_type":"' + signal_type + 
+                      '","bias":"' + signal_bias + 
+                      '","price":' + str.tostring(signal_price) + 
+                      ',"strength":' + str.tostring(signal_strength) + 
                       ',"volume":' + str.tostring(volume) + 
                       ',"ath":' + str.tostring(ath) + 
                       ',"atl":' + str.tostring(atl) + 
-                      ',"fvg_high":' + str.tostring(signal_data.get("fvg_high")) + 
-                      ',"fvg_low":' + str.tostring(signal_data.get("fvg_low")) + 
+                      ',"fvg_high":' + str.tostring(fvg_high_val) + 
+                      ',"fvg_low":' + str.tostring(fvg_low_val) + 
                       ',"timestamp":"' + str.tostring(time) + '"}'
         
         // Send webhook (TradingView will handle the HTTP POST)
@@ -100,26 +100,12 @@ if barstate.isconfirmed
     // Send ATH/ATL bias change webhook
     if bias_changed
         signal_strength = calculate_signal_strength("ATH_ATL_BIAS", close)
-        signal_data = map.new<string, float>()
-        map.put(signal_data, "type", "ATH_ATL_BIAS")
-        map.put(signal_data, "bias", bias)
-        map.put(signal_data, "price", close)
-        map.put(signal_data, "strength", signal_strength)
-        map.put(signal_data, "fvg_high", na)
-        map.put(signal_data, "fvg_low", na)
-        send_webhook(signal_data)
+        send_webhook("ATH_ATL_BIAS", bias, close, signal_strength, 0.0, 0.0)
 
     // FVG Creation and Webhook
     if bullish_fvg
         signal_strength = calculate_signal_strength("BULLISH_FVG", c0_low)
-        signal_data = map.new<string, float>()
-        map.put(signal_data, "type", "BULLISH_FVG")
-        map.put(signal_data, "bias", "Bullish")
-        map.put(signal_data, "price", close)
-        map.put(signal_data, "strength", signal_strength)
-        map.put(signal_data, "fvg_high", c0_low)
-        map.put(signal_data, "fvg_low", c2_high)
-        send_webhook(signal_data)
+        send_webhook("BULLISH_FVG", "Bullish", close, signal_strength, c0_low, c2_high)
         
         new_box = if show_only_latest_bias or hide_boxes
             box.new(bar_index[2], c2_high, bar_index + 500, c0_low, bgcolor=color.new(color.white, 100), border_color=color.new(color.white, 100), extend=extend.right)
@@ -130,14 +116,7 @@ if barstate.isconfirmed
 
     if bearish_fvg
         signal_strength = calculate_signal_strength("BEARISH_FVG", c0_high)
-        signal_data = map.new<string, float>()
-        map.put(signal_data, "type", "BEARISH_FVG")
-        map.put(signal_data, "bias", "Bearish")
-        map.put(signal_data, "price", close)
-        map.put(signal_data, "strength", signal_strength)
-        map.put(signal_data, "fvg_high", c0_high)
-        map.put(signal_data, "fvg_low", c2_low)
-        send_webhook(signal_data)
+        send_webhook("BEARISH_FVG", "Bearish", close, signal_strength, c0_high, c2_low)
         
         new_box = if show_only_latest_bias or hide_boxes
             box.new(bar_index[2], c0_high, bar_index + 500, c2_low, bgcolor=color.new(color.white, 100), border_color=color.new(color.white, 100), extend=extend.right)
@@ -153,14 +132,7 @@ if barstate.isconfirmed
             if close < fvg_data.box_low
                 // Send IFVG webhook
                 signal_strength = calculate_signal_strength("BEARISH_IFVG", close)
-                signal_data = map.new<string, float>()
-                map.put(signal_data, "type", "BEARISH_IFVG")
-                map.put(signal_data, "bias", "Bearish")
-                map.put(signal_data, "price", close)
-                map.put(signal_data, "strength", signal_strength)
-                map.put(signal_data, "fvg_high", fvg_data.box_high)
-                map.put(signal_data, "fvg_low", fvg_data.box_low)
-                send_webhook(signal_data)
+                send_webhook("BEARISH_IFVG", "Bearish", close, signal_strength, fvg_data.box_high, fvg_data.box_low)
                 
                 box.delete(fvg_data.display_box)
                 array.remove(bullish_fvgs, i)
@@ -178,14 +150,7 @@ if barstate.isconfirmed
             if close > fvg_data.box_high
                 // Send IFVG webhook
                 signal_strength = calculate_signal_strength("BULLISH_IFVG", close)
-                signal_data = map.new<string, float>()
-                map.put(signal_data, "type", "BULLISH_IFVG")
-                map.put(signal_data, "bias", "Bullish")
-                map.put(signal_data, "price", close)
-                map.put(signal_data, "strength", signal_strength)
-                map.put(signal_data, "fvg_high", fvg_data.box_high)
-                map.put(signal_data, "fvg_low", fvg_data.box_low)
-                send_webhook(signal_data)
+                send_webhook("BULLISH_IFVG", "Bullish", close, signal_strength, fvg_data.box_high, fvg_data.box_low)
                 
                 box.delete(fvg_data.display_box)
                 array.remove(bearish_fvgs, i)
@@ -204,14 +169,7 @@ if barstate.isconfirmed
             if close > ifvg_data.box_high
                 // Send termination webhook
                 signal_strength = calculate_signal_strength("IFVG_TERMINATION", close)
-                signal_data = map.new<string, float>()
-                map.put(signal_data, "type", "BEARISH_IFVG_TERMINATION")
-                map.put(signal_data, "bias", "Bullish")
-                map.put(signal_data, "price", close)
-                map.put(signal_data, "strength", signal_strength)
-                map.put(signal_data, "fvg_high", ifvg_data.box_high)
-                map.put(signal_data, "fvg_low", ifvg_data.box_low)
-                send_webhook(signal_data)
+                send_webhook("BEARISH_IFVG_TERMINATION", "Bullish", close, signal_strength, ifvg_data.box_high, ifvg_data.box_low)
                 
                 box.delete(ifvg_data.display_box)
                 array.remove(bearish_ifvgs, i)
@@ -223,14 +181,7 @@ if barstate.isconfirmed
             if close < ifvg_data.box_low
                 // Send termination webhook
                 signal_strength = calculate_signal_strength("IFVG_TERMINATION", close)
-                signal_data = map.new<string, float>()
-                map.put(signal_data, "type", "BULLISH_IFVG_TERMINATION")
-                map.put(signal_data, "bias", "Bearish")
-                map.put(signal_data, "price", close)
-                map.put(signal_data, "strength", signal_strength)
-                map.put(signal_data, "fvg_high", ifvg_data.box_high)
-                map.put(signal_data, "fvg_low", ifvg_data.box_low)
-                send_webhook(signal_data)
+                send_webhook("BULLISH_IFVG_TERMINATION", "Bearish", close, signal_strength, ifvg_data.box_high, ifvg_data.box_low)
                 
                 box.delete(ifvg_data.display_box)
                 array.remove(bullish_ifvgs, i)
@@ -243,17 +194,12 @@ if show_only_latest_bias and bias[1] != bias and bias != "Neutral"
     bias_marker := label.new(bar_index, bias == "Bullish" ? low : high, bias == "Bullish" ? "▲" : "▼", color=bias == "Bullish" ? color.green : color.red, textcolor=color.white, style=bias == "Bullish" ? label.style_label_up : label.style_label_down, size=size.small)
 
 // === Bias Table ===
-var table bias_table = table.new(position.top_right, 3, 3, bgcolor=color.new(color.black, 100), border_width=0)
+var table bias_table = table.new(position.top_right, 2, 2, bgcolor=color.new(color.black, 100), border_width=0)
 if barstate.islast
     table.cell(bias_table, 0, 0, "Timeframe", text_color=color.white, text_size=size.normal)
     table.cell(bias_table, 1, 0, "Bias", text_color=color.white, text_size=size.normal)
-    table.cell(bias_table, 2, 0, "Webhook", text_color=color.white, text_size=size.normal)
     table.cell(bias_table, 0, 1, timeframe.period, text_color=color.white, text_size=size.normal)
     table.cell(bias_table, 1, 1, bias, text_color=bias == "Bullish" ? color.green : bias == "Bearish" ? color.red : color.gray, text_size=size.normal)
-    table.cell(bias_table, 2, 1, enable_webhooks ? "ON" : "OFF", text_color=enable_webhooks ? color.green : color.red, text_size=size.normal)
-    table.cell(bias_table, 0, 2, "Signals", text_color=color.white, text_size=size.small)
-    table.cell(bias_table, 1, 2, str.tostring(array.size(bullish_fvgs) + array.size(bearish_fvgs)), text_color=color.white, text_size=size.small)
-    table.cell(bias_table, 2, 2, str.tostring(array.size(bullish_ifvgs) + array.size(bearish_ifvgs)), text_color=color.white, text_size=size.small)
 
 // === Bias Plot Markers ===
 plotchar(bias[1] != bias and bias == "Bullish" and not show_only_latest_bias, "Bias Bullish", "▲", location.belowbar, color.green, size=size.small)
