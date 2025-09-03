@@ -92,44 +92,44 @@
             overflow-y: auto;
         }
         
-        .signal-item {
-            background: rgba(255,255,255,0.03);
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-left: 4px solid;
-            transition: all 0.3s ease;
+        .signals-table-container {
+            overflow-y: auto;
+            max-height: 400px;
         }
         
-        .signal-item:hover {
-            background: rgba(255,255,255,0.08);
-            transform: translateX(5px);
-        }
-        
-        .signal-bullish { border-left-color: #00ff88; }
-        .signal-bearish { border-left-color: #ff4757; }
-        .signal-ifvg { border-left-color: #3742fa; }
-        
-        .signal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-        
-        .signal-type {
-            font-weight: bold;
-            font-size: 14px;
-        }
-        
-        .signal-time {
+        .signals-table {
+            width: 100%;
+            border-collapse: collapse;
             font-size: 12px;
+        }
+        
+        .signals-table th {
+            background: rgba(255,255,255,0.1);
+            padding: 8px 4px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            position: sticky;
+            top: 0;
+        }
+        
+        .signals-table td {
+            padding: 6px 4px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .signals-table tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .signal-bullish { color: #00ff88; }
+        .signal-bearish { color: #ff4757; }
+        .signal-neutral { color: #ffa502; }
+        
+        .no-signals {
+            text-align: center;
+            padding: 40px 20px;
             opacity: 0.7;
-        }
-        
-        .signal-details {
-            font-size: 12px;
-            line-height: 1.4;
+            font-style: italic;
         }
         
         .timeframe-tabs {
@@ -278,8 +278,23 @@
             
             <div class="signals-container">
                 <h3>Live Signals Feed</h3>
-                <div id="signalsFeed">
-                    <!-- Signals will be populated here -->
+                <div class="signals-table-container">
+                    <table class="signals-table" id="signalsTable">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Symbol</th>
+                                <th>Type</th>
+                                <th>Bias</th>
+                                <th>Price</th>
+                                <th>Strength</th>
+                                <th>Divergence</th>
+                            </tr>
+                        </thead>
+                        <tbody id="signalsFeed">
+                            <!-- Signals will be populated here -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -365,13 +380,19 @@
             try {
                 const response = await fetch('/api/live-signals?timeframe=' + currentTimeframe);
                 const data = await response.json();
-                signals = data.signals || [];
+                
+                // Merge with existing signals to maintain persistence
+                const newSignals = data.signals || [];
+                const existingIds = signals.map(s => s.id);
+                const uniqueNewSignals = newSignals.filter(s => !existingIds.includes(s.id));
+                
+                signals = [...uniqueNewSignals, ...signals].slice(0, 100);
+                
                 updateSignalsFeed();
                 updateMetrics();
                 updateLastUpdateTime();
             } catch (error) {
                 console.error('Error loading signals:', error);
-                signals = [];
                 updateSignalsFeed();
                 updateMetrics();
                 updateLastUpdateTime();
@@ -407,40 +428,32 @@
             const feed = document.getElementById('signalsFeed');
             
             if (!signals || signals.length === 0) {
-                feed.innerHTML = '<div style="text-align: center; padding: 20px; opacity: 0.7;">No signals yet. Waiting for TradingView alerts...</div>';
+                feed.innerHTML = '<tr><td colspan="7" class="no-signals">No signals yet. Waiting for TradingView alerts...</td></tr>';
                 return;
             }
             
-            feed.innerHTML = '';
-            signals.forEach(signal => {
-                const signalElement = createSignalElement(signal);
-                feed.appendChild(signalElement);
-            });
+            feed.innerHTML = signals.map(signal => createSignalRow(signal)).join('');
         }
         
-        // Create signal element
-        function createSignalElement(signal) {
-            const div = document.createElement('div');
-            div.className = `signal-item signal-${(signal.bias || 'neutral').toLowerCase()}`;
-            
+        // Create signal table row
+        function createSignalRow(signal) {
             const signalType = signal.signal_type || signal.type || 'UNKNOWN';
-            const typeClass = signalType.includes('IFVG') ? 'signal-ifvg' : '';
-            if (typeClass) div.className += ` ${typeClass}`;
+            const bias = signal.bias || 'Neutral';
+            const biasClass = `signal-${bias.toLowerCase()}`;
+            const divergenceInfo = signal.ai_analysis ? 
+                (JSON.parse(signal.ai_analysis).divergences_detected || 0) + ' divs' : '--';
             
-            div.innerHTML = `
-                <div class="signal-header">
-                    <div class="signal-type">${signalType}</div>
-                    <div class="signal-time">${formatTime(signal.timestamp)}</div>
-                </div>
-                <div class="signal-details">
-                    <div><strong>${signal.symbol || 'UNKNOWN'}</strong> | ${signal.timeframe || '1m'}</div>
-                    <div>Price: ${signal.price || 0} | Bias: ${signal.bias || 'Neutral'}</div>
-                    <div>Strength: ${signal.strength || 0}% | Volume: ${signal.volume || 'N/A'}</div>
-                    ${signal.level2 ? `<div>L2: ${signal.level2.spread} spread</div>` : ''}
-                </div>
+            return `
+                <tr class="${biasClass}">
+                    <td>${formatTime(signal.timestamp)}</td>
+                    <td><strong>${signal.symbol || 'N/A'}</strong></td>
+                    <td>${signalType.replace('_', ' ')}</td>
+                    <td class="${biasClass}">${bias}</td>
+                    <td>${signal.price || 0}</td>
+                    <td>${Math.round(signal.strength || 0)}%</td>
+                    <td>${divergenceInfo}</td>
+                </tr>
             `;
-            
-            return div;
         }
         
         // Update metrics
