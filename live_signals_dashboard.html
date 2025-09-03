@@ -113,8 +113,9 @@
         }
         
         .signals-table td {
-            padding: 6px 4px;
+            padding: 8px 4px;
             border-bottom: 1px solid rgba(255,255,255,0.1);
+            vertical-align: top;
         }
         
         .signals-table tr:hover {
@@ -284,11 +285,10 @@
                             <tr>
                                 <th>Time</th>
                                 <th>Symbol</th>
-                                <th>Type</th>
-                                <th>Bias</th>
+                                <th>Triangle Bias</th>
                                 <th>Price</th>
                                 <th>Strength</th>
-                                <th>Divergence</th>
+                                <th>Institutional Alert</th>
                             </tr>
                         </thead>
                         <tbody id="signalsFeed">
@@ -323,7 +323,7 @@
             
             <h3>Divergence Alerts</h3>
             <div id="divergenceAlerts">
-                <div style="font-size: 12px; opacity: 0.7;">No divergences detected</div>
+                <div style="font-size: 12px; opacity: 0.7;">No institutional divergences detected</div>
             </div>
         </div>
     </div>
@@ -437,21 +437,39 @@
         
         // Create signal table row
         function createSignalRow(signal) {
-            const signalType = signal.signal_type || signal.type || 'UNKNOWN';
             const bias = signal.bias || 'Neutral';
             const biasClass = `signal-${bias.toLowerCase()}`;
-            const divergenceInfo = signal.ai_analysis ? 
-                (JSON.parse(signal.ai_analysis).divergences_detected || 0) + ' divs' : '--';
+            
+            // Show triangle direction with arrow and details
+            const arrow = bias === 'Bullish' ? '▲' : bias === 'Bearish' ? '▼' : '◆';
+            const fvgDetail = signal.fvg_detail || signal.signal_type || 'FVG';
+            const triangleDisplay = `
+                <div class="${biasClass}"><strong>${arrow} ${bias.toUpperCase()}</strong></div>
+                <div style="font-size: 10px; opacity: 0.8;">
+                    ${fvgDetail} @ ${signal.price || 0}<br>
+                    Strength: ${Math.round(signal.strength || 0)}%
+                </div>
+            `;
+            
+            // Check for institutional alerts
+            let institutionalAlert = '--';
+            if (signal.ai_analysis) {
+                try {
+                    const analysis = JSON.parse(signal.ai_analysis);
+                    if (analysis.divergences_detected > 0) {
+                        institutionalAlert = '🚨 INSTITUTIONAL';
+                    }
+                } catch (e) {}
+            }
             
             return `
                 <tr class="${biasClass}">
                     <td>${formatTime(signal.timestamp)}</td>
                     <td><strong>${signal.symbol || 'N/A'}</strong></td>
-                    <td>${signalType.replace('_', ' ')}</td>
-                    <td class="${biasClass}">${bias}</td>
+                    <td>${triangleDisplay}</td>
                     <td>${signal.price || 0}</td>
                     <td>${Math.round(signal.strength || 0)}%</td>
-                    <td>${divergenceInfo}</td>
+                    <td>${institutionalAlert}</td>
                 </tr>
             `;
         }
@@ -595,13 +613,14 @@
                 
                 if (data.divergences && data.divergences.length > 0) {
                     alertsDiv.innerHTML = data.divergences.map(div => `
-                        <div style="color: #ff4757; font-weight: bold;">
-                            ⚠️ ${div.divergence}
+                        <div style="color: #ff4757; font-weight: bold; margin-bottom: 8px;">
+                            ${div.message}<br>
+                            <small style="opacity: 0.8;">${div.interpretation}</small>
                         </div>
                     `).join('');
                 } else {
                     alertsDiv.innerHTML = `
-                        <div style="font-size: 12px; opacity: 0.7;">No divergences detected</div>
+                        <div style="font-size: 12px; opacity: 0.7;">No institutional divergences detected</div>
                     `;
                 }
             } catch (error) {

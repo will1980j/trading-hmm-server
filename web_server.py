@@ -1795,20 +1795,17 @@ def capture_live_signal():
         if not db_enabled or not db:
             return jsonify({"error": "Database not available"}), 500
         
-        # Extract signal data from TradingView webhook
+        # Extract signal data from TradingView webhook - focus on triangle bias
+        triangle_bias = data.get('bias', 'Neutral')  # This is the key signal
+        
         signal = {
             'symbol': data.get('symbol', 'NQ1!'),
             'timeframe': data.get('timeframe', '1m'),
-            'signal_type': data.get('signal_type', 'FVG'),
-            'bias': data.get('bias', 'Neutral'),
+            'signal_type': f"TRIANGLE_{triangle_bias.upper()}",  # Simplified to triangle direction
+            'bias': triangle_bias,
             'price': float(data.get('price', 0)),
             'strength': float(data.get('strength', 50)),
-            'volume': data.get('volume'),
-            'ath': data.get('ath'),
-            'atl': data.get('atl'),
-            'fvg_high': data.get('fvg_high'),
-            'fvg_low': data.get('fvg_low'),
-            'level2_data': data.get('level2'),
+            'fvg_detail': data.get('signal_type', 'FVG'),  # Store original FVG/IFVG detail
             'timestamp': datetime.now().isoformat()
         }
         
