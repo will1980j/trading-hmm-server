@@ -1827,8 +1827,21 @@ def capture_live_signal():
         db.conn.commit()
         
         # Trigger AI analysis for pattern recognition
-        # analyze_signal_patterns.delay(signal_id)  # Uncomment when Celery is set up
-        analyze_signal_patterns(signal_id)  # Direct call for now
+        # Enhance with Level 2 data if available
+        from level2_data import level2_provider
+        enhanced_strength = level2_provider.get_signal_strength_with_level2(
+            signal['symbol'], signal['strength']
+        )
+        
+        if enhanced_strength != signal['strength']:
+            cursor.execute(
+                "UPDATE live_signals SET strength = %s, level2_data = %s WHERE id = %s",
+                (enhanced_strength, dumps(level2_provider.level2_data.get(signal['symbol'], {})), signal_id)
+            )
+            db.conn.commit()
+        
+        # Run ML analysis in background
+        analyze_signal_patterns(signal_id)
         
         logger.info(f"Live signal captured: {signal['symbol']} {signal['signal_type']} at {signal['price']}")
         
@@ -3754,20 +3767,34 @@ def analyze_signal_patterns(signal_id):
         if not signal:
             return
         
-        # Get recent signals for pattern analysis
+        # Get recent signals for ML analysis
         cursor.execute("""
             SELECT * FROM live_signals 
             WHERE symbol = %s AND timeframe = %s 
-            AND timestamp > NOW() - INTERVAL '1 hour'
-            ORDER BY timestamp DESC LIMIT 20
+            ORDER BY timestamp DESC LIMIT 100
         """, (signal['symbol'], signal['timeframe']))
         
-        recent_signals = cursor.fetchall()
+        all_signals = [dict(row) for row in cursor.fetchall()]
         
-        # Perform pattern analysis
-        patterns = analyze_signal_sequence(recent_signals)
+        # Train ML model if enough data
+        from ml_engine import ml_engine
+        if len(all_signals) >= 50 and not ml_engine.is_trained:
+            ml_engine.train(all_signals)
         
-        # Store AI analysis results
+        # Get ML prediction for current signal
+        recent_signals = all_signals[1:21]  # Last 20 signals
+        current_signal = dict(signal)
+        
+        ml_prediction = ml_engine.predict_signal_quality(recent_signals, current_signal)
+        feature_importance = ml_engine.get_feature_importance()
+        
+        # Combine traditional and ML analysis
+        patterns = analyze_signal_sequence(all_signals[:20])
+        patterns['ml_prediction'] = ml_prediction
+        patterns['ml_confidence'] = ml_prediction * 100
+        patterns['key_features'] = feature_importance[:3]
+        
+        # Store enhanced AI analysis
         cursor.execute("""
             UPDATE live_signals 
             SET ai_analysis = %s 
@@ -3775,10 +3802,10 @@ def analyze_signal_patterns(signal_id):
         """, (dumps(patterns), signal_id))
         
         db.conn.commit()
-        logger.info(f"Pattern analysis completed for signal {signal_id}")
+        logger.info(f"ML analysis completed for signal {signal_id}: {ml_prediction:.2f} confidence")
         
     except Exception as e:
-        logger.error(f"Error in pattern analysis: {str(e)}")
+        logger.error(f"Error in ML analysis: {str(e)}")
 
 def analyze_signal_sequence(signals):
     """Analyze sequence of signals for patterns"""
