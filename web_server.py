@@ -1893,7 +1893,9 @@ def capture_live_signal():
             try:
                 inner_data = loads(data['alert_message'])
                 data = inner_data
-            except:
+                logger.info(f"Parsed alert_message: {data}")
+            except Exception as e:
+                logger.error(f"Failed to parse alert_message: {e}")
                 pass
         
         # Create default signal if no structured data
