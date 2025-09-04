@@ -603,6 +603,7 @@
         function formatTime(timestamp) {
             const date = new Date(timestamp);
             return date.toLocaleTimeString('en-US', { 
+                timeZone: 'America/New_York',
                 hour12: false, 
                 hour: '2-digit', 
                 minute: '2-digit',
