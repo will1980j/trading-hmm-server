@@ -1781,6 +1781,12 @@ def get_live_signals():
         if not db_enabled or not db:
             return jsonify({'signals': []})
         
+        # Clear any aborted transactions
+        try:
+            db.conn.rollback()
+        except:
+            pass
+            
         cursor = db.conn.cursor()
         cursor.execute("""
             SELECT * FROM live_signals 
@@ -1793,6 +1799,10 @@ def get_live_signals():
         return jsonify({'signals': signals, 'count': len(signals)})
         
     except Exception as e:
+        try:
+            db.conn.rollback()
+        except:
+            pass
         logger.error(f"Error getting live signals: {str(e)}")
         return jsonify({'signals': [], 'error': str(e)})
 
@@ -2109,6 +2119,12 @@ def get_signal_correlations():
         if not db_enabled or not db:
             return jsonify({'correlations': []})
         
+        # Clear any aborted transactions
+        try:
+            db.conn.rollback()
+        except:
+            pass
+            
         cursor = db.conn.cursor()
         cursor.execute("""
             SELECT symbol, bias, COUNT(*) as signal_count,
@@ -2132,6 +2148,10 @@ def get_signal_correlations():
         })
         
     except Exception as e:
+        try:
+            db.conn.rollback()
+        except:
+            pass
         logger.error(f"Error getting correlations: {str(e)}")
         return jsonify({'correlations': [], 'error': str(e)})
 
