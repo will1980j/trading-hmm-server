@@ -1818,6 +1818,12 @@ def chart_display_signal():
             if not db_enabled or not db:
                 return jsonify({"error": "Database not available"}), 500
             
+            # Reset any aborted transaction
+            try:
+                db.conn.rollback()
+            except:
+                pass
+                
             # Get latest signal from database
             cursor = db.conn.cursor()
             cursor.execute("""
