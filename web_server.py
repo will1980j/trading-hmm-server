@@ -2035,8 +2035,9 @@ def capture_live_signal():
         # Run ML analysis and divergence detection
         analyze_signal_patterns(signal_id)
         
-        # Check for NQ divergence opportunities
-        if signal['symbol'] in ['NQ1!', 'ES1!', 'YM1!', 'RTY1!', 'DXY']:
+        # Only process signals from charts you actually have open
+        # Remove RTY1! from auto-divergence detection since you don't have RTY charts
+        if signal['symbol'] in ['NQ1!', 'ES1!', 'YM1!', 'DXY'] and False:  # Disabled
             divergence_opportunities = detect_nq_divergence_opportunities(signal, all_signals=None)
             if divergence_opportunities:
                 # Create NQ divergence signal
