@@ -1862,6 +1862,12 @@ def capture_live_signal():
     """Webhook endpoint for TradingView to send live signals"""
     global db
     try:
+        # Reset any aborted transaction first
+        if db_enabled and db:
+            try:
+                db.conn.rollback()
+            except:
+                pass
         # Handle TradingView webhook - they send the alert message as raw text
         raw_data = request.get_data(as_text=True)
         logger.info(f"Raw webhook data: {raw_data[:500]}")
