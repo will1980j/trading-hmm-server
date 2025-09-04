@@ -1799,6 +1799,7 @@ def get_live_signals():
 @app.route('/api/live-signals', methods=['POST'])
 def capture_live_signal():
     """Webhook endpoint for TradingView to send live signals"""
+    global db
     try:
         # Handle TradingView webhook - they send the alert message as raw text
         raw_data = request.get_data(as_text=True)
@@ -1836,27 +1837,28 @@ def capture_live_signal():
         if not db_enabled or not db:
             return jsonify({"error": "Database not available"}), 500
         
-        # Clear any aborted transactions first
-        try:
-            db.conn.rollback()
-        except Exception as e:
-            logger.error(f"Error rolling back transaction: {str(e)}")
-            # Reset connection if rollback fails
-            try:
-                db.conn.close()
-                from database.railway_db import RailwayDB
-                db = RailwayDB()
-            except Exception as reset_error:
-                logger.error(f"Connection reset error: {str(reset_error)}")
-                return jsonify({"error": "Database connection issue"}), 500
+        # Ensure database connection
+        if not db_enabled or not db:
+            return jsonify({"error": "Database not available"}), 500
         
         # Extract signal data from TradingView webhook - focus on triangle bias with HTF context
         triangle_bias = data.get('bias', 'Neutral')  # This is the key signal
         htf_status = data.get('htf_status', '')  # HTF alignment status
         htf_aligned = data.get('htf_aligned', False)  # Whether HTF is aligned
         
+        # Clean symbol name
+        raw_symbol = data.get('symbol', 'NQ1!')
+        if 'CME_MINI:' in raw_symbol:
+            clean_symbol = 'NQ1!'
+        elif 'CBOT_MINI:' in raw_symbol:
+            clean_symbol = 'YM1!'
+        elif 'COMEX_MINI:' in raw_symbol:
+            clean_symbol = 'ES1!'
+        else:
+            clean_symbol = raw_symbol
+        
         signal = {
-            'symbol': data.get('symbol', 'NQ1!'),
+            'symbol': clean_symbol,
             'timeframe': data.get('timeframe', '1m'),
             'signal_type': f"BIAS_{triangle_bias.upper()}",
             'bias': triangle_bias,
@@ -1864,10 +1866,6 @@ def capture_live_signal():
             'strength': float(data.get('strength', 50)) if data.get('strength') else 50,
             'timestamp': datetime.now().isoformat()
         }
-        
-        # Use autocommit to avoid transaction issues
-        old_autocommit = db.conn.autocommit
-        db.conn.autocommit = True
         
         cursor = db.conn.cursor()
         cursor.execute("""
@@ -1882,9 +1880,7 @@ def capture_live_signal():
         
         result = cursor.fetchone()
         signal_id = result['id']
-        
-        # Restore original autocommit setting
-        db.conn.autocommit = old_autocommit
+        db.conn.commit()
         
         # Trigger AI analysis for pattern recognition
         # Enhance with Level 2 data if available
@@ -1955,11 +1951,6 @@ def capture_live_signal():
         })
         
     except Exception as e:
-        try:
-            if hasattr(db, 'conn') and db.conn:
-                db.conn.rollback()
-        except Exception as rollback_error:
-            logger.error(f"Rollback error: {str(rollback_error)}")
         logger.error(f"Error capturing live signal: {str(e)} - Content-Type: {request.content_type}")
         logger.error(f"Raw request data: {request.get_data(as_text=True)[:500]}")
         return jsonify({"error": str(e)}), 500
