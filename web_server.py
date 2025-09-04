@@ -1791,6 +1791,7 @@ def get_live_signals():
         cursor.execute("""
             SELECT * FROM live_signals 
             WHERE timeframe = %s 
+            AND timestamp >= NOW() - INTERVAL '4 hours'
             ORDER BY timestamp DESC 
             LIMIT %s
         """, (timeframe, limit))
@@ -2156,7 +2157,8 @@ def delete_test_signals():
         cursor = db.conn.cursor()
         cursor.execute("""
             DELETE FROM live_signals 
-            WHERE signal_type LIKE '%TEST%' 
+            WHERE timestamp < NOW() - INTERVAL '4 hours'
+            OR signal_type LIKE '%TEST%'
             OR signal_type LIKE '%FIX%'
             OR signal_type LIKE '%DEBUG%'
             OR signal_type LIKE '%BULLISH_FVG%'
