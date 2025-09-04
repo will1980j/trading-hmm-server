@@ -1920,9 +1920,9 @@ def capture_live_signal():
                 alert_msg = data['alert_message']
                 import re
                 
-                # Extract values using regex instead of parsing JSON
+                # Extract values using regex - improved price parsing
                 bias_match = re.search(r'"bias":"(\w+)"', alert_msg)
-                price_match = re.search(r'"price":(\d+(?:\.\d+)?)', alert_msg)
+                price_match = re.search(r'"price":([\d\.]+)', alert_msg)  # Allow decimals
                 strength_match = re.search(r'"strength":(\d+)', alert_msg)
                 symbol_match = re.search(r'"symbol":"[^"]*:([^"!]+)', alert_msg)
                 
@@ -1987,8 +1987,14 @@ def capture_live_signal():
         else:
             clean_symbol = 'NQ1!'  # Default to NQ1!
         
-        # Ensure price is valid
-        price = float(data.get('price', 0)) if data.get('price') else 0
+        # Ensure price is valid - handle string and numeric prices
+        raw_price = data.get('price', 0)
+        try:
+            price = float(raw_price) if raw_price else 0
+        except (ValueError, TypeError):
+            price = 0
+            logger.warning(f"Could not parse price '{raw_price}' in signal: {data}")
+        
         if price == 0:
             logger.warning(f"Invalid price in signal: {data}")
         
