@@ -1806,6 +1806,40 @@ def get_live_signals():
         logger.error(f"Error getting live signals: {str(e)}")
         return jsonify({'signals': [], 'error': str(e)})
 
+@app.route('/api/chart-display', methods=['POST'])
+def chart_display_signal():
+    """Endpoint for chart display signals from TradingView"""
+    try:
+        raw_data = request.get_data(as_text=True)
+        logger.info(f"Chart display signal: {raw_data[:200]}")
+        
+        # Parse chart signal format: CHART_SIGNAL:SYMBOL:BIAS:PRICE:TIME
+        if raw_data.startswith('CHART_SIGNAL:'):
+            parts = raw_data.split(':')
+            if len(parts) >= 5:
+                symbol = parts[1]
+                bias = parts[2] 
+                price = parts[3]
+                timestamp = parts[4]
+                
+                # Broadcast to chart via SocketIO
+                chart_signal = {
+                    'type': 'chart_display',
+                    'symbol': symbol,
+                    'bias': bias,
+                    'price': float(price),
+                    'timestamp': timestamp
+                }
+                socketio.emit('chart_signal', chart_signal, namespace='/')
+                
+                return jsonify({"status": "success", "message": "Chart signal broadcasted"})
+        
+        return jsonify({"error": "Invalid chart signal format"}), 400
+        
+    except Exception as e:
+        logger.error(f"Chart display error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/live-signals', methods=['POST'])
 def capture_live_signal():
     """Webhook endpoint for TradingView to send live signals"""
