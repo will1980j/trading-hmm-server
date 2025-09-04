@@ -1836,6 +1836,20 @@ def capture_live_signal():
         if not db_enabled or not db:
             return jsonify({"error": "Database not available"}), 500
         
+        # Clear any aborted transactions first
+        try:
+            db.conn.rollback()
+        except Exception as e:
+            logger.error(f"Error rolling back transaction: {str(e)}")
+            # Reset connection if rollback fails
+            try:
+                db.conn.close()
+                from database.railway_db import RailwayDB
+                db = RailwayDB()
+            except Exception as reset_error:
+                logger.error(f"Connection reset error: {str(reset_error)}")
+                return jsonify({"error": "Database connection issue"}), 500
+        
         # Extract signal data from TradingView webhook - focus on triangle bias with HTF context
         triangle_bias = data.get('bias', 'Neutral')  # This is the key signal
         htf_status = data.get('htf_status', '')  # HTF alignment status
@@ -1851,6 +1865,10 @@ def capture_live_signal():
             'timestamp': datetime.now().isoformat()
         }
         
+        # Use autocommit to avoid transaction issues
+        old_autocommit = db.conn.autocommit
+        db.conn.autocommit = True
+        
         cursor = db.conn.cursor()
         cursor.execute("""
             INSERT INTO live_signals 
@@ -1864,7 +1882,9 @@ def capture_live_signal():
         
         result = cursor.fetchone()
         signal_id = result['id']
-        db.conn.commit()
+        
+        # Restore original autocommit setting
+        db.conn.autocommit = old_autocommit
         
         # Trigger AI analysis for pattern recognition
         # Enhance with Level 2 data if available
@@ -1935,8 +1955,11 @@ def capture_live_signal():
         })
         
     except Exception as e:
-        if hasattr(db, 'conn') and db.conn:
-            db.conn.rollback()
+        try:
+            if hasattr(db, 'conn') and db.conn:
+                db.conn.rollback()
+        except Exception as rollback_error:
+            logger.error(f"Rollback error: {str(rollback_error)}")
         logger.error(f"Error capturing live signal: {str(e)} - Content-Type: {request.content_type}")
         logger.error(f"Raw request data: {request.get_data(as_text=True)[:500]}")
         return jsonify({"error": str(e)}), 500
