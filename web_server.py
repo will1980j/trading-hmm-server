@@ -1791,8 +1791,7 @@ def get_live_signals():
         cursor.execute("""
             SELECT * FROM live_signals 
             WHERE timeframe = %s 
-            AND timestamp >= NOW() - INTERVAL '4 hours'
-            ORDER BY timestamp DESC 
+            ORDER BY id DESC 
             LIMIT %s
         """, (timeframe, limit))
         
