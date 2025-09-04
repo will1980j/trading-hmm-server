@@ -46,8 +46,8 @@ if barstate.isconfirmed and syminfo.tickerid == "CME_MINI:NQ1!" and show_nq_sign
     // For now, detect actual bias changes from your main indicator
     // You'll need to set up alerts that trigger this
     
-    // Placeholder - will be replaced by actual alert triggers
-    signal_detected = false
+    // Signal detected when Alert 2 fires
+    signal_detected = true
     
     if signal_detected
         signal_text = last_signal_bias == "Bullish" ? "NQ LONG" : "NQ SHORT"
