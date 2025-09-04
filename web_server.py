@@ -1804,8 +1804,15 @@ def get_live_signals():
             
         cursor = db.conn.cursor()
         
+        # Delete bad price data and get clean signals
+        cursor.execute("""
+            DELETE FROM live_signals 
+            WHERE (symbol IN ('YM1!', 'ES1!', 'RTY1!') AND price = 15000.0000)
+            OR price = 0
+        """)
+        db.conn.commit()
+        
         # Get only the most recent signal per symbol for the timeframe
-        # This prevents switching between old and new signals
         cursor.execute("""
             WITH latest_signals AS (
                 SELECT DISTINCT ON (symbol) 
@@ -1943,16 +1950,9 @@ def capture_live_signal():
                 logger.error(f"Failed to extract from alert_message: {e}")
                 pass
         
-        # Create default signal if no structured data
-        if not data or not isinstance(data, dict):
-            data = {
-                'symbol': 'NQ1!',
-                'bias': 'Neutral',
-                'signal_type': 'WEBHOOK_TEST',
-                'price': 0,
-                'strength': 50,
-                'timeframe': '1m'
-            }
+        # Skip invalid signals with no price data
+        if not data or not isinstance(data, dict) or not data.get('price'):
+            return jsonify({"error": "Invalid signal data"}), 400
         
         logger.info(f"Webhook received data: {type(data)} - {str(data)[:200]}...")
         
@@ -2219,6 +2219,37 @@ def delete_test_signals():
         if hasattr(db, 'conn') and db.conn:
             db.conn.rollback()
         logger.error(f"Error deleting test signals: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/live-signals/fix-prices', methods=['POST'])
+def fix_signal_prices():
+    """Fix incorrect prices in live signals"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        cursor = db.conn.cursor()
+        # Delete signals with obviously wrong prices
+        cursor.execute("""
+            DELETE FROM live_signals 
+            WHERE (symbol = 'YM1!' AND price = 15000.0000)
+            OR (symbol = 'ES1!' AND price = 15000.0000)
+            OR (symbol = 'RTY1!' AND price = 15000.0000)
+            OR price = 0
+        """)
+        rows_deleted = cursor.rowcount
+        db.conn.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Fixed {rows_deleted} signals with incorrect prices',
+            'rows_deleted': rows_deleted
+        })
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error fixing signal prices: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/live-signals/clear-all', methods=['DELETE'])
