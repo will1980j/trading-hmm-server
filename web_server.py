@@ -15,6 +15,21 @@ from news_api import NewsAPI, get_market_sentiment, extract_key_levels
 from datetime import datetime
 from auth import login_required, authenticate
 import math
+import pytz
+
+# Set New York timezone for the entire system
+NY_TZ = pytz.timezone('America/New_York')
+
+def get_ny_time():
+    """Get current New York time"""
+    return datetime.now(NY_TZ)
+
+def to_ny_time(dt):
+    """Convert datetime to New York time"""
+    if dt.tzinfo is None:
+        # Assume UTC if no timezone
+        dt = pytz.UTC.localize(dt)
+    return dt.astimezone(NY_TZ)
 
 # Constants - Updated for Railway deployment
 NEWLINE_CHAR = '\n'
@@ -1982,18 +1997,18 @@ def capture_live_signal():
             'bias': triangle_bias,
             'price': price,
             'strength': float(data.get('strength', 50)) if data.get('strength') else 50,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': get_ny_time().isoformat()
         }
         
         cursor = db.conn.cursor()
         cursor.execute("""
             INSERT INTO live_signals 
             (symbol, timeframe, signal_type, bias, price, strength, timestamp)
-            VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             signal['symbol'], signal['timeframe'], signal['signal_type'],
-            signal['bias'], signal['price'], signal['strength']
+            signal['bias'], signal['price'], signal['strength'], get_ny_time()
         ))
         
         result = cursor.fetchone()
