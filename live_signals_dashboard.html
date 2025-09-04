@@ -417,6 +417,11 @@
             // Remove any existing signal with same ID to prevent duplicates
             signals = signals.filter(s => s.id !== signal.id);
             
+            // Ensure timestamp is properly formatted for NY timezone
+            if (signal.timestamp) {
+                signal.timestamp = new Date(signal.timestamp).toISOString();
+            }
+            
             signals.unshift(signal);
             if (signals.length > 50) {
                 signals = signals.slice(0, 50); // Keep last 50 signals for better performance
@@ -618,6 +623,13 @@
                 second: '2-digit'
             });
         }
+        
+        // Auto-refresh signals every 5 seconds
+        setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                loadHistoricalSignals();
+            }
+        }, 5000);
         
         // Start metrics update interval
         function startMetricsUpdate() {

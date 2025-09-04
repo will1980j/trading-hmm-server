@@ -1888,6 +1888,14 @@ def capture_live_signal():
             if form_data:
                 data = form_data
         
+        # If data is wrapped in alert_message, parse it
+        if data and 'alert_message' in data:
+            try:
+                inner_data = loads(data['alert_message'])
+                data = inner_data
+            except:
+                pass
+        
         # Create default signal if no structured data
         if not data or not isinstance(data, dict):
             data = {
