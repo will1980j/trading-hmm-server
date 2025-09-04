@@ -1909,27 +1909,39 @@ def capture_live_signal():
             return jsonify({"error": "Database not available"}), 500
         
         # Extract signal data from TradingView webhook - focus on triangle bias with HTF context
-        triangle_bias = data.get('bias', 'Neutral')  # This is the key signal
+        triangle_bias = data.get('bias', 'Bullish')  # Default to Bullish, never Neutral
+        
+        # Force bias to be only Bullish or Bearish
+        if triangle_bias not in ['Bullish', 'Bearish']:
+            triangle_bias = 'Bullish'
+        
         htf_status = data.get('htf_status', '')  # HTF alignment status
         htf_aligned = data.get('htf_aligned', False)  # Whether HTF is aligned
         
         # Clean symbol name
         raw_symbol = data.get('symbol', 'NQ1!')
-        if 'CME_MINI:' in raw_symbol:
+        if 'CME_MINI:' in raw_symbol or 'NQ1!' in raw_symbol:
             clean_symbol = 'NQ1!'
-        elif 'CBOT_MINI:' in raw_symbol:
+        elif 'CBOT_MINI:' in raw_symbol or 'YM1!' in raw_symbol:
             clean_symbol = 'YM1!'
-        elif 'COMEX_MINI:' in raw_symbol:
+        elif 'COMEX_MINI:' in raw_symbol or 'ES1!' in raw_symbol:
             clean_symbol = 'ES1!'
+        elif 'DXY' in raw_symbol:
+            clean_symbol = 'DXY'
         else:
-            clean_symbol = raw_symbol
+            clean_symbol = 'NQ1!'  # Default to NQ1!
+        
+        # Ensure price is valid
+        price = float(data.get('price', 0)) if data.get('price') else 0
+        if price == 0:
+            logger.warning(f"Invalid price in signal: {data}")
         
         signal = {
             'symbol': clean_symbol,
             'timeframe': data.get('timeframe', '1m'),
             'signal_type': f"BIAS_{triangle_bias.upper()}",
             'bias': triangle_bias,
-            'price': float(data.get('price', 0)) if data.get('price') else 0,
+            'price': price,
             'strength': float(data.get('strength', 50)) if data.get('strength') else 50,
             'timestamp': datetime.now().isoformat()
         }
