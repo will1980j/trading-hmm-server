@@ -1833,8 +1833,8 @@ def chart_display_signal():
                 chart_signal = {
                     'symbol': result['symbol'],
                     'bias': result['bias'], 
-                    'price': result['price'],
-                    'strength': result['strength'],
+                    'price': float(result['price']) if result['price'] else 0,
+                    'strength': float(result['strength']) if result['strength'] else 0,
                     'timestamp': str(result['timestamp'])
                 }
                 
