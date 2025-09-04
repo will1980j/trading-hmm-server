@@ -1809,7 +1809,8 @@ def get_live_signals():
         cursor.execute("""
             WITH latest_signals AS (
                 SELECT DISTINCT ON (symbol) 
-                    id, symbol, timeframe, signal_type, bias, price, strength, timestamp
+                    id, symbol, timeframe, signal_type, bias, price, strength, 
+                    htf_aligned, htf_status, timestamp
                 FROM live_signals 
                 WHERE timeframe = %s 
                 ORDER BY symbol, timestamp DESC, id DESC
@@ -1969,8 +1970,9 @@ def capture_live_signal():
         if triangle_bias not in ['Bullish', 'Bearish']:
             triangle_bias = 'Bullish'
         
-        htf_status = data.get('htf_status', '')  # HTF alignment status
+        # Extract HTF alignment from Pine Script
         htf_aligned = data.get('htf_aligned', False)  # Whether HTF is aligned
+        htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
         
         # Clean symbol name
         raw_symbol = data.get('symbol', 'NQ1!')
@@ -1990,25 +1992,36 @@ def capture_live_signal():
         if price == 0:
             logger.warning(f"Invalid price in signal: {data}")
         
+        # Calculate signal strength based on HTF alignment and divergence
+        base_strength = float(data.get('strength', 50)) if data.get('strength') else 50
+        
+        # Apply HTF alignment bonus
+        if htf_aligned:
+            base_strength = min(95, base_strength + 20)  # +20% for HTF alignment
+            logger.info(f"HTF aligned - boosting strength to {base_strength}%")
+        
         signal = {
             'symbol': clean_symbol,
             'timeframe': data.get('timeframe', '1m'),
             'signal_type': f"BIAS_{triangle_bias.upper()}",
             'bias': triangle_bias,
             'price': price,
-            'strength': float(data.get('strength', 50)) if data.get('strength') else 50,
+            'strength': base_strength,
+            'htf_aligned': htf_aligned,
+            'htf_status': htf_status,
             'timestamp': get_ny_time().isoformat()
         }
         
         cursor = db.conn.cursor()
         cursor.execute("""
             INSERT INTO live_signals 
-            (symbol, timeframe, signal_type, bias, price, strength, timestamp)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            (symbol, timeframe, signal_type, bias, price, strength, htf_aligned, htf_status, timestamp)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             signal['symbol'], signal['timeframe'], signal['signal_type'],
-            signal['bias'], signal['price'], signal['strength'], get_ny_time()
+            signal['bias'], signal['price'], signal['strength'], 
+            signal['htf_aligned'], signal['htf_status'], get_ny_time()
         ))
         
         result = cursor.fetchone()
@@ -2035,9 +2048,8 @@ def capture_live_signal():
         # Run ML analysis and divergence detection
         analyze_signal_patterns(signal_id)
         
-        # Only process signals from charts you actually have open
-        # Remove RTY1! from auto-divergence detection since you don't have RTY charts
-        if signal['symbol'] in ['NQ1!', 'ES1!', 'YM1!', 'DXY'] and False:  # Disabled
+        # Disabled divergence detection to prevent RTY signals
+        if False:  # Disabled
             divergence_opportunities = detect_nq_divergence_opportunities(signal, all_signals=None)
             if divergence_opportunities:
                 # Create NQ divergence signal
@@ -2804,10 +2816,18 @@ try:
                 created_at TIMESTAMP DEFAULT NOW()
             )
         """)
+        
+        # Add HTF columns to live_signals table
+        cursor.execute("""
+            ALTER TABLE live_signals 
+            ADD COLUMN IF NOT EXISTS htf_aligned BOOLEAN DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS htf_status VARCHAR(50) DEFAULT 'AGAINST'
+        """)
+        
         db.conn.commit()
-        logger.info("Economic news cache table ready")
+        logger.info("Database tables ready with HTF columns")
 except Exception as e:
-    logger.error(f"Error creating economic news cache table: {str(e)}")
+    logger.error(f"Error creating database tables: {str(e)}")
 
 # Signal lab table is created in railway_db.py setup_tables()
 
