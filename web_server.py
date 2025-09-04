@@ -1944,6 +1944,28 @@ def capture_live_signal():
         enhanced_signal['id'] = signal_id
         socketio.emit('new_signal', enhanced_signal, namespace='/')
         
+        # Send signal back to TradingView for chart display
+        try:
+            import requests
+            tv_webhook_url = "https://alerts.tradingview.com/webhook/YOUR_WEBHOOK_ID"  # Replace with your TradingView webhook
+            
+            # Create TradingView alert message
+            tv_message = {
+                "symbol": signal['symbol'],
+                "action": "display_signal",
+                "signal_type": signal['signal_type'],
+                "bias": signal['bias'],
+                "strength": signal['strength'],
+                "context": get_nq_context(signal['symbol'], signal['bias']),
+                "timestamp": signal['timestamp']
+            }
+            
+            # Send to TradingView (optional - only if you set up reverse webhook)
+            # requests.post(tv_webhook_url, json=tv_message, timeout=5)
+            
+        except Exception as tv_error:
+            logger.error(f"TradingView alert error: {str(tv_error)}")
+        
         return jsonify({
             "status": "success",
             "signal_id": signal_id,
@@ -4164,6 +4186,17 @@ def extract_positive_recommendation(response):
             return sentence.strip()
     
     return sentences[0].strip() if sentences else "Continue building on current strengths for sustained growth"
+
+def get_nq_context(symbol, bias):
+    """Get NQ trading context for automated display"""
+    if 'NQ' in symbol:
+        return f"Direct {bias}"
+    elif 'DXY' in symbol:
+        return "NQ Bullish" if bias == "Bearish" else "NQ Bearish"
+    elif 'ES' in symbol or 'YM' in symbol:
+        return f"NQ {bias}"
+    else:
+        return "Monitor"
 
 if __name__ == '__main__':
     port = int(environ.get('PORT', 8080))
