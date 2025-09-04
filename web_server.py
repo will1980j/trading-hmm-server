@@ -1891,11 +1891,18 @@ def capture_live_signal():
         # If data is wrapped in alert_message, parse it
         if data and 'alert_message' in data:
             try:
-                inner_data = loads(data['alert_message'])
+                # Fix the malformed JSON by replacing the problematic symbol format
+                alert_msg = data['alert_message']
+                # Replace malformed symbol format
+                import re
+                alert_msg = re.sub(r'"symbol":"=[^"]*"', '"symbol":"' + 'NQ1!' + '"', alert_msg)
+                
+                inner_data = loads(alert_msg)
                 data = inner_data
-                logger.info(f"Parsed alert_message: {data}")
+                logger.info(f"Fixed and parsed alert_message: symbol={data.get('symbol')}, price={data.get('price')}")
             except Exception as e:
                 logger.error(f"Failed to parse alert_message: {e}")
+                logger.error(f"Raw alert_message: {data.get('alert_message', '')[:200]}")
                 pass
         
         # Create default signal if no structured data
