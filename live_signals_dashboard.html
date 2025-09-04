@@ -375,8 +375,8 @@
                     updateAIAnalysis();
                 });
                 
-                // Fallback polling every 30 seconds
-                setInterval(loadHistoricalSignals, 30000);
+                // Fallback polling every 60 seconds
+                setInterval(loadHistoricalSignals, 60000);
                 
             } catch (error) {
                 console.error('WebSocket connection failed:', error);
@@ -389,7 +389,10 @@
         // Load historical signals
         async function loadHistoricalSignals() {
             try {
-                const response = await fetch('/api/live-signals?timeframe=' + currentTimeframe);
+                const response = await fetch('/api/live-signals?timeframe=' + currentTimeframe, {
+                    timeout: 5000
+                });
+                if (!response.ok) throw new Error('Network response not ok');
                 const data = await response.json();
                 
                 // Merge with existing signals to maintain persistence
@@ -403,10 +406,9 @@
                 updateMetrics();
                 updateLastUpdateTime();
             } catch (error) {
-                console.error('Error loading signals:', error);
+                // Silently handle errors to reduce console spam
                 updateSignalsFeed();
                 updateMetrics();
-                updateLastUpdateTime();
             }
         }
         
@@ -617,13 +619,16 @@
                 updateCorrelations();
                 updateLevel2Data();
                 checkDivergences();
-            }, 5000);
+            }, 30000);
         }
         
         // Update correlations from API
         async function updateCorrelations() {
             try {
-                const response = await fetch('/api/signal-correlations');
+                const response = await fetch('/api/signal-correlations', {
+                    timeout: 3000
+                });
+                if (!response.ok) return;
                 const data = await response.json();
                 
                 if (data.correlations && data.correlations.length > 0) {
@@ -641,7 +646,7 @@
                     }).join('');
                 }
             } catch (error) {
-                console.error('Error loading correlations:', error);
+                // Silent error handling
             }
         }
         
