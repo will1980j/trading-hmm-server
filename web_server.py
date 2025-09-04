@@ -1794,8 +1794,7 @@ def get_live_signals():
         cursor.execute("""
             WITH latest_signals AS (
                 SELECT DISTINCT ON (symbol) 
-                    id, symbol, timeframe, signal_type, bias, price, strength, 
-                    timestamp, htf_status, htf_aligned, level2_data, ai_analysis
+                    id, symbol, timeframe, signal_type, bias, price, strength, timestamp
                 FROM live_signals 
                 WHERE timeframe = %s 
                 ORDER BY symbol, timestamp DESC, id DESC
@@ -2049,8 +2048,6 @@ def capture_live_signal():
                         'bias': opp['bias'],
                         'price': opp['nq_price'],
                         'strength': opp['strength'],
-                        'htf_status': opp['htf_status'],
-                        'htf_aligned': opp['htf_aligned'],
                         'divergence_detail': opp['detail']
                     }
                     socketio.emit('new_signal', div_signal, namespace='/')
