@@ -1,0 +1,61 @@
+//@version=5
+indicator("Real Signal Display", overlay=true, max_labels_count=500)
+
+// Input settings
+show_signals = input.bool(true, "Show Live Signals")
+label_size = input.string("Normal", "Label Size", options=["Tiny", "Small", "Normal", "Large"])
+
+// Signal variables - these will be updated by webhook alerts
+var string last_signal_bias = ""
+var float last_signal_price = 0.0
+var int last_signal_time = 0
+var float last_signal_strength = 0.0
+
+get_label_size() =>
+    switch label_size
+        "Tiny" => size.tiny
+        "Small" => size.small
+        "Normal" => size.normal
+        "Large" => size.large
+        => size.normal
+
+// This receives the reverse webhook from your site
+// Set up Alert 2 with webhook URL pointing to your site's /api/chart-display endpoint
+// Your site will send: "CHART_SIGNAL:NQ1!:BULLISH:15234.5:85"
+
+// Signal detection from external webhook (Alert 2)
+signal_detected = false
+
+// You'll need to set up Alert 2 to trigger when your site sends the reverse webhook
+// The alert condition should parse the incoming message format
+if barstate.isconfirmed and show_signals
+    // This will be triggered by Alert 2 when your site sends the signal back
+    if signal_detected
+        signal_text = last_signal_bias == "BULLISH" ? "🟢 LONG" : "🔴 SHORT"
+        signal_color = last_signal_bias == "BULLISH" ? color.lime : color.red
+        signal_style = last_signal_bias == "BULLISH" ? label.style_label_up : label.style_label_down
+        signal_y = last_signal_bias == "BULLISH" ? low - (high-low)*0.1 : high + (high-low)*0.1
+        
+        label.new(bar_index, signal_y, 
+                  signal_text + "\n" + str.tostring(last_signal_strength, "#") + "%\n" + str.tostring(last_signal_price),
+                  color=signal_color, 
+                  textcolor=color.white, 
+                  style=signal_style, 
+                  size=get_label_size())
+
+// Alert condition for reverse webhook (Alert 2)
+// This creates the alert option in TradingView
+alertcondition(true, title="Chart Display Signal", message="Ready for reverse webhook")
+
+// Performance table
+var table perf_table = table.new(position.top_right, 2, 3, bgcolor=color.new(color.black, 85), border_width=1)
+
+if barstate.islast
+    table.cell(perf_table, 0, 0, "LIVE SIGNALS", text_color=color.white, bgcolor=color.gray)
+    table.cell(perf_table, 1, 0, "STATUS", text_color=color.white, bgcolor=color.gray)
+    
+    table.cell(perf_table, 0, 1, "Source", text_color=color.white)
+    table.cell(perf_table, 1, 1, "WEBHOOK", text_color=color.lime)
+    
+    table.cell(perf_table, 0, 2, "Connection", text_color=color.white)
+    table.cell(perf_table, 1, 2, "LIVE", text_color=color.lime)

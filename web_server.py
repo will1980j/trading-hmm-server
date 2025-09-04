@@ -1813,28 +1813,39 @@ def chart_display_signal():
         raw_data = request.get_data(as_text=True)
         logger.info(f"Chart display signal: {raw_data[:200]}")
         
-        # Parse chart signal format: CHART_SIGNAL:SYMBOL:BIAS:PRICE:TIME
-        if raw_data.startswith('CHART_SIGNAL:'):
-            parts = raw_data.split(':')
-            if len(parts) >= 5:
-                symbol = parts[1]
-                bias = parts[2] 
-                price = parts[3]
-                timestamp = parts[4]
-                
-                # Broadcast to chart via SocketIO
+        # Handle the alert request - get latest signal and send back
+        if raw_data == 'CHART_SIGNAL_REQUEST':
+            if not db_enabled or not db:
+                return jsonify({"error": "Database not available"}), 500
+            
+            # Get latest signal from database
+            cursor = db.conn.cursor()
+            cursor.execute("""
+                SELECT symbol, bias, price, strength, timestamp
+                FROM live_signals 
+                ORDER BY timestamp DESC 
+                LIMIT 1
+            """)
+            
+            result = cursor.fetchone()
+            if result:
+                # Send signal back to TradingView for display
                 chart_signal = {
-                    'type': 'chart_display',
-                    'symbol': symbol,
-                    'bias': bias,
-                    'price': float(price),
-                    'timestamp': timestamp
+                    'symbol': result['symbol'],
+                    'bias': result['bias'], 
+                    'price': result['price'],
+                    'strength': result['strength'],
+                    'timestamp': str(result['timestamp'])
                 }
+                
+                # Broadcast via SocketIO for real-time display
                 socketio.emit('chart_signal', chart_signal, namespace='/')
                 
-                return jsonify({"status": "success", "message": "Chart signal broadcasted"})
+                return jsonify({"status": "success", "signal": chart_signal})
+            else:
+                return jsonify({"status": "no_signals", "message": "No recent signals"})
         
-        return jsonify({"error": "Invalid chart signal format"}), 400
+        return jsonify({"error": "Invalid request format"}), 400
         
     except Exception as e:
         logger.error(f"Chart display error: {str(e)}")
@@ -1991,24 +2002,18 @@ def capture_live_signal():
         # Send signal back to TradingView for chart display
         try:
             import requests
-            tv_webhook_url = "https://alerts.tradingview.com/webhook/YOUR_WEBHOOK_ID"  # Replace with your TradingView webhook
+            # Your TradingView webhook URL for Alert 2 (reverse webhook)
+            tv_webhook_url = "https://webhook.site/YOUR_UNIQUE_ID"  # Replace with your actual webhook URL
             
-            # Create TradingView alert message
-            tv_message = {
-                "symbol": signal['symbol'],
-                "action": "display_signal",
-                "signal_type": signal['signal_type'],
-                "bias": signal['bias'],
-                "strength": signal['strength'],
-                "context": get_nq_context(signal['symbol'], signal['bias']),
-                "timestamp": signal['timestamp']
-            }
+            # Format message for Pine Script to parse
+            tv_message = f"CHART_SIGNAL:{signal['symbol']}:{signal['bias']}:{signal['price']}:{signal['strength']}"
             
-            # Send to TradingView (optional - only if you set up reverse webhook)
-            # requests.post(tv_webhook_url, json=tv_message, timeout=5)
+            # Send to TradingView webhook (this triggers Alert 2)
+            requests.post(tv_webhook_url, data=tv_message, timeout=5)
+            logger.info(f"Sent to TradingView: {tv_message}")
             
         except Exception as tv_error:
-            logger.error(f"TradingView alert error: {str(tv_error)}")
+            logger.error(f"TradingView reverse webhook error: {str(tv_error)}")
         
         return jsonify({
             "status": "success",

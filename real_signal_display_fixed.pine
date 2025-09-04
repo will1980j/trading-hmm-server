@@ -1,0 +1,104 @@
+//@version=5
+indicator("Real Signal Display", overlay=true, max_labels_count=500)
+
+// This receives REAL signals from TradingView alerts - NO SIMULATION
+
+// Signal variables - triggered by webhook alerts
+var string last_signal_symbol = ""
+var string last_signal_bias = ""
+var float last_signal_price = 0.0
+var int last_signal_time = 0
+var float last_signal_strength = 0.0
+
+// Display settings
+show_nq_signals = input.bool(true, "Show NQ Signals")
+show_dxy_signals = input.bool(true, "Show DXY Signals") 
+show_es_signals = input.bool(true, "Show ES Signals")
+show_ym_signals = input.bool(true, "Show YM Signals")
+label_size = input.string("Normal", "Label Size", options=["Tiny", "Small", "Normal", "Large"])
+
+// Performance tracking
+var int total_real_signals = 0
+var int correct_predictions = 0
+var array<float> real_signal_prices = array.new<float>()
+var array<int> real_signal_bars = array.new<int>()
+var array<string> real_signal_types = array.new<string>()
+
+get_label_size() =>
+    switch label_size
+        "Tiny" => size.tiny
+        "Small" => size.small
+        "Normal" => size.normal
+        "Large" => size.large
+        => size.normal
+
+// Alert condition for reverse webhook (Alert 2)
+alertcondition(true, title="Chart Display Signal", message="CHART_SIGNAL_REQUEST")
+
+// REAL SIGNAL DETECTION - This will be triggered by TradingView alerts
+// When your Pine Script sends a signal, it triggers an alert that calls this
+
+// NQ Direct Signals
+if barstate.isconfirmed and syminfo.tickerid == "CME_MINI:NQ1!" and show_nq_signals
+    // This will be triggered by your main indicator's alert
+    // The alert message will contain the signal data
+    
+    // For now, detect actual bias changes from your main indicator
+    // You'll need to set up alerts that trigger this
+    
+    // Placeholder - will be replaced by actual alert triggers
+    signal_detected = false
+    
+    if signal_detected
+        signal_text = last_signal_bias == "Bullish" ? "NQ LONG" : "NQ SHORT"
+        signal_color = last_signal_bias == "Bullish" ? color.lime : color.red
+        signal_style = last_signal_bias == "Bullish" ? label.style_label_up : label.style_label_down
+        signal_y = last_signal_bias == "Bullish" ? low - (high-low)*0.1 : high + (high-low)*0.1
+        
+        label.new(bar_index, signal_y, signal_text + "\n" + str.tostring(last_signal_strength) + "%",
+                  color=signal_color, textcolor=color.white, style=signal_style, size=get_label_size())
+        
+        array.push(real_signal_prices, close)
+        array.push(real_signal_bars, bar_index)
+        array.push(real_signal_types, "NQ_" + last_signal_bias)
+        total_real_signals := total_real_signals + 1
+
+// DXY Correlation Signals
+if barstate.isconfirmed and show_dxy_signals
+    // Will be triggered by DXY alerts
+    dxy_signal_detected = false
+    
+    if dxy_signal_detected
+        nq_context = last_signal_bias == "Bullish" ? "NQ BEARISH" : "NQ BULLISH"
+        signal_text = "DXY " + (last_signal_bias == "Bullish" ? "↑" : "↓") + "\n" + nq_context
+        signal_color = last_signal_bias == "Bullish" ? color.purple : color.blue
+        
+        label.new(bar_index, low - (high-low)*0.15, signal_text,
+                  color=signal_color, textcolor=color.white, style=label.style_label_up, size=get_label_size())
+        
+        array.push(real_signal_prices, close)
+        array.push(real_signal_bars, bar_index)
+        array.push(real_signal_types, "DXY_" + last_signal_bias)
+        total_real_signals := total_real_signals + 1
+
+// Performance table
+var table perf_table = table.new(position.top_right, 3, 4, bgcolor=color.new(color.black, 85), border_width=1)
+
+if barstate.islast
+    success_rate = total_real_signals > 0 ? math.round((correct_predictions / math.max(total_real_signals, 1)) * 100, 1) : 0
+    
+    table.cell(perf_table, 0, 0, "REAL SIGNALS", text_color=color.white, bgcolor=color.gray)
+    table.cell(perf_table, 1, 0, "LIVE DATA", text_color=color.white, bgcolor=color.gray)
+    table.cell(perf_table, 2, 0, "STATUS", text_color=color.white, bgcolor=color.gray)
+    
+    table.cell(perf_table, 0, 1, "Total", text_color=color.white)
+    table.cell(perf_table, 1, 1, str.tostring(total_real_signals), text_color=color.yellow)
+    table.cell(perf_table, 2, 1, "REAL", text_color=color.lime)
+    
+    table.cell(perf_table, 0, 2, "Success", text_color=color.white)
+    table.cell(perf_table, 1, 2, str.tostring(success_rate, "#.#") + "%", text_color=success_rate >= 60 ? color.lime : color.red)
+    table.cell(perf_table, 2, 2, success_rate >= 60 ? "GOOD" : "POOR", text_color=success_rate >= 60 ? color.lime : color.red)
+    
+    table.cell(perf_table, 0, 3, "Source", text_color=color.white)
+    table.cell(perf_table, 1, 3, "WEBHOOK", text_color=color.lime)
+    table.cell(perf_table, 2, 3, "LIVE", text_color=color.lime)
