@@ -1888,21 +1888,33 @@ def capture_live_signal():
             if form_data:
                 data = form_data
         
-        # If data is wrapped in alert_message, parse it
+        # If data is wrapped in alert_message, extract data directly
         if data and 'alert_message' in data:
             try:
-                # Fix the malformed JSON by replacing the problematic symbol format
                 alert_msg = data['alert_message']
-                # Replace malformed symbol format
                 import re
-                alert_msg = re.sub(r'"symbol":"=[^"]*"', '"symbol":"' + 'NQ1!' + '"', alert_msg)
                 
-                inner_data = loads(alert_msg)
-                data = inner_data
-                logger.info(f"Fixed and parsed alert_message: symbol={data.get('symbol')}, price={data.get('price')}")
+                # Extract values using regex instead of parsing JSON
+                bias_match = re.search(r'"bias":"(\w+)"', alert_msg)
+                price_match = re.search(r'"price":(\d+(?:\.\d+)?)', alert_msg)
+                strength_match = re.search(r'"strength":(\d+)', alert_msg)
+                symbol_match = re.search(r'"symbol":"[^"]*:([^"!]+)', alert_msg)
+                
+                if bias_match and price_match:
+                    data = {
+                        'bias': bias_match.group(1),
+                        'price': float(price_match.group(1)),
+                        'strength': int(strength_match.group(1)) if strength_match else 50,
+                        'symbol': symbol_match.group(1) + '1!' if symbol_match else 'NQ1!',
+                        'timeframe': '1m',
+                        'signal_type': 'BIAS_CHANGE'
+                    }
+                    logger.info(f"Extracted from alert_message: {data['symbol']} {data['bias']} at {data['price']}")
+                else:
+                    logger.error(f"Could not extract data from: {alert_msg[:100]}")
+                    
             except Exception as e:
-                logger.error(f"Failed to parse alert_message: {e}")
-                logger.error(f"Raw alert_message: {data.get('alert_message', '')[:200]}")
+                logger.error(f"Failed to extract from alert_message: {e}")
                 pass
         
         # Create default signal if no structured data
