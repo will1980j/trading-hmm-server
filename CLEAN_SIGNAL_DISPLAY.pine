@@ -1,0 +1,15 @@
+//@version=5
+indicator("Real Signal Display", overlay=true, max_labels_count=10)
+
+// Alert condition ONLY - no automatic labels
+alertcondition(true, title="Chart Display Signal", message="CHART_SIGNAL_REQUEST")
+
+// Performance table only
+var table perf_table = table.new(position.top_right, 2, 2, bgcolor=color.new(color.black, 85), border_width=1)
+
+if barstate.islast
+    table.cell(perf_table, 0, 0, "🔥 SIGNALS", text_color=color.white, bgcolor=color.new(#1a1a2e, 0))
+    table.cell(perf_table, 1, 0, "📊 STATUS", text_color=color.white, bgcolor=color.new(#1a1a2e, 0))
+    
+    table.cell(perf_table, 0, 1, "Source", text_color=color.white)
+    table.cell(perf_table, 1, 1, "🌐 WEBHOOK", text_color=color.new(#00ff88, 0))

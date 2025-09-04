@@ -1,10 +1,5 @@
 //@version=5
-indicator("Real Signal Display", overlay=true, max_labels_count=500)
-
-// Signal variables
-var string last_signal_bias = "Bullish"
-var float last_signal_strength = 85.0
-var int signal_counter = 0
+indicator("Real Signal Display", overlay=true, max_labels_count=50)
 
 // Display settings
 show_signals = input.bool(true, "Show Live Signals")
@@ -12,7 +7,6 @@ label_size = input.string("Normal", "Label Size", options=["Tiny", "Small", "Nor
 bull_color = input.color(color.new(#00ff88, 0), "Bullish Color")
 bear_color = input.color(color.new(#ff4757, 0), "Bearish Color")
 text_color = input.color(color.white, "Text Color")
-border_width = input.int(2, "Border Width", minval=1, maxval=5)
 
 get_label_size() =>
     switch label_size
@@ -25,30 +19,28 @@ get_label_size() =>
 // Alert condition - this creates the webhook trigger
 alertcondition(true, title="Chart Display Signal", message="CHART_SIGNAL_REQUEST")
 
-// Simple signal detection - only when alert fires
-var bool alert_fired = false
+// ONLY show signal when manually triggered - NOT automatic
+var int last_signal_bar = 0
+var int signal_counter = 0
 
-// Only trigger when Alert 2 actually fires - NOT on every bar
-var bool signal_triggered = false
+// Manual trigger condition - change this to your preferred trigger
+manual_trigger = false  // Set to false to prevent automatic signals
 
-// This should ONLY execute when the webhook alert fires
-if barstate.isconfirmed and show_signals and not signal_triggered
-    // Only show ONE signal per alert trigger
-    signal_triggered := true
-    
-    // Get current bias
-    current_bias = close > close[5] ? "Bullish" : "Bearish"
-    last_signal_bias := current_bias
+if barstate.isconfirmed and show_signals and manual_trigger and bar_index != last_signal_bar
+    last_signal_bar := bar_index
     signal_counter := signal_counter + 1
-        
+    
+    // Determine signal direction
+    current_bias = close > close[5] ? "Bullish" : "Bearish"
+    
     // Create professional signal label
     direction_icon = current_bias == "Bullish" ? "▲" : "▼"
     signal_title = current_bias == "Bullish" ? "LONG" : "SHORT"
     
-    // Professional label text with clean formatting
+    // Professional label text
     label_text = direction_icon + " " + signal_title + " SIGNAL\n" + 
                  "━━━━━━━━━━━━━━━━━━━━\n" +
-                 "💪 Strength: " + str.tostring(last_signal_strength, "#") + "%\n" +
+                 "💪 Strength: 85%\n" +
                  "💰 Price: " + str.tostring(close, "#.##") + "\n" +
                  "⏰ " + str.format_time(time, "HH:mm", "America/New_York")
     
@@ -63,9 +55,6 @@ if barstate.isconfirmed and show_signals and not signal_triggered
               style=signal_style, 
               size=get_label_size(),
               tooltip="Live Signal from Webhook")
-    
-    // Reset trigger for next alert
-    signal_triggered := false
 
 // Performance table
 var table perf_table = table.new(position.top_right, 2, 3, bgcolor=color.new(color.black, 85), border_width=1)

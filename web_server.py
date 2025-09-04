@@ -1776,7 +1776,7 @@ def live_signals_dashboard():
 def get_live_signals():
     try:
         timeframe = request.args.get('timeframe', '1m')
-        limit = int(request.args.get('limit', 50))
+        limit = int(request.args.get('limit', 200))  # Show more historical signals
         
         if not db_enabled or not db:
             return jsonify({'signals': []})
@@ -1870,7 +1870,8 @@ def capture_live_signal():
                 pass
         # Handle TradingView webhook - they send the alert message as raw text
         raw_data = request.get_data(as_text=True)
-        logger.info(f"Raw webhook data: {raw_data[:500]}")
+        logger.info(f"🔥 WEBHOOK RECEIVED: {raw_data[:500]}")
+        print(f"🔥 WEBHOOK RECEIVED: {raw_data[:500]}")  # Console output
         
         data = None
         
@@ -2052,21 +2053,22 @@ def capture_live_signal():
         enhanced_signal['id'] = signal_id
         socketio.emit('new_signal', enhanced_signal, namespace='/')
         
-        # Send signal back to TradingView for chart display
+        # Send divergence alerts to TradingView for chart display
         try:
             import requests
-            # Your TradingView webhook URL for Alert 2 (reverse webhook)
-            tv_webhook_url = "https://webhook.site/YOUR_UNIQUE_ID"  # Replace with your actual webhook URL
             
-            # Format message for Pine Script to parse
-            tv_message = f"CHART_SIGNAL:{signal['symbol']}:{signal['bias']}:{signal['price']}:{signal['strength']}"
+            # Import and detect divergences
+            from divergence_detector import detect_divergence_opportunities
+            divergence_alerts = detect_divergence_opportunities(signal)
             
-            # Send to TradingView webhook (this triggers Alert 2)
-            requests.post(tv_webhook_url, data=tv_message, timeout=5)
-            logger.info(f"Sent to TradingView: {tv_message}")
+            for alert in divergence_alerts:
+                # Send specific divergence alert
+                tv_webhook_url = alert['webhook_url']  # Different webhook for each alert type
+                requests.post(tv_webhook_url, data=alert['message'], timeout=5)
+                logger.info(f"Sent divergence alert: {alert['message']}")
             
         except Exception as tv_error:
-            logger.error(f"TradingView reverse webhook error: {str(tv_error)}")
+            logger.error(f"TradingView divergence alert error: {str(tv_error)}")
         
         return jsonify({
             "status": "success",
