@@ -597,15 +597,21 @@
         // Update last update time
         function updateLastUpdateTime() {
             const now = new Date();
-            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            const timeString = now.toLocaleTimeString('en-US', {
+                timeZone: 'America/New_York',
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
             document.getElementById('lastUpdate').textContent = `Last: ${timeString}`;
         }
         
-        // Format timestamp
+        // Format timestamp to match TradingView exchange time (EST/EDT)
         function formatTime(timestamp) {
             const date = new Date(timestamp);
             return date.toLocaleTimeString('en-US', { 
-                timeZone: 'America/New_York',
+                timeZone: 'America/New_York', // Automatically handles EST (-5) / EDT (-4)
                 hour12: false, 
                 hour: '2-digit', 
                 minute: '2-digit',
