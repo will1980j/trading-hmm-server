@@ -1776,7 +1776,7 @@ def live_signals_dashboard():
 def get_live_signals():
     try:
         timeframe = request.args.get('timeframe', '1m')
-        limit = int(request.args.get('limit', 200))  # Show more historical signals
+        limit = int(request.args.get('limit', 50))  # Reasonable limit
         
         if not db_enabled or not db:
             return jsonify({'signals': []})
@@ -1788,10 +1788,20 @@ def get_live_signals():
             pass
             
         cursor = db.conn.cursor()
+        
+        # Get only the most recent signal per symbol for the timeframe
+        # This prevents switching between old and new signals
         cursor.execute("""
-            SELECT * FROM live_signals 
-            WHERE timeframe = %s 
-            ORDER BY id DESC 
+            WITH latest_signals AS (
+                SELECT DISTINCT ON (symbol) 
+                    id, symbol, timeframe, signal_type, bias, price, strength, 
+                    timestamp, htf_status, htf_aligned, level2_data, ai_analysis
+                FROM live_signals 
+                WHERE timeframe = %s 
+                ORDER BY symbol, timestamp DESC, id DESC
+            )
+            SELECT * FROM latest_signals 
+            ORDER BY timestamp DESC
             LIMIT %s
         """, (timeframe, limit))
         
