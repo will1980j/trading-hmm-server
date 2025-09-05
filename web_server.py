@@ -1998,9 +1998,22 @@ def capture_live_signal():
         if triangle_bias not in ['Bullish', 'Bearish']:
             triangle_bias = 'Bullish'
         
-        # Extract HTF alignment from Pine Script
-        htf_aligned = data.get('htf_aligned', False)  # Whether HTF is aligned
-        htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
+        # Extract HTF alignment from Pine Script - fix boolean parsing
+        htf_aligned_raw = data.get('htf_aligned', False)
+        
+        # Handle different data types for htf_aligned
+        if isinstance(htf_aligned_raw, str):
+            htf_aligned = htf_aligned_raw.lower() in ['true', '1', 'yes']
+        elif isinstance(htf_aligned_raw, (int, float)):
+            htf_aligned = bool(htf_aligned_raw)
+        else:
+            htf_aligned = bool(htf_aligned_raw)
+        
+        # HTF status should match the triangle bias when aligned
+        if htf_aligned:
+            htf_status = 'ALIGNED'
+        else:
+            htf_status = 'AGAINST'
         
         # Clean symbol name - fix ES mapping
         raw_symbol = data.get('symbol', 'NQ1!')
@@ -2038,7 +2051,9 @@ def capture_live_signal():
         # Apply HTF alignment bonus
         if htf_aligned:
             base_strength = min(95, base_strength + 20)  # +20% for HTF alignment
-            logger.info(f"HTF aligned - boosting strength to {base_strength}%")
+            logger.info(f"HTF ALIGNED: {triangle_bias} bias with HTF support - boosting strength to {base_strength}%")
+        else:
+            logger.info(f"HTF AGAINST: {triangle_bias} bias against HTF - strength remains {base_strength}%")
         
         # Determine current session
         current_session = get_current_session()
@@ -2089,54 +2104,45 @@ def capture_live_signal():
         except ImportError:
             pass  # Level 2 data not available
         
-        # Run institutional-grade ML analysis
+        # Run comprehensive ML analysis using actual trading data
         try:
-            from institutional_ml_engine import get_institutional_engine
-            from market_data_collector import get_market_data_for_ml
+            from comprehensive_ml_analyzer import ComprehensiveMLAnalyzer
             
-            # Get recent market data for institutional ML features
-            market_data = get_market_data_for_ml(signal['symbol'], minutes=200)
+            # Get comprehensive ML analyzer
+            analyzer = ComprehensiveMLAnalyzer(db)
             
-            # Get institutional ML engine
-            institutional_engine = get_institutional_engine(db)
+            # Analyze signal quality using real trading patterns
+            quality_prediction = analyzer.predict_signal_quality(signal)
             
-            # Generate institutional prediction
-            prediction = institutional_engine.predict_institutional(signal, market_data)
-            
-            # Apply institutional ML enhancements
-            if prediction.confidence > 0:
-                # Calculate enhanced strength using institutional metrics
-                institutional_strength = min(98, signal['strength'] * (1 + prediction.confidence/100))
+            # Apply real ML enhancements based on actual data
+            if 'quality_probability' in quality_prediction:
+                # Calculate enhanced strength using real pattern analysis
+                quality_boost = quality_prediction['quality_probability'] / 100
+                enhanced_strength = min(98, signal['strength'] * (1 + quality_boost * 0.2))
                 
                 cursor.execute("""
                     UPDATE live_signals 
                     SET strength = %s, ai_analysis = %s 
                     WHERE id = %s
                 """, (
-                    institutional_strength,
+                    enhanced_strength,
                     dumps({
-                        'institutional_direction': prediction.direction,
-                        'bayesian_confidence': prediction.confidence,
-                        'expected_return': prediction.expected_return,
-                        'sharpe_ratio': prediction.sharpe_ratio,
-                        'kelly_fraction': prediction.kelly_fraction,
-                        'var_95': prediction.var_95,
-                        'regime_probabilities': prediction.regime_probability,
-                        'execution_cost': prediction.execution_cost,
-                        'liquidity_score': prediction.liquidity_score,
-                        'model_uncertainty': prediction.model_uncertainty,
-                        'features_count': 150
+                        'quality_probability': quality_prediction['quality_probability'],
+                        'model_accuracy': quality_prediction.get('model_accuracy', 0),
+                        'recommendation': quality_prediction.get('recommendation', 'UNKNOWN'),
+                        'feature_importance': quality_prediction.get('feature_importance', {}),
+                        'analysis_type': 'comprehensive_real_data'
                     }),
                     signal_id
                 ))
                 db.conn.commit()
                 
-                logger.info(f"🏛️ INSTITUTIONAL ML: {signal['symbol']} {prediction.direction} | Confidence: {prediction.confidence:.1f}% | Sharpe: {prediction.sharpe_ratio:.2f} | Kelly: {prediction.kelly_fraction:.3f}")
+                logger.info(f"📊 REAL ML: {signal['symbol']} {quality_prediction.get('recommendation', 'UNKNOWN')} | Quality: {quality_prediction['quality_probability']:.1f}% | Strength: {signal['strength']:.0f}→{enhanced_strength:.0f}")
             
         except Exception as ml_error:
-            logger.error(f"❌ Institutional ML error: {str(ml_error)}")
-            # Fallback to basic analysis
-            analyze_signal_patterns(signal_id)
+            logger.error(f"❌ Real ML error: {str(ml_error)}")
+            # Continue without ML enhancement
+            pass
         
         # Enable divergence detection for correlated symbols only
         if signal['symbol'] in ['DXY', 'ES1!', 'YM1!']:  # Only for correlation symbols
