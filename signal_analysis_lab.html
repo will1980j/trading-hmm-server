@@ -528,6 +528,35 @@
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
+        
+        .daily-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(30,60,114,0.95));
+            border: 2px solid #00ff88;
+            border-radius: 20px;
+            padding: 30px;
+            z-index: 10000;
+            min-width: 600px;
+            max-width: 80vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+        }
     </style>
 </head>
 <body>
@@ -1960,14 +1989,141 @@
         function selectDate(dateStr, tradeCount) {
             if (tradeCount === 0) return;
             
-            if (selectedDate === dateStr) {
-                // Deselect if clicking same date
-                selectedDate = null;
-            } else {
-                selectedDate = dateStr;
-            }
+            // Show daily popup instead of just filtering
+            showDailyPopup(dateStr);
+        }
+        
+        function showDailyPopup(date) {
+            const dayTrades = signals.filter(signal => signal.date === date);
+            if (dayTrades.length === 0) return;
             
-            updateDisplay();
+            // Calculate daily stats using MFE data
+            const wins = dayTrades.filter(t => {
+                // Count as win if any MFE > 0 (hit target)
+                return (t.mfeNone && t.mfeNone > 0) || (t.mfe1 && t.mfe1 > 0) || (t.mfe2 && t.mfe2 > 0);
+            }).length;
+            
+            const losses = dayTrades.filter(t => {
+                // Count as loss if all MFEs are negative or -1 (stopped out)
+                const mfeNone = t.mfeNone || 0;
+                const mfe1 = t.mfe1 || 0;
+                const mfe2 = t.mfe2 || 0;
+                return mfeNone < 0 && mfe1 <= 0 && mfe2 <= 0;
+            }).length;
+            
+            const breakevens = dayTrades.filter(t => {
+                // Count as BE if hit BE level but didn't reach target
+                return (t.be1Hit && (!t.mfe1 || t.mfe1 === 0)) || (t.be2Hit && (!t.mfe2 || t.mfe2 === 0));
+            }).length;
+            
+            const winRate = dayTrades.length > 0 ? ((wins + breakevens) / dayTrades.length) * 100 : 0;
+            
+            // Calculate expectancy using best MFE for each trade
+            let totalR = 0;
+            dayTrades.forEach(trade => {
+                const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
+                if (bestMFE > 0) {
+                    totalR += Math.min(bestMFE, 2); // Cap at 2R for expectancy calc
+                } else if (bestMFE < 0) {
+                    totalR -= 1; // Standard 1R loss
+                }
+            });
+            
+            const expectancy = dayTrades.length > 0 ? totalR / dayTrades.length : 0;
+            
+            // Calculate consecutive streaks
+            let maxConsecutiveLosses = 0;
+            let maxConsecutiveWins = 0;
+            let currentLosses = 0;
+            let currentWins = 0;
+            
+            dayTrades.forEach(trade => {
+                const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
+                if (bestMFE < 0) {
+                    currentLosses++;
+                    maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentLosses);
+                    currentWins = 0;
+                } else if (bestMFE > 0) {
+                    currentWins++;
+                    maxConsecutiveWins = Math.max(maxConsecutiveWins, currentWins);
+                    currentLosses = 0;
+                }
+            });
+            
+            // Create equity curve data
+            let cumulative = 0;
+            const equityData = dayTrades.map((trade, index) => {
+                const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
+                let result = 0;
+                if (bestMFE > 0) {
+                    result = Math.min(bestMFE, 2); // Cap gains at 2R
+                } else if (bestMFE < 0) {
+                    result = -1; // Standard loss
+                }
+                cumulative += result;
+                return { x: index, y: cumulative, result: result, time: trade.time };
+            });
+            
+            const popupHtml = `
+                <div class="popup-overlay" onclick="closeDailyPopup()"></div>
+                <div class="daily-popup">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                        <h2 style="color: #00ff88; margin: 0; font-size: 24px;">${new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h2>
+                        <button onclick="closeDailyPopup()" style="background: #ff4757; border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">✕ Close</button>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; text-align: center;">
+                            <div style="font-size: 20px; font-weight: 700; color: ${totalR >= 0 ? '#00ff88' : '#ff4757'};">${totalR >= 0 ? '+' : ''}${totalR.toFixed(2)}R</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Total R</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: 700; color: #00ff88;">${winRate.toFixed(1)}%</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Win Rate</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: 700; color: #00d4aa;">${expectancy.toFixed(3)}R</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Expectancy</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: 700; color: #ff6b7a;">${maxConsecutiveLosses}</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Max R Losses</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: 700; color: #00ff88;">${maxConsecutiveWins}</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Max R Wins</div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px; margin-bottom: 20px;">
+                        <h3 style="color: #00ff88; margin-bottom: 15px;">Daily Equity Curve</h3>
+                        <div id="dailyEquityChart" style="width: 100%; height: 300px;"></div>
+                    </div>
+                    
+                    <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
+                        <h3 style="color: #00ff88; margin-bottom: 15px;">Trade Details (${dayTrades.length} trades)</h3>
+                        <div style="max-height: 200px; overflow-y: auto;">
+                            ${dayTrades.map((trade, index) => {
+                                const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
+                                const result = bestMFE > 0 ? Math.min(bestMFE, 2) : (bestMFE < 0 ? -1 : 0);
+                                return `
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                        <span style="font-size: 14px;">#${index + 1} - ${trade.time || 'N/A'} (${trade.session}) - ${trade.signalType}</span>
+                                        <span style="font-weight: 600; color: ${result > 0 ? '#00ff88' : result < 0 ? '#ff4757' : '#ffa502'};">
+                                            ${result > 0 ? '+' : ''}${result.toFixed(2)}R
+                                        </span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', popupHtml);
+            
+            // Create mini equity curve
+            setTimeout(() => createDailyEquityChart(equityData), 100);
         }
         
         async function autoFillAllNews() {
@@ -2111,6 +2267,123 @@
             }
         }
         
+        function createDailyEquityChart(data) {
+            const container = document.getElementById('dailyEquityChart');
+            if (!container) return;
+            
+            // Clear existing chart
+            container.innerHTML = '';
+            
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 50px; color: rgba(255,255,255,0.7);">No trade data available</div>';
+                return;
+            }
+            
+            // Simple canvas-based chart for better performance
+            const canvas = document.createElement('canvas');
+            canvas.width = 500;
+            canvas.height = 200;
+            canvas.style.width = '100%';
+            canvas.style.height = '200px';
+            canvas.style.background = 'rgba(0,0,0,0.2)';
+            canvas.style.borderRadius = '10px';
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Calculate scales
+            const padding = 40;
+            const chartWidth = canvas.width - (padding * 2);
+            const chartHeight = canvas.height - (padding * 2);
+            
+            const maxY = Math.max(...data.map(d => d.y), 1);
+            const minY = Math.min(...data.map(d => d.y), -1);
+            const yRange = maxY - minY || 2;
+            
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 1;
+            
+            // Horizontal grid lines
+            for (let i = 0; i <= 4; i++) {
+                const y = padding + (i * chartHeight / 4);
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(padding + chartWidth, y);
+                ctx.stroke();
+            }
+            
+            // Zero line
+            if (minY < 0 && maxY > 0) {
+                const zeroY = padding + chartHeight - ((0 - minY) / yRange * chartHeight);
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(padding, zeroY);
+                ctx.lineTo(padding + chartWidth, zeroY);
+                ctx.stroke();
+            }
+            
+            // Draw equity curve
+            ctx.strokeStyle = '#00ff88';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            data.forEach((point, index) => {
+                const x = padding + (index / (data.length - 1)) * chartWidth;
+                const y = padding + chartHeight - ((point.y - minY) / yRange * chartHeight);
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+            
+            // Draw points
+            data.forEach((point, index) => {
+                const x = padding + (index / (data.length - 1)) * chartWidth;
+                const y = padding + chartHeight - ((point.y - minY) / yRange * chartHeight);
+                
+                ctx.fillStyle = point.result > 0 ? '#00ff88' : point.result < 0 ? '#ff4757' : '#ffa502';
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // White border
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+            
+            // Draw labels
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px Inter';
+            ctx.textAlign = 'center';
+            
+            // Y-axis labels
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= 4; i++) {
+                const value = maxY - (i * yRange / 4);
+                const y = padding + (i * chartHeight / 4) + 4;
+                ctx.fillText(value.toFixed(1) + 'R', padding - 10, y);
+            }
+            
+            // X-axis labels
+            ctx.textAlign = 'center';
+            ctx.fillText('Trade 1', padding, canvas.height - 10);
+            ctx.fillText(`Trade ${data.length}`, padding + chartWidth, canvas.height - 10);
+            
+            container.appendChild(canvas);
+        }
+        
+        function closeDailyPopup() {
+            const popup = document.querySelector('.daily-popup');
+            const overlay = document.querySelector('.popup-overlay');
+            if (popup) popup.remove();
+            if (overlay) overlay.remove();
+        }
+        
         // Make functions globally available
         window.addSignal = addSignal;
         window.editSignal = editSignal;
@@ -2130,6 +2403,8 @@
         window.autoFillAllNews = autoFillAllNews;
         window.formatTimeInput = formatTimeInput;
         window.bulkDeleteAllTrades = bulkDeleteAllTrades;
+        window.showDailyPopup = showDailyPopup;
+        window.closeDailyPopup = closeDailyPopup;
         
         } catch (error) {
             console.error('Signal Lab JavaScript Error:', error);
