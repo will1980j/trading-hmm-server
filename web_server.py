@@ -1804,12 +1804,8 @@ def get_live_signals():
             
         cursor = db.conn.cursor()
         
-        # Delete bad price data and get clean signals
-        cursor.execute("""
-            DELETE FROM live_signals 
-            WHERE (symbol IN ('YM1!', 'ES1!', 'RTY1!') AND price = 15000.0000)
-            OR price = 0
-        """)
+        # Delete ALL old signals to force fresh data
+        cursor.execute("DELETE FROM live_signals")
         db.conn.commit()
         
         # Get only the most recent signal per symbol for the timeframe
@@ -1974,18 +1970,20 @@ def capture_live_signal():
         htf_aligned = data.get('htf_aligned', False)  # Whether HTF is aligned
         htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
         
-        # Clean symbol name
+        # Clean symbol name - fix ES mapping
         raw_symbol = data.get('symbol', 'NQ1!')
-        if 'CME_MINI:' in raw_symbol or 'NQ1!' in raw_symbol:
+        if 'NQ' in raw_symbol:
             clean_symbol = 'NQ1!'
-        elif 'CBOT_MINI:' in raw_symbol or 'YM1!' in raw_symbol:
+        elif 'YM' in raw_symbol:
             clean_symbol = 'YM1!'
-        elif 'COMEX_MINI:' in raw_symbol or 'ES1!' in raw_symbol:
+        elif 'ES' in raw_symbol:
             clean_symbol = 'ES1!'
+        elif 'RTY' in raw_symbol:
+            clean_symbol = 'RTY1!'
         elif 'DXY' in raw_symbol:
             clean_symbol = 'DXY'
         else:
-            clean_symbol = 'NQ1!'  # Default to NQ1!
+            clean_symbol = raw_symbol  # Keep original if no match
         
         # Ensure price is valid - handle string and numeric prices
         raw_price = data.get('price', 0)
