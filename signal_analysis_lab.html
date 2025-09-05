@@ -2023,7 +2023,7 @@
             dayTrades.forEach(trade => {
                 const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
                 if (bestMFE > 0) {
-                    totalR += Math.min(bestMFE, 2); // Cap at 2R for expectancy calc
+                    totalR += bestMFE; // Use actual MFE value
                 } else if (bestMFE < 0) {
                     totalR -= 1; // Standard 1R loss
                 }
@@ -2056,7 +2056,7 @@
                 const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
                 let result = 0;
                 if (bestMFE > 0) {
-                    result = Math.min(bestMFE, 2); // Cap gains at 2R
+                    result = bestMFE; // Use actual MFE value
                 } else if (bestMFE < 0) {
                     result = -1; // Standard loss
                 }
@@ -2105,7 +2105,7 @@
                         <div style="max-height: 200px; overflow-y: auto;">
                             ${dayTrades.map((trade, index) => {
                                 const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
-                                const result = bestMFE > 0 ? Math.min(bestMFE, 2) : (bestMFE < 0 ? -1 : 0);
+                                const result = bestMFE > 0 ? bestMFE : (bestMFE < 0 ? -1 : 0);
                                 return `
                                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
                                         <span style="font-size: 14px;">#${index + 1} - ${trade.time || 'N/A'} (${trade.session}) - ${trade.signalType}</span>
