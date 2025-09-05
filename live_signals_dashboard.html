@@ -486,32 +486,59 @@
                 `<div style="color: #00ff88; font-size: 10px;">✓ ALIGNED</div>` :
                 `<div style="color: #ff4757; font-size: 10px;">✗ AGAINST</div>`;
             
-            // NQ Context based on symbol and bias
+            // NQ Context based on symbol and bias - colored by NQ direction
             let nqContext = '';
+            let nqContextClass = '';
+            let action = '';
+            let actionClass = '';
             const symbol = signal.symbol || '';
             
             if (symbol.includes('NQ')) {
-                nqContext = bias === 'Bullish' ? '🟢 Direct Long' : '🔴 Direct Short';
+                if (bias === 'Bullish') {
+                    nqContext = '🟢 Direct Long';
+                    nqContextClass = 'signal-bullish';
+                    action = 'Long FVG';
+                    actionClass = 'signal-bullish';
+                } else {
+                    nqContext = '🔴 Direct Short';
+                    nqContextClass = 'signal-bearish';
+                    action = 'Short FVG';
+                    actionClass = 'signal-bearish';
+                }
             } else if (symbol.includes('DXY')) {
-                nqContext = bias === 'Bullish' ? '🔴 NQ Bearish' : '🟢 NQ Bullish';
+                if (bias === 'Bullish') {
+                    nqContext = '🔴 NQ Bearish';
+                    nqContextClass = 'signal-bearish';
+                    action = 'Wait NQ Short';
+                    actionClass = 'signal-bearish';
+                } else {
+                    nqContext = '🟢 NQ Bullish';
+                    nqContextClass = 'signal-bullish';
+                    action = 'Prep NQ Long';
+                    actionClass = 'signal-bullish';
+                }
             } else if (symbol.includes('ES') || symbol.includes('YM')) {
-                nqContext = bias === 'Bullish' ? '🟢 NQ Bullish' : '🔴 NQ Bearish';
+                if (bias === 'Bullish') {
+                    nqContext = '🟢 NQ Bullish';
+                    nqContextClass = 'signal-bullish';
+                    action = 'Check NQ Long';
+                    actionClass = 'signal-bullish';
+                } else {
+                    nqContext = '🔴 NQ Bearish';
+                    nqContextClass = 'signal-bearish';
+                    action = 'Check NQ Short';
+                    actionClass = 'signal-bearish';
+                }
             } else if (symbol.includes('RTY')) {
-                nqContext = bias === 'Bullish' ? '🟡 NQ Neutral' : '🟡 NQ Neutral';
+                nqContext = '🟡 NQ Neutral';
+                nqContextClass = 'signal-neutral';
+                action = 'Monitor';
+                actionClass = 'signal-neutral';
             } else {
                 nqContext = '⚪ Monitor';
-            }
-            
-            // Action based on context
-            let action = '';
-            if (symbol.includes('NQ')) {
-                action = bias === 'Bullish' ? 'Long FVG' : 'Short FVG';
-            } else if (symbol.includes('DXY')) {
-                action = bias === 'Bullish' ? 'Wait NQ Short' : 'Prep NQ Long';
-            } else if (symbol.includes('ES') || symbol.includes('YM')) {
-                action = bias === 'Bullish' ? 'Check NQ Long' : 'Check NQ Short';
-            } else {
+                nqContextClass = 'signal-neutral';
                 action = 'Monitor';
+                actionClass = 'signal-neutral';
             }
             
             // Add special styling for divergence signals
@@ -526,8 +553,8 @@
                     <td>${htfDisplay}</td>
                     <td>${parseFloat(signal.price || 0).toLocaleString()}</td>
                     <td>${Math.round(signal.strength || 0)}%</td>
-                    <td style="font-size: 11px;">${nqContext}</td>
-                    <td style="font-size: 11px; font-weight: bold;">${action}</td>
+                    <td style="font-size: 11px;" class="${nqContextClass}">${nqContext}</td>
+                    <td style="font-size: 11px; font-weight: bold;" class="${actionClass}">${action}</td>
                 </tr>
             `;
         }
