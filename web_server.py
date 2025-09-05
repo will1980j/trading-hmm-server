@@ -2164,7 +2164,7 @@ def capture_live_signal():
         
         logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | ID: {signal_id}")
         
-        # Detect and send divergence alerts for correlated symbols
+        # Send divergence alerts immediately when signal received
         if signal['symbol'] in ['DXY', 'ES1!', 'YM1!']:
             try:
                 from divergence_detector import detect_divergence_opportunities, send_divergence_alert
@@ -2174,47 +2174,19 @@ def capture_live_signal():
                 for alert in divergence_alerts:
                     success = send_divergence_alert(alert)
                     if success:
-                        logger.info(f"🎯 {alert['type']}: {alert['message']}")
-                        
-                        # Broadcast to dashboard
-                        socketio.emit('divergence_detected', {
-                            'type': alert['type'],
-                            'message': alert['message'],
-                            'nq_direction': alert['nq_direction'],
-                            'strength': alert['strength'],
-                            'source_symbol': signal['symbol'],
-                            'timestamp': signal['timestamp']
-                        }, namespace='/')
+                        logger.info(f"DIVERGENCE SENT: {alert['type']} at {signal['timestamp']}")
                     else:
-                        logger.error(f"❌ Failed to send {alert['type']}")
+                        logger.error(f"DIVERGENCE FAILED: {alert['type']}")
                         
             except Exception as div_error:
-                logger.error(f"Divergence detection error: {str(div_error)}")
+                logger.error(f"Divergence error: {str(div_error)}")
         
         # Broadcast original signal to all connected clients
         enhanced_signal = dict(signal)
         enhanced_signal['id'] = signal_id
         socketio.emit('new_signal', enhanced_signal, namespace='/')
         
-        # Send divergence alerts to TradingView for chart display
-        try:
-            # Simple divergence detection based on symbol correlation
-            if signal['symbol'] == 'DXY':
-                # DXY inverse correlation with NQ
-                if signal['bias'] == 'Bearish':
-                    # DXY bearish = NQ bullish opportunity
-                    logger.info(f"🟢 DIVERGENCE DETECTED: DXY Bearish → NQ Long opportunity at {signal['price']}")
-                elif signal['bias'] == 'Bullish':
-                    # DXY bullish = NQ bearish opportunity  
-                    logger.info(f"🔴 DIVERGENCE DETECTED: DXY Bullish → NQ Short opportunity at {signal['price']}")
-            
-            elif signal['symbol'] in ['ES1!', 'YM1!']:
-                # ES/YM positive correlation with NQ
-                nq_bias = signal['bias']  # Same direction as NQ
-                logger.info(f"📊 CORRELATION: {signal['symbol']} {signal['bias']} → NQ {nq_bias} alignment")
-            
-        except Exception as tv_error:
-            logger.error(f"Divergence detection error: {str(tv_error)}")
+
         
         return jsonify({
             "status": "success",
