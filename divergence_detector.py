@@ -5,14 +5,14 @@ import pytz
 
 logger = getLogger(__name__)
 
-# Use your existing 6 webhook URLs from divergence_detector.py
+# Your actual TradingView webhook URLs for divergence alerts
 DIVERGENCE_WEBHOOKS = {
-    'DXY_BEARISH_NQ_LONG': 'https://webhook.site/dxy-bearish-nq-long',
-    'DXY_BULLISH_NQ_SHORT': 'https://webhook.site/dxy-bullish-nq-short', 
-    'ES_BEARISH_NQ_SHORT': 'https://webhook.site/es-bearish-nq-short',
-    'ES_BULLISH_NQ_LONG': 'https://webhook.site/es-bullish-nq-long',
-    'YM_BEARISH_NQ_SHORT': 'https://webhook.site/ym-bearish-nq-short',
-    'YM_BULLISH_NQ_LONG': 'https://webhook.site/ym-bullish-nq-long'
+    'DXY_BEARISH_NQ_LONG': 'https://webhook.site/d984f203-aa83-4266-8822-e8415c44061a',
+    'DXY_BULLISH_NQ_SHORT': 'https://webhook.site/3da6b446-0f7b-426c-b40f-264e6ddb1b3f', 
+    'ES_BEARISH_NQ_SHORT': 'https://webhook.site/f353ae43-b2c4-4013-aed1-19ded3593cd2',
+    'ES_BULLISH_NQ_LONG': 'https://webhook.site/9130a450-403d-4871-ba09-b9c395a046b1',
+    'YM_BEARISH_NQ_SHORT': 'https://webhook.site/c6f100a7-9faa-4657-8251-6ce9d9403a34',
+    'YM_BULLISH_NQ_LONG': 'https://webhook.site/f3fd178e-c1d5-4332-a6fb-866abd5f1f18'
 }
 
 def detect_divergence_opportunities(signal):
