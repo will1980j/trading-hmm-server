@@ -2023,18 +2023,24 @@
             
             const winRate = dayTrades.length > 0 ? ((wins + breakevens) / dayTrades.length) * 100 : 0;
             
-            // Calculate expectancy using best MFE for each trade
+            // Calculate expectancy and profit factor using best MFE for each trade
             let totalR = 0;
+            let grossProfit = 0;
+            let grossLoss = 0;
+            
             dayTrades.forEach(trade => {
                 const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
                 if (bestMFE > 0) {
                     totalR += bestMFE; // Use actual MFE value
+                    grossProfit += bestMFE;
                 } else if (bestMFE < 0) {
                     totalR -= 1; // Standard 1R loss
+                    grossLoss += 1;
                 }
             });
             
             const expectancy = dayTrades.length > 0 ? totalR / dayTrades.length : 0;
+            const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 999 : 0);
             
             // Calculate consecutive streaks
             let maxConsecutiveLosses = 0;
@@ -2055,7 +2061,7 @@
                 }
             });
             
-            // Create equity curve data
+            // Create equity curve data with session info
             let cumulative = 0;
             const equityData = dayTrades.map((trade, index) => {
                 const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
@@ -2066,7 +2072,7 @@
                     result = -1; // Standard loss
                 }
                 cumulative += result;
-                return { x: index, y: cumulative, result: result, time: trade.time };
+                return { x: index, y: cumulative, result: result, time: trade.time, session: trade.session };
             });
             
             const popupHtml = `
@@ -2098,6 +2104,10 @@
                             <div style="font-size: 18px; font-weight: 700; color: #00ff88;">${maxConsecutiveWins}</div>
                             <div style="font-size: 12px; opacity: 0.8;">Max R Wins</div>
                         </div>
+                        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: 700; color: ${profitFactor >= 2 ? '#00ff88' : profitFactor >= 1 ? '#ffa502' : '#ff4757'};">${profitFactor === 999 ? '∞' : profitFactor.toFixed(2)}</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Profit Factor</div>
+                        </div>
                     </div>
                     
                     <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px; margin-bottom: 20px;">
@@ -2127,7 +2137,7 @@
             
             document.body.insertAdjacentHTML('beforeend', popupHtml);
             
-            // Create mini equity curve
+            // Create mini equity curve with session backgrounds
             setTimeout(() => createDailyEquityChart(equityData), 100);
         }
         
@@ -2304,6 +2314,46 @@
             const minY = Math.min(...data.map(d => d.y), -1);
             const yRange = maxY - minY || 2;
             
+            // Session colors
+            const sessionColors = {
+                'Asia': 'rgba(255, 193, 7, 0.15)',
+                'London': 'rgba(40, 167, 69, 0.15)',
+                'NY Pre Market': 'rgba(108, 117, 125, 0.15)',
+                'NY AM': 'rgba(0, 123, 255, 0.15)',
+                'NY Lunch': 'rgba(255, 87, 34, 0.15)',
+                'NY PM': 'rgba(156, 39, 176, 0.15)'
+            };
+            
+            // Draw session background zones
+            let currentSession = null;
+            let sessionStart = 0;
+            
+            data.forEach((point, index) => {
+                if (point.session !== currentSession) {
+                    // End previous session zone
+                    if (currentSession && sessionColors[currentSession]) {
+                        const startX = padding + (sessionStart / (data.length - 1)) * chartWidth;
+                        const endX = padding + (index / (data.length - 1)) * chartWidth;
+                        
+                        ctx.fillStyle = sessionColors[currentSession];
+                        ctx.fillRect(startX, padding, endX - startX, chartHeight);
+                    }
+                    
+                    // Start new session zone
+                    currentSession = point.session;
+                    sessionStart = index;
+                }
+            });
+            
+            // Draw final session zone
+            if (currentSession && sessionColors[currentSession]) {
+                const startX = padding + (sessionStart / (data.length - 1)) * chartWidth;
+                const endX = padding + chartWidth;
+                
+                ctx.fillStyle = sessionColors[currentSession];
+                ctx.fillRect(startX, padding, endX - startX, chartHeight);
+            }
+            
             // Draw grid lines
             ctx.strokeStyle = 'rgba(255,255,255,0.1)';
             ctx.lineWidth = 1;
@@ -2379,7 +2429,19 @@
             ctx.fillText('Trade 1', padding, canvas.height - 10);
             ctx.fillText(`Trade ${data.length}`, padding + chartWidth, canvas.height - 10);
             
+            // Add session legend
+            const legend = document.createElement('div');
+            legend.style.cssText = 'display: flex; gap: 10px; margin-top: 10px; font-size: 11px; flex-wrap: wrap; justify-content: center;';
+            
+            Object.entries(sessionColors).forEach(([session, color]) => {
+                const legendItem = document.createElement('div');
+                legendItem.style.cssText = 'display: flex; align-items: center; gap: 4px;';
+                legendItem.innerHTML = `<div style="width: 12px; height: 12px; background: ${color}; border: 1px solid rgba(255,255,255,0.3); border-radius: 2px;"></div><span>${session}</span>`;
+                legend.appendChild(legendItem);
+            });
+            
             container.appendChild(canvas);
+            container.appendChild(legend);
         }
         
         function closeDailyPopup() {
