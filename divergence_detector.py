@@ -29,14 +29,16 @@ def detect_divergence_opportunities(signal):
                 'type': 'DXY_BEARISH_NQ_LONG',
                 'message': f"DXY Bearish at {signal.get('price', 0)} → NQ Long Opportunity",
                 'nq_direction': 'LONG',
-                'strength': signal.get('strength', 50) + 15
+                'strength': signal.get('strength', 50) + 15,
+                'source_symbol': 'DXY'
             })
         elif bias == 'Bullish':
             divergences.append({
                 'type': 'DXY_BULLISH_NQ_SHORT', 
                 'message': f"DXY Bullish at {signal.get('price', 0)} → NQ Short Opportunity",
                 'nq_direction': 'SHORT',
-                'strength': signal.get('strength', 50) + 15
+                'strength': signal.get('strength', 50) + 15,
+                'source_symbol': 'DXY'
             })
     
     # ES positive correlation with NQ (divergence when opposite)
@@ -46,14 +48,16 @@ def detect_divergence_opportunities(signal):
                 'type': 'ES_BEARISH_NQ_SHORT',
                 'message': f"ES Bearish at {signal.get('price', 0)} → NQ Short Alignment", 
                 'nq_direction': 'SHORT',
-                'strength': signal.get('strength', 50) + 10
+                'strength': signal.get('strength', 50) + 10,
+                'source_symbol': 'ES'
             })
         elif bias == 'Bullish':
             divergences.append({
                 'type': 'ES_BULLISH_NQ_LONG',
                 'message': f"ES Bullish at {signal.get('price', 0)} → NQ Long Alignment",
                 'nq_direction': 'LONG', 
-                'strength': signal.get('strength', 50) + 10
+                'strength': signal.get('strength', 50) + 10,
+                'source_symbol': 'ES'
             })
     
     # YM positive correlation with NQ (divergence when opposite)
@@ -63,14 +67,16 @@ def detect_divergence_opportunities(signal):
                 'type': 'YM_BEARISH_NQ_SHORT',
                 'message': f"YM Bearish at {signal.get('price', 0)} → NQ Short Alignment",
                 'nq_direction': 'SHORT',
-                'strength': signal.get('strength', 50) + 10
+                'strength': signal.get('strength', 50) + 10,
+                'source_symbol': 'YM'
             })
         elif bias == 'Bullish':
             divergences.append({
                 'type': 'YM_BULLISH_NQ_LONG', 
                 'message': f"YM Bullish at {signal.get('price', 0)} → NQ Long Alignment",
                 'nq_direction': 'LONG',
-                'strength': signal.get('strength', 50) + 10
+                'strength': signal.get('strength', 50) + 10,
+                'source_symbol': 'YM'
             })
     
     return divergences
@@ -88,6 +94,7 @@ def send_divergence_alert(alert):
             'message': alert['message'],
             'nq_direction': alert['nq_direction'],
             'strength': alert['strength'],
+            'source_symbol': alert['source_symbol'],
             'timestamp': datetime.now(pytz.timezone('America/New_York')).isoformat()
         }
         
