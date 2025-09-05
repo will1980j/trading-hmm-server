@@ -1982,6 +1982,7 @@ def capture_live_signal():
             return jsonify({"error": "Invalid signal data"}), 400
         
         logger.info(f"📊 Webhook received: {data.get('symbol', 'Unknown')} {data.get('bias', 'N/A')} at {data.get('price', 'N/A')} (strength: {data.get('strength', 'N/A')}%)")
+        logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned}")
         logger.debug(f"Full webhook data: {str(data)[:300]}...")
         
         if not db_enabled or not db:
@@ -2009,11 +2010,31 @@ def capture_live_signal():
         else:
             htf_aligned = bool(htf_aligned_raw)
         
-        # HTF status should match the triangle bias when aligned
-        if htf_aligned:
-            htf_status = 'ALIGNED'
+        # HTF status from Pine Script - parse the actual HTF status string
+        htf_status_raw = data.get('htf_status', '')
+        
+        # Parse HTF status to determine actual alignment
+        if htf_status_raw and isinstance(htf_status_raw, str):
+            # Extract individual HTF biases from status string like "D:Bullish 4H:Bullish 1H:Bearish"
+            htf_parts = htf_status_raw.split()
+            htf_biases = {}
+            
+            for part in htf_parts:
+                if ':' in part:
+                    timeframe, bias = part.split(':', 1)
+                    htf_biases[timeframe] = bias
+            
+            # Check if current bias aligns with HTF biases
+            htf_aligned = True
+            for tf, htf_bias in htf_biases.items():
+                if htf_bias != triangle_bias:
+                    htf_aligned = False
+                    break
+            
+            htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
         else:
-            htf_status = 'AGAINST'
+            # Fallback to original logic if no HTF status provided
+            htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
         
         # Clean symbol name - fix ES mapping
         raw_symbol = data.get('symbol', 'NQ1!')
