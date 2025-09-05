@@ -1994,7 +1994,12 @@
         }
         
         function showDailyPopup(date) {
-            const dayTrades = signals.filter(signal => signal.date === date);
+            const dayTrades = signals.filter(signal => signal.date === date)
+                .sort((a, b) => {
+                    const timeA = a.time || '00:00';
+                    const timeB = b.time || '00:00';
+                    return timeA.localeCompare(timeB);
+                });
             if (dayTrades.length === 0) return;
             
             // Calculate daily stats using MFE data
