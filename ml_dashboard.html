@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced ML Trading Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            color: #fff;
+            overflow-x: hidden;
+        }
+        
+        .ml-dashboard {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+        
+        .header {
+            grid-column: 1 / -1;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .ml-sidebar {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            overflow-y: auto;
+        }
+        
+        .ml-main {
+            display: grid;
+            grid-template-rows: 200px 1fr;
+            gap: 10px;
+        }
+        
+        .ml-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        
+        .ml-metric-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .ml-charts {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            overflow-y: auto;
+        }
+        
+        .ml-analysis-panel {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            overflow-y: auto;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            opacity: 0.7;
+            text-transform: uppercase;
+        }
+        
+        .ml-prediction {
+            background: rgba(0,255,136,0.1);
+            border: 1px solid rgba(0,255,136,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .prediction-bullish { border-color: rgba(0,255,136,0.5); background: rgba(0,255,136,0.1); }
+        .prediction-bearish { border-color: rgba(255,71,87,0.5); background: rgba(255,71,87,0.1); }
+        .prediction-neutral { border-color: rgba(255,165,2,0.5); background: rgba(255,165,2,0.1); }
+        
+        .confidence-meter {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4757, #ffa502, #00ff88);
+            transition: width 0.5s ease;
+        }
+        
+        .feature-importance {
+            margin: 15px 0;
+        }
+        
+        .feature-bar {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        
+        .feature-name {
+            width: 120px;
+            text-align: right;
+            margin-right: 10px;
+        }
+        
+        .feature-value {
+            flex: 1;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .feature-fill {
+            height: 100%;
+            background: #00ff88;
+            transition: width 0.3s ease;
+        }
+        
+        .model-status {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 5px;
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .status-active { background: #00ff88; animation: pulse 2s infinite; }
+        .status-training { background: #ffa502; animation: pulse 1s infinite; }
+        .status-offline { background: #ff4757; }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .chart-container {
+            height: 300px;
+            margin: 20px 0;
+            background: rgba(255,255,255,0.02);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .ml-controls {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .ml-button {
+            padding: 8px 16px;
+            background: rgba(0,255,136,0.2);
+            border: 1px solid rgba(0,255,136,0.5);
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .ml-button:hover {
+            background: rgba(0,255,136,0.3);
+        }
+        
+        .ml-button.active {
+            background: rgba(0,255,136,0.5);
+        }
+        
+        .prediction-targets {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .target-card {
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .target-time {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        
+        .target-price {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .risk-assessment {
+            background: rgba(255,71,87,0.1);
+            border: 1px solid rgba(255,71,87,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .risk-low { border-color: rgba(0,255,136,0.5); background: rgba(0,255,136,0.1); }
+        .risk-medium { border-color: rgba(255,165,2,0.5); background: rgba(255,165,2,0.1); }
+        .risk-high { border-color: rgba(255,71,87,0.5); background: rgba(255,71,87,0.1); }
+    </style>
+</head>
+<body>
+    <div class="ml-dashboard">
+        <div class="header">
+            <h1>🤖 Advanced ML Trading Dashboard</h1>
+            <div>
+                <span class="status-indicator status-active"></span>
+                <span>ML Engine Active</span>
+                <span style="margin-left: 20px; font-size: 14px;" id="lastMLUpdate">Last: --:--</span>
+            </div>
+        </div>
+        
+        <div class="ml-sidebar">
+            <h3>🧠 Model Status</h3>
+            <div id="modelStatus">
+                <div class="model-status">
+                    <div class="status-indicator status-active"></div>
+                    <div>
+                        <div>LSTM 5m</div>
+                        <div style="font-size: 10px; opacity: 0.7;">Accuracy: <span id="lstm5mAccuracy">--</span>%</div>
+                    </div>
+                </div>
+                <div class="model-status">
+                    <div class="status-indicator status-active"></div>
+                    <div>
+                        <div>LSTM 15m</div>
+                        <div style="font-size: 10px; opacity: 0.7;">Accuracy: <span id="lstm15mAccuracy">--</span>%</div>
+                    </div>
+                </div>
+                <div class="model-status">
+                    <div class="status-indicator status-active"></div>
+                    <div>
+                        <div>Ensemble RF</div>
+                        <div style="font-size: 10px; opacity: 0.7;">Score: <span id="ensembleScore">--</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <h3>📊 Feature Importance</h3>
+            <div class="feature-importance" id="featureImportance">
+                <!-- Feature bars will be populated here -->
+            </div>
+            
+            <h3>⚙️ ML Controls</h3>
+            <div class="ml-controls">
+                <button class="ml-button" onclick="retrainModels()">Retrain</button>
+                <button class="ml-button" onclick="exportModel()">Export</button>
+            </div>
+            
+            <h3>🎯 Market Regime</h3>
+            <div id="marketRegime" style="padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; margin: 10px 0;">
+                <div style="font-weight: bold;" id="regimeType">UNKNOWN</div>
+                <div style="font-size: 12px; opacity: 0.7;" id="regimeConfidence">Confidence: --</div>
+            </div>
+        </div>
+        
+        <div class="ml-main">
+            <div class="ml-metrics">
+                <div class="ml-metric-card">
+                    <div class="metric-value" id="mlPredictions">0</div>
+                    <div class="metric-label">ML Predictions</div>
+                </div>
+                <div class="ml-metric-card">
+                    <div class="metric-value" id="mlAccuracy">--</div>
+                    <div class="metric-label">Overall Accuracy</div>
+                </div>
+                <div class="ml-metric-card">
+                    <div class="metric-value" id="featuresUsed">47</div>
+                    <div class="metric-label">Features Used</div>
+                </div>
+                <div class="ml-metric-card">
+                    <div class="metric-value" id="modelScore">--</div>
+                    <div class="metric-label">Model Score</div>
+                </div>
+            </div>
+            
+            <div class="ml-charts">
+                <h3>📈 ML Performance Charts</h3>
+                
+                <div class="chart-container">
+                    <div id="predictionAccuracyChart"></div>
+                </div>
+                
+                <div class="chart-container">
+                    <div id="featureImportanceChart"></div>
+                </div>
+                
+                <div class="chart-container">
+                    <div id="priceTargetChart"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="ml-analysis-panel">
+            <h3>🎯 Current ML Prediction</h3>
+            <div class="ml-prediction" id="currentPrediction">
+                <div style="font-weight: bold; margin-bottom: 10px;">No active prediction</div>
+                <div class="confidence-meter">
+                    <div class="confidence-fill" style="width: 0%" id="confidenceMeter"></div>
+                </div>
+                <div style="font-size: 12px; opacity: 0.7;" id="confidenceText">Confidence: 0%</div>
+            </div>
+            
+            <h3>🎯 Price Targets</h3>
+            <div class="prediction-targets">
+                <div class="target-card">
+                    <div class="target-time">5 Minutes</div>
+                    <div class="target-price" id="target5m">--</div>
+                </div>
+                <div class="target-card">
+                    <div class="target-time">15 Minutes</div>
+                    <div class="target-price" id="target15m">--</div>
+                </div>
+            </div>
+            
+            <h3>⚠️ Risk Assessment</h3>
+            <div class="risk-assessment" id="riskAssessment">
+                <div style="font-weight: bold;">Risk Score: <span id="riskScore">--</span></div>
+                <div style="font-size: 12px; margin-top: 5px;" id="riskDescription">
+                    Analyzing market conditions...
+                </div>
+            </div>
+            
+            <h3>📊 Real-time Data</h3>
+            <div id="realtimeData" style="font-size: 12px; line-height: 1.4;">
+                <div>Market Data: <span id="marketDataStatus">Collecting...</span></div>
+                <div>Correlations: <span id="correlationStatus">Calculating...</span></div>
+                <div>Economic Events: <span id="economicStatus">Monitoring...</span></div>
+                <div>Alternative Data: <span id="altDataStatus">Processing...</span></div>
+            </div>
+            
+            <h3>🔄 Model Updates</h3>
+            <div id="modelUpdates" style="font-size: 12px;">
+                <div>Last Training: <span id="lastTraining">Never</span></div>
+                <div>Data Points: <span id="dataPoints">0</span></div>
+                <div>Next Update: <span id="nextUpdate">--</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mlSocket = null;
+        let currentPrediction = null;
+        let modelPerformance = {};
+        
+        // Initialize ML dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMLDashboard();
+            connectMLWebSocket();
+            loadMLPerformance();
+            startMLUpdates();
+        });
+        
+        function initializeMLDashboard() {
+            console.log('🤖 Initializing ML Dashboard...');
+            
+            // Initialize charts
+            initializePredictionChart();
+            initializeFeatureChart();
+            initializePriceTargetChart();
+            
+            // Load initial data
+            loadFeatureImportance();
+            loadModelStatus();
+        }
+        
+        function connectMLWebSocket() {
+            try {
+                mlSocket = io();
+                
+                mlSocket.on('connect', function() {
+                    console.log('🔗 ML WebSocket connected');
+                    updateMLConnectionStatus(true);
+                });
+                
+                mlSocket.on('disconnect', function() {
+                    console.log('❌ ML WebSocket disconnected');
+                    updateMLConnectionStatus(false);
+                });
+                
+                mlSocket.on('ml_prediction', function(prediction) {
+                    console.log('🎯 New ML prediction:', prediction);
+                    updateMLPrediction(prediction);
+                });
+                
+                mlSocket.on('model_update', function(update) {
+                    console.log('🔄 Model update:', update);
+                    updateModelStatus(update);
+                });
+                
+            } catch (error) {
+                console.error('❌ ML WebSocket connection failed:', error);
+                updateMLConnectionStatus(false);
+            }
+        }
+        
+        async function loadMLPerformance() {
+            try {
+                const response = await fetch('/api/ml-performance');
+                if (response.ok) {
+                    const data = await response.json();
+                    updateMLMetrics(data);
+                }
+            } catch (error) {
+                console.error('❌ Error loading ML performance:', error);
+            }
+        }
+        
+        function updateMLPrediction(prediction) {
+            currentPrediction = prediction;
+            
+            // Update prediction display
+            const predictionDiv = document.getElementById('currentPrediction');
+            const direction = prediction.direction || 'NEUTRAL';
+            const confidence = prediction.confidence || 0;
+            
+            predictionDiv.className = `ml-prediction prediction-${direction.toLowerCase()}`;
+            predictionDiv.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 10px;">
+                    ${direction} Signal (${confidence.toFixed(1)}% confidence)
+                </div>
+                <div class="confidence-meter">
+                    <div class="confidence-fill" style="width: ${confidence}%" id="confidenceMeter"></div>
+                </div>
+                <div style="font-size: 12px; opacity: 0.7;">
+                    Model Ensemble Score: ${(prediction.model_ensemble_score || 0).toFixed(2)}
+                </div>
+            `;
+            
+            // Update price targets
+            document.getElementById('target5m').textContent = 
+                prediction.price_target_5m ? prediction.price_target_5m.toFixed(2) : '--';
+            document.getElementById('target15m').textContent = 
+                prediction.price_target_15m ? prediction.price_target_15m.toFixed(2) : '--';
+            
+            // Update risk assessment
+            updateRiskAssessment(prediction.risk_score || 50);
+            
+            // Update charts
+            updatePredictionChart(prediction);
+        }
+        
+        function updateRiskAssessment(riskScore) {
+            const riskDiv = document.getElementById('riskAssessment');
+            const riskScoreSpan = document.getElementById('riskScore');
+            const riskDesc = document.getElementById('riskDescription');
+            
+            riskScoreSpan.textContent = riskScore.toFixed(0);
+            
+            let riskLevel, riskClass, description;
+            if (riskScore <= 30) {
+                riskLevel = 'LOW';
+                riskClass = 'risk-low';
+                description = 'Favorable conditions with strong confluences';
+            } else if (riskScore <= 60) {
+                riskLevel = 'MEDIUM';
+                riskClass = 'risk-medium';
+                description = 'Moderate risk with mixed signals';
+            } else {
+                riskLevel = 'HIGH';
+                riskClass = 'risk-high';
+                description = 'Elevated risk due to volatility or weak confluences';
+            }
+            
+            riskDiv.className = `risk-assessment ${riskClass}`;
+            riskDesc.textContent = description;
+        }
+        
+        function updateMLMetrics(data) {
+            document.getElementById('mlPredictions').textContent = data.total_predictions || 0;
+            document.getElementById('mlAccuracy').textContent = 
+                data.overall_accuracy ? `${data.overall_accuracy.toFixed(1)}%` : '--';
+            document.getElementById('featuresUsed').textContent = data.features_used || 47;
+            document.getElementById('modelScore').textContent = 
+                data.model_score ? data.model_score.toFixed(2) : '--';
+            
+            // Update individual model accuracies
+            document.getElementById('lstm5mAccuracy').textContent = 
+                data.lstm_5m_accuracy ? data.lstm_5m_accuracy.toFixed(1) : '--';
+            document.getElementById('lstm15mAccuracy').textContent = 
+                data.lstm_15m_accuracy ? data.lstm_15m_accuracy.toFixed(1) : '--';
+            document.getElementById('ensembleScore').textContent = 
+                data.ensemble_score ? data.ensemble_score.toFixed(2) : '--';
+        }
+        
+        async function loadFeatureImportance() {
+            try {
+                const response = await fetch('/api/ml-feature-importance');
+                if (response.ok) {
+                    const data = await response.json();
+                    updateFeatureImportance(data.features || {});
+                }
+            } catch (error) {
+                console.error('❌ Error loading feature importance:', error);
+            }
+        }
+        
+        function updateFeatureImportance(features) {
+            const container = document.getElementById('featureImportance');
+            
+            const topFeatures = Object.entries(features)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 8);
+            
+            container.innerHTML = topFeatures.map(([name, importance]) => `
+                <div class="feature-bar">
+                    <div class="feature-name">${name.replace('_', ' ')}</div>
+                    <div class="feature-value">
+                        <div class="feature-fill" style="width: ${importance * 100}%"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function initializePredictionChart() {
+            const trace = {
+                x: [],
+                y: [],
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Prediction Accuracy',
+                line: { color: '#00ff88' }
+            };
+            
+            const layout = {
+                title: 'ML Prediction Accuracy Over Time',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#fff' },
+                xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
+                yaxis: { gridcolor: 'rgba(255,255,255,0.1)', range: [0, 100] }
+            };
+            
+            Plotly.newPlot('predictionAccuracyChart', [trace], layout, {responsive: true});
+        }
+        
+        function initializeFeatureChart() {
+            const trace = {
+                x: [],
+                y: [],
+                type: 'bar',
+                orientation: 'h',
+                marker: { color: '#00ff88' }
+            };
+            
+            const layout = {
+                title: 'Top Feature Importance',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#fff' },
+                xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
+                yaxis: { gridcolor: 'rgba(255,255,255,0.1)' }
+            };
+            
+            Plotly.newPlot('featureImportanceChart', [trace], layout, {responsive: true});
+        }
+        
+        function initializePriceTargetChart() {
+            const trace1 = {
+                x: [],
+                y: [],
+                type: 'scatter',
+                mode: 'lines',
+                name: '5m Target',
+                line: { color: '#00ff88' }
+            };
+            
+            const trace2 = {
+                x: [],
+                y: [],
+                type: 'scatter',
+                mode: 'lines',
+                name: '15m Target',
+                line: { color: '#ffa502' }
+            };
+            
+            const layout = {
+                title: 'ML Price Targets vs Actual',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#fff' },
+                xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
+                yaxis: { gridcolor: 'rgba(255,255,255,0.1)' }
+            };
+            
+            Plotly.newPlot('priceTargetChart', [trace1, trace2], layout, {responsive: true});
+        }
+        
+        function updatePredictionChart(prediction) {
+            const now = new Date();
+            const accuracy = prediction.confidence || 0;
+            
+            Plotly.extendTraces('predictionAccuracyChart', {
+                x: [[now]],
+                y: [[accuracy]]
+            }, [0]);
+        }
+        
+        function updateMLConnectionStatus(connected) {
+            const indicator = document.querySelector('.status-indicator');
+            if (connected) {
+                indicator.className = 'status-indicator status-active';
+            } else {
+                indicator.className = 'status-indicator status-offline';
+            }
+        }
+        
+        function updateModelStatus(update) {
+            document.getElementById('lastTraining').textContent = 
+                update.last_training || 'Never';
+            document.getElementById('dataPoints').textContent = 
+                update.data_points || 0;
+            document.getElementById('nextUpdate').textContent = 
+                update.next_update || '--';
+        }
+        
+        async function retrainModels() {
+            try {
+                const response = await fetch('/api/ml-retrain', { method: 'POST' });
+                if (response.ok) {
+                    alert('🤖 Model retraining started!');
+                } else {
+                    alert('❌ Failed to start retraining');
+                }
+            } catch (error) {
+                console.error('❌ Retrain error:', error);
+                alert('❌ Retrain request failed');
+            }
+        }
+        
+        async function exportModel() {
+            try {
+                const response = await fetch('/api/ml-export');
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'ml_model_export.zip';
+                    a.click();
+                } else {
+                    alert('❌ Failed to export model');
+                }
+            } catch (error) {
+                console.error('❌ Export error:', error);
+                alert('❌ Export request failed');
+            }
+        }
+        
+        function startMLUpdates() {
+            // Update ML metrics every 30 seconds
+            setInterval(loadMLPerformance, 30000);
+            
+            // Update feature importance every 5 minutes
+            setInterval(loadFeatureImportance, 300000);
+            
+            // Update timestamp
+            setInterval(() => {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('en-US', {
+                    timeZone: 'America/New_York',
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                document.getElementById('lastMLUpdate').textContent = `Last: ${timeString}`;
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

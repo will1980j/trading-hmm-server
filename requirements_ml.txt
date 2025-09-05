@@ -1,4 +1,59 @@
-scikit-learn==1.3.0
-pandas==2.0.3
-numpy==1.24.3
-joblib==1.3.1
+# Advanced ML Trading System Requirements
+
+# Core ML Libraries
+tensorflow>=2.13.0
+scikit-learn>=1.3.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Data Processing
+aiohttp>=3.8.0
+asyncio-mqtt>=0.11.0
+pytz>=2023.3
+
+# Technical Analysis
+ta-lib>=0.4.25
+TA-Lib>=0.4.25
+
+# Alternative Data
+yfinance>=0.2.18
+alpha-vantage>=2.3.1
+polygon-api-client>=1.12.0
+
+# Advanced ML (Optional - for Phase 2+)
+xgboost>=1.7.0
+lightgbm>=4.0.0
+catboost>=1.2.0
+torch>=2.0.0
+transformers>=4.30.0
+
+# Reinforcement Learning (Phase 3)
+stable-baselines3>=2.0.0
+gym>=0.26.0
+
+# Time Series
+statsmodels>=0.14.0
+arch>=6.2.0
+
+# Optimization
+optuna>=3.2.0
+hyperopt>=0.2.7
+
+# Visualization
+plotly>=5.15.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Database
+psycopg2-binary>=2.9.0
+sqlalchemy>=2.0.0
+
+# API Integration
+requests>=2.31.0
+websocket-client>=1.6.0
+python-binance>=1.0.17
+
+# Utilities
+python-dotenv>=1.0.0
+schedule>=1.2.0
+APScheduler>=3.10.0

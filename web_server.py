@@ -2049,8 +2049,44 @@ def capture_live_signal():
         except ImportError:
             pass  # Level 2 data not available
         
-        # Run ML analysis and divergence detection
-        analyze_signal_patterns(signal_id)
+        # Run advanced ML analysis
+        try:
+            from ml_engine import analyze_signal_with_ml
+            from market_data_collector import get_market_data_for_ml
+            
+            # Get recent market data for ML features
+            market_data = get_market_data_for_ml(signal['symbol'], minutes=60)
+            
+            # Enhance signal with ML predictions
+            enhanced_signal = analyze_signal_with_ml(signal, market_data)
+            
+            # Update signal with ML enhancements
+            if enhanced_signal.get('ml_enhanced'):
+                cursor.execute("""
+                    UPDATE live_signals 
+                    SET strength = %s, ai_analysis = %s 
+                    WHERE id = %s
+                """, (
+                    enhanced_signal['strength'],
+                    dumps({
+                        'ml_direction': enhanced_signal.get('ml_direction'),
+                        'ml_confidence': enhanced_signal.get('ml_confidence'),
+                        'ml_price_target_5m': enhanced_signal.get('ml_price_target_5m'),
+                        'ml_price_target_15m': enhanced_signal.get('ml_price_target_15m'),
+                        'ml_risk_score': enhanced_signal.get('ml_risk_score'),
+                        'market_regime': enhanced_signal.get('market_regime'),
+                        'ml_features_count': enhanced_signal.get('ml_features_count')
+                    }),
+                    signal_id
+                ))
+                db.conn.commit()
+                
+                logger.info(f"🤖 ML Enhanced: {signal['symbol']} strength {signal['strength']:.0f}→{enhanced_signal['strength']:.0f} | {enhanced_signal.get('ml_direction')} ({enhanced_signal.get('ml_confidence', 0):.1f}% confidence)")
+            
+        except Exception as ml_error:
+            logger.error(f"❌ ML enhancement error: {str(ml_error)}")
+            # Continue with basic analysis
+            analyze_signal_patterns(signal_id)
         
         # Enable divergence detection for correlated symbols only
         if signal['symbol'] in ['DXY', 'ES1!', 'YM1!']:  # Only for correlation symbols
