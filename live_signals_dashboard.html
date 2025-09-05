@@ -17,7 +17,7 @@
         
         .dashboard-container {
             display: grid;
-            grid-template-columns: 300px 1fr 350px;
+            grid-template-columns: 250px 1fr;
             grid-template-rows: 60px 1fr;
             height: 100vh;
             gap: 10px;
@@ -164,20 +164,7 @@
             color: #000;
         }
         
-        .correlation-matrix {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin: 15px 0;
-        }
-        
-        .correlation-item {
-            background: rgba(255,255,255,0.05);
-            padding: 10px;
-            border-radius: 5px;
-            text-align: center;
-            font-size: 12px;
-        }
+
         
         .status-indicator {
             width: 10px;
@@ -196,28 +183,7 @@
             100% { opacity: 1; }
         }
         
-        .ai-analysis {
-            background: rgba(0,255,136,0.1);
-            border: 1px solid rgba(0,255,136,0.3);
-            border-radius: 8px;
-            padding: 15px;
-            margin: 15px 0;
-        }
-        
-        .strength-meter {
-            width: 100%;
-            height: 6px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 3px;
-            overflow: hidden;
-            margin: 5px 0;
-        }
-        
-        .strength-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ff4757, #ffa502, #00ff88);
-            transition: width 0.5s ease;
-        }
+
     </style>
 </head>
 <body>
@@ -240,22 +206,6 @@
                 <button class="timeframe-tab" onclick="switchTimeframe('1h')">1H</button>
             </div>
             
-            <h3>Symbol Correlations</h3>
-            <div class="correlation-matrix" id="correlationMatrix">
-                <div class="correlation-item">
-                    <div>NQ vs ES</div>
-                    <div style="color: #00ff88;">+0.87</div>
-                </div>
-                <div class="correlation-item">
-                    <div>NQ vs YM</div>
-                    <div style="color: #ffa502;">+0.65</div>
-                </div>
-                <div class="correlation-item">
-                    <div>NQ vs RTY</div>
-                    <div style="color: #ff4757;">-0.23</div>
-                </div>
-            </div>
-            
             <h3>Signal Filters</h3>
             <div style="margin: 10px 0;">
                 <label><input type="checkbox" checked> Bullish FVG</label><br>
@@ -263,6 +213,16 @@
                 <label><input type="checkbox" checked> Bullish IFVG</label><br>
                 <label><input type="checkbox" checked> Bearish IFVG</label><br>
                 <label><input type="checkbox" checked> ATH/ATL Bias</label>
+            </div>
+            
+            <h3>Symbol Filters</h3>
+            <div style="margin: 10px 0;">
+                <label><input type="checkbox" id="filter-NQ" checked> NQ1!</label><br>
+                <label><input type="checkbox" id="filter-ES" checked> ES1!</label><br>
+                <label><input type="checkbox" id="filter-YM" checked> YM1!</label><br>
+                <label><input type="checkbox" id="filter-RTY" checked> RTY1!</label><br>
+                <label><input type="checkbox" id="filter-DXY" checked> DXY</label><br>
+                <label><input type="checkbox" id="filter-OTHER" checked> Other</label>
             </div>
         </div>
         
@@ -311,33 +271,7 @@
             </div>
         </div>
         
-        <div class="analysis-panel">
-            <h3>🤖 AI Analysis</h3>
-            <div class="ai-analysis" id="aiAnalysis">
-                <div>Analyzing signal patterns...</div>
-            </div>
-            
-            <h3>Signal Strength</h3>
-            <div style="margin: 10px 0;">
-                <div>Current Signal</div>
-                <div class="strength-meter">
-                    <div class="strength-fill" style="width: 0%" id="strengthMeter"></div>
-                </div>
-                <div style="font-size: 12px; opacity: 0.7;" id="strengthText">No active signal</div>
-            </div>
-            
-            <h3>Level 2 Data</h3>
-            <div id="level2Data" style="font-size: 12px; line-height: 1.4;">
-                <div>Bid/Ask Spread: --</div>
-                <div>Volume Imbalance: --</div>
-                <div>Order Flow: --</div>
-            </div>
-            
-            <h3>Divergence Alerts</h3>
-            <div id="divergenceAlerts">
-                <div style="font-size: 12px; opacity: 0.7;">No institutional divergences detected</div>
-            </div>
-        </div>
+
     </div>
 
     <script>
@@ -373,7 +307,6 @@
                     console.log('New signal received:', signal);
                     addNewSignal(signal);
                     updateMetrics();
-                    updateAIAnalysis();
                 });
                 
                 // Fallback polling every 60 seconds
@@ -451,7 +384,23 @@
                 return;
             }
             
-            feed.innerHTML = signals.map(signal => createSignalRow(signal)).join('');
+            // Filter signals by selected symbols
+            const filteredSignals = signals.filter(signal => {
+                const symbol = signal.symbol || '';
+                if (symbol.includes('NQ')) return document.getElementById('filter-NQ').checked;
+                if (symbol.includes('ES')) return document.getElementById('filter-ES').checked;
+                if (symbol.includes('YM')) return document.getElementById('filter-YM').checked;
+                if (symbol.includes('RTY')) return document.getElementById('filter-RTY').checked;
+                if (symbol.includes('DXY')) return document.getElementById('filter-DXY').checked;
+                return document.getElementById('filter-OTHER').checked;
+            });
+            
+            if (filteredSignals.length === 0) {
+                feed.innerHTML = '<tr><td colspan="9" class="no-signals">No signals match current filters...</td></tr>';
+                return;
+            }
+            
+            feed.innerHTML = filteredSignals.map(signal => createSignalRow(signal)).join('');
         }
         
         // Create signal table row
@@ -612,31 +561,14 @@
             loadHistoricalSignals();
         }
         
-        // Update AI analysis
-        async function updateAIAnalysis() {
-            if (signals.length < 5) return;
-            
-            try {
-                const response = await fetch('/api/ai-signal-analysis-live', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        signals: signals.slice(0, 20),
-                        timeframe: currentTimeframe 
-                    })
-                });
-                
-                const data = await response.json();
-                document.getElementById('aiAnalysis').innerHTML = `
-                    <div><strong>Pattern Recognition:</strong></div>
-                    <div>${data.pattern || 'Analyzing...'}</div>
-                    <div style="margin-top: 10px;"><strong>Recommendation:</strong></div>
-                    <div>${data.recommendation || 'Processing...'}</div>
-                `;
-            } catch (error) {
-                console.error('AI analysis error:', error);
-            }
-        }
+        // Add event listeners for symbol filters
+        document.addEventListener('DOMContentLoaded', function() {
+            ['filter-NQ', 'filter-ES', 'filter-YM', 'filter-RTY', 'filter-DXY', 'filter-OTHER'].forEach(id => {
+                document.getElementById(id).addEventListener('change', updateSignalsFeed);
+            });
+        });
+        
+
         
         // Update connection status
         function updateConnectionStatus(connected) {
@@ -701,78 +633,7 @@
         
         // Start metrics update interval
         function startMetricsUpdate() {
-            setInterval(() => {
-                updateCorrelations();
-                updateLevel2Data();
-                checkDivergences();
-            }, 30000);
-        }
-        
-        // Update correlations from API
-        async function updateCorrelations() {
-            try {
-                const response = await fetch('/api/signal-correlations', {
-                    timeout: 3000
-                });
-                if (!response.ok) return;
-                const data = await response.json();
-                
-                if (data.correlations && data.correlations.length > 0) {
-                    const matrix = document.getElementById('correlationMatrix');
-                    matrix.innerHTML = data.correlations.slice(0, 3).map(corr => {
-                        const strength = parseFloat(corr.avg_strength) || 0;
-                        return `
-                            <div class="correlation-item">
-                                <div>${corr.symbol || 'N/A'}</div>
-                                <div style="color: ${strength > 70 ? '#00ff88' : strength > 50 ? '#ffa502' : '#ff4757'};">
-                                    ${strength.toFixed(1)}%
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
-                }
-            } catch (error) {
-                // Silent error handling
-            }
-        }
-        
-        // Update Level 2 data from provider
-        function updateLevel2Data() {
-            // Real Level 2 data would come from level2_provider
-            document.getElementById('level2Data').innerHTML = `
-                <div>Bid/Ask Spread: --</div>
-                <div>Volume Imbalance: --</div>
-                <div>Order Flow: --</div>
-            `;
-        }
-        
-        // Check for divergences from API
-        async function checkDivergences() {
-            try {
-                const response = await fetch('/api/signal-correlations');
-                const data = await response.json();
-                const alertsDiv = document.getElementById('divergenceAlerts');
-                
-                if (data.divergences && data.divergences.length > 0) {
-                    alertsDiv.innerHTML = data.divergences.map(div => `
-                        <div style="color: #ff4757; font-weight: bold; margin-bottom: 8px;">
-                            ${div.message}<br>
-                            <small style="opacity: 0.8;">${div.interpretation}</small>
-                        </div>
-                    `).join('');
-                } else {
-                    alertsDiv.innerHTML = `
-                        <div style="font-size: 12px; opacity: 0.7;">No institutional divergences detected</div>
-                    `;
-                }
-            } catch (error) {
-                const alertsDiv = document.getElementById('divergenceAlerts');
-                if (alertsDiv) {
-                    alertsDiv.innerHTML = `
-                        <div style="font-size: 12px; opacity: 0.7;">No divergences detected</div>
-                    `;
-                }
-            }
+            // Removed unused functions
         }
     </script>
 </body>
