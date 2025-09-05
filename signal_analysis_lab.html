@@ -1998,7 +1998,17 @@
                 .sort((a, b) => {
                     const timeA = a.time || '00:00';
                     const timeB = b.time || '00:00';
-                    return timeA.localeCompare(timeB);
+                    
+                    // Convert to minutes, treating 18:00+ as start of day (0+)
+                    const getMinutes = (timeStr) => {
+                        const [hours, minutes] = timeStr.split(':').map(Number);
+                        const totalMinutes = hours * 60 + minutes;
+                        // If time is 18:00 or later, it's early in trading day
+                        // If time is before 17:00, it's later in trading day
+                        return totalMinutes >= 18 * 60 ? totalMinutes - 18 * 60 : totalMinutes + 6 * 60;
+                    };
+                    
+                    return getMinutes(timeA) - getMinutes(timeB);
                 });
             if (dayTrades.length === 0) return;
             
