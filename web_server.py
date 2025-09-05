@@ -2052,8 +2052,8 @@ def capture_live_signal():
         # Run ML analysis and divergence detection
         analyze_signal_patterns(signal_id)
         
-        # Disabled divergence detection to prevent RTY signals
-        if False:  # Disabled
+        # Enable divergence detection for correlated symbols only
+        if signal['symbol'] in ['DXY', 'ES1!', 'YM1!']:  # Only for correlation symbols
             divergence_opportunities = detect_nq_divergence_opportunities(signal, all_signals=None)
             if divergence_opportunities:
                 # Create NQ divergence signal
@@ -2094,17 +2094,15 @@ def capture_live_signal():
         
         # Send divergence alerts to TradingView for chart display
         try:
-            import requests
-            
-            # Import and detect divergences
-            from divergence_detector import detect_divergence_opportunities
+            from divergence_detector import detect_divergence_opportunities, send_divergence_alert
             divergence_alerts = detect_divergence_opportunities(signal)
             
             for alert in divergence_alerts:
-                # Send specific divergence alert
-                tv_webhook_url = alert['webhook_url']  # Different webhook for each alert type
-                requests.post(tv_webhook_url, data=alert['message'], timeout=5)
-                logger.info(f"Sent divergence alert: {alert['message']}")
+                success = send_divergence_alert(alert)
+                if success:
+                    logger.info(f"✅ Divergence alert sent: {alert['type']} - {alert['message']}")
+                else:
+                    logger.error(f"❌ Failed to send divergence alert: {alert['type']}")
             
         except Exception as tv_error:
             logger.error(f"TradingView divergence alert error: {str(tv_error)}")
