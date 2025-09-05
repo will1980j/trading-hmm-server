@@ -31,6 +31,28 @@ def to_ny_time(dt):
         dt = pytz.UTC.localize(dt)
     return dt.astimezone(NY_TZ)
 
+def get_current_session():
+    """Determine current trading session based on NY time"""
+    ny_time = get_ny_time()
+    hour = ny_time.hour
+    minute = ny_time.minute
+    
+    # Session times in NY timezone
+    if (hour == 17 and minute >= 0) or (18 <= hour <= 23) or (0 <= hour <= 1):
+        return "Asia"
+    elif 2 <= hour <= 7:
+        return "London"
+    elif hour == 8 or (hour == 9 and minute <= 30):
+        return "NY Pre Market"
+    elif (hour == 9 and minute > 30) or (10 <= hour <= 11):
+        return "NY AM"
+    elif 12 <= hour <= 13:
+        return "NY Lunch"
+    elif 14 <= hour <= 16:
+        return "NY PM"
+    else:
+        return "After Hours"
+
 # Constants - Updated for Railway deployment
 NEWLINE_CHAR = '\n'
 CARRIAGE_RETURN_CHAR = '\r'
@@ -1813,7 +1835,7 @@ def get_live_signals():
             WITH latest_signals AS (
                 SELECT DISTINCT ON (symbol) 
                     id, symbol, timeframe, signal_type, bias, price, strength, 
-                    htf_aligned, htf_status, timestamp
+                    htf_aligned, htf_status, session, timestamp
                 FROM live_signals 
                 WHERE timeframe = %s 
                 ORDER BY symbol, timestamp DESC, id DESC
@@ -1855,7 +1877,7 @@ def chart_display_signal():
             # Get latest signal from database
             cursor = db.conn.cursor()
             cursor.execute("""
-                SELECT symbol, bias, price, strength, timestamp
+                SELECT symbol, bias, price, strength, session, timestamp
                 FROM live_signals 
                 ORDER BY timestamp DESC 
                 LIMIT 1
@@ -1869,6 +1891,7 @@ def chart_display_signal():
                     'bias': result['bias'], 
                     'price': float(result['price']) if result['price'] else 0,
                     'strength': float(result['strength']) if result['strength'] else 0,
+                    'session': result['session'],
                     'timestamp': str(result['timestamp'])
                 }
                 
@@ -1923,16 +1946,24 @@ def capture_live_signal():
                 alert_msg = data['alert_message']
                 import re
                 
-                # Extract values using regex - improved price parsing
+                # Extract values using regex - improved price parsing for all futures
                 bias_match = re.search(r'"bias":"(\w+)"', alert_msg)
-                price_match = re.search(r'"price":([\d\.]+)', alert_msg)  # Allow decimals
+                price_match = re.search(r'"price":([\d,\.]+)', alert_msg)  # Handle commas and decimals
                 strength_match = re.search(r'"strength":(\d+)', alert_msg)
                 symbol_match = re.search(r'"symbol":"[^"]*:([^"!]+)', alert_msg)
                 
+                # Also try alternative price patterns for different formats
+                if not price_match:
+                    price_match = re.search(r'price["\s]*:["\s]*([\d,\.]+)', alert_msg)
+                if not price_match:
+                    price_match = re.search(r'([\d,\.]+)', alert_msg)  # Last resort - any number
+                
                 if bias_match and price_match:
+                    # Clean price string and convert to float
+                    price_str = price_match.group(1).replace(',', '')
                     data = {
                         'bias': bias_match.group(1),
-                        'price': float(price_match.group(1)),
+                        'price': float(price_str),
                         'strength': int(strength_match.group(1)) if strength_match else 50,
                         'symbol': symbol_match.group(1) + '1!' if symbol_match else 'NQ1!',
                         'timeframe': '1m',
@@ -1950,7 +1981,8 @@ def capture_live_signal():
         if not data or not isinstance(data, dict) or not data.get('price'):
             return jsonify({"error": "Invalid signal data"}), 400
         
-        logger.info(f"Webhook received data: {type(data)} - {str(data)[:200]}...")
+        logger.info(f"📊 Webhook received: {data.get('symbol', 'Unknown')} {data.get('bias', 'N/A')} at {data.get('price', 'N/A')} (strength: {data.get('strength', 'N/A')}%)")
+        logger.debug(f"Full webhook data: {str(data)[:300]}...")
         
         if not db_enabled or not db:
             return jsonify({"error": "Database not available"}), 500
@@ -1985,10 +2017,14 @@ def capture_live_signal():
         else:
             clean_symbol = raw_symbol  # Keep original if no match
         
-        # Ensure price is valid - handle string and numeric prices
+        # Ensure price is valid - handle string and numeric prices with commas
         raw_price = data.get('price', 0)
         try:
-            price = float(raw_price) if raw_price else 0
+            if isinstance(raw_price, str):
+                # Remove commas and convert to float
+                price = float(raw_price.replace(',', '')) if raw_price else 0
+            else:
+                price = float(raw_price) if raw_price else 0
         except (ValueError, TypeError):
             price = 0
             logger.warning(f"Could not parse price '{raw_price}' in signal: {data}")
@@ -2004,6 +2040,9 @@ def capture_live_signal():
             base_strength = min(95, base_strength + 20)  # +20% for HTF alignment
             logger.info(f"HTF aligned - boosting strength to {base_strength}%")
         
+        # Determine current session
+        current_session = get_current_session()
+        
         signal = {
             'symbol': clean_symbol,
             'timeframe': data.get('timeframe', '1m'),
@@ -2013,19 +2052,20 @@ def capture_live_signal():
             'strength': base_strength,
             'htf_aligned': htf_aligned,
             'htf_status': htf_status,
+            'session': current_session,
             'timestamp': get_ny_time().isoformat()
         }
         
         cursor = db.conn.cursor()
         cursor.execute("""
             INSERT INTO live_signals 
-            (symbol, timeframe, signal_type, bias, price, strength, htf_aligned, htf_status, timestamp)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (symbol, timeframe, signal_type, bias, price, strength, htf_aligned, htf_status, session, timestamp)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             signal['symbol'], signal['timeframe'], signal['signal_type'],
             signal['bias'], signal['price'], signal['strength'], 
-            signal['htf_aligned'], signal['htf_status'], get_ny_time()
+            signal['htf_aligned'], signal['htf_status'], signal['session'], get_ny_time()
         ))
         
         result = cursor.fetchone()
@@ -2096,12 +2136,12 @@ def capture_live_signal():
                 for opp in divergence_opportunities:
                     cursor.execute("""
                         INSERT INTO live_signals 
-                        (symbol, timeframe, signal_type, bias, price, strength, timestamp)
-                        VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                        (symbol, timeframe, signal_type, bias, price, strength, session, timestamp)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
                         RETURNING id
                     """, (
                         'NQ1!', '1m', f"DIVERGENCE_{opp['type']}", opp['bias'],
-                        opp['nq_price'], opp['strength']
+                        opp['nq_price'], opp['strength'], current_session
                     ))
                     
                     div_signal_id = cursor.fetchone()['id']
@@ -2116,12 +2156,40 @@ def capture_live_signal():
                         'bias': opp['bias'],
                         'price': opp['nq_price'],
                         'strength': opp['strength'],
+                        'session': current_session,
                         'divergence_detail': opp['detail']
                     }
                     socketio.emit('new_signal', div_signal, namespace='/')
                     logger.info(f"NQ divergence opportunity: {opp['detail']}")
         
-        logger.info(f"Live signal captured: {signal['symbol']} {signal['signal_type']} at {signal['price']}")
+        logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | ID: {signal_id}")
+        
+        # Detect and send divergence alerts for correlated symbols
+        if signal['symbol'] in ['DXY', 'ES1!', 'YM1!']:
+            try:
+                from divergence_detector import detect_divergence_opportunities, send_divergence_alert
+                
+                divergence_alerts = detect_divergence_opportunities(signal)
+                
+                for alert in divergence_alerts:
+                    success = send_divergence_alert(alert)
+                    if success:
+                        logger.info(f"🎯 {alert['type']}: {alert['message']}")
+                        
+                        # Broadcast to dashboard
+                        socketio.emit('divergence_detected', {
+                            'type': alert['type'],
+                            'message': alert['message'],
+                            'nq_direction': alert['nq_direction'],
+                            'strength': alert['strength'],
+                            'source_symbol': signal['symbol'],
+                            'timestamp': signal['timestamp']
+                        }, namespace='/')
+                    else:
+                        logger.error(f"❌ Failed to send {alert['type']}")
+                        
+            except Exception as div_error:
+                logger.error(f"Divergence detection error: {str(div_error)}")
         
         # Broadcast original signal to all connected clients
         enhanced_signal = dict(signal)
@@ -2130,18 +2198,23 @@ def capture_live_signal():
         
         # Send divergence alerts to TradingView for chart display
         try:
-            from divergence_detector import detect_divergence_opportunities, send_divergence_alert
-            divergence_alerts = detect_divergence_opportunities(signal)
+            # Simple divergence detection based on symbol correlation
+            if signal['symbol'] == 'DXY':
+                # DXY inverse correlation with NQ
+                if signal['bias'] == 'Bearish':
+                    # DXY bearish = NQ bullish opportunity
+                    logger.info(f"🟢 DIVERGENCE DETECTED: DXY Bearish → NQ Long opportunity at {signal['price']}")
+                elif signal['bias'] == 'Bullish':
+                    # DXY bullish = NQ bearish opportunity  
+                    logger.info(f"🔴 DIVERGENCE DETECTED: DXY Bullish → NQ Short opportunity at {signal['price']}")
             
-            for alert in divergence_alerts:
-                success = send_divergence_alert(alert)
-                if success:
-                    logger.info(f"✅ Divergence alert sent: {alert['type']} - {alert['message']}")
-                else:
-                    logger.error(f"❌ Failed to send divergence alert: {alert['type']}")
+            elif signal['symbol'] in ['ES1!', 'YM1!']:
+                # ES/YM positive correlation with NQ
+                nq_bias = signal['bias']  # Same direction as NQ
+                logger.info(f"📊 CORRELATION: {signal['symbol']} {signal['bias']} → NQ {nq_bias} alignment")
             
         except Exception as tv_error:
-            logger.error(f"TradingView divergence alert error: {str(tv_error)}")
+            logger.error(f"Divergence detection error: {str(tv_error)}")
         
         return jsonify({
             "status": "success",
@@ -2261,21 +2334,42 @@ def fix_signal_prices():
             return jsonify({'error': 'Database not available'}), 500
         
         cursor = db.conn.cursor()
+        
+        # First, get count of problematic signals
+        cursor.execute("""
+            SELECT symbol, COUNT(*) as count, AVG(price) as avg_price
+            FROM live_signals 
+            WHERE (symbol = 'YM1!' AND (price = 15000.0000 OR price < 30000 OR price > 60000))
+            OR (symbol = 'ES1!' AND (price = 15000.0000 OR price < 3000 OR price > 8000))
+            OR (symbol = 'RTY1!' AND (price = 15000.0000 OR price < 1500 OR price > 3000))
+            OR (symbol = 'NQ1!' AND (price < 10000 OR price > 25000))
+            OR price = 0
+            GROUP BY symbol
+        """)
+        
+        problematic_signals = cursor.fetchall()
+        logger.info(f"Found problematic signals: {[dict(row) for row in problematic_signals]}")
+        
         # Delete signals with obviously wrong prices
         cursor.execute("""
             DELETE FROM live_signals 
-            WHERE (symbol = 'YM1!' AND price = 15000.0000)
-            OR (symbol = 'ES1!' AND price = 15000.0000)
-            OR (symbol = 'RTY1!' AND price = 15000.0000)
+            WHERE (symbol = 'YM1!' AND (price = 15000.0000 OR price < 30000 OR price > 60000))
+            OR (symbol = 'ES1!' AND (price = 15000.0000 OR price < 3000 OR price > 8000))
+            OR (symbol = 'RTY1!' AND (price = 15000.0000 OR price < 1500 OR price > 3000))
+            OR (symbol = 'NQ1!' AND (price < 10000 OR price > 25000))
             OR price = 0
+            OR price IS NULL
         """)
         rows_deleted = cursor.rowcount
         db.conn.commit()
         
+        logger.info(f"Cleaned up {rows_deleted} signals with incorrect prices")
+        
         return jsonify({
             'status': 'success',
             'message': f'Fixed {rows_deleted} signals with incorrect prices',
-            'rows_deleted': rows_deleted
+            'rows_deleted': rows_deleted,
+            'problematic_breakdown': [dict(row) for row in problematic_signals]
         })
         
     except Exception as e:
@@ -2623,15 +2717,212 @@ def test_endpoint():
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
 
+@app.route('/api/test-price-parsing', methods=['POST'])
+def test_price_parsing():
+    """Test endpoint for price parsing improvements"""
+    try:
+        data = request.get_json() or {}
+        test_prices = [
+            "45,697.50",
+            "45697.50", 
+            "15000.0000",
+            "5516.25",
+            "2,150.75",
+            "97.8570"
+        ]
+        
+        results = []
+        for price_str in test_prices:
+            try:
+                # Test the enhanced parsing logic
+                if isinstance(price_str, str):
+                    cleaned_price = float(price_str.replace(',', '')) if price_str else 0
+                else:
+                    cleaned_price = float(price_str) if price_str else 0
+                
+                results.append({
+                    'input': price_str,
+                    'output': cleaned_price,
+                    'status': 'success'
+                })
+            except Exception as e:
+                results.append({
+                    'input': price_str,
+                    'output': 0,
+                    'status': f'error: {str(e)}'
+                })
+        
+        return jsonify({
+            'test_results': results,
+            'parsing_logic': 'enhanced with comma handling',
+            'status': 'success'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/simple-test')
 def simple_test():
     print("✅ SIMPLE TEST endpoint called")
     return "WORKING"
 
+@app.route('/api/system-status')
+def system_status():
+    """Get comprehensive system status"""
+    try:
+        status = {
+            'server': 'running',
+            'database': 'connected' if db_enabled else 'offline',
+            'ai': 'available' if client else 'offline',
+            'current_session': get_current_session(),
+            'ny_time': get_ny_time().strftime('%Y-%m-%d %H:%M:%S %Z'),
+            'price_parsing': 'enhanced',
+            'session_detection': 'active'
+        }
+        
+        # Get recent signal count
+        if db_enabled and db:
+            try:
+                cursor = db.conn.cursor()
+                cursor.execute("SELECT COUNT(*) as count FROM live_signals WHERE timestamp > NOW() - INTERVAL '1 hour'")
+                result = cursor.fetchone()
+                status['recent_signals'] = result['count'] if result else 0
+            except:
+                status['recent_signals'] = 'error'
+        
+        return jsonify(status)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/ai-analysis')
 def ai_analysis_simple():
     print("✅ AI ANALYSIS endpoint called")
     return jsonify({"message": "AI endpoint working"})
+
+@app.route('/api/trigger-divergence', methods=['POST'])
+def trigger_divergence():
+    """Manually trigger divergence display for testing"""
+    try:
+        data = request.get_json() or {}
+        divergence_type = data.get('type', 'DXY_BEARISH_NQ_LONG')
+        
+        # Log the manual trigger
+        logger.info(f"🎯 Manual divergence trigger: {divergence_type}")
+        
+        # Broadcast to dashboard
+        socketio.emit('divergence_alert', {
+            'type': divergence_type,
+            'timestamp': get_ny_time().isoformat(),
+            'manual': True
+        }, namespace='/')
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Triggered {divergence_type}',
+            'type': divergence_type
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/test-divergence', methods=['POST'])
+def test_divergence():
+    """Test divergence detection"""
+    try:
+        data = request.get_json() or {}
+        test_symbol = data.get('symbol', 'DXY')
+        test_bias = data.get('bias', 'Bearish')
+        
+        test_signal = {
+            'symbol': test_symbol,
+            'bias': test_bias,
+            'price': 97.50 if test_symbol == 'DXY' else 5500.0,
+            'strength': 75,
+            'timestamp': get_ny_time().isoformat()
+        }
+        
+        from divergence_detector import detect_divergence_opportunities, send_divergence_alert
+        
+        divergences = detect_divergence_opportunities(test_signal)
+        results = []
+        
+        for alert in divergences:
+            success = send_divergence_alert(alert)
+            results.append({
+                'type': alert['type'],
+                'message': alert['message'],
+                'sent': success
+            })
+        
+        return jsonify({
+            'status': 'success',
+            'test_signal': test_signal,
+            'divergences_detected': len(divergences),
+            'results': results
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cleanup-signals', methods=['POST'])
+def cleanup_signals():
+    """Comprehensive signal cleanup endpoint"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        cursor = db.conn.cursor()
+        
+        # Clean up old signals (older than 4 hours)
+        cursor.execute("DELETE FROM live_signals WHERE timestamp < NOW() - INTERVAL '4 hours'")
+        old_deleted = cursor.rowcount
+        
+        # Clean up test signals
+        cursor.execute("""
+            DELETE FROM live_signals 
+            WHERE signal_type LIKE '%TEST%' 
+            OR signal_type LIKE '%DEBUG%'
+            OR price = 20150.2500
+        """)
+        test_deleted = cursor.rowcount
+        
+        # Clean up incorrect prices
+        cursor.execute("""
+            DELETE FROM live_signals 
+            WHERE (symbol = 'YM1!' AND (price = 15000.0000 OR price < 30000 OR price > 60000))
+            OR (symbol = 'ES1!' AND (price = 15000.0000 OR price < 3000 OR price > 8000))
+            OR (symbol = 'RTY1!' AND (price = 15000.0000 OR price < 1500 OR price > 3000))
+            OR (symbol = 'NQ1!' AND (price < 10000 OR price > 25000))
+            OR price = 0 OR price IS NULL
+        """)
+        price_deleted = cursor.rowcount
+        
+        db.conn.commit()
+        
+        # Get current signal count
+        cursor.execute("SELECT COUNT(*) as count FROM live_signals")
+        remaining = cursor.fetchone()['count']
+        
+        logger.info(f"Signal cleanup: {old_deleted} old + {test_deleted} test + {price_deleted} bad prices = {old_deleted + test_deleted + price_deleted} total deleted, {remaining} remaining")
+        
+        return jsonify({
+            'status': 'success',
+            'deleted': {
+                'old_signals': old_deleted,
+                'test_signals': test_deleted,
+                'bad_prices': price_deleted,
+                'total': old_deleted + test_deleted + price_deleted
+            },
+            'remaining_signals': remaining,
+            'message': f'Cleaned up {old_deleted + test_deleted + price_deleted} signals, {remaining} remaining'
+        })
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error in signal cleanup: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/ai-chart-analysis', methods=['GET', 'POST'])
 def ai_chart_analysis_extension():
@@ -2886,11 +3177,12 @@ try:
             )
         """)
         
-        # Add HTF columns to live_signals table
+        # Add HTF and session columns to live_signals table
         cursor.execute("""
             ALTER TABLE live_signals 
             ADD COLUMN IF NOT EXISTS htf_aligned BOOLEAN DEFAULT FALSE,
-            ADD COLUMN IF NOT EXISTS htf_status VARCHAR(50) DEFAULT 'AGAINST'
+            ADD COLUMN IF NOT EXISTS htf_status VARCHAR(50) DEFAULT 'AGAINST',
+            ADD COLUMN IF NOT EXISTS session VARCHAR(50) DEFAULT 'Unknown'
         """)
         
         db.conn.commit()
@@ -4171,7 +4463,7 @@ def detect_nq_divergence_opportunities(current_signal, all_signals=None):
         
         # Get recent signals from all correlated tickers (last 30 minutes)
         cursor.execute("""
-            SELECT symbol, bias, strength, price, htf_status, htf_aligned, timestamp
+            SELECT symbol, bias, strength, price, htf_status, htf_aligned, session, timestamp
             FROM live_signals 
             WHERE timestamp > NOW() - INTERVAL '30 minutes'
             AND symbol IN ('NQ1!', 'ES1!', 'YM1!', 'RTY1!', 'DXY')
