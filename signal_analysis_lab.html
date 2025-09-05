@@ -2314,7 +2314,7 @@
             const minY = Math.min(...data.map(d => d.y), -1);
             const yRange = maxY - minY || 2;
             
-            // Session colors in chronological order
+            // Session colors
             const sessionColors = {
                 'Asia': 'rgba(255, 193, 7, 0.2)',
                 'London': 'rgba(40, 167, 69, 0.2)',
@@ -2324,46 +2324,35 @@
                 'NY PM': 'rgba(156, 39, 176, 0.2)'
             };
             
-            // Draw session background zones based on time ranges
-            const sessionTimeRanges = [
-                { session: 'Asia', start: '00:00', end: '08:00' },
-                { session: 'London', start: '08:00', end: '13:00' },
-                { session: 'NY Pre Market', start: '13:00', end: '14:30' },
-                { session: 'NY AM', start: '14:30', end: '17:00' },
-                { session: 'NY Lunch', start: '17:00', end: '18:30' },
-                { session: 'NY PM', start: '18:30', end: '23:59' }
-            ];
+            // Draw session background zones based on trade order
+            let currentSession = null;
+            let sessionStart = 0;
             
-            // Convert time to minutes for comparison
-            const timeToMinutes = (timeStr) => {
-                const [hours, minutes] = timeStr.split(':').map(Number);
-                return hours * 60 + minutes;
-            };
-            
-            // Draw background zones for each session
-            sessionTimeRanges.forEach(range => {
-                const sessionStart = timeToMinutes(range.start);
-                const sessionEnd = timeToMinutes(range.end);
-                
-                // Find trades within this session time range
-                const sessionTrades = data.filter(point => {
-                    if (!point.time) return false;
-                    const tradeTime = timeToMinutes(point.time);
-                    return tradeTime >= sessionStart && tradeTime < sessionEnd;
-                });
-                
-                if (sessionTrades.length > 0) {
-                    // Find first and last trade indices in this session
-                    const firstIndex = data.indexOf(sessionTrades[0]);
-                    const lastIndex = data.indexOf(sessionTrades[sessionTrades.length - 1]);
+            data.forEach((point, index) => {
+                if (point.session !== currentSession) {
+                    // End previous session zone
+                    if (currentSession && sessionColors[currentSession]) {
+                        const startX = padding + (sessionStart / (data.length - 1)) * chartWidth;
+                        const endX = padding + (index / (data.length - 1)) * chartWidth;
+                        
+                        ctx.fillStyle = sessionColors[currentSession];
+                        ctx.fillRect(startX, padding, endX - startX, chartHeight);
+                    }
                     
-                    const startX = padding + (firstIndex / (data.length - 1)) * chartWidth;
-                    const endX = padding + ((lastIndex + 1) / (data.length - 1)) * chartWidth;
-                    
-                    ctx.fillStyle = sessionColors[range.session];
-                    ctx.fillRect(startX, padding, endX - startX, chartHeight);
+                    // Start new session zone
+                    currentSession = point.session;
+                    sessionStart = index;
                 }
             });
+            
+            // Draw final session zone
+            if (currentSession && sessionColors[currentSession]) {
+                const startX = padding + (sessionStart / (data.length - 1)) * chartWidth;
+                const endX = padding + chartWidth;
+                
+                ctx.fillStyle = sessionColors[currentSession];
+                ctx.fillRect(startX, padding, endX - startX, chartHeight);
+            }
             
             // Draw grid lines
             ctx.strokeStyle = 'rgba(255,255,255,0.1)';
@@ -2440,12 +2429,12 @@
             ctx.fillText('Trade 1', padding, canvas.height - 10);
             ctx.fillText(`Trade ${data.length}`, padding + chartWidth, canvas.height - 10);
             
-            // Add session legend in chronological order
+            // Add session legend showing only sessions that appear in data
             const legend = document.createElement('div');
             legend.style.cssText = 'display: flex; gap: 10px; margin-top: 10px; font-size: 11px; flex-wrap: wrap; justify-content: center;';
             
-            const sessionOrder = ['Asia', 'London', 'NY Pre Market', 'NY AM', 'NY Lunch', 'NY PM'];
-            sessionOrder.forEach(session => {
+            const sessionsInData = [...new Set(data.map(d => d.session))];
+            sessionsInData.forEach(session => {
                 if (sessionColors[session]) {
                     const legendItem = document.createElement('div');
                     legendItem.style.cssText = 'display: flex; align-items: center; gap: 4px;';
