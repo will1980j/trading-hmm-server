@@ -2089,43 +2089,53 @@ def capture_live_signal():
         except ImportError:
             pass  # Level 2 data not available
         
-        # Run advanced ML analysis
+        # Run institutional-grade ML analysis
         try:
-            from ml_engine import analyze_signal_with_ml
+            from institutional_ml_engine import get_institutional_engine
             from market_data_collector import get_market_data_for_ml
             
-            # Get recent market data for ML features
-            market_data = get_market_data_for_ml(signal['symbol'], minutes=60)
+            # Get recent market data for institutional ML features
+            market_data = get_market_data_for_ml(signal['symbol'], minutes=200)
             
-            # Enhance signal with ML predictions
-            enhanced_signal = analyze_signal_with_ml(signal, market_data)
+            # Get institutional ML engine
+            institutional_engine = get_institutional_engine(db)
             
-            # Update signal with ML enhancements
-            if enhanced_signal.get('ml_enhanced'):
+            # Generate institutional prediction
+            prediction = institutional_engine.predict_institutional(signal, market_data)
+            
+            # Apply institutional ML enhancements
+            if prediction.confidence > 0:
+                # Calculate enhanced strength using institutional metrics
+                institutional_strength = min(98, signal['strength'] * (1 + prediction.confidence/100))
+                
                 cursor.execute("""
                     UPDATE live_signals 
                     SET strength = %s, ai_analysis = %s 
                     WHERE id = %s
                 """, (
-                    enhanced_signal['strength'],
+                    institutional_strength,
                     dumps({
-                        'ml_direction': enhanced_signal.get('ml_direction'),
-                        'ml_confidence': enhanced_signal.get('ml_confidence'),
-                        'ml_price_target_5m': enhanced_signal.get('ml_price_target_5m'),
-                        'ml_price_target_15m': enhanced_signal.get('ml_price_target_15m'),
-                        'ml_risk_score': enhanced_signal.get('ml_risk_score'),
-                        'market_regime': enhanced_signal.get('market_regime'),
-                        'ml_features_count': enhanced_signal.get('ml_features_count')
+                        'institutional_direction': prediction.direction,
+                        'bayesian_confidence': prediction.confidence,
+                        'expected_return': prediction.expected_return,
+                        'sharpe_ratio': prediction.sharpe_ratio,
+                        'kelly_fraction': prediction.kelly_fraction,
+                        'var_95': prediction.var_95,
+                        'regime_probabilities': prediction.regime_probability,
+                        'execution_cost': prediction.execution_cost,
+                        'liquidity_score': prediction.liquidity_score,
+                        'model_uncertainty': prediction.model_uncertainty,
+                        'features_count': 150
                     }),
                     signal_id
                 ))
                 db.conn.commit()
                 
-                logger.info(f"🤖 ML Enhanced: {signal['symbol']} strength {signal['strength']:.0f}→{enhanced_signal['strength']:.0f} | {enhanced_signal.get('ml_direction')} ({enhanced_signal.get('ml_confidence', 0):.1f}% confidence)")
+                logger.info(f"🏛️ INSTITUTIONAL ML: {signal['symbol']} {prediction.direction} | Confidence: {prediction.confidence:.1f}% | Sharpe: {prediction.sharpe_ratio:.2f} | Kelly: {prediction.kelly_fraction:.3f}")
             
         except Exception as ml_error:
-            logger.error(f"❌ ML enhancement error: {str(ml_error)}")
-            # Continue with basic analysis
+            logger.error(f"❌ Institutional ML error: {str(ml_error)}")
+            # Fallback to basic analysis
             analyze_signal_patterns(signal_id)
         
         # Enable divergence detection for correlated symbols only
