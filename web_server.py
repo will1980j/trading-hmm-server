@@ -1804,8 +1804,8 @@ def get_live_signals():
             
         cursor = db.conn.cursor()
         
-        # Delete ALL old signals to force fresh data
-        cursor.execute("DELETE FROM live_signals")
+        # Keep signals for ML analysis - only delete very old ones
+        cursor.execute("DELETE FROM live_signals WHERE timestamp < NOW() - INTERVAL '4 hours'")
         db.conn.commit()
         
         # Get only the most recent signal per symbol for the timeframe

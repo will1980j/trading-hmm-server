@@ -293,6 +293,7 @@
                         <thead>
                             <tr>
                                 <th>Time</th>
+                                <th>Session</th>
                                 <th>Symbol</th>
                                 <th>Triangle Bias</th>
                                 <th>HTF Status</th>
@@ -446,7 +447,7 @@
             const feed = document.getElementById('signalsFeed');
             
             if (!signals || signals.length === 0) {
-                feed.innerHTML = '<tr><td colspan="8" class="no-signals">No signals yet. Waiting for TradingView alerts...</td></tr>';
+                feed.innerHTML = '<tr><td colspan="9" class="no-signals">No signals yet. Waiting for TradingView alerts...</td></tr>';
                 return;
             }
             
@@ -519,6 +520,7 @@
             return `
                 <tr class="${rowClass}">
                     <td>${formatTime(signal.timestamp)}</td>
+                    <td style="font-size: 10px;">${getSession(signal.timestamp)}</td>
                     <td><strong>${signal.symbol || 'N/A'}</strong></td>
                     <td>${triangleDisplay}</td>
                     <td>${htfDisplay}</td>
@@ -621,6 +623,21 @@
                 minute: '2-digit',
                 second: '2-digit'
             });
+        }
+        
+        // Get trading session based on NY time
+        function getSession(timestamp) {
+            const date = new Date(timestamp);
+            const nyTime = new Date(date.toLocaleString("en-US", {timeZone: "America/New_York"}));
+            const hour = nyTime.getHours();
+            
+            if (hour >= 18 || hour <= 23) return 'Asia';
+            if (hour >= 0 && hour <= 5) return 'London';
+            if (hour >= 6 && hour <= 9) return 'NY Pre';
+            if (hour >= 9 && hour <= 11) return 'NY AM';
+            if (hour >= 12 && hour <= 12) return 'NY Lunch';
+            if (hour >= 13 && hour <= 16) return 'NY PM';
+            return 'Closed';
         }
         
         // Auto-refresh signals every 5 seconds
