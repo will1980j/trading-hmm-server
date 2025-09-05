@@ -45,7 +45,7 @@
         
         .main-content {
             display: grid;
-            grid-template-rows: 200px 1fr;
+            grid-template-rows: 200px 300px 1fr;
             gap: 10px;
         }
         
@@ -74,6 +74,58 @@
             font-size: 12px;
             opacity: 0.7;
             text-transform: uppercase;
+        }
+        
+        .active-signal-panel {
+            background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,100,255,0.1));
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(0,255,136,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        
+        .active-signal-content {
+            width: 100%;
+        }
+        
+        .active-signal-symbol {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .active-signal-bias {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .active-signal-details {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .active-signal-detail {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .active-signal-detail-label {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+        
+        .active-signal-detail-value {
+            font-size: 18px;
+            font-weight: bold;
         }
         
         .signals-container {
@@ -246,6 +298,31 @@
                 </div>
             </div>
             
+            <div class="active-signal-panel">
+                <div class="active-signal-content" id="activeSignalContent">
+                    <div class="active-signal-symbol" id="activeSignalSymbol">No Active Signal</div>
+                    <div class="active-signal-bias" id="activeSignalBias">Waiting for signals...</div>
+                    <div class="active-signal-details" id="activeSignalDetails" style="display: none;">
+                        <div class="active-signal-detail">
+                            <div class="active-signal-detail-label">Price</div>
+                            <div class="active-signal-detail-value" id="activeSignalPrice">--</div>
+                        </div>
+                        <div class="active-signal-detail">
+                            <div class="active-signal-detail-label">Strength</div>
+                            <div class="active-signal-detail-value" id="activeSignalStrength">--</div>
+                        </div>
+                        <div class="active-signal-detail">
+                            <div class="active-signal-detail-label">HTF Status</div>
+                            <div class="active-signal-detail-value" id="activeSignalHTF">--</div>
+                        </div>
+                        <div class="active-signal-detail">
+                            <div class="active-signal-detail-label">Session</div>
+                            <div class="active-signal-detail-value" id="activeSignalSession">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="signals-container">
                 <h3>Live Signals Feed</h3>
                 <div class="signals-table-container">
@@ -381,6 +458,7 @@
             
             if (!signals || signals.length === 0) {
                 feed.innerHTML = '<tr><td colspan="9" class="no-signals">No signals yet. Waiting for TradingView alerts...</td></tr>';
+                updateActiveSignalPanel(null);
                 return;
             }
             
@@ -397,10 +475,91 @@
             
             if (filteredSignals.length === 0) {
                 feed.innerHTML = '<tr><td colspan="9" class="no-signals">No signals match current filters...</td></tr>';
+                updateActiveSignalPanel(null);
                 return;
             }
             
+            // Update active signal panel with latest filtered signal
+            updateActiveSignalPanel(filteredSignals[0]);
+            
             feed.innerHTML = filteredSignals.map(signal => createSignalRow(signal)).join('');
+        }
+        
+        // Update active signal panel
+        function updateActiveSignalPanel(signal) {
+            const symbolEl = document.getElementById('activeSignalSymbol');
+            const biasEl = document.getElementById('activeSignalBias');
+            const detailsEl = document.getElementById('activeSignalDetails');
+            const priceEl = document.getElementById('activeSignalPrice');
+            const strengthEl = document.getElementById('activeSignalStrength');
+            const htfEl = document.getElementById('activeSignalHTF');
+            const sessionEl = document.getElementById('activeSignalSession');
+            
+            if (!signal) {
+                symbolEl.textContent = 'No Active Signal';
+                symbolEl.className = 'active-signal-symbol';
+                biasEl.textContent = 'Waiting for signals...';
+                biasEl.className = 'active-signal-bias';
+                detailsEl.style.display = 'none';
+                return;
+            }
+            
+            // Update symbol and bias
+            symbolEl.textContent = signal.symbol || 'Unknown';
+            symbolEl.className = `active-signal-symbol signal-${(signal.bias || 'neutral').toLowerCase()}`;
+            
+            const bias = signal.bias || 'Neutral';
+            const arrow = bias === 'Bullish' ? '▲' : bias === 'Bearish' ? '▼' : '◆';
+            biasEl.textContent = `${arrow} ${bias.toUpperCase()}`;
+            biasEl.className = `active-signal-bias signal-${bias.toLowerCase()}`;
+            
+            // Update details
+            priceEl.textContent = parseFloat(signal.price || 0).toLocaleString();
+            strengthEl.textContent = `${Math.round(signal.strength || 0)}%`;
+            
+            const htfAligned = signal.htf_aligned === true || signal.htf_aligned === 'true';
+            htfEl.textContent = htfAligned ? '✓ ALIGNED' : '✗ AGAINST';
+            htfEl.className = `active-signal-detail-value ${htfAligned ? 'signal-bullish' : 'signal-bearish'}`;
+            
+            sessionEl.textContent = signal.session || 'Unknown';
+            
+            detailsEl.style.display = 'grid';
+            
+            // Capture signal for ML learning
+            captureSignalForML(signal);
+        }
+        
+        // Capture signal for ML learning
+        function captureSignalForML(signal) {
+            try {
+                const mlData = {
+                    timestamp: new Date().toISOString(),
+                    symbol: signal.symbol,
+                    bias: signal.bias,
+                    price: signal.price,
+                    strength: signal.strength,
+                    htf_aligned: signal.htf_aligned,
+                    htf_status: signal.htf_status,
+                    session: signal.session,
+                    timeframe: signal.timeframe || '1m',
+                    signal_type: signal.signal_type
+                };
+                
+                // Store in localStorage for ML training data
+                let mlSignals = JSON.parse(localStorage.getItem('ml_signals') || '[]');
+                mlSignals.unshift(mlData);
+                
+                // Keep last 1000 signals for ML training
+                if (mlSignals.length > 1000) {
+                    mlSignals = mlSignals.slice(0, 1000);
+                }
+                
+                localStorage.setItem('ml_signals', JSON.stringify(mlSignals));
+                
+                console.log('Signal captured for ML:', mlData);
+            } catch (error) {
+                console.error('Error capturing signal for ML:', error);
+            }
         }
         
         // Create signal table row
