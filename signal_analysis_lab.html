@@ -604,14 +604,7 @@
                 </div>
                 <div class="input-group session">
                     <label>Session</label>
-                    <select id="session">
-                        <option value="Asia">Asia</option>
-                        <option value="London">London</option>
-                        <option value="NY Pre Market">NY Pre</option>
-                        <option value="NY AM">NY AM</option>
-                        <option value="NY Lunch">Lunch</option>
-                        <option value="NY PM">NY PM</option>
-                    </select>
+                    <input type="text" id="session" readonly style="background: #f0f0f0 !important; color: #666 !important;" placeholder="Auto-assigned">
                 </div>
                 <div class="input-group signal-type">
                     <label>Signal</label>
@@ -975,7 +968,7 @@
                 date: document.getElementById('signalDate')?.value || '',
                 time: document.getElementById('entryTime')?.value || '',
                 bias: document.getElementById('bias')?.value || 'Bullish',
-                session: document.getElementById('session')?.value || 'NY AM',
+                session: document.getElementById('session')?.value || 'Asia',
                 signalType: document.getElementById('signalType')?.value || 'Bullish FVG',
                 entryPrice: 0,
                 stopLoss: 0,
@@ -1108,7 +1101,7 @@
                 date: document.getElementById('signalDate')?.value || '',
                 time: document.getElementById('entryTime')?.value || '',
                 bias: document.getElementById('bias')?.value || 'Bullish',
-                session: document.getElementById('session')?.value || 'NY AM',
+                session: document.getElementById('session')?.value || 'Asia',
                 signalType: document.getElementById('signalType')?.value || 'Bullish FVG',
                 entryPrice: 0,
                 stopLoss: 0,
@@ -1571,9 +1564,38 @@
             }
         });
         
-        // Auto-calculate TP when bias changes
-        const biasEl = document.getElementById('bias');
-        if (biasEl) biasEl.addEventListener('change', calculateTP);
+        // Auto-assign session when time changes
+        const timeEl = document.getElementById('entryTime');
+        if (timeEl) {
+            timeEl.addEventListener('input', function() {
+                autoAssignSession(this.value);
+            });
+        }
+        
+        function autoAssignSession(timeStr) {
+            if (!timeStr || timeStr.length < 5) return;
+            
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const totalMinutes = hours * 60 + minutes;
+            
+            let session = 'Asia'; // default
+            
+            if (totalMinutes >= 18 * 60) { // 18:00+
+                session = 'Asia';
+            } else if (totalMinutes >= 13 * 60) { // 13:00-16:59
+                session = 'NY PM';
+            } else if (totalMinutes >= 12 * 60) { // 12:00-12:59
+                session = 'NY Lunch';
+            } else if (totalMinutes >= 9.5 * 60) { // 09:30-11:59
+                session = 'NY AM';
+            } else if (totalMinutes >= 6 * 60) { // 06:00-09:29
+                session = 'NY Pre Market';
+            } else { // 00:00-05:59
+                session = 'London';
+            }
+            
+            document.getElementById('session').value = session;
+        }
         
         // View analysis function
         function viewAnalysis(signalId) {
