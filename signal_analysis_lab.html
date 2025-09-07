@@ -662,6 +662,17 @@
                 </div>
 
                 <div class="input-group news-prox">
+                    <label>Divergence</label>
+                    <select id="divergenceType">
+                        <option value="None">None</option>
+                        <option value="DXY_Bearish">DXY Bear</option>
+                        <option value="DXY_Bullish">DXY Bull</option>
+                        <option value="ES_Divergence">ES Div</option>
+                        <option value="YM_Divergence">YM Div</option>
+                        <option value="Multi_Symbol">Multi</option>
+                    </select>
+                </div>
+                <div class="input-group news-prox">
                     <label>News</label>
                     <select id="newsProximity">
                         <option value="None">None</option>
@@ -795,6 +806,7 @@
                             <th>Hit2</th>
                             <th>MFE2</th>
 
+                            <th>Divergence</th>
                             <th>News</th>
                             <th>Event</th>
                             <th>Action</th>
@@ -850,6 +862,7 @@
                         mfe2: parseFloat(trade.mfe2) || 0,
                         positionSize: parseInt(trade.position_size) || 1,
                         commission: parseFloat(trade.commission) || 0,
+                        divergenceType: trade.divergence_type || 'None',
                         newsProximity: trade.newsProximity || trade.news_proximity || 'None',
                         newsEvent: trade.newsEvent || trade.news_event || 'None',
                         screenshot: trade.screenshot
@@ -982,6 +995,7 @@
                 mfe2: parseFloat(document.getElementById('mfe2')?.value) || 0,
                 positionSize: 1,
                 commission: 0,
+                divergenceType: document.getElementById('divergenceType')?.value || 'None',
                 newsProximity: document.getElementById('newsProximity')?.value || 'None',
                 newsEvent: getSelectedNewsEvents(),
 
@@ -1015,6 +1029,7 @@
                         mfe2: signal.mfe2,
                         position_size: 1,
                         commission: 0,
+                        divergence_type: signal.divergenceType,
                         news_proximity: signal.newsProximity,
                         news_event: signal.newsEvent
                     })
@@ -1266,6 +1281,7 @@
                     row.style.background = 'rgba(255, 165, 0, 0.3)';
                     row.style.border = '2px solid rgba(255, 165, 0, 0.8)';
                     row.title = 'ACTIVE TRADE - Add MFE when closed';
+                    row.style.animation = 'pulse 2s infinite';
                 }
                 
                 row.innerHTML = `
@@ -1283,6 +1299,7 @@
                     <td>${signal.be2Hit ? '✓' : '✗'}</td>
                     <td class="${signal.mfe2 > 0 ? 'positive' : signal.mfe2 < 0 ? 'negative' : 'neutral'}">${signal.mfe2 ? signal.mfe2.toFixed(1) + 'R' : '-'}</td>
 
+                    <td>${signal.divergenceType || 'None'}</td>
                     <td>${signal.newsProximity}</td>
                     <td>${signal.newsEvent}</td>
                     <td>

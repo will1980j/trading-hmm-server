@@ -2218,17 +2218,42 @@ def capture_live_signal():
             except Exception as div_error:
                 logger.error(f"Divergence error: {str(div_error)}")
         
+        # Auto-populate Signal Lab
+        try:
+            lab_trade = {
+                'date': get_ny_time().strftime('%Y-%m-%d'),
+                'time': get_ny_time().strftime('%H:%M:%S'),
+                'bias': signal['bias'],
+                'session': signal['session'],
+                'signal_type': signal['signal_type'],
+                'entry_price': signal['price'],
+                'divergence_type': 'None',
+                'active_trade': True
+            }
+            
+            cursor.execute("""
+                INSERT INTO signal_lab_trades 
+                (date, time, bias, session, signal_type, entry_price, divergence_type, active_trade)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                lab_trade['date'], lab_trade['time'], lab_trade['bias'], 
+                lab_trade['session'], lab_trade['signal_type'], lab_trade['entry_price'],
+                lab_trade['divergence_type'], lab_trade['active_trade']
+            ))
+            db.conn.commit()
+            logger.info(f"✅ Auto-populated Signal Lab with active trade")
+        except Exception as e:
+            logger.error(f"Failed to auto-populate Signal Lab: {str(e)}")
+        
         # Broadcast original signal to all connected clients
         enhanced_signal = dict(signal)
         enhanced_signal['id'] = signal_id
         socketio.emit('new_signal', enhanced_signal, namespace='/')
         
-
-        
         return jsonify({
             "status": "success",
             "signal_id": signal_id,
-            "message": "Signal captured successfully"
+            "message": "Signal captured and auto-populated to Signal Lab"
         })
         
     except Exception as e:
