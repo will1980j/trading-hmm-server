@@ -1015,7 +1015,7 @@
             const xScale = d3.scaleBand()
                 .domain(data.map((d, i) => i))
                 .range([0, innerWidth])
-                .padding(0.1);
+                .padding(0.05);
             
             const yExtent = d3.extent(data, d => d.y);
             const yScale = d3.scaleLinear()
@@ -1147,24 +1147,66 @@
                 
                 data.forEach((d, i) => {
                     if (i < data.length - 1) {
+                        const currentSession = d.session || 'Unknown';
+                        const sessionColor = sessionColors[currentSession] || '#666666';
+                        
                         const zone = sessionZones.append('rect')
-                            .attr('x', xScale(d.x))
+                            .attr('x', xScale(i))
                             .attr('y', 0)
-                            .attr('width', xScale(data[i + 1].x) - xScale(d.x))
+                            .attr('width', xScale.bandwidth())
                             .attr('height', innerHeight)
-                            .attr('fill', sessionColors[d.session] || '#666')
+                            .attr('fill', sessionColor)
                             .attr('opacity', 0)
                             .style('pointer-events', 'none')
                             .style('mix-blend-mode', 'multiply');
                         
                         zone.transition()
-                            .delay(i * 50)
-                            .duration(800)
+                            .delay(i * 20)
+                            .duration(600)
                             .ease(d3.easeBackOut)
-                            .attr('opacity', 0.12)
+                            .attr('opacity', 0.15)
                             .style('filter', 'url(#drop-shadow)');
                     }
                 });
+                
+                // Add session labels at the top
+                let currentSession = null;
+                let sessionStart = 0;
+                
+                data.forEach((d, i) => {
+                    const session = d.session || 'Unknown';
+                    if (session !== currentSession) {
+                        if (currentSession && i > sessionStart) {
+                            // Add label for previous session
+                            const labelX = xScale(sessionStart) + (xScale(i - 1) - xScale(sessionStart)) / 2;
+                            g.append('text')
+                                .attr('x', labelX)
+                                .attr('y', -10)
+                                .attr('text-anchor', 'middle')
+                                .style('font-size', '11px')
+                                .style('font-weight', '600')
+                                .style('fill', sessionColors[currentSession] || '#666')
+                                .style('opacity', 0.8)
+                                .text(currentSession);
+                        }
+                        currentSession = session;
+                        sessionStart = i;
+                    }
+                });
+                
+                // Add label for last session
+                if (currentSession && data.length > sessionStart) {
+                    const labelX = xScale(sessionStart) + (xScale(data.length - 1) - xScale(sessionStart)) / 2;
+                    g.append('text')
+                        .attr('x', labelX)
+                        .attr('y', -10)
+                        .attr('text-anchor', 'middle')
+                        .style('font-size', '11px')
+                        .style('font-weight', '600')
+                        .style('fill', sessionColors[currentSession] || '#666')
+                        .style('opacity', 0.8)
+                        .text(currentSession);
+                }
             }
             
             // Premium curve generators
