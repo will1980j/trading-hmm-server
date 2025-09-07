@@ -3219,6 +3219,13 @@ try:
             ADD COLUMN IF NOT EXISTS session VARCHAR(50) DEFAULT 'Unknown'
         """)
         
+        # Add divergence and active_trade columns to signal_lab_trades table
+        cursor.execute("""
+            ALTER TABLE signal_lab_trades 
+            ADD COLUMN IF NOT EXISTS divergence_type VARCHAR(50) DEFAULT 'None',
+            ADD COLUMN IF NOT EXISTS active_trade BOOLEAN DEFAULT FALSE
+        """)
+        
         db.conn.commit()
         logger.info("Database tables ready with HTF columns")
 except Exception as e:
