@@ -458,7 +458,6 @@
             
             if (!signals || signals.length === 0) {
                 feed.innerHTML = '<tr><td colspan="9" class="no-signals">No signals yet. Waiting for TradingView alerts...</td></tr>';
-                updateActiveSignalPanel(null);
                 return;
             }
             
@@ -475,7 +474,6 @@
             
             if (filteredSignals.length === 0) {
                 feed.innerHTML = '<tr><td colspan="9" class="no-signals">No signals match current filters...</td></tr>';
-                updateActiveSignalPanel(null);
                 return;
             }
             
