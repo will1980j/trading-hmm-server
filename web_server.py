@@ -1468,7 +1468,8 @@ def get_signal_lab_trades():
         if len(rows) == 0:
             # Check if table exists and has data
             cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
-            total_count = cursor.fetchone()[0]
+            result = cursor.fetchone()
+            total_count = result['count'] if result else 0
             logger.info(f"Total records in signal_lab_trades table: {total_count}")
         
         trades = []
