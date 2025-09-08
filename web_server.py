@@ -2024,20 +2024,11 @@ def capture_live_signal():
             
         logger.info(f"HTF Debug: raw={htf_aligned_raw} ({type(htf_aligned_raw)}) -> parsed={htf_aligned}")
         
-        # CRITICAL: If bias is Bullish and signal is sent, it SHOULD be aligned
-        # Override HTF status based on bias logic - if Pine Script sends signal, it's aligned
-        if triangle_bias == 'Bullish':
-            htf_aligned = True
-            htf_status = 'ALIGNED'
-            logger.info(f"OVERRIDE: Bullish bias detected - forcing HTF ALIGNED status")
-        elif triangle_bias == 'Bearish':
-            htf_aligned = True  # Pine Script only sends aligned signals
-            htf_status = 'ALIGNED'
-            logger.info(f"OVERRIDE: Bearish bias detected - forcing HTF ALIGNED status")
-        else:
-            htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
+        # CRITICAL: Only use the actual HTF alignment from TradingView
+        # Don't override - trust the Pine Script HTF logic
+        htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
             
-        logger.info(f"FINAL HTF Status: {htf_status} | Bias: {triangle_bias} | Aligned: {htf_aligned}")
+        logger.info(f"HTF Status: {htf_status} | Bias: {triangle_bias} | Raw HTF: {htf_aligned_raw} | Parsed: {htf_aligned}")
         
 
         
