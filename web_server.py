@@ -1998,20 +1998,16 @@ def capture_live_signal():
         if triangle_bias not in ['Bullish', 'Bearish']:
             triangle_bias = 'Bullish'
         
-        # Extract HTF alignment from Pine Script - fix boolean parsing
+        # Extract HTF alignment from Pine Script - FORCE CORRECT PARSING
         htf_aligned_raw = data.get('htf_aligned', False)
         
-        # Handle different data types for htf_aligned - FIXED PARSING
-        if isinstance(htf_aligned_raw, str):
-            htf_aligned = htf_aligned_raw.lower() in ['true', '1', 'yes']
-        elif isinstance(htf_aligned_raw, bool):
-            htf_aligned = htf_aligned_raw  # Use boolean directly
-        elif isinstance(htf_aligned_raw, (int, float)):
-            htf_aligned = bool(htf_aligned_raw)
+        # CRITICAL FIX: TradingView sends true/false as JSON booleans
+        if htf_aligned_raw is True or htf_aligned_raw == 'true' or htf_aligned_raw == True:
+            htf_aligned = True
         else:
-            htf_aligned = bool(htf_aligned_raw)
+            htf_aligned = False
             
-        logger.info(f"HTF Parsing Debug: raw={htf_aligned_raw} type={type(htf_aligned_raw)} parsed={htf_aligned}")
+        logger.info(f"HTF Debug: raw={htf_aligned_raw} ({type(htf_aligned_raw)}) -> parsed={htf_aligned}")
         
         # Use the actual HTF alignment from TradingView - don't override it
         logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned}")
@@ -2108,8 +2104,30 @@ def capture_live_signal():
         except ImportError:
             pass  # Level 2 data not available
         
-        # Skip ML analysis for now - module not available
-        # ML enhancement can be added later when comprehensive_ml_analyzer is implemented
+        # Advanced ML Analysis
+        try:
+            from advanced_ml_engine import AdvancedMLEngine
+            
+            ml_engine = AdvancedMLEngine(db)
+            ml_prediction = ml_engine.predict_signal_quality(signal)
+            
+            if 'error' not in ml_prediction:
+                # Store ML analysis in database
+                cursor.execute("""
+                    UPDATE live_signals 
+                    SET ai_analysis = %s 
+                    WHERE id = %s
+                """, (
+                    dumps(ml_prediction),
+                    signal_id
+                ))
+                db.conn.commit()
+                
+                logger.info(f"🤖 ML ANALYSIS: {signal['symbol']} | Success: {ml_prediction.get('success_probability', 0):.1f}% | MFE: {ml_prediction.get('predicted_mfe', 0):.2f}R | Rec: {ml_prediction.get('recommendation', 'N/A')}")
+            
+        except Exception as ml_error:
+            logger.error(f"❌ ML analysis error: {str(ml_error)}")
+            pass
         
         # Enable divergence detection for correlated symbols only
         if signal['symbol'] in ['DXY', 'ES1!', 'YM1!']:  # Only for correlation symbols
@@ -2164,8 +2182,8 @@ def capture_live_signal():
             except Exception as div_error:
                 logger.error(f"Divergence error: {str(div_error)}")
         
-        # Auto-populate Signal Lab only for HTF aligned signals
-        if htf_aligned:
+        # CRITICAL: Only populate Signal Lab if TRULY HTF aligned
+        if htf_aligned and htf_aligned_raw is True:
             try:
                 lab_trade = {
                     'date': get_ny_time().strftime('%Y-%m-%d'),
@@ -2892,6 +2910,58 @@ def test_divergence():
         })
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml-analytics', methods=['GET'])
+@login_required
+def get_ml_analytics():
+    """Get comprehensive ML performance analytics"""
+    try:
+        from advanced_ml_engine import AdvancedMLEngine
+        
+        ml_engine = AdvancedMLEngine(db)
+        analytics = ml_engine.get_performance_analytics()
+        
+        return jsonify(analytics)
+        
+    except Exception as e:
+        logger.error(f"ML analytics error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml-train', methods=['POST'])
+@login_required
+def train_ml_models():
+    """Train ML models with current data"""
+    try:
+        from advanced_ml_engine import AdvancedMLEngine
+        
+        ml_engine = AdvancedMLEngine(db)
+        training_result = ml_engine.train_models()
+        
+        return jsonify(training_result)
+        
+    except Exception as e:
+        logger.error(f"ML training error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml-predict', methods=['POST'])
+@login_required
+def predict_signal_ml():
+    """Get ML prediction for a signal"""
+    try:
+        from advanced_ml_engine import AdvancedMLEngine
+        
+        signal_data = request.get_json()
+        if not signal_data:
+            return jsonify({'error': 'No signal data provided'}), 400
+        
+        ml_engine = AdvancedMLEngine(db)
+        prediction = ml_engine.predict_signal_quality(signal_data)
+        
+        return jsonify(prediction)
+        
+    except Exception as e:
+        logger.error(f"ML prediction error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/cleanup-signals', methods=['POST'])
