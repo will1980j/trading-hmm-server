@@ -2001,13 +2001,17 @@ def capture_live_signal():
         # Extract HTF alignment from Pine Script - fix boolean parsing
         htf_aligned_raw = data.get('htf_aligned', False)
         
-        # Handle different data types for htf_aligned
+        # Handle different data types for htf_aligned - FIXED PARSING
         if isinstance(htf_aligned_raw, str):
             htf_aligned = htf_aligned_raw.lower() in ['true', '1', 'yes']
+        elif isinstance(htf_aligned_raw, bool):
+            htf_aligned = htf_aligned_raw  # Use boolean directly
         elif isinstance(htf_aligned_raw, (int, float)):
             htf_aligned = bool(htf_aligned_raw)
         else:
             htf_aligned = bool(htf_aligned_raw)
+            
+        logger.info(f"HTF Parsing Debug: raw={htf_aligned_raw} type={type(htf_aligned_raw)} parsed={htf_aligned}")
         
         # Use the actual HTF alignment from TradingView - don't override it
         logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned}")
@@ -2141,7 +2145,7 @@ def capture_live_signal():
                     socketio.emit('new_signal', div_signal, namespace='/')
                     logger.info(f"NQ divergence opportunity: {opp['detail']}")
         
-        logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | ID: {signal_id} | Lab: {'Yes' if htf_aligned else 'No'}")
+        logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | ID: {signal_id} | Lab: {'Yes' if htf_aligned else 'No'} | Raw HTF: {htf_aligned_raw}")
         
         # Send divergence alerts immediately when signal received
         if signal['symbol'] in ['DXY', 'ES1!', 'YM1!']:
