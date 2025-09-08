@@ -1997,6 +1997,21 @@ def capture_live_signal():
         # Force bias to be only Bullish or Bearish
         if triangle_bias not in ['Bullish', 'Bearish']:
             triangle_bias = 'Bullish'
+            
+        # Clean symbol name FIRST - fix the symbol extraction issue
+        raw_symbol = data.get('symbol', 'NQ1!')
+        if 'YM' in raw_symbol:
+            clean_symbol = 'YM1!'
+        elif 'ES' in raw_symbol:
+            clean_symbol = 'ES1!'
+        elif 'NQ' in raw_symbol:
+            clean_symbol = 'NQ1!'
+        elif 'RTY' in raw_symbol:
+            clean_symbol = 'RTY1!'
+        elif 'DXY' in raw_symbol:
+            clean_symbol = 'DXY'
+        else:
+            clean_symbol = raw_symbol  # Keep original if no match
         
         # Extract HTF alignment from Pine Script - FORCE CORRECT PARSING
         htf_aligned_raw = data.get('htf_aligned', False)
@@ -2024,20 +2039,7 @@ def capture_live_signal():
             
         logger.info(f"FINAL HTF Status: {htf_status} | Bias: {triangle_bias} | Aligned: {htf_aligned}")
         
-        # Clean symbol name - fix ES mapping
-        raw_symbol = data.get('symbol', 'NQ1!')
-        if 'NQ' in raw_symbol:
-            clean_symbol = 'NQ1!'
-        elif 'YM' in raw_symbol:
-            clean_symbol = 'YM1!'
-        elif 'ES' in raw_symbol:
-            clean_symbol = 'ES1!'
-        elif 'RTY' in raw_symbol:
-            clean_symbol = 'RTY1!'
-        elif 'DXY' in raw_symbol:
-            clean_symbol = 'DXY'
-        else:
-            clean_symbol = raw_symbol  # Keep original if no match
+
         
         # Ensure price is valid - handle string and numeric prices with commas
         raw_price = data.get('price', 0)
@@ -2191,8 +2193,8 @@ def capture_live_signal():
             except Exception as div_error:
                 logger.error(f"Divergence error: {str(div_error)}")
         
-        # CRITICAL: Only populate Signal Lab if TRULY HTF aligned
-        if htf_aligned and htf_aligned_raw is True:
+        # CRITICAL: Only populate Signal Lab if HTF aligned (use our processed htf_aligned variable)
+        if htf_aligned:
             try:
                 lab_trade = {
                     'date': get_ny_time().strftime('%Y-%m-%d'),
