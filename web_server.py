@@ -2103,45 +2103,8 @@ def capture_live_signal():
         except ImportError:
             pass  # Level 2 data not available
         
-        # Run comprehensive ML analysis using actual trading data
-        try:
-            from comprehensive_ml_analyzer import ComprehensiveMLAnalyzer
-            
-            # Get comprehensive ML analyzer
-            analyzer = ComprehensiveMLAnalyzer(db)
-            
-            # Analyze signal quality using real trading patterns
-            quality_prediction = analyzer.predict_signal_quality(signal)
-            
-            # Apply real ML enhancements based on actual data
-            if 'quality_probability' in quality_prediction:
-                # Calculate enhanced strength using real pattern analysis
-                quality_boost = quality_prediction['quality_probability'] / 100
-                enhanced_strength = min(98, signal['strength'] * (1 + quality_boost * 0.2))
-                
-                cursor.execute("""
-                    UPDATE live_signals 
-                    SET strength = %s, ai_analysis = %s 
-                    WHERE id = %s
-                """, (
-                    enhanced_strength,
-                    dumps({
-                        'quality_probability': quality_prediction['quality_probability'],
-                        'model_accuracy': quality_prediction.get('model_accuracy', 0),
-                        'recommendation': quality_prediction.get('recommendation', 'UNKNOWN'),
-                        'feature_importance': quality_prediction.get('feature_importance', {}),
-                        'analysis_type': 'comprehensive_real_data'
-                    }),
-                    signal_id
-                ))
-                db.conn.commit()
-                
-                logger.info(f"📊 REAL ML: {signal['symbol']} {quality_prediction.get('recommendation', 'UNKNOWN')} | Quality: {quality_prediction['quality_probability']:.1f}% | Strength: {signal['strength']:.0f}→{enhanced_strength:.0f}")
-            
-        except Exception as ml_error:
-            logger.error(f"❌ Real ML error: {str(ml_error)}")
-            # Continue without ML enhancement
-            pass
+        # Skip ML analysis for now - module not available
+        # ML enhancement can be added later when comprehensive_ml_analyzer is implemented
         
         # Enable divergence detection for correlated symbols only
         if signal['symbol'] in ['DXY', 'ES1!', 'YM1!']:  # Only for correlation symbols
