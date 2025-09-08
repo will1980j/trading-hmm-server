@@ -2009,33 +2009,10 @@ def capture_live_signal():
         else:
             htf_aligned = bool(htf_aligned_raw)
         
-        logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned}")
+        logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned} | Final Status: {htf_status}")
         
-        # HTF status from Pine Script - parse the actual HTF status string
-        htf_status_raw = data.get('htf_status', '')
-        
-        # Parse HTF status to determine actual alignment
-        if htf_status_raw and isinstance(htf_status_raw, str):
-            # Extract individual HTF biases from status string like "D:Bullish 4H:Bullish 1H:Bearish"
-            htf_parts = htf_status_raw.split()
-            htf_biases = {}
-            
-            for part in htf_parts:
-                if ':' in part:
-                    timeframe, bias = part.split(':', 1)
-                    htf_biases[timeframe] = bias
-            
-            # Check if current bias aligns with HTF biases
-            htf_aligned = True
-            for tf, htf_bias in htf_biases.items():
-                if htf_bias != triangle_bias:
-                    htf_aligned = False
-                    break
-            
-            htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
-        else:
-            # Fallback to original logic if no HTF status provided
-            htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
+        # Use HTF status directly from TradingView (don't override)
+        htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
         
         # Clean symbol name - fix ES mapping
         raw_symbol = data.get('symbol', 'NQ1!')
