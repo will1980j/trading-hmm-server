@@ -2860,6 +2860,52 @@ def trigger_divergence():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/test-webhook', methods=['POST', 'GET'])
+def test_webhook():
+    """Test webhook reception"""
+    try:
+        if request.method == 'GET':
+            return jsonify({
+                'status': 'Webhook endpoint active',
+                'url': '/api/live-signals',
+                'method': 'POST',
+                'timestamp': get_ny_time().isoformat()
+            })
+        
+        # Log all incoming data
+        raw_data = request.get_data(as_text=True)
+        logger.info(f"🔥 TEST WEBHOOK: {raw_data[:200]}")
+        
+        # Try to create a test signal in Signal Lab
+        if db_enabled and db:
+            cursor = db.conn.cursor()
+            cursor.execute("""
+                INSERT INTO signal_lab_trades 
+                (date, time, bias, session, signal_type, entry_price, divergence_type, active_trade)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                get_ny_time().strftime('%Y-%m-%d'),
+                get_ny_time().strftime('%H:%M:%S'),
+                'Bullish',
+                'Test',
+                'TEST_SIGNAL',
+                15000.0,
+                'None',
+                True
+            ))
+            db.conn.commit()
+            
+        return jsonify({
+            'status': 'success',
+            'received_data': raw_data[:500],
+            'signal_lab_populated': True,
+            'timestamp': get_ny_time().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Test webhook error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/test-divergence', methods=['POST'])
 def test_divergence():
     """Test divergence detection"""
