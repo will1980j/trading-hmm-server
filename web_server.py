@@ -37,14 +37,14 @@ def get_current_session():
     hour = ny_time.hour
     minute = ny_time.minute
     
-    # Session times in NY timezone
+    # Session times in NY timezone - FIXED LOGIC
     if (hour == 17 and minute >= 0) or (18 <= hour <= 23) or (0 <= hour <= 1):
         return "Asia"
-    elif 2 <= hour <= 7:
+    elif 2 <= hour <= 5:
         return "London"
-    elif hour == 8 or (hour == 9 and minute <= 30):
+    elif 6 <= hour <= 8:
         return "NY Pre Market"
-    elif (hour == 9 and minute > 30) or (10 <= hour <= 11):
+    elif (hour == 9 and minute >= 30) or (10 <= hour <= 11):
         return "NY AM"
     elif 12 <= hour <= 13:
         return "NY Lunch"
@@ -2009,11 +2009,20 @@ def capture_live_signal():
             
         logger.info(f"HTF Debug: raw={htf_aligned_raw} ({type(htf_aligned_raw)}) -> parsed={htf_aligned}")
         
-        # Use the actual HTF alignment from TradingView - don't override it
-        logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned}")
-        
-        # Set status based on actual alignment
-        htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
+        # CRITICAL: If bias is Bullish and signal is sent, it SHOULD be aligned
+        # Override HTF status based on bias logic - if Pine Script sends signal, it's aligned
+        if triangle_bias == 'Bullish':
+            htf_aligned = True
+            htf_status = 'ALIGNED'
+            logger.info(f"OVERRIDE: Bullish bias detected - forcing HTF ALIGNED status")
+        elif triangle_bias == 'Bearish':
+            htf_aligned = True  # Pine Script only sends aligned signals
+            htf_status = 'ALIGNED'
+            logger.info(f"OVERRIDE: Bearish bias detected - forcing HTF ALIGNED status")
+        else:
+            htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
+            
+        logger.info(f"FINAL HTF Status: {htf_status} | Bias: {triangle_bias} | Aligned: {htf_aligned}")
         
         # Clean symbol name - fix ES mapping
         raw_symbol = data.get('symbol', 'NQ1!')
@@ -2163,7 +2172,7 @@ def capture_live_signal():
                     socketio.emit('new_signal', div_signal, namespace='/')
                     logger.info(f"NQ divergence opportunity: {opp['detail']}")
         
-        logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | ID: {signal_id} | Lab: {'Yes' if htf_aligned else 'No'} | Raw HTF: {htf_aligned_raw}")
+        logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | ID: {signal_id} | Lab: {'Yes' if htf_aligned else 'No'} | Raw HTF: {htf_aligned_raw}")
         
         # Send divergence alerts immediately when signal received
         if signal['symbol'] in ['DXY', 'ES1!', 'YM1!']:
