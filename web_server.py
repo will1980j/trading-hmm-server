@@ -2187,7 +2187,7 @@ def capture_live_signal():
                     socketio.emit('new_signal', div_signal, namespace='/')
                     logger.info(f"NQ divergence opportunity: {opp['detail']}")
         
-        logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | ID: {signal_id} | Lab: {'Yes' if htf_aligned else 'No'} | Raw HTF: {htf_aligned_raw}")
+        logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | ID: {signal_id} | Lab: {'Yes' if htf_aligned else 'No'}")
         
         # Send divergence alerts immediately when signal received
         if signal['symbol'] in ['DXY', 'ES1!', 'YM1!']:
@@ -2211,6 +2211,33 @@ def capture_live_signal():
             try:
                 # Double-check HTF alignment before populating Signal Lab
                 if signal['htf_status'] == 'ALIGNED':
+                    # Detect divergence for this signal
+                    divergence_type = 'None'
+                    correlation_strength = 0.0
+                    
+                    # Check for recent correlated signals that might indicate divergence
+                    cursor.execute("""
+                        SELECT symbol, bias FROM live_signals 
+                        WHERE timestamp > NOW() - INTERVAL '15 minutes'
+                        AND symbol IN ('DXY', 'ES1!', 'YM1!', 'RTY1!')
+                        ORDER BY timestamp DESC LIMIT 5
+                    """)
+                    recent_correlated = cursor.fetchall()
+                    
+                    if recent_correlated:
+                        # Check for DXY inverse correlation
+                        dxy_signals = [s for s in recent_correlated if s['symbol'] == 'DXY']
+                        if dxy_signals and dxy_signals[0]['bias'] != signal['bias']:
+                            divergence_type = f"DXY_INVERSE_{signal['bias'].upper()}"
+                            correlation_strength = 0.8
+                        
+                        # Check for ES/YM positive correlation divergence
+                        other_indices = [s for s in recent_correlated if s['symbol'] in ['ES1!', 'YM1!']]
+                        if other_indices and any(s['bias'] != signal['bias'] for s in other_indices):
+                            if divergence_type == 'None':
+                                divergence_type = f"INDEX_DIVERGENCE_{signal['bias'].upper()}"
+                                correlation_strength = 0.6
+                    
                     lab_trade = {
                         'date': get_ny_time().strftime('%Y-%m-%d'),
                         'time': get_ny_time().strftime('%H:%M:%S'),
@@ -2218,21 +2245,24 @@ def capture_live_signal():
                         'session': signal['session'],
                         'signal_type': signal['signal_type'],
                         'entry_price': signal['price'],
-                        'divergence_type': 'None',
-                        'active_trade': True
+                        'divergence_type': divergence_type,
+                        'active_trade': True,
+                        'htf_aligned': signal['htf_aligned'],
+                        'correlation_strength': correlation_strength
                     }
                     
                     cursor.execute("""
                         INSERT INTO signal_lab_trades 
-                        (date, time, bias, session, signal_type, entry_price, divergence_type, active_trade)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        (date, time, bias, session, signal_type, entry_price, divergence_type, active_trade, htf_aligned, correlation_strength)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         lab_trade['date'], lab_trade['time'], lab_trade['bias'], 
                         lab_trade['session'], lab_trade['signal_type'], lab_trade['entry_price'],
-                        lab_trade['divergence_type'], lab_trade['active_trade']
+                        lab_trade['divergence_type'], lab_trade['active_trade'], 
+                        lab_trade['htf_aligned'], lab_trade['correlation_strength']
                     ))
                     db.conn.commit()
-                    logger.info(f"✅ Auto-populated Signal Lab with HTF aligned NQ1! active trade")
+                    logger.info(f"✅ Auto-populated Signal Lab: {signal['bias']} NQ1! | Divergence: {divergence_type} | Correlation: {correlation_strength:.1f}")
                 else:
                     logger.warning(f"⚠️ HTF status mismatch: htf_aligned={htf_aligned} but htf_status={signal['htf_status']}")
             except Exception as e:
@@ -3319,7 +3349,9 @@ try:
         cursor.execute("""
             ALTER TABLE signal_lab_trades 
             ADD COLUMN IF NOT EXISTS divergence_type VARCHAR(50) DEFAULT 'None',
-            ADD COLUMN IF NOT EXISTS active_trade BOOLEAN DEFAULT FALSE
+            ADD COLUMN IF NOT EXISTS active_trade BOOLEAN DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS htf_aligned BOOLEAN DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS correlation_strength DECIMAL(5,2) DEFAULT 0.0
         """)
         
         db.conn.commit()
