@@ -2009,10 +2009,10 @@ def capture_live_signal():
         else:
             htf_aligned = bool(htf_aligned_raw)
         
-        logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned} | Final Status: {htf_status}")
-        
         # Use HTF status directly from TradingView (don't override)
         htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
+        
+        logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned} | Final Status: {htf_status}")
         
         # Clean symbol name - fix ES mapping
         raw_symbol = data.get('symbol', 'NQ1!')
