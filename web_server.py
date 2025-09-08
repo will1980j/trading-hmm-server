@@ -2013,14 +2013,16 @@ def capture_live_signal():
         else:
             clean_symbol = raw_symbol  # Keep original if no match
         
-        # Extract HTF alignment from Pine Script - FORCE CORRECT PARSING
+        # Extract HTF alignment from Pine Script - ENHANCED PARSING
         htf_aligned_raw = data.get('htf_aligned', False)
         
-        # CRITICAL FIX: TradingView sends true/false as JSON booleans
-        if htf_aligned_raw is True or htf_aligned_raw == 'true' or htf_aligned_raw == True:
-            htf_aligned = True
+        # CRITICAL FIX: Handle all possible TradingView boolean formats
+        if isinstance(htf_aligned_raw, bool):
+            htf_aligned = htf_aligned_raw
+        elif isinstance(htf_aligned_raw, str):
+            htf_aligned = htf_aligned_raw.lower() in ['true', '1', 'yes']
         else:
-            htf_aligned = False
+            htf_aligned = bool(htf_aligned_raw)
             
         logger.info(f"HTF Debug: raw={htf_aligned_raw} ({type(htf_aligned_raw)}) -> parsed={htf_aligned}")
         
@@ -2029,6 +2031,11 @@ def capture_live_signal():
         htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
             
         logger.info(f"HTF Status: {htf_status} | Bias: {triangle_bias} | Raw HTF: {htf_aligned_raw} | Parsed: {htf_aligned}")
+        
+        # VALIDATION: If we're getting AGAINST signals, the Pine Script filtering isn't working
+        if not htf_aligned:
+            logger.warning(f"⚠️ PINE SCRIPT ISSUE: Received non-HTF aligned signal - {triangle_bias} bias with HTF AGAINST")
+            logger.warning(f"⚠️ This should NOT happen if Pine Script HTF filtering is working correctly")
         
 
         
@@ -2184,35 +2191,40 @@ def capture_live_signal():
             except Exception as div_error:
                 logger.error(f"Divergence error: {str(div_error)}")
         
-        # CRITICAL: Only populate Signal Lab if HTF aligned (use our processed htf_aligned variable)
-        if htf_aligned:
+        # CRITICAL: Only populate Signal Lab if HTF aligned AND this is NQ1!
+        if htf_aligned and signal['symbol'] == 'NQ1!':
             try:
-                lab_trade = {
-                    'date': get_ny_time().strftime('%Y-%m-%d'),
-                    'time': get_ny_time().strftime('%H:%M:%S'),
-                    'bias': signal['bias'],
-                    'session': signal['session'],
-                    'signal_type': signal['signal_type'],
-                    'entry_price': signal['price'],
-                    'divergence_type': 'None',
-                    'active_trade': True
-                }
-                
-                cursor.execute("""
-                    INSERT INTO signal_lab_trades 
-                    (date, time, bias, session, signal_type, entry_price, divergence_type, active_trade)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    lab_trade['date'], lab_trade['time'], lab_trade['bias'], 
-                    lab_trade['session'], lab_trade['signal_type'], lab_trade['entry_price'],
-                    lab_trade['divergence_type'], lab_trade['active_trade']
-                ))
-                db.conn.commit()
-                logger.info(f"✅ Auto-populated Signal Lab with HTF aligned active trade")
+                # Double-check HTF alignment before populating Signal Lab
+                if signal['htf_status'] == 'ALIGNED':
+                    lab_trade = {
+                        'date': get_ny_time().strftime('%Y-%m-%d'),
+                        'time': get_ny_time().strftime('%H:%M:%S'),
+                        'bias': signal['bias'],
+                        'session': signal['session'],
+                        'signal_type': signal['signal_type'],
+                        'entry_price': signal['price'],
+                        'divergence_type': 'None',
+                        'active_trade': True
+                    }
+                    
+                    cursor.execute("""
+                        INSERT INTO signal_lab_trades 
+                        (date, time, bias, session, signal_type, entry_price, divergence_type, active_trade)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        lab_trade['date'], lab_trade['time'], lab_trade['bias'], 
+                        lab_trade['session'], lab_trade['signal_type'], lab_trade['entry_price'],
+                        lab_trade['divergence_type'], lab_trade['active_trade']
+                    ))
+                    db.conn.commit()
+                    logger.info(f"✅ Auto-populated Signal Lab with HTF aligned NQ1! active trade")
+                else:
+                    logger.warning(f"⚠️ HTF status mismatch: htf_aligned={htf_aligned} but htf_status={signal['htf_status']}")
             except Exception as e:
                 logger.error(f"Failed to auto-populate Signal Lab: {str(e)}")
         else:
-            logger.info(f"⚠️ Skipped Signal Lab auto-population - signal not HTF aligned")
+            reason = "not NQ1!" if signal['symbol'] != 'NQ1!' else "not HTF aligned"
+            logger.info(f"⚠️ Skipped Signal Lab auto-population - signal {reason} (Symbol: {signal['symbol']}, HTF: {htf_aligned})")
         
         # Broadcast original signal to all connected clients
         enhanced_signal = dict(signal)
