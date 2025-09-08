@@ -2009,12 +2009,11 @@ def capture_live_signal():
         else:
             htf_aligned = bool(htf_aligned_raw)
         
-        # IMPORTANT: If HTF Aligned Only is enabled and signal reaches server, it MUST be aligned
-        # The Pine Script already filtered out non-aligned signals
-        htf_aligned = True  # Force true since Pine Script pre-filtered
-        htf_status = 'ALIGNED'  # Force ALIGNED since filtering happened in Pine Script
+        # Use the actual HTF alignment from TradingView - don't override it
+        logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned}")
         
-        logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned} | Final Status: {htf_status} | Note: Pine Script pre-filtered")
+        # Set status based on actual alignment
+        htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
         
         # Clean symbol name - fix ES mapping
         raw_symbol = data.get('symbol', 'NQ1!')
@@ -2049,9 +2048,12 @@ def capture_live_signal():
         # Calculate signal strength based on HTF alignment and divergence
         base_strength = float(data.get('strength', 50)) if data.get('strength') else 50
         
-        # Since signals reaching server are pre-filtered by Pine Script, treat all as aligned
-        base_strength = min(95, base_strength + 20)  # +20% for HTF alignment (Pine Script filtered)
-        logger.info(f"HTF ALIGNED: {triangle_bias} bias with HTF support (Pine Script filtered) - boosting strength to {base_strength}%")
+        # Apply HTF alignment bonus only for truly aligned signals
+        if htf_aligned:
+            base_strength = min(95, base_strength + 20)  # +20% for HTF alignment
+            logger.info(f"HTF ALIGNED: {triangle_bias} bias with HTF support - boosting strength to {base_strength}%")
+        else:
+            logger.info(f"HTF AGAINST: {triangle_bias} bias against HTF - strength remains {base_strength}%")
         
         # Determine current session
         current_session = get_current_session()
@@ -2139,7 +2141,7 @@ def capture_live_signal():
                     socketio.emit('new_signal', div_signal, namespace='/')
                     logger.info(f"NQ divergence opportunity: {opp['detail']}")
         
-        logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | ID: {signal_id}")
+        logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | ID: {signal_id} | Lab: {'Yes' if htf_aligned else 'No'}")
         
         # Send divergence alerts immediately when signal received
         if signal['symbol'] in ['DXY', 'ES1!', 'YM1!']:
@@ -2158,32 +2160,35 @@ def capture_live_signal():
             except Exception as div_error:
                 logger.error(f"Divergence error: {str(div_error)}")
         
-        # Auto-populate Signal Lab
-        try:
-            lab_trade = {
-                'date': get_ny_time().strftime('%Y-%m-%d'),
-                'time': get_ny_time().strftime('%H:%M:%S'),
-                'bias': signal['bias'],
-                'session': signal['session'],
-                'signal_type': signal['signal_type'],
-                'entry_price': signal['price'],
-                'divergence_type': 'None',
-                'active_trade': True
-            }
-            
-            cursor.execute("""
-                INSERT INTO signal_lab_trades 
-                (date, time, bias, session, signal_type, entry_price, divergence_type, active_trade)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                lab_trade['date'], lab_trade['time'], lab_trade['bias'], 
-                lab_trade['session'], lab_trade['signal_type'], lab_trade['entry_price'],
-                lab_trade['divergence_type'], lab_trade['active_trade']
-            ))
-            db.conn.commit()
-            logger.info(f"✅ Auto-populated Signal Lab with active trade")
-        except Exception as e:
-            logger.error(f"Failed to auto-populate Signal Lab: {str(e)}")
+        # Auto-populate Signal Lab only for HTF aligned signals
+        if htf_aligned:
+            try:
+                lab_trade = {
+                    'date': get_ny_time().strftime('%Y-%m-%d'),
+                    'time': get_ny_time().strftime('%H:%M:%S'),
+                    'bias': signal['bias'],
+                    'session': signal['session'],
+                    'signal_type': signal['signal_type'],
+                    'entry_price': signal['price'],
+                    'divergence_type': 'None',
+                    'active_trade': True
+                }
+                
+                cursor.execute("""
+                    INSERT INTO signal_lab_trades 
+                    (date, time, bias, session, signal_type, entry_price, divergence_type, active_trade)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    lab_trade['date'], lab_trade['time'], lab_trade['bias'], 
+                    lab_trade['session'], lab_trade['signal_type'], lab_trade['entry_price'],
+                    lab_trade['divergence_type'], lab_trade['active_trade']
+                ))
+                db.conn.commit()
+                logger.info(f"✅ Auto-populated Signal Lab with HTF aligned active trade")
+            except Exception as e:
+                logger.error(f"Failed to auto-populate Signal Lab: {str(e)}")
+        else:
+            logger.info(f"⚠️ Skipped Signal Lab auto-population - signal not HTF aligned")
         
         # Broadcast original signal to all connected clients
         enhanced_signal = dict(signal)
