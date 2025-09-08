@@ -2013,10 +2013,10 @@ def capture_live_signal():
         else:
             clean_symbol = raw_symbol  # Keep original if no match
         
-        # Extract HTF alignment from Pine Script - ENHANCED PARSING
+        # Extract HTF alignment from Pine Script
         htf_aligned_raw = data.get('htf_aligned', False)
         
-        # CRITICAL FIX: Handle all possible TradingView boolean formats
+        # Parse HTF alignment
         if isinstance(htf_aligned_raw, bool):
             htf_aligned = htf_aligned_raw
         elif isinstance(htf_aligned_raw, str):
@@ -2026,13 +2026,8 @@ def capture_live_signal():
             
         logger.info(f"HTF Debug: raw={htf_aligned_raw} ({type(htf_aligned_raw)}) -> parsed={htf_aligned}")
         
-        # CRITICAL: Only use the actual HTF alignment from TradingView
-        # Don't override - trust the Pine Script HTF logic
         htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
-            
-        logger.info(f"HTF Status: {htf_status} | Bias: {triangle_bias} | Raw HTF: {htf_aligned_raw} | Parsed: {htf_aligned}")
         
-        # VALIDATION: If we're getting AGAINST signals, the Pine Script filtering isn't working
         if not htf_aligned:
             logger.warning(f"⚠️ PINE SCRIPT ISSUE: Received non-HTF aligned signal - {triangle_bias} bias with HTF AGAINST")
             logger.warning(f"⚠️ This should NOT happen if Pine Script HTF filtering is working correctly")
