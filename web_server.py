@@ -1982,7 +1982,6 @@ def capture_live_signal():
             return jsonify({"error": "Invalid signal data"}), 400
         
         logger.info(f"📊 Webhook received: {data.get('symbol', 'Unknown')} {data.get('bias', 'N/A')} at {data.get('price', 'N/A')} (strength: {data.get('strength', 'N/A')}%)")
-        logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned}")
         logger.debug(f"Full webhook data: {str(data)[:300]}...")
         
         if not db_enabled or not db:
@@ -2009,6 +2008,8 @@ def capture_live_signal():
             htf_aligned = bool(htf_aligned_raw)
         else:
             htf_aligned = bool(htf_aligned_raw)
+        
+        logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned}")
         
         # HTF status from Pine Script - parse the actual HTF status string
         htf_status_raw = data.get('htf_status', '')
