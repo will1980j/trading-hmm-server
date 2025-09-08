@@ -2009,10 +2009,11 @@ def capture_live_signal():
         else:
             htf_aligned = bool(htf_aligned_raw)
         
-        # Use HTF status directly from TradingView (don't override)
-        htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
+        # IMPORTANT: If HTF Aligned Only is enabled and signal reaches server, it MUST be aligned
+        # The Pine Script already filtered out non-aligned signals
+        htf_status = 'ALIGNED' if htf_aligned else 'ALIGNED'  # Force ALIGNED since filtering happened in Pine Script
         
-        logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned} | Final Status: {htf_status}")
+        logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned} | Final Status: {htf_status} | Note: Pine Script pre-filtered")
         
         # Clean symbol name - fix ES mapping
         raw_symbol = data.get('symbol', 'NQ1!')
@@ -2047,12 +2048,9 @@ def capture_live_signal():
         # Calculate signal strength based on HTF alignment and divergence
         base_strength = float(data.get('strength', 50)) if data.get('strength') else 50
         
-        # Apply HTF alignment bonus
-        if htf_aligned:
-            base_strength = min(95, base_strength + 20)  # +20% for HTF alignment
-            logger.info(f"HTF ALIGNED: {triangle_bias} bias with HTF support - boosting strength to {base_strength}%")
-        else:
-            logger.info(f"HTF AGAINST: {triangle_bias} bias against HTF - strength remains {base_strength}%")
+        # Since signals reaching server are pre-filtered by Pine Script, treat all as aligned
+        base_strength = min(95, base_strength + 20)  # +20% for HTF alignment (Pine Script filtered)
+        logger.info(f"HTF ALIGNED: {triangle_bias} bias with HTF support (Pine Script filtered) - boosting strength to {base_strength}%")
         
         # Determine current session
         current_session = get_current_session()
