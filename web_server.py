@@ -2870,9 +2870,10 @@ def test_webhook():
         
         # Log all incoming data
         raw_data = request.get_data(as_text=True)
-        logger.info(f"🔥 TEST WEBHOOK: {raw_data[:200]}")
+        logger.info(f"🔥 TEST WEBHOOK RECEIVED: {raw_data}")
+        print(f"🔥 TEST WEBHOOK RECEIVED: {raw_data}")
         
-        # Try to create a test signal in Signal Lab
+        # Create test signal in Signal Lab to verify auto-population
         if db_enabled and db:
             cursor = db.conn.cursor()
             cursor.execute("""
@@ -2884,17 +2885,18 @@ def test_webhook():
                 get_ny_time().strftime('%H:%M:%S'),
                 'Bullish',
                 'Test',
-                'TEST_SIGNAL',
-                15000.0,
+                'WEBHOOK_TEST',
+                23800.0,
                 'None',
                 True
             ))
             db.conn.commit()
+            logger.info("✅ Test signal added to Signal Lab")
             
         return jsonify({
             'status': 'success',
-            'received_data': raw_data[:500],
-            'signal_lab_populated': True,
+            'message': 'Test webhook received and Signal Lab populated',
+            'received_data': raw_data,
             'timestamp': get_ny_time().isoformat()
         })
         
