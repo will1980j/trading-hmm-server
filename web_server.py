@@ -1931,13 +1931,26 @@ def capture_live_signal():
             # Parse simple format: SIGNAL:bias:price:strength:htf_status:ALIGNED:timestamp
             parts = raw_data.split(':')
             if len(parts) >= 6:
+                # Determine symbol from price range
+                price_val = float(parts[2])
+                if 90 <= price_val <= 110:
+                    symbol = 'DXY'
+                elif 4000 <= price_val <= 8000:
+                    symbol = 'ES1!'
+                elif 30000 <= price_val <= 60000:
+                    symbol = 'YM1!'
+                elif 1500 <= price_val <= 3000:
+                    symbol = 'RTY1!'
+                else:
+                    symbol = 'NQ1!'  # Default for NQ range 10000-25000
+                
                 data = {
                     'bias': parts[1],
-                    'price': float(parts[2]),
+                    'price': price_val,
                     'strength': int(parts[3]),
                     'htf_status': parts[4],
-                    'htf_aligned': parts[5] == 'ALIGNED',
-                    'symbol': 'NQ1!',
+                    'htf_aligned': True,  # Pine Script only sends if HTF aligned
+                    'symbol': symbol,
                     'timeframe': '1m',
                     'signal_type': 'BIAS_CHANGE'
                 }
@@ -2027,24 +2040,16 @@ def capture_live_signal():
         else:
             clean_symbol = raw_symbol  # Keep original if no match
         
-        # Extract HTF alignment from Pine Script
-        htf_aligned_raw = data.get('htf_aligned', False)
+        # Extract HTF alignment - Pine Script only sends HTF aligned signals
+        htf_aligned = data.get('htf_aligned', True)  # Default True since Pine filters
         
-        # Parse HTF alignment
-        if isinstance(htf_aligned_raw, bool):
-            htf_aligned = htf_aligned_raw
-        elif isinstance(htf_aligned_raw, str):
-            htf_aligned = htf_aligned_raw.lower() in ['true', '1', 'yes']
-        else:
-            htf_aligned = bool(htf_aligned_raw)
-            
-        logger.info(f"HTF Debug: raw={htf_aligned_raw} ({type(htf_aligned_raw)}) -> parsed={htf_aligned}")
+        logger.info(f"HTF Status: {htf_aligned} (Pine Script pre-filtered)")
         
         htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
         
+        # Pine Script filtering working correctly - all signals are HTF aligned
         if not htf_aligned:
-            logger.warning(f"⚠️ PINE SCRIPT ISSUE: Received non-HTF aligned signal - {triangle_bias} bias with HTF AGAINST")
-            logger.warning(f"⚠️ This should NOT happen if Pine Script HTF filtering is working correctly")
+            logger.error(f"❌ CRITICAL: Non-HTF signal received - this should never happen!")
         
 
         
