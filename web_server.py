@@ -2011,7 +2011,8 @@ def capture_live_signal():
         
         # IMPORTANT: If HTF Aligned Only is enabled and signal reaches server, it MUST be aligned
         # The Pine Script already filtered out non-aligned signals
-        htf_status = 'ALIGNED' if htf_aligned else 'ALIGNED'  # Force ALIGNED since filtering happened in Pine Script
+        htf_aligned = True  # Force true since Pine Script pre-filtered
+        htf_status = 'ALIGNED'  # Force ALIGNED since filtering happened in Pine Script
         
         logger.info(f"HTF Status Raw: {data.get('htf_status', 'N/A')} | HTF Aligned: {htf_aligned} | Final Status: {htf_status} | Note: Pine Script pre-filtered")
         
