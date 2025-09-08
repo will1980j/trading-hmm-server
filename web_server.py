@@ -1926,8 +1926,22 @@ def capture_live_signal():
         
         data = None
         
-        # Try to parse as JSON first
-        if raw_data:
+        # Check for simple string format first
+        if raw_data and raw_data.startswith('SIGNAL:'):
+            # Parse simple format: SIGNAL:bias:price:strength:htf_status:ALIGNED:timestamp
+            parts = raw_data.split(':')
+            if len(parts) >= 6:
+                data = {
+                    'bias': parts[1],
+                    'price': float(parts[2]),
+                    'strength': int(parts[3]),
+                    'htf_status': parts[4],
+                    'htf_aligned': parts[5] == 'ALIGNED',
+                    'symbol': 'NQ1!',
+                    'timeframe': '1m',
+                    'signal_type': 'BIAS_CHANGE'
+                }
+        elif raw_data:
             try:
                 data = loads(raw_data)
             except:
