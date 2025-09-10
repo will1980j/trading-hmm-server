@@ -1099,6 +1099,7 @@
                 be2Level: document.getElementById('be2Level'),
                 be2Hit: document.getElementById('be2Hit'),
                 mfe2: document.getElementById('mfe2'),
+                divergenceType: document.getElementById('divergenceType'),
                 newsProximity: document.getElementById('newsProximity')
             };
             
@@ -1114,6 +1115,7 @@
             if (els.be2Level) els.be2Level.value = signal.be2Level || 2;
             if (els.be2Hit) els.be2Hit.checked = signal.be2Hit || false;
             if (els.mfe2) els.mfe2.value = signal.mfe2 || 0;
+            if (els.divergenceType) els.divergenceType.value = signal.divergenceType || 'None';
             if (els.newsProximity) els.newsProximity.value = signal.newsProximity;
             
             // Handle news events
@@ -1160,6 +1162,7 @@
                 mfe2: parseFloat(document.getElementById('mfe2')?.value) || 0,
                 positionSize: 1,
                 commission: 0,
+                divergenceType: document.getElementById('divergenceType')?.value || 'None',
                 newsProximity: document.getElementById('newsProximity')?.value || 'None',
                 newsEvent: getSelectedNewsEvents(),
 
@@ -1193,6 +1196,7 @@
                         mfe2: updatedSignal.mfe2,
                         position_size: 1,
                         commission: 0,
+                        divergence_type: updatedSignal.divergenceType,
                         news_proximity: updatedSignal.newsProximity,
                         news_event: updatedSignal.newsEvent
                     })
