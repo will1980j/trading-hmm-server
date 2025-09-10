@@ -2599,6 +2599,7 @@
             checkbox.type = 'checkbox';
             checkbox.checked = currentValue;
             checkbox.className = 'inline-checkbox';
+            checkbox.style.cursor = 'pointer';
             
             cell.innerHTML = '';
             cell.appendChild(checkbox);
@@ -2634,6 +2635,10 @@
                 }
             };
             
+            checkbox.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setTimeout(saveValue, 50); // Small delay to ensure checkbox state is updated
+            });
             checkbox.addEventListener('change', saveValue);
             checkbox.addEventListener('blur', saveValue);
         }
