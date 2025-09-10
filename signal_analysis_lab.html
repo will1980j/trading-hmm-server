@@ -1315,7 +1315,6 @@
                     row.style.background = 'rgba(255, 165, 0, 0.3)';
                     row.style.border = '2px solid rgba(255, 165, 0, 0.8)';
                     row.title = 'ACTIVE TRADE - Add MFE when closed';
-                    row.style.animation = 'pulse 2s infinite';
                 }
                 
                 row.innerHTML = `
@@ -2559,7 +2558,14 @@
                 signal[field] = newValue;
                 
                 try {
-                    const updateData = { [field]: newValue };
+                    // Map frontend field names to database field names
+                    const fieldMap = {
+                        'mfeNone': 'mfe_none',
+                        'mfe1': 'mfe1',
+                        'mfe2': 'mfe2'
+                    };
+                    const dbField = fieldMap[field] || field;
+                    const updateData = { [dbField]: newValue };
                     const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${signalId}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -2603,7 +2609,13 @@
                 signal[field] = newValue;
                 
                 try {
-                    const updateData = { [field]: newValue };
+                    // Map frontend field names to database field names
+                    const fieldMap = {
+                        'be1Hit': 'be1_hit',
+                        'be2Hit': 'be2_hit'
+                    };
+                    const dbField = fieldMap[field] || field;
+                    const updateData = { [dbField]: newValue };
                     const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${signalId}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
