@@ -523,6 +523,33 @@
             color: white !important;
         }
         
+        .editable-cell {
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+        
+        .editable-cell:hover {
+            background: rgba(0,255,136,0.2);
+        }
+        
+        .inline-input {
+            background: white;
+            color: black;
+            border: 2px solid #00ff88;
+            border-radius: 3px;
+            padding: 2px 4px;
+            font-size: 11px;
+            width: 50px;
+            text-align: center;
+        }
+        
+        .inline-checkbox {
+            transform: scale(1.2);
+            accent-color: #00ff88;
+        }
+        
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
@@ -1291,13 +1318,13 @@
                     <td>${signal.session}</td>
                     <td>${signal.signalType}</td>
 
-                    <td class="${signal.mfeNone > 0 ? 'positive' : signal.mfeNone < 0 ? 'negative' : 'neutral'}">${signal.mfeNone ? signal.mfeNone.toFixed(1) + 'R' : '-'}</td>
+                    <td class="editable-cell ${signal.mfeNone > 0 ? 'positive' : signal.mfeNone < 0 ? 'negative' : 'neutral'}" onclick="editInline(${signal.id}, 'mfeNone', this)">${signal.mfeNone ? signal.mfeNone.toFixed(1) + 'R' : '-'}</td>
                     <td>${signal.be1Level}R</td>
-                    <td>${signal.be1Hit ? '✓' : '✗'}</td>
-                    <td class="${signal.mfe1 > 0 ? 'positive' : signal.mfe1 < 0 ? 'negative' : 'neutral'}">${signal.mfe1 ? signal.mfe1.toFixed(1) + 'R' : '-'}</td>
+                    <td class="editable-cell" onclick="editInlineCheckbox(${signal.id}, 'be1Hit', this)">${signal.be1Hit ? '✓' : '✗'}</td>
+                    <td class="editable-cell ${signal.mfe1 > 0 ? 'positive' : signal.mfe1 < 0 ? 'negative' : 'neutral'}" onclick="editInline(${signal.id}, 'mfe1', this)">${signal.mfe1 ? signal.mfe1.toFixed(1) + 'R' : '-'}</td>
                     <td>${signal.be2Level}R</td>
-                    <td>${signal.be2Hit ? '✓' : '✗'}</td>
-                    <td class="${signal.mfe2 > 0 ? 'positive' : signal.mfe2 < 0 ? 'negative' : 'neutral'}">${signal.mfe2 ? signal.mfe2.toFixed(1) + 'R' : '-'}</td>
+                    <td class="editable-cell" onclick="editInlineCheckbox(${signal.id}, 'be2Hit', this)">${signal.be2Hit ? '✓' : '✗'}</td>
+                    <td class="editable-cell ${signal.mfe2 > 0 ? 'positive' : signal.mfe2 < 0 ? 'negative' : 'neutral'}" onclick="editInline(${signal.id}, 'mfe2', this)">${signal.mfe2 ? signal.mfe2.toFixed(1) + 'R' : '-'}</td>
 
                     <td>${signal.divergenceType || 'None'}</td>
                     <td>${signal.newsProximity}</td>
@@ -2503,6 +2530,95 @@
             if (overlay) overlay.remove();
         }
         
+        // Inline editing functions
+        async function editInline(signalId, field, cell) {
+            const signal = signals.find(s => s.id === signalId);
+            if (!signal) return;
+            
+            const currentValue = signal[field] || 0;
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.step = '0.1';
+            input.value = currentValue;
+            input.className = 'inline-input';
+            
+            cell.innerHTML = '';
+            cell.appendChild(input);
+            input.focus();
+            input.select();
+            
+            const saveValue = async () => {
+                const newValue = parseFloat(input.value) || 0;
+                signal[field] = newValue;
+                
+                try {
+                    const updateData = { [field]: newValue };
+                    const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${signalId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    if (response.ok) {
+                        updateDisplay();
+                    } else {
+                        alert('Update failed');
+                        updateDisplay();
+                    }
+                } catch (error) {
+                    alert('Update error: ' + error.message);
+                    updateDisplay();
+                }
+            };
+            
+            input.addEventListener('blur', saveValue);
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') saveValue();
+            });
+        }
+        
+        async function editInlineCheckbox(signalId, field, cell) {
+            const signal = signals.find(s => s.id === signalId);
+            if (!signal) return;
+            
+            const currentValue = signal[field] || false;
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = currentValue;
+            checkbox.className = 'inline-checkbox';
+            
+            cell.innerHTML = '';
+            cell.appendChild(checkbox);
+            checkbox.focus();
+            
+            const saveValue = async () => {
+                const newValue = checkbox.checked;
+                signal[field] = newValue;
+                
+                try {
+                    const updateData = { [field]: newValue };
+                    const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${signalId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    if (response.ok) {
+                        updateDisplay();
+                    } else {
+                        alert('Update failed');
+                        updateDisplay();
+                    }
+                } catch (error) {
+                    alert('Update error: ' + error.message);
+                    updateDisplay();
+                }
+            };
+            
+            checkbox.addEventListener('change', saveValue);
+            checkbox.addEventListener('blur', saveValue);
+        }
+        
         // Make functions globally available
         window.addSignal = addSignal;
         window.editSignal = editSignal;
@@ -2524,6 +2640,8 @@
         window.bulkDeleteAllTrades = bulkDeleteAllTrades;
         window.showDailyPopup = showDailyPopup;
         window.closeDailyPopup = closeDailyPopup;
+        window.editInline = editInline;
+        window.editInlineCheckbox = editInlineCheckbox;
         
         } catch (error) {
             console.error('Signal Lab JavaScript Error:', error);
