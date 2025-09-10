@@ -790,6 +790,12 @@
                     return;
                 }
                 
+                // Detect if this is a divergence signal
+                let divergenceType = 'None';
+                if (signal.signal_type && signal.signal_type.includes('DIVERGENCE')) {
+                    divergenceType = 'Multi_Symbol'; // General divergence marker
+                }
+                
                 const tradeData = {
                     date: new Date(signal.timestamp).toISOString().split('T')[0],
                     time: new Date(signal.timestamp).toTimeString().split(' ')[0],
@@ -798,6 +804,7 @@
                     signal_type: signal.signal_type || 'FVG',
                     entry_price: signal.price,
                     mfe_none: null, // Will be filled by user
+                    divergence_type: divergenceType,
                     active_trade: true // Mark as active
                 };
                 
