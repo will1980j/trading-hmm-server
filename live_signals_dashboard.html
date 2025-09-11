@@ -790,10 +790,59 @@
                     return;
                 }
                 
-                // Detect if this is a divergence signal
+                // Enhanced divergence detection logic with specific types
                 let divergenceType = 'None';
+                let divergenceDetails = [];
+                
+                // Check if signal_type contains DIVERGENCE
                 if (signal.signal_type && signal.signal_type.includes('DIVERGENCE')) {
-                    divergenceType = 'Multi_Symbol'; // General divergence marker
+                    divergenceType = 'Multi_Symbol';
+                }
+                // Check for specific accompanying divergence signals
+                else if (signal.symbol && signal.symbol.includes('NQ') && signal.timestamp) {
+                    const signalTime = new Date(signal.timestamp).getTime();
+                    
+                    // Find all accompanying signals within 2 minutes
+                    const accompanyingSignals = signals.filter(s => {
+                        if (!s.symbol || s.symbol.includes('NQ') || !s.timestamp) return false;
+                        const otherTime = new Date(s.timestamp).getTime();
+                        const timeDiff = Math.abs(signalTime - otherTime);
+                        return timeDiff <= 120000; // Within 2 minutes
+                    });
+                    
+                    // Check for specific divergence patterns
+                    accompanyingSignals.forEach(s => {
+                        if (signal.bias === 'Bullish') {
+                            if (s.symbol.includes('DXY') && s.bias === 'Bearish') {
+                                divergenceDetails.push('DXY_Bearish');
+                            }
+                            if (s.symbol.includes('ES') && s.bias === 'Bullish') {
+                                divergenceDetails.push('ES_Bullish');
+                            }
+                            if (s.symbol.includes('YM') && s.bias === 'Bullish') {
+                                divergenceDetails.push('YM_Bullish');
+                            }
+                        } else if (signal.bias === 'Bearish') {
+                            if (s.symbol.includes('DXY') && s.bias === 'Bullish') {
+                                divergenceDetails.push('DXY_Bullish');
+                            }
+                            if (s.symbol.includes('ES') && s.bias === 'Bearish') {
+                                divergenceDetails.push('ES_Bearish');
+                            }
+                            if (s.symbol.includes('YM') && s.bias === 'Bearish') {
+                                divergenceDetails.push('YM_Bearish');
+                            }
+                        }
+                    });
+                    
+                    // Set divergence type based on what was found
+                    if (divergenceDetails.length > 0) {
+                        if (divergenceDetails.length === 1) {
+                            divergenceType = divergenceDetails[0];
+                        } else {
+                            divergenceType = 'Multi_Symbol';
+                        }
+                    }
                 }
                 
                 const tradeData = {
@@ -815,7 +864,16 @@
                 });
                 
                 if (response.ok) {
-                    alert('Signal sent to 1M Signal Lab!\nGo to Signal Lab to input your R result.');
+                    let message = 'Signal sent to 1M Signal Lab!';
+                    if (divergenceType !== 'None') {
+                        if (divergenceDetails.length > 1) {
+                            message += ` (Multi-divergence: ${divergenceDetails.join(' + ')})`;
+                        } else {
+                            message += ` (Divergence: ${divergenceType.replace('_', ' ')})`;
+                        }
+                    }
+                    message += '\nGo to Signal Lab to input your R result.';
+                    alert(message);
                 } else {
                     alert('Failed to send signal to Signal Lab');
                 }
