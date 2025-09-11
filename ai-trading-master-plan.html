@@ -344,6 +344,7 @@
             <h3>🧭 Navigation Links</h3>
             <div class="nav-links">
                 <a href="/">🏠 Main Dashboard</a>
+                <a href="/ai-trading-master-plan">🤖 AI Master Plan</a>
                 <a href="/trade-manager">📊 Trade Manager</a>
                 <a href="/signal-analysis-lab">🔬 Signal Lab</a>
                 <a href="/signal-analysis-15m">📈 15M Analysis</a>
@@ -1522,9 +1523,30 @@ class AdvancedRiskManager:
             const expandables = document.querySelectorAll('.expandable');
             
             expandables.forEach(expandable => {
-                expandable.addEventListener('click', function() {
+                expandable.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Toggle expanded class
                     this.classList.toggle('expanded');
+                    
+                    // Find the next expandable-content sibling
+                    const content = this.nextElementSibling;
+                    if (content && content.classList.contains('expandable-content')) {
+                        if (this.classList.contains('expanded')) {
+                            content.style.display = 'block';
+                        } else {
+                            content.style.display = 'none';
+                        }
+                    }
                 });
+                
+                // Set initial state - all collapsed
+                expandable.classList.remove('expanded');
+                const content = expandable.nextElementSibling;
+                if (content && content.classList.contains('expandable-content')) {
+                    content.style.display = 'none';
+                }
             });
 
             // Add smooth scrolling for navigation links

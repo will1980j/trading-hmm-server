@@ -22,3 +22,4 @@ coverage.xml
 .hypothesis
 .env
 .DS_Store
+aws-free-tier-setup.md
