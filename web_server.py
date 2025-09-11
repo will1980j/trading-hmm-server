@@ -228,6 +228,11 @@ def financial_summary():
 def reporting_hub():
     return read_html_file('reporting_hub.html')
 
+@app.route('/ai-trading-master-plan')
+@login_required
+def ai_trading_master_plan():
+    return read_html_file('ai-trading-master-plan.html')
+
 @app.route('/tradingview')
 @login_required
 def tradingview():

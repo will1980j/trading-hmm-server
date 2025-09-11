@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Trading System Master Plan</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+            color: #e8eaed;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+            border-bottom: 2px solid #00d4aa;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            color: #00d4aa;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(0, 212, 170, 0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: #b3b8cd;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .navigation {
+            background: rgba(0, 212, 170, 0.1);
+            border: 1px solid #00d4aa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .nav-links {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .nav-links a {
+            color: #00d4aa;
+            text-decoration: none;
+            padding: 8px 16px;
+            border: 1px solid #00d4aa;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .nav-links a:hover {
+            background: #00d4aa;
+            color: #0f1419;
+            transform: translateY(-2px);
+        }
+
+        .section {
+            background: rgba(26, 35, 50, 0.8);
+            border: 1px solid #3d4f66;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .section h2 {
+            color: #00d4aa;
+            font-size: 2rem;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #00d4aa;
+            padding-bottom: 10px;
+        }
+
+        .section h3 {
+            color: #4fc3f7;
+            font-size: 1.5rem;
+            margin: 25px 0 15px 0;
+        }
+
+        .section h4 {
+            color: #ffb74d;
+            font-size: 1.2rem;
+            margin: 20px 0 10px 0;
+        }
+
+        .subsection {
+            background: rgba(15, 20, 25, 0.5);
+            border-left: 4px solid #00d4aa;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            border: 1px solid #3d4f66;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-block::before {
+            content: 'CODE';
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            font-size: 0.7rem;
+            color: #666;
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: rgba(0, 212, 170, 0.1);
+            border: 1px solid #00d4aa;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .metric-card h4 {
+            color: #00d4aa;
+            margin-bottom: 10px;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+
+        .checklist li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(61, 79, 102, 0.3);
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .checklist li::before {
+            content: '□';
+            position: absolute;
+            left: 0;
+            color: #00d4aa;
+            font-size: 1.2rem;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #00d4aa;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 30px;
+            background: rgba(15, 20, 25, 0.5);
+            padding: 20px;
+            border-radius: 10px;
+            margin-left: 20px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -35px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            background: #00d4aa;
+            border-radius: 50%;
+            border: 3px solid #1a2332;
+        }
+
+        .cost-breakdown {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 10px;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(61, 79, 102, 0.3);
+        }
+
+        .cost-item {
+            color: #b3b8cd;
+        }
+
+        .cost-amount {
+            color: #00d4aa;
+            font-weight: bold;
+            text-align: right;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(0, 212, 170, 0.1) 0%, rgba(79, 195, 247, 0.1) 100%);
+            border: 1px solid #00d4aa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .warning-box {
+            background: rgba(255, 183, 77, 0.1);
+            border: 1px solid #ffb74d;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .success-box {
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px solid #4caf50;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            background: rgba(61, 79, 102, 0.3);
+            border-radius: 10px;
+            height: 20px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #00d4aa 0%, #4fc3f7 100%);
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        .expandable {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .expandable:hover {
+            color: #00d4aa;
+        }
+
+        .expandable-content {
+            display: none;
+            margin-top: 15px;
+            padding-left: 20px;
+            border-left: 2px solid #00d4aa;
+        }
+
+        .expandable.expanded .expandable-content {
+            display: block;
+        }
+
+        .expandable::after {
+            content: ' ▶';
+            color: #00d4aa;
+            font-size: 0.8rem;
+        }
+
+        .expandable.expanded::after {
+            content: ' ▼';
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .nav-links {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .cost-breakdown {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Trading System Master Plan</h1>
+            <p>Complete architecture and implementation roadmap for building a professional-grade AI trading system leveraging enterprise ML, generative AI, Level 2 data, and cloud infrastructure to achieve consistent 200-500% annual returns with &lt;5% max drawdown.</p>
+        </div>
+
+        <div class="navigation">
+            <h3>🧭 Navigation Links</h3>
+            <div class="nav-links">
+                <a href="/">🏠 Main Dashboard</a>
+                <a href="/trade-manager">📊 Trade Manager</a>
+                <a href="/signal-analysis-lab">🔬 Signal Lab</a>
+                <a href="/signal-analysis-15m">📈 15M Analysis</a>
+                <a href="/live-signals-dashboard">⚡ Live Signals</a>
+                <a href="/prop-portfolio">💼 Prop Portfolio</a>
+                <a href="/financial-summary">💰 Financial Summary</a>
+                <a href="/reporting-hub">📋 Reporting Hub</a>
+            </div>
+        </div>
+
+        <!-- Executive Summary -->
+        <div class="section">
+            <h2>📋 Executive Summary</h2>
+            <div class="highlight-box">
+                <p><strong>Mission:</strong> Build a professional-grade AI trading system that consistently generates 200-500% annual returns with maximum drawdown below 5%.</p>
+                <p><strong>Approach:</strong> Leverage cutting-edge ML models, real-time Level 2 data, cloud infrastructure, and systematic risk management.</p>
+                <p><strong>Timeline:</strong> 12-month implementation with 4 distinct phases leading to full automation.</p>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h4>Target Annual Return</h4>
+                    <div class="metric-value">200-500%</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Maximum Drawdown</h4>
+                    <div class="metric-value">&lt; 5%</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Target Sharpe Ratio</h4>
+                    <div class="metric-value">&gt; 3.0</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Implementation Timeline</h4>
+                    <div class="metric-value">12 Months</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Architecture -->
+        <div class="section">
+            <h2>🏗️ System Architecture Blueprint</h2>
+            
+            <h3 class="expandable">1.1 Core Technology Stack</h3>
+            <div class="expandable-content">
+                <h4>Cloud Infrastructure (AWS-Based)</h4>
+                <div class="code-block">
+Primary Services:
+├── EC2 Instances
+│   ├── c6i.4xlarge (Real-time processing) - $0.768/hour
+│   ├── g4dn.2xlarge (ML training/inference) - $0.752/hour
+│   └── t3.medium (Monitoring/logging) - $0.0416/hour
+├── RDS PostgreSQL (Trade data) - db.r6g.large - $0.192/hour
+├── ElastiCache Redis (Real-time cache) - cache.r6g.large - $0.201/hour
+├── S3 (Data storage) - Standard tier
+├── Lambda (Event processing) - Pay per execution
+├── API Gateway (External integrations)
+├── CloudWatch (Monitoring/alerting)
+└── SageMaker (ML model training/deployment)
+
+Estimated Monthly Cost: $2,500-4,000
+                </div>
+
+                <h4>Data Pipeline Architecture</h4>
+                <div class="code-block">
+Data Sources → Ingestion → Processing → Storage → ML → Execution
+     ↓             ↓          ↓         ↓       ↓        ↓
+IronBeam API → Kinesis → Lambda → S3/RDS → Models → Trading
+News APIs   → Streams → Functions → Cache → Inference → Engine
+Economic    →         →          →       →         →
+Social      →         →          →       →         →
+                </div>
+
+                <h4>ML/AI Technology Stack</h4>
+                <div class="subsection">
+                    <p><strong>Framework:</strong> PyTorch 2.0+ (Primary), TensorFlow 2.x (Secondary)</p>
+                    <ul>
+                        <li><strong>Transformer Models:</strong> GPT-style architecture for sequence modeling, attention mechanisms for multi-timeframe analysis</li>
+                        <li><strong>Computer Vision:</strong> ResNet/EfficientNet for pattern recognition, YOLO for FVG detection</li>
+                        <li><strong>Reinforcement Learning:</strong> PPO for position sizing, multi-agent systems</li>
+                        <li><strong>Graph Neural Networks:</strong> GCN for correlation modeling, temporal graph networks</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 class="expandable">1.2 Data Requirements & Sources</h3>
+            <div class="expandable-content">
+                <h4>Primary Data Feeds</h4>
+                <div class="cost-breakdown">
+                    <div class="cost-item">IronBeam API (Level 2 Order Book)</div>
+                    <div class="cost-amount">$500-1000/month</div>
+                </div>
+                <div class="cost-breakdown">
+                    <div class="cost-item">Alpha Vantage (Economic Calendar)</div>
+                    <div class="cost-amount">$49.99/month</div>
+                </div>
+                <div class="cost-breakdown">
+                    <div class="cost-item">NewsAPI.org (News Sentiment)</div>
+                    <div class="cost-amount">$449/month</div>
+                </div>
+                <div class="cost-breakdown">
+                    <div class="cost-item">Twitter API v2 (Social Sentiment)</div>
+                    <div class="cost-amount">$100/month</div>
+                </div>
+                <div class="cost-breakdown">
+                    <div class="cost-item"><strong>Total Data Costs</strong></div>
+                    <div class="cost-amount"><strong>$1,100-1,600/month</strong></div>
+                </div>
+
+                <h4>Data Storage Schema</h4>
+                <div class="code-block">
+-- Core market data table
+CREATE TABLE market_data (
+    id BIGSERIAL PRIMARY KEY,
+    symbol VARCHAR(10) NOT NULL,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    volume INTEGER NOT NULL,
+    bid_price DECIMAL(10,2),
+    ask_price DECIMAL(10,2),
+    order_book JSONB, -- Level 2 data
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ML predictions table
+CREATE TABLE ml_predictions (
+    id BIGSERIAL PRIMARY KEY,
+    model_name VARCHAR(50) NOT NULL,
+    symbol VARCHAR(10) NOT NULL,
+    prediction_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    predicted_price DECIMAL(10,2),
+    confidence_score DECIMAL(5,4),
+    actual_price DECIMAL(10,2),
+    accuracy_score DECIMAL(5,4)
+);
+                </div>
+            </div>
+        </div>
+
+        <!-- Implementation Roadmap -->
+        <div class="section">
+            <h2>🗺️ Implementation Roadmap</h2>
+            
+            <div class="timeline">
+                <div class="timeline-item">
+                    <h3>Phase 1: Foundation (Months 1-3)</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 25%"></div>
+                    </div>
+                    
+                    <h4 class="expandable">Checkpoint 1.1: Infrastructure Setup</h4>
+                    <div class="expandable-content">
+                        <ul class="checklist">
+                            <li>Set up AWS account with appropriate limits</li>
+                            <li>Configure VPC with public/private subnets</li>
+                            <li>Deploy EC2 instances with auto-scaling groups</li>
+                            <li>Set up RDS PostgreSQL with read replicas</li>
+                            <li>Configure ElastiCache Redis cluster</li>
+                            <li>Set up S3 buckets with lifecycle policies</li>
+                            <li>Configure CloudWatch monitoring and alerts</li>
+                            <li>Set up IAM roles and security groups</li>
+                        </ul>
+                        <div class="success-box">
+                            <strong>Deliverables:</strong> AWS infrastructure fully operational, database schema deployed, monitoring dashboards configured, security audit completed
+                        </div>
+                        <p><strong>Time Estimate:</strong> 2-3 weeks | <strong>Cost:</strong> ~$500 setup + monthly operational costs</p>
+                    </div>
+
+                    <h4 class="expandable">Checkpoint 1.2: Data Pipeline Development</h4>
+                    <div class="expandable-content">
+                        <div class="code-block">
+# Core data ingestion service
+class DataIngestionService:
+    def __init__(self):
+        self.ironbeam_client = IronBeamClient()
+        self.redis_client = RedisClient()
+        self.postgres_client = PostgresClient()
+    
+    async def ingest_level2_data(self):
+        # Real-time Level 2 order book processing
+        pass
+    
+    async def process_news_sentiment(self):
+        # News sentiment analysis pipeline
+        pass
+                        </div>
+                        <ul class="checklist">
+                            <li>Develop IronBeam API integration</li>
+                            <li>Build real-time data processing pipeline</li>
+                            <li>Implement data validation and cleaning</li>
+                            <li>Create news sentiment analysis module</li>
+                            <li>Build cross-asset correlation calculator</li>
+                            <li>Set up data quality monitoring</li>
+                            <li>Implement data backup and recovery</li>
+                        </ul>
+                        <div class="success-box">
+                            <strong>Deliverables:</strong> Real-time data flowing, data quality >99.5%, latency <100ms, automated validation alerts
+                        </div>
+                        <p><strong>Time Estimate:</strong> 4-6 weeks</p>
+                    </div>
+
+                    <h4 class="expandable">Checkpoint 1.3: Basic ML Infrastructure</h4>
+                    <div class="expandable-content">
+                        <ul class="checklist">
+                            <li>Set up PyTorch/TensorFlow environments</li>
+                            <li>Develop feature engineering pipeline</li>
+                            <li>Create model training infrastructure</li>
+                            <li>Build model evaluation framework</li>
+                            <li>Implement model versioning system</li>
+                            <li>Set up automated retraining pipeline</li>
+                            <li>Create model performance monitoring</li>
+                        </ul>
+                        <div class="success-box">
+                            <strong>Deliverables:</strong> ML training pipeline operational, basic liquidity prediction model (>60% accuracy), model deployment system working
+                        </div>
+                        <p><strong>Time Estimate:</strong> 6-8 weeks</p>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <h3>Phase 2: Intelligence Layer (Months 4-6)</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 50%"></div>
+                    </div>
+
+                    <h4 class="expandable">Checkpoint 2.1: Advanced ML Models</h4>
+                    <div class="expandable-content">
+                        <div class="code-block">
+# Transformer model for price prediction
+class PricePredictionTransformer(nn.Module):
+    def __init__(self, input_dim, hidden_dim, num_layers, num_heads):
+        super().__init__()
+        self.transformer = nn.Transformer(
+            d_model=hidden_dim,
+            nhead=num_heads,
+            num_encoder_layers=num_layers
+        )
+        self.price_predictor = nn.Linear(hidden_dim, 1)
+                        </div>
+                        <ul class="checklist">
+                            <li>Develop transformer models for price prediction</li>
+                            <li>Build computer vision models for chart analysis</li>
+                            <li>Create reinforcement learning agents</li>
+                            <li>Implement graph neural networks for correlations</li>
+                            <li>Build ensemble prediction system</li>
+                            <li>Create model uncertainty quantification</li>
+                            <li>Implement online learning capabilities</li>
+                        </ul>
+                        <div class="success-box">
+                            <strong>Deliverables:</strong> Price prediction accuracy >70%, chart pattern recognition >80%, cross-asset correlation predictions >75%
+                        </div>
+                        <p><strong>Time Estimate:</strong> 8-10 weeks</p>
+                    </div>
+
+                    <h4 class="expandable">Checkpoint 2.2: Signal Generation System</h4>
+                    <div class="expandable-content">
+                        <ul class="checklist">
+                            <li>Build signal classification system</li>
+                            <li>Implement confidence scoring algorithm</li>
+                            <li>Create multi-timeframe signal fusion</li>
+                            <li>Build signal validation framework</li>
+                            <li>Implement signal performance tracking</li>
+                            <li>Create signal optimization system</li>
+                            <li>Build automated signal generation</li>
+                        </ul>
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <h4>Tier 1 Signals</h4>
+                                <div class="metric-value">80%+ win rate</div>
+                            </div>
+                            <div class="metric-card">
+                                <h4>Tier 2 Signals</h4>
+                                <div class="metric-value">70%+ win rate</div>
+                            </div>
+                            <div class="metric-card">
+                                <h4>Tier 3 Signals</h4>
+                                <div class="metric-value">60%+ win rate</div>
+                            </div>
+                            <div class="metric-card">
+                                <h4>Signal Latency</h4>
+                                <div class="metric-value">&lt; 50ms</div>
+                            </div>
+                        </div>
+                        <p><strong>Time Estimate:</strong> 6-8 weeks</p>
+                    </div>
+
+                    <h4 class="expandable">Checkpoint 2.3: Risk Management System</h4>
+                    <div class="expandable-content">
+                        <ul class="checklist">
+                            <li>Implement dynamic position sizing</li>
+                            <li>Build correlation-based risk limits</li>
+                            <li>Create drawdown protection system</li>
+                            <li>Build black swan protection</li>
+                            <li>Implement real-time risk monitoring</li>
+                            <li>Create risk reporting dashboard</li>
+                            <li>Build automated risk alerts</li>
+                        </ul>
+                        <div class="success-box">
+                            <strong>Deliverables:</strong> Max drawdown <10% in backtesting, position sizing optimized for Kelly criterion, real-time risk monitoring operational
+                        </div>
+                        <p><strong>Time Estimate:</strong> 4-6 weeks</p>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <h3>Phase 3: Optimization (Months 7-12)</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 75%"></div>
+                    </div>
+
+                    <h4 class="expandable">Checkpoint 3.1: Live Trading Integration</h4>
+                    <div class="expandable-content">
+                        <ul class="checklist">
+                            <li>Integrate with broker API (Interactive Brokers/TD Ameritrade)</li>
+                            <li>Build automated execution engine</li>
+                            <li>Implement slippage optimization</li>
+                            <li>Create position monitoring system</li>
+                            <li>Build trade reporting system</li>
+                            <li>Implement paper trading mode</li>
+                            <li>Create live trading dashboard</li>
+                        </ul>
+                        <div class="success-box">
+                            <strong>Deliverables:</strong> Paper trading operational, live trading with small positions, execution latency <200ms
+                        </div>
+                        <p><strong>Time Estimate:</strong> 6-8 weeks</p>
+                    </div>
+
+                    <h4 class="expandable">Checkpoint 3.2: Performance Optimization</h4>
+                    <div class="expandable-content">
+                        <ul class="checklist">
+                            <li>Build comprehensive backtesting system</li>
+                            <li>Implement hyperparameter optimization</li>
+                            <li>Create walk-forward analysis</li>
+                            <li>Build performance attribution system</li>
+                            <li>Implement A/B testing framework</li>
+                            <li>Create strategy optimization pipeline</li>
+                            <li>Build performance reporting system</li>
+                        </ul>
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <h4>Sharpe Ratio</h4>
+                                <div class="metric-value">&gt; 2.0</div>
+                            </div>
+                            <div class="metric-card">
+                                <h4>Win Rate</h4>
+                                <div class="metric-value">&gt; 65%</div>
+                            </div>
+                            <div class="metric-card">
+                                <h4>Monthly Returns</h4>
+                                <div class="metric-value">8-15%</div>
+                            </div>
+                            <div class="metric-card">
+                                <h4>Max Drawdown</h4>
+                                <div class="metric-value">&lt; 8%</div>
+                            </div>
+                        </div>
+                        <p><strong>Time Estimate:</strong> 8-10 weeks</p>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <h3>Phase 4: Scaling (Year 2+)</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 100%"></div>
+                    </div>
+
+                    <h4 class="expandable">Checkpoint 4.1: Advanced Features</h4>
+                    <div class="expandable-content">
+                        <ul class="checklist">
+                            <li>Add options flow analysis</li>
+                            <li>Implement dark pool detection</li>
+                            <li>Build regime detection system</li>
+                            <li>Add alternative data sources</li>
+                            <li>Implement multi-asset trading</li>
+                            <li>Build portfolio optimization</li>
+                            <li>Create fund management features</li>
+                        </ul>
+                        <div class="success-box">
+                            <strong>Deliverables:</strong> Options flow integration, regime detection >80% accuracy, multi-asset trading capability
+                        </div>
+                        <p><strong>Time Estimate:</strong> 12-16 weeks</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Metrics -->
+        <div class="section">
+            <h2>📊 Success Metrics & KPIs</h2>
+            
+            <h3>Year 1 Targets</h3>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h4>Sharpe Ratio</h4>
+                    <div class="metric-value">&gt; 2.0</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Sortino Ratio</h4>
+                    <div class="metric-value">&gt; 2.5</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Maximum Drawdown</h4>
+                    <div class="metric-value">&lt; 10%</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Win Rate</h4>
+                    <div class="metric-value">&gt; 65%</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Profit Factor</h4>
+                    <div class="metric-value">&gt; 2.0</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Monthly Returns</h4>
+                    <div class="metric-value">8-15%</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Annual Returns</h4>
+                    <div class="metric-value">150-300%</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Calmar Ratio</h4>
+                    <div class="metric-value">&gt; 15</div>
+                </div>
+            </div>
+
+            <h3>Technical Performance Metrics</h3>
+            <div class="subsection">
+                <div class="cost-breakdown">
+                    <div class="cost-item">Signal Accuracy</div>
+                    <div class="cost-amount">&gt; 70%</div>
+                </div>
+                <div class="cost-breakdown">
+                    <div class="cost-item">Execution Latency</div>
+                    <div class="cost-amount">&lt; 200ms</div>
+                </div>
+                <div class="cost-breakdown">
+                    <div class="cost-item">Data Quality</div>
+                    <div class="cost-amount">&gt; 99.5%</div>
+                </div>
+                <div class="cost-breakdown">
+                    <div class="cost-item">System Uptime</div>
+                    <div class="cost-amount">&gt; 99.9%</div>
+                </div>
+                <div class="cost-breakdown">
+                    <div class="cost-item">Model Accuracy</div>
+                    <div class="cost-amount">&gt; 75%</div>
+                </div>
+                <div class="cost-breakdown">
+                    <div class="cost-item">Risk Limit Breaches</div>
+                    <div class="cost-amount">&lt; 1%</div>
+                </div>
+            </div>
+
+            <h3 class="expandable">Risk Management Limits</h3>
+            <div class="expandable-content">
+                <h4>Position Limits</h4>
+                <div class="warning-box">
+                    <ul>
+                        <li><strong>Tier 1 Signals:</strong> 3-5% of capital</li>
+                        <li><strong>Tier 2 Signals:</strong> 1-2% of capital</li>
+                        <li><strong>Tier 3 Signals:</strong> 0.5-1% of capital</li>
+                        <li><strong>Maximum Single Position:</strong> 5% of capital</li>
+                    </ul>
+                </div>
+
+                <h4>Portfolio Limits</h4>
+                <div class="warning-box">
+                    <ul>
+                        <li><strong>Total Risk Exposure:</strong> &lt;20% of capital</li>
+                        <li><strong>Correlated Positions:</strong> &lt;10% combined risk</li>
+                        <li><strong>Daily Loss Limit:</strong> 3% of capital</li>
+                        <li><strong>Monthly Loss Limit:</strong> 8% of capital</li>
+                        <li><strong>Quarterly Loss Limit:</strong> 15% of capital</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Operational Procedures -->
+        <div class="section">
+            <h2>⚙️ Operational Procedures</h2>
+            
+            <h3 class="expandable">Daily Operations Checklist</h3>
+            <div class="expandable-content">
+                <h4>Pre-Market (30 minutes before open)</h4>
+                <ul class="checklist">
+                    <li>Verify all data feeds operational</li>
+                    <li>Check model predictions for the day</li>
+                    <li>Review economic calendar for high-impact events</li>
+                    <li>Validate risk management systems</li>
+                    <li>Check system health metrics</li>
+                    <li>Review overnight news and sentiment</li>
+                    <li>Confirm broker connectivity</li>
+                    <li>Validate position sizing calculations</li>
+                </ul>
+
+                <h4>Market Hours (Continuous monitoring)</h4>
+                <ul class="checklist">
+                    <li>Monitor real-time signal generation</li>
+                    <li>Track position performance</li>
+                    <li>Watch for risk limit breaches</li>
+                    <li>Monitor system latency and performance</li>
+                    <li>Track model accuracy in real-time</li>
+                    <li>Monitor news flow and market events</li>
+                    <li>Validate trade executions</li>
+                    <li>Update performance metrics</li>
+                </ul>
+
+                <h4>Post-Market (After close)</h4>
+                <ul class="checklist">
+                    <li>Generate daily performance report</li>
+                    <li>Update model training data</li>
+                    <li>Analyze signal performance</li>
+                    <li>Review risk management effectiveness</li>
+                    <li>Update correlation matrices</li>
+                    <li>Backup critical data</li>
+                    <li>Plan next day's strategy</li>
+                    <li>Review and optimize parameters</li>
+                </ul>
+            </div>
+
+            <h3 class="expandable">Weekly Operations</h3>
+            <div class="expandable-content">
+                <h4>Model Maintenance</h4>
+                <ul class="checklist">
+                    <li>Retrain models with new data</li>
+                    <li>Evaluate model performance degradation</li>
+                    <li>Update feature engineering pipeline</li>
+                    <li>Optimize hyperparameters</li>
+                    <li>Test new model architectures</li>
+                    <li>Validate model predictions vs. actual</li>
+                    <li>Update ensemble weights</li>
+                    <li>Review model uncertainty metrics</li>
+                </ul>
+
+                <h4>Strategy Review</h4>
+                <ul class="checklist">
+                    <li>Analyze weekly performance metrics</li>
+                    <li>Review signal quality and accuracy</li>
+                    <li>Evaluate risk management effectiveness</li>
+                    <li>Update strategy parameters if needed</li>
+                    <li>Review correlation changes</li>
+                    <li>Analyze market regime changes</li>
+                    <li>Plan strategy improvements</li>
+                    <li>Document lessons learned</li>
+                </ul>
+            </div>
+
+            <h3 class="expandable">Monthly Operations</h3>
+            <div class="expandable-content">
+                <h4>Comprehensive Review</h4>
+                <ul class="checklist">
+                    <li>Generate monthly performance report</li>
+                    <li>Conduct strategy attribution analysis</li>
+                    <li>Review and update risk limits</li>
+                    <li>Evaluate technology performance</li>
+                    <li>Plan infrastructure upgrades</li>
+                    <li>Review cost optimization opportunities</li>
+                    <li>Update business continuity plans</li>
+                    <li>Conduct security audit</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Technology Specifications -->
+        <div class="section">
+            <h2>💻 Technology Specifications</h2>
+            
+            <h3 class="expandable">Hardware Requirements</h3>
+            <div class="expandable-content">
+                <h4>Production Environment</h4>
+                <div class="code-block">
+Primary Trading Server:
+├── CPU: Intel Xeon Gold 6248R (24 cores, 3.0GHz)
+├── RAM: 128GB DDR4-3200
+├── Storage: 2TB NVMe SSD (primary) + 4TB SSD (backup)
+├── Network: 10Gbps dedicated connection
+├── GPU: NVIDIA RTX 4090 (ML inference)
+└── Redundancy: Hot standby server
+
+Development Environment:
+├── CPU: Intel i9-13900K (24 cores, 3.0GHz)
+├── RAM: 64GB DDR5-5600
+├── Storage: 1TB NVMe SSD
+├── GPU: NVIDIA RTX 4080 (ML training)
+└── Network: 1Gbps connection
+                </div>
+
+                <h4>Cloud Infrastructure (AWS)</h4>
+                <div class="subsection">
+                    <p><strong>Production:</strong></p>
+                    <ul>
+                        <li>EC2: c6i.4xlarge (16 vCPU, 32GB RAM) - Trading engine</li>
+                        <li>EC2: g4dn.2xlarge (8 vCPU, 32GB RAM, T4 GPU) - ML inference</li>
+                        <li>RDS: db.r6g.large (2 vCPU, 16GB RAM) - Database</li>
+                        <li>ElastiCache: cache.r6g.large (2 vCPU, 13.07GB RAM) - Cache</li>
+                        <li>S3: Standard tier - Data storage</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 class="expandable">Software Stack</h3>
+            <div class="expandable-content">
+                <h4>Core Applications</h4>
+                <div class="subsection">
+                    <p><strong>Operating System:</strong> Ubuntu 22.04 LTS</p>
+                    <p><strong>Container Platform:</strong> Docker 24.0+ with Kubernetes</p>
+                    <p><strong>Programming Languages:</strong></p>
+                    <ul>
+                        <li>Python 3.11+ (Primary - ML/Trading logic)</li>
+                        <li>Rust (High-performance components)</li>
+                        <li>JavaScript/TypeScript (Web interfaces)</li>
+                        <li>SQL (Database queries)</li>
+                    </ul>
+                </div>
+
+                <h4>ML/AI Frameworks</h4>
+                <div class="subsection">
+                    <ul>
+                        <li>PyTorch 2.0+ (Primary ML framework)</li>
+                        <li>TensorFlow 2.13+ (Secondary ML framework)</li>
+                        <li>Scikit-learn 1.3+ (Traditional ML)</li>
+                        <li>Pandas 2.0+ (Data manipulation)</li>
+                        <li>NumPy 1.24+ (Numerical computing)</li>
+                        <li>CUDA 12.0+ (GPU acceleration)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 class="expandable">Security Requirements</h3>
+            <div class="expandable-content">
+                <h4>Data Security</h4>
+                <div class="warning-box">
+                    <ul>
+                        <li><strong>Encryption:</strong> TLS 1.3 for network, AES-256 for data at rest</li>
+                        <li><strong>Access Control:</strong> Multi-factor authentication (MFA), RBAC</li>
+                        <li><strong>API Security:</strong> Key rotation (weekly), IP whitelisting</li>
+                        <li><strong>Network Security:</strong> VPN access for remote connections</li>
+                    </ul>
+                </div>
+
+                <h4>Operational Security</h4>
+                <div class="warning-box">
+                    <ul>
+                        <li><strong>Monitoring:</strong> Real-time intrusion detection, vulnerability scanning</li>
+                        <li><strong>Backup & Recovery:</strong> Real-time replication, daily encrypted backups</li>
+                        <li><strong>Compliance:</strong> Regular security audits, 99.99% uptime SLA</li>
+                        <li><strong>Business Continuity:</strong> Disaster recovery testing (monthly)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Projections -->
+        <div class="section">
+            <h2>💰 Financial Projections</h2>
+            
+            <h3 class="expandable">Investment Requirements</h3>
+            <div class="expandable-content">
+                <h4>Initial Setup Costs</h4>
+                <div class="cost-breakdown">
+                    <div class="cost-item">Technology Infrastructure</div>
+                    <div class="cost-amount">$18,000</div>
+                </div>
+                <div class="cost-breakdown">
+                    <div class="cost-item">Data & API Costs (Annual)</div>
+                    <div class="cost-amount">$60,000</div>
+                </div>
+                <div class="cost-breakdown">
+                    <div class="cost-item">Development Costs</div>
+                    <div class="cost-amount">$80,000</div>
+                </div>
+                <div class="cost-breakdown">
+                    <div class="cost-item"><strong>Total Initial Investment</strong></div>
+                    <div class="cost-amount"><strong>$158,000</strong></div>
+                </div>
+
+                <h4>Ongoing Operational Costs (Monthly)</h4>
+                <div class="cost-breakdown">
+                    <div class="cost-item">Fixed Costs (Cloud, Data, Licenses)</div>
+                    <div class="cost-amount">$5,300</div>
+                </div>
+                <div class="cost-breakdown">
+                    <div class="cost-item">Variable Costs (Commissions, Slippage)</div>
+                    <div class="cost-amount">$700-2,300</div>
+                </div>
+                <div class="cost-breakdown">
+                    <div class="cost-item"><strong>Total Monthly Operating</strong></div>
+                    <div class="cost-amount"><strong>$6,000-7,600</strong></div>
+                </div>
+            </div>
+
+            <h3 class="expandable">Revenue Projections</h3>
+            <div class="expandable-content">
+                <h4>Year 1 Performance Targets</h4>
+                <div class="highlight-box">
+                    <p><strong>Starting Capital:</strong> $100,000</p>
+                    <p><strong>Monthly Return Target:</strong> 10%</p>
+                    <p><strong>Annual Return Target:</strong> 200%</p>
+                    <p><strong>Year-end Capital:</strong> $300,000</p>
+                </div>
+
+                <h4>Monthly Progression</h4>
+                <div class="subsection">
+                    <ul>
+                        <li><strong>Month 1-3:</strong> 5% (Learning phase)</li>
+                        <li><strong>Month 4-6:</strong> 8% (Optimization phase)</li>
+                        <li><strong>Month 7-9:</strong> 12% (Scaling phase)</li>
+                        <li><strong>Month 10-12:</strong> 15% (Mature phase)</li>
+                    </ul>
+                </div>
+
+                <h4>Year 2-3 Scaling Projections</h4>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h4>Year 2 Capital</h4>
+                        <div class="metric-value">$1.2M</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Year 3 Capital</h4>
+                        <div class="metric-value">$4.0M</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Fund Management Fees</h4>
+                        <div class="metric-value">$500K</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Technology Licensing</h4>
+                        <div class="metric-value">$200K</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Next Steps -->
+        <div class="section">
+            <h2>🚀 Next Steps & Action Items</h2>
+            
+            <h3>Immediate Actions (Next 30 Days)</h3>
+            <ul class="checklist">
+                <li>Set up AWS account and basic infrastructure</li>
+                <li>Obtain IronBeam API access and credentials</li>
+                <li>Set up development environment</li>
+                <li>Create project repository and documentation</li>
+                <li>Begin data pipeline development</li>
+                <li>Set up monitoring and alerting systems</li>
+                <li>Create initial database schema</li>
+                <li>Start collecting historical data for backtesting</li>
+            </ul>
+
+            <h3 class="expandable">Phase 1 Milestones (Months 1-3)</h3>
+            <div class="expandable-content">
+                <h4>Month 1</h4>
+                <ul class="checklist">
+                    <li>Complete infrastructure setup</li>
+                    <li>Basic data ingestion operational</li>
+                    <li>Development environment ready</li>
+                    <li>Initial ML models trained</li>
+                </ul>
+
+                <h4>Month 2</h4>
+                <ul class="checklist">
+                    <li>Real-time data processing working</li>
+                    <li>Basic signal generation system</li>
+                    <li>Risk management framework</li>
+                    <li>Paper trading system operational</li>
+                </ul>
+
+                <h4>Month 3</h4>
+                <ul class="checklist">
+                    <li>Complete backtesting system</li>
+                    <li>Model optimization pipeline</li>
+                    <li>Performance monitoring dashboard</li>
+                    <li>Ready for Phase 2 development</li>
+                </ul>
+            </div>
+
+            <h3 class="expandable">Success Criteria for Each Phase</h3>
+            <div class="expandable-content">
+                <div class="success-box">
+                    <h4>Phase 1 Success:</h4>
+                    <ul>
+                        <li>Data pipeline operational (>99% uptime)</li>
+                        <li>Basic ML models trained (>60% accuracy)</li>
+                        <li>Paper trading system working</li>
+                        <li>Infrastructure costs <$4,000/month</li>
+                    </ul>
+                </div>
+
+                <div class="success-box">
+                    <h4>Phase 2 Success:</h4>
+                    <ul>
+                        <li>Advanced ML models deployed (>70% accuracy)</li>
+                        <li>Signal generation system operational</li>
+                        <li>Risk management system active</li>
+                        <li>Ready for live trading with small positions</li>
+                    </ul>
+                </div>
+
+                <div class="success-box">
+                    <h4>Phase 3 Success:</h4>
+                    <ul>
+                        <li>Live trading operational</li>
+                        <li>Performance targets met (Sharpe >2.0)</li>
+                        <li>System fully automated</li>
+                        <li>Scaling plan ready for implementation</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Technical Appendices -->
+        <div class="section">
+            <h2>📚 Technical Appendices</h2>
+            
+            <h3 class="expandable">A.1 Transformer Architecture for Price Prediction</h3>
+            <div class="expandable-content">
+                <div class="code-block">
+class PricePredictionTransformer(nn.Module):
+    """
+    Multi-timeframe transformer for price prediction
+    Processes 1m, 5m, 15m, 1H, 4H, Daily data simultaneously
+    """
+    def __init__(self, config):
+        super().__init__()
+        self.timeframe_encoders = nn.ModuleDict({
+            '1m': TimeframeEncoder(config.input_dim, config.hidden_dim),
+            '5m': TimeframeEncoder(config.input_dim, config.hidden_dim),
+            '15m': TimeframeEncoder(config.input_dim, config.hidden_dim),
+            '1H': TimeframeEncoder(config.input_dim, config.hidden_dim),
+            '4H': TimeframeEncoder(config.input_dim, config.hidden_dim),
+            'Daily': TimeframeEncoder(config.input_dim, config.hidden_dim)
+        })
+        
+        self.cross_timeframe_attention = nn.MultiheadAttention(
+            embed_dim=config.hidden_dim,
+            num_heads=config.num_heads
+        )
+        
+        self.price_predictor = nn.Sequential(
+            nn.Linear(config.hidden_dim * 6, config.hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(config.hidden_dim, 1)
+        )
+    
+    def forward(self, timeframe_data):
+        # Encode each timeframe
+        encoded_timeframes = []
+        for tf, data in timeframe_data.items():
+            encoded = self.timeframe_encoders[tf](data)
+            encoded_timeframes.append(encoded)
+        
+        # Cross-timeframe attention
+        stacked_encodings = torch.stack(encoded_timeframes, dim=0)
+        attended, _ = self.cross_timeframe_attention(
+            stacked_encodings, stacked_encodings, stacked_encodings
+        )
+        
+        # Combine and predict
+        combined = attended.flatten(start_dim=1)
+        prediction = self.price_predictor(combined)
+        
+        return prediction
+                </div>
+            </div>
+
+            <h3 class="expandable">A.2 Liquidity Detection Algorithm</h3>
+            <div class="expandable-content">
+                <div class="code-block">
+class LiquidityDetector:
+    """
+    Advanced liquidity detection using order book analysis
+    and historical price action patterns
+    """
+    def __init__(self):
+        self.order_book_analyzer = OrderBookAnalyzer()
+        self.pattern_detector = PatternDetector()
+        self.ml_predictor = LiquidityMLPredictor()
+    
+    def detect_liquidity_zones(self, symbol, timeframes):
+        zones = {}
+        
+        for tf in timeframes:
+            # Historical liquidity analysis
+            historical_zones = self.analyze_historical_liquidity(symbol, tf)
+            
+            # Order book analysis
+            current_zones = self.analyze_current_order_book(symbol)
+            
+            # ML prediction
+            predicted_zones = self.ml_predictor.predict_zones(symbol, tf)
+            
+            # Combine and score
+            zones[tf] = self.combine_and_score_zones(
+                historical_zones, current_zones, predicted_zones
+            )
+        
+        return self.calculate_confluence_scores(zones)
+                </div>
+            </div>
+
+            <h3 class="expandable">A.3 Risk Management System</h3>
+            <div class="expandable-content">
+                <div class="code-block">
+class AdvancedRiskManager:
+    """
+    Comprehensive risk management system with
+    dynamic position sizing and correlation monitoring
+    """
+    def __init__(self):
+        self.kelly_calculator = KellyCriterion()
+        self.correlation_monitor = CorrelationMonitor()
+        self.drawdown_protector = DrawdownProtector()
+        self.volatility_adjuster = VolatilityAdjuster()
+    
+    def calculate_position_size(self, signal, portfolio_state):
+        # Base Kelly calculation
+        kelly_size = self.kelly_calculator.calculate(
+            win_rate=signal.historical_win_rate,
+            avg_win=signal.avg_win,
+            avg_loss=signal.avg_loss
+        )
+        
+        # Adjust for correlation
+        correlation_adjustment = self.correlation_monitor.get_adjustment(
+            signal.symbol, portfolio_state.current_positions
+        )
+        
+        # Adjust for volatility
+        volatility_adjustment = self.volatility_adjuster.get_adjustment(
+            signal.symbol, signal.timeframe
+        )
+        
+        # Adjust for drawdown
+        drawdown_adjustment = self.drawdown_protector.get_adjustment(
+            portfolio_state.current_drawdown
+        )
+        
+        # Final position size
+        final_size = kelly_size * correlation_adjustment * \
+                    volatility_adjustment * drawdown_adjustment
+        
+        return min(final_size, self.max_position_size)
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="highlight-box">
+                <h3>📋 Document Information</h3>
+                <p><strong>Document Version:</strong> 1.0</p>
+                <p><strong>Last Updated:</strong> December 2024</p>
+                <p><strong>Next Review:</strong> Monthly updates as implementation progresses</p>
+                <p><strong>Purpose:</strong> This master implementation plan serves as the complete blueprint for building and operating a professional-grade AI trading system. Each section contains specific, actionable steps with clear success criteria and measurable outcomes.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add interactivity for expandable sections
+        document.addEventListener('DOMContentLoaded', function() {
+            const expandables = document.querySelectorAll('.expandable');
+            
+            expandables.forEach(expandable => {
+                expandable.addEventListener('click', function() {
+                    this.classList.toggle('expanded');
+                });
+            });
+
+            // Add smooth scrolling for navigation links
+            const navLinks = document.querySelectorAll('.nav-links a');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    // Allow normal navigation for external links
+                    if (this.getAttribute('href').startsWith('/')) {
+                        return true;
+                    }
+                });
+            });
+
+            // Add progress animation on scroll
+            const progressBars = document.querySelectorAll('.progress-fill');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.animation = 'progressAnimation 2s ease-in-out';
+                    }
+                });
+            });
+
+            progressBars.forEach(bar => {
+                observer.observe(bar);
+            });
+        });
+
+        // Add CSS animation for progress bars
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes progressAnimation {
+                from { width: 0%; }
+                to { width: var(--target-width, 25%); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
