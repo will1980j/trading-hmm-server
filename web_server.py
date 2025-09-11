@@ -2166,12 +2166,12 @@ def capture_live_signal():
                 for opp in divergence_opportunities:
                     cursor.execute("""
                         INSERT INTO live_signals 
-                        (symbol, timeframe, signal_type, bias, price, strength, session, timestamp)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                        (symbol, timeframe, signal_type, bias, price, strength, htf_aligned, htf_status, session, timestamp)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                         RETURNING id
                     """, (
                         'NQ1!', '1m', f"DIVERGENCE_{opp['type']}", opp['bias'],
-                        opp['nq_price'], opp['strength'], current_session
+                        opp['nq_price'], opp['strength'], True, 'ALIGNED', current_session
                     ))
                     
                     div_signal_id = cursor.fetchone()['id']
@@ -2186,11 +2186,13 @@ def capture_live_signal():
                         'bias': opp['bias'],
                         'price': opp['nq_price'],
                         'strength': opp['strength'],
+                        'htf_aligned': True,
+                        'htf_status': 'ALIGNED',
                         'session': current_session,
                         'divergence_detail': opp['detail']
                     }
                     socketio.emit('new_signal', div_signal, namespace='/')
-                    logger.info(f"NQ divergence opportunity: {opp['detail']}")
+                    logger.info(f"🎯 NQ DIVERGENCE CREATED: {opp['detail']} - Will auto-populate Signal Lab")
         
         logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | ID: {signal_id} | Lab: {'Yes' if htf_aligned else 'No'}")
         
@@ -2243,12 +2245,18 @@ def capture_live_signal():
                                 divergence_type = f"INDEX_DIVERGENCE_{signal['bias'].upper()}"
                                 correlation_strength = 0.6
                     
+                    # ENHANCED: Check if this is actually a divergence signal from the live signals
+                    if 'DIVERGENCE' in signal['signal_type']:
+                        divergence_type = signal['signal_type']  # Use the actual divergence type
+                        correlation_strength = 0.9  # High correlation for detected divergence
+                        logger.info(f"🎯 DIVERGENCE SIGNAL DETECTED: {divergence_type} - Auto-populating Signal Lab with divergence flag")
+                    
                     lab_trade = {
                         'date': get_ny_time().strftime('%Y-%m-%d'),
                         'time': get_ny_time().strftime('%H:%M:%S'),
                         'bias': signal['bias'],
                         'session': signal['session'],
-                        'signal_type': signal['signal_type'],
+                        'signal_type': divergence_type if 'DIVERGENCE' in signal['signal_type'] else signal['signal_type'],
                         'entry_price': signal['price'],
                         'divergence_type': divergence_type,
                         'active_trade': True,
@@ -2272,6 +2280,38 @@ def capture_live_signal():
                     logger.warning(f"⚠️ HTF status mismatch: htf_aligned={htf_aligned} but htf_status={signal['htf_status']}")
             except Exception as e:
                 logger.error(f"Failed to auto-populate Signal Lab: {str(e)}")
+        # ENHANCED: Also populate Signal Lab for divergence signals even if they're not HTF aligned
+        elif 'DIVERGENCE' in signal.get('signal_type', '') and signal['symbol'] == 'NQ1!':
+            try:
+                logger.info(f"🎯 DIVERGENCE SIGNAL (Non-HTF): {signal['signal_type']} - Auto-populating Signal Lab with divergence flag")
+                
+                lab_trade = {
+                    'date': get_ny_time().strftime('%Y-%m-%d'),
+                    'time': get_ny_time().strftime('%H:%M:%S'),
+                    'bias': signal['bias'],
+                    'session': signal['session'],
+                    'signal_type': signal['signal_type'],  # Keep the divergence signal type
+                    'entry_price': signal['price'],
+                    'divergence_type': signal['signal_type'],  # Mark as divergence
+                    'active_trade': True,
+                    'htf_aligned': signal['htf_aligned'],
+                    'correlation_strength': 0.85  # High correlation for divergence
+                }
+                
+                cursor.execute("""
+                    INSERT INTO signal_lab_trades 
+                    (date, time, bias, session, signal_type, entry_price, divergence_type, active_trade, htf_aligned, correlation_strength)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    lab_trade['date'], lab_trade['time'], lab_trade['bias'], 
+                    lab_trade['session'], lab_trade['signal_type'], lab_trade['entry_price'],
+                    lab_trade['divergence_type'], lab_trade['active_trade'], 
+                    lab_trade['htf_aligned'], lab_trade['correlation_strength']
+                ))
+                db.conn.commit()
+                logger.info(f"✅ Auto-populated Signal Lab (Divergence): {signal['bias']} NQ1! | Type: {signal['signal_type']}")
+            except Exception as e:
+                logger.error(f"Failed to auto-populate Signal Lab for divergence: {str(e)}")
         else:
             reason = "not NQ1!" if signal['symbol'] != 'NQ1!' else "not HTF aligned"
             logger.info(f"⚠️ Skipped Signal Lab auto-population - signal {reason} (Symbol: {signal['symbol']}, HTF: {htf_aligned})")
