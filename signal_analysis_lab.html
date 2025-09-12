@@ -858,8 +858,14 @@
                     const data = await response.json();
                     console.log('API returned:', data);
                     const trades = Array.isArray(data) ? data : data.trades || [];
-                    // Map database fields to frontend fields
-                    signals = trades.map(trade => ({
+                    // Filter out divergence signals and map database fields to frontend fields
+                    const filteredTrades = trades.filter(trade => 
+                        !trade.signal_type || 
+                        (!trade.signal_type.includes('DIVERGENCE') && 
+                         !trade.signal_type.includes('CORRELATION') && 
+                         !trade.signal_type.includes('INVERSE'))
+                    );
+                    signals = filteredTrades.map(trade => ({
                         id: trade.id,
                         date: trade.date,
                         time: trade.time,
@@ -1781,6 +1787,10 @@
         
         // Load signals when page loads
         document.addEventListener('DOMContentLoaded', async function() {
+            // Clear any cached divergence data
+            localStorage.removeItem('signalLabData');
+            localStorage.removeItem('economicNewsData');
+            
             await loadEconomicNews();
             loadSignals();
             setTimeout(restoreFormState, 600);
