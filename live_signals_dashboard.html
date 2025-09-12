@@ -188,14 +188,7 @@
         .signal-bearish { color: #ff4757; }
         .signal-neutral { color: #ffa502; }
         
-        .divergence-signal {
-            background: rgba(255, 215, 0, 0.1) !important;
-            border-left: 3px solid #FFD700;
-        }
-        
-        .divergence-signal:hover {
-            background: rgba(255, 215, 0, 0.2) !important;
-        }
+
         
         .no-signals {
             text-align: center;
@@ -282,16 +275,11 @@
                 <label><input type="checkbox" checked> Bearish FVG</label><br>
                 <label><input type="checkbox" checked> Bullish IFVG</label><br>
                 <label><input type="checkbox" checked> Bearish IFVG</label><br>
-                <label><input type="checkbox" checked> ATH/ATL Bias</label>
             </div>
             
             <h3>Symbol Filters</h3>
             <div style="margin: 10px 0;">
                 <label><input type="checkbox" id="filter-NQ" checked> NQ1!</label><br>
-                <label><input type="checkbox" id="filter-ES"> ES1!</label><br>
-                <label><input type="checkbox" id="filter-YM"> YM1!</label><br>
-                <label><input type="checkbox" id="filter-RTY"> RTY1!</label><br>
-                <label><input type="checkbox" id="filter-DXY"> DXY</label><br>
                 <label><input type="checkbox" id="filter-OTHER"> Other</label>
             </div>
             
@@ -471,14 +459,10 @@
                 return;
             }
             
-            // Filter signals by selected symbols
+            // Filter signals by selected symbols - focus on NQ HTF aligned signals
             const filteredSignals = signals.filter(signal => {
                 const symbol = signal.symbol || '';
                 if (symbol.includes('NQ')) return document.getElementById('filter-NQ').checked;
-                if (symbol.includes('ES')) return document.getElementById('filter-ES').checked;
-                if (symbol.includes('YM')) return document.getElementById('filter-YM').checked;
-                if (symbol.includes('RTY')) return document.getElementById('filter-RTY').checked;
-                if (symbol.includes('DXY')) return document.getElementById('filter-DXY').checked;
                 return document.getElementById('filter-OTHER').checked;
             });
             
@@ -565,43 +549,13 @@
             const bias = signal.bias || 'Neutral';
             const biasClass = `signal-${bias.toLowerCase()}`;
             
-            // Check if this is a divergence signal
-            const isDivergence = signal.signal_type && signal.signal_type.includes('DIVERGENCE');
-            
-            // Check for accompanying divergence signals (within 2 minutes of NQ signal)
-            let hasAccompanyingDivergence = false;
-            if (signal.symbol && signal.symbol.includes('NQ') && signal.timestamp) {
-                const signalTime = new Date(signal.timestamp).getTime();
-                hasAccompanyingDivergence = signals.some(s => {
-                    if (!s.symbol || s.symbol.includes('NQ') || !s.timestamp) return false;
-                    const otherTime = new Date(s.timestamp).getTime();
-                    const timeDiff = Math.abs(signalTime - otherTime);
-                    return timeDiff <= 120000 && // Within 2 minutes
-                           ((signal.bias === 'Bullish' && 
-                             ((s.symbol.includes('DXY') && s.bias === 'Bearish') ||
-                              (s.symbol.includes('ES') && s.bias === 'Bullish') ||
-                              (s.symbol.includes('YM') && s.bias === 'Bullish'))) ||
-                            (signal.bias === 'Bearish' && 
-                             ((s.symbol.includes('DXY') && s.bias === 'Bullish') ||
-                              (s.symbol.includes('ES') && s.bias === 'Bearish') ||
-                              (s.symbol.includes('YM') && s.bias === 'Bearish'))));
-                });
-            }
+
             
             // Show triangle direction with arrow and details
             const arrow = bias === 'Bullish' ? '▲' : bias === 'Bearish' ? '▼' : '◆';
             let signalDetail = signal.fvg_detail || signal.signal_type || 'FVG';
             
-            // Add divergence confirmation indicator for NQ signals
-            if (signal.symbol && signal.symbol.includes('NQ') && hasAccompanyingDivergence) {
-                signalDetail += ' + DIV';
-            }
-            
-            // Special handling for divergence signals
-            if (isDivergence) {
-                const divType = signal.signal_type.replace('DIVERGENCE_', '');
-                signalDetail = `${divType} DIV`;
-            }
+
             
             const triangleDisplay = `
                 <div class="${biasClass}"><strong>${arrow} ${bias.toUpperCase()}</strong></div>
@@ -617,54 +571,25 @@
                 `<div style="color: #00ff88; font-size: 10px;">✓ ALIGNED</div>` :
                 `<div style="color: #ff4757; font-size: 10px;">✗ AGAINST</div>`;
             
-            // NQ Context based on symbol and bias - colored by NQ direction
+            // NQ Context - focus on NQ HTF aligned signals only
             let nqContext = '';
             let nqContextClass = '';
             let action = '';
             let actionClass = '';
             const symbol = signal.symbol || '';
             
-            if (symbol.includes('NQ')) {
+            if (symbol.includes('NQ') && htfAligned) {
                 if (bias === 'Bullish') {
-                    nqContext = '🟢 Direct Long';
+                    nqContext = '🟢 HTF Aligned Long';
                     nqContextClass = 'signal-bullish';
                     action = 'Long FVG';
                     actionClass = 'signal-bullish';
                 } else {
-                    nqContext = '🔴 Direct Short';
+                    nqContext = '🔴 HTF Aligned Short';
                     nqContextClass = 'signal-bearish';
                     action = 'Short FVG';
                     actionClass = 'signal-bearish';
                 }
-            } else if (symbol.includes('DXY')) {
-                if (bias === 'Bullish') {
-                    nqContext = '🔴 NQ Bearish';
-                    nqContextClass = 'signal-bearish';
-                    action = 'Wait NQ Short';
-                    actionClass = 'signal-bearish';
-                } else {
-                    nqContext = '🟢 NQ Bullish';
-                    nqContextClass = 'signal-bullish';
-                    action = 'Prep NQ Long';
-                    actionClass = 'signal-bullish';
-                }
-            } else if (symbol.includes('ES') || symbol.includes('YM')) {
-                if (bias === 'Bullish') {
-                    nqContext = '🟢 NQ Bullish';
-                    nqContextClass = 'signal-bullish';
-                    action = 'Check NQ Long';
-                    actionClass = 'signal-bullish';
-                } else {
-                    nqContext = '🔴 NQ Bearish';
-                    nqContextClass = 'signal-bearish';
-                    action = 'Check NQ Short';
-                    actionClass = 'signal-bearish';
-                }
-            } else if (symbol.includes('RTY')) {
-                nqContext = '🟡 NQ Neutral';
-                nqContextClass = 'signal-neutral';
-                action = 'Monitor';
-                actionClass = 'signal-neutral';
             } else {
                 nqContext = '⚪ Monitor';
                 nqContextClass = 'signal-neutral';
@@ -672,8 +597,7 @@
                 actionClass = 'signal-neutral';
             }
             
-            // Add special styling for divergence signals or NQ signals with divergence confirmation
-            const rowClass = (isDivergence || hasAccompanyingDivergence) ? `${biasClass} divergence-signal` : biasClass;
+            const rowClass = biasClass;
             
             return `
                 <tr class="${rowClass}">
@@ -720,7 +644,7 @@
         
         // Add event listeners for symbol filters
         document.addEventListener('DOMContentLoaded', function() {
-            ['filter-NQ', 'filter-ES', 'filter-YM', 'filter-RTY', 'filter-DXY', 'filter-OTHER'].forEach(id => {
+            ['filter-NQ', 'filter-OTHER'].forEach(id => {
                 document.getElementById(id).addEventListener('change', updateSignalsFeed);
             });
         });
@@ -790,60 +714,7 @@
                     return;
                 }
                 
-                // Enhanced divergence detection logic with specific types
-                let divergenceType = 'None';
-                let divergenceDetails = [];
-                
-                // Check if signal_type contains DIVERGENCE
-                if (signal.signal_type && signal.signal_type.includes('DIVERGENCE')) {
-                    divergenceType = 'Multi_Symbol';
-                }
-                // Check for specific accompanying divergence signals
-                else if (signal.symbol && signal.symbol.includes('NQ') && signal.timestamp) {
-                    const signalTime = new Date(signal.timestamp).getTime();
-                    
-                    // Find all accompanying signals within 2 minutes
-                    const accompanyingSignals = signals.filter(s => {
-                        if (!s.symbol || s.symbol.includes('NQ') || !s.timestamp) return false;
-                        const otherTime = new Date(s.timestamp).getTime();
-                        const timeDiff = Math.abs(signalTime - otherTime);
-                        return timeDiff <= 120000; // Within 2 minutes
-                    });
-                    
-                    // Check for specific divergence patterns
-                    accompanyingSignals.forEach(s => {
-                        if (signal.bias === 'Bullish') {
-                            if (s.symbol.includes('DXY') && s.bias === 'Bearish') {
-                                divergenceDetails.push('DXY_Bearish');
-                            }
-                            if (s.symbol.includes('ES') && s.bias === 'Bullish') {
-                                divergenceDetails.push('ES_Bullish');
-                            }
-                            if (s.symbol.includes('YM') && s.bias === 'Bullish') {
-                                divergenceDetails.push('YM_Bullish');
-                            }
-                        } else if (signal.bias === 'Bearish') {
-                            if (s.symbol.includes('DXY') && s.bias === 'Bullish') {
-                                divergenceDetails.push('DXY_Bullish');
-                            }
-                            if (s.symbol.includes('ES') && s.bias === 'Bearish') {
-                                divergenceDetails.push('ES_Bearish');
-                            }
-                            if (s.symbol.includes('YM') && s.bias === 'Bearish') {
-                                divergenceDetails.push('YM_Bearish');
-                            }
-                        }
-                    });
-                    
-                    // Set divergence type based on what was found
-                    if (divergenceDetails.length > 0) {
-                        if (divergenceDetails.length === 1) {
-                            divergenceType = divergenceDetails[0];
-                        } else {
-                            divergenceType = 'Multi_Symbol';
-                        }
-                    }
-                }
+                // Focus only on NQ HTF aligned signals
                 
                 const tradeData = {
                     date: new Date(signal.timestamp).toISOString().split('T')[0],
@@ -853,7 +724,6 @@
                     signal_type: signal.signal_type || 'FVG',
                     entry_price: signal.price,
                     mfe_none: null, // Will be filled by user
-                    divergence_type: divergenceType,
                     active_trade: true // Mark as active
                 };
                 
@@ -864,16 +734,7 @@
                 });
                 
                 if (response.ok) {
-                    let message = 'Signal sent to 1M Signal Lab!';
-                    if (divergenceType !== 'None') {
-                        if (divergenceDetails.length > 1) {
-                            message += ` (Multi-divergence: ${divergenceDetails.join(' + ')})`;
-                        } else {
-                            message += ` (Divergence: ${divergenceType.replace('_', ' ')})`;
-                        }
-                    }
-                    message += '\nGo to Signal Lab to input your R result.';
-                    alert(message);
+                    alert('Signal sent to 1M Signal Lab!\nGo to Signal Lab to input your R result.');
                 } else {
                     alert('Failed to send signal to Signal Lab');
                 }

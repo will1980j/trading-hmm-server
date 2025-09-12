@@ -1440,8 +1440,7 @@ def get_signal_lab_trades():
         # Simple query with error handling
         try:
             cursor.execute("""
-                SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
-                       stop_loss, take_profit, 
+                SELECT id, date, time, bias, session, signal_type, 
                        COALESCE(mfe_none, mfe, 0) as mfe_none,
                        COALESCE(be1_level, 1) as be1_level,
                        COALESCE(be1_hit, false) as be1_hit,
@@ -1449,7 +1448,7 @@ def get_signal_lab_trades():
                        COALESCE(be2_level, 2) as be2_level,
                        COALESCE(be2_hit, false) as be2_hit,
                        COALESCE(mfe2, 0) as mfe2,
-                       position_size, commission, news_proximity, news_event, screenshot, 
+                       news_proximity, news_event, screenshot, 
                        analysis_data, created_at
                 FROM signal_lab_trades 
                 ORDER BY created_at DESC
@@ -1457,11 +1456,10 @@ def get_signal_lab_trades():
         except Exception as e:
             # Fallback to old schema
             cursor.execute("""
-                SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
-                       stop_loss, take_profit, 
+                SELECT id, date, time, bias, session, signal_type, 
                        COALESCE(mfe, 0) as mfe_none, 1 as be1_level, false as be1_hit, 0 as mfe1,
                        2 as be2_level, false as be2_hit, 0 as mfe2,
-                       position_size, commission, news_proximity, news_event, screenshot, 
+                       news_proximity, news_event, screenshot, 
                        NULL as analysis_data, created_at
                 FROM signal_lab_trades 
                 ORDER BY created_at DESC
@@ -1486,10 +1484,6 @@ def get_signal_lab_trades():
                 'bias': row['bias'],
                 'session': row['session'],
                 'signal_type': row['signal_type'],
-                'open_price': float(row['open_price']) if row['open_price'] else 0,
-                'entry_price': float(row['entry_price']) if row['entry_price'] else 0,
-                'stop_loss': float(row['stop_loss']) if row['stop_loss'] else 0,
-                'take_profit': float(row['take_profit']) if row['take_profit'] else 0,
                 'mfe': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
                 'mfe_none': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
                 'be1_level': float(row['be1_level']) if row['be1_level'] is not None else 1,
@@ -1498,11 +1492,9 @@ def get_signal_lab_trades():
                 'be2_level': float(row['be2_level']) if row['be2_level'] is not None else 2,
                 'be2_hit': bool(row['be2_hit']) if row['be2_hit'] is not None else False,
                 'mfe2': float(row['mfe2']) if row['mfe2'] is not None else 0,
-                'position_size': int(row['position_size']) if row['position_size'] else 1,
-                'commission': float(row['commission']) if row['commission'] else 0,
                 'newsProximity': row['news_proximity'] or 'None',
                 'newsEvent': row['news_event'] or 'None',
-
+                'screenshot': row['screenshot']
             }
             trades.append(trade)
             logger.debug(f"Processed trade ID {trade['id']}: {trade['date']} {trade['signal_type']}")
@@ -1544,10 +1536,9 @@ def create_signal_lab_trade():
         
         cursor.execute("""
             INSERT INTO signal_lab_trades 
-            (date, time, bias, session, signal_type, open_price, entry_price, stop_loss, 
-             take_profit, mfe_none, be1_level, be1_hit, mfe1, be2_level, be2_hit, mfe2, 
-             position_size, commission, news_proximity, news_event, screenshot, analysis_data)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (date, time, bias, session, signal_type, mfe_none, be1_level, be1_hit, mfe1, be2_level, be2_hit, mfe2, 
+             news_proximity, news_event, screenshot, analysis_data)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             data.get('date'),
@@ -1555,10 +1546,6 @@ def create_signal_lab_trade():
             data.get('bias'),
             data.get('session'),
             data.get('signal_type'),
-            data.get('open_price', 0),
-            data.get('entry_price', 0),
-            data.get('stop_loss', 0),
-            data.get('take_profit', 0),
             data.get('mfe_none', 0),
             data.get('be1_level', 1),
             data.get('be1_hit', False),
@@ -1566,8 +1553,6 @@ def create_signal_lab_trade():
             data.get('be2_level', 2),
             data.get('be2_hit', False),
             data.get('mfe2', 0),
-            data.get('position_size', 1),
-            data.get('commission', 0),
             data.get('news_proximity', 'None'),
             data.get('news_event', 'None'),
             data.get('screenshot'),
@@ -2158,143 +2143,21 @@ def capture_live_signal():
             logger.error(f"❌ ML analysis error: {str(ml_error)}")
             pass
         
-        # Enable divergence detection for correlated symbols only
-        if signal['symbol'] in ['DXY', 'ES1!', 'YM1!']:  # Only for correlation symbols
-            divergence_opportunities = detect_nq_divergence_opportunities(signal, all_signals=None)
-            if divergence_opportunities:
-                # Create NQ divergence signal
-                for opp in divergence_opportunities:
-                    # Get current NQ price from recent signals or use estimated price
-                    cursor.execute("""
-                        SELECT price FROM live_signals 
-                        WHERE symbol = 'NQ1!' 
-                        ORDER BY timestamp DESC LIMIT 1
-                    """)
-                    nq_price_result = cursor.fetchone()
-                    nq_price = nq_price_result['price'] if nq_price_result else 15000.0  # Default NQ price
-                    
-                    cursor.execute("""
-                        INSERT INTO live_signals 
-                        (symbol, timeframe, signal_type, bias, price, strength, htf_aligned, htf_status, session, timestamp)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-                        RETURNING id
-                    """, (
-                        'NQ1!', '1m', f"DIVERGENCE_{opp['type']}", opp['bias'],
-                        nq_price, opp['strength'], True, 'ALIGNED', current_session
-                    ))
-                    
-                    div_signal_id = cursor.fetchone()['id']
-                    db.conn.commit()
-                    
-                    # IMMEDIATELY populate Signal Lab for divergence signal
-                    try:
-                        cursor.execute("""
-                            INSERT INTO signal_lab_trades 
-                            (date, time, bias, session, signal_type, entry_price, divergence_type, active_trade, htf_aligned, correlation_strength)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        """, (
-                            get_ny_time().strftime('%Y-%m-%d'),
-                            get_ny_time().strftime('%H:%M:%S'),
-                            opp['bias'],
-                            current_session,
-                            f"DIVERGENCE_{opp['type']}",
-                            nq_price,
-                            f"DIVERGENCE_{opp['type']}",
-                            True,
-                            True,
-                            0.9
-                        ))
-                        db.conn.commit()
-                        logger.info(f"🎯 DIVERGENCE SIGNAL CREATED & STORED IN SIGNAL LAB: {opp['detail']}")
-                    except Exception as e:
-                        logger.error(f"Failed to store divergence in Signal Lab: {str(e)}")
-                    
-                    # Broadcast divergence signal
-                    div_signal = {
-                        'id': div_signal_id,
-                        'symbol': 'NQ1!',
-                        'timeframe': '1m',
-                        'signal_type': f"DIVERGENCE_{opp['type']}",
-                        'bias': opp['bias'],
-                        'price': nq_price,
-                        'strength': opp['strength'],
-                        'htf_aligned': True,
-                        'htf_status': 'ALIGNED',
-                        'session': current_session,
-                        'divergence_detail': opp['detail']
-                    }
-                    socketio.emit('new_signal', div_signal, namespace='/')
-                    logger.info(f"🎯 NQ DIVERGENCE BROADCASTED: {opp['detail']}")
+        # Focus only on NQ HTF aligned signals
         
-        # Log final signal storage with divergence info
+        # Log final signal storage
         lab_status = 'Yes' if should_populate else 'No'
-        divergence_info = f" | Divergence: {divergence_type}" if divergence_type != 'None' else ""
-        logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | ID: {signal_id} | Lab: {lab_status}{divergence_info}")
+        logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | ID: {signal_id} | Lab: {lab_status}")
         
-        # Send divergence alerts immediately when signal received
-        if signal['symbol'] in ['DXY', 'ES1!', 'YM1!']:
-            try:
-                from divergence_detector import detect_divergence_opportunities, send_divergence_alert
-                
-                divergence_alerts = detect_divergence_opportunities(signal)
-                
-                for alert in divergence_alerts:
-                    success = send_divergence_alert(alert)
-                    if success:
-                        logger.info(f"DIVERGENCE SENT: {alert['type']} at {signal['timestamp']}")
-                    else:
-                        logger.error(f"DIVERGENCE FAILED: {alert['type']}")
-                        
-            except Exception as div_error:
-                logger.error(f"Divergence error: {str(div_error)}")
+        # Focus on NQ HTF aligned signals only
         
-        # CRITICAL: Populate Signal Lab for ALL NQ1! signals AND all divergence signals
+        # Populate Signal Lab for NQ1! HTF aligned signals only
         should_populate = False
-        divergence_type = 'None'
-        correlation_strength = 0.0
-        
-        # Check if this is a divergence signal (highest priority)
-        if 'DIVERGENCE' in signal.get('signal_type', ''):
-            should_populate = True
-            divergence_type = signal['signal_type']
-            correlation_strength = 0.9
-            logger.info(f"🎯 DIVERGENCE SIGNAL DETECTED: {divergence_type} - Auto-populating Signal Lab")
         
         # Check if this is NQ1! with HTF alignment
-        elif signal['symbol'] == 'NQ1!' and htf_aligned:
+        if signal['symbol'] == 'NQ1!' and htf_aligned:
             should_populate = True
-            
-            # Check for recent correlated signals that might indicate divergence
-            cursor.execute("""
-                SELECT symbol, bias FROM live_signals 
-                WHERE timestamp > NOW() - INTERVAL '15 minutes'
-                AND symbol IN ('DXY', 'ES1!', 'YM1!', 'RTY1!')
-                ORDER BY timestamp DESC LIMIT 5
-            """)
-            recent_correlated = cursor.fetchall()
-            
-            if recent_correlated:
-                # Check for DXY inverse correlation
-                dxy_signals = [s for s in recent_correlated if s['symbol'] == 'DXY']
-                if dxy_signals and dxy_signals[0]['bias'] != signal['bias']:
-                    divergence_type = f"DXY_INVERSE_{signal['bias'].upper()}"
-                    correlation_strength = 0.8
-                
-                # Check for ES/YM positive correlation divergence
-                other_indices = [s for s in recent_correlated if s['symbol'] in ['ES1!', 'YM1!']]
-                if other_indices and any(s['bias'] != signal['bias'] for s in other_indices):
-                    if divergence_type == 'None':
-                        divergence_type = f"INDEX_DIVERGENCE_{signal['bias'].upper()}"
-                        correlation_strength = 0.6
-            
             logger.info(f"✅ NQ1! HTF ALIGNED: {signal['bias']} - Auto-populating Signal Lab")
-        
-        # Also populate for NQ1! divergence signals even without HTF alignment
-        elif signal['symbol'] == 'NQ1!' and 'DIVERGENCE' in signal.get('signal_type', ''):
-            should_populate = True
-            divergence_type = signal['signal_type']
-            correlation_strength = 0.85
-            logger.info(f"🎯 NQ1! DIVERGENCE (Non-HTF): {signal['signal_type']} - Auto-populating Signal Lab")
         
         if should_populate:
             try:
@@ -2305,32 +2168,28 @@ def capture_live_signal():
                     'session': signal['session'],
                     'signal_type': signal['signal_type'],
                     'entry_price': signal['price'],
-                    'divergence_type': divergence_type,
                     'active_trade': True,
-                    'htf_aligned': signal['htf_aligned'],
-                    'correlation_strength': correlation_strength
+                    'htf_aligned': signal['htf_aligned']
                 }
                 
                 cursor.execute("""
                     INSERT INTO signal_lab_trades 
-                    (date, time, bias, session, signal_type, entry_price, divergence_type, active_trade, htf_aligned, correlation_strength)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (date, time, bias, session, signal_type, entry_price, active_trade, htf_aligned)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     lab_trade['date'], lab_trade['time'], lab_trade['bias'], 
                     lab_trade['session'], lab_trade['signal_type'], lab_trade['entry_price'],
-                    lab_trade['divergence_type'], lab_trade['active_trade'], 
-                    lab_trade['htf_aligned'], lab_trade['correlation_strength']
+                    lab_trade['active_trade'], lab_trade['htf_aligned']
                 ))
                 db.conn.commit()
                 
-                divergence_flag = f" | Divergence: {divergence_type}" if divergence_type != 'None' else ""
-                logger.info(f"✅ Auto-populated Signal Lab: {signal['bias']} {signal['symbol']}{divergence_flag} | Correlation: {correlation_strength:.1f}")
+                logger.info(f"✅ Auto-populated Signal Lab: {signal['bias']} {signal['symbol']} | HTF Aligned")
                 
             except Exception as e:
                 logger.error(f"Failed to auto-populate Signal Lab: {str(e)}")
         else:
-            reason = "not NQ1! and not divergence" if signal['symbol'] != 'NQ1!' else "not HTF aligned and not divergence"
-            logger.info(f"⚠️ Skipped Signal Lab auto-population - {reason} (Symbol: {signal['symbol']}, HTF: {htf_aligned}, Type: {signal.get('signal_type', 'N/A')})")
+            reason = "not NQ1!" if signal['symbol'] != 'NQ1!' else "not HTF aligned"
+            logger.info(f"⚠️ Skipped Signal Lab auto-population - {reason} (Symbol: {signal['symbol']}, HTF: {htf_aligned})")
         
         # Broadcast original signal to all connected clients
         enhanced_signal = dict(signal)
@@ -2582,8 +2441,7 @@ def get_signal_lab_15m_trades():
         
         try:
             cursor.execute("""
-                SELECT id, date, time, bias, session, signal_type, open_price, entry_price, 
-                       stop_loss, take_profit, 
+                SELECT id, date, time, bias, session, signal_type, 
                        COALESCE(mfe_none, 0) as mfe_none,
                        COALESCE(be1_level, 1) as be1_level,
                        COALESCE(be1_hit, false) as be1_hit,
@@ -2591,7 +2449,7 @@ def get_signal_lab_15m_trades():
                        COALESCE(be2_level, 2) as be2_level,
                        COALESCE(be2_hit, false) as be2_hit,
                        COALESCE(mfe2, 0) as mfe2,
-                       position_size, commission, news_proximity, news_event, screenshot, 
+                       news_proximity, news_event, screenshot, 
                        analysis_data, created_at
                 FROM signal_lab_15m_trades 
                 ORDER BY created_at DESC
@@ -2612,10 +2470,6 @@ def get_signal_lab_15m_trades():
                 'bias': row['bias'],
                 'session': row['session'],
                 'signal_type': row['signal_type'],
-                'open_price': float(row['open_price']) if row['open_price'] else 0,
-                'entry_price': float(row['entry_price']) if row['entry_price'] else 0,
-                'stop_loss': float(row['stop_loss']) if row['stop_loss'] else 0,
-                'take_profit': float(row['take_profit']) if row['take_profit'] else 0,
                 'mfe': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
                 'mfe_none': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
                 'be1_level': float(row['be1_level']) if row['be1_level'] is not None else 1,
@@ -2624,8 +2478,6 @@ def get_signal_lab_15m_trades():
                 'be2_level': float(row['be2_level']) if row['be2_level'] is not None else 2,
                 'be2_hit': bool(row['be2_hit']) if row['be2_hit'] is not None else False,
                 'mfe2': float(row['mfe2']) if row['mfe2'] is not None else 0,
-                'position_size': int(row['position_size']) if row['position_size'] else 1,
-                'commission': float(row['commission']) if row['commission'] else 0,
                 'newsProximity': row['news_proximity'] or 'None',
                 'newsEvent': row['news_event'] or 'None',
                 'screenshot': row['screenshot']
@@ -2669,10 +2521,9 @@ def create_signal_lab_15m_trade():
         
         cursor.execute("""
             INSERT INTO signal_lab_15m_trades 
-            (date, time, bias, session, signal_type, open_price, entry_price, stop_loss, 
-             take_profit, mfe_none, be1_level, be1_hit, mfe1, be2_level, be2_hit, mfe2, 
-             position_size, commission, news_proximity, news_event, screenshot, analysis_data)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (date, time, bias, session, signal_type, mfe_none, be1_level, be1_hit, mfe1, be2_level, be2_hit, mfe2, 
+             news_proximity, news_event, screenshot, analysis_data)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             data.get('date'),
@@ -2680,10 +2531,6 @@ def create_signal_lab_15m_trade():
             data.get('bias'),
             data.get('session'),
             data.get('signal_type'),
-            data.get('open_price', 0),
-            data.get('entry_price', 0),
-            data.get('stop_loss', 0),
-            data.get('take_profit', 0),
             data.get('mfe_none', 0),
             data.get('be1_level', 1),
             data.get('be1_hit', False),
@@ -2691,8 +2538,6 @@ def create_signal_lab_15m_trade():
             data.get('be2_level', 2),
             data.get('be2_hit', False),
             data.get('mfe2', 0),
-            data.get('position_size', 1),
-            data.get('commission', 0),
             data.get('news_proximity', 'None'),
             data.get('news_event', 'None'),
             data.get('screenshot'),
@@ -3406,13 +3251,11 @@ try:
             ADD COLUMN IF NOT EXISTS session VARCHAR(50) DEFAULT 'Unknown'
         """)
         
-        # Add divergence and active_trade columns to signal_lab_trades table
+        # Add active_trade and htf_aligned columns to signal_lab_trades table
         cursor.execute("""
             ALTER TABLE signal_lab_trades 
-            ADD COLUMN IF NOT EXISTS divergence_type VARCHAR(50) DEFAULT 'None',
             ADD COLUMN IF NOT EXISTS active_trade BOOLEAN DEFAULT FALSE,
-            ADD COLUMN IF NOT EXISTS htf_aligned BOOLEAN DEFAULT FALSE,
-            ADD COLUMN IF NOT EXISTS correlation_strength DECIMAL(5,2) DEFAULT 0.0
+            ADD COLUMN IF NOT EXISTS htf_aligned BOOLEAN DEFAULT FALSE
         """)
         
         db.conn.commit()
@@ -4648,88 +4491,10 @@ def extract_recommendation_from_response(ai_response):
     
     return "Monitor signals for clear direction"
 
-def detect_signal_divergences_old(correlations):
-    """Detect divergences between correlated symbols"""
-    divergences = []
-    
-    # Group by symbol
-    symbol_data = {}
-    for corr in correlations:
-        symbol = corr['symbol']
-        if symbol not in symbol_data:
-            symbol_data[symbol] = {'bullish': 0, 'bearish': 0}
-        
-        if corr['bias'] == 'Bullish':
-            symbol_data[symbol]['bullish'] = corr['signal_count']
-        else:
-            symbol_data[symbol]['bearish'] = corr['signal_count']
-    
-    # Check for divergences between correlated pairs
-    correlated_pairs = [('NQ1!', 'ES1!'), ('NQ1!', 'YM1!'), ('ES1!', 'RTY1!')]
-    
-    for symbol1, symbol2 in correlated_pairs:
-        if symbol1 in symbol_data and symbol2 in symbol_data:
-            s1_bias = 'Bullish' if symbol_data[symbol1]['bullish'] > symbol_data[symbol1]['bearish'] else 'Bearish'
-            s2_bias = 'Bullish' if symbol_data[symbol2]['bullish'] > symbol_data[symbol2]['bearish'] else 'Bearish'
-            
-            if s1_bias != s2_bias:
-                divergences.append({
-                    'pair': f"{symbol1} vs {symbol2}",
-                    'divergence': f"{symbol1} {s1_bias}, {symbol2} {s2_bias}",
-                    'strength': abs(symbol_data[symbol1]['bullish'] - symbol_data[symbol1]['bearish']) + 
-                               abs(symbol_data[symbol2]['bullish'] - symbol_data[symbol2]['bearish'])
-                })
-    
-    return divergences
+# Removed divergence detection - focusing on NQ HTF aligned signals only
 
 # Async task for signal pattern analysis (placeholder for Celery)
-def detect_nq_divergence_opportunities(current_signal, all_signals=None):
-    """Detect NQ divergence trading opportunities based on correlated ticker analysis"""
-    try:
-        symbol = current_signal.get('symbol', '')
-        bias = current_signal.get('bias', '')
-        price = current_signal.get('price', 0)
-        strength = current_signal.get('strength', 50)
-        
-        opportunities = []
-        
-        # DXY inverse correlation with NQ (when DXY moves, NQ should move opposite)
-        if symbol == 'DXY':
-            # DXY Bearish = NQ should be Bullish (inverse correlation)
-            if bias == 'Bearish':
-                opportunities.append({
-                    'type': 'DXY_INVERSE',
-                    'bias': 'Bullish',  # Opposite of DXY
-                    'nq_price': price,  # Use DXY price as reference
-                    'strength': min(95, strength + 20),  # Boost for DXY divergence
-                    'detail': f"DXY Bearish at {price} → NQ Bullish Divergence Opportunity"
-                })
-            # DXY Bullish = NQ should be Bearish (inverse correlation)
-            elif bias == 'Bullish':
-                opportunities.append({
-                    'type': 'DXY_INVERSE',
-                    'bias': 'Bearish',  # Opposite of DXY
-                    'nq_price': price,  # Use DXY price as reference
-                    'strength': min(95, strength + 20),  # Boost for DXY divergence
-                    'detail': f"DXY Bullish at {price} → NQ Bearish Divergence Opportunity"
-                })
-        
-        # ES/YM positive correlation with NQ (should move together)
-        elif symbol in ['ES1!', 'YM1!']:
-            # When ES/YM moves, NQ should move in same direction
-            opportunities.append({
-                'type': f'{symbol.replace("1!", "")}_CORRELATION',
-                'bias': bias,  # Same direction as ES/YM
-                'nq_price': price,  # Use source price as reference
-                'strength': min(90, strength + 15),  # Boost for correlation
-                'detail': f"{symbol} {bias} at {price} → NQ {bias} Correlation Signal"
-            })
-        
-        return opportunities
-        
-    except Exception as e:
-        logger.error(f"Error detecting NQ divergences: {str(e)}")
-        return []
+
 
 def analyze_signal_patterns(signal_id):
     """Analyze signal patterns for machine learning insights"""
@@ -4754,7 +4519,7 @@ def analyze_signal_patterns(signal_id):
         all_signals = [dict(row) for row in cursor.fetchall()]
         
         # Enhanced ML analysis with divergence detection
-        from divergence_alerts import divergence_detector
+        
         
         # Get correlation data for divergence analysis
         cursor.execute("""
