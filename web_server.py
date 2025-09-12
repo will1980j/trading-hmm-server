@@ -2145,18 +2145,14 @@ def capture_live_signal():
         
         # Focus only on NQ HTF aligned signals
         
+        # Auto-populate Signal Lab for NQ1! HTF aligned signals only
+        should_populate = signal['symbol'] == 'NQ1!' and htf_aligned
+        
         # Log final signal storage
         lab_status = 'Yes' if should_populate else 'No'
         logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | ID: {signal_id} | Lab: {lab_status}")
         
-        # Focus on NQ HTF aligned signals only
-        
-        # Populate Signal Lab for NQ1! HTF aligned signals only
-        should_populate = False
-        
-        # Check if this is NQ1! with HTF alignment
-        if signal['symbol'] == 'NQ1!' and htf_aligned:
-            should_populate = True
+        if should_populate:
             logger.info(f"✅ NQ1! HTF ALIGNED: {signal['bias']} - Auto-populating Signal Lab")
         
         if should_populate:
@@ -2790,6 +2786,85 @@ def trigger_divergence():
         })
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/recover-missed-signals', methods=['POST'])
+@login_required
+def recover_missed_signals_endpoint():
+    """Recover missed NQ HTF aligned signals after 12:20pm Sep 11th"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        cursor = db.conn.cursor()
+        
+        # Query for NQ1! HTF aligned signals after 12:20pm Sep 11th
+        cursor.execute("""
+            SELECT date(timestamp AT TIME ZONE 'America/New_York') as date,
+                   to_char(timestamp AT TIME ZONE 'America/New_York', 'HH24:MI:SS') as time,
+                   bias, session, signal_type, price, htf_aligned, timestamp
+            FROM live_signals 
+            WHERE symbol = 'NQ1!' 
+            AND htf_aligned = true
+            AND timestamp > '2024-09-11 12:20:00'
+            AND signal_type NOT LIKE '%DIVERGENCE%'
+            AND signal_type NOT LIKE '%CORRELATION%'
+            AND signal_type NOT LIKE '%INVERSE%'
+            ORDER BY timestamp
+        """)
+        
+        missed_signals = cursor.fetchall()
+        logger.info(f"Found {len(missed_signals)} NQ HTF aligned signals after 12:20pm Sep 11th")
+        
+        if not missed_signals:
+            return jsonify({
+                'status': 'success',
+                'message': 'No missed signals found',
+                'recovered': 0
+            })
+        
+        populated_count = 0
+        
+        for signal in missed_signals:
+            # Check if already exists in signal_lab_trades
+            cursor.execute("""
+                SELECT COUNT(*) as count FROM signal_lab_trades 
+                WHERE date = %s AND time = %s AND signal_type = %s
+            """, (signal['date'], signal['time'], signal['signal_type']))
+            
+            result = cursor.fetchone()
+            if result['count'] > 0:
+                logger.info(f"Already exists: {signal['date']} {signal['time']} {signal['signal_type']}")
+                continue
+            
+            # Insert into signal_lab_trades
+            cursor.execute("""
+                INSERT INTO signal_lab_trades 
+                (date, time, bias, session, signal_type, entry_price, htf_aligned)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (
+                signal['date'], signal['time'], signal['bias'], 
+                signal['session'], signal['signal_type'], signal['price'],
+                signal['htf_aligned']
+            ))
+            
+            populated_count += 1
+            logger.info(f"Populated: {signal['date']} {signal['time']} {signal['bias']} {signal['session']} @ {signal['price']}")
+        
+        db.conn.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Successfully recovered {populated_count} missed NQ HTF aligned signals',
+            'found': len(missed_signals),
+            'recovered': populated_count,
+            'already_existed': len(missed_signals) - populated_count
+        })
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error recovering missed signals: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/test-webhook', methods=['POST', 'GET'])

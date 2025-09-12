@@ -770,6 +770,7 @@
                 <button class="btn" onclick="getRecommendations()" style="background: #2ed573;">AI Recommendations</button>
                 <button class="btn" onclick="optimizeStrategy()" style="background: #ff6b7a;">Strategy Optimizer</button>
                 <button class="btn" onclick="autoFillAllNews()" style="background: #ff4757;">Auto-Fill All News</button>
+                <button class="btn" onclick="recoverMissedSignals()" style="background: #ffa502;">🔄 Recover Signals</button>
                 <button class="btn" onclick="bulkDeleteAllTrades()" style="background: #ff3838;">🗑️ Delete All</button>
 
             </div>
@@ -2607,6 +2608,31 @@
             checkbox.addEventListener('blur', saveValue);
         }
         
+        async function recoverMissedSignals() {
+            if (!confirm('Recover missed NQ HTF aligned signals after 12:20pm Sep 11th?\n\nThis will populate signals that should have been auto-populated but weren\'t due to the bug.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/recover-missed-signals', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`✅ RECOVERY COMPLETE\n\nFound: ${result.found} signals\nRecovered: ${result.recovered} new signals\nAlready existed: ${result.already_existed}\n\nPage will reload to show recovered signals.`);
+                    location.reload();
+                } else {
+                    const errorText = await response.text();
+                    alert(`❌ RECOVERY FAILED\n\n${response.status}: ${errorText}`);
+                }
+            } catch (error) {
+                alert(`❌ RECOVERY ERROR\n\n${error.message}`);
+                console.error('Recovery error:', error);
+            }
+        }
+        
         // Make functions globally available
         window.addSignal = addSignal;
         window.editSignal = editSignal;
@@ -2630,6 +2656,7 @@
         window.closeDailyPopup = closeDailyPopup;
         window.editInline = editInline;
         window.editInlineCheckbox = editInlineCheckbox;
+        window.recoverMissedSignals = recoverMissedSignals;
         
         } catch (error) {
             console.error('Signal Lab JavaScript Error:', error);
