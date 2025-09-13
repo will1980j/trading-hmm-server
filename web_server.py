@@ -3235,26 +3235,7 @@ def get_ml_insights():
         logger.error(f"Error getting ML insights: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/ml-train', methods=['POST'])
-@login_required
-def train_ml_models():
-    """Train/retrain advanced ML models"""
-    try:
-        if not db_enabled or not db:
-            return jsonify({'error': 'Database not available'}), 500
-        
-        from advanced_ml_engine import get_advanced_ml_engine
-        
-        retrain = request.json.get('retrain', False) if request.json else False
-        
-        ml_engine = get_advanced_ml_engine(db)
-        result = ml_engine.train_models(retrain=retrain)
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        logger.error(f"Error training ML models: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/ml-predict-advanced', methods=['POST'])
 @login_required
