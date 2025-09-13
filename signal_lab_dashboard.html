@@ -2145,15 +2145,13 @@
                 const data = await response.json();
                 console.log('Market Context Response:', data);
                 
+                // Reject fallback data
+                if (data.data_source === 'Fallback') {
+                    throw new Error('Fallback data not allowed');
+                }
+                
                 if (data.error) {
-                    console.error('Market context error:', data.error);
-                    // Set error state for market context
-                    document.getElementById('vixValue').textContent = 'Error';
-                    document.getElementById('sessionValue').textContent = 'Error';
-                    document.getElementById('volumeValue').textContent = 'Error';
-                    document.getElementById('dxyValue').textContent = 'Error';
-                    document.getElementById('dataSource').textContent = 'Error';
-                    return;
+                    throw new Error(data.error);
                 }
                 
                 // Update market context values
@@ -2162,7 +2160,6 @@
                 document.getElementById('volumeValue').textContent = data.spy_volume ? (data.spy_volume/1000000).toFixed(1) + 'M' : '-';
                 document.getElementById('dxyValue').textContent = data.dxy_price ? data.dxy_price.toFixed(2) : '-';
                 
-                // Update data source element
                 const dataSourceEl = document.getElementById('marketDataSource');
                 if (dataSourceEl) {
                     dataSourceEl.textContent = data.data_source || '-';
@@ -2178,7 +2175,6 @@
                 
             } catch (error) {
                 console.error('Error loading market context:', error);
-                // Set error state for all market context elements
                 document.getElementById('vixValue').textContent = 'N/A';
                 document.getElementById('sessionValue').textContent = 'N/A';
                 document.getElementById('volumeValue').textContent = 'N/A';
@@ -2288,10 +2284,13 @@
             loadSignals();
             setupAutoUpdate();
             
-            // Load ML dashboard data without connectivity test to avoid recursion
+            // Load market context only (skip ML due to 500 errors)
             setTimeout(() => {
-                loadMLInsights();
                 loadMarketContext();
+                // Set ML to offline state
+                document.getElementById('mlStatus').innerHTML = `<span style="color: #ff4757;">❌ Offline</span>`;
+                document.getElementById('modelPerformance').innerHTML = 'API Error';
+                document.getElementById('mlInsights').innerHTML = '❌ <strong>ML API Error</strong><br><br>The ML service is returning HTTP 500 errors. Please check server logs.';
             }, 1000);
         });
         
