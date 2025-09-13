@@ -1,0 +1,283 @@
+"""
+TradingView Market Data Enricher - Real-time data from TradingView
+Uses TradingView's actual data feeds for market context
+"""
+
+import requests
+import json
+from datetime import datetime
+from typing import Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
+
+class TradingViewMarketEnricher:
+    """Real-time market data from TradingView"""
+    
+    def __init__(self):
+        self.base_url = "https://scanner.tradingview.com"
+        self.cache = {}
+        self.cache_duration = 30  # 30 seconds cache
+        
+    def get_market_context(self) -> Dict[str, Any]:
+        """Get real-time market context from TradingView"""
+        try:
+            # Get multiple data points in one request
+            symbols = ["CBOE:VIX", "AMEX:SPY", "NASDAQ:QQQ", "CME_MINI:NQ1!", "CME_MINI:ES1!", "CME_MINI:YM1!", "TVC:DXY"]
+            
+            market_data = self._get_tradingview_data(symbols)
+            
+            if not market_data:
+                return self._get_fallback_context()
+            
+            # Extract key metrics
+            vix = market_data.get("CBOE:VIX", {}).get("close", 20.0)
+            spy_volume = market_data.get("AMEX:SPY", {}).get("volume", 50000000)
+            qqq_volume = market_data.get("NASDAQ:QQQ", {}).get("volume", 30000000)
+            
+            nq_price = market_data.get("CME_MINI:NQ1!", {}).get("close", 15000)
+            es_price = market_data.get("CME_MINI:ES1!", {}).get("close", 4500)
+            ym_price = market_data.get("CME_MINI:YM1!", {}).get("close", 35000)
+            dxy_price = market_data.get("TVC:DXY", {}).get("close", 103.5)
+            
+            # Calculate changes
+            nq_change = market_data.get("CME_MINI:NQ1!", {}).get("change_abs", 0)
+            dxy_change = market_data.get("TVC:DXY", {}).get("change_abs", 0)
+            
+            # Calculate correlations (simplified - would need historical data for real correlation)
+            correlation_nq_es = 0.85  # Default - would calculate from price movements
+            
+            # Determine volatility regime
+            volatility_regime = self._get_volatility_regime(vix)
+            
+            # Get current session
+            market_session = self._get_current_session()
+            
+            return {
+                'vix': vix,
+                'spy_volume': spy_volume,
+                'qqq_volume': qqq_volume,
+                'nq_price': nq_price,
+                'es_price': es_price,
+                'ym_price': ym_price,
+                'dxy_price': dxy_price,
+                'dxy_change': dxy_change,
+                'nq_change': nq_change,
+                'correlation_nq_es': correlation_nq_es,
+                'volatility_regime': volatility_regime,
+                'market_session': market_session,
+                'trend_strength': abs(nq_change / nq_price) * 1000 if nq_price > 0 else 0,
+                'sector_rotation': self._get_sector_rotation(spy_volume, qqq_volume),
+                'timestamp': datetime.now().isoformat(),
+                'data_source': 'TradingView'
+            }
+            
+        except Exception as e:
+            logger.error(f"TradingView data error: {str(e)}")
+            return self._get_fallback_context()
+    
+    def _get_tradingview_data(self, symbols: list) -> Dict[str, Dict]:
+        """Get real-time data from TradingView scanner API"""
+        try:
+            # TradingView scanner request
+            payload = {
+                "filter": [{"left": "name", "operation": "in_range", "right": symbols}],
+                "options": {"lang": "en"},
+                "symbols": {"query": {"types": []}, "tickers": symbols},
+                "columns": ["name", "close", "change", "change_abs", "volume", "high", "low"],
+                "sort": {"sortBy": "name", "sortOrder": "asc"},
+                "range": [0, len(symbols)]
+            }
+            
+            response = requests.post(
+                f"{self.base_url}/america/scan",
+                json=payload,
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Content-Type': 'application/json'
+                },
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Parse response
+                result = {}
+                if 'data' in data:
+                    for item in data['data']:
+                        if 'd' in item and len(item['d']) >= 7:
+                            symbol = item['d'][0]
+                            result[symbol] = {
+                                'close': item['d'][1],
+                                'change': item['d'][2],
+                                'change_abs': item['d'][3],
+                                'volume': item['d'][4],
+                                'high': item['d'][5],
+                                'low': item['d'][6]
+                            }
+                
+                logger.info(f"TradingView data: {len(result)} symbols retrieved")
+                return result
+            else:
+                logger.error(f"TradingView API error: {response.status_code}")
+                return {}
+                
+        except Exception as e:
+            logger.error(f"TradingView request error: {str(e)}")
+            return {}
+    
+    def _get_volatility_regime(self, vix: float) -> str:
+        """Classify volatility regime based on VIX"""
+        if vix < 15:
+            return "LOW"
+        elif vix < 25:
+            return "NORMAL"
+        elif vix < 35:
+            return "HIGH"
+        else:
+            return "EXTREME"
+    
+    def _get_current_session(self) -> str:
+        """Determine current trading session"""
+        import pytz
+        ny_tz = pytz.timezone('America/New_York')
+        ny_time = datetime.now(ny_tz)
+        hour = ny_time.hour
+        
+        if 18 <= hour <= 23:
+            return "Asia"
+        elif 0 <= hour <= 5:
+            return "London"
+        elif 6 <= hour <= 9:
+            return "NY Pre Market"
+        elif 9 <= hour <= 16:
+            return "NY Regular"
+        else:
+            return "After Hours"
+    
+    def _get_sector_rotation(self, spy_volume: int, qqq_volume: int) -> str:
+        """Determine sector rotation based on volume"""
+        if qqq_volume > spy_volume * 0.8:  # QQQ volume high relative to SPY
+            return "TECH_LEADERSHIP"
+        elif spy_volume > qqq_volume * 1.5:  # SPY volume much higher
+            return "VALUE_ROTATION"
+        else:
+            return "BALANCED"
+    
+    def _get_fallback_context(self) -> Dict[str, Any]:
+        """Fallback context when TradingView is unavailable"""
+        return {
+            'vix': 20.0,
+            'spy_volume': 50000000,
+            'qqq_volume': 30000000,
+            'nq_price': 15000,
+            'es_price': 4500,
+            'ym_price': 35000,
+            'dxy_price': 103.5,
+            'dxy_change': 0.0,
+            'nq_change': 0.0,
+            'correlation_nq_es': 0.85,
+            'volatility_regime': "NORMAL",
+            'market_session': self._get_current_session(),
+            'trend_strength': 0.5,
+            'sector_rotation': "BALANCED",
+            'timestamp': datetime.now().isoformat(),
+            'data_source': 'Fallback'
+        }
+    
+    def enrich_signal_with_context(self, signal_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Enrich signal with TradingView market context"""
+        try:
+            context = self.get_market_context()
+            
+            # Add market context to signal
+            enriched_signal = signal_data.copy()
+            enriched_signal['market_context'] = context
+            
+            # Calculate signal quality based on TradingView data
+            quality_score = self._calculate_signal_quality(signal_data, context)
+            enriched_signal['context_quality_score'] = quality_score
+            
+            # Generate recommendations
+            recommendations = self._generate_recommendations(signal_data, context)
+            enriched_signal['context_recommendations'] = recommendations
+            
+            logger.info(f"Signal enriched with TradingView data: VIX={context['vix']:.1f}, Session={context['market_session']}, Quality={quality_score:.2f}")
+            
+            return enriched_signal
+            
+        except Exception as e:
+            logger.error(f"Error enriching with TradingView data: {str(e)}")
+            return signal_data
+    
+    def _calculate_signal_quality(self, signal_data: Dict[str, Any], context: Dict[str, Any]) -> float:
+        """Calculate signal quality based on TradingView market context"""
+        base_score = 0.5
+        
+        # VIX factor
+        vix = context.get('vix', 20)
+        if vix < 15:
+            base_score += 0.1  # Low VIX = good
+        elif vix > 30:
+            base_score -= 0.2  # High VIX = bad
+        
+        # Session factor
+        session = context.get('market_session', 'Unknown')
+        if session in ['London', 'NY Regular']:
+            base_score += 0.2
+        elif session == 'NY Pre Market':
+            base_score += 0.1
+        else:
+            base_score -= 0.1
+        
+        # Volume factor
+        spy_volume = context.get('spy_volume', 50000000)
+        if spy_volume > 80000000:  # High volume
+            base_score += 0.1
+        elif spy_volume < 40000000:  # Low volume
+            base_score -= 0.1
+        
+        # DXY factor for NQ
+        if signal_data.get('symbol') == 'NQ1!':
+            dxy_change = context.get('dxy_change', 0)
+            bias = signal_data.get('bias', 'Bullish')
+            
+            if abs(dxy_change) > 0.5:  # Significant DXY move
+                if (dxy_change < 0 and bias == 'Bullish') or (dxy_change > 0 and bias == 'Bearish'):
+                    base_score += 0.15  # DXY supports signal
+                else:
+                    base_score -= 0.1   # DXY opposes signal
+        
+        return max(0.0, min(1.0, base_score))
+    
+    def _generate_recommendations(self, signal_data: Dict[str, Any], context: Dict[str, Any]) -> list:
+        """Generate trading recommendations based on TradingView context"""
+        recommendations = []
+        
+        vix = context.get('vix', 20)
+        session = context.get('market_session', 'Unknown')
+        spy_volume = context.get('spy_volume', 50000000)
+        
+        # VIX recommendations
+        if vix > 30:
+            recommendations.append("HIGH VIX: Consider smaller position sizes")
+        elif vix < 15:
+            recommendations.append("LOW VIX: Favorable for trend following")
+        
+        # Session recommendations
+        if session == 'London':
+            recommendations.append("LONDON SESSION: Optimal liquidity for breakouts")
+        elif session == 'Asia':
+            recommendations.append("ASIA SESSION: Lower liquidity - use tighter stops")
+        
+        # Volume recommendations
+        if spy_volume < 40000000:
+            recommendations.append("LOW VOLUME: Avoid breakout trades")
+        elif spy_volume > 100000000:
+            recommendations.append("HIGH VOLUME: Strong moves likely")
+        
+        return recommendations[:3]  # Top 3 recommendations
+
+# Global instance
+tradingview_enricher = TradingViewMarketEnricher()

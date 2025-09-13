@@ -2070,9 +2070,9 @@ def capture_live_signal():
         # Determine current session
         current_session = get_current_session()
         
-        # 🚀 MARKET CONTEXT ENRICHMENT - Get real-time market data
+        # 🚀 TRADINGVIEW MARKET CONTEXT ENRICHMENT - Real-time data from TradingView
         try:
-            from market_data_enricher import market_enricher
+            from tradingview_market_enricher import tradingview_enricher
             
             base_signal = {
                 'symbol': clean_symbol,
@@ -2087,21 +2087,22 @@ def capture_live_signal():
                 'timestamp': get_ny_time().isoformat()
             }
             
-            # Enrich signal with real-time market context
-            enriched_signal = market_enricher.enrich_signal_with_context(base_signal)
+            # Enrich signal with TradingView real-time market context
+            enriched_signal = tradingview_enricher.enrich_signal_with_context(base_signal)
             signal = enriched_signal
             
-            # Log market context
+            # Log TradingView market context
             market_ctx = signal.get('market_context', {})
-            logger.info(f"🌍 MARKET CONTEXT: VIX={market_ctx.get('vix', 'N/A'):.1f} | Session={market_ctx.get('session', 'N/A')} | Volume={market_ctx.get('spy_volume', 0):,} | DXY={market_ctx.get('dxy_price', 'N/A'):.2f} | Quality={signal.get('context_quality_score', 0):.2f}")
+            data_source = market_ctx.get('data_source', 'Unknown')
+            logger.info(f"📊 TRADINGVIEW CONTEXT ({data_source}): VIX={market_ctx.get('vix', 'N/A'):.1f} | Session={market_ctx.get('market_session', 'N/A')} | Volume={market_ctx.get('spy_volume', 0):,} | DXY={market_ctx.get('dxy_price', 'N/A'):.2f} | Quality={signal.get('context_quality_score', 0):.2f}")
             
             # Log context recommendations
             recommendations = signal.get('context_recommendations', [])
             if recommendations:
-                logger.info(f"💡 CONTEXT RECOMMENDATIONS: {' | '.join(recommendations[:2])}")
+                logger.info(f"💡 TV RECOMMENDATIONS: {' | '.join(recommendations[:2])}")
             
         except Exception as e:
-            logger.error(f"Market enrichment failed: {str(e)} - using basic signal")
+            logger.error(f"TradingView enrichment failed: {str(e)} - using basic signal")
             signal = {
                 'symbol': clean_symbol,
                 'timeframe': data.get('timeframe', '1m'),
@@ -2181,26 +2182,54 @@ def capture_live_signal():
             logger.error(f"❌ ML analysis error: {str(ml_error)}")
             pass
         
-        # 🤖 ML PREDICTION - Learn which signals work best
+        # 🤖 ADVANCED ML PREDICTION - Professional ML engine
         context_quality = signal.get('context_quality_score', 0.5)
         ml_prediction = None
         
         try:
-            from signal_ml_predictor import get_ml_predictor
-            ml_predictor = get_ml_predictor(db)
+            from advanced_ml_engine import get_advanced_ml_engine
+            ml_engine = get_advanced_ml_engine(db)
             
-            # Get ML prediction for this signal
-            ml_prediction = ml_predictor.predict_signal_quality(
+            # Auto-train if not trained yet
+            if not ml_engine.is_trained:
+                logger.info("🎯 Training ML models...")
+                training_result = ml_engine.train_models()
+                if 'error' not in training_result:
+                    logger.info(f"✅ ML training complete: {training_result.get('best_model', 'Unknown')} model selected")
+            
+            # Get advanced ML prediction
+            ml_prediction = ml_engine.predict_signal_quality(
                 signal.get('market_context', {}),
-                {'bias': signal['bias'], 'session': signal['session']}
+                {
+                    'bias': signal['bias'], 
+                    'session': signal['session'],
+                    'price': signal['price'],
+                    'signal_type': signal['signal_type']
+                }
             )
             
-            # Log ML prediction
-            logger.info(f"🤖 ML PREDICTION: Quality={ml_prediction['predicted_quality']:.2f}, MFE={ml_prediction['predicted_mfe']:.2f}R, Confidence={ml_prediction['confidence']:.2f}, Rec={ml_prediction['recommendation']}")
+            # Log comprehensive ML prediction
+            pred_mfe = ml_prediction.get('predicted_mfe', 0)
+            confidence = ml_prediction.get('confidence', 0)
+            models_used = ml_prediction.get('models_used', 0)
+            recommendation = ml_prediction.get('recommendation', 'N/A')
+            
+            logger.info(f"🤖 ADVANCED ML: MFE={pred_mfe:.3f}R, Confidence={confidence:.2f}, Models={models_used}, Rec={recommendation[:50]}")
+            
+            # Log model consensus if available
+            consensus = ml_prediction.get('model_consensus', {})
+            if len(consensus) > 1:
+                consensus_str = ', '.join([f"{k}:{v:.2f}R" for k, v in list(consensus.items())[:3]])
+                logger.info(f"📈 Model Consensus: {consensus_str}")
             
         except Exception as e:
-            logger.error(f"ML prediction error: {str(e)}")
-            ml_prediction = {'predicted_quality': 0.5, 'predicted_mfe': 0, 'confidence': 0, 'recommendation': 'ML unavailable'}
+            logger.error(f"Advanced ML prediction error: {str(e)}")
+            ml_prediction = {
+                'predicted_mfe': 0.0, 
+                'confidence': 0.0, 
+                'recommendation': f'ML error: {str(e)[:50]}',
+                'models_used': 0
+            }
         
         # Keep same auto-population logic (no filtering changes)
         should_populate = (
@@ -2250,7 +2279,7 @@ def capture_live_signal():
                 ))
                 db.conn.commit()
                 
-                ml_info = f"ML: {ml_prediction['predicted_quality']:.2f}" if ml_prediction else "ML: N/A"
+                ml_info = f"ML: {ml_prediction['predicted_mfe']:.2f}R" if ml_prediction else "ML: N/A"
                 logger.info(f"✅ Auto-populated Signal Lab: {signal['bias']} {signal['symbol']} | HTF Aligned | Quality: {context_quality:.2f} | {ml_info}")
                 
             except Exception as e:
@@ -2277,7 +2306,7 @@ def capture_live_signal():
             "context_quality_score": context_quality,
             "context_recommendations": signal.get('context_recommendations', []),
             "ml_prediction": ml_prediction,
-            "message": "Signal captured with market context + ML prediction"
+            "message": "Signal captured with TradingView context + Advanced ML prediction"
         })
         
     except Exception as e:
@@ -3172,48 +3201,33 @@ def get_market_context_analysis():
 @app.route('/api/current-market-context', methods=['GET'])
 @login_required
 def get_current_market_context():
-    """Get current real-time market context"""
+    """Get current real-time market context from TradingView"""
     try:
-        from market_data_enricher import market_enricher
+        from tradingview_market_enricher import tradingview_enricher
         
-        context = market_enricher.get_market_context()
+        context = tradingview_enricher.get_market_context()
         
-        return jsonify({
-            'vix': context.vix,
-            'spy_volume': context.spy_volume,
-            'qqq_volume': context.qqq_volume,
-            'market_session': context.market_session,
-            'volatility_regime': context.volatility_regime,
-            'trend_strength': context.trend_strength,
-            'correlation_nq_es': context.correlation_nq_es,
-            'correlation_nq_ym': context.correlation_nq_ym,
-            'dxy_price': context.dxy_price,
-            'dxy_change': context.dxy_change,
-            'sector_rotation': context.sector_rotation,
-            'news_sentiment': context.news_sentiment,
-            'economic_events': context.economic_events,
-            'timestamp': context.timestamp.isoformat()
-        })
+        return jsonify(context)
         
     except Exception as e:
-        logger.error(f"Error getting current market context: {str(e)}")
+        logger.error(f"Error getting TradingView market context: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/ml-insights', methods=['GET'])
 @login_required
 def get_ml_insights():
-    """Get ML model insights and learning progress"""
+    """Get advanced ML model insights and performance metrics"""
     try:
         if not db_enabled or not db:
             return jsonify({'error': 'Database not available'}), 500
         
-        from signal_ml_predictor import get_ml_predictor
+        from advanced_ml_engine import get_advanced_ml_engine
         
-        ml_predictor = get_ml_predictor(db)
-        insights = ml_predictor.get_model_insights()
+        ml_engine = get_advanced_ml_engine(db)
+        performance = ml_engine.get_model_performance()
         
         return jsonify({
-            'insights': insights,
+            'performance': performance,
             'timestamp': datetime.now().isoformat()
         })
         
@@ -3221,44 +3235,155 @@ def get_ml_insights():
         logger.error(f"Error getting ML insights: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/predict-current-signal', methods=['POST'])
+@app.route('/api/ml-train', methods=['POST'])
 @login_required
-def predict_current_signal():
-    """Get ML prediction for current market conditions"""
+def train_ml_models():
+    """Train/retrain advanced ML models"""
     try:
         if not db_enabled or not db:
             return jsonify({'error': 'Database not available'}), 500
         
-        from market_data_enricher import market_enricher
-        from signal_ml_predictor import get_ml_predictor
+        from advanced_ml_engine import get_advanced_ml_engine
         
-        # Get current market context
-        market_context = market_enricher.get_market_context()
+        retrain = request.json.get('retrain', False) if request.json else False
+        
+        ml_engine = get_advanced_ml_engine(db)
+        result = ml_engine.train_models(retrain=retrain)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error training ML models: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml-predict-advanced', methods=['POST'])
+@login_required
+def advanced_ml_predict():
+    """Get advanced ML prediction with full analysis"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from tradingview_market_enricher import tradingview_enricher
+        from advanced_ml_engine import get_advanced_ml_engine
+        
+        # Get current market context from TradingView
+        market_context = tradingview_enricher.get_market_context()
         
         # Get signal data from request
         signal_data = request.get_json() or {}
         signal_data.setdefault('bias', 'Bullish')
-        signal_data.setdefault('session', market_context.market_session)
+        signal_data.setdefault('session', market_context.get('market_session', 'London'))
+        signal_data.setdefault('price', market_context.get('nq_price', 15000))
+        signal_data.setdefault('signal_type', f"BIAS_{signal_data['bias'].upper()}")
         
-        # Get ML prediction
-        ml_predictor = get_ml_predictor(db)
-        prediction = ml_predictor.predict_signal_quality(
-            market_context.__dict__,
-            signal_data
-        )
+        # Get advanced ML prediction
+        ml_engine = get_advanced_ml_engine(db)
+        prediction = ml_engine.predict_signal_quality(market_context, signal_data)
         
         return jsonify({
             'prediction': prediction,
             'market_context': {
-                'vix': market_context.vix,
-                'session': market_context.market_session,
-                'volatility_regime': market_context.volatility_regime
+                'vix': market_context.get('vix'),
+                'session': market_context.get('market_session'),
+                'volatility_regime': market_context.get('volatility_regime'),
+                'spy_volume': market_context.get('spy_volume'),
+                'dxy_price': market_context.get('dxy_price'),
+                'data_source': market_context.get('data_source')
             },
+            'signal_data': signal_data,
             'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
-        logger.error(f"Error predicting current signal: {str(e)}")
+        logger.error(f"Error in advanced ML prediction: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml-feature-importance', methods=['GET'])
+@login_required
+def get_ml_feature_importance():
+    """Get ML model feature importance analysis"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from advanced_ml_engine import get_advanced_ml_engine
+        
+        ml_engine = get_advanced_ml_engine(db)
+        
+        if not ml_engine.is_trained:
+            return jsonify({'error': 'Models not trained yet'}), 400
+        
+        # Get feature importance from all models
+        feature_analysis = {}
+        
+        for model_name, model in ml_engine.models.items():
+            if hasattr(model, 'feature_importances_'):
+                importance = model.feature_importances_
+                feature_names = ml_engine.selected_features
+                
+                # Get top 15 features
+                feature_importance = list(zip(feature_names, importance))
+                feature_importance.sort(key=lambda x: x[1], reverse=True)
+                
+                feature_analysis[model_name] = {
+                    'top_features': feature_importance[:15],
+                    'total_features': len(feature_names)
+                }
+        
+        return jsonify({
+            'feature_importance': feature_analysis,
+            'best_model': getattr(ml_engine, 'best_model_name', 'Unknown'),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting feature importance: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml-model-comparison', methods=['GET'])
+@login_required
+def get_ml_model_comparison():
+    """Compare performance of different ML models"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from advanced_ml_engine import get_advanced_ml_engine
+        
+        ml_engine = get_advanced_ml_engine(db)
+        
+        if not ml_engine.is_trained:
+            return jsonify({'error': 'Models not trained yet'}), 400
+        
+        # Format model performance for comparison
+        comparison = {}
+        for model_name, metrics in ml_engine.model_performance.items():
+            comparison[model_name] = {
+                'test_r2': round(metrics.get('test_r2', 0), 4),
+                'test_mae': round(metrics.get('test_mae', 0), 4),
+                'cv_mean': round(metrics.get('cv_mean', 0), 4),
+                'cv_std': round(metrics.get('cv_std', 0), 4),
+                'overfitting': round(metrics.get('train_r2', 0) - metrics.get('test_r2', 0), 4)
+            }
+        
+        # Find best model by different metrics
+        best_models = {
+            'highest_r2': max(comparison.keys(), key=lambda k: comparison[k]['test_r2']),
+            'lowest_mae': min(comparison.keys(), key=lambda k: comparison[k]['test_mae']),
+            'most_stable': min(comparison.keys(), key=lambda k: comparison[k]['cv_std']),
+            'least_overfitting': min(comparison.keys(), key=lambda k: abs(comparison[k]['overfitting']))
+        }
+        
+        return jsonify({
+            'model_comparison': comparison,
+            'best_models': best_models,
+            'current_best': getattr(ml_engine, 'best_model_name', 'Unknown'),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error comparing ML models: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/ai-chart-analysis', methods=['GET', 'POST'])
@@ -3276,18 +3401,18 @@ def ai_chart_analysis_extension():
             price = float(request.args.get('price', 0))
             session = request.args.get('session', 'LONDON')
         
-        # 🚀 Enhanced with real-time market context
+        # 🚀 Enhanced with TradingView real-time market context
         try:
-            from market_data_enricher import market_enricher
-            market_context = market_enricher.get_market_context()
+            from tradingview_market_enricher import tradingview_enricher
+            market_context = tradingview_enricher.get_market_context()
             
-            # Use real market data for enhanced analysis
-            vix = market_context.vix
-            volume_ratio = market_context.spy_volume / 80000000  # vs average
-            session = market_context.market_session
+            # Use TradingView real market data for enhanced analysis
+            vix = market_context.get('vix', 20.0)
+            volume_ratio = market_context.get('spy_volume', 80000000) / 80000000  # vs average
+            session = market_context.get('market_session', 'Unknown')
             
         except Exception as e:
-            logger.error(f"Market context error: {str(e)}")
+            logger.error(f"TradingView context error: {str(e)}")
             # Fallback to basic analysis
             vix = 20.0
             volume_ratio = 1.0

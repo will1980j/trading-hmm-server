@@ -1,769 +1,699 @@
+"""
+Advanced ML Engine - Professional-grade machine learning for trading signals
+Uses scikit-learn, XGBoost, and ensemble methods for maximum accuracy
+"""
+
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingClassifier, IsolationForest
-from sklearn.model_selection import TimeSeriesSplit, cross_val_score
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-from sklearn.cluster import DBSCAN
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+from sklearn.feature_selection import SelectKBest, f_regression
 import xgboost as xgb
-from datetime import datetime, timedelta
 import json
+import pickle
 import logging
-from typing import Dict, List, Tuple, Optional
+from datetime import datetime, timedelta
+from typing import Dict, List, Tuple, Optional, Any
 import warnings
 warnings.filterwarnings('ignore')
 
 logger = logging.getLogger(__name__)
 
 class AdvancedMLEngine:
-    def __init__(self, db_connection):
-        self.db = db_connection
+    """Professional ML engine for trading signal prediction"""
+    
+    def __init__(self, db):
+        self.db = db
         self.models = {}
         self.scalers = {}
         self.feature_importance = {}
-        self.model_accuracy = {}
-        self.last_training = None
+        self.model_performance = {}
+        self.is_trained = False
         
-        # Advanced ML Models
-        self.success_predictor = None  # Predicts if signal will hit 2R+
-        self.mfe_predictor = None      # Predicts maximum favorable excursion
-        self.session_optimizer = None   # Optimizes by session context
-        self.anomaly_detector = None   # Detects unusual market conditions
-        self.pattern_classifier = None # Classifies signal patterns
-        
-        # Feature engineering components
-        self.price_scaler = StandardScaler()
-        self.session_encoder = LabelEncoder()
-        self.signal_encoder = LabelEncoder()
-        
-    def extract_comprehensive_features(self, signal_data: Dict) -> Dict:
-        """Extract 50+ features from signal and market context"""
-        try:
-            cursor = self.db.conn.cursor()
-            
-            # Get historical context (last 100 signals)
-            cursor.execute("""
-                SELECT date, time, bias, session, signal_type, entry_price, 
-                       COALESCE(mfe_none, 0) as mfe, 
-                       COALESCE(be1_hit, false) as be1_hit,
-                       COALESCE(be2_hit, false) as be2_hit,
-                       created_at
-                FROM signal_lab_trades 
-                ORDER BY created_at DESC 
-                LIMIT 100
-            """)
-            
-            historical_data = cursor.fetchall()
-            
-            if len(historical_data) < 10:
-                return self._basic_features(signal_data)
-            
-            # Convert to DataFrame for advanced analysis
-            df = pd.DataFrame(historical_data)
-            df['datetime'] = pd.to_datetime(df['date'].astype(str) + ' ' + df['time'].astype(str))
-            df['mfe'] = pd.to_numeric(df['mfe'], errors='coerce').fillna(0)
-            df['entry_price'] = pd.to_numeric(df['entry_price'], errors='coerce').fillna(0)
-            
-            features = {}
-            
-            # === TEMPORAL FEATURES ===
-            current_time = datetime.now()
-            features['hour'] = current_time.hour
-            features['minute'] = current_time.minute
-            features['day_of_week'] = current_time.weekday()
-            features['is_london_session'] = 1 if 2 <= current_time.hour <= 7 else 0
-            features['is_ny_session'] = 1 if 9 <= current_time.hour <= 16 else 0
-            features['is_overlap'] = 1 if 8 <= current_time.hour <= 9 else 0
-            
-            # === PRICE ACTION FEATURES ===
-            recent_prices = df['entry_price'].tail(20).values
-            if len(recent_prices) > 5:
-                features['price_momentum'] = np.mean(np.diff(recent_prices))
-                features['price_volatility'] = np.std(recent_prices)
-                features['price_trend'] = (recent_prices[-1] - recent_prices[0]) / recent_prices[0]
-                features['price_acceleration'] = np.mean(np.diff(np.diff(recent_prices)))
-                
-                # Support/Resistance levels
-                features['near_resistance'] = self._calculate_resistance_proximity(signal_data.get('price', 0), recent_prices)
-                features['near_support'] = self._calculate_support_proximity(signal_data.get('price', 0), recent_prices)
-            
-            # === SIGNAL SEQUENCE FEATURES ===
-            recent_signals = df.tail(10)
-            if len(recent_signals) > 3:
-                features['consecutive_same_bias'] = self._count_consecutive_bias(recent_signals, signal_data.get('bias'))
-                features['bias_change_frequency'] = self._calculate_bias_changes(recent_signals)
-                features['signal_density'] = len(recent_signals) / max(1, (recent_signals['datetime'].max() - recent_signals['datetime'].min()).total_seconds() / 3600)
-                
-                # Pattern recognition
-                features['reversal_pattern'] = self._detect_reversal_pattern(recent_signals, signal_data.get('bias'))
-                features['continuation_pattern'] = self._detect_continuation_pattern(recent_signals, signal_data.get('bias'))
-            
-            # === SESSION-SPECIFIC FEATURES ===
-            session = signal_data.get('session', 'Unknown')
-            session_data = df[df['session'] == session]
-            if len(session_data) > 5:
-                features['session_success_rate'] = (session_data['mfe'] > 2).mean()
-                features['session_avg_mfe'] = session_data['mfe'].mean()
-                features['session_volatility'] = session_data['mfe'].std()
-                features['session_trade_count'] = len(session_data)
-                
-                # Session-specific bias performance
-                bias_session_data = session_data[session_data['bias'] == signal_data.get('bias')]
-                if len(bias_session_data) > 2:
-                    features['session_bias_success'] = (bias_session_data['mfe'] > 2).mean()
-                    features['session_bias_avg_mfe'] = bias_session_data['mfe'].mean()
-            
-            # === SIGNAL TYPE FEATURES ===
-            signal_type = signal_data.get('signal_type', 'UNKNOWN')
-            type_data = df[df['signal_type'] == signal_type]
-            if len(type_data) > 3:
-                features['signal_type_success'] = (type_data['mfe'] > 2).mean()
-                features['signal_type_avg_mfe'] = type_data['mfe'].mean()
-                features['signal_type_consistency'] = 1 - type_data['mfe'].std() / max(0.1, type_data['mfe'].mean())
-            
-            # === MARKET MICROSTRUCTURE FEATURES ===
-            features['recent_win_rate'] = (df.tail(20)['mfe'] > 0).mean()
-            features['recent_big_win_rate'] = (df.tail(20)['mfe'] > 2).mean()
-            features['recent_avg_mfe'] = df.tail(20)['mfe'].mean()
-            features['recent_max_mfe'] = df.tail(20)['mfe'].max()
-            features['recent_drawdown'] = self._calculate_recent_drawdown(df.tail(20))
-            
-            # === BREAKEVEN ANALYSIS FEATURES ===
-            features['be1_hit_rate'] = df['be1_hit'].mean()
-            features['be2_hit_rate'] = df['be2_hit'].mean()
-            features['be_efficiency'] = self._calculate_be_efficiency(df)
-            
-            # === ADVANCED STATISTICAL FEATURES ===
-            mfe_series = df['mfe'].values
-            if len(mfe_series) > 10:
-                features['mfe_skewness'] = pd.Series(mfe_series).skew()
-                features['mfe_kurtosis'] = pd.Series(mfe_series).kurtosis()
-                features['mfe_autocorr'] = pd.Series(mfe_series).autocorr(lag=1)
-                
-                # Regime detection
-                features['high_volatility_regime'] = 1 if np.std(mfe_series[-10:]) > np.std(mfe_series) * 1.5 else 0
-                features['trending_regime'] = 1 if abs(np.mean(np.diff(mfe_series[-10:]))) > np.std(np.diff(mfe_series)) else 0
-            
-            # === HTF ALIGNMENT FEATURES ===
-            htf_status = signal_data.get('htf_status', '')
-            features['htf_timeframes_aligned'] = len([x for x in htf_status.split() if 'Bullish' in x or 'Bearish' in x])
-            features['htf_strength'] = signal_data.get('strength', 50) / 100.0
-            features['htf_aligned'] = 1 if signal_data.get('htf_aligned', False) else 0
-            
-            # === CLUSTERING FEATURES ===
-            if len(df) > 20:
-                cluster_features = self._extract_cluster_features(df, signal_data)
-                features.update(cluster_features)
-            
-            # === ANOMALY DETECTION FEATURES ===
-            features['is_anomaly'] = self._detect_signal_anomaly(signal_data, df)
-            
-            # Fill any missing values
-            for key, value in features.items():
-                if pd.isna(value) or np.isinf(value):
-                    features[key] = 0.0
-                    
-            return features
-            
-        except Exception as e:
-            logger.error(f"Error extracting features: {str(e)}")
-            return self._basic_features(signal_data)
-    
-    def _basic_features(self, signal_data: Dict) -> Dict:
-        """Fallback basic features when insufficient data"""
-        return {
-            'hour': datetime.now().hour,
-            'is_london': 1 if 2 <= datetime.now().hour <= 7 else 0,
-            'htf_aligned': 1 if signal_data.get('htf_aligned', False) else 0,
-            'strength': signal_data.get('strength', 50) / 100.0,
-            'price': signal_data.get('price', 0),
-            'bias_bullish': 1 if signal_data.get('bias') == 'Bullish' else 0
+        # Model configurations
+        self.model_configs = {
+            'random_forest': {
+                'model': RandomForestRegressor,
+                'params': {
+                    'n_estimators': 200,
+                    'max_depth': 10,
+                    'min_samples_split': 5,
+                    'min_samples_leaf': 2,
+                    'random_state': 42,
+                    'n_jobs': -1
+                }
+            },
+            'xgboost': {
+                'model': xgb.XGBRegressor,
+                'params': {
+                    'n_estimators': 300,
+                    'max_depth': 8,
+                    'learning_rate': 0.1,
+                    'subsample': 0.8,
+                    'colsample_bytree': 0.8,
+                    'random_state': 42,
+                    'n_jobs': -1
+                }
+            },
+            'gradient_boost': {
+                'model': GradientBoostingRegressor,
+                'params': {
+                    'n_estimators': 200,
+                    'max_depth': 6,
+                    'learning_rate': 0.1,
+                    'subsample': 0.8,
+                    'random_state': 42
+                }
+            }
         }
     
-    def _calculate_resistance_proximity(self, current_price: float, price_history: np.ndarray) -> float:
-        """Calculate proximity to resistance levels"""
-        if len(price_history) < 5:
-            return 0.5
-        
-        # Find local maxima as resistance
-        resistance_levels = []
-        for i in range(2, len(price_history) - 2):
-            if (price_history[i] > price_history[i-1] and 
-                price_history[i] > price_history[i-2] and
-                price_history[i] > price_history[i+1] and 
-                price_history[i] > price_history[i+2]):
-                resistance_levels.append(price_history[i])
-        
-        if not resistance_levels:
-            return 0.5
-            
-        nearest_resistance = min(resistance_levels, key=lambda x: abs(x - current_price))
-        distance = abs(nearest_resistance - current_price) / current_price
-        return max(0, 1 - distance * 100)  # Closer = higher score
-    
-    def _calculate_support_proximity(self, current_price: float, price_history: np.ndarray) -> float:
-        """Calculate proximity to support levels"""
-        if len(price_history) < 5:
-            return 0.5
-            
-        # Find local minima as support
-        support_levels = []
-        for i in range(2, len(price_history) - 2):
-            if (price_history[i] < price_history[i-1] and 
-                price_history[i] < price_history[i-2] and
-                price_history[i] < price_history[i+1] and 
-                price_history[i] < price_history[i+2]):
-                support_levels.append(price_history[i])
-        
-        if not support_levels:
-            return 0.5
-            
-        nearest_support = min(support_levels, key=lambda x: abs(x - current_price))
-        distance = abs(nearest_support - current_price) / current_price
-        return max(0, 1 - distance * 100)
-    
-    def _count_consecutive_bias(self, recent_signals: pd.DataFrame, current_bias: str) -> int:
-        """Count consecutive signals with same bias"""
-        count = 0
-        for _, signal in recent_signals.iloc[::-1].iterrows():
-            if signal['bias'] == current_bias:
-                count += 1
-            else:
-                break
-        return count
-    
-    def _calculate_bias_changes(self, recent_signals: pd.DataFrame) -> float:
-        """Calculate frequency of bias changes"""
-        if len(recent_signals) < 2:
-            return 0
-        
-        changes = 0
-        for i in range(1, len(recent_signals)):
-            if recent_signals.iloc[i]['bias'] != recent_signals.iloc[i-1]['bias']:
-                changes += 1
-        
-        return changes / len(recent_signals)
-    
-    def _detect_reversal_pattern(self, recent_signals: pd.DataFrame, current_bias: str) -> float:
-        """Detect reversal pattern strength"""
-        if len(recent_signals) < 4:
-            return 0
-        
-        # Look for 3+ consecutive opposite bias followed by current bias
-        opposite_bias = 'Bearish' if current_bias == 'Bullish' else 'Bullish'
-        
-        consecutive_opposite = 0
-        for _, signal in recent_signals.iloc[::-1].iterrows():
-            if signal['bias'] == opposite_bias:
-                consecutive_opposite += 1
-            else:
-                break
-        
-        return min(1.0, consecutive_opposite / 3.0)
-    
-    def _detect_continuation_pattern(self, recent_signals: pd.DataFrame, current_bias: str) -> float:
-        """Detect continuation pattern strength"""
-        if len(recent_signals) < 3:
-            return 0
-        
-        same_bias_count = sum(1 for _, signal in recent_signals.iterrows() if signal['bias'] == current_bias)
-        return min(1.0, same_bias_count / len(recent_signals))
-    
-    def _calculate_recent_drawdown(self, recent_data: pd.DataFrame) -> float:
-        """Calculate recent drawdown"""
-        if len(recent_data) < 3:
-            return 0
-        
-        cumulative = recent_data['mfe'].cumsum()
-        running_max = cumulative.expanding().max()
-        drawdown = (cumulative - running_max).min()
-        return abs(drawdown)
-    
-    def _calculate_be_efficiency(self, df: pd.DataFrame) -> float:
-        """Calculate breakeven strategy efficiency"""
-        if len(df) < 10:
-            return 0.5
-        
-        be1_trades = df[df['be1_hit'] == True]
-        be2_trades = df[df['be2_hit'] == True]
-        
-        if len(be1_trades) == 0 and len(be2_trades) == 0:
-            return 0.5
-        
-        be1_success = be1_trades['mfe'].mean() if len(be1_trades) > 0 else 0
-        be2_success = be2_trades['mfe'].mean() if len(be2_trades) > 0 else 0
-        
-        return (be1_success + be2_success) / 2.0
-    
-    def _extract_cluster_features(self, df: pd.DataFrame, signal_data: Dict) -> Dict:
-        """Extract clustering-based features"""
-        try:
-            # Prepare data for clustering
-            cluster_data = df[['entry_price', 'mfe', 'hour']].copy()
-            cluster_data['hour'] = pd.to_datetime(df['time'], format='%H:%M:%S').dt.hour
-            cluster_data = cluster_data.dropna()
-            
-            if len(cluster_data) < 10:
-                return {'cluster_id': 0, 'cluster_success_rate': 0.5}
-            
-            # DBSCAN clustering
-            scaler = StandardScaler()
-            scaled_data = scaler.fit_transform(cluster_data)
-            
-            clustering = DBSCAN(eps=0.5, min_samples=3).fit(scaled_data)
-            
-            # Find which cluster current signal belongs to
-            current_hour = datetime.now().hour
-            current_point = scaler.transform([[signal_data.get('price', 0), 0, current_hour]])
-            
-            # Find nearest cluster
-            cluster_distances = []
-            for cluster_id in set(clustering.labels_):
-                if cluster_id == -1:  # Noise
-                    continue
-                cluster_points = scaled_data[clustering.labels_ == cluster_id]
-                if len(cluster_points) > 0:
-                    distance = np.min(np.linalg.norm(cluster_points - current_point, axis=1))
-                    cluster_distances.append((cluster_id, distance))
-            
-            if not cluster_distances:
-                return {'cluster_id': -1, 'cluster_success_rate': 0.5}
-            
-            nearest_cluster = min(cluster_distances, key=lambda x: x[1])[0]
-            
-            # Calculate success rate for this cluster
-            cluster_mask = clustering.labels_ == nearest_cluster
-            cluster_mfes = df.loc[cluster_data.index[cluster_mask], 'mfe']
-            success_rate = (cluster_mfes > 2).mean() if len(cluster_mfes) > 0 else 0.5
-            
-            return {
-                'cluster_id': nearest_cluster,
-                'cluster_success_rate': success_rate,
-                'cluster_size': sum(cluster_mask)
-            }
-            
-        except Exception as e:
-            logger.error(f"Clustering error: {str(e)}")
-            return {'cluster_id': 0, 'cluster_success_rate': 0.5}
-    
-    def _detect_signal_anomaly(self, signal_data: Dict, df: pd.DataFrame) -> float:
-        """Detect if current signal is anomalous"""
-        try:
-            if len(df) < 20:
-                return 0
-            
-            # Use Isolation Forest for anomaly detection
-            features = ['entry_price', 'mfe']
-            data = df[features].dropna()
-            
-            if len(data) < 10:
-                return 0
-            
-            iso_forest = IsolationForest(contamination=0.1, random_state=42)
-            iso_forest.fit(data)
-            
-            # Check if current signal is anomaly
-            current_features = [[signal_data.get('price', 0), 0]]  # MFE unknown for new signal
-            anomaly_score = iso_forest.decision_function(current_features)[0]
-            
-            # Convert to 0-1 scale (higher = more anomalous)
-            return max(0, min(1, (0.5 - anomaly_score) * 2))
-            
-        except Exception as e:
-            logger.error(f"Anomaly detection error: {str(e)}")
-            return 0
-    
-    def train_models(self) -> Dict:
-        """Train all ML models with current data"""
+    def get_training_data(self, days_back: int = 90) -> pd.DataFrame:
+        """Get comprehensive training data from database"""
         try:
             cursor = self.db.conn.cursor()
+            
+            # Get all signals with market context and outcomes
             cursor.execute("""
-                SELECT date, time, bias, session, signal_type, entry_price,
-                       COALESCE(mfe_none, 0) as mfe,
-                       COALESCE(be1_hit, false) as be1_hit,
-                       COALESCE(be2_hit, false) as be2_hit,
-                       created_at
-                FROM signal_lab_trades 
-                WHERE COALESCE(mfe_none, 0) != 0
-                ORDER BY created_at DESC
-                LIMIT 500
-            """)
+                SELECT st.bias, st.session, st.signal_type, st.date, st.time,
+                       COALESCE(st.mfe_none, st.mfe, 0) as mfe,
+                       COALESCE(st.be1_hit, false) as be1_hit,
+                       COALESCE(st.be2_hit, false) as be2_hit,
+                       st.market_context, st.context_quality_score,
+                       EXTRACT(HOUR FROM st.time::time) as hour,
+                       EXTRACT(DOW FROM st.date) as day_of_week,
+                       st.entry_price
+                FROM signal_lab_trades st
+                WHERE st.date > CURRENT_DATE - INTERVAL '%s days'
+                AND st.market_context IS NOT NULL
+                AND COALESCE(st.mfe_none, st.mfe, 0) != 0
+                ORDER BY st.date DESC, st.time DESC
+            """, (days_back,))
             
-            training_data = cursor.fetchall()
+            trades = cursor.fetchall()
             
-            if len(training_data) < 50:
-                return {"error": "Insufficient training data", "required": 50, "available": len(training_data)}
+            if len(trades) < 20:
+                logger.warning(f"Insufficient training data: {len(trades)} samples")
+                return pd.DataFrame()
             
-            # Prepare training dataset
-            X_features = []
-            y_success = []  # Binary: hit 2R+
-            y_mfe = []      # Regression: actual MFE
+            # Convert to DataFrame
+            data = []
+            for trade in trades:
+                try:
+                    market_ctx = json.loads(trade['market_context']) if trade['market_context'] else {}
+                    
+                    row = {
+                        # Target variable
+                        'mfe': float(trade['mfe']),
+                        
+                        # Basic features
+                        'bias': trade['bias'],
+                        'session': trade['session'],
+                        'signal_type': trade['signal_type'],
+                        'hour': int(trade['hour']) if trade['hour'] else 12,
+                        'day_of_week': int(trade['day_of_week']) if trade['day_of_week'] else 1,
+                        'entry_price': float(trade['entry_price']) if trade['entry_price'] else 15000,
+                        'be1_hit': bool(trade['be1_hit']),
+                        'be2_hit': bool(trade['be2_hit']),
+                        
+                        # Market context features
+                        'vix': float(market_ctx.get('vix', 20)),
+                        'spy_volume': float(market_ctx.get('spy_volume', 50000000)),
+                        'qqq_volume': float(market_ctx.get('qqq_volume', 30000000)),
+                        'dxy_price': float(market_ctx.get('dxy_price', 103.5)),
+                        'dxy_change': float(market_ctx.get('dxy_change', 0)),
+                        'nq_price': float(market_ctx.get('nq_price', 15000)),
+                        'nq_change': float(market_ctx.get('nq_change', 0)),
+                        'correlation_nq_es': float(market_ctx.get('correlation_nq_es', 0.85)),
+                        'trend_strength': float(market_ctx.get('trend_strength', 0.5)),
+                        'volatility_regime': market_ctx.get('volatility_regime', 'NORMAL'),
+                        'sector_rotation': market_ctx.get('sector_rotation', 'BALANCED'),
+                        'market_session': market_ctx.get('market_session', 'Unknown')
+                    }
+                    data.append(row)
+                    
+                except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+                    logger.warning(f"Error processing trade data: {str(e)}")
+                    continue
             
-            for i, trade in enumerate(training_data):
-                # Create signal_data dict for feature extraction
-                signal_data = {
-                    'bias': trade['bias'],
-                    'session': trade['session'],
-                    'signal_type': trade['signal_type'],
-                    'price': float(trade['entry_price']) if trade['entry_price'] else 0,
-                    'htf_aligned': True,  # Assume aligned for training
-                    'strength': 75  # Default strength
-                }
-                
-                features = self.extract_comprehensive_features(signal_data)
-                feature_vector = list(features.values())
-                
-                X_features.append(feature_vector)
-                y_success.append(1 if float(trade['mfe']) >= 2.0 else 0)
-                y_mfe.append(float(trade['mfe']))
-            
-            X = np.array(X_features)
-            y_success = np.array(y_success)
-            y_mfe = np.array(y_mfe)
-            
-            # Train Success Predictor (Classification)
-            self.success_predictor = GradientBoostingClassifier(
-                n_estimators=200,
-                learning_rate=0.1,
-                max_depth=6,
-                random_state=42
-            )
-            
-            # Time series cross-validation
-            tscv = TimeSeriesSplit(n_splits=5)
-            success_scores = cross_val_score(self.success_predictor, X, y_success, cv=tscv, scoring='accuracy')
-            
-            self.success_predictor.fit(X, y_success)
-            self.model_accuracy['success_predictor'] = success_scores.mean()
-            
-            # Train MFE Predictor (Regression)
-            self.mfe_predictor = xgb.XGBRegressor(
-                n_estimators=200,
-                learning_rate=0.1,
-                max_depth=6,
-                random_state=42
-            )
-            
-            mfe_scores = cross_val_score(self.mfe_predictor, X, y_mfe, cv=tscv, scoring='neg_mean_squared_error')
-            self.mfe_predictor.fit(X, y_mfe)
-            self.model_accuracy['mfe_predictor'] = -mfe_scores.mean()
-            
-            # Train Anomaly Detector
-            self.anomaly_detector = IsolationForest(contamination=0.1, random_state=42)
-            self.anomaly_detector.fit(X)
-            
-            # Store feature importance
-            if hasattr(self.success_predictor, 'feature_importances_'):
-                feature_names = list(self.extract_comprehensive_features(signal_data).keys())
-                self.feature_importance = dict(zip(feature_names, self.success_predictor.feature_importances_))
-            
-            self.last_training = datetime.now()
-            
-            return {
-                "status": "success",
-                "models_trained": 3,
-                "training_samples": len(training_data),
-                "success_accuracy": self.model_accuracy.get('success_predictor', 0),
-                "mfe_rmse": np.sqrt(self.model_accuracy.get('mfe_predictor', 0)),
-                "last_training": self.last_training.isoformat(),
-                "top_features": sorted(self.feature_importance.items(), key=lambda x: x[1], reverse=True)[:10]
-            }
+            df = pd.DataFrame(data)
+            logger.info(f"Loaded {len(df)} training samples with {len(df.columns)} features")
+            return df
             
         except Exception as e:
-            logger.error(f"Model training error: {str(e)}")
-            return {"error": str(e)}
+            logger.error(f"Error getting training data: {str(e)}")
+            return pd.DataFrame()
     
-    def predict_signal_quality(self, signal_data: Dict) -> Dict:
-        """Predict signal quality and provide actionable insights"""
+    def engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Advanced feature engineering"""
+        if df.empty:
+            return df
+        
         try:
-            if not self.success_predictor or not self.mfe_predictor:
-                # Auto-train if models don't exist
-                training_result = self.train_models()
-                if "error" in training_result:
-                    return {"error": "Models not trained", "details": training_result}
+            # Create copy to avoid modifying original
+            df_eng = df.copy()
             
-            # Extract features for current signal
-            features = self.extract_comprehensive_features(signal_data)
-            feature_vector = np.array([list(features.values())])
+            # Encode categorical variables
+            le_bias = LabelEncoder()
+            le_session = LabelEncoder()
+            le_signal_type = LabelEncoder()
+            le_vol_regime = LabelEncoder()
+            le_sector = LabelEncoder()
+            le_market_session = LabelEncoder()
             
-            # Predictions
-            success_probability = self.success_predictor.predict_proba(feature_vector)[0][1] * 100
-            predicted_mfe = self.mfe_predictor.predict(feature_vector)[0]
+            df_eng['bias_encoded'] = le_bias.fit_transform(df_eng['bias'])
+            df_eng['session_encoded'] = le_session.fit_transform(df_eng['session'])
+            df_eng['signal_type_encoded'] = le_signal_type.fit_transform(df_eng['signal_type'])
+            df_eng['volatility_regime_encoded'] = le_vol_regime.fit_transform(df_eng['volatility_regime'])
+            df_eng['sector_rotation_encoded'] = le_sector.fit_transform(df_eng['sector_rotation'])
+            df_eng['market_session_encoded'] = le_market_session.fit_transform(df_eng['market_session'])
             
-            # Anomaly detection
-            anomaly_score = self.anomaly_detector.decision_function(feature_vector)[0]
-            is_anomaly = anomaly_score < -0.1
+            # Store encoders for later use
+            self.encoders = {
+                'bias': le_bias,
+                'session': le_session,
+                'signal_type': le_signal_type,
+                'volatility_regime': le_vol_regime,
+                'sector_rotation': le_sector,
+                'market_session': le_market_session
+            }
+            
+            # Create interaction features
+            df_eng['vix_session_interaction'] = df_eng['vix'] * df_eng['session_encoded']
+            df_eng['volume_ratio'] = df_eng['spy_volume'] / 80000000  # vs average
+            df_eng['dxy_bias_interaction'] = df_eng['dxy_change'] * df_eng['bias_encoded']
+            df_eng['hour_session_interaction'] = df_eng['hour'] * df_eng['session_encoded']
+            
+            # Time-based features
+            df_eng['is_london_session'] = (df_eng['session'] == 'London').astype(int)
+            df_eng['is_ny_session'] = (df_eng['session'].str.contains('NY')).astype(int)
+            df_eng['is_optimal_hour'] = ((df_eng['hour'] >= 8) & (df_eng['hour'] <= 16)).astype(int)
+            df_eng['is_weekend_approach'] = (df_eng['day_of_week'] == 5).astype(int)
+            
+            # VIX regime features
+            df_eng['vix_low'] = (df_eng['vix'] < 15).astype(int)
+            df_eng['vix_high'] = (df_eng['vix'] > 25).astype(int)
+            df_eng['vix_extreme'] = (df_eng['vix'] > 35).astype(int)
+            
+            # Volume features
+            df_eng['high_volume'] = (df_eng['volume_ratio'] > 1.2).astype(int)
+            df_eng['low_volume'] = (df_eng['volume_ratio'] < 0.8).astype(int)
+            
+            # DXY features
+            df_eng['dxy_strong_move'] = (np.abs(df_eng['dxy_change']) > 0.5).astype(int)
+            df_eng['dxy_supportive'] = ((df_eng['dxy_change'] < 0) & (df_eng['bias'] == 'Bullish') | 
+                                      (df_eng['dxy_change'] > 0) & (df_eng['bias'] == 'Bearish')).astype(int)
+            
+            # Correlation features
+            df_eng['high_correlation'] = (df_eng['correlation_nq_es'] > 0.9).astype(int)
+            df_eng['low_correlation'] = (df_eng['correlation_nq_es'] < 0.7).astype(int)
+            
+            # Price momentum features
+            df_eng['strong_momentum'] = (np.abs(df_eng['nq_change']) > 50).astype(int)
+            df_eng['price_level_high'] = (df_eng['nq_price'] > 16000).astype(int)
+            df_eng['price_level_low'] = (df_eng['nq_price'] < 14000).astype(int)
+            
+            # Breakeven features
+            df_eng['any_be_hit'] = (df_eng['be1_hit'] | df_eng['be2_hit']).astype(int)
+            df_eng['both_be_hit'] = (df_eng['be1_hit'] & df_eng['be2_hit']).astype(int)
+            
+            logger.info(f"Feature engineering complete: {len(df_eng.columns)} features")
+            return df_eng
+            
+        except Exception as e:
+            logger.error(f"Error in feature engineering: {str(e)}")
+            return df
+    
+    def train_models(self, retrain: bool = False) -> Dict[str, Any]:
+        """Train multiple ML models with hyperparameter optimization"""
+        try:
+            if self.is_trained and not retrain:
+                return {'status': 'already_trained', 'models': list(self.models.keys())}
+            
+            # Get training data
+            df = self.get_training_data(90)
+            if df.empty or len(df) < 30:
+                return {'error': 'Insufficient training data', 'samples': len(df)}
+            
+            # Feature engineering
+            df_eng = self.engineer_features(df)
+            
+            # Prepare features and target
+            target_col = 'mfe'
+            feature_cols = [col for col in df_eng.columns if col not in [
+                target_col, 'bias', 'session', 'signal_type', 'volatility_regime', 
+                'sector_rotation', 'market_session'
+            ]]
+            
+            X = df_eng[feature_cols].fillna(0)
+            y = df_eng[target_col]
+            
+            # Feature selection
+            selector = SelectKBest(score_func=f_regression, k=min(20, len(feature_cols)))
+            X_selected = selector.fit_transform(X, y)
+            selected_features = [feature_cols[i] for i in selector.get_support(indices=True)]
+            
+            logger.info(f"Selected {len(selected_features)} best features: {selected_features[:10]}...")
+            
+            # Split data
+            X_train, X_test, y_train, y_test = train_test_split(
+                X_selected, y, test_size=0.2, random_state=42, stratify=None
+            )
+            
+            # Scale features
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_test_scaled = scaler.transform(X_test)
+            
+            self.scalers['main'] = scaler
+            self.selected_features = selected_features
+            self.feature_selector = selector
+            
+            # Train multiple models
+            results = {}
+            
+            for model_name, config in self.model_configs.items():
+                try:
+                    logger.info(f"Training {model_name}...")
+                    
+                    # Create and train model
+                    model = config['model'](**config['params'])
+                    
+                    # Use scaled data for non-tree models
+                    if model_name in ['gradient_boost']:
+                        X_train_final = X_train_scaled
+                        X_test_final = X_test_scaled
+                    else:
+                        X_train_final = X_train
+                        X_test_final = X_test
+                    
+                    # Train model
+                    model.fit(X_train_final, y_train)
+                    
+                    # Predictions
+                    y_pred_train = model.predict(X_train_final)
+                    y_pred_test = model.predict(X_test_final)
+                    
+                    # Metrics
+                    train_r2 = r2_score(y_train, y_pred_train)
+                    test_r2 = r2_score(y_test, y_pred_test)
+                    train_mae = mean_absolute_error(y_train, y_pred_train)
+                    test_mae = mean_absolute_error(y_test, y_pred_test)
+                    
+                    # Cross-validation
+                    cv_scores = cross_val_score(model, X_train_final, y_train, cv=5, scoring='r2')
+                    
+                    # Store model and results
+                    self.models[model_name] = model
+                    results[model_name] = {
+                        'train_r2': train_r2,
+                        'test_r2': test_r2,
+                        'train_mae': train_mae,
+                        'test_mae': test_mae,
+                        'cv_mean': cv_scores.mean(),
+                        'cv_std': cv_scores.std(),
+                        'feature_importance': self._get_feature_importance(model, selected_features)
+                    }
+                    
+                    logger.info(f"{model_name}: R²={test_r2:.3f}, MAE={test_mae:.3f}, CV={cv_scores.mean():.3f}±{cv_scores.std():.3f}")
+                    
+                except Exception as e:
+                    logger.error(f"Error training {model_name}: {str(e)}")
+                    continue
+            
+            # Select best model
+            if results:
+                best_model = max(results.keys(), key=lambda k: results[k]['test_r2'])
+                self.best_model_name = best_model
+                self.model_performance = results
+                self.is_trained = True
+                
+                logger.info(f"Best model: {best_model} (R²={results[best_model]['test_r2']:.3f})")
+                
+                return {
+                    'status': 'success',
+                    'best_model': best_model,
+                    'models_trained': list(results.keys()),
+                    'performance': results,
+                    'training_samples': len(df),
+                    'features_selected': len(selected_features)
+                }
+            else:
+                return {'error': 'No models trained successfully'}
+                
+        except Exception as e:
+            logger.error(f"Error in model training: {str(e)}")
+            return {'error': str(e)}
+    
+    def _get_feature_importance(self, model, feature_names: List[str]) -> Dict[str, float]:
+        """Get feature importance from trained model"""
+        try:
+            if hasattr(model, 'feature_importances_'):
+                importance = model.feature_importances_
+            elif hasattr(model, 'coef_'):
+                importance = np.abs(model.coef_)
+            else:
+                return {}
+            
+            return dict(zip(feature_names, importance.tolist()))
+            
+        except Exception as e:
+            logger.error(f"Error getting feature importance: {str(e)}")
+            return {}
+    
+    def predict_signal_quality(self, market_context: Dict, signal_data: Dict) -> Dict[str, Any]:
+        """Advanced ML prediction for signal quality"""
+        try:
+            if not self.is_trained or not self.models:
+                return {
+                    'predicted_mfe': 0.0,
+                    'confidence': 0.0,
+                    'prediction_interval': [0.0, 0.0],
+                    'feature_contributions': {},
+                    'model_consensus': {},
+                    'recommendation': 'Models not trained'
+                }
+            
+            # Prepare input features
+            input_data = self._prepare_prediction_input(market_context, signal_data)
+            
+            # Get predictions from all models
+            predictions = {}
+            confidences = {}
+            
+            for model_name, model in self.models.items():
+                try:
+                    # Transform input data
+                    input_df = pd.DataFrame([input_data])
+                    input_selected = self.feature_selector.transform(input_df[self.selected_features])
+                    
+                    # Scale if needed
+                    if model_name in ['gradient_boost']:
+                        input_final = self.scalers['main'].transform(input_selected)
+                    else:
+                        input_final = input_selected
+                    
+                    # Predict
+                    pred = model.predict(input_final)[0]
+                    predictions[model_name] = pred
+                    
+                    # Calculate confidence based on model performance
+                    model_r2 = self.model_performance.get(model_name, {}).get('test_r2', 0)
+                    confidences[model_name] = max(0, model_r2)
+                    
+                except Exception as e:
+                    logger.error(f"Error predicting with {model_name}: {str(e)}")
+                    continue
+            
+            if not predictions:
+                return {
+                    'predicted_mfe': 0.0,
+                    'confidence': 0.0,
+                    'recommendation': 'Prediction failed'
+                }
+            
+            # Ensemble prediction (weighted by model performance)
+            total_weight = sum(confidences.values())
+            if total_weight > 0:
+                weighted_pred = sum(pred * confidences[name] for name, pred in predictions.items()) / total_weight
+                avg_confidence = sum(confidences.values()) / len(confidences)
+            else:
+                weighted_pred = sum(predictions.values()) / len(predictions)
+                avg_confidence = 0.5
+            
+            # Calculate prediction interval
+            pred_std = np.std(list(predictions.values()))
+            prediction_interval = [
+                weighted_pred - 1.96 * pred_std,
+                weighted_pred + 1.96 * pred_std
+            ]
+            
+            # Get feature contributions from best model
+            feature_contributions = self._get_feature_contributions(input_data)
             
             # Generate recommendation
-            recommendation = self._generate_recommendation(
-                success_probability, predicted_mfe, features, is_anomaly
+            recommendation = self._generate_ml_recommendation(
+                weighted_pred, avg_confidence, prediction_interval, market_context
             )
             
-            # Calculate confidence intervals
-            confidence_interval = self._calculate_confidence_interval(feature_vector)
-            
             return {
-                "success_probability": round(success_probability, 1),
-                "predicted_mfe": round(predicted_mfe, 2),
-                "confidence_interval": confidence_interval,
-                "recommendation": recommendation,
-                "is_anomaly": is_anomaly,
-                "anomaly_score": round(anomaly_score, 3),
-                "key_factors": self._identify_key_factors(features),
-                "model_accuracy": round(self.model_accuracy.get('success_predictor', 0) * 100, 1),
-                "feature_count": len(features),
-                "prediction_confidence": self._calculate_prediction_confidence(success_probability, predicted_mfe)
+                'predicted_mfe': round(weighted_pred, 3),
+                'confidence': round(avg_confidence, 3),
+                'prediction_interval': [round(x, 3) for x in prediction_interval],
+                'model_consensus': {name: round(pred, 3) for name, pred in predictions.items()},
+                'feature_contributions': feature_contributions,
+                'recommendation': recommendation,
+                'models_used': len(predictions)
             }
             
         except Exception as e:
-            logger.error(f"Prediction error: {str(e)}")
-            return {"error": str(e)}
-    
-    def _generate_recommendation(self, success_prob: float, predicted_mfe: float, 
-                               features: Dict, is_anomaly: bool) -> str:
-        """Generate actionable trading recommendation"""
-        
-        if is_anomaly:
-            return "AVOID - Unusual market conditions detected"
-        
-        if success_prob >= 80 and predicted_mfe >= 2.5:
-            return "STRONG BUY - High probability + High reward potential"
-        elif success_prob >= 70 and predicted_mfe >= 2.0:
-            return "BUY - Good probability with solid reward"
-        elif success_prob >= 60 and predicted_mfe >= 1.5:
-            return "MODERATE - Consider smaller position size"
-        elif success_prob >= 50:
-            return "WEAK - Low conviction, consider waiting"
-        else:
-            return "AVOID - Low probability of success"
-    
-    def _identify_key_factors(self, features: Dict) -> List[str]:
-        """Identify key factors driving the prediction"""
-        if not self.feature_importance:
-            return ["Model training required"]
-        
-        # Get top contributing features for this signal
-        key_factors = []
-        
-        # Sort features by importance and value
-        sorted_features = sorted(
-            [(name, importance, features.get(name, 0)) 
-             for name, importance in self.feature_importance.items()],
-            key=lambda x: x[1] * abs(x[2]), reverse=True
-        )
-        
-        for name, importance, value in sorted_features[:5]:
-            if importance > 0.05:  # Only significant features
-                factor_desc = self._describe_feature(name, value)
-                if factor_desc:
-                    key_factors.append(factor_desc)
-        
-        return key_factors[:3]  # Top 3 factors
-    
-    def _describe_feature(self, feature_name: str, value: float) -> str:
-        """Convert feature name and value to human-readable description"""
-        descriptions = {
-            'session_success_rate': f"Session success rate: {value:.1%}",
-            'htf_aligned': "HTF aligned" if value > 0.5 else "HTF not aligned",
-            'is_london_session': "London session" if value > 0.5 else "Non-London session",
-            'consecutive_same_bias': f"{int(value)} consecutive same bias signals",
-            'recent_win_rate': f"Recent win rate: {value:.1%}",
-            'price_momentum': "Strong price momentum" if abs(value) > 0.5 else "Weak momentum",
-            'reversal_pattern': "Strong reversal pattern" if value > 0.7 else None,
-            'cluster_success_rate': f"Similar signals succeed {value:.1%} of time"
-        }
-        
-        return descriptions.get(feature_name)
-    
-    def _calculate_confidence_interval(self, feature_vector: np.ndarray) -> Dict:
-        """Calculate prediction confidence intervals"""
-        try:
-            # Use ensemble predictions for confidence estimation
-            n_bootstrap = 50
-            predictions = []
-            
-            for _ in range(n_bootstrap):
-                # Add small random noise to simulate uncertainty
-                noisy_features = feature_vector + np.random.normal(0, 0.01, feature_vector.shape)
-                pred = self.mfe_predictor.predict(noisy_features)[0]
-                predictions.append(pred)
-            
-            predictions = np.array(predictions)
-            
+            logger.error(f"Error in ML prediction: {str(e)}")
             return {
-                "lower_bound": round(np.percentile(predictions, 25), 2),
-                "upper_bound": round(np.percentile(predictions, 75), 2),
-                "std_dev": round(np.std(predictions), 2)
+                'predicted_mfe': 0.0,
+                'confidence': 0.0,
+                'recommendation': f'Prediction error: {str(e)}'
             }
-            
-        except Exception:
-            return {"lower_bound": 0, "upper_bound": 0, "std_dev": 0}
     
-    def _calculate_prediction_confidence(self, success_prob: float, predicted_mfe: float) -> str:
-        """Calculate overall prediction confidence"""
-        if not self.model_accuracy:
-            return "LOW"
-        
-        model_acc = self.model_accuracy.get('success_predictor', 0)
-        
-        if model_acc > 0.8 and (success_prob > 80 or success_prob < 20):
-            return "HIGH"
-        elif model_acc > 0.7 and (success_prob > 70 or success_prob < 30):
-            return "MEDIUM"
-        else:
-            return "LOW"
-    
-    def get_performance_analytics(self) -> Dict:
-        """Get comprehensive performance analytics"""
+    def _prepare_prediction_input(self, market_context: Dict, signal_data: Dict) -> Dict:
+        """Prepare input data for prediction"""
         try:
-            cursor = self.db.conn.cursor()
+            # Extract current time features
+            now = datetime.now()
+            hour = now.hour
+            day_of_week = now.weekday() + 1
             
-            # Get recent performance data
-            cursor.execute("""
-                SELECT date, time, bias, session, signal_type, entry_price,
-                       COALESCE(mfe_none, 0) as mfe,
-                       COALESCE(be1_hit, false) as be1_hit,
-                       COALESCE(be2_hit, false) as be2_hit,
-                       created_at
-                FROM signal_lab_trades 
-                WHERE created_at > NOW() - INTERVAL '30 days'
-                ORDER BY created_at DESC
-            """)
-            
-            recent_data = cursor.fetchall()
-            
-            if len(recent_data) < 10:
-                return {"error": "Insufficient data for analytics"}
-            
-            df = pd.DataFrame(recent_data)
-            df['mfe'] = pd.to_numeric(df['mfe'], errors='coerce').fillna(0)
-            
-            analytics = {}
-            
-            # === OVERALL PERFORMANCE ===
-            analytics['total_trades'] = len(df)
-            analytics['win_rate'] = (df['mfe'] > 0).mean() * 100
-            analytics['big_win_rate'] = (df['mfe'] >= 2).mean() * 100
-            analytics['avg_mfe'] = df['mfe'].mean()
-            analytics['max_mfe'] = df['mfe'].max()
-            analytics['expectancy'] = df['mfe'].mean()
-            
-            # === SESSION ANALYSIS ===
-            session_stats = df.groupby('session').agg({
-                'mfe': ['count', 'mean', lambda x: (x >= 2).mean() * 100]
-            }).round(2)
-            
-            analytics['session_performance'] = {}
-            for session in session_stats.index:
-                analytics['session_performance'][session] = {
-                    'trades': int(session_stats.loc[session, ('mfe', 'count')]),
-                    'avg_mfe': float(session_stats.loc[session, ('mfe', 'mean')]),
-                    'success_rate': float(session_stats.loc[session, ('mfe', '<lambda>')])
-                }
-            
-            # === BIAS ANALYSIS ===
-            bias_stats = df.groupby('bias').agg({
-                'mfe': ['count', 'mean', lambda x: (x >= 2).mean() * 100]
-            }).round(2)
-            
-            analytics['bias_performance'] = {}
-            for bias in bias_stats.index:
-                analytics['bias_performance'][bias] = {
-                    'trades': int(bias_stats.loc[bias, ('mfe', 'count')]),
-                    'avg_mfe': float(bias_stats.loc[bias, ('mfe', 'mean')]),
-                    'success_rate': float(bias_stats.loc[bias, ('mfe', '<lambda>')])
-                }
-            
-            # === TIME-BASED ANALYSIS ===
-            df['hour'] = pd.to_datetime(df['time'], format='%H:%M:%S').dt.hour
-            hourly_stats = df.groupby('hour')['mfe'].agg(['count', 'mean']).round(2)
-            
-            analytics['hourly_performance'] = {}
-            for hour in hourly_stats.index:
-                if hourly_stats.loc[hour, 'count'] >= 3:  # Minimum sample size
-                    analytics['hourly_performance'][int(hour)] = {
-                        'trades': int(hourly_stats.loc[hour, 'count']),
-                        'avg_mfe': float(hourly_stats.loc[hour, 'mean'])
-                    }
-            
-            # === PATTERN RECOGNITION ===
-            analytics['patterns'] = self._analyze_patterns(df)
-            
-            # === RECOMMENDATIONS ===
-            analytics['recommendations'] = self._generate_performance_recommendations(analytics)
-            
-            return analytics
-            
-        except Exception as e:
-            logger.error(f"Analytics error: {str(e)}")
-            return {"error": str(e)}
-    
-    def _analyze_patterns(self, df: pd.DataFrame) -> Dict:
-        """Analyze trading patterns"""
-        patterns = {}
-        
-        # Streak analysis
-        df['win'] = df['mfe'] > 0
-        df['streak'] = df['win'].groupby((df['win'] != df['win'].shift()).cumsum()).cumcount() + 1
-        
-        patterns['max_win_streak'] = df[df['win']]['streak'].max() if df['win'].any() else 0
-        patterns['max_loss_streak'] = df[~df['win']]['streak'].max() if (~df['win']).any() else 0
-        
-        # Consecutive bias analysis
-        df['bias_change'] = df['bias'] != df['bias'].shift()
-        patterns['avg_bias_run_length'] = df.groupby(df['bias_change'].cumsum()).size().mean()
-        
-        # Recovery analysis
-        losing_trades = df[df['mfe'] <= 0]
-        if len(losing_trades) > 0:
-            recovery_times = []
-            for idx in losing_trades.index:
-                next_trades = df[df.index > idx]
-                if len(next_trades) > 0:
-                    first_win_idx = next_trades[next_trades['mfe'] > 0].index
-                    if len(first_win_idx) > 0:
-                        recovery_times.append(first_win_idx[0] - idx)
-            
-            patterns['avg_recovery_time'] = np.mean(recovery_times) if recovery_times else 0
-        
-        return patterns
-    
-    def _generate_performance_recommendations(self, analytics: Dict) -> List[str]:
-        """Generate performance improvement recommendations"""
-        recommendations = []
-        
-        # Session recommendations
-        if 'session_performance' in analytics:
-            best_session = max(analytics['session_performance'].items(), 
-                             key=lambda x: x[1]['avg_mfe'])
-            worst_session = min(analytics['session_performance'].items(), 
-                              key=lambda x: x[1]['avg_mfe'])
-            
-            if best_session[1]['avg_mfe'] > worst_session[1]['avg_mfe'] * 1.5:
-                recommendations.append(
-                    f"Focus on {best_session[0]} session (avg MFE: {best_session[1]['avg_mfe']:.2f}R) "
-                    f"vs {worst_session[0]} (avg MFE: {worst_session[1]['avg_mfe']:.2f}R)"
-                )
-        
-        # Bias recommendations
-        if 'bias_performance' in analytics:
-            bias_perf = analytics['bias_performance']
-            if 'Bullish' in bias_perf and 'Bearish' in bias_perf:
-                bull_mfe = bias_perf['Bullish']['avg_mfe']
-                bear_mfe = bias_perf['Bearish']['avg_mfe']
+            # Basic input data
+            input_data = {
+                'hour': hour,
+                'day_of_week': day_of_week,
+                'entry_price': float(signal_data.get('price', 15000)),
+                'be1_hit': False,  # Unknown at prediction time
+                'be2_hit': False,  # Unknown at prediction time
                 
-                if abs(bull_mfe - bear_mfe) > 0.5:
-                    better_bias = 'Bullish' if bull_mfe > bear_mfe else 'Bearish'
-                    recommendations.append(
-                        f"{better_bias} signals perform better "
-                        f"({max(bull_mfe, bear_mfe):.2f}R vs {min(bull_mfe, bear_mfe):.2f}R)"
-                    )
-        
-        # Win rate recommendations
-        win_rate = analytics.get('win_rate', 0)
-        if win_rate < 50:
-            recommendations.append("Consider tighter entry criteria - win rate below 50%")
-        elif win_rate > 80:
-            recommendations.append("Consider increasing position size - high win rate indicates conservative entries")
-        
-        return recommendations
+                # Market context
+                'vix': float(market_context.get('vix', 20)),
+                'spy_volume': float(market_context.get('spy_volume', 50000000)),
+                'qqq_volume': float(market_context.get('qqq_volume', 30000000)),
+                'dxy_price': float(market_context.get('dxy_price', 103.5)),
+                'dxy_change': float(market_context.get('dxy_change', 0)),
+                'nq_price': float(market_context.get('nq_price', 15000)),
+                'nq_change': float(market_context.get('nq_change', 0)),
+                'correlation_nq_es': float(market_context.get('correlation_nq_es', 0.85)),
+                'trend_strength': float(market_context.get('trend_strength', 0.5))
+            }
+            
+            # Encode categorical variables using stored encoders
+            try:
+                bias = signal_data.get('bias', 'Bullish')
+                session = signal_data.get('session', 'London')
+                signal_type = signal_data.get('signal_type', 'BIAS_BULLISH')
+                volatility_regime = market_context.get('volatility_regime', 'NORMAL')
+                sector_rotation = market_context.get('sector_rotation', 'BALANCED')
+                market_session = market_context.get('market_session', 'London')
+                
+                # Handle unknown categories gracefully
+                input_data['bias_encoded'] = self._safe_encode('bias', bias)
+                input_data['session_encoded'] = self._safe_encode('session', session)
+                input_data['signal_type_encoded'] = self._safe_encode('signal_type', signal_type)
+                input_data['volatility_regime_encoded'] = self._safe_encode('volatility_regime', volatility_regime)
+                input_data['sector_rotation_encoded'] = self._safe_encode('sector_rotation', sector_rotation)
+                input_data['market_session_encoded'] = self._safe_encode('market_session', market_session)
+                
+            except Exception as e:
+                logger.warning(f"Error encoding categories: {str(e)}")
+                # Use default values
+                input_data.update({
+                    'bias_encoded': 0,
+                    'session_encoded': 0,
+                    'signal_type_encoded': 0,
+                    'volatility_regime_encoded': 1,
+                    'sector_rotation_encoded': 1,
+                    'market_session_encoded': 0
+                })
+            
+            # Create engineered features (same as training)
+            input_data['vix_session_interaction'] = input_data['vix'] * input_data['session_encoded']
+            input_data['volume_ratio'] = input_data['spy_volume'] / 80000000
+            input_data['dxy_bias_interaction'] = input_data['dxy_change'] * input_data['bias_encoded']
+            input_data['hour_session_interaction'] = input_data['hour'] * input_data['session_encoded']
+            
+            # Boolean features
+            input_data['is_london_session'] = int(session == 'London')
+            input_data['is_ny_session'] = int('NY' in session)
+            input_data['is_optimal_hour'] = int(8 <= hour <= 16)
+            input_data['is_weekend_approach'] = int(day_of_week == 5)
+            
+            input_data['vix_low'] = int(input_data['vix'] < 15)
+            input_data['vix_high'] = int(input_data['vix'] > 25)
+            input_data['vix_extreme'] = int(input_data['vix'] > 35)
+            
+            input_data['high_volume'] = int(input_data['volume_ratio'] > 1.2)
+            input_data['low_volume'] = int(input_data['volume_ratio'] < 0.8)
+            
+            input_data['dxy_strong_move'] = int(abs(input_data['dxy_change']) > 0.5)
+            input_data['dxy_supportive'] = int(
+                (input_data['dxy_change'] < 0 and bias == 'Bullish') or
+                (input_data['dxy_change'] > 0 and bias == 'Bearish')
+            )
+            
+            input_data['high_correlation'] = int(input_data['correlation_nq_es'] > 0.9)
+            input_data['low_correlation'] = int(input_data['correlation_nq_es'] < 0.7)
+            
+            input_data['strong_momentum'] = int(abs(input_data['nq_change']) > 50)
+            input_data['price_level_high'] = int(input_data['nq_price'] > 16000)
+            input_data['price_level_low'] = int(input_data['nq_price'] < 14000)
+            
+            input_data['any_be_hit'] = 0  # Unknown at prediction time
+            input_data['both_be_hit'] = 0  # Unknown at prediction time
+            
+            return input_data
+            
+        except Exception as e:
+            logger.error(f"Error preparing prediction input: {str(e)}")
+            return {}
+    
+    def _safe_encode(self, encoder_name: str, value: str) -> int:
+        """Safely encode categorical value"""
+        try:
+            encoder = self.encoders.get(encoder_name)
+            if encoder and hasattr(encoder, 'classes_'):
+                if value in encoder.classes_:
+                    return encoder.transform([value])[0]
+                else:
+                    # Return most common class for unknown values
+                    return 0
+            return 0
+        except Exception:
+            return 0
+    
+    def _get_feature_contributions(self, input_data: Dict) -> Dict[str, float]:
+        """Get feature contributions for interpretability"""
+        try:
+            if not hasattr(self, 'best_model_name') or self.best_model_name not in self.models:
+                return {}
+            
+            model = self.models[self.best_model_name]
+            if not hasattr(model, 'feature_importances_'):
+                return {}
+            
+            # Get top contributing features
+            importance = model.feature_importances_
+            feature_names = self.selected_features
+            
+            # Sort by importance
+            feature_importance = list(zip(feature_names, importance))
+            feature_importance.sort(key=lambda x: x[1], reverse=True)
+            
+            # Return top 10 features
+            return dict(feature_importance[:10])
+            
+        except Exception as e:
+            logger.error(f"Error getting feature contributions: {str(e)}")
+            return {}
+    
+    def _generate_ml_recommendation(self, predicted_mfe: float, confidence: float, 
+                                  prediction_interval: List[float], market_context: Dict) -> str:
+        """Generate ML-based recommendation"""
+        try:
+            lower_bound, upper_bound = prediction_interval
+            
+            # High confidence, positive prediction
+            if confidence > 0.7 and predicted_mfe > 1.0 and lower_bound > 0:
+                return f"STRONG BUY: ML predicts {predicted_mfe:.2f}R (95% CI: {lower_bound:.2f}-{upper_bound:.2f}R)"
+            
+            # Good prediction with reasonable confidence
+            elif confidence > 0.5 and predicted_mfe > 0.5:
+                return f"BUY: ML predicts {predicted_mfe:.2f}R with {confidence:.0%} confidence"
+            
+            # Marginal prediction
+            elif predicted_mfe > 0 and confidence > 0.3:
+                return f"WEAK BUY: ML predicts {predicted_mfe:.2f}R (low confidence: {confidence:.0%})"
+            
+            # Negative prediction
+            elif predicted_mfe < 0:
+                return f"AVOID: ML predicts {predicted_mfe:.2f}R loss"
+            
+            # Low confidence
+            elif confidence < 0.3:
+                return f"UNCERTAIN: Low ML confidence ({confidence:.0%}), proceed with caution"
+            
+            else:
+                return f"NEUTRAL: ML predicts {predicted_mfe:.2f}R"
+                
+        except Exception as e:
+            return f"Recommendation error: {str(e)}"
+    
+    def get_model_performance(self) -> Dict[str, Any]:
+        """Get comprehensive model performance metrics"""
+        try:
+            if not self.is_trained:
+                return {'error': 'Models not trained'}
+            
+            return {
+                'is_trained': self.is_trained,
+                'best_model': getattr(self, 'best_model_name', 'Unknown'),
+                'models_available': list(self.models.keys()),
+                'performance_metrics': self.model_performance,
+                'feature_importance': self.feature_importance,
+                'training_timestamp': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting model performance: {str(e)}")
+            return {'error': str(e)}
+    
+    def save_models(self, filepath: str) -> bool:
+        """Save trained models to disk"""
+        try:
+            model_data = {
+                'models': self.models,
+                'scalers': self.scalers,
+                'encoders': getattr(self, 'encoders', {}),
+                'selected_features': getattr(self, 'selected_features', []),
+                'feature_selector': getattr(self, 'feature_selector', None),
+                'model_performance': self.model_performance,
+                'is_trained': self.is_trained,
+                'best_model_name': getattr(self, 'best_model_name', None)
+            }
+            
+            with open(filepath, 'wb') as f:
+                pickle.dump(model_data, f)
+            
+            logger.info(f"Models saved to {filepath}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error saving models: {str(e)}")
+            return False
+    
+    def load_models(self, filepath: str) -> bool:
+        """Load trained models from disk"""
+        try:
+            with open(filepath, 'rb') as f:
+                model_data = pickle.load(f)
+            
+            self.models = model_data.get('models', {})
+            self.scalers = model_data.get('scalers', {})
+            self.encoders = model_data.get('encoders', {})
+            self.selected_features = model_data.get('selected_features', [])
+            self.feature_selector = model_data.get('feature_selector', None)
+            self.model_performance = model_data.get('model_performance', {})
+            self.is_trained = model_data.get('is_trained', False)
+            self.best_model_name = model_data.get('best_model_name', None)
+            
+            logger.info(f"Models loaded from {filepath}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error loading models: {str(e)}")
+            return False
+
+# Global instance
+advanced_ml_engine = None
+
+def get_advanced_ml_engine(db):
+    global advanced_ml_engine
+    if advanced_ml_engine is None:
+        advanced_ml_engine = AdvancedMLEngine(db)
+    return advanced_ml_engine
