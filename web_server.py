@@ -3137,36 +3137,61 @@ def get_ml_analytics():
 def train_ml_models():
     """Train ML models with current data"""
     try:
-        from advanced_ml_engine import AdvancedMLEngine
+        if not db_enabled or not db:
+            return jsonify({
+                'status': 'offline',
+                'message': 'Database connection required for ML training'
+            }), 200
         
-        ml_engine = AdvancedMLEngine(db)
+        from advanced_ml_engine import get_advanced_ml_engine
+        ml_engine = get_advanced_ml_engine(db)
         training_result = ml_engine.train_models()
-        
         return jsonify(training_result)
         
     except Exception as e:
         logger.error(f"ML training error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'error': f'ML training failed: {str(e)}',
+            'status': 'training_error'
+        }), 500
 
 @app.route('/api/ml-predict', methods=['POST'])
 @login_required
 def predict_signal_ml():
     """Get ML prediction for a signal"""
     try:
-        from advanced_ml_engine import AdvancedMLEngine
+        if not db_enabled or not db:
+            return jsonify({
+                'error': 'Database connection required for ML predictions',
+                'details': 'ML models need to be trained on historical data first',
+                'status': 'database_offline',
+                'predicted_mfe': 0.0,
+                'confidence': 0.0
+            }), 503
         
         signal_data = request.get_json()
         if not signal_data:
-            return jsonify({'error': 'No signal data provided'}), 400
+            return jsonify({
+                'error': 'No signal data provided',
+                'status': 'invalid_input'
+            }), 400
         
-        ml_engine = AdvancedMLEngine(db)
-        prediction = ml_engine.predict_signal_quality(signal_data)
+        from advanced_ml_engine import get_advanced_ml_engine
+        ml_engine = get_advanced_ml_engine(db)
         
+        # Get market context for prediction
+        market_context = signal_data.get('market_context', {})
+        prediction = ml_engine.predict_signal_quality(market_context, signal_data)
         return jsonify(prediction)
         
     except Exception as e:
         logger.error(f"ML prediction error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'error': f'ML prediction failed: {str(e)}',
+            'status': 'prediction_error',
+            'predicted_mfe': 0.0,
+            'confidence': 0.0
+        }), 500
 
 @app.route('/api/cleanup-signals', methods=['POST'])
 def cleanup_signals():
@@ -3275,21 +3300,33 @@ def get_ml_insights():
     """Get advanced ML model insights and performance metrics"""
     try:
         if not db_enabled or not db:
-            return jsonify({'error': 'Database not available'}), 500
+            return jsonify({
+                'status': 'offline',
+                'performance': {
+                    'is_trained': False,
+                    'best_model': 'None',
+                    'models_available': [],
+                    'error': 'Database connection required'
+                },
+                'timestamp': datetime.now().isoformat()
+            }), 200
         
         from advanced_ml_engine import get_advanced_ml_engine
-        
         ml_engine = get_advanced_ml_engine(db)
         performance = ml_engine.get_model_performance()
         
         return jsonify({
+            'status': 'active',
             'performance': performance,
             'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
         logger.error(f"Error getting ML insights: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'error': f'ML insights failed: {str(e)}',
+            'status': 'ml_error'
+        }), 500
 
 
 

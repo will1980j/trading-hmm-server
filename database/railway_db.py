@@ -1,4 +1,6 @@
 from os import getenv
+from dotenv import load_dotenv
+load_dotenv()
 from psycopg2 import connect
 from psycopg2.extras import RealDictCursor
 from datetime import datetime, timezone
