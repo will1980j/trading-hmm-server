@@ -166,12 +166,12 @@ def logout():
 @app.route('/')
 @login_required
 def dashboard():
-    return read_html_file('advanced_trading_dashboard.html')
+    return read_html_file('signal_lab_dashboard.html')
 
 @app.route('/dashboard')
 @login_required
 def advanced_dashboard():
-    return read_html_file('advanced_trading_dashboard.html')
+    return read_html_file('signal_lab_dashboard.html')
 
 @app.route('/trade-manager')
 @login_required
