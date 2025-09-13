@@ -3081,6 +3081,47 @@ def trigger_divergence():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/debug-trades', methods=['GET'])
+@login_required
+def debug_trades_endpoint():
+    """Debug what's actually in the database"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        cursor = db.conn.cursor()
+        
+        # Get counts
+        cursor.execute("SELECT COUNT(*) as total FROM signal_lab_trades")
+        total = cursor.fetchone()['total']
+        
+        cursor.execute("SELECT COUNT(*) as with_mfe FROM signal_lab_trades WHERE COALESCE(mfe_none, mfe, 0) != 0")
+        with_mfe = cursor.fetchone()['with_mfe']
+        
+        cursor.execute("SELECT COUNT(*) as active FROM signal_lab_trades WHERE COALESCE(active_trade, false) = true")
+        active = cursor.fetchone()['active']
+        
+        # Sample data
+        cursor.execute("""
+            SELECT date, time, bias, session, 
+                   COALESCE(mfe_none, mfe, 0) as mfe_value,
+                   COALESCE(active_trade, false) as is_active
+            FROM signal_lab_trades 
+            ORDER BY date DESC, time DESC 
+            LIMIT 5
+        """)
+        sample = cursor.fetchall()
+        
+        return jsonify({
+            'total_trades': total,
+            'trades_with_mfe': with_mfe,
+            'active_trades': active,
+            'sample_trades': [dict(row) for row in sample]
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/fix-active-trades', methods=['POST'])
 @login_required
 def fix_active_trades_endpoint():
