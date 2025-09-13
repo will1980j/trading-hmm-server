@@ -1475,6 +1475,16 @@ def get_signal_lab_trades():
             logger.info("Database not available - returning empty array for local development")
             return jsonify([]), 200
         
+        # DEBUG: Log database state
+        cursor = db.conn.cursor()
+        cursor.execute("SELECT COUNT(*) as total FROM signal_lab_trades")
+        total = cursor.fetchone()['total']
+        cursor.execute("SELECT COUNT(*) as with_mfe FROM signal_lab_trades WHERE COALESCE(mfe_none, mfe, 0) != 0")
+        with_mfe = cursor.fetchone()['with_mfe']
+        cursor.execute("SELECT COUNT(*) as active FROM signal_lab_trades WHERE COALESCE(active_trade, false) = true")
+        active = cursor.fetchone()['active']
+        logger.info(f"DEBUG: Total={total}, WithMFE={with_mfe}, Active={active}")
+        
         # Clear any aborted transactions
         try:
             db.conn.rollback()
