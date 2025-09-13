@@ -3325,14 +3325,13 @@ def get_ml_insights():
     try:
         if not db_enabled or not db:
             return jsonify({
-                'status': 'offline',
                 'performance': {
                     'is_trained': False,
                     'best_model': 'None',
-                    'models_available': [],
-                    'error': 'Database connection required'
+                    'training_samples': 0,
+                    'models_available': []
                 },
-                'timestamp': datetime.now().isoformat()
+                'status': 'database_offline'
             }), 200
         
         from advanced_ml_engine import get_advanced_ml_engine
