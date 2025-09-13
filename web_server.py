@@ -4710,7 +4710,7 @@ def optimal_r_target_analysis():
             
         cursor = db.conn.cursor()
         
-        # Build query with session filter if provided
+        # Build query with session filter if provided - EXCLUDE active trades
         if selected_sessions:
             placeholders = ','.join(['%s'] * len(selected_sessions))
             query = f"""
@@ -4722,6 +4722,7 @@ def optimal_r_target_analysis():
                        COALESCE(be2_hit, false) as be2_hit
                 FROM signal_lab_trades 
                 WHERE COALESCE(mfe_none, mfe, 0) != 0
+                AND COALESCE(active_trade, false) = false
                 AND session IN ({placeholders})
             """
             cursor.execute(query, selected_sessions)
@@ -4735,6 +4736,7 @@ def optimal_r_target_analysis():
                        COALESCE(be2_hit, false) as be2_hit
                 FROM signal_lab_trades 
                 WHERE COALESCE(mfe_none, mfe, 0) != 0
+                AND COALESCE(active_trade, false) = false
             """)
         
         trades = cursor.fetchall()
@@ -4754,10 +4756,10 @@ def calculate_optimal_r_target(trades, selected_sessions=None):
     import statistics
     from collections import defaultdict
     
-    # Filter trades by selected sessions if provided
+    # Filter trades by selected sessions if provided - active trades already excluded in query
     if selected_sessions:
         trades = [t for t in trades if t['session'] in selected_sessions]
-        logger.info(f"Filtered to {len(trades)} trades for sessions: {selected_sessions}")
+        logger.info(f"Filtered to {len(trades)} non-active trades for sessions: {selected_sessions}")
     
     # Get MFE distribution (filter reasonable values)
     mfe_values = [float(t['mfe_none']) for t in trades if t['mfe_none'] is not None and -10 <= float(t['mfe_none']) <= 50]
