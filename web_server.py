@@ -1478,7 +1478,7 @@ def get_signal_lab_trades():
             
         cursor = db.conn.cursor()
         
-        # Simple query with error handling
+        # Simple query with error handling - EXCLUDE active trades
         try:
             cursor.execute("""
                 SELECT id, date, time, bias, session, signal_type, 
@@ -1492,10 +1492,11 @@ def get_signal_lab_trades():
                        news_proximity, news_event, screenshot, 
                        analysis_data, created_at
                 FROM signal_lab_trades 
+                WHERE COALESCE(active_trade, false) = false
                 ORDER BY created_at DESC
             """)
         except Exception as e:
-            # Fallback to old schema
+            # Fallback to old schema - EXCLUDE active trades
             cursor.execute("""
                 SELECT id, date, time, bias, session, signal_type, 
                        COALESCE(mfe, 0) as mfe_none, 1 as be1_level, false as be1_hit, 0 as mfe1,
@@ -1503,6 +1504,7 @@ def get_signal_lab_trades():
                        news_proximity, news_event, screenshot, 
                        NULL as analysis_data, created_at
                 FROM signal_lab_trades 
+                WHERE COALESCE(active_trade, false) = false
                 ORDER BY created_at DESC
             """)
         
@@ -1723,6 +1725,52 @@ def delete_signal_lab_trade(trade_id):
         if hasattr(db, 'conn') and db.conn:
             db.conn.rollback()
         logger.error(f"Error deleting signal lab trade: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/signal-lab-trades/complete-all-active', methods=['POST'])
+@login_required
+def complete_all_active_trades():
+    """Mark all active trades as complete (for manual review completion)"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({"error": "Database not available"}), 500
+        
+        cursor = db.conn.cursor()
+        
+        # Get count of active trades first
+        cursor.execute("SELECT COUNT(*) as count FROM signal_lab_trades WHERE COALESCE(active_trade, false) = true")
+        result = cursor.fetchone()
+        active_count = result['count'] if result else 0
+        
+        if active_count == 0:
+            return jsonify({
+                "status": "success",
+                "message": "No active trades to complete",
+                "completed": 0
+            })
+        
+        # Mark all active trades as complete
+        cursor.execute("""
+            UPDATE signal_lab_trades 
+            SET active_trade = false
+            WHERE COALESCE(active_trade, false) = true
+        """)
+        
+        rows_affected = cursor.rowcount
+        db.conn.commit()
+        
+        logger.info(f"Marked {rows_affected} active trades as complete")
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Completed {rows_affected} active trades",
+            "completed": rows_affected
+        })
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error completing all active trades: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/signal-lab-trades/bulk-delete', methods=['DELETE'])
