@@ -20,30 +20,29 @@ class TradingViewMarketEnricher:
         self.cache_duration = 30  # 30 seconds cache
         
     def get_market_context(self) -> Dict[str, Any]:
-        """Get real-time market context from TradingView"""
+        """Get real-time market context from multiple sources"""
         try:
-            # Try multiple approaches to get real data
-            market_data = None
-            
-            # Approach 1: TradingView scanner API
+            # Try TradingView first
             symbols = ["CBOE:VIX", "AMEX:SPY", "NASDAQ:QQQ", "CME_MINI:NQ1!", "CME_MINI:ES1!", "CME_MINI:YM1!", "TVC:DXY"]
             market_data = self._get_tradingview_data(symbols)
             
-            # Approach 2: Try alternative API if first fails
             if not market_data:
-                logger.warning("Primary TradingView API failed, trying alternative...")
                 market_data = self._get_alternative_data(symbols)
             
-            # Approach 3: Try simplified request
             if not market_data:
-                logger.warning("Alternative API failed, trying simplified request...")
                 essential_symbols = ["CBOE:VIX", "CME_MINI:NQ1!", "TVC:DXY"]
                 market_data = self._get_tradingview_data(essential_symbols)
             
-            # If we still don't have data, return fallback
+            # If TradingView fails, try other real data sources
             if not market_data:
-                logger.error("All TradingView data sources failed")
-                return self._get_fallback_context()
+                logger.warning("TradingView failed, trying Yahoo Finance...")
+                from real_data_provider import get_real_market_data
+                return get_real_market_data()
+            
+            # If we still don't have data, raise exception
+            if not market_data:
+                logger.error("All real data sources failed")
+                raise Exception("No real market data available from any source")
             
             # Validate we have essential data
             has_essential_data = (
@@ -70,10 +69,10 @@ class TradingViewMarketEnricher:
             nq_change = market_data.get("CME_MINI:NQ1!", {}).get("change_abs", 0)
             dxy_change = market_data.get("TVC:DXY", {}).get("change_abs", 0)
             
-            # Only use real data - if key metrics are None, return fallback
+            # Only use real data - if key metrics are None, raise exception
             if vix is None and nq_price is None and dxy_price is None:
                 logger.error("No valid price data received from TradingView")
-                return self._get_fallback_context()
+                raise Exception("No valid market data received")
             
             # Use real data where available, reasonable defaults where not
             context = {
@@ -95,7 +94,7 @@ class TradingViewMarketEnricher:
                     qqq_volume if qqq_volume is not None else 30000000
                 ),
                 'timestamp': datetime.now().isoformat(),
-                'data_source': 'TradingView' if any(v is not None for v in [vix, nq_price, dxy_price]) else 'Fallback'
+                'data_source': 'TradingView'
             }
             
             # Log what real data we got
@@ -110,7 +109,7 @@ class TradingViewMarketEnricher:
             
         except Exception as e:
             logger.error(f"TradingView data error: {str(e)}")
-            return self._get_fallback_context()
+            raise e  # Re-raise exception instead of returning fallback
     
     def _get_tradingview_data(self, symbols: list) -> Dict[str, Dict]:
         """Get real-time data from TradingView scanner API"""
@@ -129,10 +128,13 @@ class TradingViewMarketEnricher:
                 f"{self.base_url}/america/scan",
                 json=payload,
                 headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    'Content-Type': 'application/json'
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Origin': 'https://www.tradingview.com',
+                    'Referer': 'https://www.tradingview.com/'
                 },
-                timeout=15  # Increased timeout
+                timeout=15
             )
             
             if response.status_code == 200:
@@ -159,7 +161,8 @@ class TradingViewMarketEnricher:
                 logger.info(f"TradingView primary API: {len(result)} valid symbols retrieved")
                 return result
             else:
-                logger.error(f"TradingView API error: {response.status_code} - {response.text[:200]}")
+                logger.error(f"TradingView API blocked: {response.status_code} - {response.text[:200]}")
+                logger.error(f"TradingView may be blocking server requests or API changed")
                 return {}
                 
         except Exception as e:

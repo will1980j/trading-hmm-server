@@ -3258,7 +3258,7 @@ def get_current_market_context():
         
         context = tradingview_enricher.get_market_context()
         
-        # Check if we got fallback data - reject it if user doesn't want fallback
+        # NEVER return fallback data - reject it completely
         if context.get('data_source') == 'Fallback':
             logger.warning("TradingView API returned fallback data - rejecting as requested")
             return jsonify({'error': 'Real-time data unavailable, fallback data rejected'}), 503
