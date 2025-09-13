@@ -2288,18 +2288,9 @@
             loadSignals();
             setupAutoUpdate();
             
-            // Test ML connectivity first, then load ML dashboard data
-            setTimeout(async () => {
-                const mlConnected = await testMLConnectivity(false);
-                if (mlConnected) {
-                    loadMLInsights();
-                } else {
-                    // Set offline state for ML components
-                    document.getElementById('mlStatus').innerHTML = `<span style="color: #ff4757;">❌ Offline</span>`;
-                    document.getElementById('modelPerformance').innerHTML = 'API Unavailable';
-                    document.getElementById('mlInsights').innerHTML = '❌ <strong>ML API Offline</strong><br><br>The ML service is currently unavailable. Please check your internet connection or try again later.';
-                }
-                
+            // Load ML dashboard data without connectivity test to avoid recursion
+            setTimeout(() => {
+                loadMLInsights();
                 loadMarketContext();
             }, 1000);
         });
