@@ -248,6 +248,11 @@ def migrate_signal_lab_page():
 def check_localstorage():
     return read_html_file('check_localStorage.html')
 
+@app.route('/fix-active-trades')
+@login_required
+def fix_active_trades_page():
+    return read_html_file('fix_active_trades.html')
+
 @app.route('/prop-portfolio')
 @login_required
 def prop_portfolio():
@@ -3074,6 +3079,97 @@ def trigger_divergence():
         })
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/fix-active-trades', methods=['POST'])
+@login_required
+def fix_active_trades_endpoint():
+    """Fix active trades data and restore missing trades"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        cursor = db.conn.cursor()
+        
+        # 1. Check current state
+        cursor.execute("SELECT COUNT(*) as total FROM signal_lab_trades")
+        total_trades = cursor.fetchone()['total']
+        
+        cursor.execute("SELECT COUNT(*) as active FROM signal_lab_trades WHERE COALESCE(active_trade, false) = true")
+        active_trades = cursor.fetchone()['active']
+        
+        cursor.execute("SELECT COUNT(*) as completed FROM signal_lab_trades WHERE COALESCE(active_trade, false) = false")
+        completed_trades = cursor.fetchone()['completed']
+        
+        logger.info(f"Before fix: {total_trades} total, {active_trades} active, {completed_trades} completed")
+        
+        # 2. Find trades that should NOT be active (have MFE data but marked as active)
+        cursor.execute("""
+            SELECT id FROM signal_lab_trades 
+            WHERE COALESCE(active_trade, false) = true
+            AND COALESCE(mfe_none, mfe, 0) != 0
+        """)
+        
+        incorrectly_active = cursor.fetchall()
+        incorrectly_active_count = len(incorrectly_active)
+        
+        # 3. Mark these trades as completed (not active)
+        if incorrectly_active:
+            trade_ids = [trade['id'] for trade in incorrectly_active]
+            placeholders = ','.join(['%s'] * len(trade_ids))
+            
+            cursor.execute(f"""
+                UPDATE signal_lab_trades 
+                SET active_trade = false 
+                WHERE id IN ({placeholders})
+            """, trade_ids)
+        
+        # 4. Delete trades with invalid dates
+        cursor.execute("""
+            DELETE FROM signal_lab_trades 
+            WHERE date IS NULL OR time IS NULL OR date::text = 'Invalid Date'
+        """)
+        invalid_deleted = cursor.rowcount
+        
+        # 5. Mark all historical trades as completed
+        cursor.execute("""
+            UPDATE signal_lab_trades 
+            SET active_trade = false 
+            WHERE date < CURRENT_DATE
+            AND COALESCE(active_trade, false) = true
+        """)
+        historical_updated = cursor.rowcount
+        
+        db.conn.commit()
+        
+        # 6. Check final state
+        cursor.execute("SELECT COUNT(*) as total FROM signal_lab_trades")
+        final_total = cursor.fetchone()['total']
+        
+        cursor.execute("SELECT COUNT(*) as active FROM signal_lab_trades WHERE COALESCE(active_trade, false) = true")
+        final_active = cursor.fetchone()['active']
+        
+        cursor.execute("SELECT COUNT(*) as completed FROM signal_lab_trades WHERE COALESCE(active_trade, false) = false")
+        final_completed = cursor.fetchone()['completed']
+        
+        logger.info(f"After fix: {final_total} total, {final_active} active, {final_completed} completed")
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Fixed active trades data - restored {incorrectly_active_count} trades',
+            'before': {'total': total_trades, 'active': active_trades, 'completed': completed_trades},
+            'after': {'total': final_total, 'active': final_active, 'completed': final_completed},
+            'changes': {
+                'incorrectly_active_fixed': incorrectly_active_count,
+                'invalid_dates_deleted': invalid_deleted,
+                'historical_completed': historical_updated
+            }
+        })
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error fixing active trades: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/recover-missed-signals', methods=['POST'])

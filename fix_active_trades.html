@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Active Trades - Signal Lab</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .status-card {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .warning-card {
+            background: rgba(255, 193, 7, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #FFC107;
+        }
+        
+        .error-card {
+            background: rgba(244, 67, 54, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #F44336;
+        }
+        
+        .fix-button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: block;
+            margin: 20px auto;
+            min-width: 200px;
+        }
+        
+        .fix-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+        }
+        
+        .fix-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #fff;
+            text-decoration: none;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .explanation {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Active Trades Data</h1>
+        
+        <div class="explanation">
+            <h3>What this tool does:</h3>
+            <ul>
+                <li>Identifies trades marked as "active" but have MFE data (should be completed)</li>
+                <li>Removes trades with invalid dates that cause display issues</li>
+                <li>Marks all historical trades as completed</li>
+                <li>Restores missing trades to Signal Lab dashboard</li>
+            </ul>
+        </div>
+        
+        <div class="warning-card">
+            <h3>⚠️ Important Notice</h3>
+            <p>This tool will fix the active trades issue that's causing missing data in your Signal Lab dashboard. 
+            It's safe to run and will only correct data integrity issues.</p>
+        </div>
+        
+        <button class="fix-button" onclick="fixActiveTrades()">
+            🔧 Fix Active Trades Data
+        </button>
+        
+        <div id="results" class="results" style="display: none;"></div>
+        
+        <a href="/signal-lab-dashboard" class="back-link">← Back to Signal Lab</a>
+    </div>
+
+    <script>
+        async function fixActiveTrades() {
+            const button = document.querySelector('.fix-button');
+            const results = document.getElementById('results');
+            
+            button.disabled = true;
+            button.textContent = '🔄 Fixing...';
+            results.style.display = 'block';
+            results.textContent = 'Starting fix process...\n';
+            
+            try {
+                const response = await fetch('/api/fix-active-trades', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    results.innerHTML = `
+<div class="status-card">
+    <h3>✅ Fix Completed Successfully!</h3>
+    
+    <h4>Before Fix:</h4>
+    • Total trades: ${data.before.total}
+    • Active trades: ${data.before.active}
+    • Completed trades: ${data.before.completed}
+    
+    <h4>After Fix:</h4>
+    • Total trades: ${data.after.total}
+    • Active trades: ${data.after.active}
+    • Completed trades: ${data.after.completed}
+    
+    <h4>Changes Made:</h4>
+    • Fixed incorrectly active trades: ${data.changes.incorrectly_active_fixed}
+    • Deleted invalid date entries: ${data.changes.invalid_dates_deleted}
+    • Marked historical trades as completed: ${data.changes.historical_completed}
+    
+    <p><strong>Your Signal Lab dashboard should now show all your trades correctly!</strong></p>
+</div>`;
+                    
+                    button.textContent = '✅ Fix Complete';
+                    button.style.background = '#4CAF50';
+                    
+                    // Auto-redirect after 3 seconds
+                    setTimeout(() => {
+                        window.location.href = '/signal-lab-dashboard';
+                    }, 3000);
+                    
+                } else {
+                    results.innerHTML = `
+<div class="error-card">
+    <h3>❌ Fix Failed</h3>
+    <p>Error: ${data.error || 'Unknown error occurred'}</p>
+</div>`;
+                    button.disabled = false;
+                    button.textContent = '🔧 Try Again';
+                }
+                
+            } catch (error) {
+                results.innerHTML = `
+<div class="error-card">
+    <h3>❌ Network Error</h3>
+    <p>Failed to connect to server: ${error.message}</p>
+</div>`;
+                button.disabled = false;
+                button.textContent = '🔧 Try Again';
+            }
+        }
+    </script>
+</body>
+</html>
