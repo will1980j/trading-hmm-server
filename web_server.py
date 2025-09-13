@@ -96,6 +96,19 @@ except Exception as e:
     db = None
     db_enabled = False
 
+# ML Engine availability check
+ml_available = False
+try:
+    import sklearn
+    import pandas
+    import numpy
+    import xgboost
+    ml_available = True
+    logger.info("ML dependencies available")
+except ImportError as e:
+    logger.error(f"ML dependencies missing: {str(e)}")
+    ml_available = False
+
 # Direct HTTP OpenAI API
 api_key = environ.get('OPENAI_API_KEY')
 client = api_key if api_key else None
@@ -192,6 +205,28 @@ def signal_analysis_15m():
 @login_required
 def signal_lab_dashboard():
     return read_html_file('signal_lab_dashboard.html')
+
+@app.route('/ml-dashboard')
+@login_required
+def ml_dashboard():
+    """ML Intelligence Dashboard with fallback support"""
+    try:
+        # Try to check if ML engine is available
+        if db_enabled and db:
+            try:
+                from advanced_ml_engine import get_advanced_ml_engine
+                ml_engine = get_advanced_ml_engine(db)
+                # If we can import and create the engine, use the full dashboard
+                return read_html_file('signal_lab_dashboard.html')
+            except ImportError:
+                # ML engine not available, use fallback
+                return read_html_file('ml_dashboard_fallback.html')
+        else:
+            # Database not available, use fallback
+            return read_html_file('ml_dashboard_fallback.html')
+    except Exception as e:
+        logger.error(f"Error loading ML dashboard: {str(e)}")
+        return read_html_file('ml_dashboard_fallback.html')
 
 @app.route('/chart-extractor')
 @login_required
@@ -3136,24 +3171,29 @@ def get_ml_analytics():
 @login_required
 def train_ml_models():
     """Train ML models with current data"""
+    if not ml_available:
+        return jsonify({
+            'status': 'dependencies_missing',
+            'message': 'ML dependencies not installed'
+        }), 200
+    
+    if not db_enabled or not db:
+        return jsonify({
+            'status': 'database_offline',
+            'message': 'Database connection required'
+        }), 200
+    
     try:
-        if not db_enabled or not db:
-            return jsonify({
-                'status': 'offline',
-                'message': 'Database connection required for ML training'
-            }), 200
-        
         from advanced_ml_engine import get_advanced_ml_engine
         ml_engine = get_advanced_ml_engine(db)
         training_result = ml_engine.train_models()
         return jsonify(training_result)
-        
     except Exception as e:
         logger.error(f"ML training error: {str(e)}")
         return jsonify({
-            'error': f'ML training failed: {str(e)}',
-            'status': 'training_error'
-        }), 500
+            'status': 'error',
+            'message': 'Training failed'
+        }), 200
 
 @app.route('/api/ml-predict', methods=['POST'])
 @login_required
@@ -3279,20 +3319,29 @@ def get_market_context_analysis():
 def get_current_market_context():
     """Get current real-time market context from TradingView"""
     try:
-        from tradingview_market_enricher import tradingview_enricher
-        
-        context = tradingview_enricher.get_market_context()
-        
-        # NEVER return fallback data - reject it completely
-        if context.get('data_source') == 'Fallback':
-            logger.warning("TradingView API returned fallback data - rejecting as requested")
-            return jsonify({'error': 'Real-time data unavailable, fallback data rejected'}), 503
-        
-        return jsonify(context)
+        try:
+            from tradingview_market_enricher import tradingview_enricher
+            context = tradingview_enricher.get_market_context()
+            
+            # NEVER return fallback data - reject it completely
+            if context.get('data_source') == 'Fallback':
+                logger.warning("TradingView API returned fallback data - rejecting as requested")
+                return jsonify({'error': 'Real-time data unavailable, fallback data rejected'}), 503
+            
+            return jsonify(context)
+        except ImportError as e:
+            logger.error(f"TradingView enricher import error: {str(e)}")
+            return jsonify({
+                'error': 'Market context service unavailable',
+                'status': 'import_error'
+            }), 503
         
     except Exception as e:
         logger.error(f"Error getting TradingView market context: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'error': str(e),
+            'status': 'error'
+        }), 500
 
 @app.route('/api/ml-performance', methods=['GET'])
 @login_required
@@ -3322,18 +3371,29 @@ def get_ml_performance():
 @login_required
 def get_ml_insights():
     """Get advanced ML model insights and performance metrics"""
+    if not ml_available:
+        return jsonify({
+            'performance': {
+                'is_trained': False,
+                'best_model': 'Dependencies Missing',
+                'training_samples': 0,
+                'models_available': []
+            },
+            'status': 'dependencies_missing'
+        }), 200
+    
+    if not db_enabled or not db:
+        return jsonify({
+            'performance': {
+                'is_trained': False,
+                'best_model': 'Database Offline',
+                'training_samples': 0,
+                'models_available': []
+            },
+            'status': 'database_offline'
+        }), 200
+    
     try:
-        if not db_enabled or not db:
-            return jsonify({
-                'performance': {
-                    'is_trained': False,
-                    'best_model': 'None',
-                    'training_samples': 0,
-                    'models_available': []
-                },
-                'status': 'database_offline'
-            }), 200
-        
         from advanced_ml_engine import get_advanced_ml_engine
         ml_engine = get_advanced_ml_engine(db)
         performance = ml_engine.get_model_performance()
@@ -3343,13 +3403,17 @@ def get_ml_insights():
             'performance': performance,
             'timestamp': datetime.now().isoformat()
         })
-        
     except Exception as e:
-        logger.error(f"Error getting ML insights: {str(e)}")
+        logger.error(f"ML insights error: {str(e)}")
         return jsonify({
-            'error': f'ML insights failed: {str(e)}',
-            'status': 'ml_error'
-        }), 500
+            'performance': {
+                'is_trained': False,
+                'best_model': 'Error',
+                'training_samples': 0,
+                'models_available': []
+            },
+            'status': 'error'
+        }), 200
 
 
 
@@ -3357,72 +3421,92 @@ def get_ml_insights():
 @login_required
 def advanced_ml_predict():
     """Get advanced ML prediction with full analysis"""
+    if not ml_available:
+        return jsonify({
+            'prediction': {
+                'predicted_mfe': 0.0,
+                'confidence': 0.0,
+                'recommendation': 'ML dependencies missing'
+            },
+            'status': 'dependencies_missing'
+        }), 200
+    
+    if not db_enabled or not db:
+        return jsonify({
+            'prediction': {
+                'predicted_mfe': 0.0,
+                'confidence': 0.0,
+                'recommendation': 'Database offline'
+            },
+            'status': 'database_offline'
+        }), 200
+    
     try:
-        if not db_enabled or not db:
-            return jsonify({'error': 'Database not available'}), 500
-        
-        from tradingview_market_enricher import tradingview_enricher
         from advanced_ml_engine import get_advanced_ml_engine
+        from tradingview_market_enricher import tradingview_enricher
         
-        # Get current market context from TradingView
         market_context = tradingview_enricher.get_market_context()
-        
-        # Get signal data from request
         signal_data = request.get_json() or {}
         signal_data.setdefault('bias', 'Bullish')
         signal_data.setdefault('session', market_context.get('market_session', 'London'))
         signal_data.setdefault('price', market_context.get('nq_price', 15000))
-        signal_data.setdefault('signal_type', f"BIAS_{signal_data['bias'].upper()}")
         
-        # Get advanced ML prediction
         ml_engine = get_advanced_ml_engine(db)
         prediction = ml_engine.predict_signal_quality(market_context, signal_data)
         
         return jsonify({
             'prediction': prediction,
-            'market_context': {
-                'vix': market_context.get('vix'),
-                'session': market_context.get('market_session'),
-                'volatility_regime': market_context.get('volatility_regime'),
-                'spy_volume': market_context.get('spy_volume'),
-                'dxy_price': market_context.get('dxy_price'),
-                'data_source': market_context.get('data_source')
-            },
+            'market_context': market_context,
             'signal_data': signal_data,
             'timestamp': datetime.now().isoformat()
         })
-        
     except Exception as e:
-        logger.error(f"Error in advanced ML prediction: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"ML prediction error: {str(e)}")
+        return jsonify({
+            'prediction': {
+                'predicted_mfe': 0.0,
+                'confidence': 0.0,
+                'recommendation': 'Prediction failed'
+            },
+            'status': 'error'
+        }), 200
 
 @app.route('/api/ml-feature-importance', methods=['GET'])
 @login_required
 def get_ml_feature_importance():
     """Get ML model feature importance analysis"""
+    if not ml_available:
+        return jsonify({
+            'feature_importance': {},
+            'best_model': 'Dependencies Missing',
+            'status': 'dependencies_missing'
+        }), 200
+    
+    if not db_enabled or not db:
+        return jsonify({
+            'feature_importance': {},
+            'best_model': 'Database Offline',
+            'status': 'database_offline'
+        }), 200
+    
     try:
-        if not db_enabled or not db:
-            return jsonify({'error': 'Database not available'}), 500
-        
         from advanced_ml_engine import get_advanced_ml_engine
-        
         ml_engine = get_advanced_ml_engine(db)
         
         if not ml_engine.is_trained:
-            return jsonify({'error': 'Models not trained yet'}), 400
+            return jsonify({
+                'feature_importance': {},
+                'best_model': 'Not Trained',
+                'status': 'not_trained'
+            }), 200
         
-        # Get feature importance from all models
         feature_analysis = {}
-        
         for model_name, model in ml_engine.models.items():
             if hasattr(model, 'feature_importances_'):
                 importance = model.feature_importances_
                 feature_names = ml_engine.selected_features
-                
-                # Get top 15 features
                 feature_importance = list(zip(feature_names, importance))
                 feature_importance.sort(key=lambda x: x[1], reverse=True)
-                
                 feature_analysis[model_name] = {
                     'top_features': feature_importance[:15],
                     'total_features': len(feature_names)
@@ -3431,12 +3515,15 @@ def get_ml_feature_importance():
         return jsonify({
             'feature_importance': feature_analysis,
             'best_model': getattr(ml_engine, 'best_model_name', 'Unknown'),
-            'timestamp': datetime.now().isoformat()
+            'status': 'success'
         })
-        
     except Exception as e:
-        logger.error(f"Error getting feature importance: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Feature importance error: {str(e)}")
+        return jsonify({
+            'feature_importance': {},
+            'best_model': 'Error',
+            'status': 'error'
+        }), 200
 
 @app.route('/api/ml-feature-importance', methods=['GET'])
 @login_required
@@ -3518,46 +3605,55 @@ def export_ml_model():
 @login_required
 def get_ml_model_comparison():
     """Compare performance of different ML models"""
+    if not ml_available:
+        return jsonify({
+            'model_comparison': {},
+            'best_models': {},
+            'current_best': 'Dependencies Missing',
+            'status': 'dependencies_missing'
+        }), 200
+    
+    if not db_enabled or not db:
+        return jsonify({
+            'model_comparison': {},
+            'best_models': {},
+            'current_best': 'Database Offline',
+            'status': 'database_offline'
+        }), 200
+    
     try:
-        if not db_enabled or not db:
-            return jsonify({'error': 'Database not available'}), 500
-        
         from advanced_ml_engine import get_advanced_ml_engine
-        
         ml_engine = get_advanced_ml_engine(db)
         
         if not ml_engine.is_trained:
-            return jsonify({'error': 'Models not trained yet'}), 400
+            return jsonify({
+                'model_comparison': {},
+                'best_models': {},
+                'current_best': 'Not Trained',
+                'status': 'not_trained'
+            }), 200
         
-        # Format model performance for comparison
         comparison = {}
         for model_name, metrics in ml_engine.model_performance.items():
             comparison[model_name] = {
                 'test_r2': round(metrics.get('test_r2', 0), 4),
                 'test_mae': round(metrics.get('test_mae', 0), 4),
                 'cv_mean': round(metrics.get('cv_mean', 0), 4),
-                'cv_std': round(metrics.get('cv_std', 0), 4),
-                'overfitting': round(metrics.get('train_r2', 0) - metrics.get('test_r2', 0), 4)
+                'cv_std': round(metrics.get('cv_std', 0), 4)
             }
-        
-        # Find best model by different metrics
-        best_models = {
-            'highest_r2': max(comparison.keys(), key=lambda k: comparison[k]['test_r2']),
-            'lowest_mae': min(comparison.keys(), key=lambda k: comparison[k]['test_mae']),
-            'most_stable': min(comparison.keys(), key=lambda k: comparison[k]['cv_std']),
-            'least_overfitting': min(comparison.keys(), key=lambda k: abs(comparison[k]['overfitting']))
-        }
         
         return jsonify({
             'model_comparison': comparison,
-            'best_models': best_models,
             'current_best': getattr(ml_engine, 'best_model_name', 'Unknown'),
-            'timestamp': datetime.now().isoformat()
+            'status': 'success'
         })
-        
     except Exception as e:
-        logger.error(f"Error comparing ML models: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Model comparison error: {str(e)}")
+        return jsonify({
+            'model_comparison': {},
+            'current_best': 'Error',
+            'status': 'error'
+        }), 200
 
 @app.route('/api/ai-chart-analysis', methods=['GET', 'POST'])
 def ai_chart_analysis_extension():
@@ -3688,6 +3784,13 @@ def ai_chart_analysis_extension():
 def market_context_dashboard():
     """Market context analysis dashboard"""
     return read_html_file('market_context_dashboard.html')
+
+# ML Intelligence Dashboard - standalone route
+@app.route('/ml-intelligence')
+@login_required
+def ml_intelligence_dashboard():
+    """Standalone ML Intelligence Dashboard"""
+    return read_html_file('ml_dashboard_fallback.html')
 
 # Prop firm endpoints
 @app.route('/api/prop-firms')

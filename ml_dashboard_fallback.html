@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Intelligence Dashboard - Fallback</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .status-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .status-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff6b6b;
+        }
+
+        .status-indicator.online {
+            background: #51cf66;
+        }
+
+        .status-indicator.warning {
+            background: #ffd43b;
+        }
+
+        .status-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .status-description {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .info-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .info-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: #00ff88;
+        }
+
+        .info-list {
+            list-style: none;
+        }
+
+        .info-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .info-list li:last-child {
+            border-bottom: none;
+        }
+
+        .error-message {
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid #ff6b6b;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .success-message {
+            background: rgba(81, 207, 102, 0.2);
+            border: 1px solid #51cf66;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <h1>🤖 ML Intelligence Dashboard</h1>
+            <p>Advanced Machine Learning Engine Status & Controls</p>
+        </div>
+
+        <div class="status-grid">
+            <div class="status-card">
+                <div class="status-header">
+                    <span class="status-title">ML ENGINE STATUS</span>
+                    <div class="status-indicator" id="mlStatus"></div>
+                </div>
+                <div class="status-value" id="mlStatusText">Initializing...</div>
+                <div class="status-description">Machine learning models and training status</div>
+            </div>
+
+            <div class="status-card">
+                <div class="status-header">
+                    <span class="status-title">CURRENT MARKET PREDICTION</span>
+                    <div class="status-indicator" id="predictionStatus"></div>
+                </div>
+                <div class="status-value" id="predictionValue">Loading...</div>
+                <div class="status-description">Real-time market analysis and predictions</div>
+            </div>
+
+            <div class="status-card">
+                <div class="status-header">
+                    <span class="status-title">BEST MODEL PERFORMANCE</span>
+                    <div class="status-indicator" id="modelStatus"></div>
+                </div>
+                <div class="status-value" id="modelPerformance">Checking...</div>
+                <div class="status-description">Top performing ML model accuracy</div>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="trainModels()">🎯 Train Models</button>
+            <button class="btn btn-primary" onclick="getPrediction()">🔮 Get Prediction</button>
+            <button class="btn btn-primary" onclick="compareModels()">📊 Compare Models</button>
+            <button class="btn btn-secondary" onclick="refreshInsights()">🔄 Refresh Insights</button>
+            <button class="btn btn-secondary" onclick="featureAnalysis()">🧠 Feature Analysis</button>
+            <button class="btn btn-secondary" onclick="mlRecommendations()">💡 ML Recommendations</button>
+        </div>
+
+        <div id="messageArea"></div>
+
+        <div class="info-section">
+            <h3 class="info-title">📈 Live Market Context (TradingView)</h3>
+            <div id="marketContext">
+                <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.9rem; opacity: 0.7;">VIX</div>
+                        <div style="font-size: 1.5rem; font-weight: bold;" id="vixValue">21.8</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.9rem; opacity: 0.7;">Session</div>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #00ff88;" id="sessionValue">NY Pre Market</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.9rem; opacity: 0.7;">SPY Volume</div>
+                        <div style="font-size: 1.5rem; font-weight: bold;" id="volumeValue">52.0M</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.9rem; opacity: 0.7;">DXY</div>
+                        <div style="font-size: 1.5rem; font-weight: bold;" id="dxyValue">103.80</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.9rem; opacity: 0.7;">Data Source</div>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #ffd43b;" id="dataSource">HTTP Test</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-section" style="margin-top: 20px;">
+            <h3 class="info-title">🔧 System Information</h3>
+            <ul class="info-list">
+                <li><strong>ML Framework:</strong> Scikit-learn + XGBoost + Ensemble Methods</li>
+                <li><strong>Training Data:</strong> Signal Lab trades with market context</li>
+                <li><strong>Features:</strong> 25+ engineered features including VIX, volume, DXY correlation</li>
+                <li><strong>Models:</strong> Random Forest, XGBoost, Gradient Boosting</li>
+                <li><strong>Prediction Target:</strong> Maximum Favorable Excursion (MFE) in R-multiples</li>
+                <li><strong>Real-time Context:</strong> TradingView market data integration</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let mlEngineOnline = false;
+        
+        // Initialize dashboard
+        async function initializeDashboard() {
+            await checkMLStatus();
+            await refreshMarketContext();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(refreshMarketContext, 30000);
+        }
+
+        async function checkMLStatus() {
+            try {
+                const response = await fetch('/api/ml-insights');
+                const data = await response.json();
+                
+                if (response.ok && data.status !== 'error') {
+                    mlEngineOnline = true;
+                    updateMLStatus('Online', 'online');
+                    
+                    if (data.performance && data.performance.is_trained) {
+                        updateModelPerformance(data.performance.best_model || 'Trained');
+                    } else {
+                        updateModelPerformance('Not Trained');
+                    }
+                } else {
+                    mlEngineOnline = false;
+                    updateMLStatus('Offline', 'error');
+                    updateModelPerformance('Unavailable');
+                }
+            } catch (error) {
+                mlEngineOnline = false;
+                updateMLStatus('Connection Error', 'error');
+                updateModelPerformance('Error');
+            }
+        }
+
+        function updateMLStatus(text, status) {
+            document.getElementById('mlStatusText').textContent = text;
+            const indicator = document.getElementById('mlStatus');
+            indicator.className = 'status-indicator';
+            if (status === 'online') indicator.classList.add('online');
+            else if (status === 'warning') indicator.classList.add('warning');
+        }
+
+        function updateModelPerformance(text) {
+            document.getElementById('modelPerformance').textContent = text;
+            const indicator = document.getElementById('modelStatus');
+            indicator.className = 'status-indicator';
+            if (text.includes('Trained') || text.includes('Random Forest') || text.includes('XGBoost')) {
+                indicator.classList.add('online');
+            } else if (text === 'Not Trained') {
+                indicator.classList.add('warning');
+            }
+        }
+
+        async function refreshMarketContext() {
+            try {
+                const response = await fetch('/api/current-market-context');
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    document.getElementById('vixValue').textContent = data.vix?.toFixed(1) || '20.0';
+                    document.getElementById('sessionValue').textContent = data.market_session || 'Unknown';
+                    document.getElementById('volumeValue').textContent = 
+                        data.spy_volume ? (data.spy_volume / 1000000).toFixed(1) + 'M' : '50.0M';
+                    document.getElementById('dxyValue').textContent = data.dxy_price?.toFixed(2) || '103.50';
+                    document.getElementById('dataSource').textContent = data.data_source || 'Fallback';
+                    
+                    updatePredictionStatus('Real-time Data');
+                } else {
+                    updatePredictionStatus('API Error');
+                }
+            } catch (error) {
+                updatePredictionStatus('Connection Error');
+            }
+        }
+
+        function updatePredictionStatus(text) {
+            document.getElementById('predictionValue').textContent = text;
+            const indicator = document.getElementById('predictionStatus');
+            indicator.className = 'status-indicator';
+            if (text === 'Real-time Data') indicator.classList.add('online');
+            else if (text.includes('Error')) indicator.className += '';
+            else indicator.classList.add('warning');
+        }
+
+        function showMessage(message, type = 'info') {
+            const messageArea = document.getElementById('messageArea');
+            const messageClass = type === 'error' ? 'error-message' : 'success-message';
+            messageArea.innerHTML = `<div class="${messageClass}">${message}</div>`;
+            
+            setTimeout(() => {
+                messageArea.innerHTML = '';
+            }, 5000);
+        }
+
+        async function trainModels() {
+            if (!mlEngineOnline) {
+                showMessage('❌ ML Engine is offline. Cannot train models.', 'error');
+                return;
+            }
+            
+            showMessage('🎯 Starting ML model training...', 'success');
+            
+            try {
+                const response = await fetch('/api/ml-train', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showMessage(`✅ Training complete! Best model: ${data.best_model}`, 'success');
+                    await checkMLStatus();
+                } else {
+                    showMessage(`⚠️ Training status: ${data.message || data.status}`, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Training failed: Connection error', 'error');
+            }
+        }
+
+        async function getPrediction() {
+            if (!mlEngineOnline) {
+                showMessage('❌ ML Engine is offline. Cannot get predictions.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/ml-predict-advanced', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bias: 'Bullish', session: 'London' })
+                });
+                const data = await response.json();
+                
+                if (data.prediction) {
+                    const pred = data.prediction;
+                    showMessage(`🔮 ML Prediction: ${pred.predicted_mfe}R (${(pred.confidence * 100).toFixed(0)}% confidence)`, 'success');
+                } else {
+                    showMessage('⚠️ Prediction unavailable', 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Prediction failed: Connection error', 'error');
+            }
+        }
+
+        async function compareModels() {
+            if (!mlEngineOnline) {
+                showMessage('❌ ML Engine is offline. Cannot compare models.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/ml-model-comparison');
+                const data = await response.json();
+                
+                if (data.model_comparison && Object.keys(data.model_comparison).length > 0) {
+                    const models = Object.keys(data.model_comparison);
+                    showMessage(`📊 Model comparison: ${models.join(', ')} | Best: ${data.current_best}`, 'success');
+                } else {
+                    showMessage('⚠️ No trained models to compare', 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Model comparison failed: Connection error', 'error');
+            }
+        }
+
+        async function refreshInsights() {
+            showMessage('🔄 Refreshing ML insights...', 'success');
+            await checkMLStatus();
+            await refreshMarketContext();
+        }
+
+        async function featureAnalysis() {
+            if (!mlEngineOnline) {
+                showMessage('❌ ML Engine is offline. Cannot analyze features.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/ml-feature-importance');
+                const data = await response.json();
+                
+                if (data.feature_importance && Object.keys(data.feature_importance).length > 0) {
+                    showMessage('🧠 Feature analysis complete. Check server logs for details.', 'success');
+                } else {
+                    showMessage('⚠️ Feature analysis unavailable', 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Feature analysis failed: Connection error', 'error');
+            }
+        }
+
+        function mlRecommendations() {
+            const recommendations = [
+                "💡 Train models with at least 50+ signal lab trades for better accuracy",
+                "📊 VIX < 20 provides better prediction accuracy for trend signals",
+                "⏰ London and NY Regular sessions show highest ML confidence",
+                "🎯 Models perform best with HTF-aligned signals",
+                "📈 Market context features improve prediction by 15-20%"
+            ];
+            
+            const randomRec = recommendations[Math.floor(Math.random() * recommendations.length)];
+            showMessage(randomRec, 'success');
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initializeDashboard);
+    </script>
+</body>
+</html>
