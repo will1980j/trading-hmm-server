@@ -2840,6 +2840,51 @@ def test_price_parsing():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/test-tradingview', methods=['GET'])
+def test_tradingview_api():
+    """Test TradingView API connectivity and data quality"""
+    try:
+        from tradingview_market_enricher import tradingview_enricher
+        
+        # Test the TradingView API directly
+        symbols = ["CBOE:VIX", "CME_MINI:NQ1!", "TVC:DXY"]
+        raw_data = tradingview_enricher._get_tradingview_data(symbols)
+        
+        # Test alternative API
+        alt_data = tradingview_enricher._get_alternative_data(symbols)
+        
+        # Get full market context
+        context = tradingview_enricher.get_market_context()
+        
+        return jsonify({
+            'primary_api': {
+                'symbols_retrieved': len(raw_data),
+                'data': raw_data,
+                'status': 'success' if raw_data else 'failed'
+            },
+            'alternative_api': {
+                'symbols_retrieved': len(alt_data),
+                'data': alt_data,
+                'status': 'success' if alt_data else 'failed'
+            },
+            'market_context': {
+                'data_source': context.get('data_source'),
+                'vix': context.get('vix'),
+                'nq_price': context.get('nq_price'),
+                'dxy_price': context.get('dxy_price'),
+                'session': context.get('market_session'),
+                'status': 'real_data' if context.get('data_source') == 'TradingView' else 'fallback_data'
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'status': 'error',
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/api/simple-test')
 def simple_test():
     print("✅ SIMPLE TEST endpoint called")
@@ -3212,6 +3257,11 @@ def get_current_market_context():
         from tradingview_market_enricher import tradingview_enricher
         
         context = tradingview_enricher.get_market_context()
+        
+        # Check if we got fallback data - reject it if user doesn't want fallback
+        if context.get('data_source') == 'Fallback':
+            logger.warning("TradingView API returned fallback data - rejecting as requested")
+            return jsonify({'error': 'Real-time data unavailable, fallback data rejected'}), 503
         
         return jsonify(context)
         
