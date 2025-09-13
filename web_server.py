@@ -2925,6 +2925,49 @@ def simple_test():
     print("✅ SIMPLE TEST endpoint called")
     return "WORKING"
 
+@app.route('/api/ml-diagnostic')
+def ml_diagnostic():
+    """Diagnostic endpoint to check ML system status"""
+    result = {}
+    
+    # Check ML dependencies
+    try:
+        import sklearn
+        result['sklearn'] = sklearn.__version__
+    except Exception as e:
+        result['sklearn_error'] = str(e)
+    
+    try:
+        import pandas
+        result['pandas'] = pandas.__version__
+    except Exception as e:
+        result['pandas_error'] = str(e)
+    
+    try:
+        import numpy
+        result['numpy'] = numpy.__version__
+    except Exception as e:
+        result['numpy_error'] = str(e)
+    
+    try:
+        import xgboost
+        result['xgboost'] = xgboost.__version__
+    except Exception as e:
+        result['xgboost_error'] = str(e)
+    
+    # Check ML engine import
+    try:
+        from advanced_ml_engine import AdvancedMLEngine
+        result['ml_engine'] = 'importable'
+    except Exception as e:
+        result['ml_engine_error'] = str(e)
+    
+    # Check database
+    result['database'] = 'connected' if db_enabled else 'offline'
+    result['ml_available'] = ml_available
+    
+    return jsonify(result)
+
 @app.route('/api/system-status')
 def system_status():
     """Get comprehensive system status"""
@@ -3371,29 +3414,29 @@ def get_ml_performance():
 @login_required
 def get_ml_insights():
     """Get advanced ML model insights and performance metrics"""
-    if not ml_available:
-        return jsonify({
-            'performance': {
-                'is_trained': False,
-                'best_model': 'Dependencies Missing',
-                'training_samples': 0,
-                'models_available': []
-            },
-            'status': 'dependencies_missing'
-        }), 200
-    
-    if not db_enabled or not db:
-        return jsonify({
-            'performance': {
-                'is_trained': False,
-                'best_model': 'Database Offline',
-                'training_samples': 0,
-                'models_available': []
-            },
-            'status': 'database_offline'
-        }), 200
-    
     try:
+        if not ml_available:
+            return jsonify({
+                'performance': {
+                    'is_trained': False,
+                    'best_model': 'Dependencies Missing',
+                    'training_samples': 0,
+                    'models_available': []
+                },
+                'status': 'dependencies_missing'
+            }), 200
+        
+        if not db_enabled or not db:
+            return jsonify({
+                'performance': {
+                    'is_trained': False,
+                    'best_model': 'Database Offline',
+                    'training_samples': 0,
+                    'models_available': []
+                },
+                'status': 'database_offline'
+            }), 200
+        
         from advanced_ml_engine import get_advanced_ml_engine
         ml_engine = get_advanced_ml_engine(db)
         performance = ml_engine.get_model_performance()
@@ -3408,11 +3451,12 @@ def get_ml_insights():
         return jsonify({
             'performance': {
                 'is_trained': False,
-                'best_model': 'Error',
+                'best_model': f'Error: {str(e)[:50]}',
                 'training_samples': 0,
                 'models_available': []
             },
-            'status': 'error'
+            'status': 'error',
+            'error_details': str(e)
         }), 200
 
 
