@@ -1,9 +1,10 @@
 """
 Premium real-time market data provider
-Best sources: Polygon.io > Finnhub > Yahoo Finance
+Best sources: Polygon.io > Finnhub > FMP > Yahoo Finance
 Polygon.io: Real-time futures data, 5 calls/min free
 Finnhub: Real-time quotes, 60 calls/min free
-Yahoo: 15-20min delayed but reliable
+FMP: Financial data, 250 calls/day free
+Yahoo: 15-20min delayed backup
 """
 import requests
 import json
@@ -78,25 +79,27 @@ def get_real_market_data():
     except:
         pass
     
-    # Try Yahoo Finance (backup)
+    # Try FMP (Financial Modeling Prep) - reliable free API
     try:
-        symbols = {'^VIX': 'vix', 'NQ=F': 'nq_price', 'DX-Y.NYB': 'dxy_price'}
+        api_key = "demo"  # Replace with real key
+        symbols = ['VIX', 'NQ', 'DXY']
         data = {}
-        for symbol, key in symbols.items():
-            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+        
+        for symbol in symbols:
+            url = f"https://financialmodelingprep.com/api/v3/quote/{symbol}?apikey={api_key}"
             response = requests.get(url, timeout=10)
             if response.status_code == 200:
                 result = response.json()
-                if 'chart' in result and result['chart']['result']:
-                    price = result['chart']['result'][0]['meta']['regularMarketPrice']
+                if result and len(result) > 0:
+                    price = result[0].get('price')
                     if price and price > 0:
-                        data[key] = price
+                        data[symbol.lower()] = price
         
-        if len(data) >= 2:
+        if data:
             return {
                 'vix': data.get('vix', 20.0),
-                'nq_price': data.get('nq_price', 15000),
-                'dxy_price': data.get('dxy_price', 103.5),
+                'nq_price': data.get('nq', 15000),
+                'dxy_price': data.get('dxy', 103.5),
                 'spy_volume': 50000000,
                 'qqq_volume': 30000000,
                 'es_price': 4500,
@@ -109,8 +112,49 @@ def get_real_market_data():
                 'trend_strength': 0.5,
                 'sector_rotation': 'BALANCED',
                 'timestamp': datetime.now().isoformat(),
-                'data_source': 'Yahoo Finance'
+                'data_source': 'FMP'
             }
+    except:
+        pass
+    
+    # Try Yahoo Finance with different endpoint
+    try:
+        url = "https://query1.finance.yahoo.com/v7/finance/quote?symbols=^VIX,NQ=F,DX-Y.NYB"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            result = response.json()
+            if 'quoteResponse' in result and 'result' in result['quoteResponse']:
+                quotes = result['quoteResponse']['result']
+                data = {}
+                for quote in quotes:
+                    symbol = quote.get('symbol')
+                    price = quote.get('regularMarketPrice')
+                    if symbol == '^VIX' and price:
+                        data['vix'] = price
+                    elif symbol == 'NQ=F' and price:
+                        data['nq_price'] = price
+                    elif symbol == 'DX-Y.NYB' and price:
+                        data['dxy_price'] = price
+                
+                if len(data) >= 2:
+                    return {
+                        'vix': data.get('vix', 20.0),
+                        'nq_price': data.get('nq_price', 15000),
+                        'dxy_price': data.get('dxy_price', 103.5),
+                        'spy_volume': 50000000,
+                        'qqq_volume': 30000000,
+                        'es_price': 4500,
+                        'ym_price': 35000,
+                        'dxy_change': 0,
+                        'nq_change': 0,
+                        'correlation_nq_es': 0.85,
+                        'volatility_regime': 'NORMAL',
+                        'market_session': get_current_session(),
+                        'trend_strength': 0.5,
+                        'sector_rotation': 'BALANCED',
+                        'timestamp': datetime.now().isoformat(),
+                        'data_source': 'Yahoo Finance'
+                    }
     except:
         pass
     
