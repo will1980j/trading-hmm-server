@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, send_from_directory, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template_string, send_from_directory, send_file, request, jsonify, session, redirect, url_for
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from os import environ, path
@@ -3294,6 +3294,30 @@ def get_current_market_context():
         logger.error(f"Error getting TradingView market context: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/ml-performance', methods=['GET'])
+@login_required
+def get_ml_performance():
+    """Get ML performance metrics for dashboard"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({
+                'error': 'Database connection required',
+                'status': 'offline'
+            }), 503
+        
+        from advanced_ml_engine import get_advanced_ml_engine
+        ml_engine = get_advanced_ml_engine(db)
+        performance = ml_engine.get_model_performance()
+        
+        return jsonify(performance)
+        
+    except Exception as e:
+        logger.error(f"Error getting ML performance: {str(e)}")
+        return jsonify({
+            'error': f'ML performance failed: {str(e)}',
+            'status': 'error'
+        }), 500
+
 @app.route('/api/ml-insights', methods=['GET'])
 @login_required
 def get_ml_insights():
@@ -3413,6 +3437,82 @@ def get_ml_feature_importance():
         
     except Exception as e:
         logger.error(f"Error getting feature importance: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml-feature-importance', methods=['GET'])
+@login_required
+def get_ml_feature_importance_api():
+    """Get ML feature importance for dashboard"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'features': {}}), 503
+        
+        from advanced_ml_engine import get_advanced_ml_engine
+        ml_engine = get_advanced_ml_engine(db)
+        
+        if not ml_engine.is_trained:
+            return jsonify({'features': {}})
+        
+        # Get feature importance from best model
+        if hasattr(ml_engine, 'best_model_name') and ml_engine.best_model_name in ml_engine.models:
+            model = ml_engine.models[ml_engine.best_model_name]
+            if hasattr(model, 'feature_importances_'):
+                importance = model.feature_importances_
+                feature_names = ml_engine.selected_features
+                features = dict(zip(feature_names, importance.tolist()))
+                return jsonify({'features': features})
+        
+        return jsonify({'features': {}})
+        
+    except Exception as e:
+        logger.error(f"Error getting feature importance: {str(e)}")
+        return jsonify({'features': {}})
+
+@app.route('/api/ml-retrain', methods=['POST'])
+@login_required
+def retrain_ml_models():
+    """Retrain ML models"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database required'}), 503
+        
+        from advanced_ml_engine import get_advanced_ml_engine
+        ml_engine = get_advanced_ml_engine(db)
+        result = ml_engine.train_models(retrain=True)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error retraining models: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml-export', methods=['GET'])
+@login_required
+def export_ml_model():
+    """Export ML model"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database required'}), 503
+        
+        from advanced_ml_engine import get_advanced_ml_engine
+        ml_engine = get_advanced_ml_engine(db)
+        
+        if not ml_engine.is_trained:
+            return jsonify({'error': 'No trained models to export'}), 400
+        
+        # Save models to temporary file
+        import tempfile
+        import os
+        
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pkl')
+        success = ml_engine.save_models(temp_file.name)
+        
+        if success:
+            return send_file(temp_file.name, as_attachment=True, download_name='ml_models.pkl')
+        else:
+            return jsonify({'error': 'Export failed'}), 500
+        
+    except Exception as e:
+        logger.error(f"Error exporting model: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/ml-model-comparison', methods=['GET'])
