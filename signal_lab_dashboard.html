@@ -618,6 +618,7 @@
                 </div>
                 <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
                     <button onclick="loadMLInsights()" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #00d4aa;">🔄 Refresh Insights</button>
+                    <button onclick="testMLConnectivity()" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #667eea;">🔗 Test Connection</button>
                     <button onclick="showFeatureImportance()" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #3742fa;">🎯 Feature Analysis</button>
                     <button onclick="showMLRecommendations()" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #2ed573;">💡 ML Recommendations</button>
                 </div>
@@ -645,7 +646,7 @@
                     </div>
                     <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
                         <div style="font-size: 11px; opacity: 0.8;">Data Source</div>
-                        <div id="dataSource" style="font-weight: 600; color: #00d4aa;">-</div>
+                        <div id="marketDataSource" style="font-weight: 600; color: #00d4aa;">-</div>
                     </div>
                 </div>
                 <button onclick="loadMarketContext()" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #ffa502;">🔄 Refresh Market Data</button>
@@ -1776,7 +1777,13 @@
         async function loadMLInsights() {
             try {
                 const response = await fetch('https://web-production-cd33.up.railway.app/api/ml-insights');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
+                console.log('ML Insights Response:', data);
                 
                 const insightsDiv = document.getElementById('mlInsights');
                 const statusDiv = document.getElementById('mlStatus');
@@ -1809,6 +1816,15 @@
                         insightsHtml += '<br>';
                     }
                     
+                    if (perf.feature_importance) {
+                        insightsHtml += '<strong>🔍 Top Features:</strong><br>';
+                        const topFeatures = Object.entries(perf.feature_importance).slice(0, 5);
+                        topFeatures.forEach(([feature, importance]) => {
+                            insightsHtml += `• ${feature.replace('_', ' ')}: ${(importance * 100).toFixed(1)}%<br>`;
+                        });
+                        insightsHtml += '<br>';
+                    }
+                    
                     insightsHtml += '<strong>💡 Key Insights:</strong><br>';
                     insightsHtml += '• ML models are learning from your actual MFE results<br>';
                     insightsHtml += '• Predictions improve as you add more trade data<br>';
@@ -1822,7 +1838,13 @@
                 }
             } catch (error) {
                 console.error('Error loading ML insights:', error);
-                document.getElementById('mlInsights').innerHTML = '❌ Error loading ML insights: ' + error.message;
+                const statusDiv = document.getElementById('mlStatus');
+                const performanceDiv = document.getElementById('modelPerformance');
+                const insightsDiv = document.getElementById('mlInsights');
+                
+                statusDiv.innerHTML = `<span style="color: #ff4757;">❌ Error</span>`;
+                performanceDiv.innerHTML = 'Connection failed';
+                insightsDiv.innerHTML = `❌ <strong>Connection Error</strong><br><br>Unable to load ML insights: ${error.message}<br><br>Please check your internet connection and try again.`;
             }
         }
         
@@ -1833,24 +1855,44 @@
             button.disabled = true;
             
             try {
+                console.log('Starting ML model training...');
+                
                 const response = await fetch('https://web-production-cd33.up.railway.app/api/ml-train', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ retrain: true })
+                    body: JSON.stringify({ 
+                        retrain: true,
+                        use_real_data: true,
+                        data_source: 'signal_lab_trades'
+                    })
                 });
                 
+                console.log('ML Training Response Status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
                 const result = await response.json();
+                console.log('ML Training Result:', result);
                 
                 if (result.status === 'success') {
-                    alert(`✅ ML TRAINING COMPLETE!\n\nBest Model: ${result.best_model}\nModels Trained: ${result.models_trained.join(', ')}\nTraining Samples: ${result.training_samples}\nFeatures: ${result.features_selected}`);
-                    loadMLInsights();
+                    const modelsText = Array.isArray(result.models_trained) ? result.models_trained.join(', ') : 'Multiple models';
+                    alert(`✅ ML TRAINING COMPLETE!\n\nBest Model: ${result.best_model || 'Unknown'}\nModels Trained: ${modelsText}\nTraining Samples: ${result.training_samples || 'N/A'}\nFeatures: ${result.features_selected || 'N/A'}`);
+                    
+                    // Refresh ML insights after successful training
+                    setTimeout(() => {
+                        loadMLInsights();
+                    }, 1000);
                 } else if (result.error) {
                     alert('❌ Training Error: ' + result.error);
                 } else {
                     alert('❌ Training failed: ' + JSON.stringify(result));
                 }
             } catch (error) {
-                alert('❌ Training Error: ' + error.message);
+                console.error('ML Training Error:', error);
+                alert(`❌ Training Error: ${error.message}\n\nPlease check the console for more details.`);
             } finally {
                 button.textContent = originalText;
                 button.disabled = false;
@@ -1864,30 +1906,45 @@
             button.disabled = true;
             
             try {
+                console.log('Getting current ML prediction...');
+                
                 const response = await fetch('https://web-production-cd33.up.railway.app/api/ml-predict-advanced', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         bias: 'Bullish',
-                        signal_type: 'Bullish FVG'
+                        signal_type: 'Bullish FVG',
+                        use_real_data: true,
+                        data_source: 'signal_lab_trades'
                     })
                 });
                 
+                console.log('ML Prediction Response Status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
                 const data = await response.json();
+                console.log('ML Prediction Result:', data);
                 
                 if (data.prediction) {
                     const pred = data.prediction;
-                    const predMFE = pred.predicted_mfe;
-                    const confidence = pred.confidence;
+                    const predMFE = pred.predicted_mfe || 0;
+                    const confidence = pred.confidence || 0;
                     
                     document.getElementById('currentPrediction').innerHTML = `${predMFE.toFixed(2)}R (${(confidence*100).toFixed(0)}%)`;
                     
                     showMLPredictionModal(data);
+                } else if (data.error) {
+                    alert('❌ Prediction Error: ' + data.error);
                 } else {
-                    alert('❌ Prediction Error: ' + (data.error || 'Unknown error'));
+                    alert('❌ Prediction failed: No prediction data returned');
                 }
             } catch (error) {
-                alert('❌ Prediction Error: ' + error.message);
+                console.error('ML Prediction Error:', error);
+                alert(`❌ Prediction Error: ${error.message}\n\nPlease check the console for more details.`);
             } finally {
                 button.textContent = originalText;
                 button.disabled = false;
@@ -2080,19 +2137,38 @@
         async function loadMarketContext() {
             try {
                 const response = await fetch('https://web-production-cd33.up.railway.app/api/current-market-context');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
+                console.log('Market Context Response:', data);
                 
                 if (data.error) {
                     console.error('Market context error:', data.error);
+                    // Set error state for market context
+                    document.getElementById('vixValue').textContent = 'Error';
+                    document.getElementById('sessionValue').textContent = 'Error';
+                    document.getElementById('volumeValue').textContent = 'Error';
+                    document.getElementById('dxyValue').textContent = 'Error';
+                    document.getElementById('dataSource').textContent = 'Error';
                     return;
                 }
                 
+                // Update market context values
                 document.getElementById('vixValue').textContent = data.vix ? data.vix.toFixed(1) : '-';
                 document.getElementById('sessionValue').textContent = data.market_session || '-';
                 document.getElementById('volumeValue').textContent = data.spy_volume ? (data.spy_volume/1000000).toFixed(1) + 'M' : '-';
                 document.getElementById('dxyValue').textContent = data.dxy_price ? data.dxy_price.toFixed(2) : '-';
-                document.getElementById('dataSource').textContent = data.data_source || '-';
                 
+                // Update data source element
+                const dataSourceEl = document.getElementById('marketDataSource');
+                if (dataSourceEl) {
+                    dataSourceEl.textContent = data.data_source || '-';
+                }
+                
+                // Color code VIX based on volatility levels
                 const vixEl = document.getElementById('vixValue');
                 if (data.vix) {
                     if (data.vix < 15) vixEl.style.color = '#00ff88';
@@ -2102,6 +2178,15 @@
                 
             } catch (error) {
                 console.error('Error loading market context:', error);
+                // Set error state for all market context elements
+                document.getElementById('vixValue').textContent = 'N/A';
+                document.getElementById('sessionValue').textContent = 'N/A';
+                document.getElementById('volumeValue').textContent = 'N/A';
+                document.getElementById('dxyValue').textContent = 'N/A';
+                const dataSourceEl = document.getElementById('marketDataSource');
+                if (dataSourceEl) {
+                    dataSourceEl.textContent = 'Offline';
+                }
             }
         }
         
@@ -2169,14 +2254,52 @@
             });
         }
         
+        // Test ML API connectivity
+        async function testMLConnectivity(showAlert = false) {
+            try {
+                console.log('Testing ML API connectivity...');
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/ml-insights');
+                console.log('ML API Test - Status:', response.status);
+                
+                if (response.ok) {
+                    console.log('✅ ML API is accessible');
+                    if (showAlert) {
+                        alert('✅ ML API Connection Test\n\nStatus: Connected\nEndpoint: Accessible\nResponse: OK');
+                    }
+                    return true;
+                } else {
+                    console.log('⚠ ML API returned error status:', response.status);
+                    if (showAlert) {
+                        alert(`⚠ ML API Connection Test\n\nStatus: Error\nHTTP Code: ${response.status}\nEndpoint: Accessible but returned error`);
+                    }
+                    return false;
+                }
+            } catch (error) {
+                console.log('❌ ML API connectivity test failed:', error.message);
+                if (showAlert) {
+                    alert(`❌ ML API Connection Test\n\nStatus: Failed\nError: ${error.message}\nEndpoint: Not accessible`);
+                }
+                return false;
+            }
+        }
+        
         // Load data when page loads
         document.addEventListener('DOMContentLoaded', function() {
             loadSignals();
             setupAutoUpdate();
             
-            // Load ML dashboard data
-            setTimeout(() => {
-                loadMLInsights();
+            // Test ML connectivity first, then load ML dashboard data
+            setTimeout(async () => {
+                const mlConnected = await testMLConnectivity(false);
+                if (mlConnected) {
+                    loadMLInsights();
+                } else {
+                    // Set offline state for ML components
+                    document.getElementById('mlStatus').innerHTML = `<span style="color: #ff4757;">❌ Offline</span>`;
+                    document.getElementById('modelPerformance').innerHTML = 'API Unavailable';
+                    document.getElementById('mlInsights').innerHTML = '❌ <strong>ML API Offline</strong><br><br>The ML service is currently unavailable. Please check your internet connection or try again later.';
+                }
+                
                 loadMarketContext();
             }, 1000);
         });
@@ -3139,6 +3262,7 @@
         window.closeDailyPopup = closeDailyPopup;
         
         // ML Dashboard functions
+        window.testMLConnectivity = () => testMLConnectivity(true);
         window.loadMLInsights = loadMLInsights;
         window.trainMLModels = trainMLModels;
         window.getCurrentPrediction = getCurrentPrediction;
