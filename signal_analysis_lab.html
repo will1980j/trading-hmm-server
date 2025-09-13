@@ -776,74 +776,7 @@
             </div>
         </div>
         
-        <!-- ML Dashboard Integration -->
-        <div class="data-input" style="background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,212,170,0.1)); border: 2px solid rgba(0,255,136,0.3);">
-            <h3 style="color: #00ff88; margin-bottom: 20px;">🤖 ML Intelligence Dashboard</h3>
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                <!-- ML Status Card -->
-                <div class="stat-card" style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3);">
-                    <div class="stat-label">ML Engine Status</div>
-                    <div class="stat-value" id="mlStatus" style="font-size: 1.2em;">Loading...</div>
-                    <button onclick="trainMLModels()" class="btn" style="margin-top: 10px; padding: 8px 16px; font-size: 12px;">🎯 Train Models</button>
-                </div>
-                
-                <!-- Current Prediction Card -->
-                <div class="stat-card" style="background: rgba(58,123,213,0.1); border: 1px solid rgba(58,123,213,0.3);">
-                    <div class="stat-label">Current Market Prediction</div>
-                    <div class="stat-value" id="currentPrediction" style="font-size: 1.2em;">-</div>
-                    <button onclick="getCurrentPrediction()" class="btn" style="margin-top: 10px; padding: 8px 16px; font-size: 12px; background: #3a7bd5;">📊 Get Prediction</button>
-                </div>
-                
-                <!-- Model Performance Card -->
-                <div class="stat-card" style="background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.3);">
-                    <div class="stat-label">Best Model Performance</div>
-                    <div class="stat-value" id="modelPerformance" style="font-size: 1.2em;">-</div>
-                    <button onclick="showModelComparison()" class="btn" style="margin-top: 10px; padding: 8px 16px; font-size: 12px; background: #ff6b35;">📈 Compare Models</button>
-                </div>
-            </div>
-            
-            <!-- ML Insights Panel -->
-            <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px; margin-bottom: 15px;">
-                <h4 style="color: #00d4aa; margin-bottom: 15px;">🧠 ML Insights & Feature Importance</h4>
-                <div id="mlInsights" style="min-height: 100px; color: rgba(255,255,255,0.8); font-size: 14px; line-height: 1.6;">
-                    Loading ML insights...
-                </div>
-                <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button onclick="loadMLInsights()" class="btn" style="padding: 8px 16px; font-size: 12px; background: #00d4aa;">🔄 Refresh Insights</button>
-                    <button onclick="showFeatureImportance()" class="btn" style="padding: 8px 16px; font-size: 12px; background: #3742fa;">🎯 Feature Analysis</button>
-                    <button onclick="showMLRecommendations()" class="btn" style="padding: 8px 16px; font-size: 12px; background: #2ed573;">💡 ML Recommendations</button>
-                </div>
-            </div>
-            
-            <!-- Real-time Market Context -->
-            <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
-                <h4 style="color: #ffa502; margin-bottom: 15px;">📊 Live Market Context (TradingView)</h4>
-                <div id="marketContext" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 15px;">
-                    <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                        <div style="font-size: 11px; opacity: 0.8;">VIX</div>
-                        <div id="vixValue" style="font-weight: 600; color: #ff6b7a;">-</div>
-                    </div>
-                    <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                        <div style="font-size: 11px; opacity: 0.8;">Session</div>
-                        <div id="sessionValue" style="font-weight: 600; color: #00ff88;">-</div>
-                    </div>
-                    <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                        <div style="font-size: 11px; opacity: 0.8;">SPY Volume</div>
-                        <div id="volumeValue" style="font-weight: 600; color: #3a7bd5;">-</div>
-                    </div>
-                    <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                        <div style="font-size: 11px; opacity: 0.8;">DXY</div>
-                        <div id="dxyValue" style="font-weight: 600; color: #ffa502;">-</div>
-                    </div>
-                    <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                        <div style="font-size: 11px; opacity: 0.8;">Data Source</div>
-                        <div id="dataSource" style="font-weight: 600; color: #00d4aa;">-</div>
-                    </div>
-                </div>
-                <button onclick="loadMarketContext()" class="btn" style="padding: 8px 16px; font-size: 12px; background: #ffa502;">🔄 Refresh Market Data</button>
-            </div>
-        </div>
+
         
         <div class="data-input">
             <h3>Signal Analysis Data <span id="activeTradesCounter" style="background: linear-gradient(45deg, #ff6b35, #f7931e); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-left: 10px; box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3); animation: pulse 2s infinite;">0 Active</span></h3>
@@ -1865,11 +1798,7 @@
             loadSignals();
             setTimeout(restoreFormState, 600);
             
-            // Load ML dashboard data
-            setTimeout(() => {
-                loadMLInsights();
-                loadMarketContext();
-            }, 1000);
+
         });
         
         // View screenshot function
@@ -2716,162 +2645,7 @@
             }
         }
         
-        // ML Dashboard Functions
-        async function loadMLInsights() {
-            try {
-                const response = await fetch('https://web-production-cd33.up.railway.app/api/ml-insights?use_real_data=true&data_source=signal_lab_trades');
-                const data = await response.json();
-                
-                const insightsDiv = document.getElementById('mlInsights');
-                const statusDiv = document.getElementById('mlStatus');
-                const performanceDiv = document.getElementById('modelPerformance');
-                
-                if (data.performance && data.performance.is_trained) {
-                    const perf = data.performance;
-                    const bestModel = perf.best_model || 'Unknown';
-                    const modelMetrics = perf.performance_metrics?.[bestModel];
-                    
-                    statusDiv.innerHTML = `<span style="color: #00ff88;">✓ Trained</span>`;
-                    
-                    if (modelMetrics) {
-                        const r2 = (modelMetrics.test_r2 * 100).toFixed(1);
-                        const mae = modelMetrics.test_mae.toFixed(3);
-                        performanceDiv.innerHTML = `${r2}% R², ${mae}R MAE`;
-                    } else {
-                        performanceDiv.innerHTML = `${bestModel} Active`;
-                    }
-                    
-                    let insightsHtml = `<strong>🎯 Best Model:</strong> ${bestModel}<br><br>`;
-                    
-                    if (perf.performance_metrics) {
-                        insightsHtml += '<strong>📈 Model Performance:</strong><br>';
-                        Object.entries(perf.performance_metrics).forEach(([model, metrics]) => {
-                            const r2 = (metrics.test_r2 * 100).toFixed(1);
-                            const mae = metrics.test_mae.toFixed(3);
-                            insightsHtml += `• ${model}: ${r2}% accuracy, ${mae}R error<br>`;
-                        });
-                        insightsHtml += '<br>';
-                    }
-                    
-                    insightsHtml += '<strong>💡 Key Insights:</strong><br>';
-                    insightsHtml += '• ML models are learning from your actual MFE results<br>';
-                    insightsHtml += '• Predictions improve as you add more trade data<br>';
-                    insightsHtml += '• Market context (VIX, session, volume) influences predictions<br>';
-                    
-                    insightsDiv.innerHTML = insightsHtml;
-                } else {
-                    statusDiv.innerHTML = `<span style="color: #ffa502;">⚠ Not Trained</span>`;
-                    performanceDiv.innerHTML = 'Train models first';
-                    insightsDiv.innerHTML = '📊 <strong>ML Training Required</strong><br><br>Click "Train Models" to start learning from your trading data. The system needs at least 30 trades with MFE data to build accurate predictions.';
-                }
-            } catch (error) {
-                console.error('Error loading ML insights:', error);
-                document.getElementById('mlInsights').innerHTML = '❌ Error loading ML insights: ' + error.message;
-            }
-        }
-        
-        async function trainMLModels() {
-            const button = event.target;
-            const originalText = button.textContent;
-            button.textContent = '🔄 Training...';
-            button.disabled = true;
-            
-            try {
-                // Send actual signal data for training
-                const response = await fetch('https://web-production-cd33.up.railway.app/api/ml-train', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        retrain: true,
-                        use_real_data: true,
-                        data_source: 'signal_lab_trades'
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    alert(`✅ ML TRAINING COMPLETE!\n\nBest Model: ${result.best_model}\nModels Trained: ${result.models_trained.join(', ')}\nTraining Samples: ${result.training_samples}\nFeatures: ${result.features_selected}`);
-                    loadMLInsights();
-                } else if (result.error) {
-                    alert('❌ Training Error: ' + result.error);
-                } else {
-                    alert('❌ Training failed: ' + JSON.stringify(result));
-                }
-            } catch (error) {
-                alert('❌ Training Error: ' + error.message);
-            } finally {
-                button.textContent = originalText;
-                button.disabled = false;
-            }
-        }
-        
-        async function getCurrentPrediction() {
-            const button = event.target;
-            const originalText = button.textContent;
-            button.textContent = '🔄 Predicting...';
-            button.disabled = true;
-            
-            try {
-                const response = await fetch('https://web-production-cd33.up.railway.app/api/ml-predict-advanced', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        bias: 'Bullish',
-                        signal_type: 'Bullish FVG',
-                        use_real_data: true,
-                        data_source: 'signal_lab_trades'
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.prediction) {
-                    const pred = data.prediction;
-                    const predMFE = pred.predicted_mfe;
-                    const confidence = pred.confidence;
-                    
-                    document.getElementById('currentPrediction').innerHTML = `${predMFE.toFixed(2)}R (${(confidence*100).toFixed(0)}%)`;
-                    
-                    showMLPredictionModal(data);
-                } else {
-                    alert('❌ Prediction Error: ' + (data.error || 'Unknown error'));
-                }
-            } catch (error) {
-                alert('❌ Prediction Error: ' + error.message);
-            } finally {
-                button.textContent = originalText;
-                button.disabled = false;
-            }
-        }
-        
-        async function loadMarketContext() {
-            try {
-                const response = await fetch('https://web-production-cd33.up.railway.app/api/current-market-context');
-                const data = await response.json();
-                
-                if (data.error) {
-                    console.error('Market context error:', data.error);
-                    return;
-                }
-                
-                document.getElementById('vixValue').textContent = data.vix ? data.vix.toFixed(1) : '-';
-                document.getElementById('sessionValue').textContent = data.market_session || '-';
-                document.getElementById('volumeValue').textContent = data.spy_volume ? (data.spy_volume/1000000).toFixed(1) + 'M' : '-';
-                document.getElementById('dxyValue').textContent = data.dxy_price ? data.dxy_price.toFixed(2) : '-';
-                document.getElementById('dataSource').textContent = data.data_source || '-';
-                
-                const vixEl = document.getElementById('vixValue');
-                if (data.vix) {
-                    if (data.vix < 15) vixEl.style.color = '#00ff88';
-                    else if (data.vix < 25) vixEl.style.color = '#ffa502';
-                    else vixEl.style.color = '#ff4757';
-                }
-                
-            } catch (error) {
-                console.error('Error loading market context:', error);
-            }
-        }
+
         
         // Make functions globally available
         window.addSignal = addSignal;
@@ -2898,10 +2672,7 @@
         window.editInline = editInline;
         window.editInlineCheckbox = editInlineCheckbox;
         window.recoverMissedSignals = recoverMissedSignals;
-        window.loadMLInsights = loadMLInsights;
-        window.trainMLModels = trainMLModels;
-        window.getCurrentPrediction = getCurrentPrediction;
-        window.loadMarketContext = loadMarketContext;
+
         
         } catch (error) {
             console.error('Signal Lab JavaScript Error:', error);

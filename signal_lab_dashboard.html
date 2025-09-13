@@ -618,7 +618,7 @@
                 </div>
                 <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
                     <button onclick="loadMLInsights()" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #00d4aa;">🔄 Refresh Insights</button>
-                    <button onclick="testMLConnectivity()" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #667eea;">🔗 Test Connection</button>
+
                     <button onclick="showFeatureImportance()" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #3742fa;">🎯 Feature Analysis</button>
                     <button onclick="showMLRecommendations()" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #2ed573;">💡 ML Recommendations</button>
                 </div>
@@ -3262,7 +3262,7 @@
         window.closeDailyPopup = closeDailyPopup;
         
         // ML Dashboard functions
-        window.testMLConnectivity = () => testMLConnectivity(true);
+        window.testMLConnectivity = () => { testMLConnectivity(true); };
         window.loadMLInsights = loadMLInsights;
         window.trainMLModels = trainMLModels;
         window.getCurrentPrediction = getCurrentPrediction;
