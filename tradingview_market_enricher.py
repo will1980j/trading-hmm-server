@@ -35,9 +35,13 @@ class TradingViewMarketEnricher:
             
             # If TradingView fails, try other real data sources
             if not market_data:
-                logger.warning("TradingView failed, trying Yahoo Finance...")
-                from real_data_provider import get_real_market_data
-                return get_real_market_data()
+                logger.warning("TradingView failed, trying alternative data sources...")
+                try:
+                    from real_data_provider import get_real_market_data
+                    return get_real_market_data()
+                except Exception as e:
+                    logger.error(f"Alternative data sources failed: {str(e)}")
+                    # Continue to raise exception below
             
             # If we still don't have data, raise exception
             if not market_data:
