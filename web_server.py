@@ -1901,7 +1901,7 @@ def chart_display_signal():
 
 @app.route('/api/live-signals', methods=['POST'])
 def capture_live_signal():
-    """Webhook endpoint for TradingView to send live signals"""
+    """Webhook endpoint for TradingView to send live signals with market context enrichment"""
     global db
     try:
         # Reset any aborted transaction first
@@ -2042,8 +2042,6 @@ def capture_live_signal():
         if not htf_aligned:
             logger.error(f"❌ CRITICAL: Non-HTF signal received - this should never happen!")
         
-
-        
         # Ensure price is valid - handle string and numeric prices with commas
         raw_price = data.get('price', 0)
         try:
@@ -2072,29 +2070,69 @@ def capture_live_signal():
         # Determine current session
         current_session = get_current_session()
         
-        signal = {
-            'symbol': clean_symbol,
-            'timeframe': data.get('timeframe', '1m'),
-            'signal_type': f"BIAS_{triangle_bias.upper()}",
-            'bias': triangle_bias,
-            'price': price,
-            'strength': base_strength,
-            'htf_aligned': htf_aligned,
-            'htf_status': htf_status,
-            'session': current_session,
-            'timestamp': get_ny_time().isoformat()
-        }
+        # 🚀 MARKET CONTEXT ENRICHMENT - Get real-time market data
+        try:
+            from market_data_enricher import market_enricher
+            
+            base_signal = {
+                'symbol': clean_symbol,
+                'timeframe': data.get('timeframe', '1m'),
+                'signal_type': f"BIAS_{triangle_bias.upper()}",
+                'bias': triangle_bias,
+                'price': price,
+                'strength': base_strength,
+                'htf_aligned': htf_aligned,
+                'htf_status': htf_status,
+                'session': current_session,
+                'timestamp': get_ny_time().isoformat()
+            }
+            
+            # Enrich signal with real-time market context
+            enriched_signal = market_enricher.enrich_signal_with_context(base_signal)
+            signal = enriched_signal
+            
+            # Log market context
+            market_ctx = signal.get('market_context', {})
+            logger.info(f"🌍 MARKET CONTEXT: VIX={market_ctx.get('vix', 'N/A'):.1f} | Session={market_ctx.get('session', 'N/A')} | Volume={market_ctx.get('spy_volume', 0):,} | DXY={market_ctx.get('dxy_price', 'N/A'):.2f} | Quality={signal.get('context_quality_score', 0):.2f}")
+            
+            # Log context recommendations
+            recommendations = signal.get('context_recommendations', [])
+            if recommendations:
+                logger.info(f"💡 CONTEXT RECOMMENDATIONS: {' | '.join(recommendations[:2])}")
+            
+        except Exception as e:
+            logger.error(f"Market enrichment failed: {str(e)} - using basic signal")
+            signal = {
+                'symbol': clean_symbol,
+                'timeframe': data.get('timeframe', '1m'),
+                'signal_type': f"BIAS_{triangle_bias.upper()}",
+                'bias': triangle_bias,
+                'price': price,
+                'strength': base_strength,
+                'htf_aligned': htf_aligned,
+                'htf_status': htf_status,
+                'session': current_session,
+                'timestamp': get_ny_time().isoformat()
+            }
         
         cursor = db.conn.cursor()
+        
+        # Store enriched signal with market context
+        market_context_json = dumps(signal.get('market_context', {}))
+        context_quality = signal.get('context_quality_score', 0.5)
+        context_recommendations_json = dumps(signal.get('context_recommendations', []))
+        
         cursor.execute("""
             INSERT INTO live_signals 
-            (symbol, timeframe, signal_type, bias, price, strength, htf_aligned, htf_status, session, timestamp)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (symbol, timeframe, signal_type, bias, price, strength, htf_aligned, htf_status, session, timestamp,
+             market_context, context_quality_score, context_recommendations)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             signal['symbol'], signal['timeframe'], signal['signal_type'],
             signal['bias'], signal['price'], signal['strength'], 
-            signal['htf_aligned'], signal['htf_status'], signal['session'], get_ny_time()
+            signal['htf_aligned'], signal['htf_status'], signal['session'], get_ny_time(),
+            market_context_json, context_quality, context_recommendations_json
         ))
         
         result = cursor.fetchone()
@@ -2143,20 +2181,47 @@ def capture_live_signal():
             logger.error(f"❌ ML analysis error: {str(ml_error)}")
             pass
         
-        # Focus only on NQ HTF aligned signals
+        # 🤖 ML PREDICTION - Learn which signals work best
+        context_quality = signal.get('context_quality_score', 0.5)
+        ml_prediction = None
         
-        # Auto-populate Signal Lab for NQ1! HTF aligned signals only
-        should_populate = signal['symbol'] == 'NQ1!' and htf_aligned
+        try:
+            from signal_ml_predictor import get_ml_predictor
+            ml_predictor = get_ml_predictor(db)
+            
+            # Get ML prediction for this signal
+            ml_prediction = ml_predictor.predict_signal_quality(
+                signal.get('market_context', {}),
+                {'bias': signal['bias'], 'session': signal['session']}
+            )
+            
+            # Log ML prediction
+            logger.info(f"🤖 ML PREDICTION: Quality={ml_prediction['predicted_quality']:.2f}, MFE={ml_prediction['predicted_mfe']:.2f}R, Confidence={ml_prediction['confidence']:.2f}, Rec={ml_prediction['recommendation']}")
+            
+        except Exception as e:
+            logger.error(f"ML prediction error: {str(e)}")
+            ml_prediction = {'predicted_quality': 0.5, 'predicted_mfe': 0, 'confidence': 0, 'recommendation': 'ML unavailable'}
         
-        # Log final signal storage
+        # Keep same auto-population logic (no filtering changes)
+        should_populate = (
+            signal['symbol'] == 'NQ1!' and 
+            htf_aligned  # Same as before - no quality filtering
+        )
+        
+        # Log final signal storage with market context
         lab_status = 'Yes' if should_populate else 'No'
-        logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | ID: {signal_id} | Lab: {lab_status}")
+        market_ctx = signal.get('market_context', {})
+        vix_info = f"VIX={market_ctx.get('vix', 'N/A'):.1f}" if market_ctx.get('vix') else "VIX=N/A"
+        quality_info = f"Quality={context_quality:.2f}"
+        
+        logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | {vix_info} | {quality_info} | ID: {signal_id} | Lab: {lab_status}")
         
         if should_populate:
-            logger.info(f"✅ NQ1! HTF ALIGNED: {signal['bias']} - Auto-populating Signal Lab")
+            logger.info(f"✅ NQ1! HTF ALIGNED + HIGH QUALITY: {signal['bias']} - Auto-populating Signal Lab")
         
         if should_populate:
             try:
+                # Enhanced lab trade with market context + ML prediction
                 lab_trade = {
                     'date': get_ny_time().strftime('%Y-%m-%d'),
                     'time': get_ny_time().strftime('%H:%M:%S'),
@@ -2165,37 +2230,54 @@ def capture_live_signal():
                     'signal_type': signal['signal_type'],
                     'entry_price': signal['price'],
                     'active_trade': True,
-                    'htf_aligned': signal['htf_aligned']
+                    'htf_aligned': signal['htf_aligned'],
+                    'market_context': market_context_json,
+                    'context_quality_score': context_quality,
+                    'ml_prediction': dumps(ml_prediction) if ml_prediction else None
                 }
                 
                 cursor.execute("""
                     INSERT INTO signal_lab_trades 
-                    (date, time, bias, session, signal_type, entry_price, active_trade, htf_aligned)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    (date, time, bias, session, signal_type, entry_price, active_trade, htf_aligned, 
+                     market_context, context_quality_score, ml_prediction)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     lab_trade['date'], lab_trade['time'], lab_trade['bias'], 
                     lab_trade['session'], lab_trade['signal_type'], lab_trade['entry_price'],
-                    lab_trade['active_trade'], lab_trade['htf_aligned']
+                    lab_trade['active_trade'], lab_trade['htf_aligned'],
+                    lab_trade['market_context'], lab_trade['context_quality_score'],
+                    lab_trade['ml_prediction']
                 ))
                 db.conn.commit()
                 
-                logger.info(f"✅ Auto-populated Signal Lab: {signal['bias']} {signal['symbol']} | HTF Aligned")
+                ml_info = f"ML: {ml_prediction['predicted_quality']:.2f}" if ml_prediction else "ML: N/A"
+                logger.info(f"✅ Auto-populated Signal Lab: {signal['bias']} {signal['symbol']} | HTF Aligned | Quality: {context_quality:.2f} | {ml_info}")
                 
             except Exception as e:
                 logger.error(f"Failed to auto-populate Signal Lab: {str(e)}")
         else:
-            reason = "not NQ1!" if signal['symbol'] != 'NQ1!' else "not HTF aligned"
+            if signal['symbol'] != 'NQ1!':
+                reason = "not NQ1!"
+            elif not htf_aligned:
+                reason = "not HTF aligned"
+            else:
+                reason = "unknown"
             logger.info(f"⚠️ Skipped Signal Lab auto-population - {reason} (Symbol: {signal['symbol']}, HTF: {htf_aligned})")
         
-        # Broadcast original signal to all connected clients
+        # Broadcast enriched signal to all connected clients
         enhanced_signal = dict(signal)
         enhanced_signal['id'] = signal_id
+        enhanced_signal['ml_prediction'] = ml_prediction
         socketio.emit('new_signal', enhanced_signal, namespace='/')
         
         return jsonify({
             "status": "success",
             "signal_id": signal_id,
-            "message": "Signal captured and auto-populated to Signal Lab"
+            "market_context": signal.get('market_context', {}),
+            "context_quality_score": context_quality,
+            "context_recommendations": signal.get('context_recommendations', []),
+            "ml_prediction": ml_prediction,
+            "message": "Signal captured with market context + ML prediction"
         })
         
     except Exception as e:
@@ -3065,6 +3147,120 @@ def cleanup_signals():
         logger.error(f"Error in signal cleanup: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+# Market Context Analysis Endpoints
+@app.route('/api/market-context-analysis', methods=['GET'])
+@login_required
+def get_market_context_analysis():
+    """Get comprehensive market context analysis"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from signal_context_analyzer import SignalContextAnalyzer
+        
+        days_back = int(request.args.get('days', 30))
+        analyzer = SignalContextAnalyzer(db)
+        
+        analysis = analyzer.get_comprehensive_analysis(days_back)
+        
+        return jsonify(analysis)
+        
+    except Exception as e:
+        logger.error(f"Error in market context analysis: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/current-market-context', methods=['GET'])
+@login_required
+def get_current_market_context():
+    """Get current real-time market context"""
+    try:
+        from market_data_enricher import market_enricher
+        
+        context = market_enricher.get_market_context()
+        
+        return jsonify({
+            'vix': context.vix,
+            'spy_volume': context.spy_volume,
+            'qqq_volume': context.qqq_volume,
+            'market_session': context.market_session,
+            'volatility_regime': context.volatility_regime,
+            'trend_strength': context.trend_strength,
+            'correlation_nq_es': context.correlation_nq_es,
+            'correlation_nq_ym': context.correlation_nq_ym,
+            'dxy_price': context.dxy_price,
+            'dxy_change': context.dxy_change,
+            'sector_rotation': context.sector_rotation,
+            'news_sentiment': context.news_sentiment,
+            'economic_events': context.economic_events,
+            'timestamp': context.timestamp.isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting current market context: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml-insights', methods=['GET'])
+@login_required
+def get_ml_insights():
+    """Get ML model insights and learning progress"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from signal_ml_predictor import get_ml_predictor
+        
+        ml_predictor = get_ml_predictor(db)
+        insights = ml_predictor.get_model_insights()
+        
+        return jsonify({
+            'insights': insights,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting ML insights: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/predict-current-signal', methods=['POST'])
+@login_required
+def predict_current_signal():
+    """Get ML prediction for current market conditions"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from market_data_enricher import market_enricher
+        from signal_ml_predictor import get_ml_predictor
+        
+        # Get current market context
+        market_context = market_enricher.get_market_context()
+        
+        # Get signal data from request
+        signal_data = request.get_json() or {}
+        signal_data.setdefault('bias', 'Bullish')
+        signal_data.setdefault('session', market_context.market_session)
+        
+        # Get ML prediction
+        ml_predictor = get_ml_predictor(db)
+        prediction = ml_predictor.predict_signal_quality(
+            market_context.__dict__,
+            signal_data
+        )
+        
+        return jsonify({
+            'prediction': prediction,
+            'market_context': {
+                'vix': market_context.vix,
+                'session': market_context.market_session,
+                'volatility_regime': market_context.volatility_regime
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error predicting current signal: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/ai-chart-analysis', methods=['GET', 'POST'])
 def ai_chart_analysis_extension():
     print(f"✅ Extension endpoint called with method: {request.method}")
@@ -3080,44 +3276,80 @@ def ai_chart_analysis_extension():
             price = float(request.args.get('price', 0))
             session = request.args.get('session', 'LONDON')
         
-        # Get current market data for context
-        news_api = NewsAPI()
-        futures_data = news_api.get_futures_data()
-        current_time = datetime.now()
+        # 🚀 Enhanced with real-time market context
+        try:
+            from market_data_enricher import market_enricher
+            market_context = market_enricher.get_market_context()
+            
+            # Use real market data for enhanced analysis
+            vix = market_context.vix
+            volume_ratio = market_context.spy_volume / 80000000  # vs average
+            session = market_context.market_session
+            
+        except Exception as e:
+            logger.error(f"Market context error: {str(e)}")
+            # Fallback to basic analysis
+            vix = 20.0
+            volume_ratio = 1.0
+            current_time = datetime.now()
         
-        # Session-based FVG quality scoring
+        # Enhanced session-based FVG quality scoring with market context
         session_multipliers = {
-            'ASIA': 0.3,
-            'LONDON': 0.9,
-            'NEW YORK AM': 0.8,
-            'NEW YORK PM': 0.6,
-            'NY LUNCH': 0.2,
-            'NY PRE MARKET': 0.4
+            'Asia': 0.3,
+            'London': 0.9,
+            'NY Regular': 0.8,
+            'NY Pre Market': 0.4,
+            'After Hours': 0.2
         }
         
         base_fvg_quality = 0.7
         session_multiplier = session_multipliers.get(session, 0.5)
-        fvg_quality = min(0.95, base_fvg_quality * session_multiplier)
         
-        # Entry confidence based on session and price action
-        entry_confidence = 0.75 if session in ['LONDON', 'NEW YORK AM'] else 0.4
+        # VIX adjustment
+        if vix < 15:  # Low VIX
+            vix_multiplier = 1.1
+        elif vix > 30:  # High VIX
+            vix_multiplier = 0.8
+        else:
+            vix_multiplier = 1.0
+        
+        # Volume adjustment
+        volume_multiplier = min(1.2, max(0.8, volume_ratio))
+        
+        fvg_quality = min(0.95, base_fvg_quality * session_multiplier * vix_multiplier * volume_multiplier)
+        
+        # Enhanced entry confidence
+        entry_confidence = 0.75 if session in ['London', 'NY Regular'] else 0.4
         if price > 0:
             entry_confidence = min(0.9, entry_confidence + 0.1)
         
-        # Market condition analysis
-        hour = current_time.hour
-        if 8 <= hour <= 12:  # London session
-            market_condition = "HIGH LIQUIDITY"
-        elif 13 <= hour <= 16:  # NY AM
-            market_condition = "TRENDING"
-        else:
-            market_condition = "LOW LIQUIDITY"
+        # VIX-based confidence adjustment
+        if vix > 25:
+            entry_confidence *= 0.9  # Reduce confidence in high VIX
+        elif vix < 15:
+            entry_confidence *= 1.1  # Increase confidence in low VIX
         
-        # Generate recommendation
-        if entry_confidence > 0.7 and fvg_quality > 0.6:
+        entry_confidence = min(0.95, entry_confidence)
+        
+        # Enhanced market condition analysis
+        if session == 'London' and volume_ratio > 1.1:
+            market_condition = "OPTIMAL LIQUIDITY"
+        elif session == 'NY Regular' and vix < 20:
+            market_condition = "TRENDING CONDITIONS"
+        elif vix > 30:
+            market_condition = "HIGH VOLATILITY"
+        elif volume_ratio < 0.7:
+            market_condition = "LOW LIQUIDITY"
+        else:
+            market_condition = "NORMAL CONDITIONS"
+        
+        # Enhanced recommendation with market context
+        if entry_confidence > 0.7 and fvg_quality > 0.6 and vix < 25:
             recommendation = "STRONG SETUP"
-        elif entry_confidence > 0.5:
+        elif entry_confidence > 0.5 and fvg_quality > 0.4:
             recommendation = "MODERATE SETUP"
+        elif vix > 30:
+            recommendation = "HIGH VIX - CAUTION"
         else:
             recommendation = "WAIT"
         
@@ -3129,8 +3361,10 @@ def ai_chart_analysis_extension():
             'marketCondition': market_condition,
             'sessionQuality': session_multiplier,
             'recommendation': recommendation,
-            'timestamp': current_time.isoformat(),
-            'analysis': f"Session: {session} | FVG Quality: {fvg_quality:.0%} | Entry Confidence: {entry_confidence:.0%} | Market: {market_condition}"
+            'vix': round(vix, 1),
+            'volumeRatio': round(volume_ratio, 2),
+            'timestamp': datetime.now().isoformat(),
+            'analysis': f"Session: {session} | VIX: {vix:.1f} | Volume: {volume_ratio:.1f}x | FVG Quality: {fvg_quality:.0%} | Entry Confidence: {entry_confidence:.0%}"
         })
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
@@ -3149,6 +3383,13 @@ def ai_chart_analysis_extension():
         })
         response.headers['Access-Control-Allow-Origin'] = '*'
         return response, 200
+
+# Market Context Dashboard endpoint
+@app.route('/market-context-dashboard')
+@login_required
+def market_context_dashboard():
+    """Market context analysis dashboard"""
+    return read_html_file('market_context_dashboard.html')
 
 # Prop firm endpoints
 @app.route('/api/prop-firms')
@@ -3306,7 +3547,7 @@ Analyze this NQ level tracking data and provide:
 
 
 
-# Add economic news cache table creation
+# Add economic news cache table creation and market context columns
 try:
     if db_enabled and db:
         cursor = db.conn.cursor()
@@ -3326,6 +3567,14 @@ try:
             ADD COLUMN IF NOT EXISTS session VARCHAR(50) DEFAULT 'Unknown'
         """)
         
+        # Add market context enrichment columns to live_signals table
+        cursor.execute("""
+            ALTER TABLE live_signals 
+            ADD COLUMN IF NOT EXISTS market_context JSONB,
+            ADD COLUMN IF NOT EXISTS context_quality_score DECIMAL(3,2) DEFAULT 0.5,
+            ADD COLUMN IF NOT EXISTS context_recommendations JSONB
+        """)
+        
         # Add active_trade and htf_aligned columns to signal_lab_trades table
         cursor.execute("""
             ALTER TABLE signal_lab_trades 
@@ -3333,8 +3582,16 @@ try:
             ADD COLUMN IF NOT EXISTS htf_aligned BOOLEAN DEFAULT FALSE
         """)
         
+        # Add market context columns to signal_lab_trades table
+        cursor.execute("""
+            ALTER TABLE signal_lab_trades 
+            ADD COLUMN IF NOT EXISTS market_context JSONB,
+            ADD COLUMN IF NOT EXISTS context_quality_score DECIMAL(3,2) DEFAULT 0.5,
+            ADD COLUMN IF NOT EXISTS ml_prediction JSONB
+        """)
+        
         db.conn.commit()
-        logger.info("Database tables ready with HTF columns")
+        logger.info("Database tables ready with HTF, market context, and ML prediction columns")
 except Exception as e:
     logger.error(f"Error creating database tables: {str(e)}")
 
