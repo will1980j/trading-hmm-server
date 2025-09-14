@@ -3682,7 +3682,12 @@ def get_current_market_context():
             if spy_response.status_code == 200:
                 import re
                 price_match = re.search(r'data-last-price="([\d\.]+)"', spy_response.text)
-                volume_match = re.search(r'Volume[^\d]*([\d,\.]+[KMB]?)', spy_response.text)
+                # Look for volume in Trading Statistics section
+                volume_match = re.search(r'Volume[^\d]*([\d,\.]+)\s*million', spy_response.text, re.IGNORECASE)
+                if not volume_match:
+                    volume_match = re.search(r'Volume[^\d]*([\d,\.]+[KMB])', spy_response.text)
+                if not volume_match:
+                    volume_match = re.search(r'([\d,\.]+)\s*million[^\d]*Volume', spy_response.text, re.IGNORECASE)
                 
                 if price_match:
                     context['spy_price'] = float(price_match.group(1))
@@ -3692,17 +3697,23 @@ def get_current_market_context():
                     
                 if volume_match:
                     volume_str = volume_match.group(1).replace(',', '')
-                    if 'K' in volume_str:
-                        context['spy_volume'] = int(float(volume_str.replace('K', '')) * 1000)
+                    volume_float = float(volume_str)
+                    
+                    # Check if we found "X.XX million" format
+                    if 'million' in spy_response.text[volume_match.start()-50:volume_match.end()+50].lower():
+                        context['spy_volume'] = int(volume_float * 1000000)
+                    elif 'K' in volume_str:
+                        context['spy_volume'] = int(volume_float * 1000)
                     elif 'M' in volume_str:
-                        context['spy_volume'] = int(float(volume_str.replace('M', '')) * 1000000)
+                        context['spy_volume'] = int(volume_float * 1000000)
                     elif 'B' in volume_str:
-                        context['spy_volume'] = int(float(volume_str.replace('B', '')) * 1000000000)
+                        context['spy_volume'] = int(volume_float * 1000000000)
                     else:
-                        context['spy_volume'] = int(float(volume_str))
+                        context['spy_volume'] = int(volume_float) if volume_float > 1000 else int(volume_float * 1000000)
                     logger.info(f"✅ Google Finance SPY Volume: {context['spy_volume']:,}")
                 else:
                     context['spy_volume'] = 'DATA_ERROR'
+                    logger.warning(f"⚠️ Could not parse SPY volume from Google Finance")
             else:
                 context['spy_price'] = 'DATA_ERROR'
                 context['spy_volume'] = 'DATA_ERROR'
@@ -3713,7 +3724,7 @@ def get_current_market_context():
         
         # Get DXY price
         try:
-            dxy_response = requests.get("https://www.google.com/finance/quote/DX-Y.NYB:NYBOT", headers=headers, timeout=10)
+            dxy_response = requests.get("https://www.google.com/finance/quote/NYICDX:INDEXNYSEGIS", headers=headers, timeout=10)
             if dxy_response.status_code == 200:
                 import re
                 price_match = re.search(r'data-last-price="([\d\.]+)"', dxy_response.text)
@@ -3794,9 +3805,9 @@ def get_current_market_context():
         # Update data source based on success (preserve Google Finance source if used)
         if 'Google_Finance' not in context.get('data_source', ''):
             if error_count == 0:
-                context['data_source'] = 'Real_Data'
+                context['data_source'] = 'Google_Finance_Complete'
             elif len(successful_symbols) > 0:
-                context['data_source'] = 'Partial_Data'
+                context['data_source'] = 'Google_Finance_Partial'
             else:
                 context['data_source'] = 'API_Error'
         
