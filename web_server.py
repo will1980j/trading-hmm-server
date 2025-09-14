@@ -3003,6 +3003,49 @@ def test_twelvedata_api():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/api/debug-spy-html', methods=['GET'])
+def debug_spy_html():
+    """Debug SPY HTML to find volume pattern"""
+    try:
+        import requests
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        spy_response = requests.get("https://www.google.com/finance/quote/SPY:NYSEARCA", headers=headers, timeout=10)
+        
+        if spy_response.status_code == 200:
+            html = spy_response.text
+            
+            # Find all volume-related text
+            import re
+            volume_patterns = re.findall(r'[Vv]olume[^>]*>([^<]*)', html)
+            number_patterns = re.findall(r'([\d,\.]+[KMB])', html)
+            
+            # Find the specific 15.66M pattern
+            specific_match = re.search(r'15\.66M', html)
+            
+            # Get context around volume
+            volume_context = []
+            for match in re.finditer(r'[Vv]olume', html):
+                start = max(0, match.start() - 100)
+                end = min(len(html), match.end() + 100)
+                volume_context.append(html[start:end])
+            
+            return jsonify({
+                'status': 'success',
+                'volume_patterns': volume_patterns,
+                'number_patterns': number_patterns[:20],  # First 20 numbers
+                'specific_15_66M': bool(specific_match),
+                'volume_context': volume_context,
+                'html_length': len(html)
+            })
+        else:
+            return jsonify({'error': f'HTTP {spy_response.status_code}'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/test-tradingview', methods=['GET'])
 def test_tradingview_api():
     """Test TradingView API connectivity and data quality"""
@@ -3676,62 +3719,54 @@ def get_current_market_context():
             logger.error(f"❌ Google Finance QQQ error: {str(e)}")
             context['nq_price'] = 'DATA_ERROR'
         
-        # Get SPY price and volume
+        # Get SPY price and volume from Google Finance
         try:
             spy_response = requests.get("https://www.google.com/finance/quote/SPY:NYSEARCA", headers=headers, timeout=10)
             if spy_response.status_code == 200:
                 import re
-                price_match = re.search(r'data-last-price="([\d\.]+)"', spy_response.text)
+                html = spy_response.text
                 
-                # Multiple patterns to find current day volume (not average volume)
-                volume_match = None
-                
-                # Pattern 1: Look for Volume in the Overview table (15.66M format)
-                volume_match = re.search(r'<td[^>]*>\s*Volume\s*</td>\s*<td[^>]*>\s*([\d,\.]+[KMB]?)\s*</td>', spy_response.text)
-                
-                # Pattern 2: Look for Volume after Low price
-                if not volume_match:
-                    volume_match = re.search(r'Low[^>]*>[^<]*</[^>]*>[^<]*<[^>]*>\s*Volume[^>]*>\s*([\d,\.]+[KMB]?)', spy_response.text)
-                
-                # Pattern 3: Simple Volume pattern (avoid Avg. vol)
-                if not volume_match:
-                    volume_match = re.search(r'>\s*Volume\s*</[^>]*>\s*<[^>]*>\s*([\d,\.]+[KMB]?)\s*<', spy_response.text)
-                
+                # SPY Price
+                price_match = re.search(r'data-last-price="([\d\.]+)"', html)
                 if price_match:
                     context['spy_price'] = float(price_match.group(1))
                     logger.info(f"✅ Google Finance SPY: {context['spy_price']}")
                 else:
                     context['spy_price'] = 'DATA_ERROR'
-                    
-                if volume_match:
-                    try:
-                        volume_str = volume_match.group(1).replace(',', '').strip()
-                        # Validate it's not the average volume (typically 18.6M)
-                        if volume_str == '18.6M' or volume_str == '18.63M':
-                            logger.warning(f"⚠️ Detected average volume {volume_str}, looking for current day volume")
-                            context['spy_volume'] = 'DATA_ERROR'
+                
+                # SPY Volume - parse from Overview table structure
+                volume_patterns = [
+                    r'<div[^>]*>Volume</div>\s*<div[^>]*>([\d,\.]+[KMB]?)</div>',
+                    r'>Volume</[^>]*>\s*<[^>]*>([\d,\.]+[KMB]?)</',
+                    r'Volume[^>]*>\s*([\d,\.]+[KMB]?)\s*<',
+                    r'"Volume"[^}]*"([\d,\.]+[KMB]?)"'
+                ]
+                
+                volume_found = False
+                for pattern in volume_patterns:
+                    volume_match = re.search(pattern, html)
+                    if volume_match:
+                        vol_str = volume_match.group(1).replace(',', '')
+                        if 'M' in vol_str:
+                            vol_num = float(vol_str.replace('M', ''))
+                            context['spy_volume'] = int(vol_num * 1000000)
+                        elif 'K' in vol_str:
+                            vol_num = float(vol_str.replace('K', ''))
+                            context['spy_volume'] = int(vol_num * 1000)
                         else:
-                            if 'M' in volume_str:
-                                num_part = volume_str.replace('M', '').strip()
-                                volume_num = float(num_part)
-                                context['spy_volume'] = int(volume_num * 1000000)
-                            elif 'K' in volume_str:
-                                num_part = volume_str.replace('K', '').strip()
-                                volume_num = float(num_part)
-                                context['spy_volume'] = int(volume_num * 1000)
-                            else:
-                                volume_num = float(volume_str)
-                                context['spy_volume'] = int(volume_num)
-                            logger.info(f"✅ Google Finance SPY Volume: {context['spy_volume']:,}")
-                    except (ValueError, TypeError) as e:
-                        logger.error(f"❌ Volume parsing error: {str(e)} for volume_str: {volume_str}")
-                        context['spy_volume'] = 'DATA_ERROR'
-                else:
+                            context['spy_volume'] = int(float(vol_str))
+                        
+                        logger.info(f"✅ Google Finance SPY Volume: {context['spy_volume']:,} (from {vol_str})")
+                        volume_found = True
+                        break
+                
+                if not volume_found:
                     context['spy_volume'] = 'DATA_ERROR'
                     logger.warning(f"⚠️ Could not parse SPY volume from Google Finance")
             else:
                 context['spy_price'] = 'DATA_ERROR'
                 context['spy_volume'] = 'DATA_ERROR'
+                
         except Exception as e:
             logger.error(f"❌ Google Finance SPY error: {str(e)}")
             context['spy_price'] = 'DATA_ERROR'
@@ -3819,14 +3854,15 @@ def get_current_market_context():
         if error_symbols:
             logger.warning(f"❌ Failed symbols: {', '.join(error_symbols)}")
         
-        # Update data source based on success (preserve Google Finance source if used)
-        if 'Google_Finance' not in context.get('data_source', ''):
-            if len(error_symbols) == 0:
-                context['data_source'] = 'Google_Finance_Complete'
-            elif len(successful_symbols) > 0:
-                context['data_source'] = 'Google_Finance_Partial'
-            else:
-                context['data_source'] = 'API_Error'
+
+        
+        # Update data source based on success
+        if len(error_symbols) == 0:
+            context['data_source'] = 'Google_Finance_Complete'
+        elif len(successful_symbols) > 0:
+            context['data_source'] = 'Google_Finance_Partial'
+        else:
+            context['data_source'] = 'API_Error'
         
         return jsonify(context)
         
