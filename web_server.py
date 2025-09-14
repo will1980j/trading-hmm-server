@@ -3582,60 +3582,48 @@ def get_market_context_analysis():
 @app.route('/api/current-market-context', methods=['GET'])
 @login_required
 def get_current_market_context():
-    """Get current real-time market context"""
+    """Get current market context using TwelveData API"""
     try:
         import requests
         
+        api_key = "130662f9ebe34885a16bea088b096c70"
         context = {
             'market_session': get_current_session(),
-            'data_source': 'Yahoo Finance'
+            'data_source': 'TwelveData'
         }
         
-        # Try Alpha Vantage free API
-        try:
-            # VIX from Alpha Vantage
-            url = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=VIX&apikey=demo"
-            response = requests.get(url, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                if 'Global Quote' in data:
-                    context['vix'] = float(data['Global Quote']['05. price'])
-                else:
-                    context['vix'] = 0
-            else:
-                context['vix'] = 0
-        except:
-            context['vix'] = 0
-            
-        # Try simple financial API for others
-        symbols = {'NQ=F': 'nq_price', 'DX=F': 'dxy_price', 'SPY': 'spy_price'}
+        # TwelveData symbols
+        symbols = {
+            'VIX': 'vix',
+            'NQ': 'nq_price',
+            'DXY': 'dxy_price', 
+            'SPY': 'spy_price'
+        }
+        
         for symbol, key in symbols.items():
             try:
-                url = f"https://financialmodelingprep.com/api/v3/quote-short/{symbol}?apikey=demo"
+                url = f"https://api.twelvedata.com/price?symbol={symbol}&apikey={api_key}"
                 response = requests.get(url, timeout=10)
+                
                 if response.status_code == 200:
                     data = response.json()
-                    if data and len(data) > 0:
-                        context[key] = data[0].get('price', 0)
+                    if 'price' in data:
+                        context[key] = float(data['price'])
                     else:
                         context[key] = 0
+                        logger.error(f"No price data for {symbol}: {data}")
                 else:
                     context[key] = 0
-            except:
+                    logger.error(f"HTTP {response.status_code} for {symbol}")
+                    
+            except Exception as e:
+                logger.error(f"Error fetching {symbol}: {str(e)}")
                 context[key] = 0
         
-        # Only return if we got at least one real value
-        real_values = [v for v in context.values() if isinstance(v, (int, float)) and v > 0]
-        if len(real_values) > 1:
-            return jsonify(context)
-        else:
-            return jsonify({
-                'error': 'No real-time data available',
-                'status': 'offline'
-            }), 503
+        return jsonify(context)
         
     except Exception as e:
-        logger.error(f"Market context error: {str(e)}")
+        logger.error(f"TwelveData API error: {str(e)}")
         return jsonify({
             'error': str(e),
             'status': 'error'
