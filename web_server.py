@@ -2940,6 +2940,69 @@ def test_price_parsing():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/test-twelvedata', methods=['GET'])
+def test_twelvedata_api():
+    """Test TwelveData API with correct ETF symbols"""
+    try:
+        import requests
+        
+        api_key = "130662f9ebe34885a16bea088b096c70"
+        
+        # Test the corrected symbols from ETF endpoint
+        test_symbols = ['VIX', 'QQQ', 'SPY', 'UUP']  # UUP instead of DXY
+        results = {}
+        
+        for symbol in test_symbols:
+            try:
+                url = f"https://api.twelvedata.com/price?symbol={symbol}&apikey={api_key}"
+                response = requests.get(url, timeout=10)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    results[symbol] = {
+                        'status': 'success',
+                        'price': data.get('price'),
+                        'data': data
+                    }
+                else:
+                    results[symbol] = {
+                        'status': 'failed',
+                        'http_code': response.status_code,
+                        'response': response.text[:200]
+                    }
+                    
+            except Exception as e:
+                results[symbol] = {
+                    'status': 'error',
+                    'error': str(e)
+                }
+        
+        # Test ETF endpoint
+        try:
+            etf_url = "https://api.twelvedata.com/etf"
+            etf_response = requests.get(etf_url, timeout=10)
+            etf_status = {
+                'status': 'success' if etf_response.status_code == 200 else 'failed',
+                'http_code': etf_response.status_code,
+                'sample_data': etf_response.text[:500] if etf_response.status_code == 200 else etf_response.text[:200]
+            }
+        except Exception as e:
+            etf_status = {'status': 'error', 'error': str(e)}
+        
+        return jsonify({
+            'symbol_tests': results,
+            'etf_endpoint': etf_status,
+            'api_key_used': f"{api_key[:8]}...{api_key[-4:]}",
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'status': 'error',
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/api/test-tradingview', methods=['GET'])
 def test_tradingview_api():
     """Test TradingView API connectivity and data quality"""
@@ -3582,48 +3645,114 @@ def get_market_context_analysis():
 @app.route('/api/current-market-context', methods=['GET'])
 @login_required
 def get_current_market_context():
-    """Get current market context using TwelveData API"""
+    """Get current market context using hybrid API approach"""
     try:
         import requests
         
-        api_key = "130662f9ebe34885a16bea088b096c70"
         context = {
             'market_session': get_current_session(),
-            'data_source': 'TwelveData'
+            'data_source': 'TD_Ameritrade_Hybrid' if environ.get('TD_CONSUMER_KEY') else 'Hybrid_API'
         }
         
-        # TwelveData symbols (basic format - no exchange prefixes)
-        symbols = {
-            'VIX': 'vix',
-            'QQQ': 'nq_price',  # Use QQQ as proxy for NQ
-            'SPY': 'spy_price',
-            'DXY': 'dxy_price'
+        # TwelveData API for ETF symbols (these work reliably)
+        twelvedata_key = "130662f9ebe34885a16bea088b096c70"
+        etf_symbols = {
+            'QQQ': 'nq_price',      # QQQ ETF as proxy for NQ
+            'SPY': 'spy_price',     # SPY ETF
+            'UUP': 'dxy_price'      # UUP ETF as proxy for DXY
         }
         
-        for symbol, key in symbols.items():
+        # Fetch ETF data from TwelveData
+        for symbol, key in etf_symbols.items():
             try:
-                url = f"https://api.twelvedata.com/price?symbol={symbol}&apikey={api_key}"
+                url = f"https://api.twelvedata.com/price?symbol={symbol}&apikey={twelvedata_key}"
                 response = requests.get(url, timeout=10)
                 
                 if response.status_code == 200:
                     data = response.json()
                     if 'price' in data:
                         context[key] = float(data['price'])
+                        logger.info(f"✅ TwelveData {symbol}: {data['price']}")
                     else:
-                        context[key] = 0
-                        logger.error(f"No price data for {symbol}: {data}")
+                        context[key] = 'DATA_ERROR'
+                        logger.error(f"❌ No price data for {symbol}: {data}")
                 else:
-                    context[key] = 0
-                    logger.error(f"HTTP {response.status_code} for {symbol}")
+                    context[key] = 'DATA_ERROR'
+                    logger.error(f"❌ TwelveData HTTP {response.status_code} for {symbol}")
                     
             except Exception as e:
-                logger.error(f"Error fetching {symbol}: {str(e)}")
-                context[key] = 0
+                logger.error(f"❌ TwelveData error for {symbol}: {str(e)}")
+                context[key] = 'DATA_ERROR'
+        
+        # Try Polygon.io API for VIX, then Yahoo Finance fallback
+        vix_obtained = False
+        
+        # Polygon.io API for VIX
+        polygon_api_key = "YUIrJtRmsNbAZVcjoktPdcmaztZDCfmI"
+        if not vix_obtained:
+            try:
+                # Polygon.io VIX endpoint
+                polygon_url = f"https://api.polygon.io/v2/aggs/ticker/I:VIX/prev?adjusted=true&apikey={polygon_api_key}"
+                polygon_response = requests.get(polygon_url, timeout=10)
+                
+                if polygon_response.status_code == 200:
+                    polygon_data = polygon_response.json()
+                    if 'results' in polygon_data and len(polygon_data['results']) > 0:
+                        vix_close = polygon_data['results'][0]['c']  # Close price
+                        context['vix'] = float(vix_close)
+                        context['data_source'] = 'Polygon_Primary'
+                        logger.info(f"✅ Polygon.io VIX: {context['vix']}")
+                        vix_obtained = True
+                    else:
+                        logger.warning(f"⚠️ Polygon.io unexpected response format: {polygon_data}")
+                else:
+                    logger.warning(f"⚠️ Polygon.io HTTP {polygon_response.status_code}: {polygon_response.text[:200]}")
+                    
+            except Exception as e:
+                logger.warning(f"⚠️ Polygon.io VIX error: {str(e)}")
+        
+        # Yahoo Finance fallback
+        if not vix_obtained:
+            try:
+                vix_url = "https://query1.finance.yahoo.com/v8/finance/chart/^VIX"
+                vix_response = requests.get(vix_url, timeout=10)
+                
+                if vix_response.status_code == 200:
+                    vix_data = vix_response.json()
+                    if 'chart' in vix_data and 'result' in vix_data['chart'] and len(vix_data['chart']['result']) > 0:
+                        result = vix_data['chart']['result'][0]
+                        if 'meta' in result and 'regularMarketPrice' in result['meta']:
+                            context['vix'] = float(result['meta']['regularMarketPrice'])
+                            logger.info(f"✅ Yahoo Finance VIX: {context['vix']}")
+                            vix_obtained = True
+                        
+            except Exception as e:
+                logger.warning(f"⚠️ Yahoo Finance VIX error: {str(e)}")
+        
+        # No fallback - return error if no real data
+        if not vix_obtained:
+            context['vix'] = 'DATA_ERROR'
+            logger.error("❌ VIX: No real data available")
+        
+        # Log successful API call
+        successful_symbols = [k for k, v in context.items() if k not in ['market_session', 'data_source'] and isinstance(v, (int, float)) and v > 0]
+        error_count = len([k for k, v in context.items() if k not in ['market_session', 'data_source'] and v == 'DATA_ERROR'])
+        
+        logger.info(f"📊 API Status: {len(successful_symbols)} real data, {error_count} errors")
+        
+        # Update data source based on success (preserve Polygon source if used)
+        if 'Polygon_Primary' not in context.get('data_source', ''):
+            if error_count == 0:
+                context['data_source'] = 'Real_Data'
+            elif len(successful_symbols) > 0:
+                context['data_source'] = 'Partial_Data'
+            else:
+                context['data_source'] = 'API_Error'
         
         return jsonify(context)
         
     except Exception as e:
-        logger.error(f"TwelveData API error: {str(e)}")
+        logger.error(f"Market context API error: {str(e)}")
         return jsonify({
             'error': str(e),
             'status': 'error'
