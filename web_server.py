@@ -1493,7 +1493,7 @@ def get_signal_lab_trades():
             
         cursor = db.conn.cursor()
         
-        # Simple query with error handling - EXCLUDE active trades
+        # Simple query with error handling - SHOW ALL TRADES (both active and completed)
         try:
             cursor.execute("""
                 SELECT id, date, time, bias, session, signal_type, 
@@ -1507,12 +1507,10 @@ def get_signal_lab_trades():
                        news_proximity, news_event, screenshot, 
                        analysis_data, created_at
                 FROM signal_lab_trades 
-                WHERE COALESCE(mfe_none, mfe, 0) != 0
-                AND COALESCE(active_trade, false) = false
                 ORDER BY created_at DESC
             """)
         except Exception as e:
-            # Fallback to old schema
+            # Fallback to old schema - SHOW ALL TRADES
             cursor.execute("""
                 SELECT id, date, time, bias, session, signal_type, 
                        COALESCE(mfe, 0) as mfe_none, 1 as be1_level, false as be1_hit, 0 as mfe1,
@@ -1520,8 +1518,6 @@ def get_signal_lab_trades():
                        news_proximity, news_event, screenshot, 
                        NULL as analysis_data, created_at
                 FROM signal_lab_trades 
-                WHERE COALESCE(mfe, 0) != 0
-                AND COALESCE(active_trade, false) = false
                 ORDER BY created_at DESC
             """)
         
