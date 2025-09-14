@@ -1470,31 +1470,36 @@ def get_signals():
 @app.route('/api/signal-lab-trades', methods=['GET'])
 @login_required
 def get_signal_lab_trades():
+    # Check if this is for dashboard analysis (only processed trades)
+    analysis_only = request.args.get('analysis_only', 'false').lower() == 'true'
+    
     try:
         if not db_enabled or not db:
             logger.info("Database not available - returning empty array for local development")
             return jsonify([]), 200
         
-        # DEBUG: Log database state
-        cursor = db.conn.cursor()
-        cursor.execute("SELECT COUNT(*) as total FROM signal_lab_trades")
-        total = cursor.fetchone()['total']
-        cursor.execute("SELECT COUNT(*) as with_mfe FROM signal_lab_trades WHERE COALESCE(mfe_none, mfe, 0) != 0")
-        with_mfe = cursor.fetchone()['with_mfe']
-        cursor.execute("SELECT COUNT(*) as active FROM signal_lab_trades WHERE COALESCE(active_trade, false) = true")
-        active = cursor.fetchone()['active']
-        logger.info(f"DEBUG: Total={total}, WithMFE={with_mfe}, Active={active}")
-        
-        # Clear any aborted transactions
-        try:
-            db.conn.rollback()
-        except Exception as e:
-            logger.error(f"Error rolling back transaction: {sanitize_log_input(str(e))}")
-            
         cursor = db.conn.cursor()
         
-        # Simple query with error handling - SHOW ALL TRADES (both active and completed)
-        try:
+        if analysis_only:
+            # For dashboard analysis - only processed trades with MFE data
+            cursor.execute("""
+                SELECT id, date, time, bias, session, signal_type, 
+                       COALESCE(mfe_none, mfe, 0) as mfe_none,
+                       COALESCE(be1_level, 1) as be1_level,
+                       COALESCE(be1_hit, false) as be1_hit,
+                       COALESCE(mfe1, 0) as mfe1,
+                       COALESCE(be2_level, 2) as be2_level,
+                       COALESCE(be2_hit, false) as be2_hit,
+                       COALESCE(mfe2, 0) as mfe2,
+                       news_proximity, news_event, screenshot, 
+                       analysis_data, created_at
+                FROM signal_lab_trades 
+                WHERE COALESCE(mfe_none, mfe, 0) != 0
+                AND COALESCE(active_trade, false) = false
+                ORDER BY created_at DESC
+            """)
+        else:
+            # For lab interface - all trades (including active)
             cursor.execute("""
                 SELECT id, date, time, bias, session, signal_type, 
                        COALESCE(mfe_none, mfe, 0) as mfe_none,
@@ -1509,27 +1514,9 @@ def get_signal_lab_trades():
                 FROM signal_lab_trades 
                 ORDER BY created_at DESC
             """)
-        except Exception as e:
-            # Fallback to old schema - SHOW ALL TRADES
-            cursor.execute("""
-                SELECT id, date, time, bias, session, signal_type, 
-                       COALESCE(mfe, 0) as mfe_none, 1 as be1_level, false as be1_hit, 0 as mfe1,
-                       2 as be2_level, false as be2_hit, 0 as mfe2,
-                       news_proximity, news_event, screenshot, 
-                       NULL as analysis_data, created_at
-                FROM signal_lab_trades 
-                ORDER BY created_at DESC
-            """)
         
         rows = cursor.fetchall()
-        logger.info(f"Query returned {len(rows)} rows")
-        
-        if len(rows) == 0:
-            # Check if table exists and has data
-            cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
-            result = cursor.fetchone()
-            total_count = result['count'] if result else 0
-            print(f"TOTAL TRADES IN DB: {total_count}")
+        logger.info(f"Query returned {len(rows)} rows (analysis_only={analysis_only})")
         
         trades = []
         for row in rows:
@@ -1558,7 +1545,7 @@ def get_signal_lab_trades():
         # Log sample of news data to verify updates
         sample_with_news = [t for t in trades if t.get('newsProximity') == 'High'][:3]
         logger.info(f"Sample trades with High news: {[(t['id'], t['newsProximity'], t['newsEvent'][:50] if t['newsEvent'] else 'None') for t in sample_with_news]}")
-        logger.info(f"Returning {len(trades)} trades to client")
+        logger.info(f"Returning {len(trades)} trades to client (analysis_only={analysis_only})")
         return jsonify(trades)
         
     except Exception as e:
