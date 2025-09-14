@@ -86,9 +86,7 @@ class AdvancedMLEngine:
                        st.entry_price
                 FROM signal_lab_trades st
                 WHERE st.date > CURRENT_DATE - INTERVAL '%s days'
-                AND st.market_context IS NOT NULL
                 AND COALESCE(st.mfe_none, st.mfe, 0) != 0
-                AND COALESCE(st.active_trade, false) = false
                 ORDER BY st.date DESC, st.time DESC
             """, (days_back,))
             

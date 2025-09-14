@@ -3089,6 +3089,19 @@ def trigger_divergence():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/mark-completed')
+def mark_all_completed():
+    try:
+        if not db_enabled or not db:
+            return "DB OFFLINE"
+        cursor = db.conn.cursor()
+        cursor.execute("UPDATE signal_lab_trades SET active_trade = false WHERE COALESCE(mfe_none, mfe, 0) != 0")
+        updated = cursor.rowcount
+        db.conn.commit()
+        return f"MARKED {updated} TRADES AS COMPLETED"
+    except Exception as e:
+        return f"ERROR: {str(e)}"
+
 @app.route('/api/count-trades')
 def count_trades():
     try:
