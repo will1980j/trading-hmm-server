@@ -3682,12 +3682,10 @@ def get_current_market_context():
             if spy_response.status_code == 200:
                 import re
                 price_match = re.search(r'data-last-price="([\d\.]+)"', spy_response.text)
-                # Look for volume in Overview table: "15.66M" - multiple patterns
-                volume_match = re.search(r'([\d,\.]+[KMB])(?=.*Volume)', spy_response.text)
+                # Look for volume in Overview table - target the specific row
+                volume_match = re.search(r'Volume[^>]*>\s*([\d,\.]+[KMB])', spy_response.text)
                 if not volume_match:
-                    volume_match = re.search(r'Volume[^\d]*([\d,\.]+[KMB])', spy_response.text)
-                if not volume_match:
-                    volume_match = re.search(r'([\d,\.]+[KMB])', spy_response.text)
+                    volume_match = re.search(r'>Volume</[^>]*>.*?([\d,\.]+[KMB])', spy_response.text, re.DOTALL)
                 
                 if price_match:
                     context['spy_price'] = float(price_match.group(1))
