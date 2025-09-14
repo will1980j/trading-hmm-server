@@ -3682,10 +3682,12 @@ def get_current_market_context():
             if spy_response.status_code == 200:
                 import re
                 price_match = re.search(r'data-last-price="([\d\.]+)"', spy_response.text)
-                # Target actual Volume field (not Avg. vol.)
-                volume_match = re.search(r'Volume</[^>]*>\s*([\d,\.]+[KMB]?)', spy_response.text)
+                # Target current day Volume (not Avg. vol which is 18.6M)
+                # Look for Volume row that's NOT the average volume
+                volume_match = re.search(r'(?<!Avg\. )Volume[^>]*>\s*([\d,\.]+[KMB]?)', spy_response.text)
                 if not volume_match:
-                    volume_match = re.search(r'>([\d,\.]+[KMB]?)</[^>]*>\s*</[^>]*>\s*Volume', spy_response.text)
+                    # Alternative: find Volume that comes after Low but before Avg. vol
+                    volume_match = re.search(r'Low[^>]*>[^<]*</[^>]*>\s*Volume[^>]*>\s*([\d,\.]+[KMB]?)', spy_response.text)
                 
                 if price_match:
                     context['spy_price'] = float(price_match.group(1))
@@ -3696,36 +3698,19 @@ def get_current_market_context():
                 if volume_match:
                     try:
                         volume_str = volume_match.group(1).replace(',', '').strip()
-                        logger.info(f"DEBUG: Found volume string: '{volume_str}'")
-                        
-                        # Validate it's a proper number
-                        if not volume_str or volume_str in ['', 'NaN', 'null']:
-                            context['spy_volume'] = 'DATA_ERROR'
-                        elif 'M' in volume_str:
+                        if 'M' in volume_str:
                             num_part = volume_str.replace('M', '').strip()
-                            if num_part and num_part.replace('.', '').isdigit():
-                                volume_num = float(num_part)
-                                context['spy_volume'] = int(volume_num * 1000000)
-                            else:
-                                context['spy_volume'] = 'DATA_ERROR'
+                            volume_num = float(num_part)
+                            context['spy_volume'] = int(volume_num * 1000000)
                         elif 'K' in volume_str:
                             num_part = volume_str.replace('K', '').strip()
-                            if num_part and num_part.replace('.', '').isdigit():
-                                volume_num = float(num_part)
-                                context['spy_volume'] = int(volume_num * 1000)
-                            else:
-                                context['spy_volume'] = 'DATA_ERROR'
+                            volume_num = float(num_part)
+                            context['spy_volume'] = int(volume_num * 1000)
                         else:
-                            if volume_str.replace('.', '').isdigit():
-                                volume_num = float(volume_str)
-                                context['spy_volume'] = int(volume_num)
-                            else:
-                                context['spy_volume'] = 'DATA_ERROR'
-                        
-                        if context['spy_volume'] != 'DATA_ERROR':
-                            logger.info(f"✅ Google Finance SPY Volume: {context['spy_volume']:,}")
-                    except (ValueError, TypeError) as e:
-                        logger.error(f"Volume parsing error: {e}")
+                            volume_num = float(volume_str)
+                            context['spy_volume'] = int(volume_num)
+                        logger.info(f"✅ Google Finance SPY Volume: {context['spy_volume']:,}")
+                    except (ValueError, TypeError):
                         context['spy_volume'] = 'DATA_ERROR'
                 else:
                     context['spy_volume'] = 'DATA_ERROR'
