@@ -3682,8 +3682,10 @@ def get_current_market_context():
             if spy_response.status_code == 200:
                 import re
                 price_match = re.search(r'data-last-price="([\d\.]+)"', spy_response.text)
-                # Simple volume pattern matching
-                volume_match = re.search(r'(\d+\.\d+)M', spy_response.text)
+                # Target actual Volume field (not Avg. vol.)
+                volume_match = re.search(r'Volume</[^>]*>\s*([\d,\.]+[KMB]?)', spy_response.text)
+                if not volume_match:
+                    volume_match = re.search(r'>([\d,\.]+[KMB]?)</[^>]*>\s*</[^>]*>\s*Volume', spy_response.text)
                 
                 if price_match:
                     context['spy_price'] = float(price_match.group(1))
@@ -3693,12 +3695,17 @@ def get_current_market_context():
                     
                 if volume_match:
                     try:
-                        volume_num = float(volume_match.group(1))
-                        if volume_num > 0 and volume_num < 1000:  # Reasonable range
-                            context['spy_volume'] = int(volume_num * 1000000)  # Convert to millions
-                            logger.info(f"✅ Google Finance SPY Volume: {context['spy_volume']:,}")
+                        volume_str = volume_match.group(1).replace(',', '')
+                        if 'M' in volume_str:
+                            volume_num = float(volume_str.replace('M', ''))
+                            context['spy_volume'] = int(volume_num * 1000000)
+                        elif 'K' in volume_str:
+                            volume_num = float(volume_str.replace('K', ''))
+                            context['spy_volume'] = int(volume_num * 1000)
                         else:
-                            context['spy_volume'] = 'DATA_ERROR'
+                            volume_num = float(volume_str)
+                            context['spy_volume'] = int(volume_num)
+                        logger.info(f"✅ Google Finance SPY Volume: {context['spy_volume']:,}")
                     except (ValueError, TypeError):
                         context['spy_volume'] = 'DATA_ERROR'
                 else:
