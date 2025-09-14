@@ -3586,29 +3586,31 @@ def get_current_market_context():
     try:
         import requests
         
-        # Get real market data from Yahoo Finance
-        symbols = {
-            '^VIX': 'vix',
-            'NQ=F': 'nq_price', 
-            'DX-Y.NYB': 'dxy_price',
-            'SPY': 'spy_price'
-        }
-        
         context = {
             'market_session': get_current_session(),
             'data_source': 'Yahoo Finance'
         }
         
-        for symbol, key in symbols.items():
+        # Try different Yahoo Finance endpoint
+        symbols = ['%5EVIX', 'NQ%3DF', 'DX-Y.NYB', 'SPY']
+        keys = ['vix', 'nq_price', 'dxy_price', 'spy_price']
+        
+        for symbol, key in zip(symbols, keys):
             try:
-                url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
-                response = requests.get(url, timeout=5)
-                data = response.json()
+                url = f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={symbol}"
+                headers = {'User-Agent': 'Mozilla/5.0'}
+                response = requests.get(url, headers=headers, timeout=10)
                 
-                if 'chart' in data and data['chart']['result']:
-                    result = data['chart']['result'][0]
-                    meta = result['meta']
-                    context[key] = meta.get('regularMarketPrice', 0)
+                if response.status_code == 200:
+                    data = response.json()
+                    if 'quoteResponse' in data and data['quoteResponse']['result']:
+                        quote = data['quoteResponse']['result'][0]
+                        context[key] = quote.get('regularMarketPrice', 0)
+                    else:
+                        context[key] = 0
+                else:
+                    logger.error(f"HTTP {response.status_code} for {symbol}")
+                    context[key] = 0
                     
             except Exception as e:
                 logger.error(f"Error fetching {symbol}: {str(e)}")
@@ -3617,7 +3619,7 @@ def get_current_market_context():
         return jsonify(context)
         
     except Exception as e:
-        logger.error(f"Error getting market context: {str(e)}")
+        logger.error(f"Market context error: {str(e)}")
         return jsonify({
             'error': str(e),
             'status': 'error'
