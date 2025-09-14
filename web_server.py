@@ -3684,32 +3684,39 @@ def get_current_market_context():
                 logger.error(f"❌ TwelveData error for {symbol}: {str(e)}")
                 context[key] = 'DATA_ERROR'
         
-        # Try Polygon.io API for VIX, then Yahoo Finance fallback
+        # Try Google Finance API for VIX, then Yahoo Finance fallback
         vix_obtained = False
         
-        # Polygon.io API for VIX
-        polygon_api_key = "YUIrJtRmsNbAZVcjoktPdcmaztZDCfmI"
+        # Google Finance API for VIX
         if not vix_obtained:
             try:
-                # Polygon.io VIX endpoint
-                polygon_url = f"https://api.polygon.io/v2/aggs/ticker/I:VIX/prev?adjusted=true&apikey={polygon_api_key}"
-                polygon_response = requests.get(polygon_url, timeout=10)
+                # Google Finance VIX endpoint
+                google_url = "https://www.google.com/finance/quote/VIX:INDEXCBOE"
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+                google_response = requests.get(google_url, headers=headers, timeout=10)
                 
-                if polygon_response.status_code == 200:
-                    polygon_data = polygon_response.json()
-                    if 'results' in polygon_data and len(polygon_data['results']) > 0:
-                        vix_close = polygon_data['results'][0]['c']  # Close price
-                        context['vix'] = float(vix_close)
-                        context['data_source'] = 'Polygon_Primary'
-                        logger.info(f"✅ Polygon.io VIX: {context['vix']}")
+                if google_response.status_code == 200:
+                    # Parse HTML for VIX price (simplified extraction)
+                    import re
+                    price_match = re.search(r'data-last-price="([\d\.]+)"', google_response.text)
+                    if not price_match:
+                        price_match = re.search(r'"([\d\.]+)"[^>]*class="[^"]*YMlKec[^"]*"', google_response.text)
+                    
+                    if price_match:
+                        vix_price = float(price_match.group(1))
+                        context['vix'] = vix_price
+                        context['data_source'] = 'Google_Finance'
+                        logger.info(f"✅ Google Finance VIX: {context['vix']}")
                         vix_obtained = True
                     else:
-                        logger.warning(f"⚠️ Polygon.io unexpected response format: {polygon_data}")
+                        logger.warning(f"⚠️ Google Finance: Could not parse VIX price from HTML")
                 else:
-                    logger.warning(f"⚠️ Polygon.io HTTP {polygon_response.status_code}: {polygon_response.text[:200]}")
+                    logger.warning(f"⚠️ Google Finance HTTP {google_response.status_code}")
                     
             except Exception as e:
-                logger.warning(f"⚠️ Polygon.io VIX error: {str(e)}")
+                logger.warning(f"⚠️ Google Finance VIX error: {str(e)}")
         
         # Yahoo Finance fallback
         if not vix_obtained:
@@ -3740,8 +3747,8 @@ def get_current_market_context():
         
         logger.info(f"📊 API Status: {len(successful_symbols)} real data, {error_count} errors")
         
-        # Update data source based on success (preserve Polygon source if used)
-        if 'Polygon_Primary' not in context.get('data_source', ''):
+        # Update data source based on success (preserve Google Finance source if used)
+        if 'Google_Finance' not in context.get('data_source', ''):
             if error_count == 0:
                 context['data_source'] = 'Real_Data'
             elif len(successful_symbols) > 0:
