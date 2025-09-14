@@ -3603,11 +3603,15 @@ def get_current_market_context():
                 
                 if response.status_code == 200:
                     data = response.json()
+                    logger.info(f"Yahoo response for {symbol}: {str(data)[:200]}")
                     if 'quoteResponse' in data and data['quoteResponse']['result']:
                         quote = data['quoteResponse']['result'][0]
-                        context[key] = quote.get('regularMarketPrice', 0)
+                        price = quote.get('regularMarketPrice') or quote.get('ask') or quote.get('bid') or quote.get('previousClose')
+                        context[key] = price if price else 0
+                        logger.info(f"Got price for {symbol}: {price}")
                     else:
                         context[key] = 0
+                        logger.error(f"No quote data for {symbol}")
                 else:
                     logger.error(f"HTTP {response.status_code} for {symbol}")
                     context[key] = 0
