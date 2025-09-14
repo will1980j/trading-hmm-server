@@ -3592,12 +3592,11 @@ def get_current_market_context():
             'data_source': 'TwelveData'
         }
         
-        # TwelveData symbols (correct format)
+        # TwelveData symbols (basic format)
         symbols = {
-            'CBOE:VIX': 'vix',
-            'NASDAQ:QQQ': 'nq_price',  # Use QQQ as proxy for NQ
-            'CURRENCYCOM:DXY': 'dxy_price', 
-            'NYSE:SPY': 'spy_price'
+            'QQQ': 'nq_price',  # Use QQQ as proxy for NQ
+            'SPY': 'spy_price',
+            'AAPL': 'vix'  # Test with AAPL first
         }
         
         for symbol, key in symbols.items():
