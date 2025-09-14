@@ -3682,12 +3682,20 @@ def get_current_market_context():
             if spy_response.status_code == 200:
                 import re
                 price_match = re.search(r'data-last-price="([\d\.]+)"', spy_response.text)
-                # Target current day Volume (not Avg. vol which is 18.6M)
-                # Look for Volume row that's NOT the average volume
-                volume_match = re.search(r'(?<!Avg\. )Volume[^>]*>\s*([\d,\.]+[KMB]?)', spy_response.text)
+                
+                # Multiple patterns to find current day volume (not average volume)
+                volume_match = None
+                
+                # Pattern 1: Look for Volume in the Overview table (15.66M format)
+                volume_match = re.search(r'<td[^>]*>\s*Volume\s*</td>\s*<td[^>]*>\s*([\d,\.]+[KMB]?)\s*</td>', spy_response.text)
+                
+                # Pattern 2: Look for Volume after Low price
                 if not volume_match:
-                    # Alternative: find Volume that comes after Low but before Avg. vol
-                    volume_match = re.search(r'Low[^>]*>[^<]*</[^>]*>\s*Volume[^>]*>\s*([\d,\.]+[KMB]?)', spy_response.text)
+                    volume_match = re.search(r'Low[^>]*>[^<]*</[^>]*>[^<]*<[^>]*>\s*Volume[^>]*>\s*([\d,\.]+[KMB]?)', spy_response.text)
+                
+                # Pattern 3: Simple Volume pattern (avoid Avg. vol)
+                if not volume_match:
+                    volume_match = re.search(r'>\s*Volume\s*</[^>]*>\s*<[^>]*>\s*([\d,\.]+[KMB]?)\s*<', spy_response.text)
                 
                 if price_match:
                     context['spy_price'] = float(price_match.group(1))
@@ -3698,19 +3706,25 @@ def get_current_market_context():
                 if volume_match:
                     try:
                         volume_str = volume_match.group(1).replace(',', '').strip()
-                        if 'M' in volume_str:
-                            num_part = volume_str.replace('M', '').strip()
-                            volume_num = float(num_part)
-                            context['spy_volume'] = int(volume_num * 1000000)
-                        elif 'K' in volume_str:
-                            num_part = volume_str.replace('K', '').strip()
-                            volume_num = float(num_part)
-                            context['spy_volume'] = int(volume_num * 1000)
+                        # Validate it's not the average volume (typically 18.6M)
+                        if volume_str == '18.6M' or volume_str == '18.63M':
+                            logger.warning(f"⚠️ Detected average volume {volume_str}, looking for current day volume")
+                            context['spy_volume'] = 'DATA_ERROR'
                         else:
-                            volume_num = float(volume_str)
-                            context['spy_volume'] = int(volume_num)
-                        logger.info(f"✅ Google Finance SPY Volume: {context['spy_volume']:,}")
-                    except (ValueError, TypeError):
+                            if 'M' in volume_str:
+                                num_part = volume_str.replace('M', '').strip()
+                                volume_num = float(num_part)
+                                context['spy_volume'] = int(volume_num * 1000000)
+                            elif 'K' in volume_str:
+                                num_part = volume_str.replace('K', '').strip()
+                                volume_num = float(num_part)
+                                context['spy_volume'] = int(volume_num * 1000)
+                            else:
+                                volume_num = float(volume_str)
+                                context['spy_volume'] = int(volume_num)
+                            logger.info(f"✅ Google Finance SPY Volume: {context['spy_volume']:,}")
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"❌ Volume parsing error: {str(e)} for volume_str: {volume_str}")
                         context['spy_volume'] = 'DATA_ERROR'
                 else:
                     context['spy_volume'] = 'DATA_ERROR'
@@ -3797,15 +3811,17 @@ def get_current_market_context():
             context['vix'] = 'DATA_ERROR'
             logger.error("❌ VIX: No real data available")
         
-        # Log successful API call
+        # Log successful API call with detailed breakdown
         successful_symbols = [k for k, v in context.items() if k not in ['market_session', 'data_source'] and isinstance(v, (int, float)) and v > 0]
-        error_count = len([k for k, v in context.items() if k not in ['market_session', 'data_source'] and v == 'DATA_ERROR'])
+        error_symbols = [k for k, v in context.items() if k not in ['market_session', 'data_source'] and v == 'DATA_ERROR']
         
-        logger.info(f"📊 API Status: {len(successful_symbols)} real data, {error_count} errors")
+        logger.info(f"📊 API Status: {len(successful_symbols)} real data, {len(error_symbols)} errors")
+        if error_symbols:
+            logger.warning(f"❌ Failed symbols: {', '.join(error_symbols)}")
         
         # Update data source based on success (preserve Google Finance source if used)
         if 'Google_Finance' not in context.get('data_source', ''):
-            if error_count == 0:
+            if len(error_symbols) == 0:
                 context['data_source'] = 'Google_Finance_Complete'
             elif len(successful_symbols) > 0:
                 context['data_source'] = 'Google_Finance_Partial'
