@@ -1507,11 +1507,10 @@ def get_signal_lab_trades():
                        news_proximity, news_event, screenshot, 
                        analysis_data, created_at
                 FROM signal_lab_trades 
-                WHERE COALESCE(active_trade, false) = false
                 ORDER BY created_at DESC
             """)
         except Exception as e:
-            # Fallback to old schema - EXCLUDE active trades
+            # Fallback to old schema
             cursor.execute("""
                 SELECT id, date, time, bias, session, signal_type, 
                        COALESCE(mfe, 0) as mfe_none, 1 as be1_level, false as be1_hit, 0 as mfe1,
@@ -1519,7 +1518,6 @@ def get_signal_lab_trades():
                        news_proximity, news_event, screenshot, 
                        NULL as analysis_data, created_at
                 FROM signal_lab_trades 
-                WHERE COALESCE(active_trade, false) = false
                 ORDER BY created_at DESC
             """)
         
@@ -1531,7 +1529,7 @@ def get_signal_lab_trades():
             cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
             result = cursor.fetchone()
             total_count = result['count'] if result else 0
-            logger.info(f"Total records in signal_lab_trades table: {total_count}")
+            print(f"TOTAL TRADES IN DB: {total_count}")
         
         trades = []
         for row in rows:
@@ -3090,6 +3088,18 @@ def trigger_divergence():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/count-trades')
+def count_trades():
+    try:
+        if not db_enabled or not db:
+            return "DB OFFLINE"
+        cursor = db.conn.cursor()
+        cursor.execute("SELECT COUNT(*) as total FROM signal_lab_trades")
+        total = cursor.fetchone()['total']
+        return f"TOTAL TRADES: {total}"
+    except Exception as e:
+        return f"ERROR: {str(e)}"
 
 @app.route('/api/debug-trades', methods=['GET'])
 @login_required
