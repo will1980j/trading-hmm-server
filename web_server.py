@@ -3591,36 +3591,48 @@ def get_current_market_context():
             'data_source': 'Yahoo Finance'
         }
         
-        # Try different Yahoo Finance endpoint
-        symbols = ['%5EVIX', 'NQ%3DF', 'DX-Y.NYB', 'SPY']
-        keys = ['vix', 'nq_price', 'dxy_price', 'spy_price']
-        
-        for symbol, key in zip(symbols, keys):
+        # Try Alpha Vantage free API
+        try:
+            # VIX from Alpha Vantage
+            url = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=VIX&apikey=demo"
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if 'Global Quote' in data:
+                    context['vix'] = float(data['Global Quote']['05. price'])
+                else:
+                    context['vix'] = 0
+            else:
+                context['vix'] = 0
+        except:
+            context['vix'] = 0
+            
+        # Try simple financial API for others
+        symbols = {'NQ=F': 'nq_price', 'DX=F': 'dxy_price', 'SPY': 'spy_price'}
+        for symbol, key in symbols.items():
             try:
-                url = f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={symbol}"
-                headers = {'User-Agent': 'Mozilla/5.0'}
-                response = requests.get(url, headers=headers, timeout=10)
-                
+                url = f"https://financialmodelingprep.com/api/v3/quote-short/{symbol}?apikey=demo"
+                response = requests.get(url, timeout=10)
                 if response.status_code == 200:
                     data = response.json()
-                    logger.info(f"Yahoo response for {symbol}: {str(data)[:200]}")
-                    if 'quoteResponse' in data and data['quoteResponse']['result']:
-                        quote = data['quoteResponse']['result'][0]
-                        price = quote.get('regularMarketPrice') or quote.get('ask') or quote.get('bid') or quote.get('previousClose')
-                        context[key] = price if price else 0
-                        logger.info(f"Got price for {symbol}: {price}")
+                    if data and len(data) > 0:
+                        context[key] = data[0].get('price', 0)
                     else:
                         context[key] = 0
-                        logger.error(f"No quote data for {symbol}")
                 else:
-                    logger.error(f"HTTP {response.status_code} for {symbol}")
                     context[key] = 0
-                    
-            except Exception as e:
-                logger.error(f"Error fetching {symbol}: {str(e)}")
+            except:
                 context[key] = 0
         
-        return jsonify(context)
+        # Only return if we got at least one real value
+        real_values = [v for v in context.values() if isinstance(v, (int, float)) and v > 0]
+        if len(real_values) > 1:
+            return jsonify(context)
+        else:
+            return jsonify({
+                'error': 'No real-time data available',
+                'status': 'offline'
+            }), 503
         
     except Exception as e:
         logger.error(f"Market context error: {str(e)}")
