@@ -3582,27 +3582,42 @@ def get_market_context_analysis():
 @app.route('/api/current-market-context', methods=['GET'])
 @login_required
 def get_current_market_context():
-    """Get current real-time market context from TradingView"""
+    """Get current real-time market context"""
     try:
-        try:
-            from tradingview_market_enricher import tradingview_enricher
-            context = tradingview_enricher.get_market_context()
-            
-            # NEVER return fallback data - reject it completely
-            if context.get('data_source') == 'Fallback':
-                logger.warning("TradingView API returned fallback data - rejecting as requested")
-                return jsonify({'error': 'Real-time data unavailable, fallback data rejected'}), 503
-            
-            return jsonify(context)
-        except ImportError as e:
-            logger.error(f"TradingView enricher import error: {str(e)}")
-            return jsonify({
-                'error': 'Market context service unavailable',
-                'status': 'import_error'
-            }), 503
+        import requests
+        
+        # Get real market data from Yahoo Finance
+        symbols = {
+            '^VIX': 'vix',
+            'NQ=F': 'nq_price', 
+            'DX-Y.NYB': 'dxy_price',
+            'SPY': 'spy_price'
+        }
+        
+        context = {
+            'market_session': get_current_session(),
+            'data_source': 'Yahoo Finance'
+        }
+        
+        for symbol, key in symbols.items():
+            try:
+                url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+                response = requests.get(url, timeout=5)
+                data = response.json()
+                
+                if 'chart' in data and data['chart']['result']:
+                    result = data['chart']['result'][0]
+                    meta = result['meta']
+                    context[key] = meta.get('regularMarketPrice', 0)
+                    
+            except Exception as e:
+                logger.error(f"Error fetching {symbol}: {str(e)}")
+                context[key] = 0
+        
+        return jsonify(context)
         
     except Exception as e:
-        logger.error(f"Error getting TradingView market context: {str(e)}")
+        logger.error(f"Error getting market context: {str(e)}")
         return jsonify({
             'error': str(e),
             'status': 'error'
