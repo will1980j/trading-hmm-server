@@ -3682,10 +3682,10 @@ def get_current_market_context():
             if spy_response.status_code == 200:
                 import re
                 price_match = re.search(r'data-last-price="([\d\.]+)"', spy_response.text)
-                # Look for volume in Overview section: "15.66M"
-                volume_match = re.search(r'Volume[^\d]*([\d,\.]+[KMB])', spy_response.text)
+                # Look for volume in Overview table: "15.66M"
+                volume_match = re.search(r'Volume</[^>]*>\s*([\d,\.]+[KMB])', spy_response.text)
                 if not volume_match:
-                    volume_match = re.search(r'>\s*([\d,\.]+[KMB])\s*</[^>]*>\s*</[^>]*>\s*Volume', spy_response.text)
+                    volume_match = re.search(r'([\d,\.]+[KMB])\s*</[^>]*>\s*Volume', spy_response.text)
                 
                 if price_match:
                     context['spy_price'] = float(price_match.group(1))
@@ -3696,19 +3696,24 @@ def get_current_market_context():
                 if volume_match:
                     volume_str = volume_match.group(1).replace(',', '')
                     try:
-                        volume_float = float(volume_str)
-                        if volume_float > 0:  # Valid number
-                            # Check if we found "X.XX million" format
-                            if 'million' in spy_response.text[volume_match.start()-50:volume_match.end()+50].lower():
-                                context['spy_volume'] = int(volume_float * 1000000)
-                            elif 'K' in volume_str:
-                                context['spy_volume'] = int(volume_float * 1000)
-                            elif 'M' in volume_str:
-                                context['spy_volume'] = int(volume_float * 1000000)
-                            elif 'B' in volume_str:
-                                context['spy_volume'] = int(volume_float * 1000000000)
-                            else:
-                                context['spy_volume'] = int(volume_float) if volume_float > 1000 else int(volume_float * 1000000)
+                        # Extract number and suffix separately
+                        if 'K' in volume_str:
+                            num_str = volume_str.replace('K', '').replace(',', '')
+                            volume_float = float(num_str)
+                            context['spy_volume'] = int(volume_float * 1000)
+                        elif 'M' in volume_str:
+                            num_str = volume_str.replace('M', '').replace(',', '')
+                            volume_float = float(num_str)
+                            context['spy_volume'] = int(volume_float * 1000000)
+                        elif 'B' in volume_str:
+                            num_str = volume_str.replace('B', '').replace(',', '')
+                            volume_float = float(num_str)
+                            context['spy_volume'] = int(volume_float * 1000000000)
+                        else:
+                            volume_float = float(volume_str.replace(',', ''))
+                            context['spy_volume'] = int(volume_float)
+                        
+                        if context['spy_volume'] > 0:
                             logger.info(f"✅ Google Finance SPY Volume: {context['spy_volume']:,}")
                         else:
                             context['spy_volume'] = 'DATA_ERROR'
