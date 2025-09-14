@@ -144,7 +144,7 @@ class AdvancedMLEngine:
             logger.error(f"Error getting training data: {str(e)}")
             return pd.DataFrame()
     
-    def engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
+    def engineer_features(self, df: pd.DataFrame, is_prediction: bool = False) -> pd.DataFrame:
         """Advanced feature engineering"""
         if df.empty:
             return df
@@ -154,29 +154,39 @@ class AdvancedMLEngine:
             df_eng = df.copy()
             
             # Encode categorical variables
-            le_bias = LabelEncoder()
-            le_session = LabelEncoder()
-            le_signal_type = LabelEncoder()
-            le_vol_regime = LabelEncoder()
-            le_sector = LabelEncoder()
-            le_market_session = LabelEncoder()
-            
-            df_eng['bias_encoded'] = le_bias.fit_transform(df_eng['bias'])
-            df_eng['session_encoded'] = le_session.fit_transform(df_eng['session'])
-            df_eng['signal_type_encoded'] = le_signal_type.fit_transform(df_eng['signal_type'])
-            df_eng['volatility_regime_encoded'] = le_vol_regime.fit_transform(df_eng['volatility_regime'])
-            df_eng['sector_rotation_encoded'] = le_sector.fit_transform(df_eng['sector_rotation'])
-            df_eng['market_session_encoded'] = le_market_session.fit_transform(df_eng['market_session'])
-            
-            # Store encoders for later use
-            self.encoders = {
-                'bias': le_bias,
-                'session': le_session,
-                'signal_type': le_signal_type,
-                'volatility_regime': le_vol_regime,
-                'sector_rotation': le_sector,
-                'market_session': le_market_session
-            }
+            if not is_prediction and not hasattr(self, 'encoders'):
+                # Training mode - create new encoders
+                le_bias = LabelEncoder()
+                le_session = LabelEncoder()
+                le_signal_type = LabelEncoder()
+                le_vol_regime = LabelEncoder()
+                le_sector = LabelEncoder()
+                le_market_session = LabelEncoder()
+                
+                df_eng['bias_encoded'] = le_bias.fit_transform(df_eng['bias'])
+                df_eng['session_encoded'] = le_session.fit_transform(df_eng['session'])
+                df_eng['signal_type_encoded'] = le_signal_type.fit_transform(df_eng['signal_type'])
+                df_eng['volatility_regime_encoded'] = le_vol_regime.fit_transform(df_eng['volatility_regime'])
+                df_eng['sector_rotation_encoded'] = le_sector.fit_transform(df_eng['sector_rotation'])
+                df_eng['market_session_encoded'] = le_market_session.fit_transform(df_eng['market_session'])
+                
+                # Store encoders for later use
+                self.encoders = {
+                    'bias': le_bias,
+                    'session': le_session,
+                    'signal_type': le_signal_type,
+                    'volatility_regime': le_vol_regime,
+                    'sector_rotation': le_sector,
+                    'market_session': le_market_session
+                }
+            else:
+                # Prediction mode - use existing encoders
+                df_eng['bias_encoded'] = self._safe_encode_series('bias', df_eng['bias'])
+                df_eng['session_encoded'] = self._safe_encode_series('session', df_eng['session'])
+                df_eng['signal_type_encoded'] = self._safe_encode_series('signal_type', df_eng['signal_type'])
+                df_eng['volatility_regime_encoded'] = self._safe_encode_series('volatility_regime', df_eng['volatility_regime'])
+                df_eng['sector_rotation_encoded'] = self._safe_encode_series('sector_rotation', df_eng['sector_rotation'])
+                df_eng['market_session_encoded'] = self._safe_encode_series('market_session', df_eng['market_session'])
             
             # Create interaction features
             df_eng['vix_session_interaction'] = df_eng['vix'] * df_eng['session_encoded']
@@ -383,8 +393,16 @@ class AdvancedMLEngine:
             
             for model_name, model in self.models.items():
                 try:
-                    # Transform input data
+                    # Create DataFrame with all features
                     input_df = pd.DataFrame([input_data])
+                    
+                    # Select only the features that were used in training
+                    available_features = [f for f in self.selected_features if f in input_df.columns]
+                    if len(available_features) != len(self.selected_features):
+                        logger.warning(f"Missing features for {model_name}: {set(self.selected_features) - set(available_features)}")
+                        continue
+                    
+                    # Apply feature selection
                     input_selected = self.feature_selector.transform(input_df[self.selected_features])
                     
                     # Scale if needed
@@ -455,22 +473,37 @@ class AdvancedMLEngine:
             }
     
     def _prepare_prediction_input(self, market_context: Dict, signal_data: Dict) -> Dict:
-        """Prepare input data for prediction"""
+        """Prepare input data for prediction with consistent feature engineering"""
         try:
             # Extract current time features
             now = datetime.now()
             hour = now.hour
             day_of_week = now.weekday() + 1
             
-            # Basic input data
+            # Get categorical values
+            bias = signal_data.get('bias', 'Bullish')
+            session = signal_data.get('session', 'London')
+            signal_type = signal_data.get('signal_type', 'BIAS_BULLISH')
+            volatility_regime = market_context.get('volatility_regime', 'NORMAL')
+            sector_rotation = market_context.get('sector_rotation', 'BALANCED')
+            market_session = market_context.get('market_session', 'London')
+            
+            # Basic input data matching training format exactly
             input_data = {
+                # Target (not used in prediction)
+                'mfe': 0.0,
+                
+                # Basic features
+                'bias': bias,
+                'session': session,
+                'signal_type': signal_type,
                 'hour': hour,
                 'day_of_week': day_of_week,
                 'entry_price': float(signal_data.get('price', 15000)),
-                'be1_hit': False,  # Unknown at prediction time
-                'be2_hit': False,  # Unknown at prediction time
+                'be1_hit': False,
+                'be2_hit': False,
                 
-                # Market context
+                # Market context features
                 'vix': float(market_context.get('vix', 20)),
                 'spy_volume': float(market_context.get('spy_volume', 50000000)),
                 'qqq_volume': float(market_context.get('qqq_volume', 30000000)),
@@ -479,74 +512,20 @@ class AdvancedMLEngine:
                 'nq_price': float(market_context.get('nq_price', 15000)),
                 'nq_change': float(market_context.get('nq_change', 0)),
                 'correlation_nq_es': float(market_context.get('correlation_nq_es', 0.85)),
-                'trend_strength': float(market_context.get('trend_strength', 0.5))
+                'trend_strength': float(market_context.get('trend_strength', 0.5)),
+                'volatility_regime': volatility_regime,
+                'sector_rotation': sector_rotation,
+                'market_session': market_session
             }
             
-            # Encode categorical variables using stored encoders
-            try:
-                bias = signal_data.get('bias', 'Bullish')
-                session = signal_data.get('session', 'London')
-                signal_type = signal_data.get('signal_type', 'BIAS_BULLISH')
-                volatility_regime = market_context.get('volatility_regime', 'NORMAL')
-                sector_rotation = market_context.get('sector_rotation', 'BALANCED')
-                market_session = market_context.get('market_session', 'London')
-                
-                # Handle unknown categories gracefully
-                input_data['bias_encoded'] = self._safe_encode('bias', bias)
-                input_data['session_encoded'] = self._safe_encode('session', session)
-                input_data['signal_type_encoded'] = self._safe_encode('signal_type', signal_type)
-                input_data['volatility_regime_encoded'] = self._safe_encode('volatility_regime', volatility_regime)
-                input_data['sector_rotation_encoded'] = self._safe_encode('sector_rotation', sector_rotation)
-                input_data['market_session_encoded'] = self._safe_encode('market_session', market_session)
-                
-            except Exception as e:
-                logger.warning(f"Error encoding categories: {str(e)}")
-                # Use default values
-                input_data.update({
-                    'bias_encoded': 0,
-                    'session_encoded': 0,
-                    'signal_type_encoded': 0,
-                    'volatility_regime_encoded': 1,
-                    'sector_rotation_encoded': 1,
-                    'market_session_encoded': 0
-                })
+            # Apply the same feature engineering as training
+            input_df = pd.DataFrame([input_data])
+            input_engineered = self.engineer_features(input_df, is_prediction=True)
             
-            # Create engineered features (same as training)
-            input_data['vix_session_interaction'] = input_data['vix'] * input_data['session_encoded']
-            input_data['volume_ratio'] = input_data['spy_volume'] / 80000000
-            input_data['dxy_bias_interaction'] = input_data['dxy_change'] * input_data['bias_encoded']
-            input_data['hour_session_interaction'] = input_data['hour'] * input_data['session_encoded']
+            # Return as dictionary
+            return input_engineered.iloc[0].to_dict()
             
-            # Boolean features
-            input_data['is_london_session'] = int(session == 'London')
-            input_data['is_ny_session'] = int('NY' in session)
-            input_data['is_optimal_hour'] = int(8 <= hour <= 16)
-            input_data['is_weekend_approach'] = int(day_of_week == 5)
-            
-            input_data['vix_low'] = int(input_data['vix'] < 15)
-            input_data['vix_high'] = int(input_data['vix'] > 25)
-            input_data['vix_extreme'] = int(input_data['vix'] > 35)
-            
-            input_data['high_volume'] = int(input_data['volume_ratio'] > 1.2)
-            input_data['low_volume'] = int(input_data['volume_ratio'] < 0.8)
-            
-            input_data['dxy_strong_move'] = int(abs(input_data['dxy_change']) > 0.5)
-            input_data['dxy_supportive'] = int(
-                (input_data['dxy_change'] < 0 and bias == 'Bullish') or
-                (input_data['dxy_change'] > 0 and bias == 'Bearish')
-            )
-            
-            input_data['high_correlation'] = int(input_data['correlation_nq_es'] > 0.9)
-            input_data['low_correlation'] = int(input_data['correlation_nq_es'] < 0.7)
-            
-            input_data['strong_momentum'] = int(abs(input_data['nq_change']) > 50)
-            input_data['price_level_high'] = int(input_data['nq_price'] > 16000)
-            input_data['price_level_low'] = int(input_data['nq_price'] < 14000)
-            
-            input_data['any_be_hit'] = 0  # Unknown at prediction time
-            input_data['both_be_hit'] = 0  # Unknown at prediction time
-            
-            return input_data
+
             
         except Exception as e:
             logger.error(f"Error preparing prediction input: {str(e)}")
@@ -565,6 +544,23 @@ class AdvancedMLEngine:
             return 0
         except Exception:
             return 0
+    
+    def _safe_encode_series(self, encoder_name: str, series) -> pd.Series:
+        """Safely encode categorical series"""
+        try:
+            encoder = self.encoders.get(encoder_name)
+            if encoder and hasattr(encoder, 'classes_'):
+                # Handle unknown categories by mapping them to 0
+                result = []
+                for value in series:
+                    if value in encoder.classes_:
+                        result.append(encoder.transform([value])[0])
+                    else:
+                        result.append(0)
+                return pd.Series(result, index=series.index)
+            return pd.Series([0] * len(series), index=series.index)
+        except Exception:
+            return pd.Series([0] * len(series), index=series.index)
     
     def _get_feature_contributions(self, input_data: Dict) -> Dict[str, float]:
         """Get feature contributions for interpretability"""
