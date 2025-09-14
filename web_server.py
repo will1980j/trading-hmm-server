@@ -3695,18 +3695,37 @@ def get_current_market_context():
                     
                 if volume_match:
                     try:
-                        volume_str = volume_match.group(1).replace(',', '')
-                        if 'M' in volume_str:
-                            volume_num = float(volume_str.replace('M', ''))
-                            context['spy_volume'] = int(volume_num * 1000000)
+                        volume_str = volume_match.group(1).replace(',', '').strip()
+                        logger.info(f"DEBUG: Found volume string: '{volume_str}'")
+                        
+                        # Validate it's a proper number
+                        if not volume_str or volume_str in ['', 'NaN', 'null']:
+                            context['spy_volume'] = 'DATA_ERROR'
+                        elif 'M' in volume_str:
+                            num_part = volume_str.replace('M', '').strip()
+                            if num_part and num_part.replace('.', '').isdigit():
+                                volume_num = float(num_part)
+                                context['spy_volume'] = int(volume_num * 1000000)
+                            else:
+                                context['spy_volume'] = 'DATA_ERROR'
                         elif 'K' in volume_str:
-                            volume_num = float(volume_str.replace('K', ''))
-                            context['spy_volume'] = int(volume_num * 1000)
+                            num_part = volume_str.replace('K', '').strip()
+                            if num_part and num_part.replace('.', '').isdigit():
+                                volume_num = float(num_part)
+                                context['spy_volume'] = int(volume_num * 1000)
+                            else:
+                                context['spy_volume'] = 'DATA_ERROR'
                         else:
-                            volume_num = float(volume_str)
-                            context['spy_volume'] = int(volume_num)
-                        logger.info(f"✅ Google Finance SPY Volume: {context['spy_volume']:,}")
-                    except (ValueError, TypeError):
+                            if volume_str.replace('.', '').isdigit():
+                                volume_num = float(volume_str)
+                                context['spy_volume'] = int(volume_num)
+                            else:
+                                context['spy_volume'] = 'DATA_ERROR'
+                        
+                        if context['spy_volume'] != 'DATA_ERROR':
+                            logger.info(f"✅ Google Finance SPY Volume: {context['spy_volume']:,}")
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"Volume parsing error: {e}")
                         context['spy_volume'] = 'DATA_ERROR'
                 else:
                     context['spy_volume'] = 'DATA_ERROR'
