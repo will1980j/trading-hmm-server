@@ -1507,6 +1507,7 @@ def get_signal_lab_trades():
                        news_proximity, news_event, screenshot, 
                        analysis_data, created_at
                 FROM signal_lab_trades 
+                WHERE COALESCE(active_trade, false) = false
                 ORDER BY created_at DESC
             """)
         except Exception as e:
@@ -1518,6 +1519,7 @@ def get_signal_lab_trades():
                        news_proximity, news_event, screenshot, 
                        NULL as analysis_data, created_at
                 FROM signal_lab_trades 
+                WHERE COALESCE(active_trade, false) = false
                 ORDER BY created_at DESC
             """)
         
