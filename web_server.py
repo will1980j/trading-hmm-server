@@ -3654,35 +3654,79 @@ def get_current_market_context():
             'data_source': 'TD_Ameritrade_Hybrid' if environ.get('TD_CONSUMER_KEY') else 'Hybrid_API'
         }
         
-        # TwelveData API for ETF symbols (these work reliably)
-        twelvedata_key = "130662f9ebe34885a16bea088b096c70"
-        etf_symbols = {
-            'QQQ': 'nq_price',      # QQQ ETF as proxy for NQ
-            'SPY': 'spy_price',     # SPY ETF
-            'UUP': 'dxy_price'      # UUP ETF as proxy for DXY
+        # Google Finance for market data
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         
-        # Fetch ETF data from TwelveData
-        for symbol, key in etf_symbols.items():
-            try:
-                url = f"https://api.twelvedata.com/price?symbol={symbol}&apikey={twelvedata_key}"
-                response = requests.get(url, timeout=10)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    if 'price' in data:
-                        context[key] = float(data['price'])
-                        logger.info(f"✅ TwelveData {symbol}: {data['price']}")
-                    else:
-                        context[key] = 'DATA_ERROR'
-                        logger.error(f"❌ No price data for {symbol}: {data}")
+        # Get QQQ price (NQ proxy)
+        try:
+            qqq_response = requests.get("https://www.google.com/finance/quote/QQQ:NASDAQ", headers=headers, timeout=10)
+            if qqq_response.status_code == 200:
+                import re
+                price_match = re.search(r'data-last-price="([\d\.]+)"', qqq_response.text)
+                if price_match:
+                    context['nq_price'] = float(price_match.group(1))
+                    logger.info(f"✅ Google Finance QQQ: {context['nq_price']}")
                 else:
-                    context[key] = 'DATA_ERROR'
-                    logger.error(f"❌ TwelveData HTTP {response.status_code} for {symbol}")
+                    context['nq_price'] = 'DATA_ERROR'
+            else:
+                context['nq_price'] = 'DATA_ERROR'
+        except Exception as e:
+            logger.error(f"❌ Google Finance QQQ error: {str(e)}")
+            context['nq_price'] = 'DATA_ERROR'
+        
+        # Get SPY price and volume
+        try:
+            spy_response = requests.get("https://www.google.com/finance/quote/SPY:NYSEARCA", headers=headers, timeout=10)
+            if spy_response.status_code == 200:
+                import re
+                price_match = re.search(r'data-last-price="([\d\.]+)"', spy_response.text)
+                volume_match = re.search(r'Volume[^\d]*([\d,\.]+[KMB]?)', spy_response.text)
+                
+                if price_match:
+                    context['spy_price'] = float(price_match.group(1))
+                    logger.info(f"✅ Google Finance SPY: {context['spy_price']}")
+                else:
+                    context['spy_price'] = 'DATA_ERROR'
                     
-            except Exception as e:
-                logger.error(f"❌ TwelveData error for {symbol}: {str(e)}")
-                context[key] = 'DATA_ERROR'
+                if volume_match:
+                    volume_str = volume_match.group(1).replace(',', '')
+                    if 'K' in volume_str:
+                        context['spy_volume'] = int(float(volume_str.replace('K', '')) * 1000)
+                    elif 'M' in volume_str:
+                        context['spy_volume'] = int(float(volume_str.replace('M', '')) * 1000000)
+                    elif 'B' in volume_str:
+                        context['spy_volume'] = int(float(volume_str.replace('B', '')) * 1000000000)
+                    else:
+                        context['spy_volume'] = int(float(volume_str))
+                    logger.info(f"✅ Google Finance SPY Volume: {context['spy_volume']:,}")
+                else:
+                    context['spy_volume'] = 'DATA_ERROR'
+            else:
+                context['spy_price'] = 'DATA_ERROR'
+                context['spy_volume'] = 'DATA_ERROR'
+        except Exception as e:
+            logger.error(f"❌ Google Finance SPY error: {str(e)}")
+            context['spy_price'] = 'DATA_ERROR'
+            context['spy_volume'] = 'DATA_ERROR'
+        
+        # Get DXY price
+        try:
+            dxy_response = requests.get("https://www.google.com/finance/quote/DX-Y.NYB:NYBOT", headers=headers, timeout=10)
+            if dxy_response.status_code == 200:
+                import re
+                price_match = re.search(r'data-last-price="([\d\.]+)"', dxy_response.text)
+                if price_match:
+                    context['dxy_price'] = float(price_match.group(1))
+                    logger.info(f"✅ Google Finance DXY: {context['dxy_price']}")
+                else:
+                    context['dxy_price'] = 'DATA_ERROR'
+            else:
+                context['dxy_price'] = 'DATA_ERROR'
+        except Exception as e:
+            logger.error(f"❌ Google Finance DXY error: {str(e)}")
+            context['dxy_price'] = 'DATA_ERROR'
         
         # Try Google Finance API for VIX, then Yahoo Finance fallback
         vix_obtained = False
