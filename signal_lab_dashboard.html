@@ -556,6 +556,52 @@
             </div>
         </div>
         
+        <!-- Session Statistics Pie Charts Section -->
+        <div class="chart-container" style="background: linear-gradient(135deg, rgba(0,255,136,0.12) 0%, rgba(0,212,170,0.04) 100%); border: 2px solid rgba(0,255,136,0.2);">
+            <h3 style="color: #00ff88; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                📊 Session Analytics Dashboard
+                <span style="font-size: 12px; background: rgba(0,255,136,0.2); padding: 4px 8px; border-radius: 6px; font-weight: 500;">All-Time Statistics</span>
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin-bottom: 25px;">
+                <!-- Session Distribution Pie Chart -->
+                <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
+                    <h4 style="color: #00d4aa; margin-bottom: 15px; text-align: center;">📈 Trade Distribution by Session</h4>
+                    <div id="sessionDistributionChart" style="width: 100%; height: 250px;"></div>
+                    <div id="sessionDistributionStats" style="margin-top: 10px; font-size: 12px; color: rgba(255,255,255,0.8); text-align: center;"></div>
+                </div>
+                
+                <!-- Win Rate by Session Pie Chart -->
+                <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
+                    <h4 style="color: #26de81; margin-bottom: 15px; text-align: center;">🎯 Win Rate by Session</h4>
+                    <div id="sessionWinRateChart" style="width: 100%; height: 250px;"></div>
+                    <div id="sessionWinRateStats" style="margin-top: 10px; font-size: 12px; color: rgba(255,255,255,0.8); text-align: center;"></div>
+                </div>
+                
+                <!-- Expectancy by Session Chart -->
+                <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
+                    <h4 style="color: #3a7bd5; margin-bottom: 15px; text-align: center;">💰 Expectancy by Session</h4>
+                    <div id="sessionExpectancyChart" style="width: 100%; height: 250px;"></div>
+                    <div id="sessionExpectancyStats" style="margin-top: 10px; font-size: 12px; color: rgba(255,255,255,0.8); text-align: center;"></div>
+                </div>
+                
+                <!-- Signal Type Distribution -->
+                <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
+                    <h4 style="color: #ffa502; margin-bottom: 15px; text-align: center;">⚡ Signal Type Distribution</h4>
+                    <div id="signalTypeChart" style="width: 100%; height: 250px;"></div>
+                    <div id="signalTypeStats" style="margin-top: 10px; font-size: 12px; color: rgba(255,255,255,0.8); text-align: center;"></div>
+                </div>
+            </div>
+            
+            <!-- Advanced Session Insights -->
+            <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
+                <h4 style="color: #00ff88; margin-bottom: 15px;">🧠 Advanced Session Insights</h4>
+                <div id="advancedSessionInsights" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                    <!-- Dynamic insights will be populated here -->
+                </div>
+            </div>
+        </div>
+        
         <div class="chart-container">
             <h3 style="margin-bottom: 20px; color: #00ff88;">Trade-by-Trade Performance</h3>
             <div class="chart-wrapper">
@@ -790,6 +836,9 @@
             
             // Update chart
             updateChart(aggregatedData, rTarget, viewType);
+            
+            // Update session analytics
+            updateSessionAnalytics(filteredSignals);
             
             // Update daily calendar
             generateDailyCalendar();
@@ -2282,6 +2331,9 @@
         
         // Load data when page loads
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize session charts with empty state
+            clearSessionCharts();
+            
             loadSignals();
             setupAutoUpdate();
             
@@ -3387,8 +3439,446 @@
             if (overlay) overlay.remove();
         }
         
+        // Session Analytics Functions
+        function updateSessionAnalytics(trades) {
+            if (!trades || trades.length === 0) {
+                clearSessionCharts();
+                return;
+            }
+            
+            // Calculate session statistics
+            const sessionStats = calculateSessionStatistics(trades);
+            
+            // Update all session charts
+            createSessionDistributionChart(sessionStats);
+            createSessionWinRateChart(sessionStats);
+            createSessionExpectancyChart(sessionStats);
+            createSignalTypeChart(trades);
+            updateAdvancedSessionInsights(sessionStats, trades);
+        }
+        
+        function calculateSessionStatistics(trades) {
+            const stats = {};
+            
+            trades.forEach(trade => {
+                const session = trade.session || 'Unknown';
+                const mfe = trade.mfe_none || trade.mfe || 0;
+                
+                if (!stats[session]) {
+                    stats[session] = {
+                        total: 0,
+                        wins: 0,
+                        losses: 0,
+                        breakevens: 0,
+                        totalR: 0,
+                        winRate: 0,
+                        expectancy: 0
+                    };
+                }
+                
+                stats[session].total++;
+                stats[session].totalR += mfe;
+                
+                if (mfe > 0) stats[session].wins++;
+                else if (mfe < 0) stats[session].losses++;
+                else stats[session].breakevens++;
+            });
+            
+            // Calculate derived metrics
+            Object.keys(stats).forEach(session => {
+                const s = stats[session];
+                s.winRate = s.total > 0 ? ((s.wins + s.breakevens) / s.total) * 100 : 0;
+                s.expectancy = s.total > 0 ? s.totalR / s.total : 0;
+            });
+            
+            return stats;
+        }
+        
+        function createSessionDistributionChart(sessionStats) {
+            const container = d3.select('#sessionDistributionChart');
+            container.selectAll('*').remove();
+            
+            const data = Object.entries(sessionStats).map(([session, stats]) => ({
+                session,
+                count: stats.total,
+                percentage: (stats.total / Object.values(sessionStats).reduce((sum, s) => sum + s.total, 0)) * 100
+            }));
+            
+            createPieChart(container, data, 'count', {
+                colorScale: d3.scaleOrdinal([
+                    '#ffa502', '#3742fa', '#26de81', '#00ff88', '#ffffff', '#a55eea'
+                ]),
+                labelKey: 'session',
+                valueKey: 'count',
+                showPercentage: true
+            });
+            
+            // Update stats
+            const totalTrades = data.reduce((sum, d) => sum + d.count, 0);
+            const mostActive = data.reduce((max, d) => d.count > max.count ? d : max, data[0]);
+            document.getElementById('sessionDistributionStats').innerHTML = 
+                `Total: ${totalTrades} trades | Most Active: ${mostActive.session} (${mostActive.percentage.toFixed(1)}%)`;
+        }
+        
+        function createSessionWinRateChart(sessionStats) {
+            const container = d3.select('#sessionWinRateChart');
+            container.selectAll('*').remove();
+            
+            const data = Object.entries(sessionStats)
+                .filter(([_, stats]) => stats.total >= 3) // Only sessions with 3+ trades
+                .map(([session, stats]) => ({
+                    session,
+                    winRate: stats.winRate,
+                    total: stats.total
+                }));
+            
+            if (data.length === 0) {
+                container.append('div')
+                    .style('text-align', 'center')
+                    .style('padding', '50px')
+                    .style('color', 'rgba(255,255,255,0.7)')
+                    .text('Need 3+ trades per session');
+                return;
+            }
+            
+            createPieChart(container, data, 'winRate', {
+                colorScale: d3.scaleSequential(d3.interpolateRdYlGn).domain([0, 100]),
+                labelKey: 'session',
+                valueKey: 'winRate',
+                showPercentage: false,
+                suffix: '%'
+            });
+            
+            const bestSession = data.reduce((max, d) => d.winRate > max.winRate ? d : max, data[0]);
+            document.getElementById('sessionWinRateStats').innerHTML = 
+                `Best: ${bestSession.session} (${bestSession.winRate.toFixed(1)}% WR, ${bestSession.total} trades)`;
+        }
+        
+        function createSessionExpectancyChart(sessionStats) {
+            const container = d3.select('#sessionExpectancyChart');
+            container.selectAll('*').remove();
+            
+            const data = Object.entries(sessionStats)
+                .filter(([_, stats]) => stats.total >= 3)
+                .map(([session, stats]) => ({
+                    session,
+                    expectancy: stats.expectancy,
+                    total: stats.total
+                }));
+            
+            if (data.length === 0) {
+                container.append('div')
+                    .style('text-align', 'center')
+                    .style('padding', '50px')
+                    .style('color', 'rgba(255,255,255,0.7)')
+                    .text('Need 3+ trades per session');
+                return;
+            }
+            
+            // Use bar chart for expectancy (can be negative)
+            createExpectancyBarChart(container, data);
+            
+            const bestSession = data.reduce((max, d) => d.expectancy > max.expectancy ? d : max, data[0]);
+            document.getElementById('sessionExpectancyStats').innerHTML = 
+                `Best: ${bestSession.session} (${bestSession.expectancy.toFixed(3)}R expectancy)`;
+        }
+        
+        function createSignalTypeChart(trades) {
+            const container = d3.select('#signalTypeChart');
+            container.selectAll('*').remove();
+            
+            const signalTypes = {};
+            trades.forEach(trade => {
+                const type = trade.signal_type || 'Unknown';
+                signalTypes[type] = (signalTypes[type] || 0) + 1;
+            });
+            
+            const data = Object.entries(signalTypes).map(([type, count]) => ({
+                type: type.replace('_', ' '),
+                count,
+                percentage: (count / trades.length) * 100
+            }));
+            
+            createPieChart(container, data, 'count', {
+                colorScale: d3.scaleOrdinal(d3.schemeSet3),
+                labelKey: 'type',
+                valueKey: 'count',
+                showPercentage: true
+            });
+            
+            const mostCommon = data.reduce((max, d) => d.count > max.count ? d : max, data[0]);
+            document.getElementById('signalTypeStats').innerHTML = 
+                `Most Common: ${mostCommon.type} (${mostCommon.percentage.toFixed(1)}%)`;
+        }
+        
+        function createPieChart(container, data, valueKey, options = {}) {
+            const width = 250;
+            const height = 250;
+            const radius = Math.min(width, height) / 2 - 10;
+            
+            const svg = container.append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${width/2}, ${height/2})`);
+            
+            const pie = d3.pie()
+                .value(d => d[valueKey])
+                .sort(null);
+            
+            const arc = d3.arc()
+                .innerRadius(radius * 0.4)
+                .outerRadius(radius);
+            
+            const arcs = g.selectAll('.arc')
+                .data(pie(data))
+                .enter().append('g')
+                .attr('class', 'arc');
+            
+            arcs.append('path')
+                .attr('d', arc)
+                .attr('fill', (d, i) => {
+                    if (options.colorScale) {
+                        if (typeof options.colorScale.domain === 'function') {
+                            return options.colorScale(d.data[valueKey]);
+                        } else {
+                            return options.colorScale(i);
+                        }
+                    }
+                    return d3.schemeCategory10[i % 10];
+                })
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 2)
+                .style('opacity', 0.8)
+                .on('mouseover', function(event, d) {
+                    d3.select(this)
+                        .transition().duration(200)
+                        .style('opacity', 1)
+                        .attr('transform', 'scale(1.05)');
+                })
+                .on('mouseout', function() {
+                    d3.select(this)
+                        .transition().duration(200)
+                        .style('opacity', 0.8)
+                        .attr('transform', 'scale(1)');
+                });
+            
+            // Add labels
+            arcs.append('text')
+                .attr('transform', d => `translate(${arc.centroid(d)})`)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '11px')
+                .style('font-weight', '600')
+                .style('fill', '#fff')
+                .text(d => {
+                    const percentage = (d.data[valueKey] / d3.sum(data, d => d[valueKey])) * 100;
+                    if (percentage < 5) return ''; // Hide small labels
+                    
+                    if (options.showPercentage) {
+                        return `${percentage.toFixed(0)}%`;
+                    } else {
+                        return `${d.data[valueKey].toFixed(1)}${options.suffix || ''}`;
+                    }
+                });
+            
+            // Add legend
+            const legend = svg.append('g')
+                .attr('transform', `translate(10, 10)`);
+            
+            const legendItems = legend.selectAll('.legend-item')
+                .data(data)
+                .enter().append('g')
+                .attr('class', 'legend-item')
+                .attr('transform', (d, i) => `translate(0, ${i * 15})`);
+            
+            legendItems.append('rect')
+                .attr('width', 10)
+                .attr('height', 10)
+                .attr('fill', (d, i) => {
+                    if (options.colorScale) {
+                        if (typeof options.colorScale.domain === 'function') {
+                            return options.colorScale(d[valueKey]);
+                        } else {
+                            return options.colorScale(i);
+                        }
+                    }
+                    return d3.schemeCategory10[i % 10];
+                });
+            
+            legendItems.append('text')
+                .attr('x', 15)
+                .attr('y', 8)
+                .style('font-size', '10px')
+                .style('fill', '#fff')
+                .text(d => d[options.labelKey]);
+        }
+        
+        function createExpectancyBarChart(container, data) {
+            const width = 250;
+            const height = 250;
+            const margin = {top: 20, right: 20, bottom: 60, left: 40};
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+            
+            const svg = container.append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left}, ${margin.top})`);
+            
+            const xScale = d3.scaleBand()
+                .domain(data.map(d => d.session))
+                .range([0, innerWidth])
+                .padding(0.2);
+            
+            const yExtent = d3.extent(data, d => d.expectancy);
+            const yScale = d3.scaleLinear()
+                .domain([Math.min(0, yExtent[0]), Math.max(0, yExtent[1])])
+                .nice()
+                .range([innerHeight, 0]);
+            
+            // Zero line
+            g.append('line')
+                .attr('x1', 0)
+                .attr('x2', innerWidth)
+                .attr('y1', yScale(0))
+                .attr('y2', yScale(0))
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 1)
+                .attr('opacity', 0.5);
+            
+            // Bars
+            g.selectAll('.bar')
+                .data(data)
+                .enter().append('rect')
+                .attr('class', 'bar')
+                .attr('x', d => xScale(d.session))
+                .attr('y', d => d.expectancy >= 0 ? yScale(d.expectancy) : yScale(0))
+                .attr('width', xScale.bandwidth())
+                .attr('height', d => Math.abs(yScale(d.expectancy) - yScale(0)))
+                .attr('fill', d => d.expectancy >= 0 ? '#00ff88' : '#ff4757')
+                .attr('opacity', 0.8)
+                .on('mouseover', function() {
+                    d3.select(this).attr('opacity', 1);
+                })
+                .on('mouseout', function() {
+                    d3.select(this).attr('opacity', 0.8);
+                });
+            
+            // Value labels
+            g.selectAll('.value-label')
+                .data(data)
+                .enter().append('text')
+                .attr('class', 'value-label')
+                .attr('x', d => xScale(d.session) + xScale.bandwidth() / 2)
+                .attr('y', d => d.expectancy >= 0 ? yScale(d.expectancy) - 5 : yScale(0) + 15)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '10px')
+                .style('font-weight', '600')
+                .style('fill', '#fff')
+                .text(d => d.expectancy.toFixed(2) + 'R');
+            
+            // X-axis
+            g.append('g')
+                .attr('transform', `translate(0, ${innerHeight})`)
+                .call(d3.axisBottom(xScale))
+                .selectAll('text')
+                .style('font-size', '9px')
+                .style('fill', '#fff')
+                .attr('transform', 'rotate(-45)')
+                .style('text-anchor', 'end');
+        }
+        
+        function updateAdvancedSessionInsights(sessionStats, trades) {
+            const container = document.getElementById('advancedSessionInsights');
+            
+            // Calculate advanced insights
+            const insights = generateSessionInsights(sessionStats, trades);
+            
+            container.innerHTML = insights.map(insight => `
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; border-left: 4px solid ${insight.color};">
+                    <div style="font-weight: 600; color: ${insight.color}; margin-bottom: 8px;">${insight.title}</div>
+                    <div style="font-size: 13px; line-height: 1.4; color: rgba(255,255,255,0.9);">${insight.description}</div>
+                    <div style="font-size: 11px; margin-top: 8px; color: rgba(255,255,255,0.7);">${insight.recommendation}</div>
+                </div>
+            `).join('');
+        }
+        
+        function generateSessionInsights(sessionStats, trades) {
+            const insights = [];
+            
+            // Best performing session
+            const sessions = Object.entries(sessionStats).filter(([_, stats]) => stats.total >= 3);
+            if (sessions.length > 0) {
+                const bestSession = sessions.reduce((max, [session, stats]) => 
+                    stats.expectancy > max[1].expectancy ? [session, stats] : max
+                );
+                
+                insights.push({
+                    title: `🏆 Top Performer: ${bestSession[0]}`,
+                    description: `${bestSession[1].expectancy.toFixed(3)}R expectancy with ${bestSession[1].winRate.toFixed(1)}% win rate across ${bestSession[1].total} trades`,
+                    recommendation: `Focus 60% of trading activity during ${bestSession[0]} session for optimal results`,
+                    color: '#00ff88'
+                });
+            }
+            
+            // Consistency analysis
+            const consistentSessions = sessions.filter(([_, stats]) => stats.winRate >= 60 && stats.total >= 5);
+            if (consistentSessions.length > 0) {
+                insights.push({
+                    title: `⚡ Consistent Sessions: ${consistentSessions.length}`,
+                    description: `${consistentSessions.map(([s]) => s).join(', ')} show 60%+ win rates with sufficient sample size`,
+                    recommendation: 'Scale position sizes during these high-probability sessions',
+                    color: '#26de81'
+                });
+            }
+            
+            // Risk analysis
+            const riskySessions = sessions.filter(([_, stats]) => stats.expectancy < -0.1);
+            if (riskySessions.length > 0) {
+                insights.push({
+                    title: `⚠️ High Risk: ${riskySessions.length} Sessions`,
+                    description: `${riskySessions.map(([s]) => s).join(', ')} show negative expectancy - avoid or reduce size`,
+                    recommendation: 'Consider skipping these sessions or using smaller position sizes',
+                    color: '#ff4757'
+                });
+            }
+            
+            // Volume analysis
+            const totalTrades = trades.length;
+            const avgTradesPerSession = totalTrades / Object.keys(sessionStats).length;
+            const highVolumeSessions = Object.entries(sessionStats).filter(([_, stats]) => stats.total > avgTradesPerSession * 1.5);
+            
+            if (highVolumeSessions.length > 0) {
+                insights.push({
+                    title: `📊 High Activity: ${highVolumeSessions.length} Sessions`,
+                    description: `${highVolumeSessions.map(([s]) => s).join(', ')} account for ${((highVolumeSessions.reduce((sum, [_, stats]) => sum + stats.total, 0) / totalTrades) * 100).toFixed(1)}% of all trades`,
+                    recommendation: 'Monitor these sessions for overtrading - ensure quality over quantity',
+                    color: '#3a7bd5'
+                });
+            }
+            
+            return insights;
+        }
+        
+        function clearSessionCharts() {
+            ['#sessionDistributionChart', '#sessionWinRateChart', '#sessionExpectancyChart', '#signalTypeChart'].forEach(id => {
+                d3.select(id).selectAll('*').remove();
+                d3.select(id).append('div')
+                    .style('text-align', 'center')
+                    .style('padding', '50px')
+                    .style('color', 'rgba(255,255,255,0.7)')
+                    .text('No data available');
+            });
+            
+            document.getElementById('advancedSessionInsights').innerHTML = '<div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.7);">Load trade data to see session insights</div>';
+        }
+        
         // Make functions globally available
         window.updateAnalysis = updateAnalysis;
+        window.updateSessionAnalytics = updateSessionAnalytics;
         window.applyOptimalStrategy = applyOptimalStrategy;
         window.formatAIAnalysis = formatAIAnalysis;
         window.runTimeAnalysis = runTimeAnalysis;
