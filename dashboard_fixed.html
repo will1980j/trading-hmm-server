@@ -310,7 +310,13 @@
                     const signalData = Array.isArray(data) ? data : [];
                     console.log('Processing', signalData.length, 'Signal Lab trades');
                     
-                    window.trades = signalData.map(s => {
+                    // Filter out active trades - only include trades with MFE data
+                    const completedTrades = signalData.filter(s => {
+                        const mfe_none = parseFloat(s.mfe_none) || 0;
+                        return mfe_none !== 0; // Only trades with MFE data (completed/reviewed)
+                    });
+                    
+                    window.trades = completedTrades.map(s => {
                         const mfe_none = parseFloat(s.mfe_none) || 0;
                         
                         return {
@@ -323,7 +329,7 @@
                             mfe_none: mfe_none
                         };
                     });
-                    console.log('Mapped', window.trades.length, 'trades');
+                    console.log('Filtered to', window.trades.length, 'completed trades (with MFE data)');
                 } else {
                     const tradeData = data.trades || [];
                     window.trades = tradeData.map(t => ({
