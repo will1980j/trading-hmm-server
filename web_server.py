@@ -3474,12 +3474,21 @@ def remove_fake_trades():
         """)
         
         fixed_count = cursor.rowcount
+        
+        # NOW FIX THE CALENDAR DISCREPANCY: Mark all trades with real MFE data as completed
+        cursor.execute("""
+            UPDATE signal_lab_trades 
+            SET active_trade = false
+            WHERE COALESCE(mfe_none, mfe, 0) != 0
+        """)
+        
+        synced_count = cursor.rowcount
         db.conn.commit()
         
-        return f"REMOVED FAKE -1R TRADES:\nFound {fake_count} fake trades\nFixed {fixed_count} trades\nThese trades are now back to their original state (no MFE data, active)"
+        return f"REMOVED FAKE -1R TRADES AND SYNCED CALENDAR:\nFound {fake_count} fake trades\nFixed {fixed_count} fake trades\nSynced {synced_count} trades to dashboard\nCalendar discrepancy should now be resolved!"
         
     except Exception as e:
-        return f"ERROR: {str(e)}"
+        return f"ERROR: {str(e)}"}
 
 @app.route('/api/debug-trades', methods=['GET'])
 @login_required
