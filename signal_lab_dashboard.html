@@ -715,7 +715,8 @@
                 const endpoint = dataSource === '15m' ? '/api/signal-lab-15m-trades' : '/api/signal-lab-trades';
                 
                 // Add analysis_only parameter for dashboard to get only processed trades
-                const response = await fetch(endpoint);
+                const analysisParam = dataSource === '1m' ? '?analysis_only=true' : '';
+                const response = await fetch(endpoint + analysisParam);
                 if (response.ok) {
                     const data = await response.json();
                     const trades = Array.isArray(data) ? data : data.trades || [];
