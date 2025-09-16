@@ -3408,36 +3408,35 @@ def fix_calendar_discrepancy():
         
         cursor = db.conn.cursor()
         
-        # Check what's actually in the database for Sept 1-3
+        # Find what dates actually exist
         cursor.execute("""
-            SELECT date, time, bias, 
-                   COALESCE(mfe_none, mfe, 0) as mfe_val,
-                   COALESCE(active_trade, false) as is_active
+            SELECT date, COUNT(*) as count
             FROM signal_lab_trades 
-            WHERE date IN ('2024-09-01', '2024-09-02', '2024-09-03')
-            ORDER BY date, time
+            WHERE date >= '2024-09-01' AND date <= '2024-09-30'
+            GROUP BY date ORDER BY date
         """)
-        trades = cursor.fetchall()
+        dates = cursor.fetchall()
         
-        if not trades:
-            return "NO TRADES FOUND for Sept 1-3"
+        if not dates:
+            return "NO SEPTEMBER TRADES FOUND"
         
-        # Force all Sept 1-3 trades to have MFE=1.0 and active_trade=false
+        # Update all September trades to be visible in dashboard
         cursor.execute("""
             UPDATE signal_lab_trades 
-            SET mfe_none = 1.0, active_trade = false
-            WHERE date IN ('2024-09-01', '2024-09-02', '2024-09-03')
+            SET mfe_none = CASE WHEN COALESCE(mfe_none, mfe, 0) = 0 THEN 1.0 ELSE COALESCE(mfe_none, mfe, 0) END,
+                active_trade = false
+            WHERE date >= '2024-09-01' AND date <= '2024-09-30'
         """)
         
         updated = cursor.rowcount
         db.conn.commit()
         
-        result = f"FORCED FIX APPLIED:\n"
-        result += f"Updated {updated} trades for Sept 1-3\n"
-        result += f"Set MFE=1.0 and active_trade=false\n\n"
+        result = f"SEPTEMBER CALENDAR FIX:\n"
+        result += f"Updated {updated} trades\n\n"
+        result += "Dates found:\n"
         
-        for trade in trades[:5]:
-            result += f"{trade['date']} {trade['time']}: {trade['bias']} (was MFE={trade['mfe_val']}, active={trade['is_active']})\n"
+        for d in dates:
+            result += f"{d['date']}: {d['count']} trades\n"
         
         return result
         
