@@ -374,6 +374,15 @@ class AdvancedMLEngine:
     def predict_signal_quality(self, market_context: Dict, signal_data: Dict) -> Dict[str, Any]:
         """Advanced ML prediction for signal quality"""
         try:
+            # Temporarily disabled due to feature mismatch - needs retraining
+            return {
+                "predicted_mfe": 0.0,
+                "confidence": 0.0,
+                "prediction_interval": [0.0, 0.0],
+                "feature_contributions": {},
+                "model_consensus": {},
+                "recommendation": "ML temporarily disabled - feature mismatch"
+            }
             if not self.is_trained or not self.models:
                 return {
                     'predicted_mfe': 0.0,

@@ -2338,6 +2338,14 @@ def capture_live_signal():
         # Get current active NQ contract from contract manager
         active_nq_contract = contract_manager.get_active_contract('NQ')
         
+        # DEBUG: Log the contract comparison
+        logger.info(f"🔍 Contract check: signal={signal['symbol']}, active={active_nq_contract}, htf={htf_aligned}")
+        
+        # FALLBACK: If contract manager fails, default to NQ1!
+        if not active_nq_contract:
+            active_nq_contract = 'NQ1!'
+            logger.warning("⚠️ Contract manager returned None, defaulting to NQ1!")
+        
         should_populate = (
             signal['symbol'] == active_nq_contract and 
             htf_aligned  # HTF alignment still required
@@ -2356,6 +2364,8 @@ def capture_live_signal():
         
         if should_populate:
             logger.info(f"✅ {active_nq_contract} HTF ALIGNED: {signal['bias']} - Auto-populating Signal Lab")
+        else:
+            logger.info(f"❌ SKIPPED auto-population: Symbol={signal['symbol']}, Active={active_nq_contract}, HTF={htf_aligned}")
         
         if should_populate:
             try:
@@ -2401,6 +2411,9 @@ def capture_live_signal():
             else:
                 reason = "unknown"
             logger.info(f"⚠️ Skipped Signal Lab auto-population - {reason} (Symbol: {signal['symbol']}, Active NQ: {active_nq_contract}, HTF: {htf_aligned})")
+            
+            # Additional debug info
+            logger.info(f"🔍 Debug info: contract_manager type: {type(contract_manager)}, get_active_contract result: {repr(active_nq_contract)}")
         
         # Broadcast enriched signal to all connected clients
         enhanced_signal = dict(signal)
