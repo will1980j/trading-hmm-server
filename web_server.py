@@ -2004,6 +2004,10 @@ def capture_live_signal():
         logger.info(f"🔥 WEBHOOK RECEIVED: {raw_data[:500]}")
         print(f"🔥 WEBHOOK RECEIVED: {raw_data[:500]}")  # Console output
         
+        # Initialize contract manager for automatic rollover handling
+        from contract_manager import ContractManager
+        contract_manager = ContractManager(db)
+        
         data = None
         
         # Check for simple string format first
@@ -2087,6 +2091,16 @@ def capture_live_signal():
         # Skip invalid signals with no price data
         if not data or not isinstance(data, dict) or not data.get('price'):
             return jsonify({"error": "Invalid signal data"}), 400
+        
+        # 🔄 AUTOMATIC CONTRACT ROLLOVER HANDLING
+        original_symbol = data.get('symbol', 'Unknown')
+        data = contract_manager.process_incoming_signal(data)
+        
+        # Log contract changes
+        if data.get('contract_rollover'):
+            logger.info(f"🔄 CONTRACT ROLLOVER: {data.get('original_symbol')} → {data.get('symbol')}")
+        elif data.get('symbol_normalized'):
+            logger.info(f"📝 SYMBOL NORMALIZED: {data.get('original_symbol')} → {data.get('symbol')}")
         
         logger.info(f"📊 Webhook received: {data.get('symbol', 'Unknown')} {data.get('bias', 'N/A')} at {data.get('price', 'N/A')} (strength: {data.get('strength', 'N/A')}%)")
         logger.debug(f"Full webhook data: {str(data)[:300]}...")
@@ -2320,11 +2334,17 @@ def capture_live_signal():
                 'models_used': 0
             }
         
-        # Keep same auto-population logic (no filtering changes)
+        # 🎯 ENHANCED AUTO-POPULATION LOGIC - Now handles contract rollovers automatically
+        # Get current active NQ contract from contract manager
+        active_nq_contract = contract_manager.get_active_contract('NQ')
+        
         should_populate = (
-            signal['symbol'] == 'NQ1!' and 
-            htf_aligned  # Same as before - no quality filtering
+            signal['symbol'] == active_nq_contract and 
+            htf_aligned  # HTF alignment still required
         )
+        
+        # Log auto-population decision with contract info
+        logger.info(f"🎯 Auto-population check: Symbol={signal['symbol']}, Active NQ={active_nq_contract}, HTF={htf_aligned}, Should populate={should_populate}")
         
         # Log final signal storage with market context
         lab_status = 'Yes' if should_populate else 'No'
@@ -2335,7 +2355,7 @@ def capture_live_signal():
         logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | {vix_info} | {quality_info} | ID: {signal_id} | Lab: {lab_status}")
         
         if should_populate:
-            logger.info(f"✅ NQ1! HTF ALIGNED + HIGH QUALITY: {signal['bias']} - Auto-populating Signal Lab")
+            logger.info(f"✅ {active_nq_contract} HTF ALIGNED: {signal['bias']} - Auto-populating Signal Lab")
         
         if should_populate:
             try:
@@ -2374,13 +2394,13 @@ def capture_live_signal():
             except Exception as e:
                 logger.error(f"Failed to auto-populate Signal Lab: {str(e)}")
         else:
-            if signal['symbol'] != 'NQ1!':
-                reason = "not NQ1!"
+            if signal['symbol'] != active_nq_contract:
+                reason = f"not {active_nq_contract} (got {signal['symbol']})"
             elif not htf_aligned:
                 reason = "not HTF aligned"
             else:
                 reason = "unknown"
-            logger.info(f"⚠️ Skipped Signal Lab auto-population - {reason} (Symbol: {signal['symbol']}, HTF: {htf_aligned})")
+            logger.info(f"⚠️ Skipped Signal Lab auto-population - {reason} (Symbol: {signal['symbol']}, Active NQ: {active_nq_contract}, HTF: {htf_aligned})")
         
         # Broadcast enriched signal to all connected clients
         enhanced_signal = dict(signal)
@@ -2395,7 +2415,7 @@ def capture_live_signal():
             "context_quality_score": context_quality,
             "context_recommendations": signal.get('context_recommendations', []),
             "ml_prediction": ml_prediction,
-            "message": "Signal captured with TradingView context + Advanced ML prediction"
+            "message": "Signal captured with TradingView context + Advanced ML prediction + Auto contract management"
         })
         
     except Exception as e:
@@ -3645,6 +3665,158 @@ def cleanup_signals():
             db.conn.rollback()
         logger.error(f"Error in signal cleanup: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+# Contract Management Endpoints
+@app.route('/api/contracts/status', methods=['GET'])
+@login_required
+def get_contract_status():
+    """Get current contract status and recent rollover activity"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from contract_manager import ContractManager
+        contract_manager = ContractManager(db)
+        
+        # Get active contracts
+        active_contracts = contract_manager.get_all_active_contracts()
+        
+        # Get recent signals by symbol
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            SELECT symbol, COUNT(*) as count, MAX(timestamp) as latest
+            FROM live_signals 
+            WHERE timestamp > NOW() - INTERVAL '24 hours'
+            GROUP BY symbol 
+            ORDER BY count DESC
+        """)
+        
+        recent_symbols = cursor.fetchall()
+        
+        # Get rollover history
+        cursor.execute("""
+            SELECT base_symbol, old_contract, new_contract, created_at
+            FROM contract_rollover_log 
+            ORDER BY created_at DESC 
+            LIMIT 10
+        """)
+        
+        rollover_history = cursor.fetchall()
+        
+        return jsonify({
+            'active_contracts': active_contracts,
+            'recent_symbols': [dict(row) for row in recent_symbols],
+            'rollover_history': [dict(row) for row in rollover_history],
+            'status': 'success'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting contract status: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/contracts/force-rollover', methods=['POST'])
+@login_required
+def force_contract_rollover():
+    """Manually force a contract rollover"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        data = request.get_json()
+        base_symbol = data.get('base_symbol')  # e.g., 'NQ'
+        new_contract = data.get('new_contract')  # e.g., 'NQZ24'
+        
+        if not base_symbol or not new_contract:
+            return jsonify({'error': 'base_symbol and new_contract required'}), 400
+        
+        from contract_manager import ContractManager
+        contract_manager = ContractManager(db)
+        
+        # Get current contract
+        current_contract = contract_manager.get_active_contract(base_symbol)
+        
+        if current_contract == new_contract:
+            return jsonify({
+                'status': 'no_change',
+                'message': f'{base_symbol} already using {new_contract}'
+            })
+        
+        # Create rollover info
+        rollover_info = {
+            'base_symbol': base_symbol,
+            'old_contract': current_contract,
+            'new_contract': new_contract,
+            'rollover_detected': True,
+            'manual': True,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # Handle the rollover
+        success = contract_manager.handle_rollover(rollover_info)
+        
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': f'Contract rollover completed: {current_contract} → {new_contract}',
+                'rollover_info': rollover_info
+            })
+        else:
+            return jsonify({'error': 'Rollover failed'}), 500
+        
+    except Exception as e:
+        logger.error(f"Error forcing rollover: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/contracts/detect-rollover', methods=['POST'])
+@login_required
+def detect_contract_rollover():
+    """Detect potential contract rollovers from recent signals"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from contract_manager import ContractManager
+        contract_manager = ContractManager(db)
+        
+        # Get recent unique symbols
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT symbol, COUNT(*) as signal_count, MAX(timestamp) as latest
+            FROM live_signals 
+            WHERE timestamp > NOW() - INTERVAL '6 hours'
+            GROUP BY symbol 
+            ORDER BY signal_count DESC, latest DESC
+        """)
+        
+        recent_symbols = cursor.fetchall()
+        
+        detected_rollovers = []
+        
+        for row in recent_symbols:
+            symbol = row['symbol']
+            rollover_info = contract_manager.detect_contract_rollover(symbol)
+            
+            if rollover_info:
+                rollover_info['signal_count'] = row['signal_count']
+                rollover_info['latest_signal'] = str(row['latest'])
+                detected_rollovers.append(rollover_info)
+        
+        return jsonify({
+            'detected_rollovers': detected_rollovers,
+            'recent_symbols': [dict(row) for row in recent_symbols],
+            'status': 'success'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error detecting rollovers: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Contract Management Dashboard
+@app.route('/contract-manager')
+@login_required
+def contract_manager_dashboard():
+    """Contract management dashboard"""
+    return read_html_file('contract_manager.html')
 
 # Market Context Analysis Endpoints
 @app.route('/api/market-context-analysis', methods=['GET'])

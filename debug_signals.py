@@ -1,58 +1,155 @@
-import requests
-import json
-from datetime import datetime
+#!/usr/bin/env python3
+"""
+Debug script to check what signals are being received and why they're not auto-populating
+"""
 
-def check_recent_signals():
-    """Check what signals are in the database"""
+import os
+import sys
+from dotenv import load_dotenv
+load_dotenv()
+
+# Add the project root to Python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from database.railway_db import RailwayDB
+
+def debug_signals():
+    """Debug recent signals and auto-population logic"""
     try:
-        response = requests.get('https://web-production-cd33.up.railway.app/api/live-signals?timeframe=1m')
-        print(f"API Status: {response.status_code}")
+        db = RailwayDB()
+        cursor = db.conn.cursor()
         
-        if response.status_code == 200:
-            data = response.json()
-            signals = data.get('signals', [])
-            print(f"Total signals in DB: {len(signals)}")
-            
-            if signals:
-                print("\nRecent signals:")
-                for i, signal in enumerate(signals[:5]):
-                    print(f"{i+1}. {signal.get('symbol', 'N/A')} - {signal.get('signal_type', 'N/A')} - {signal.get('timestamp', 'N/A')}")
-            else:
-                print("No signals found in database")
+        print("🔍 SIGNAL DEBUG ANALYSIS")
+        print("=" * 50)
+        
+        # 1. Check recent live signals
+        print("\n1. RECENT LIVE SIGNALS (Last 10):")
+        cursor.execute("""
+            SELECT symbol, bias, price, htf_aligned, htf_status, session, 
+                   signal_type, timestamp, strength
+            FROM live_signals 
+            ORDER BY timestamp DESC 
+            LIMIT 10
+        """)
+        
+        recent_signals = cursor.fetchall()
+        if recent_signals:
+            for signal in recent_signals:
+                htf_status = "✅ HTF ALIGNED" if signal['htf_aligned'] else "❌ NOT HTF ALIGNED"
+                auto_pop = "🎯 WOULD AUTO-POP" if (signal['symbol'] == 'NQ1!' and signal['htf_aligned']) else "⚠️ SKIPPED"
+                
+                print(f"  {signal['symbol']} | {signal['bias']} | ${signal['price']:,.2f} | {htf_status} | {auto_pop}")
+                print(f"    Session: {signal['session']} | Type: {signal['signal_type']} | Strength: {signal['strength']}%")
+                print(f"    Time: {signal['timestamp']}")
+                print()
         else:
-            print(f"API Error: {response.text}")
+            print("  No recent live signals found")
+        
+        # 2. Check signal lab auto-populated trades
+        print("\n2. RECENT AUTO-POPULATED TRADES (Last 5):")
+        cursor.execute("""
+            SELECT date, time, bias, session, signal_type, entry_price, 
+                   COALESCE(active_trade, false) as is_active, htf_aligned
+            FROM signal_lab_trades 
+            WHERE htf_aligned = true
+            ORDER BY created_at DESC 
+            LIMIT 5
+        """)
+        
+        auto_trades = cursor.fetchall()
+        if auto_trades:
+            for trade in auto_trades:
+                status = "🔴 ACTIVE" if trade['is_active'] else "✅ COMPLETED"
+                print(f"  {trade['date']} {trade['time']} | {trade['bias']} | ${trade['entry_price']:,.2f} | {status}")
+                print(f"    Session: {trade['session']} | Type: {trade['signal_type']}")
+                print()
+        else:
+            print("  No auto-populated trades found")
+        
+        # 3. Check symbol distribution
+        print("\n3. SYMBOL DISTRIBUTION (Last 24 hours):")
+        cursor.execute("""
+            SELECT symbol, COUNT(*) as count, 
+                   SUM(CASE WHEN htf_aligned THEN 1 ELSE 0 END) as htf_aligned_count
+            FROM live_signals 
+            WHERE timestamp > NOW() - INTERVAL '24 hours'
+            GROUP BY symbol 
+            ORDER BY count DESC
+        """)
+        
+        symbols = cursor.fetchall()
+        if symbols:
+            for sym in symbols:
+                print(f"  {sym['symbol']}: {sym['count']} total, {sym['htf_aligned_count']} HTF aligned")
+        else:
+            print("  No signals in last 24 hours")
+        
+        # 4. Check HTF alignment distribution
+        print("\n4. HTF ALIGNMENT STATUS (Last 24 hours):")
+        cursor.execute("""
+            SELECT htf_aligned, htf_status, COUNT(*) as count
+            FROM live_signals 
+            WHERE timestamp > NOW() - INTERVAL '24 hours'
+            GROUP BY htf_aligned, htf_status 
+            ORDER BY count DESC
+        """)
+        
+        htf_stats = cursor.fetchall()
+        if htf_stats:
+            for stat in htf_stats:
+                print(f"  HTF Aligned: {stat['htf_aligned']} | Status: {stat['htf_status']} | Count: {stat['count']}")
+        else:
+            print("  No HTF data available")
+        
+        # 5. Check auto-population criteria
+        print("\n5. AUTO-POPULATION ANALYSIS:")
+        cursor.execute("""
+            SELECT COUNT(*) as total_nq_signals,
+                   SUM(CASE WHEN htf_aligned THEN 1 ELSE 0 END) as htf_aligned_nq,
+                   SUM(CASE WHEN htf_aligned AND symbol = 'NQ1!' THEN 1 ELSE 0 END) as should_auto_pop
+            FROM live_signals 
+            WHERE symbol LIKE '%NQ%' 
+            AND timestamp > NOW() - INTERVAL '24 hours'
+        """)
+        
+        auto_analysis = cursor.fetchone()
+        if auto_analysis:
+            print(f"  Total NQ signals: {auto_analysis['total_nq_signals']}")
+            print(f"  HTF aligned NQ: {auto_analysis['htf_aligned_nq']}")
+            print(f"  Should auto-populate: {auto_analysis['should_auto_pop']}")
             
+            if auto_analysis['should_auto_pop'] == 0:
+                print("  ⚠️ ISSUE: No signals meet auto-population criteria!")
+                if auto_analysis['htf_aligned_nq'] == 0:
+                    print("     - No HTF aligned NQ signals received")
+                else:
+                    print("     - HTF aligned signals exist but symbol != 'NQ1!'")
+        
+        # 6. Recent contract rollover check
+        print("\n6. CONTRACT ROLLOVER CHECK:")
+        cursor.execute("""
+            SELECT DISTINCT symbol 
+            FROM live_signals 
+            WHERE symbol LIKE '%NQ%' 
+            AND timestamp > NOW() - INTERVAL '7 days'
+            ORDER BY symbol
+        """)
+        
+        nq_symbols = cursor.fetchall()
+        if nq_symbols:
+            print("  NQ-related symbols received:")
+            for sym in nq_symbols:
+                print(f"    - {sym['symbol']}")
+                
+            if len(nq_symbols) > 1:
+                print("  🚨 MULTIPLE NQ SYMBOLS DETECTED - Possible contract rollover!")
+        
+        db.close()
+        
     except Exception as e:
-        print(f"Error checking signals: {e}")
-
-def test_webhook_simple():
-    """Test webhook with simple signal"""
-    url = "https://web-production-cd33.up.railway.app/api/live-signals"
-    
-    test_signal = {
-        "symbol": "NQ1!",
-        "timeframe": "1m", 
-        "signal_type": "TEST_SIGNAL",
-        "bias": "Bullish",
-        "price": 20150.25,
-        "strength": 75.0,
-        "volume": 1000,
-        "timestamp": datetime.now().isoformat()
-    }
-    
-    try:
-        response = requests.post(url, json=test_signal)
-        print(f"Webhook Status: {response.status_code}")
-        print(f"Webhook Response: {response.json()}")
-    except Exception as e:
-        print(f"Webhook Error: {e}")
+        print(f"❌ Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
-    print("=== Checking Recent Signals ===")
-    check_recent_signals()
-    
-    print("\n=== Testing Webhook ===")
-    test_webhook_simple()
-    
-    print("\n=== Checking Again After Test ===")
-    check_recent_signals()
+    debug_signals()
