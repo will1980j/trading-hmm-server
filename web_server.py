@@ -3488,7 +3488,7 @@ def remove_fake_trades():
         return f"REMOVED FAKE -1R TRADES AND SYNCED CALENDAR:\nFound {fake_count} fake trades\nFixed {fixed_count} fake trades\nSynced {synced_count} trades to dashboard\nCalendar discrepancy should now be resolved!"
         
     except Exception as e:
-        return f"ERROR: {str(e)}"}
+        return f"ERROR: {str(e)}"
 
 @app.route('/api/debug-trades', methods=['GET'])
 @login_required
