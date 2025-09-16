@@ -179,12 +179,12 @@ def logout():
 @app.route('/')
 @login_required
 def dashboard():
-    return read_html_file('signal_lab_dashboard.html')
+    return read_html_file('dashboard_clean.html')
 
 @app.route('/dashboard')
 @login_required
 def advanced_dashboard():
-    return read_html_file('signal_lab_dashboard.html')
+    return read_html_file('dashboard_clean.html')
 
 @app.route('/trade-manager')
 @login_required
@@ -276,12 +276,12 @@ def ai_trading_master_plan():
 @app.route('/tradingview')
 @login_required
 def tradingview():
-    return read_html_file('trading_dashboard.html')
+    return read_html_file('tradingview_debug.html')
 
 @app.route('/trading-dashboard')
 @login_required
 def trading_dashboard():
-    return read_html_file('trading_dashboard.html')
+    return read_html_file('dashboard_clean.html')
 
 # Serve static files (CSS, JS, images)
 @app.route('/static/<path:filename>')
@@ -1470,9 +1470,6 @@ def get_signals():
 @app.route('/api/signal-lab-trades', methods=['GET'])
 @login_required
 def get_signal_lab_trades():
-    # Check if this is for dashboard analysis (only processed trades)
-    analysis_only = request.args.get('analysis_only', 'false').lower() == 'true'
-    
     try:
         if not db_enabled or not db:
             logger.info("Database not available - returning empty array for local development")
@@ -1480,43 +1477,26 @@ def get_signal_lab_trades():
         
         cursor = db.conn.cursor()
         
-        if analysis_only:
-            # For dashboard analysis - only processed trades with MFE data
-            cursor.execute("""
-                SELECT id, date, time, bias, session, signal_type, 
-                       COALESCE(mfe_none, mfe, 0) as mfe_none,
-                       COALESCE(be1_level, 1) as be1_level,
-                       COALESCE(be1_hit, false) as be1_hit,
-                       COALESCE(mfe1, 0) as mfe1,
-                       COALESCE(be2_level, 2) as be2_level,
-                       COALESCE(be2_hit, false) as be2_hit,
-                       COALESCE(mfe2, 0) as mfe2,
-                       news_proximity, news_event, screenshot, 
-                       analysis_data, created_at
-                FROM signal_lab_trades 
-                WHERE COALESCE(mfe_none, mfe, 0) != 0
-                AND COALESCE(active_trade, false) = false
-                ORDER BY created_at DESC
-            """)
-        else:
-            # For lab interface - all trades (including active)
-            cursor.execute("""
-                SELECT id, date, time, bias, session, signal_type, 
-                       COALESCE(mfe_none, mfe, 0) as mfe_none,
-                       COALESCE(be1_level, 1) as be1_level,
-                       COALESCE(be1_hit, false) as be1_hit,
-                       COALESCE(mfe1, 0) as mfe1,
-                       COALESCE(be2_level, 2) as be2_level,
-                       COALESCE(be2_hit, false) as be2_hit,
-                       COALESCE(mfe2, 0) as mfe2,
-                       news_proximity, news_event, screenshot, 
-                       analysis_data, created_at
-                FROM signal_lab_trades 
-                ORDER BY created_at DESC
-            """)
+        # COMPLETELY UNIFIED QUERY: Both dashboards get identical data - only completed trades with MFE
+        cursor.execute("""
+            SELECT id, date, time, bias, session, signal_type, 
+                   COALESCE(mfe_none, mfe, 0) as mfe_none,
+                   COALESCE(be1_level, 1) as be1_level,
+                   COALESCE(be1_hit, false) as be1_hit,
+                   COALESCE(mfe1, 0) as mfe1,
+                   COALESCE(be2_level, 2) as be2_level,
+                   COALESCE(be2_hit, false) as be2_hit,
+                   COALESCE(mfe2, 0) as mfe2,
+                   news_proximity, news_event, screenshot, 
+                   analysis_data, created_at
+            FROM signal_lab_trades 
+            WHERE COALESCE(mfe_none, mfe, 0) > 0
+            AND COALESCE(active_trade, false) = false
+            ORDER BY created_at DESC
+        """)
         
         rows = cursor.fetchall()
-        logger.info(f"Query returned {len(rows)} rows (analysis_only={analysis_only})")
+        logger.info(f"UNIFIED QUERY: Returned {len(rows)} completed trades with MFE data for both dashboards")
         
         trades = []
         for row in rows:
@@ -1544,15 +1524,16 @@ def get_signal_lab_trades():
         
         # Log sample of news data to verify updates
         sample_with_news = [t for t in trades if t.get('newsProximity') == 'High'][:3]
-        logger.info(f"Sample trades with High news: {[(t['id'], t['newsProximity'], t['newsEvent'][:50] if t['newsEvent'] else 'None') for t in sample_with_news]}")
-        logger.info(f"Returning {len(trades)} trades to client (analysis_only={analysis_only})")
+        logger.info(f"Data verification: {len([t for t in trades if t.get('mfe_none', 0) > 0])} trades have MFE > 0")
+        logger.info(f"SUCCESS: Both dashboards will receive identical {len(trades)} completed trades")
         return jsonify(trades)
         
     except Exception as e:
         import traceback
         error_details = f"{str(e)} | Traceback: {traceback.format_exc()}"
-        logger.error(f"Error getting signal lab trades: {error_details}")
-        # Return empty array instead of error for better UX
+        logger.error(f"Error getting unified signal lab trades: {error_details}")
+        # Return empty array to maintain dashboard functionality
+        logger.error(f"Database error but returning empty array to prevent dashboard crash")
         return jsonify([]), 200
 
 @app.route('/api/signal-lab-trades', methods=['POST'])
@@ -3375,18 +3356,38 @@ def trigger_divergence():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/mark-completed')
-def mark_all_completed():
+@app.route('/api/sync-dashboards')
+def sync_dashboards():
+    """Force synchronization between both dashboards"""
     try:
         if not db_enabled or not db:
-            return "DB OFFLINE"
+            return "DATABASE OFFLINE"
+        
         cursor = db.conn.cursor()
-        cursor.execute("UPDATE signal_lab_trades SET active_trade = false WHERE COALESCE(mfe_none, mfe, 0) != 0")
-        updated = cursor.rowcount
+        
+        # FORCE SYNC: Mark all trades with MFE as completed
+        cursor.execute("""
+            UPDATE signal_lab_trades 
+            SET active_trade = false 
+            WHERE COALESCE(mfe_none, mfe, 0) > 0
+        """)
+        
+        synced_count = cursor.rowcount
         db.conn.commit()
-        return f"MARKED {updated} TRADES AS COMPLETED"
+        
+        # Verify sync
+        cursor.execute("""
+            SELECT COUNT(*) as dashboard_visible 
+            FROM signal_lab_trades 
+            WHERE COALESCE(mfe_none, mfe, 0) > 0 
+            AND COALESCE(active_trade, false) = false
+        """)
+        final_visible = cursor.fetchone()['dashboard_visible']
+        
+        return f"DASHBOARD SYNC COMPLETE: {synced_count} trades synced, {final_visible} now visible in BOTH dashboards"
+        
     except Exception as e:
-        return f"ERROR: {str(e)}"
+        return f"SYNC ERROR: {str(e)}"
 
 @app.route('/api/count-trades')
 def count_trades():
