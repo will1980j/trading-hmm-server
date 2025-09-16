@@ -3420,11 +3420,11 @@ def fix_calendar_discrepancy():
         """)
         before_visible = cursor.fetchone()['dashboard_visible']
         
-        # Fix: Set MFE=1.0 for trades without MFE and mark all as non-active
+        # CORRECT FIX: Only mark trades as non-active, don't modify MFE values
         cursor.execute("""
             UPDATE signal_lab_trades 
-            SET mfe_none = CASE WHEN COALESCE(mfe_none, mfe, 0) = 0 THEN 1.0 ELSE COALESCE(mfe_none, mfe, 0) END,
-                active_trade = false
+            SET active_trade = false
+            WHERE COALESCE(mfe_none, mfe, 0) != 0
         """)
         
         updated = cursor.rowcount
@@ -3439,7 +3439,44 @@ def fix_calendar_discrepancy():
         """)
         after_visible = cursor.fetchone()['dashboard_visible']
         
-        return f"CALENDAR DISCREPANCY FIXED:\nTotal trades: {total}\nDashboard visible before: {before_visible}\nDashboard visible after: {after_visible}\nTrades updated: {updated}\n\nBoth calendars should now show the same data!"
+        return f"CALENDAR DISCREPANCY FIXED (CORRECTED):\nTotal trades: {total}\nDashboard visible before: {before_visible}\nDashboard visible after: {after_visible}\nTrades updated: {updated}\n\nFixed: Only marked trades as completed, did NOT modify MFE values!"
+        
+    except Exception as e:
+        return f"ERROR: {str(e)}"
+
+@app.route('/api/remove-fake-trades')
+def remove_fake_trades():
+    """Remove the fake -1R trades that were incorrectly created"""
+    try:
+        if not db_enabled or not db:
+            return "DB OFFLINE"
+        
+        cursor = db.conn.cursor()
+        
+        # Find trades with exactly 1.0 MFE that were likely fake
+        cursor.execute("""
+            SELECT COUNT(*) as fake_trades 
+            FROM signal_lab_trades 
+            WHERE mfe_none = 1.0 
+            AND (mfe1 = 0 OR mfe1 IS NULL)
+            AND (mfe2 = 0 OR mfe2 IS NULL)
+        """)
+        fake_count = cursor.fetchone()['fake_trades']
+        
+        # Reset these trades to have no MFE data (original state)
+        cursor.execute("""
+            UPDATE signal_lab_trades 
+            SET mfe_none = 0,
+                active_trade = true
+            WHERE mfe_none = 1.0 
+            AND (mfe1 = 0 OR mfe1 IS NULL)
+            AND (mfe2 = 0 OR mfe2 IS NULL)
+        """)
+        
+        fixed_count = cursor.rowcount
+        db.conn.commit()
+        
+        return f"REMOVED FAKE -1R TRADES:\nFound {fake_count} fake trades\nFixed {fixed_count} trades\nThese trades are now back to their original state (no MFE data, active)"
         
     except Exception as e:
         return f"ERROR: {str(e)}"
