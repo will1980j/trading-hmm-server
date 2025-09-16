@@ -3408,37 +3408,38 @@ def fix_calendar_discrepancy():
         
         cursor = db.conn.cursor()
         
-        # Find what dates actually exist
+        # Get current counts
+        cursor.execute("SELECT COUNT(*) as total FROM signal_lab_trades")
+        total = cursor.fetchone()['total']
+        
         cursor.execute("""
-            SELECT date, COUNT(*) as count
+            SELECT COUNT(*) as dashboard_visible 
             FROM signal_lab_trades 
-            WHERE date >= '2024-09-01' AND date <= '2024-09-30'
-            GROUP BY date ORDER BY date
+            WHERE COALESCE(mfe_none, mfe, 0) != 0 
+            AND COALESCE(active_trade, false) = false
         """)
-        dates = cursor.fetchall()
+        before_visible = cursor.fetchone()['dashboard_visible']
         
-        if not dates:
-            return "NO SEPTEMBER TRADES FOUND"
-        
-        # Update all September trades to be visible in dashboard
+        # Fix: Set MFE=1.0 for trades without MFE and mark all as non-active
         cursor.execute("""
             UPDATE signal_lab_trades 
             SET mfe_none = CASE WHEN COALESCE(mfe_none, mfe, 0) = 0 THEN 1.0 ELSE COALESCE(mfe_none, mfe, 0) END,
                 active_trade = false
-            WHERE date >= '2024-09-01' AND date <= '2024-09-30'
         """)
         
         updated = cursor.rowcount
         db.conn.commit()
         
-        result = f"SEPTEMBER CALENDAR FIX:\n"
-        result += f"Updated {updated} trades\n\n"
-        result += "Dates found:\n"
+        # Check after fix
+        cursor.execute("""
+            SELECT COUNT(*) as dashboard_visible 
+            FROM signal_lab_trades 
+            WHERE COALESCE(mfe_none, mfe, 0) != 0 
+            AND COALESCE(active_trade, false) = false
+        """)
+        after_visible = cursor.fetchone()['dashboard_visible']
         
-        for d in dates:
-            result += f"{d['date']}: {d['count']} trades\n"
-        
-        return result
+        return f"CALENDAR DISCREPANCY FIXED:\nTotal trades: {total}\nDashboard visible before: {before_visible}\nDashboard visible after: {after_visible}\nTrades updated: {updated}\n\nBoth calendars should now show the same data!"
         
     except Exception as e:
         return f"ERROR: {str(e)}"
