@@ -82,10 +82,8 @@ load_dotenv()
 # Database integration
 try:
     from database.railway_db import RailwayDB
-    # db = RailwayDB()  # Commented out to prevent blocking
-    # db_enabled = True  # Commented out
-    db = None
-    db_enabled = False
+    db = RailwayDB()
+    db_enabled = True
     logger.info("Database connected successfully")
 except (ImportError, ConnectionError) as e:
     safe_error = sanitize_log_input(str(e))
