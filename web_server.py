@@ -1477,7 +1477,7 @@ def get_signal_lab_trades():
         
         cursor = db.conn.cursor()
         
-        # COMPLETELY UNIFIED QUERY: Both dashboards get identical data - only completed trades with MFE
+        # COMPLETELY UNIFIED QUERY: Both dashboards get identical data - all completed trades (including losses)
         cursor.execute("""
             SELECT id, date, time, bias, session, signal_type, 
                    COALESCE(mfe_none, mfe, 0) as mfe_none,
@@ -1490,13 +1490,12 @@ def get_signal_lab_trades():
                    news_proximity, news_event, screenshot, 
                    analysis_data, created_at
             FROM signal_lab_trades 
-            WHERE COALESCE(mfe_none, mfe, 0) > 0
-            AND COALESCE(active_trade, false) = false
+            WHERE COALESCE(active_trade, false) = false
             ORDER BY created_at DESC
         """)
         
         rows = cursor.fetchall()
-        logger.info(f"UNIFIED QUERY: Returned {len(rows)} completed trades with MFE data for both dashboards")
+        logger.info(f"UNIFIED QUERY: Returned {len(rows)} completed trades (including losses) for both dashboards")
         
         trades = []
         for row in rows:
@@ -1524,8 +1523,8 @@ def get_signal_lab_trades():
         
         # Log sample of news data to verify updates
         sample_with_news = [t for t in trades if t.get('newsProximity') == 'High'][:3]
-        logger.info(f"Data verification: {len([t for t in trades if t.get('mfe_none', 0) > 0])} trades have MFE > 0")
-        logger.info(f"SUCCESS: Both dashboards will receive identical {len(trades)} completed trades")
+        logger.info(f"Data verification: {len([t for t in trades if t.get('mfe_none', 0) != 0])} trades have MFE data")
+        logger.info(f"SUCCESS: Both dashboards will receive identical {len(trades)} completed trades (including losses)")
         return jsonify(trades)
         
     except Exception as e:
