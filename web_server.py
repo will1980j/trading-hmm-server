@@ -3400,6 +3400,70 @@ def count_trades():
     except Exception as e:
         return f"ERROR: {str(e)}"
 
+@app.route('/api/fix-calendar-discrepancy')
+def fix_calendar_discrepancy():
+    """Fix calendar discrepancy between Signal Lab and Dashboard"""
+    try:
+        if not db_enabled or not db:
+            return "DB OFFLINE"
+        
+        cursor = db.conn.cursor()
+        
+        # Get current state for Sept 1-3
+        cursor.execute("""
+            SELECT date, COUNT(*) as total,
+                   COUNT(CASE WHEN COALESCE(mfe_none, mfe, 0) != 0 AND COALESCE(active_trade, false) = false THEN 1 END) as dashboard_visible
+            FROM signal_lab_trades 
+            WHERE date IN ('2024-09-01', '2024-09-02', '2024-09-03')
+            GROUP BY date ORDER BY date
+        """)
+        before_state = cursor.fetchall()
+        
+        # Fix 1: Mark all trades with MFE data as completed
+        cursor.execute("""
+            UPDATE signal_lab_trades 
+            SET active_trade = false 
+            WHERE COALESCE(mfe_none, mfe, 0) != 0
+            AND COALESCE(active_trade, false) = true
+        """)
+        fix1_count = cursor.rowcount
+        
+        # Fix 2: Mark all historical trades as completed
+        cursor.execute("""
+            UPDATE signal_lab_trades 
+            SET active_trade = false 
+            WHERE date < CURRENT_DATE
+            AND COALESCE(active_trade, false) = true
+        """)
+        fix2_count = cursor.rowcount
+        
+        db.conn.commit()
+        
+        # Get state after fix
+        cursor.execute("""
+            SELECT date, COUNT(*) as total,
+                   COUNT(CASE WHEN COALESCE(mfe_none, mfe, 0) != 0 AND COALESCE(active_trade, false) = false THEN 1 END) as dashboard_visible
+            FROM signal_lab_trades 
+            WHERE date IN ('2024-09-01', '2024-09-02', '2024-09-03')
+            GROUP BY date ORDER BY date
+        """)
+        after_state = cursor.fetchall()
+        
+        result = f"CALENDAR FIX APPLIED:\n"
+        result += f"Fixed {fix1_count} trades with MFE data\n"
+        result += f"Fixed {fix2_count} historical trades\n\n"
+        result += "SEPTEMBER 1-3 VISIBILITY:\n"
+        
+        for before, after in zip(before_state, after_state):
+            result += f"{before['date']}: {before['dashboard_visible']} -> {after['dashboard_visible']} visible\n"
+        
+        return result
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        return f"ERROR: {str(e)}"
+
 @app.route('/api/debug-trades', methods=['GET'])
 @login_required
 def debug_trades_endpoint():
