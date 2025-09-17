@@ -1565,7 +1565,7 @@ def create_signal_lab_trade():
             RETURNING id
         """, (
             data.get('date'),
-            data.get('time'),
+            data.get('time') or None,  # Convert empty string to None for PostgreSQL
             data.get('bias'),
             data.get('session'),
             data.get('signal_type'),
