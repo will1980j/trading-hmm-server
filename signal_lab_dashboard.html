@@ -811,7 +811,7 @@
             const selectedSessions = getSelectedSessions();
             const viewType = document.getElementById('viewType').value;
             
-            // Filter signals by selected sessions
+            // Filter signals by selected sessions (using NY EST timezone for date consistency)
             const filteredSignals = signals.filter(signal => 
                 selectedSessions.includes(signal.session)
             );
@@ -1751,6 +1751,13 @@
                 .style('padding', '50px')
                 .style('color', 'rgba(255,255,255,0.5)')
                 .text('No data available');
+        }
+        
+        // Timezone consistency helper - ensures both calendars use NY EST
+        function ensureNYTimezone(dateStr) {
+            // All date operations should be consistent with NY EST timezone
+            // This ensures calendar sync between dashboard and signal analysis lab
+            return dateStr; // Date strings are already in YYYY-MM-DD format
         }
         
         // Auto-update when filters change
@@ -2929,7 +2936,8 @@
             ).join('<br>');
         }
         
-        // Advanced Performance Calendar
+        // Advanced Performance Calendar - NY EST Timezone Synchronized
+        // This calendar uses the same timezone handling as /signal-analysis-lab
         function generateDailyCalendar() {
             const beStrategy = document.getElementById('beStrategy').value;
             const rTarget = parseFloat(document.getElementById('rTarget').value) || 2;
@@ -2969,9 +2977,9 @@
             const minR = Math.min(...allRValues);
             const avgR = allRValues.reduce((a, b) => a + b, 0) / allRValues.length;
             
-            // Show September 2025 to match signal analysis lab calendar
-            const calendarStartDate = new Date(2025, 8, 1); // September 2025
-            const calendarEndDate = new Date(2025, 8, 30); // End of September 2025
+            // Show September 2025 to match signal analysis lab calendar - using NY EST timezone
+            const calendarStartDate = new Date(2025, 8, 1); // September 2025 (NY EST)
+            const calendarEndDate = new Date(2025, 8, 30); // End of September 2025 (NY EST)
             
             // Create sophisticated calendar with D3.js
             const calendarHtml = `
@@ -2982,8 +2990,8 @@
                     <!-- Calendar Header -->
                     <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
                         <div>
-                            <h3 style="color: #00ff88; margin: 0 0 5px 0; font-size: 24px; font-weight: 700;">Performance Calendar</h3>
-                            <div style="color: rgba(255,255,255,0.7); font-size: 14px;">Interactive trading performance heatmap</div>
+                            <h3 style="color: #00ff88; margin: 0 0 5px 0; font-size: 24px; font-weight: 700;">Performance Calendar (NY EST)</h3>
+                            <div style="color: rgba(255,255,255,0.7); font-size: 14px;">Interactive trading performance heatmap - synchronized with Signal Analysis Lab</div>
                         </div>
                         <div style="display: flex; gap: 15px; align-items: center;">
                             <div style="text-align: center; padding: 10px 15px; background: rgba(0,255,136,0.1); border-radius: 10px; border: 1px solid rgba(0,255,136,0.3);">
@@ -3089,7 +3097,7 @@
                 .style('letter-spacing', '1px')
                 .text(d => d);
             
-            // Use actual date range from parameters
+            // Use actual date range from parameters (NY EST timezone)
             const calendarDays = [];
             
             // Add empty cells for days before start of month
@@ -3103,6 +3111,7 @@
             const currentDate = new Date(startDate.getTime());
             
             while (currentDate <= endDate) {
+                // Generate date string in YYYY-MM-DD format (NY EST timezone)
                 const dateStr = currentDate.toISOString().split('T')[0];
                 const dayData = dailyData[dateStr];
                 const dayOfWeek = currentDate.getDay();

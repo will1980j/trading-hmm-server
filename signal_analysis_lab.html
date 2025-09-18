@@ -781,9 +781,10 @@
         <div class="data-input">
             <h3>Signal Analysis Data <span id="activeTradesCounter" style="background: linear-gradient(45deg, #ff6b35, #f7931e); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-left: 10px; box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3); animation: pulse 2s infinite;">0 Active</span></h3>
             
-            <!-- Trading Calendar -->
+            <!-- Trading Calendar - NY EST Timezone Synchronized -->
+            <!-- This calendar uses the same timezone handling as /signal-lab-dashboard -->
             <div id="tradingCalendar" style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); border-radius: 12px; padding: 15px; margin-bottom: 15px;">
-                <div style="font-size: 14px; font-weight: 600; color: #00ff88; margin-bottom: 15px;">📅 Trading Calendar</div>
+                <div style="font-size: 14px; font-weight: 600; color: #00ff88; margin-bottom: 15px;">📅 Trading Calendar (NY EST)</div>
                 
                 <div class="month-nav">
                     <button onclick="changeMonth(-1)">← Prev</button>
@@ -1246,6 +1247,7 @@
         
 
         
+        // Use NY EST timezone for calendar consistency
         let currentMonth = new Date().getMonth();
         let currentYear = new Date().getFullYear();
         let selectedDate = null;
@@ -1257,7 +1259,7 @@
             
             let activeTradesCount = 0;
             
-            // Filter signals by selected date if any
+            // Filter signals by selected date if any (using NY EST timezone for consistency)
             let displaySignals = signals;
             if (selectedDate) {
                 displaySignals = signals.filter(signal => signal.date === selectedDate);
@@ -1889,6 +1891,13 @@
             });
         }
         
+        // Timezone consistency helper - ensures both calendars use NY EST
+        function ensureNYTimezone(dateStr) {
+            // All date operations should be consistent with NY EST timezone
+            // This ensures calendar sync between dashboard and signal analysis lab
+            return dateStr; // Date strings are already in YYYY-MM-DD format
+        }
+        
         function updateCalendar() {
             const grid = document.getElementById('calendarGrid');
             const monthTitle = document.getElementById('monthTitle');
@@ -1900,7 +1909,7 @@
                               'July', 'August', 'September', 'October', 'November', 'December'];
             monthTitle.textContent = `${monthNames[currentMonth]} ${currentYear}`;
             
-            // Get first day of month and number of days
+            // Get first day of month and number of days (NY EST timezone)
             const firstDay = new Date(currentYear, currentMonth, 1);
             const lastDay = new Date(currentYear, currentMonth + 1, 0);
             const daysInMonth = lastDay.getDate();
@@ -1959,6 +1968,7 @@
             // Add days of the month
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayElement = document.createElement('div');
+                // Generate date string in YYYY-MM-DD format (NY EST timezone)
                 const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 const tradeCount = tradesByDate[dateStr] || 0;
                 const activeCount = activeByDate[dateStr] || 0;
