@@ -2354,16 +2354,11 @@
             document.getElementById('signalTypeStats').innerHTML = 'No data';
         }
         
-        // Load data when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize session charts
             clearSessionCharts();
-            
-            // Load signals and setup auto-update
             loadSignals();
             setupAutoUpdate();
             
-            // Load market context and set ML to offline state
             setTimeout(() => {
                 loadMarketContext();
                 document.getElementById('mlStatus').innerHTML = `<span style="color: #ff4757;">❌ Offline</span>`;
@@ -3788,6 +3783,108 @@
                 .attr('y', d => d.expectancy >= 0 ? yScale(d.expectancy) : yScale(0))
                 .attr('width', xScale.bandwidth())
                 .attr('height', d => Math.abs(yScale(d.expectancy) - yScale(0)))
+                .attr('fill', d => d.expectancy >= 0 ? '#00ff88' : '#ff4757')
+                .attr('opacity', 0.8)
+                .on('mouseover', function() {
+                    d3.select(this).attr('opacity', 1);
+                })
+                .on('mouseout', function() {
+                    d3.select(this).attr('opacity', 0.8);
+                });
+            
+            // Value labels
+            g.selectAll('.value-label')
+                .data(data)
+                .enter().append('text')
+                .attr('class', 'value-label')
+                .attr('x', d => xScale(d.session) + xScale.bandwidth() / 2)
+                .attr('y', d => d.expectancy >= 0 ? yScale(d.expectancy) - 5 : yScale(0) + 15)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '10px')
+                .style('font-weight', '600')
+                .style('fill', '#fff')
+                .text(d => d.expectancy.toFixed(2) + 'R');
+            
+            // X-axis
+            g.append('g')
+                .attr('transform', `translate(0, ${innerHeight})`)
+                .call(d3.axisBottom(xScale))
+                .selectAll('text')
+                .style('font-size', '9px')
+                .style('fill', '#fff')
+                .attr('transform', 'rotate(-45)')
+                .style('text-anchor', 'end');
+        }
+        
+        function updateAdvancedSessionInsights(sessionStats, trades) {
+            const insightsContainer = document.getElementById('advancedSessionInsights');
+            insightsContainer.innerHTML = '';
+            
+            if (!sessionStats || Object.keys(sessionStats).length === 0) {
+                insightsContainer.innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.7);">No session data available</div>';
+                return;
+            }
+            
+            const sessions = Object.entries(sessionStats)
+                .filter(([_, stats]) => stats.total >= 3)
+                .sort((a, b) => b[1].expectancy - a[1].expectancy);
+            
+            if (sessions.length === 0) {
+                insightsContainer.innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.7);">Need 3+ trades per session for insights</div>';
+                return;
+            }
+            
+            const bestSession = sessions[0];
+            const worstSession = sessions[sessions.length - 1];
+            const totalTrades = Object.values(sessionStats).reduce((sum, s) => sum + s.total, 0);
+            const avgExpectancy = Object.values(sessionStats).reduce((sum, s) => sum + s.expectancy * s.total, 0) / totalTrades;
+            
+            const insights = [
+                {
+                    title: '🏆 Best Performing Session',
+                    content: `${bestSession[0]} leads with ${bestSession[1].expectancy.toFixed(3)}R expectancy and ${bestSession[1].winRate.toFixed(1)}% win rate across ${bestSession[1].total} trades.`,
+                    color: '#00ff88'
+                },
+                {
+                    title: '⚠️ Underperforming Session', 
+                    content: `${worstSession[0]} shows ${worstSession[1].expectancy.toFixed(3)}R expectancy with ${worstSession[1].winRate.toFixed(1)}% win rate. Consider reducing exposure or avoiding this session.`,
+                    color: '#ff4757'
+                },
+                {
+                    title: '📊 Portfolio Balance',
+                    content: `Overall expectancy: ${avgExpectancy.toFixed(3)}R across ${totalTrades} trades. Focus on ${bestSession[0]} for optimal performance.`,
+                    color: '#00d4aa'
+                },
+                {
+                    title: '💡 Optimization Tip',
+                    content: sessions.length > 2 ? 
+                        `Top 3 sessions: ${sessions.slice(0, 3).map(s => s[0]).join(', ')}. Consider trading only these sessions.` :
+                        `Trade ${bestSession[0]} exclusively for best results based on current data.`,
+                    color: '#ffa502'
+                }
+            ];
+            
+            insights.forEach(insight => {
+                const card = document.createElement('div');
+                card.style.cssText = `
+                    background: rgba(255,255,255,0.05);
+                    border-left: 4px solid ${insight.color};
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin-bottom: 10px;
+                `;
+                
+                card.innerHTML = `
+                    <h5 style="color: ${insight.color}; margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">${insight.title}</h5>
+                    <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 13px; line-height: 1.4;">${insight.content}</p>
+                `;
+                
+                insightsContainer.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
                 .attr('fill', d => d.expectancy >= 0 ? '#00ff88' : '#ff4757')
                 .attr('opacity', 0.8)
                 .on('mouseover', function() {
