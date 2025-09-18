@@ -2952,10 +2952,9 @@
             const minR = Math.min(...allRValues);
             const avgR = allRValues.reduce((a, b) => a + b, 0) / allRValues.length;
             
-            // Use current month for calendar display
-            const now = new Date();
-            const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            // Use a fixed date for calendar display - December 2024
+            const startDate = new Date(2024, 11, 1); // December 1, 2024
+            const endDate = new Date(2024, 11, 31);  // December 31, 2024
             
             // Create sophisticated calendar with D3.js
             const calendarHtml = `
@@ -3073,10 +3072,9 @@
                 .style('letter-spacing', '1px')
                 .text(d => d);
             
-            // Generate calendar days for current month
-            const now = new Date();
-            const currentDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            // Generate calendar days for current month - use same date as parent
+            const currentDate = new Date(startDate.getTime());
+            const lastDay = new Date(endDate.getTime());
             const calendarDays = [];
             
             // Add empty cells for days before start of month
@@ -3471,21 +3469,31 @@
                 return;
             }
             
-            // Calculate session statistics
-            const sessionStats = calculateSessionStatistics(trades);
-            
-            // Update all session charts
-            createSessionDistributionChart(sessionStats);
-            createSessionWinRateChart(sessionStats);
-            createSessionExpectancyChart(sessionStats);
-            createSignalTypeChart(trades);
-            updateAdvancedSessionInsights(sessionStats, trades);
+            // Calculate session statistics with error handling
+            try {
+                const sessionStats = calculateSessionStatistics(trades);
+                
+                // Update all session charts with error handling
+                createSessionDistributionChart(sessionStats);
+                createSessionWinRateChart(sessionStats);
+                createSessionExpectancyChart(sessionStats);
+                createSignalTypeChart(trades);
+                updateAdvancedSessionInsights(sessionStats, trades);
+            } catch (error) {
+                console.error('Session analytics error:', error);
+                clearSessionCharts();
+            }
         }
         
         function calculateSessionStatistics(trades) {
             const stats = {};
             
+            if (!trades || !Array.isArray(trades)) {
+                return stats;
+            }
+            
             trades.forEach(trade => {
+                if (!trade) return;
                 const session = trade.session || 'Unknown';
                 const mfe = trade.mfe_none || trade.mfe || 0;
                 
@@ -3641,8 +3649,9 @@
             const height = 250;
             const radius = Math.min(width, height) / 2 - 20;
             
-            // Create HTML legend below the chart
-            const legendId = container.attr('id') + 'Legend';
+            // Get legend container ID by replacing 'Chart' with 'Legend'
+            const containerId = container.attr('id');
+            const legendId = containerId.replace('Chart', 'Legend');
             const legendContainer = document.getElementById(legendId);
             if (legendContainer) {
                 legendContainer.innerHTML = '';
