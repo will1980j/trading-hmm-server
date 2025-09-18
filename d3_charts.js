@@ -345,12 +345,8 @@ class D3Charts {
 
     // Start real-time updates
     startRealTimeUpdates(interval = 5000) {
-        if (this.updateInterval) clearInterval(this.updateInterval);
-        this.updateInterval = setInterval(() => {
-            if (typeof updateD3Charts === 'function') {
-                updateD3Charts();
-            }
-        }, interval);
+        // Disabled to prevent infinite animation loops
+        console.log('Real-time updates disabled to prevent animation loops');
     }
 
     // Stop real-time updates
@@ -398,9 +394,6 @@ function initD3Charts() {
     document.head.appendChild(style);
     
     console.log('Advanced D3 charts initialized with interactive features');
-    
-    // Start real-time updates
-    window.d3Charts.startRealTimeUpdates();
 }
 
 // Update all D3 charts with current data

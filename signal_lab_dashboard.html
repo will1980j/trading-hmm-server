@@ -3616,8 +3616,8 @@
         
         function createPieChart(container, data, valueKey, options = {}) {
             const width = 250;
-            const height = 250;
-            const radius = Math.min(width, height) / 2 - 10;
+            const height = 280; // Increased height for legend space
+            const radius = Math.min(width, height - 60) / 2 - 10; // Reduced radius for legend space
             
             const svg = container.append('svg')
                 .attr('width', width)
@@ -3685,19 +3685,19 @@
                     }
                 });
             
-            // Add legend
+            // Add legend positioned below the chart
             const legend = svg.append('g')
-                .attr('transform', `translate(10, 10)`);
+                .attr('transform', `translate(${width/2 - 60}, ${height - 30})`);
             
             const legendItems = legend.selectAll('.legend-item')
-                .data(data)
+                .data(data.slice(0, 4)) // Limit to 4 items to prevent overflow
                 .enter().append('g')
                 .attr('class', 'legend-item')
-                .attr('transform', (d, i) => `translate(0, ${i * 15})`);
+                .attr('transform', (d, i) => `translate(${(i % 2) * 60}, ${Math.floor(i / 2) * 15})`);
             
             legendItems.append('rect')
-                .attr('width', 10)
-                .attr('height', 10)
+                .attr('width', 8)
+                .attr('height', 8)
                 .attr('fill', (d, i) => {
                     if (options.colorScale) {
                         if (typeof options.colorScale.domain === 'function') {
@@ -3710,11 +3710,11 @@
                 });
             
             legendItems.append('text')
-                .attr('x', 15)
-                .attr('y', 8)
-                .style('font-size', '10px')
+                .attr('x', 12)
+                .attr('y', 6)
+                .style('font-size', '9px')
                 .style('fill', '#fff')
-                .text(d => d[options.labelKey]);
+                .text(d => d[options.labelKey].length > 8 ? d[options.labelKey].substring(0, 8) + '...' : d[options.labelKey]);
         }
         
         function createExpectancyBarChart(container, data) {
