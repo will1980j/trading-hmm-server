@@ -2969,10 +2969,9 @@
             const minR = Math.min(...allRValues);
             const avgR = allRValues.reduce((a, b) => a + b, 0) / allRValues.length;
             
-            // Use current date to match signal analysis lab calendar
-            const today = new Date();
-            const calendarStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
-            const calendarEndDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            // Show September 2025 to match signal analysis lab calendar
+            const calendarStartDate = new Date(2025, 8, 1); // September 2025
+            const calendarEndDate = new Date(2025, 8, 30); // End of September 2025
             
             // Create sophisticated calendar with D3.js
             const calendarHtml = `
