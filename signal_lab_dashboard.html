@@ -1240,7 +1240,7 @@
                     .data(heatmapData)
                     .enter().append('rect')
                     .attr('class', 'heatmap-rect')
-                    .attr('x', d => xScale(d.x) - 10)
+                    .attr('x', (d, i) => xScale(i) - 10)
                     .attr('y', d => yScale(d.y) - 10)
                     .attr('width', 20)
                     .attr('height', 20)
@@ -1565,8 +1565,10 @@
             // Premium axes with enhanced styling
             const xAxis = d3.axisBottom(xScale)
                 .tickFormat((d, i) => {
-                    const date = data[d] ? data[d].x : new Date();
-                    return d3.timeFormat(viewType === 'trade' ? '%m/%d %H:%M' : '%m/%d')(date);
+                    if (data[d] && data[d].x) {
+                        return d3.timeFormat(viewType === 'trade' ? '%m/%d %H:%M' : '%m/%d')(data[d].x);
+                    }
+                    return '';
                 })
                 .tickSize(-innerHeight)
                 .tickPadding(15);
@@ -2950,10 +2952,10 @@
             const minR = Math.min(...allRValues);
             const avgR = allRValues.reduce((a, b) => a + b, 0) / allRValues.length;
             
-            // Use the month that contains the most recent trade data
-            const mostRecentDate = dates.length > 0 ? new Date(dates[dates.length - 1]) : new Date();
-            const startDate = new Date(mostRecentDate.getFullYear(), mostRecentDate.getMonth(), 1);
-            const endDate = new Date(mostRecentDate.getFullYear(), mostRecentDate.getMonth() + 1, 0);
+            // Use current month for calendar display
+            const now = new Date();
+            const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
             
             // Create sophisticated calendar with D3.js
             const calendarHtml = `
@@ -3071,12 +3073,10 @@
                 .style('letter-spacing', '1px')
                 .text(d => d);
             
-            // Generate calendar days for the month with trade data
-            const mostRecentDate = Object.keys(dailyData).length > 0 ? 
-                new Date(Math.max(...Object.keys(dailyData).map(d => new Date(d)))) : 
-                new Date();
-            const currentDate = new Date(mostRecentDate.getFullYear(), mostRecentDate.getMonth(), 1);
-            const lastDay = new Date(mostRecentDate.getFullYear(), mostRecentDate.getMonth() + 1, 0);
+            // Generate calendar days for current month
+            const now = new Date();
+            const currentDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
             const calendarDays = [];
             
             // Add empty cells for days before start of month
@@ -3643,8 +3643,10 @@
             
             // Create HTML legend below the chart
             const legendId = container.attr('id') + 'Legend';
-            const legendContainer = d3.select('#' + legendId);
-            legendContainer.selectAll('*').remove();
+            const legendContainer = document.getElementById(legendId);
+            if (legendContainer) {
+                legendContainer.innerHTML = '';
+            }
             
             const svg = container.append('svg')
                 .attr('width', width)
@@ -3713,30 +3715,25 @@
                 });
             
             // Create HTML legend after chart is created
-            data.forEach((d, i) => {
-                const color = options.colorScale ? 
-                    (typeof options.colorScale.domain === 'function' ? 
-                        options.colorScale(d[valueKey]) : 
-                        options.colorScale(i)) : 
-                    d3.schemeCategory10[i % 10];
-                
-                const percentage = (d[valueKey] / d3.sum(data, d => d[valueKey])) * 100;
-                const displayValue = options.showPercentage ? 
-                    `${percentage.toFixed(1)}%` : 
-                    `${d[valueKey].toFixed(1)}${options.suffix || ''}`;
-                
-                legendContainer.append('div')
-                    .style('display', 'inline-flex')
-                    .style('align-items', 'center')
-                    .style('gap', '6px')
-                    .style('margin', '2px 4px')
-                    .style('font-size', '11px')
-                    .style('color', '#fff')
-                    .style('background', 'rgba(255,255,255,0.05)')
-                    .style('padding', '4px 8px')
-                    .style('border-radius', '4px')
-                    .html(`<div style="width: 12px; height: 12px; background: ${color}; border-radius: 2px;"></div><span>${d[options.labelKey]}: ${displayValue}</span>`);
-            });
+            if (legendContainer) {
+                data.forEach((d, i) => {
+                    const color = options.colorScale ? 
+                        (typeof options.colorScale.domain === 'function' ? 
+                            options.colorScale(d[valueKey]) : 
+                            options.colorScale(i)) : 
+                        d3.schemeCategory10[i % 10];
+                    
+                    const percentage = (d[valueKey] / d3.sum(data, d => d[valueKey])) * 100;
+                    const displayValue = options.showPercentage ? 
+                        `${percentage.toFixed(1)}%` : 
+                        `${d[valueKey].toFixed(1)}${options.suffix || ''}`;
+                    
+                    const legendItem = document.createElement('div');
+                    legendItem.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; margin: 2px 4px; font-size: 11px; color: #fff; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px;';
+                    legendItem.innerHTML = `<div style="width: 12px; height: 12px; background: ${color}; border-radius: 2px;"></div><span>${d[options.labelKey]}: ${displayValue}</span>`;
+                    legendContainer.appendChild(legendItem);
+                });
+            }
         }
         
         function createExpectancyBarChart(container, data) {
