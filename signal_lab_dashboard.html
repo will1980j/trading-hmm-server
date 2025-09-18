@@ -1438,26 +1438,43 @@
                 .attr('opacity', 0.6)
                 .style('filter', 'url(#premium-glow)');
             
-            // Animate dots with elastic bounce and dynamic sizing
+            // Animate dots with elastic bounce and dynamic sizing (with bounds checking)
             dots.transition()
                 .delay((d, i) => i * 80)
                 .duration(800)
                 .ease(d3.easeElasticOut.amplitude(1.2).period(0.4))
                 .select('.dot')
-                .attr('r', d => Math.max(6, Math.min(16, 8 + Math.abs(d.result) * 1.5)));
+                .attr('r', d => Math.max(6, Math.min(16, 8 + Math.abs(d.result || 0) * 1.5)))
+                .attrTween('r', function(d) {
+                    const targetR = Math.max(6, Math.min(16, 8 + Math.abs(d.result || 0) * 1.5));
+                    return function(t) {
+                        return Math.max(0.1, targetR * t);
+                    };
+                });
             
             dots.transition()
                 .delay((d, i) => i * 80 + 200)
                 .duration(600)
                 .ease(d3.easeElasticOut)
                 .select('.dot-inner-glow')
-                .attr('r', d => Math.max(3, Math.min(8, 4 + Math.abs(d.result) * 0.8)));
+                .attr('r', d => Math.max(3, Math.min(8, 4 + Math.abs(d.result || 0) * 0.8)))
+                .attrTween('r', function(d) {
+                    const targetR = Math.max(3, Math.min(8, 4 + Math.abs(d.result || 0) * 0.8));
+                    return function(t) {
+                        return Math.max(0.1, targetR * t);
+                    };
+                });
             
             dots.transition()
                 .delay((d, i) => i * 80 + 300)
                 .duration(400)
                 .select('.dot-glow')
-                .attr('r', 15);
+                .attr('r', 15)
+                .attrTween('r', function() {
+                    return function(t) {
+                        return Math.max(0.1, 15 * t);
+                    };
+                });
             
             // Premium tooltip with animations
             const tooltip = d3.select('body').append('div')
@@ -2952,9 +2969,10 @@
             const minR = Math.min(...allRValues);
             const avgR = allRValues.reduce((a, b) => a + b, 0) / allRValues.length;
             
-            // Use a fixed date for calendar display - December 2024 (ensure consistency)
-            const fixedStartDate = new Date(2024, 11, 1); // December 1, 2024
-            const fixedEndDate = new Date(2024, 11, 31);  // December 31, 2024
+            // Use current date to match signal analysis lab calendar
+            const today = new Date();
+            const calendarStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            const calendarEndDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
             
             // Create sophisticated calendar with D3.js
             const calendarHtml = `
@@ -3003,8 +3021,8 @@
             
             document.getElementById('dailyCalendar').innerHTML = calendarHtml;
             
-            // Create D3 calendar visualization with fixed dates
-            setTimeout(() => createSophisticatedCalendar(dailyData, fixedStartDate, fixedEndDate, maxR, minR), 100);
+            // Create D3 calendar visualization with actual data dates
+            setTimeout(() => createSophisticatedCalendar(dailyData, calendarStartDate, calendarEndDate, maxR, minR), 100);
             
             // Store daily data globally
             window.dailyTradeData = dailyData;
@@ -3072,22 +3090,20 @@
                 .style('letter-spacing', '1px')
                 .text(d => d);
             
-            // Use fixed December 2024 calendar - ensure all calendars show same month
-            const fixedStartDate = new Date(2024, 11, 1); // December 1, 2024
-            const fixedEndDate = new Date(2024, 11, 31);   // December 31, 2024
+            // Use actual date range from parameters
             const calendarDays = [];
             
             // Add empty cells for days before start of month
-            const firstDayOfWeek = fixedStartDate.getDay();
+            const firstDayOfWeek = startDate.getDay();
             for (let i = 0; i < firstDayOfWeek; i++) {
                 calendarDays.push({ isEmpty: true, x: i, y: 0 });
             }
             
             let weekRow = 0;
             let dayCol = firstDayOfWeek;
-            const currentDate = new Date(fixedStartDate.getTime());
+            const currentDate = new Date(startDate.getTime());
             
-            while (currentDate <= fixedEndDate) {
+            while (currentDate <= endDate) {
                 const dateStr = currentDate.toISOString().split('T')[0];
                 const dayData = dailyData[dateStr];
                 const dayOfWeek = currentDate.getDay();
@@ -3196,12 +3212,12 @@
                 .style('pointer-events', 'none')
                 .text(d => `${d.data.totalR >= 0 ? '+' : ''}${d.data.totalR.toFixed(1)}R`);
             
-            // Trade count indicators
+            // Trade count indicators (with bounds checking)
             cells.filter(d => d.hasData && !d.isWeekend)
                 .append('circle')
                 .attr('cx', cellSize - 12)
                 .attr('cy', 12)
-                .attr('r', d => Math.min(8, 3 + d.data.trades.length))
+                .attr('r', d => Math.max(1, Math.min(8, 3 + (d.data.trades ? d.data.trades.length : 0))))
                 .style('fill', d => d.data.totalR > 0 ? '#00ff88' : d.data.totalR < 0 ? '#ff4757' : '#ffa502')
                 .style('stroke', '#ffffff')
                 .style('stroke-width', 1)
@@ -3437,7 +3453,7 @@
                 .attr('cx', d => xScale(d.x))
                 .attr('cy', d => yScale(d.y))
                 .attr('r', 4)
-                .attr('fill', d => d.result > 0 ? '#00ff88' : d.result < 0 ? '#ff4757' : '#ffa502')
+                .attr('fill', d => (d.result || 0) > 0 ? '#00ff88' : (d.result || 0) < 0 ? '#ff4757' : '#ffa502')
                 .attr('stroke', '#fff')
                 .attr('stroke-width', 2);
             
