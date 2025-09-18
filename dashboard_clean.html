@@ -472,7 +472,7 @@
             try {
                 const dataSourceEl = document.getElementById('dataSourceToggle');
                 const dataSource = dataSourceEl ? dataSourceEl.value : 'signal-lab';
-                const endpoint = dataSource === 'signal-lab' ? '/api/signal-lab-trades' : '/api/trades';
+                const endpoint = dataSource === 'signal-lab' ? '/api/signal-lab-trades?analysis_only=true' : '/api/trades';
                 
                 console.log('Loading from endpoint:', endpoint);
                 
