@@ -1,0 +1,92 @@
+//@version=5
+indicator("AI Trading System with Persistent Labels", overlay=true)
+
+// =============================================================================
+// PERSISTENT SIGNAL VARIABLES (ADD AT TOP)
+// =============================================================================
+var string last_signal = "NO_ENTRY"
+var int signal_bar = 0
+var float last_confidence = 0.0
+var string last_hmm_state = ""
+
+// =============================================================================
+// YOUR EXISTING CALCULATIONS (KEEP YOUR CURRENT LOGIC)
+// =============================================================================
+// Add your existing bias calculations, pattern detection, etc. here
+// Example placeholders:
+daily_bias = "BULLISH"  // Replace with your actual bias calculation
+bias_score = 75.0       // Replace with your actual bias score
+volume_ratio = 1.5      // Replace with your actual volume calculation
+price_momentum = 0.2    // Replace with your actual momentum calculation
+
+// =============================================================================
+// SERVER COMMUNICATION (REPLACE WITH YOUR ACTUAL WEBHOOK CALL)
+// =============================================================================
+// This is where you would make your actual server call
+// For now, using placeholder logic:
+entry_signal = "NO_ENTRY"
+confidence = 0.0
+hmm_state = "Ranging"
+
+// Simulate server response (REPLACE THIS WITH YOUR ACTUAL SERVER CALL)
+if daily_bias == "BULLISH" and bias_score >= 65 and volume_ratio > 1.2
+    entry_signal := "ENTER_LONG"
+    confidence := 0.78
+    hmm_state := "Accumulation"
+else if daily_bias == "BEARISH" and bias_score <= -65 and volume_ratio > 1.2
+    entry_signal := "ENTER_SHORT"
+    confidence := 0.82
+    hmm_state := "Distribution"
+
+// =============================================================================
+// SIGNAL PERSISTENCE LOGIC (ADD AFTER SERVER RESPONSE)
+// =============================================================================
+if entry_signal != "NO_ENTRY"
+    last_signal := entry_signal
+    signal_bar := bar_index
+    last_confidence := confidence
+    last_hmm_state := hmm_state
+
+// =============================================================================
+// PERSISTENT PLOTTING (ADD AT BOTTOM)
+// =============================================================================
+// Long entry markers
+plotshape(
+    last_signal == "ENTER_LONG" and bar_index == signal_bar, 
+    title="Long Entry", 
+    style=shape.triangleup, 
+    location=location.belowbar, 
+    color=color.new(color.green, 0), 
+    size=size.normal,
+    text="LONG\n" + str.tostring(last_confidence, "#.##")
+)
+
+// Short entry markers
+plotshape(
+    last_signal == "ENTER_SHORT" and bar_index == signal_bar, 
+    title="Short Entry", 
+    style=shape.triangledown, 
+    location=location.abovebar, 
+    color=color.new(color.red, 0), 
+    size=size.normal,
+    text="SHORT\n" + str.tostring(last_confidence, "#.##")
+)
+
+// Optional: Add HMM state labels
+if last_signal != "NO_ENTRY" and bar_index == signal_bar
+    label.new(
+        bar_index, 
+        last_signal == "ENTER_LONG" ? low : high,
+        text=last_hmm_state + "\nConf: " + str.tostring(last_confidence, "#.##"),
+        style=last_signal == "ENTER_LONG" ? label.style_label_up : label.style_label_down,
+        color=last_signal == "ENTER_LONG" ? color.green : color.red,
+        textcolor=color.white,
+        size=size.small
+    )
+
+// =============================================================================
+// WEBHOOK ALERT (REPLACE URL WITH YOUR ACTUAL RAILWAY URL)
+// =============================================================================
+// Add this to your alert condition:
+// Webhook URL: https://your-app.railway.app/webhook
+// Message: Market Data: {"current_price":{{close}},"volume_ratio":{{volume}},"price_momentum":{{momentum}},"daily_bias":"{{daily_bias}}","bias_score":{{bias_score}}}
