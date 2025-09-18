@@ -2952,9 +2952,9 @@
             const minR = Math.min(...allRValues);
             const avgR = allRValues.reduce((a, b) => a + b, 0) / allRValues.length;
             
-            // Use a fixed date for calendar display - December 2024
-            const startDate = new Date(2024, 11, 1); // December 1, 2024
-            const endDate = new Date(2024, 11, 31);  // December 31, 2024
+            // Use a fixed date for calendar display - December 2024 (ensure consistency)
+            const fixedStartDate = new Date(2024, 11, 1); // December 1, 2024
+            const fixedEndDate = new Date(2024, 11, 31);  // December 31, 2024
             
             // Create sophisticated calendar with D3.js
             const calendarHtml = `
@@ -3003,8 +3003,8 @@
             
             document.getElementById('dailyCalendar').innerHTML = calendarHtml;
             
-            // Create D3 calendar visualization
-            setTimeout(() => createSophisticatedCalendar(dailyData, startDate, endDate, maxR, minR), 100);
+            // Create D3 calendar visualization with fixed dates
+            setTimeout(() => createSophisticatedCalendar(dailyData, fixedStartDate, fixedEndDate, maxR, minR), 100);
             
             // Store daily data globally
             window.dailyTradeData = dailyData;
@@ -3072,21 +3072,22 @@
                 .style('letter-spacing', '1px')
                 .text(d => d);
             
-            // Generate calendar days for current month - use same date as parent
-            const currentDate = new Date(startDate.getTime());
-            const lastDay = new Date(endDate.getTime());
+            // Use fixed December 2024 calendar - ensure all calendars show same month
+            const fixedStartDate = new Date(2024, 11, 1); // December 1, 2024
+            const fixedEndDate = new Date(2024, 11, 31);   // December 31, 2024
             const calendarDays = [];
             
             // Add empty cells for days before start of month
-            const firstDayOfWeek = currentDate.getDay();
+            const firstDayOfWeek = fixedStartDate.getDay();
             for (let i = 0; i < firstDayOfWeek; i++) {
                 calendarDays.push({ isEmpty: true, x: i, y: 0 });
             }
             
             let weekRow = 0;
             let dayCol = firstDayOfWeek;
+            const currentDate = new Date(fixedStartDate.getTime());
             
-            while (currentDate <= lastDay) {
+            while (currentDate <= fixedEndDate) {
                 const dateStr = currentDate.toISOString().split('T')[0];
                 const dayData = dailyData[dateStr];
                 const dayOfWeek = currentDate.getDay();
