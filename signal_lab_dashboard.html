@@ -2335,9 +2335,20 @@
             }
         }
         
+        function clearSessionCharts() {
+            d3.select('#sessionDistributionChart').selectAll('*').remove();
+            d3.select('#sessionWinRateChart').selectAll('*').remove();
+            d3.select('#sessionExpectancyChart').selectAll('*').remove();
+            d3.select('#signalTypeChart').selectAll('*').remove();
+            
+            document.getElementById('sessionDistributionStats').innerHTML = 'No data';
+            document.getElementById('sessionWinRateStats').innerHTML = 'No data';
+            document.getElementById('sessionExpectancyStats').innerHTML = 'No data';
+            document.getElementById('signalTypeStats').innerHTML = 'No data';
+        }
+        
         // Load data when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize session charts with empty state
             clearSessionCharts();
             
             loadSignals();
@@ -2936,10 +2947,10 @@
             const minR = Math.min(...allRValues);
             const avgR = allRValues.reduce((a, b) => a + b, 0) / allRValues.length;
             
-            // Use the most recent month for calendar display
-            const mostRecentDate = new Date(Math.max(...dates.map(d => new Date(d))));
-            const startDate = new Date(mostRecentDate.getFullYear(), mostRecentDate.getMonth(), 1);
-            const endDate = new Date(mostRecentDate.getFullYear(), mostRecentDate.getMonth() + 1, 0);
+            // Use current month for calendar display
+            const now = new Date();
+            const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
             
             // Create sophisticated calendar with D3.js
             const calendarHtml = `
@@ -3057,10 +3068,10 @@
                 .style('letter-spacing', '1px')
                 .text(d => d);
             
-            // Generate calendar days for the month containing the most recent data
-            const mostRecentDate = new Date(Math.max(...Object.keys(dailyData).map(d => new Date(d))));
-            const currentDate = new Date(mostRecentDate.getFullYear(), mostRecentDate.getMonth(), 1);
-            const lastDay = new Date(mostRecentDate.getFullYear(), mostRecentDate.getMonth() + 1, 0);
+            // Generate calendar days for current month
+            const now = new Date();
+            const currentDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
             const calendarDays = [];
             
             // Add empty cells for days before start of month
