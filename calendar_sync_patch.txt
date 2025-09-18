@@ -1,0 +1,30 @@
+
+CALENDAR SYNC PATCH
+==================
+
+File: signal_lab_dashboard.html
+Location: loadSignals() function (around line 450-500)
+
+FIND THIS CODE:
+---------------
+const endpoint = dataSource === '15m' ? 
+    'https://web-production-cd33.up.railway.app/api/signal-lab-15m-trades' : 
+    'https://web-production-cd33.up.railway.app/api/signal-lab-trades';
+
+// Add analysis_only parameter for dashboard to get only processed trades
+const analysisParam = dataSource === '1m' ? '?analysis_only=true' : '';
+const response = await fetch(endpoint + analysisParam);
+
+REPLACE WITH:
+-------------
+const endpoint = dataSource === '15m' ? 
+    'https://web-production-cd33.up.railway.app/api/signal-lab-15m-trades?analysis_only=true' : 
+    'https://web-production-cd33.up.railway.app/api/signal-lab-trades?analysis_only=true';
+
+const response = await fetch(endpoint);
+
+RESULT:
+-------
+- Both 1m and 15m data will use analysis_only=true
+- Only completed/reviewed trades appear on calendar
+- Both dashboards will show matching dates
