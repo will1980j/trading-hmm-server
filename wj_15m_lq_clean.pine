@@ -1,0 +1,91 @@
+//@version=6
+indicator("WJ 15M LQ Clean", overlay=true, max_lines_count=500, max_labels_count=500, max_bars_back=5000)
+
+htf = input.timeframe("15", "Higher Timeframe", options=["1", "3", "5", "15", "30", "45", "60", "120", "180", "240", "D", "W", "M"])
+showHighPivots = input.bool(true, "Show High Pivots")
+showLowPivots = input.bool(true, "Show Low Pivots")
+showLabels = input.bool(true, "Show Labels")
+highColor = input.color(color.red, "High Pivot Color")
+lowColor = input.color(color.blue, "Low Pivot Color")
+maxPivots = input.int(50, "Maximum Pivots", minval=1, maxval=100)
+
+var array<line> highLines = array.new<line>()
+var array<line> lowLines = array.new<line>()
+var array<float> highPivots = array.new<float>()
+var array<float> lowPivots = array.new<float>()
+var array<label> highLabels = array.new<label>()
+var array<label> lowLabels = array.new<label>()
+
+
+// Only create lines for actual pivots
+getPivots() =>
+    ph = ta.pivothigh(high, 1, 1)
+    pl = ta.pivotlow(low, 1, 1)
+    [ph, pl, time[1]]
+
+[htfPivotHigh, htfPivotLow, pivotBarTime] = request.security(syminfo.tickerid, htf, getPivots(), lookahead=barmerge.lookahead_off)
+
+// Only draw lines when there's an actual pivot
+if not na(htfPivotHigh) and showHighPivots
+    lineH = line.new(pivotBarTime, htfPivotHigh, time + 86400000, htfPivotHigh, xloc=xloc.bar_time, color=highColor)
+    array.push(highLines, lineH)
+    array.push(highPivots, htfPivotHigh)
+
+    if showLabels
+        labelH = label.new(pivotBarTime, htfPivotHigh, "H", xloc=xloc.bar_time, color=color.new(color.white, 0), textcolor=highColor, size=size.small)
+        array.push(highLabels, labelH)
+    else
+        array.push(highLabels, na)
+
+if not na(htfPivotLow) and showLowPivots
+    lineL = line.new(pivotBarTime, htfPivotLow, time + 86400000, htfPivotLow, xloc=xloc.bar_time, color=lowColor)
+    array.push(lowLines, lineL)
+    array.push(lowPivots, htfPivotLow)
+
+    if showLabels
+        labelL = label.new(pivotBarTime, htfPivotLow, "L", xloc=xloc.bar_time, color=color.new(color.white, 0), textcolor=lowColor, size=size.small)
+        array.push(lowLabels, labelL)
+    else
+        array.push(lowLabels, na)
+
+// Update line extensions and check for breaks
+if array.size(highLines) > 0
+    for i = array.size(highLines) - 1 to 0
+        currentLine = array.get(highLines, i)
+        linePrice = array.get(highPivots, i)
+        if high > linePrice
+            line.set_x2(currentLine, time)
+        else
+            line.set_x2(currentLine, time + 86400000)
+
+if array.size(lowLines) > 0
+    for i = array.size(lowLines) - 1 to 0
+        currentLine = array.get(lowLines, i)
+        linePrice = array.get(lowPivots, i)
+        if low < linePrice
+            line.set_x2(currentLine, time)
+        else
+            line.set_x2(currentLine, time + 86400000)
+
+// Clean up old lines
+if array.size(highLines) > maxPivots
+    line.delete(array.get(highLines, 0))
+    array.remove(highLines, 0)
+    array.remove(highPivots, 0)
+
+    if array.size(highLabels) > 0
+        lbl = array.get(highLabels, 0)
+        if not na(lbl)
+            label.delete(lbl)
+        array.remove(highLabels, 0)
+
+if array.size(lowLines) > maxPivots
+    line.delete(array.get(lowLines, 0))
+    array.remove(lowLines, 0)
+    array.remove(lowPivots, 0)
+
+    if array.size(lowLabels) > 0
+        lbl = array.get(lowLabels, 0)
+        if not na(lbl)
+            label.delete(lbl)
+        array.remove(lowLabels, 0)

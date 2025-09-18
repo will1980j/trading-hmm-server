@@ -1,0 +1,247 @@
+//@version=5
+indicator("Multi-Instrument FVG Scanner", overlay=false)
+
+table_position = input.string("Top Left", "Table Position", options=["Top Left", "Top Right", "Bottom Left", "Bottom Right"])
+bull_color = input.color(color.green, "Bullish Color")
+bear_color = input.color(color.red, "Bearish Color")
+htf_color = input.color(color.yellow, "HTF Aligned Color")
+neutral_color = input.color(color.gray, "Neutral Color")
+enable_htf_alerts = input.bool(true, "Enable HTF Alignment Alerts")
+
+s1_enable = input.bool(true, "", group="Symbols", inline="s1")
+s2_enable = input.bool(true, "", group="Symbols", inline="s2")
+s3_enable = input.bool(true, "", group="Symbols", inline="s3")
+s4_enable = input.bool(true, "", group="Symbols", inline="s4")
+s5_enable = input.bool(true, "", group="Symbols", inline="s5")
+
+s1 = input.symbol("ES1!", group="Symbols", inline="s1")
+s2 = input.symbol("NQ1!", group="Symbols", inline="s2")
+s3 = input.symbol("YM1!", group="Symbols", inline="s3")
+s4 = input.symbol("RTY1!", group="Symbols", inline="s4")
+s5 = input.symbol("CL1!", group="Symbols", inline="s5")
+
+f_getBias() =>
+    var string bias = "Neutral"
+    var bull_fvg_highs = array.new<float>()
+    var bull_fvg_lows = array.new<float>()
+    var bear_fvg_highs = array.new<float>()
+    var bear_fvg_lows = array.new<float>()
+    var bull_ifvg_highs = array.new<float>()
+    var bull_ifvg_lows = array.new<float>()
+    var bear_ifvg_highs = array.new<float>()
+    var bear_ifvg_lows = array.new<float>()
+    
+    if barstate.isconfirmed
+        c2_high = high[2]
+        c2_low = low[2]
+        c0_high = high
+        c0_low = low
+        
+        bullish_fvg = c2_high < c0_low
+        bearish_fvg = c2_low > c0_high
+        
+        if bullish_fvg
+            array.push(bull_fvg_highs, c0_low)
+            array.push(bull_fvg_lows, c2_high)
+            
+        if bearish_fvg
+            array.push(bear_fvg_highs, c2_low)
+            array.push(bear_fvg_lows, c0_high)
+        
+        if array.size(bull_fvg_highs) > 0
+            for i = array.size(bull_fvg_highs) - 1 to 0
+                if close < array.get(bull_fvg_lows, i)
+                    array.push(bear_ifvg_highs, array.get(bull_fvg_highs, i))
+                    array.push(bear_ifvg_lows, array.get(bull_fvg_lows, i))
+                    array.remove(bull_fvg_highs, i)
+                    array.remove(bull_fvg_lows, i)
+                    bias := "Bearish"
+                    
+        if array.size(bear_fvg_highs) > 0
+            for i = array.size(bear_fvg_highs) - 1 to 0
+                if close > array.get(bear_fvg_highs, i)
+                    array.push(bull_ifvg_highs, array.get(bear_fvg_highs, i))
+                    array.push(bull_ifvg_lows, array.get(bear_fvg_lows, i))
+                    array.remove(bear_fvg_highs, i)
+                    array.remove(bear_fvg_lows, i)
+                    bias := "Bullish"
+                    
+        if array.size(bear_ifvg_highs) > 0
+            for i = array.size(bear_ifvg_highs) - 1 to 0
+                if close > array.get(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_lows, i)
+                    bias := "Bullish"
+                    
+        if array.size(bull_ifvg_highs) > 0
+            for i = array.size(bull_ifvg_highs) - 1 to 0
+                if close < array.get(bull_ifvg_lows, i)
+                    array.remove(bull_ifvg_highs, i)
+                    array.remove(bull_ifvg_lows, i)
+                    bias := "Bearish"
+    bias
+
+s1_daily = request.security(s1, "1D", f_getBias)
+s1_4h = request.security(s1, "240", f_getBias)
+s1_1h = request.security(s1, "60", f_getBias)
+s1_15m = request.security(s1, "15", f_getBias)
+s1_1m = request.security(s1, "1", f_getBias)
+
+s2_daily = request.security(s2, "1D", f_getBias)
+s2_4h = request.security(s2, "240", f_getBias)
+s2_1h = request.security(s2, "60", f_getBias)
+s2_15m = request.security(s2, "15", f_getBias)
+s2_1m = request.security(s2, "1", f_getBias)
+
+s3_daily = request.security(s3, "1D", f_getBias)
+s3_4h = request.security(s3, "240", f_getBias)
+s3_1h = request.security(s3, "60", f_getBias)
+s3_15m = request.security(s3, "15", f_getBias)
+s3_1m = request.security(s3, "1", f_getBias)
+
+s4_daily = request.security(s4, "1D", f_getBias)
+s4_4h = request.security(s4, "240", f_getBias)
+s4_1h = request.security(s4, "60", f_getBias)
+s4_15m = request.security(s4, "15", f_getBias)
+s4_1m = request.security(s4, "1", f_getBias)
+
+s5_daily = request.security(s5, "1D", f_getBias)
+s5_4h = request.security(s5, "240", f_getBias)
+s5_1h = request.security(s5, "60", f_getBias)
+s5_15m = request.security(s5, "15", f_getBias)
+s5_1m = request.security(s5, "1", f_getBias)
+
+getSymbolName(fullSymbol) =>
+    parts = str.split(fullSymbol, ":")
+    array.size(parts) > 1 ? array.get(parts, 1) : fullSymbol
+
+get_position() =>
+    switch table_position
+        "Top Left" => position.top_left
+        "Top Right" => position.top_right
+        "Bottom Left" => position.bottom_left
+        "Bottom Right" => position.bottom_right
+        => position.top_left
+
+enabled_count = (s1_enable ? 1 : 0) + (s2_enable ? 1 : 0) + (s3_enable ? 1 : 0) + (s4_enable ? 1 : 0) + (s5_enable ? 1 : 0)
+var table dashboard = table.new(get_position(), 7, enabled_count + 1, bgcolor=color.new(color.black, 90), border_width=1)
+
+if barstate.islast
+    table.cell(dashboard, 0, 0, "Symbol", text_color=color.white, bgcolor=color.gray)
+    table.cell(dashboard, 1, 0, "Daily", text_color=color.white, bgcolor=color.gray)
+    table.cell(dashboard, 2, 0, "4H", text_color=color.white, bgcolor=color.gray)
+    table.cell(dashboard, 3, 0, "1H", text_color=color.white, bgcolor=color.gray)
+    table.cell(dashboard, 4, 0, "15M", text_color=color.white, bgcolor=color.gray)
+    table.cell(dashboard, 5, 0, "1M", text_color=color.white, bgcolor=color.gray)
+    table.cell(dashboard, 6, 0, "Signal", text_color=color.white, bgcolor=color.gray)
+    
+    row = 1
+    
+    if s1_enable
+        htf_bull = s1_daily == "Bullish" and s1_4h == "Bullish" and s1_1h == "Bullish" and s1_15m == "Bullish"
+        htf_bear = s1_daily == "Bearish" and s1_4h == "Bearish" and s1_1h == "Bearish" and s1_15m == "Bearish"
+        all_bull = htf_bull and s1_1m == "Bullish"
+        all_bear = htf_bear and s1_1m == "Bearish"
+        
+        table.cell(dashboard, 0, row, getSymbolName(s1), text_color=color.white)
+        table.cell(dashboard, 1, row, s1_daily, text_color=s1_daily == "Bullish" ? bull_color : s1_daily == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 2, row, s1_4h, text_color=s1_4h == "Bullish" ? bull_color : s1_4h == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 3, row, s1_1h, text_color=s1_1h == "Bullish" ? bull_color : s1_1h == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 4, row, s1_15m, text_color=s1_15m == "Bullish" ? bull_color : s1_15m == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 5, row, s1_1m, text_color=s1_1m == "Bullish" ? bull_color : s1_1m == "Bearish" ? bear_color : neutral_color)
+        
+        signal_text = all_bull ? "BUY" : all_bear ? "SELL" : htf_bull ? "HTF Aligned" : htf_bear ? "HTF Aligned" : "WAIT"
+        signal_color = all_bull ? bull_color : all_bear ? bear_color : (htf_bull or htf_bear) ? htf_color : neutral_color
+        table.cell(dashboard, 6, row, signal_text, text_color=signal_color, bgcolor=all_bull or all_bear ? color.new(signal_color, 80) : (htf_bull or htf_bear) ? color.new(htf_color, 80) : color.new(neutral_color, 90))
+        
+        if enable_htf_alerts
+            if (htf_bull and not htf_bull[1]) or (htf_bear and not htf_bear[1])
+                alert("HTF ALIGNED - " + getSymbolName(s1) + " ready for 1M trigger", alert.freq_once_per_bar)
+        row += 1
+    
+    if s2_enable
+        htf_bull = s2_daily == "Bullish" and s2_4h == "Bullish" and s2_1h == "Bullish" and s2_15m == "Bullish"
+        htf_bear = s2_daily == "Bearish" and s2_4h == "Bearish" and s2_1h == "Bearish" and s2_15m == "Bearish"
+        all_bull = htf_bull and s2_1m == "Bullish"
+        all_bear = htf_bear and s2_1m == "Bearish"
+        
+        table.cell(dashboard, 0, row, getSymbolName(s2), text_color=color.white)
+        table.cell(dashboard, 1, row, s2_daily, text_color=s2_daily == "Bullish" ? bull_color : s2_daily == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 2, row, s2_4h, text_color=s2_4h == "Bullish" ? bull_color : s2_4h == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 3, row, s2_1h, text_color=s2_1h == "Bullish" ? bull_color : s2_1h == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 4, row, s2_15m, text_color=s2_15m == "Bullish" ? bull_color : s2_15m == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 5, row, s2_1m, text_color=s2_1m == "Bullish" ? bull_color : s2_1m == "Bearish" ? bear_color : neutral_color)
+        
+        signal_text = all_bull ? "BUY" : all_bear ? "SELL" : htf_bull ? "HTF Aligned" : htf_bear ? "HTF Aligned" : "WAIT"
+        signal_color = all_bull ? bull_color : all_bear ? bear_color : (htf_bull or htf_bear) ? htf_color : neutral_color
+        table.cell(dashboard, 6, row, signal_text, text_color=signal_color, bgcolor=all_bull or all_bear ? color.new(signal_color, 80) : (htf_bull or htf_bear) ? color.new(htf_color, 80) : color.new(neutral_color, 90))
+        
+        if enable_htf_alerts
+            if (htf_bull and not htf_bull[1]) or (htf_bear and not htf_bear[1])
+                alert("HTF ALIGNED - " + getSymbolName(s2) + " ready for 1M trigger", alert.freq_once_per_bar)
+        row += 1
+    
+    if s3_enable
+        htf_bull = s3_daily == "Bullish" and s3_4h == "Bullish" and s3_1h == "Bullish" and s3_15m == "Bullish"
+        htf_bear = s3_daily == "Bearish" and s3_4h == "Bearish" and s3_1h == "Bearish" and s3_15m == "Bearish"
+        all_bull = htf_bull and s3_1m == "Bullish"
+        all_bear = htf_bear and s3_1m == "Bearish"
+        
+        table.cell(dashboard, 0, row, getSymbolName(s3), text_color=color.white)
+        table.cell(dashboard, 1, row, s3_daily, text_color=s3_daily == "Bullish" ? bull_color : s3_daily == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 2, row, s3_4h, text_color=s3_4h == "Bullish" ? bull_color : s3_4h == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 3, row, s3_1h, text_color=s3_1h == "Bullish" ? bull_color : s3_1h == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 4, row, s3_15m, text_color=s3_15m == "Bullish" ? bull_color : s3_15m == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 5, row, s3_1m, text_color=s3_1m == "Bullish" ? bull_color : s3_1m == "Bearish" ? bear_color : neutral_color)
+        
+        signal_text = all_bull ? "BUY" : all_bear ? "SELL" : htf_bull ? "HTF Aligned" : htf_bear ? "HTF Aligned" : "WAIT"
+        signal_color = all_bull ? bull_color : all_bear ? bear_color : (htf_bull or htf_bear) ? htf_color : neutral_color
+        table.cell(dashboard, 6, row, signal_text, text_color=signal_color, bgcolor=all_bull or all_bear ? color.new(signal_color, 80) : (htf_bull or htf_bear) ? color.new(htf_color, 80) : color.new(neutral_color, 90))
+        
+        if enable_htf_alerts
+            if (htf_bull and not htf_bull[1]) or (htf_bear and not htf_bear[1])
+                alert("HTF ALIGNED - " + getSymbolName(s3) + " ready for 1M trigger", alert.freq_once_per_bar)
+        row += 1
+    
+    if s4_enable
+        htf_bull = s4_daily == "Bullish" and s4_4h == "Bullish" and s4_1h == "Bullish" and s4_15m == "Bullish"
+        htf_bear = s4_daily == "Bearish" and s4_4h == "Bearish" and s4_1h == "Bearish" and s4_15m == "Bearish"
+        all_bull = htf_bull and s4_1m == "Bullish"
+        all_bear = htf_bear and s4_1m == "Bearish"
+        
+        table.cell(dashboard, 0, row, getSymbolName(s4), text_color=color.white)
+        table.cell(dashboard, 1, row, s4_daily, text_color=s4_daily == "Bullish" ? bull_color : s4_daily == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 2, row, s4_4h, text_color=s4_4h == "Bullish" ? bull_color : s4_4h == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 3, row, s4_1h, text_color=s4_1h == "Bullish" ? bull_color : s4_1h == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 4, row, s4_15m, text_color=s4_15m == "Bullish" ? bull_color : s4_15m == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 5, row, s4_1m, text_color=s4_1m == "Bullish" ? bull_color : s4_1m == "Bearish" ? bear_color : neutral_color)
+        
+        signal_text = all_bull ? "BUY" : all_bear ? "SELL" : htf_bull ? "HTF Aligned" : htf_bear ? "HTF Aligned" : "WAIT"
+        signal_color = all_bull ? bull_color : all_bear ? bear_color : (htf_bull or htf_bear) ? htf_color : neutral_color
+        table.cell(dashboard, 6, row, signal_text, text_color=signal_color, bgcolor=all_bull or all_bear ? color.new(signal_color, 80) : (htf_bull or htf_bear) ? color.new(htf_color, 80) : color.new(neutral_color, 90))
+        
+        if enable_htf_alerts
+            if (htf_bull and not htf_bull[1]) or (htf_bear and not htf_bear[1])
+                alert("HTF ALIGNED - " + getSymbolName(s4) + " ready for 1M trigger", alert.freq_once_per_bar)
+        row += 1
+    
+    if s5_enable
+        htf_bull = s5_daily == "Bullish" and s5_4h == "Bullish" and s5_1h == "Bullish" and s5_15m == "Bullish"
+        htf_bear = s5_daily == "Bearish" and s5_4h == "Bearish" and s5_1h == "Bearish" and s5_15m == "Bearish"
+        all_bull = htf_bull and s5_1m == "Bullish"
+        all_bear = htf_bear and s5_1m == "Bearish"
+        
+        table.cell(dashboard, 0, row, getSymbolName(s5), text_color=color.white)
+        table.cell(dashboard, 1, row, s5_daily, text_color=s5_daily == "Bullish" ? bull_color : s5_daily == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 2, row, s5_4h, text_color=s5_4h == "Bullish" ? bull_color : s5_4h == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 3, row, s5_1h, text_color=s5_1h == "Bullish" ? bull_color : s5_1h == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 4, row, s5_15m, text_color=s5_15m == "Bullish" ? bull_color : s5_15m == "Bearish" ? bear_color : neutral_color)
+        table.cell(dashboard, 5, row, s5_1m, text_color=s5_1m == "Bullish" ? bull_color : s5_1m == "Bearish" ? bear_color : neutral_color)
+        
+        signal_text = all_bull ? "BUY" : all_bear ? "SELL" : htf_bull ? "HTF Aligned" : htf_bear ? "HTF Aligned" : "WAIT"
+        signal_color = all_bull ? bull_color : all_bear ? bear_color : (htf_bull or htf_bear) ? htf_color : neutral_color
+        table.cell(dashboard, 6, row, signal_text, text_color=signal_color, bgcolor=all_bull or all_bear ? color.new(signal_color, 80) : (htf_bull or htf_bear) ? color.new(htf_color, 80) : color.new(neutral_color, 90))
+        
+        if enable_htf_alerts
+            if (htf_bull and not htf_bull[1]) or (htf_bear and not htf_bear[1])
+                alert("HTF ALIGNED - " + getSymbolName(s5) + " ready for 1M trigger", alert.freq_once_per_bar)

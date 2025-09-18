@@ -1,0 +1,106 @@
+//@version=5
+indicator("Multi-Timeframe FVG Scanner", overlay=false)
+
+enable_alerts = input.bool(true, "Enable Alerts")
+
+getBias() =>
+    var string bias = "Neutral"
+    var bull_fvg_highs = array.new<float>()
+    var bull_fvg_lows = array.new<float>()
+    var bear_fvg_highs = array.new<float>()
+    var bear_fvg_lows = array.new<float>()
+    var bull_ifvg_highs = array.new<float>()
+    var bull_ifvg_lows = array.new<float>()
+    var bear_ifvg_highs = array.new<float>()
+    var bear_ifvg_lows = array.new<float>()
+    
+    if barstate.isconfirmed
+        c2_high = high[2]
+        c2_low = low[2]
+        c0_high = high
+        c0_low = low
+        
+        bullish_fvg = c2_high < c0_low
+        bearish_fvg = c2_low > c0_high
+        
+        if bullish_fvg
+            array.push(bull_fvg_highs, c0_low)
+            array.push(bull_fvg_lows, c2_high)
+            
+        if bearish_fvg
+            array.push(bear_fvg_highs, c2_low)
+            array.push(bear_fvg_lows, c0_high)
+        
+        if array.size(bull_fvg_highs) > 0
+            for i = array.size(bull_fvg_highs) - 1 to 0
+                if close < array.get(bull_fvg_lows, i)
+                    array.push(bear_ifvg_highs, array.get(bull_fvg_highs, i))
+                    array.push(bear_ifvg_lows, array.get(bull_fvg_lows, i))
+                    array.remove(bull_fvg_highs, i)
+                    array.remove(bull_fvg_lows, i)
+                    bias := "Bearish"
+                    
+        if array.size(bear_fvg_highs) > 0
+            for i = array.size(bear_fvg_highs) - 1 to 0
+                if close > array.get(bear_fvg_highs, i)
+                    array.push(bull_ifvg_highs, array.get(bear_fvg_highs, i))
+                    array.push(bull_ifvg_lows, array.get(bear_fvg_lows, i))
+                    array.remove(bear_fvg_highs, i)
+                    array.remove(bear_fvg_lows, i)
+                    bias := "Bullish"
+                    
+        if array.size(bear_ifvg_highs) > 0
+            for i = array.size(bear_ifvg_highs) - 1 to 0
+                if close > array.get(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_lows, i)
+                    bias := "Bullish"
+                    
+        if array.size(bull_ifvg_highs) > 0
+            for i = array.size(bull_ifvg_highs) - 1 to 0
+                if close < array.get(bull_ifvg_lows, i)
+                    array.remove(bull_ifvg_highs, i)
+                    array.remove(bull_ifvg_lows, i)
+                    bias := "Bearish"
+    bias
+
+daily_bias = request.security(syminfo.tickerid, "1D", getBias)
+h4_bias = request.security(syminfo.tickerid, "4h", getBias)
+h1_bias = request.security(syminfo.tickerid, "1h", getBias)
+m15_bias = request.security(syminfo.tickerid, "15m", getBias)
+m1_bias = getBias()
+
+all_bullish = daily_bias == "Bullish" and h4_bias == "Bullish" and h1_bias == "Bullish" and m15_bias == "Bullish" and m1_bias == "Bullish"
+all_bearish = daily_bias == "Bearish" and h4_bias == "Bearish" and h1_bias == "Bearish" and m15_bias == "Bearish" and m1_bias == "Bearish"
+
+var table dashboard = table.new(position.top_left, 7, 2, bgcolor=color.new(color.black, 90), border_width=1)
+
+if barstate.islast
+    table.cell(dashboard, 0, 0, "Symbol", text_color=color.white, bgcolor=color.gray)
+    table.cell(dashboard, 1, 0, "Daily", text_color=color.white, bgcolor=color.gray)
+    table.cell(dashboard, 2, 0, "4H", text_color=color.white, bgcolor=color.gray)
+    table.cell(dashboard, 3, 0, "1H", text_color=color.white, bgcolor=color.gray)
+    table.cell(dashboard, 4, 0, "15M", text_color=color.white, bgcolor=color.gray)
+    table.cell(dashboard, 5, 0, "1M", text_color=color.white, bgcolor=color.gray)
+    table.cell(dashboard, 6, 0, "Signal", text_color=color.white, bgcolor=color.gray)
+    
+    table.cell(dashboard, 0, 1, syminfo.ticker, text_color=color.white)
+    table.cell(dashboard, 1, 1, daily_bias, text_color=daily_bias == "Bullish" ? color.green : daily_bias == "Bearish" ? color.red : color.gray)
+    table.cell(dashboard, 2, 1, h4_bias, text_color=h4_bias == "Bullish" ? color.green : h4_bias == "Bearish" ? color.red : color.gray)
+    table.cell(dashboard, 3, 1, h1_bias, text_color=h1_bias == "Bullish" ? color.green : h1_bias == "Bearish" ? color.red : color.gray)
+    table.cell(dashboard, 4, 1, m15_bias, text_color=m15_bias == "Bullish" ? color.green : m15_bias == "Bearish" ? color.red : color.gray)
+    table.cell(dashboard, 5, 1, m1_bias, text_color=m1_bias == "Bullish" ? color.green : m1_bias == "Bearish" ? color.red : color.gray)
+    
+    signal_text = all_bullish ? "BUY" : all_bearish ? "SELL" : "WAIT"
+    signal_color = all_bullish ? color.green : all_bearish ? color.red : color.gray
+    table.cell(dashboard, 6, 1, signal_text, text_color=signal_color, bgcolor=all_bullish or all_bearish ? color.new(signal_color, 80) : color.new(color.gray, 90))
+
+if enable_alerts
+    if all_bullish and not all_bullish[1]
+        alert("BUY SIGNAL - All timeframes BULLISH on " + syminfo.ticker, alert.freq_once_per_bar)
+    if all_bearish and not all_bearish[1]
+        alert("SELL SIGNAL - All timeframes BEARISH on " + syminfo.ticker, alert.freq_once_per_bar)
+
+plotchar(all_bullish and not all_bullish[1], "Buy", "▲", location.bottom, color.green, size=size.large)
+plotchar(all_bearish and not all_bearish[1], "Sell", "▼", location.top, color.red, size=size.large)
+bgcolor(all_bullish ? color.new(color.green, 95) : all_bearish ? color.new(color.red, 95) : na)

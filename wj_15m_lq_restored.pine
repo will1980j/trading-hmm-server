@@ -1,0 +1,284 @@
+//@version=6
+indicator("WJ 15M LQ", overlay=true, max_lines_count=500, max_labels_count=500, max_bars_back=5000)
+
+// Set max_bars_back for important series
+max_bars_back(time, 5000)
+max_bars_back(close, 5000)
+max_bars_back(open, 5000)
+
+htf = input.timeframe("15", "Higher Timeframe", options=["1", "3", "5", "15", "30", "45", "60", "120", "180", "240", "D", "W", "M"])
+ltf = input.timeframe("1", "Lower Timeframe", options=["1", "3", "5", "15", "30", "45", "60", "120", "180", "240", "D"])
+
+plotPivots = input.bool(true, title='Plot Pivots', group="Pivot Lines")
+pivotLength = input.int(500, "Line Extension (bars)", minval=1, maxval=1000, group="Pivot Lines")
+lineWidth = input.int(1, "Line Width", minval=1, maxval=4, group="Pivot Lines")
+terminationType = input.string("Wicks", "Line Termination Type", options=["Wicks", "Body"], group="Pivot Lines")
+showHighPivots = input.bool(true, "Show High Pivots", group="High Pivots")
+highColor = input.color(color.red, "High Pivot Color", group="High Pivots")
+highStyle = input.string("Dashed", title='High Pivot Style', options=["Solid", "Dotted", "Dashed"], group="High Pivots")
+highExtend = input.string("None", title="High Pivot Extension", options=["None", "Right", "Left", "Both"], group="High Pivots")
+showLowPivots = input.bool(true, "Show Low Pivots", group="Low Pivots")
+lowColor = input.color(color.blue, "Low Pivot Color", group="Low Pivots")
+lowStyle = input.string("Dashed", title='Low Pivot Style', options=["Solid", "Dotted", "Dashed"], group="Low Pivots")
+lowExtend = input.string("None", title="Low Pivot Extension", options=["None", "Right", "Left", "Both"], group="Low Pivots")
+maxPivots = input.int(500, title='Maximum Pivots', minval=1, maxval=500, group="Pivot Lines")
+showLabels = input.bool(true, "Show Labels", group="Pivot Lines")
+showMacroHighLow = input.bool(true, "Show Macro High/Low Lines (HTF < 60min)", group="Pivot Lines")
+show1minHighLowOnly = input.bool(true, "1min HTF: Show Only Macro High/Low (not all pivots)", group="Pivot Lines")
+
+extendType(type) =>
+    switch type
+        "None" => extend.none
+        "Right" => extend.right
+        "Left" => extend.left
+        "Both" => extend.both
+
+styleType(type) =>
+    switch type
+        "Solid" => line.style_solid
+        "Dotted" => line.style_dotted
+        "Dashed" => line.style_dashed
+
+var highExtendType = extendType(highExtend)
+var lowExtendType = extendType(lowExtend)
+var highStyleType = styleType(highStyle)
+var lowStyleType = styleType(lowStyle)
+
+var array<line> highLines = array.new<line>()
+var array<line> lowLines = array.new<line>()
+var array<float> highPivots = array.new<float>()
+var array<float> lowPivots = array.new<float>()
+var array<label> highLabels = array.new<label>()
+var array<label> lowLabels = array.new<label>()
+var array<bool> highBroken = array.new<bool>()
+var array<bool> lowBroken = array.new<bool>()
+var int lastPivotTime = 0
+
+var float[] lastHTFHighs = array.new<float>()
+var int[] lastHTFHighBars = array.new<int>()
+var float[] lastHTFLows = array.new<float>()
+var int[] lastHTFLowBars = array.new<int>()
+
+// Check if pivot time is within macro window (xx:50 - xx:10) or special macros
+is_macro_time(pivot_time) =>
+    m = minute(pivot_time)
+    h = hour(pivot_time)
+    // Regular macro windows (xx:50 - xx:10)
+    regular_macro = (m >= 50) or (m <= 10)
+    // Special macros: 15:15-15:45 (Final Hour) and 15:45-16:00 (MOC)
+    final_hour = (h == 15 and m >= 15 and m <= 45)
+    moc_macro = (h == 15 and m >= 45) or (h == 16 and m == 0)
+    
+    regular_macro or final_hour or moc_macro
+
+// Get macro high/low for timeframes less than 60 minutes
+getMacroHighLow() =>
+    float macro_high = na
+    float macro_low = na
+    int t = time
+    
+    htf_minutes = str.tonumber(htf)
+    if not na(htf_minutes) and htf_minutes < 60 and showMacroHighLow
+        // Only process during macro windows (xx:50 to xx:10)
+        if is_macro_time(t)
+            // Look at 21-bar window to cover full macro period
+            float window_high = ta.highest(high, 21)
+            float window_low = ta.lowest(low, 21)
+            
+            // Check if current bar is the actual high/low of the macro window
+            if high == window_high
+                macro_high := high
+            if low == window_low
+                macro_low := low
+    
+    [macro_high, macro_low, t]
+
+// Simplified pivot detection with macro filtering
+getPivots() =>
+    float ph = ta.pivothigh(high, 1, 1)
+    float pl = ta.pivotlow(low, 1, 1)
+    int t = time[1]
+    
+    // Filter pivots for HTF less than 15 minutes only
+    htf_minutes = str.tonumber(htf)
+    if not na(htf_minutes) and htf_minutes < 15
+        // For 1min HTF, exclude all pivots if option is enabled
+        if htf == "1" and show1minHighLowOnly
+            ph := na
+            pl := na
+        else
+            // Normal macro time filtering for sub-15min timeframes
+            if not na(ph) and not is_macro_time(t)
+                ph := na
+            if not na(pl) and not is_macro_time(t)
+                pl := na
+    
+    [ph, pl, t]
+
+// Get HTF pivots using request.security
+[htfPivotHigh, htfPivotLow, pivotTime] = request.security(syminfo.tickerid, htf, getPivots(), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+// Get macro high/low for HTF < 60 minutes
+[macroHigh, macroLow, macroTime] = request.security(syminfo.tickerid, htf, getMacroHighLow(), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+// LTF pivot detection using ta.pivot functions
+ltfPivotHigh = ta.pivothigh(high, 1, 1)
+ltfPivotLow = ta.pivotlow(low, 1, 1)
+
+if not na(ltfPivotHigh)
+    array.push(lastHTFHighs, ltfPivotHigh)
+    array.push(lastHTFHighBars, bar_index - 1)
+
+if not na(ltfPivotLow)
+    array.push(lastHTFLows, ltfPivotLow)
+    array.push(lastHTFLowBars, bar_index - 1)
+
+var int maxArraySize = 15
+
+// Calculate maxArraySize based on timeframe ratios
+if htf == "15"
+    maxArraySize := 15
+if htf == "30"
+    maxArraySize := 30
+if htf == "60"
+    maxArraySize := 60
+if htf == "240"
+    maxArraySize := 240
+if htf == "D"
+    maxArraySize := 1440
+if htf == "W"
+    maxArraySize := 7200
+
+// Adjust array size based on lower timeframe
+if timeframe.period == "1"
+    maxArraySize := maxArraySize * 15
+if timeframe.period == "5"
+    maxArraySize := maxArraySize * 5
+if timeframe.period == "15"
+    maxArraySize := maxArraySize * (htf == "240" ? 16 : 3)  // 16 periods for 240min/15min ratio
+
+if array.size(lastHTFHighs) > maxArraySize
+    array.shift(lastHTFHighs)
+    array.shift(lastHTFHighBars)
+if array.size(lastHTFLows) > maxArraySize
+    array.shift(lastHTFLows)
+    array.shift(lastHTFLowBars)
+
+lineBroken(float price, bool isHigh) =>
+    if terminationType == "Wicks"
+        isHigh ? (high >= price) : (low <= price)
+    else
+        isHigh ? (math.max(open, close) >= price) : (math.min(open, close) <= price)
+
+// For HTF timeframe (modify the line creation sections)
+if timeframe.period == htf
+    if not na(htfPivotHigh) and pivotTime != lastPivotTime and showHighPivots
+        lineH = line.new(bar_index - 1, htfPivotHigh, bar_index + pivotLength, htfPivotHigh, color=highColor, width=lineWidth, style=highStyleType, extend=highExtendType)
+        if showLabels
+            labelH = label.new(bar_index - 1, htfPivotHigh + (10 * syminfo.mintick), "Buy Side Liquidity", color=color.new(color.black, 100), textcolor=color.white, style=label.style_label_left, xloc=xloc.bar_index)
+            array.push(highLabels, labelH)
+        array.push(highLines, lineH)
+        array.push(highPivots, htfPivotHigh)
+        array.push(highBroken, false)
+
+    if not na(htfPivotLow) and pivotTime != lastPivotTime and showLowPivots
+        lineL = line.new(bar_index - 1, htfPivotLow, bar_index + pivotLength, htfPivotLow, color=lowColor, width=lineWidth, style=lowStyleType, extend=lowExtendType)
+        if showLabels
+            labelL = label.new(bar_index - 1, htfPivotLow - (15 * syminfo.mintick), "Sell Side Liquidity", color=color.new(color.black, 100), textcolor=color.white, style=label.style_label_left, xloc=xloc.bar_index)
+            array.push(lowLabels, labelL)
+        array.push(lowLines, lineL)
+        array.push(lowPivots, htfPivotLow)
+        array.push(lowBroken, false)
+
+// For other timeframes (modify the line creation in the else block)
+else
+    if not na(htfPivotHigh) and pivotTime != lastPivotTime and array.size(lastHTFHighs) > 0
+        for i = array.size(lastHTFHighs) - 1 to 0
+            if array.get(lastHTFHighs, i) == htfPivotHigh
+                startBar = array.get(lastHTFHighBars, i)
+                lineH = line.new(startBar, htfPivotHigh, bar_index + pivotLength, htfPivotHigh, color=highColor, width=lineWidth, style=highStyleType, extend=highExtendType)
+                if showLabels
+                    labelH = label.new(startBar, htfPivotHigh + (10 * syminfo.mintick), "Buy Side Liquidity", color=color.new(color.black, 100), textcolor=color.white, style=label.style_label_left, xloc=xloc.bar_index)
+                    array.push(highLabels, labelH)
+                array.push(highLines, lineH)
+                array.push(highPivots, htfPivotHigh)
+                array.push(highBroken, false)
+                break
+
+    if not na(htfPivotLow) and pivotTime != lastPivotTime and array.size(lastHTFLows) > 0
+        for i = array.size(lastHTFLows) - 1 to 0
+            if array.get(lastHTFLows, i) == htfPivotLow
+                startBar = array.get(lastHTFLowBars, i)
+                lineL = line.new(startBar, htfPivotLow, bar_index + pivotLength, htfPivotLow, color=lowColor, width=lineWidth, style=lowStyleType, extend=lowExtendType)
+                if showLabels
+                    labelL = label.new(startBar, htfPivotLow - (15* syminfo.mintick), "Sell Side Liquidity", color=color.new(color.black, 100), textcolor=color.white, style=label.style_label_left, xloc=xloc.bar_index)
+                    array.push(lowLabels, labelL)
+                array.push(lowLines, lineL)
+                array.push(lowPivots, htfPivotLow)
+                array.push(lowBroken, false)
+                break
+
+// Create macro high/low lines for HTF < 60 minutes - only during macro windows
+htf_minutes = str.tonumber(htf)
+if not na(htf_minutes) and htf_minutes < 60 and showMacroHighLow
+    if not na(macroHigh) and is_macro_time(macroTime)
+        lineH = line.new(bar_index - 1, macroHigh, bar_index + pivotLength, macroHigh, color=highColor, width=lineWidth, style=highStyleType, extend=highExtendType)
+        if showLabels
+            labelH = label.new(bar_index - 1, macroHigh + (10 * syminfo.mintick), "Buy Side Liquidity", color=color.new(color.black, 100), textcolor=color.white, style=label.style_label_left, xloc=xloc.bar_index)
+            array.push(highLabels, labelH)
+        array.push(highLines, lineH)
+        array.push(highPivots, macroHigh)
+        array.push(highBroken, false)
+
+    if not na(macroLow) and is_macro_time(macroTime)
+        lineL = line.new(bar_index - 1, macroLow, bar_index + pivotLength, macroLow, color=lowColor, width=lineWidth, style=lowStyleType, extend=lowExtendType)
+        if showLabels
+            labelL = label.new(bar_index - 1, macroLow - (15 * syminfo.mintick), "Sell Side Liquidity", color=color.new(color.black, 100), textcolor=color.white, style=label.style_label_left, xloc=xloc.bar_index)
+            array.push(lowLabels, labelL)
+        array.push(lowLines, lineL)
+        array.push(lowPivots, macroLow)
+        array.push(lowBroken, false)
+
+if not na(htfPivotHigh) or not na(htfPivotLow)
+    lastPivotTime := pivotTime
+
+// FIXED LINE TERMINATION
+if array.size(highLines) > 0
+    for i = array.size(highLines) - 1 to 0
+        if not array.get(highBroken, i)
+            currentLine = array.get(highLines, i)
+            linePrice = array.get(highPivots, i)
+            if lineBroken(linePrice, true)
+                line.set_x2(currentLine, bar_index)
+                array.set(highBroken, i, true)
+            else
+                line.set_x2(currentLine, bar_index + 500)
+
+if array.size(lowLines) > 0
+    for i = array.size(lowLines) - 1 to 0
+        if not array.get(lowBroken, i)
+            currentLine = array.get(lowLines, i)
+            linePrice = array.get(lowPivots, i)
+            if lineBroken(linePrice, false)
+                line.set_x2(currentLine, bar_index)
+                array.set(lowBroken, i, true)
+            else
+                line.set_x2(currentLine, bar_index + 500)
+
+if array.size(highLines) > maxPivots
+    line.delete(array.get(highLines, 0))
+    if showLabels and array.size(highLabels) > 0
+        label.delete(array.get(highLabels, 0))
+        array.remove(highLabels, 0)
+    array.remove(highLines, 0)
+    array.remove(highPivots, 0)
+    array.remove(highBroken, 0)
+
+if array.size(lowLines) > maxPivots
+    line.delete(array.get(lowLines, 0))
+    if showLabels and array.size(lowLabels) > 0
+        label.delete(array.get(lowLabels, 0))
+        array.remove(lowLabels, 0)
+    array.remove(lowLines, 0)
+    array.remove(lowPivots, 0)
+    array.remove(lowBroken, 0)

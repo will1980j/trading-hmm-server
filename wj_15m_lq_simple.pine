@@ -1,0 +1,68 @@
+//@version=6
+indicator("WJ 15M LQ Simple", overlay=true, max_lines_count=500)
+
+htf = input.timeframe("15", "Higher Timeframe")
+showHighPivots = input.bool(true, "Show High Pivots")
+showLowPivots = input.bool(true, "Show Low Pivots")
+highColor = input.color(color.red, "High Color")
+lowColor = input.color(color.blue, "Low Color")
+
+var array<line> highLines = array.new<line>()
+var array<line> lowLines = array.new<line>()
+var array<float> highPivots = array.new<float>()
+var array<float> lowPivots = array.new<float>()
+var array<bool> highBroken = array.new<bool>()
+var array<bool> lowBroken = array.new<bool>()
+
+getPivots() =>
+    [ta.pivothigh(high, 1, 1), ta.pivotlow(low, 1, 1)]
+
+[htfPivotHigh, htfPivotLow] = request.security(syminfo.tickerid, htf, getPivots(), lookahead=barmerge.lookahead_off)
+
+if not na(htfPivotHigh) and showHighPivots
+    lineH = line.new(bar_index - 1, htfPivotHigh, bar_index + 100, htfPivotHigh, color=highColor)
+    array.push(highLines, lineH)
+    array.push(highPivots, htfPivotHigh)
+    array.push(highBroken, false)
+
+if not na(htfPivotLow) and showLowPivots
+    lineL = line.new(bar_index - 1, htfPivotLow, bar_index + 100, htfPivotLow, color=lowColor)
+    array.push(lowLines, lineL)
+    array.push(lowPivots, htfPivotLow)
+    array.push(lowBroken, false)
+
+// Terminate lines when broken
+if array.size(highLines) > 0
+    for i = array.size(highLines) - 1 to 0
+        if not array.get(highBroken, i)
+            currentLine = array.get(highLines, i)
+            linePrice = array.get(highPivots, i)
+            if high > linePrice
+                line.set_x2(currentLine, bar_index)
+                array.set(highBroken, i, true)
+            else
+                line.set_x2(currentLine, bar_index + 100)
+
+if array.size(lowLines) > 0
+    for i = array.size(lowLines) - 1 to 0
+        if not array.get(lowBroken, i)
+            currentLine = array.get(lowLines, i)
+            linePrice = array.get(lowPivots, i)
+            if low < linePrice
+                line.set_x2(currentLine, bar_index)
+                array.set(lowBroken, i, true)
+            else
+                line.set_x2(currentLine, bar_index + 100)
+
+// Clean up old lines
+if array.size(highLines) > 50
+    line.delete(array.get(highLines, 0))
+    array.remove(highLines, 0)
+    array.remove(highPivots, 0)
+    array.remove(highBroken, 0)
+
+if array.size(lowLines) > 50
+    line.delete(array.get(lowLines, 0))
+    array.remove(lowLines, 0)
+    array.remove(lowPivots, 0)
+    array.remove(lowBroken, 0)

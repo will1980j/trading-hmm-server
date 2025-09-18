@@ -1,0 +1,146 @@
+//@version=6
+indicator("WJ 15M LQ", overlay=true, max_lines_count=500, max_labels_count=500, max_bars_back=5000)
+
+// Set max_bars_back for important series
+max_bars_back(time, 5000)
+max_bars_back(close, 5000)
+max_bars_back(open, 5000)
+
+htf = input.timeframe("15", "Higher Timeframe", options=["1", "3", "5", "15", "30", "45", "60", "120", "180", "240", "D", "W", "M"])
+ltf = input.timeframe("1", "Lower Timeframe", options=["1", "3", "5", "15", "30", "45", "60", "120", "180", "240", "D"])
+
+plotPivots = input.bool(true, title='Plot Pivots', group="Pivot Lines")
+pivotLength = input.int(500, "Line Extension (bars)", minval=1, maxval=1000, group="Pivot Lines")
+lineWidth = input.int(1, "Line Width", minval=1, maxval=4, group="Pivot Lines")
+terminationType = input.string("Wicks", "Line Termination Type", options=["Wicks", "Body"], group="Pivot Lines")
+showHighPivots = input.bool(true, "Show High Pivots", group="High Pivots")
+highColor = input.color(color.red, "High Pivot Color", group="High Pivots")
+highStyle = input.string("Dashed", title='High Pivot Style', options=["Solid", "Dotted", "Dashed"], group="High Pivots")
+highExtend = input.string("None", title="High Pivot Extension", options=["None", "Right", "Left", "Both"], group="High Pivots")
+showLowPivots = input.bool(true, "Show Low Pivots", group="Low Pivots")
+lowColor = input.color(color.blue, "Low Pivot Color", group="Low Pivots")
+lowStyle = input.string("Dashed", title='Low Pivot Style', options=["Solid", "Dotted", "Dashed"], group="Low Pivots")
+lowExtend = input.string("None", title="Low Pivot Extension", options=["None", "Right", "Left", "Both"], group="Low Pivots")
+maxPivots = input.int(500, title='Maximum Pivots', minval=1, maxval=500, group="Pivot Lines")
+showLabels = input.bool(true, "Show Labels", group="Pivot Lines")
+
+
+extendType(type) =>
+    switch type
+        "None" => extend.none
+        "Right" => extend.right
+        "Left" => extend.left
+        "Both" => extend.both
+
+styleType(type) =>
+    switch type
+        "Solid" => line.style_solid
+        "Dotted" => line.style_dotted
+        "Dashed" => line.style_dashed
+
+var highExtendType = extendType(highExtend)
+var lowExtendType = extendType(lowExtend)
+var highStyleType = styleType(highStyle)
+var lowStyleType = styleType(lowStyle)
+
+var array<line> highLines = array.new<line>()
+var array<line> lowLines = array.new<line>()
+var array<float> highPivots = array.new<float>()
+var array<float> lowPivots = array.new<float>()
+var array<label> highLabels = array.new<label>()
+var array<label> lowLabels = array.new<label>()
+var array<bool> highBroken = array.new<bool>()
+var array<bool> lowBroken = array.new<bool>()
+var int lastPivotTime = 0
+
+
+
+// Simple pivot detection without filtering
+getPivots() =>
+    float ph = ta.pivothigh(high, 1, 1)
+    float pl = ta.pivotlow(low, 1, 1)
+    int pivot_bar_time = time[1]  // Actual pivot bar time
+    int detection_time = time     // Current bar time for uniqueness
+    
+    [ph, pl, pivot_bar_time, detection_time]
+
+// Get HTF pivots using request.security
+[htfPivotHigh, htfPivotLow, pivotBarTime, pivotTime] = request.security(syminfo.tickerid, htf, getPivots(), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+
+
+lineBroken(float price, bool isHigh) =>
+    if terminationType == "Wicks"
+        isHigh ? (high >= price or open >= price or close >= price) : (low <= price or open <= price or close <= price)
+    else
+        isHigh ? (math.max(open, close) >= price) : (math.min(open, close) <= price)
+
+// Create pivot lines using time-based coordinates
+if not na(htfPivotHigh) and pivotTime != lastPivotTime and showHighPivots
+    lineH = line.new(pivotBarTime, htfPivotHigh, time, htfPivotHigh, xloc=xloc.bar_time, color=highColor, width=lineWidth, style=highStyleType, extend=extend.right)
+    if showLabels
+        labelH = label.new(pivotBarTime, htfPivotHigh + (10 * syminfo.mintick), "Buy Side Liquidity", xloc=xloc.bar_time, color=color.new(color.black, 100), textcolor=color.white, style=label.style_label_left)
+        array.push(highLabels, labelH)
+    else
+        array.push(highLabels, na)
+    array.push(highLines, lineH)
+    array.push(highPivots, htfPivotHigh)
+    array.push(highBroken, false)
+
+if not na(htfPivotLow) and pivotTime != lastPivotTime and showLowPivots
+    lineL = line.new(pivotBarTime, htfPivotLow, time, htfPivotLow, xloc=xloc.bar_time, color=lowColor, width=lineWidth, style=lowStyleType, extend=extend.right)
+    if showLabels
+        labelL = label.new(pivotBarTime, htfPivotLow - (15 * syminfo.mintick), "Sell Side Liquidity", xloc=xloc.bar_time, color=color.new(color.black, 100), textcolor=color.white, style=label.style_label_left)
+        array.push(lowLabels, labelL)
+    else
+        array.push(lowLabels, na)
+    array.push(lowLines, lineL)
+    array.push(lowPivots, htfPivotLow)
+    array.push(lowBroken, false)
+
+
+
+if not na(htfPivotHigh) or not na(htfPivotLow)
+    lastPivotTime := pivotTime
+
+if array.size(highLines) > 0
+    for i = array.size(highLines) - 1 to 0
+        if not array.get(highBroken, i)
+            currentLine = array.get(highLines, i)
+            linePrice = array.get(highPivots, i)
+            if lineBroken(linePrice, true)
+                array.set(highBroken, i, true)
+            else
+                line.set_x2(currentLine, time)
+
+if array.size(lowLines) > 0
+    for i = array.size(lowLines) - 1 to 0
+        if not array.get(lowBroken, i)
+            currentLine = array.get(lowLines, i)
+            linePrice = array.get(lowPivots, i)
+            if lineBroken(linePrice, false)
+                array.set(lowBroken, i, true)
+            else
+                line.set_x2(currentLine, time)
+
+if array.size(highLines) > maxPivots
+    line.delete(array.get(highLines, 0))
+    array.remove(highLines, 0)
+    array.remove(highPivots, 0)
+    array.remove(highBroken, 0)
+    if array.size(highLabels) > 0
+        labelToDelete = array.get(highLabels, 0)
+        if not na(labelToDelete)
+            label.delete(labelToDelete)
+        array.remove(highLabels, 0)
+
+if array.size(lowLines) > maxPivots
+    line.delete(array.get(lowLines, 0))
+    array.remove(lowLines, 0)
+    array.remove(lowPivots, 0)
+    array.remove(lowBroken, 0)
+    if array.size(lowLabels) > 0
+        labelToDelete = array.get(lowLabels, 0)
+        if not na(labelToDelete)
+            label.delete(labelToDelete)
+        array.remove(lowLabels, 0)
