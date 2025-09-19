@@ -2673,30 +2673,138 @@
                 .replace(/\n/g, '<br>');
         }
         
-        // R-Target Analysis Function
+        // R-Target Analysis Function with Session Combinations
         async function analyzeOptimalRTarget() {
             document.getElementById('rTargetAnalysisSection').style.display = 'block';
-            document.getElementById('rTargetAnalysis').innerHTML = 'Analyzing optimal R-target across all strategies and sessions...';
+            document.getElementById('rTargetAnalysis').innerHTML = 'Analyzing optimal R-target across all strategies and session combinations...';
             
             try {
-                const response = await fetch('https://web-production-cd33.up.railway.app/api/optimal-r-target-analysis');
+                // Get current filtered signals
+                const selectedSessions = getSelectedSessions();
+                const filteredSignals = signals.filter(signal => 
+                    selectedSessions.includes(signal.session)
+                );
                 
-                if (response.ok) {
-                    const result = await response.json();
-                    displayRTargetAnalysis(result);
-                } else {
-                    const error = await response.json();
-                    document.getElementById('rTargetAnalysis').innerHTML = `${error.error || 'Analysis failed'}`;
+                if (filteredSignals.length < 10) {
+                    document.getElementById('rTargetAnalysis').innerHTML = 'Need at least 10 trades for meaningful R-target analysis';
+                    return;
                 }
+                
+                // Analyze all combinations locally
+                const result = analyzeRTargetWithSessionCombinations(filteredSignals);
+                displayRTargetAnalysis(result);
+                
             } catch (error) {
                 console.error('R-Target analysis error:', error);
                 document.getElementById('rTargetAnalysis').innerHTML = `Analysis Error: ${error.message}`;
             }
         }
         
+        function analyzeRTargetWithSessionCombinations(trades) {
+            const beStrategies = ['none', 'be1', 'be2'];
+            const allMFEs = trades.flatMap(t => [t.mfeNone, t.mfe1, t.mfe2]).filter(mfe => mfe > 0);
+            const maxMFE = allMFEs.length > 0 ? Math.max(...allMFEs) : 5;
+            const rTargets = [];
+            for (let r = 0.5; r <= Math.ceil(maxMFE); r += 0.5) {
+                rTargets.push(r);
+            }
+            
+            const availableSessions = [...new Set(trades.map(t => t.session))];
+            
+            let bestStrategy = null;
+            let bestExpectancy = -999;
+            const allResults = [];
+            const sessionCombinations = [];
+            
+            // Test individual sessions
+            for (const session of availableSessions) {
+                const sessionTrades = trades.filter(t => t.session === session);
+                if (sessionTrades.length >= 5) {
+                    for (const beStrategy of beStrategies) {
+                        for (const rTarget of rTargets) {
+                            const results = sessionTrades.map(t => calculateTradeResult(t, beStrategy, rTarget));
+                            const stats = calculateStatistics(results, rTarget);
+                            
+                            const combination = {
+                                beStrategy,
+                                rTarget,
+                                sessions: [session],
+                                expectancy: stats.expectancy,
+                                winRate: stats.winRate,
+                                totalTrades: sessionTrades.length,
+                                type: 'single'
+                            };
+                            
+                            allResults.push(combination);
+                            sessionCombinations.push(combination);
+                            
+                            if (stats.expectancy > bestExpectancy) {
+                                bestExpectancy = stats.expectancy;
+                                bestStrategy = combination;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Test session pairs
+            for (let i = 0; i < availableSessions.length; i++) {
+                for (let j = i + 1; j < availableSessions.length; j++) {
+                    const sessionPair = [availableSessions[i], availableSessions[j]];
+                    const pairTrades = trades.filter(t => sessionPair.includes(t.session));
+                    
+                    if (pairTrades.length >= 10) {
+                        for (const beStrategy of beStrategies) {
+                            for (const rTarget of rTargets) {
+                                const results = pairTrades.map(t => calculateTradeResult(t, beStrategy, rTarget));
+                                const stats = calculateStatistics(results, rTarget);
+                                
+                                const combination = {
+                                    beStrategy,
+                                    rTarget,
+                                    sessions: sessionPair,
+                                    expectancy: stats.expectancy,
+                                    winRate: stats.winRate,
+                                    totalTrades: pairTrades.length,
+                                    type: 'pair'
+                                };
+                                
+                                allResults.push(combination);
+                                sessionCombinations.push(combination);
+                                
+                                if (stats.expectancy > bestExpectancy) {
+                                    bestExpectancy = stats.expectancy;
+                                    bestStrategy = combination;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Sort results by expectancy
+            allResults.sort((a, b) => b.expectancy - a.expectancy);
+            sessionCombinations.sort((a, b) => b.expectancy - a.expectancy);
+            
+            return {
+                optimal_strategy: bestStrategy,
+                top_10_results: allResults.slice(0, 10),
+                session_combinations: sessionCombinations.slice(0, 15),
+                mfe_statistics: {
+                    mean: allMFEs.reduce((a, b) => a + b, 0) / allMFEs.length,
+                    std_dev: Math.sqrt(allMFEs.reduce((sum, mfe) => sum + Math.pow(mfe - (allMFEs.reduce((a, b) => a + b, 0) / allMFEs.length), 2), 0) / allMFEs.length),
+                    percentiles: {
+                        '75th': allMFEs.sort((a, b) => a - b)[Math.floor(allMFEs.length * 0.75)],
+                        '90th': allMFEs.sort((a, b) => a - b)[Math.floor(allMFEs.length * 0.90)]
+                    }
+                }
+            };
+        }
+        
         function displayRTargetAnalysis(result) {
             const optimal = result.optimal_strategy;
             const mfeStats = result.mfe_statistics;
+            const sessionCombinations = result.session_combinations || [];
             
             if (!optimal) {
                 document.getElementById('rTargetAnalysis').innerHTML = 'Insufficient data for optimal R-target analysis';
@@ -2709,36 +2817,58 @@
                 'be2': 'Breakeven at 2R'
             };
             
+            const sessionsText = optimal.sessions.length === 1 ? 
+                optimal.sessions[0] : 
+                optimal.sessions.join(' + ');
+            
             const analysisHtml = `
                 <div style="background: linear-gradient(135deg, #ff6b7a 0%, #ee5a6f 100%); border: 2px solid #ff6b7a; border-radius: 15px; padding: 25px;">
                     <div style="margin-bottom: 20px;">
-                        <h3 style="color: #ffffff; margin-bottom: 15px; font-size: 20px;">STATISTICALLY OPTIMAL R-TARGET</h3>
+                        <h3 style="color: #ffffff; margin-bottom: 15px; font-size: 20px;">OPTIMAL R-TARGET WITH SESSION COMBINATIONS</h3>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px;">
                         <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
-                            <div style="font-size: 24px; font-weight: bold; color: #ffffff;">${optimal.r_target}R</div>
+                            <div style="font-size: 24px; font-weight: bold; color: #ffffff;">${optimal.rTarget}R</div>
                             <div style="font-size: 12px; opacity: 0.9;">Optimal Target</div>
                         </div>
                         <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${beStrategyText[optimal.be_strategy]}</div>
+                            <div style="font-size: 16px; font-weight: bold; color: #ffffff;">${beStrategyText[optimal.beStrategy]}</div>
                             <div style="font-size: 12px; opacity: 0.9;">BE Strategy</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 14px; font-weight: bold; color: #ffffff;">${sessionsText}</div>
+                            <div style="font-size: 12px; opacity: 0.9;">Best Sessions</div>
                         </div>
                         <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
                             <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${optimal.expectancy.toFixed(3)}R</div>
                             <div style="font-size: 12px; opacity: 0.9;">Expectancy</div>
                         </div>
                         <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${optimal.win_rate.toFixed(1)}%</div>
+                            <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${optimal.winRate.toFixed(1)}%</div>
                             <div style="font-size: 12px; opacity: 0.9;">Win Rate</div>
                         </div>
                         <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${optimal.significance_score.toFixed(0)}%</div>
-                            <div style="font-size: 12px; opacity: 0.9;">Confidence</div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${optimal.sample_size}</div>
+                            <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${optimal.totalTrades}</div>
                             <div style="font-size: 12px; opacity: 0.9;">Sample Size</div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <h4 style="color: #ffffff; margin-bottom: 15px;">📊 Best Session Combinations</h4>
+                        <div style="max-height: 200px; overflow-y: auto;">
+                            ${sessionCombinations.slice(0, 10).map((combo, idx) => {
+                                const comboSessions = combo.sessions.length === 1 ? combo.sessions[0] : combo.sessions.join(' + ');
+                                const typeIcon = combo.type === 'single' ? '🎯' : combo.type === 'pair' ? '🔗' : '🎪';
+                                return `
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ffffff; font-size: 13px;">
+                                        <span>${typeIcon} ${beStrategyText[combo.beStrategy]} + ${combo.rTarget}R</span>
+                                        <span style="font-weight: 600;">${comboSessions}</span>
+                                        <span style="color: #00ff88; font-weight: 700;">${combo.expectancy.toFixed(3)}R</span>
+                                        <span style="opacity: 0.8;">${combo.winRate.toFixed(1)}% (${combo.totalTrades})</span>
+                                    </div>
+                                `;
+                            }).join('')}
                         </div>
                     </div>
                     
@@ -2752,17 +2882,8 @@
                         </div>
                     </div>
                     
-                    <div style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-                        <h4 style="color: #ffffff; margin-bottom: 15px;">Top Alternative Strategies</h4>
-                        <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">
-                            ${result.top_10_results.slice(1, 4).map((alt, idx) => 
-                                `${idx + 2}. ${beStrategyText[alt.be_strategy]} + ${alt.r_target}R = ${alt.expectancy.toFixed(3)}R expectancy (${alt.win_rate.toFixed(1)}% WR)`
-                            ).join('<br>')}
-                        </div>
-                    </div>
-                    
                     <div style="text-align: center;">
-                        <button onclick="applyOptimalRTarget(${optimal.r_target}, '${optimal.be_strategy}')" style="
+                        <button onclick="applyOptimalRTargetWithSessions(${optimal.rTarget}, '${optimal.beStrategy}', ['${optimal.sessions.join("', '")}'])" style="
                             background: linear-gradient(45deg, #ffffff, #f0f0f0);
                             border: none; padding: 12px 24px; border-radius: 8px;
                             color: #ff6b7a; font-weight: 600; cursor: pointer;
@@ -2787,6 +2908,25 @@
             updateAnalysis();
             document.getElementById('rTargetAnalysisSection').style.display = 'none';
             alert(`Applied optimal settings: ${rTarget}R target with ${beStrategy === 'none' ? 'No BE' : beStrategy === 'be1' ? 'BE at 1R' : 'BE at 2R'}`);
+        }
+        
+        function applyOptimalRTargetWithSessions(rTarget, beStrategy, sessions) {
+            // Apply R-Target and BE strategy
+            document.getElementById('rTarget').value = rTarget;
+            document.getElementById('beStrategy').value = beStrategy;
+            
+            // Update session checkboxes
+            document.querySelectorAll('.session-checkboxes input[type="checkbox"]').forEach(cb => {
+                cb.checked = sessions.includes(cb.value);
+            });
+            
+            // Update analysis
+            updateAnalysis();
+            document.getElementById('rTargetAnalysisSection').style.display = 'none';
+            
+            const beText = beStrategy === 'none' ? 'No BE' : beStrategy === 'be1' ? 'BE at 1R' : 'BE at 2R';
+            const sessionText = sessions.length === 1 ? sessions[0] : sessions.join(' + ');
+            alert(`Applied optimal settings:\n${rTarget}R target with ${beText}\nSessions: ${sessionText}`);
         }
         
         // Helper functions for enhanced UI
