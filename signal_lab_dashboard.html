@@ -1854,10 +1854,12 @@
         }
         
         async function trainMLModels() {
-            const button = event.target;
-            const originalText = button.textContent;
-            button.textContent = '🔄 Training...';
-            button.disabled = true;
+            const button = event?.target;
+            const originalText = button?.textContent || '🎯 Train Models';
+            if (button) {
+                button.textContent = '🔄 Training...';
+                button.disabled = true;
+            }
             
             try {
                 console.log('Starting ML model training...');
@@ -1897,18 +1899,22 @@
                 }
             } catch (error) {
                 console.error('ML Training Error:', error);
-                alert(`❌ Training Error: ${error.message}\n\nPlease check the console for more details.`);
+                if (button) alert(`❌ Training Error: ${error.message}\n\nPlease check the console for more details.`);
             } finally {
-                button.textContent = originalText;
-                button.disabled = false;
+                if (button) {
+                    button.textContent = originalText;
+                    button.disabled = false;
+                }
             }
         }
         
         async function getCurrentPrediction() {
-            const button = event.target;
-            const originalText = button.textContent;
-            button.textContent = '🔄 Predicting...';
-            button.disabled = true;
+            const button = event?.target;
+            const originalText = button?.textContent || '📊 Get Prediction';
+            if (button) {
+                button.textContent = '🔄 Predicting...';
+                button.disabled = true;
+            }
             
             try {
                 console.log('Getting current ML prediction...');
@@ -1949,10 +1955,12 @@
                 }
             } catch (error) {
                 console.error('ML Prediction Error:', error);
-                alert(`❌ Prediction Error: ${error.message}\n\nPlease check the console for more details.`);
+                if (button) alert(`❌ Prediction Error: ${error.message}\n\nPlease check the console for more details.`);
             } finally {
-                button.textContent = originalText;
-                button.disabled = false;
+                if (button) {
+                    button.textContent = originalText;
+                    button.disabled = false;
+                }
             }
         }
         
@@ -2330,14 +2338,28 @@
             clearSessionCharts();
             loadSignals();
             setupAutoUpdate();
-            
+            startAutomaticRefresh();
+        });
+        
+        function startAutomaticRefresh() {
             setTimeout(() => {
                 loadMarketContext();
-                document.getElementById('mlStatus').innerHTML = `<span style="color: #ff4757;">❌ Offline</span>`;
-                document.getElementById('modelPerformance').innerHTML = 'API Error';
-                document.getElementById('mlInsights').innerHTML = '❌ <strong>ML API Error</strong><br><br>The ML service is returning HTTP 500 errors. Please check server logs.';
-            }, 1000);
-        });
+                loadMLInsights();
+            }, 2000);
+            
+            setInterval(() => {
+                loadMarketContext();
+                loadMLInsights();
+            }, 30000);
+            
+            setInterval(() => {
+                trainMLModels();
+            }, 300000);
+            
+            setInterval(() => {
+                getCurrentPrediction();
+            }, 120000);
+        }
         
         // AI Strategy Optimization using OpenAI GPT-4
         async function runAIOptimization() {
