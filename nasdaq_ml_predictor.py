@@ -57,6 +57,9 @@ class NasdaqMLPredictor:
         """Download and prepare NASDAQ data"""
         ticker = yf.Ticker(symbol)
         df = ticker.history(period=period)
+        print(f"Downloaded {len(df)} rows for {symbol} over {period}")
+        if len(df) == 0:
+            raise ValueError(f"No data downloaded for {symbol}")
         
         df = self.create_features(df)
         
@@ -75,7 +78,7 @@ class NasdaqMLPredictor:
         """Train the ML models"""
         X, y, df = self.prepare_data(symbol)
         
-        if len(X) < 100:
+        if len(X) < 50:
             raise ValueError("Insufficient data for training")
             
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
