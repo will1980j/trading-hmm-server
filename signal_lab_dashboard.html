@@ -1770,8 +1770,8 @@
             // Session checkboxes
             document.querySelectorAll('.session-checkboxes input[type="checkbox"]').forEach(cb => {
                 cb.addEventListener('change', () => {
-                    runTimeAnalysis();
                     updateAnalysis();
+                    runTimeAnalysis();
                 });
             });
         }
@@ -2525,7 +2525,7 @@
             return formatted;
         }
         
-        // Time Analysis Function (Disabled due to API errors)
+        // Enhanced Time Analysis Function
         async function runTimeAnalysis() {
             const selectedSessions = getSelectedSessions();
             
@@ -2534,22 +2534,222 @@
                 return;
             }
             
-            // Static time analysis instead of API call
-            const staticAnalysis = `
-                <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(56,239,125,0.3); border-radius: 20px; padding: 25px;">
-                    <h4 style="color: #38ef7d; margin-bottom: 20px;">Time Analysis (Static)</h4>
-                    <div style="color: rgba(255,255,255,0.9); line-height: 1.6;">
-                        <strong>Selected Sessions:</strong> ${selectedSessions.join(', ')}<br><br>
-                        <strong>Key Insights:</strong><br>
-                        • London session shows highest win rates<br>
-                        • NY AM provides best R:R ratios<br>
-                        • Avoid Asia session during low volatility<br>
-                        • NY Pre Market offers good entry opportunities
+            if (signals.length < 10) {
+                document.getElementById('timeAnalysis').innerHTML = 'Need at least 10 trades for meaningful time analysis';
+                return;
+            }
+            
+            const analysis = analyzeTimePerformance(signals, selectedSessions);
+            displayEnhancedTimeAnalysis(analysis);
+        }
+        
+        function analyzeTimePerformance(allSignals, selectedSessions) {
+            const beStrategies = ['none', 'be1', 'be2'];
+            const rTargets = [1, 1.5, 2, 2.5, 3, 3.5, 4];
+            const results = [];
+            
+            selectedSessions.forEach(session => {
+                const sessionSignals = allSignals.filter(s => s.session === session);
+                if (sessionSignals.length < 5) return;
+                
+                beStrategies.forEach(beStrategy => {
+                    rTargets.forEach(rTarget => {
+                        const tradeResults = sessionSignals.map(signal => 
+                            calculateTradeResult(signal, beStrategy, rTarget)
+                        );
+                        const stats = calculateStatistics(tradeResults, rTarget);
+                        
+                        results.push({
+                            session,
+                            beStrategy,
+                            rTarget,
+                            expectancy: stats.expectancy,
+                            winRate: stats.winRate,
+                            totalTrades: sessionSignals.length,
+                            totalR: stats.totalR,
+                            maxConsecutiveLosses: stats.maxConsecutiveLosses
+                        });
+                    });
+                });
+            });
+            
+            results.sort((a, b) => b.expectancy - a.expectancy);
+            
+            return {
+                topCombinations: results.slice(0, 15),
+                sessionSummary: summarizeBySession(results),
+                bestByMetric: getBestByMetric(results)
+            };
+        }
+        
+        function summarizeBySession(results) {
+            const summary = {};
+            
+            results.forEach(result => {
+                if (!summary[result.session]) {
+                    summary[result.session] = {
+                        bestExpectancy: -999,
+                        bestWinRate: 0,
+                        bestRTarget: 0,
+                        bestBE: '',
+                        totalTrades: result.totalTrades
+                    };
+                }
+                
+                const s = summary[result.session];
+                if (result.expectancy > s.bestExpectancy) {
+                    s.bestExpectancy = result.expectancy;
+                    s.bestWinRate = result.winRate;
+                    s.bestRTarget = result.rTarget;
+                    s.bestBE = result.beStrategy;
+                }
+            });
+            
+            return summary;
+        }
+        
+        function getBestByMetric(results) {
+            return {
+                bestExpectancy: results.reduce((best, current) => 
+                    current.expectancy > best.expectancy ? current : best
+                ),
+                bestWinRate: results.reduce((best, current) => 
+                    current.winRate > best.winRate ? current : best
+                ),
+                bestTotalR: results.reduce((best, current) => 
+                    current.totalR > best.totalR ? current : best
+                ),
+                safest: results.reduce((best, current) => 
+                    current.maxConsecutiveLosses < best.maxConsecutiveLosses ? current : best
+                )
+            };
+        }
+        
+        function displayEnhancedTimeAnalysis(analysis) {
+            const sessionColors = {
+                'Asia': '#ffa502',
+                'London': '#3742fa',
+                'NY Pre Market': '#26de81',
+                'NY AM': '#00ff88',
+                'NY Lunch': '#ffffff',
+                'NY PM': '#a55eea'
+            };
+            
+            const beStrategyText = {
+                'none': 'No BE',
+                'be1': 'BE=1R',
+                'be2': 'BE=2R'
+            };
+            
+            const html = `
+                <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(56,239,125,0.3); border-radius: 20px; padding: 0; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, rgba(56,239,125,0.15), rgba(56,239,125,0.05)); padding: 25px; border-bottom: 1px solid rgba(56,239,125,0.2);">
+                        <h3 style="color: #38ef7d; margin: 0 0 8px 0; font-size: 24px;">🎯 Optimal Time & Strategy Analysis</h3>
+                        <p style="color: rgba(255,255,255,0.8); margin: 0;">Best performing combinations across sessions, BE strategies, and R-targets</p>
+                    </div>
+                    
+                    <div style="padding: 25px;">
+                        <h4 style="color: #38ef7d; margin-bottom: 20px;">🏆 Best Performers by Metric</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 30px;">
+                            ${createTimeMetricCard('💰', 'Best Expectancy', analysis.bestByMetric.bestExpectancy, sessionColors, beStrategyText)}
+                            ${createTimeMetricCard('🎯', 'Highest Win Rate', analysis.bestByMetric.bestWinRate, sessionColors, beStrategyText)}
+                            ${createTimeMetricCard('📈', 'Best Total R', analysis.bestByMetric.bestTotalR, sessionColors, beStrategyText)}
+                            ${createTimeMetricCard('🛡️', 'Safest Strategy', analysis.bestByMetric.safest, sessionColors, beStrategyText)}
+                        </div>
+                        
+                        <h4 style="color: #38ef7d; margin-bottom: 20px;">📊 Session Performance Overview</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
+                            ${Object.entries(analysis.sessionSummary).map(([session, data]) => `
+                                <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; border-left: 4px solid ${sessionColors[session] || '#666'};">
+                                    <div style="font-weight: 700; color: ${sessionColors[session] || '#666'}; margin-bottom: 10px;">${session}</div>
+                                    <div style="font-size: 18px; font-weight: 700; color: #00ff88; margin-bottom: 5px;">${data.bestExpectancy.toFixed(3)}R</div>
+                                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 8px;">Best: ${beStrategyText[data.bestBE]} + ${data.bestRTarget}R</div>
+                                    <div style="font-size: 12px; opacity: 0.7;">${data.bestWinRate.toFixed(1)}% WR • ${data.totalTrades} trades</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <h4 style="color: #38ef7d; margin-bottom: 20px;">🔥 Top 10 Strategy Combinations</h4>
+                        <div style="background: rgba(0,0,0,0.2); border-radius: 12px; overflow: hidden;">
+                            <div style="display: grid; grid-template-columns: 1fr 80px 60px 80px 70px 60px 80px; gap: 10px; padding: 15px; background: rgba(56,239,125,0.1); font-weight: 600; font-size: 12px; color: #38ef7d;">
+                                <div>SESSION</div>
+                                <div>BE STRATEGY</div>
+                                <div>R-TARGET</div>
+                                <div>EXPECTANCY</div>
+                                <div>WIN RATE</div>
+                                <div>TRADES</div>
+                                <div>TOTAL R</div>
+                            </div>
+                            ${analysis.topCombinations.slice(0, 10).map((combo, idx) => `
+                                <div style="display: grid; grid-template-columns: 1fr 80px 60px 80px 70px 60px 80px; gap: 10px; padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 13px; cursor: pointer; ${idx === 0 ? 'background: rgba(0,255,136,0.1);' : ''}" onclick="applyTimeAnalysisStrategy('${combo.session}', '${combo.beStrategy}', ${combo.rTarget})">
+                                    <div style="color: ${sessionColors[combo.session] || '#fff'}; font-weight: 600;">${combo.session}</div>
+                                    <div>${beStrategyText[combo.beStrategy]}</div>
+                                    <div>${combo.rTarget}R</div>
+                                    <div style="color: ${combo.expectancy > 0 ? '#00ff88' : '#ff4757'}; font-weight: 700;">${combo.expectancy.toFixed(3)}R</div>
+                                    <div style="color: #00d4aa;">${combo.winRate.toFixed(1)}%</div>
+                                    <div>${combo.totalTrades}</div>
+                                    <div style="color: ${combo.totalR > 0 ? '#00ff88' : '#ff4757'};">${combo.totalR > 0 ? '+' : ''}${combo.totalR.toFixed(1)}R</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div style="margin-top: 20px; text-align: center;">
+                            <button onclick="applyBestTimeStrategy()" style="background: linear-gradient(45deg, #38ef7d, #26de81); border: none; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 600; cursor: pointer;">Apply Best Strategy</button>
+                        </div>
                     </div>
                 </div>
             `;
             
-            document.getElementById('timeAnalysis').innerHTML = staticAnalysis;
+            document.getElementById('timeAnalysis').innerHTML = html;
+            window.timeAnalysisData = analysis;
+        }
+        
+        function createTimeMetricCard(icon, title, data, sessionColors, beStrategyText) {
+            let mainValue, subValue, color;
+            
+            if (title.includes('Expectancy')) {
+                mainValue = `${data.expectancy.toFixed(3)}R`;
+                color = data.expectancy > 0 ? '#00ff88' : '#ff4757';
+            } else if (title.includes('Win Rate')) {
+                mainValue = `${data.winRate.toFixed(1)}%`;
+                color = '#00d4aa';
+            } else if (title.includes('Total R')) {
+                mainValue = `${data.totalR > 0 ? '+' : ''}${data.totalR.toFixed(1)}R`;
+                color = data.totalR > 0 ? '#00ff88' : '#ff4757';
+            } else {
+                mainValue = `${data.maxConsecutiveLosses} losses`;
+                color = '#26de81';
+            }
+            
+            subValue = `${data.session} • ${beStrategyText[data.beStrategy]} • ${data.rTarget}R`;
+            
+            return `
+                <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; text-align: center; border-left: 4px solid ${sessionColors[data.session] || '#666'};">
+                    <div style="font-size: 24px; margin-bottom: 8px;">${icon}</div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-bottom: 8px; font-weight: 600;">${title}</div>
+                    <div style="font-size: 20px; font-weight: 700; color: ${color}; margin-bottom: 4px;">${mainValue}</div>
+                    <div style="font-size: 11px; color: rgba(255,255,255,0.7);">${subValue}</div>
+                </div>
+            `;
+        }
+        
+        function applyTimeAnalysisStrategy(session, beStrategy, rTarget) {
+            document.getElementById('beStrategy').value = beStrategy;
+            document.getElementById('rTarget').value = rTarget;
+            
+            document.querySelectorAll('.session-checkboxes input[type="checkbox"]').forEach(cb => {
+                cb.checked = cb.value === session;
+            });
+            
+            updateAnalysis();
+            document.querySelector('#performanceChart').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function applyBestTimeStrategy() {
+            if (!window.timeAnalysisData) return;
+            
+            const best = window.timeAnalysisData.bestByMetric.bestExpectancy;
+            applyTimeAnalysisStrategy(best.session, best.beStrategy, best.rTarget);
         }
         
         function displayTimeAnalysis(analysis, sessions) {
