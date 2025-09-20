@@ -100,7 +100,12 @@ class AdvancedMLEngine:
             data = []
             for trade in trades:
                 try:
-                    market_ctx = json.loads(trade['market_context']) if trade['market_context'] else {}
+                    if isinstance(trade['market_context'], str):
+                        market_ctx = json.loads(trade['market_context'])
+                    elif isinstance(trade['market_context'], dict):
+                        market_ctx = trade['market_context']
+                    else:
+                        market_ctx = {}
                     
                     row = {
                         # Target variable
