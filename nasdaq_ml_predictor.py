@@ -188,12 +188,12 @@ class NasdaqMLPredictor:
         confidence = max(0, min(100, 100 * (1 - pred_std / max_std)))
         
         return {
-            'prediction': ensemble_pred,
-            'confidence': confidence,
-            'individual_predictions': predictions,
-            'should_trade': confidence >= 60.0,
+            'prediction': float(ensemble_pred),
+            'confidence': float(confidence),
+            'individual_predictions': {k: float(v) for k, v in predictions.items()},
+            'should_trade': bool(confidence >= 60.0),
             'direction': 'UP' if ensemble_pred > 0 else 'DOWN',
-            'magnitude': abs(ensemble_pred)
+            'magnitude': float(abs(ensemble_pred))
         }
 
 # Usage example
