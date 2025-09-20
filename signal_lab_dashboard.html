@@ -587,13 +587,7 @@
                     <div id="sessionExpectancyStats" style="margin-top: 10px; font-size: 12px; color: rgba(255,255,255,0.8); text-align: center;"></div>
                 </div>
                 
-                <!-- Signal Type Distribution -->
-                <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
-                    <h4 style="color: #ffa502; margin-bottom: 15px; text-align: center;">⚡ Signal Type Distribution</h4>
-                    <div id="signalTypeChart" style="width: 100%; height: 250px;"></div>
-                    <div id="signalTypeLegend" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;"></div>
-                    <div id="signalTypeStats" style="margin-top: 10px; font-size: 12px; color: rgba(255,255,255,0.8); text-align: center;"></div>
-                </div>
+
             </div>
             
             <!-- Advanced Session Insights -->
@@ -2366,18 +2360,16 @@
             d3.select('#sessionDistributionChart').selectAll('*').remove();
             d3.select('#sessionWinRateChart').selectAll('*').remove();
             d3.select('#sessionExpectancyChart').selectAll('*').remove();
-            d3.select('#signalTypeChart').selectAll('*').remove();
             
             // Clear legends
             d3.select('#sessionDistributionChartLegend').selectAll('*').remove();
             d3.select('#sessionWinRateChartLegend').selectAll('*').remove();
-            d3.select('#signalTypeChartLegend').selectAll('*').remove();
             
             // Clear stats
             document.getElementById('sessionDistributionStats').innerHTML = 'No data';
             document.getElementById('sessionWinRateStats').innerHTML = 'No data';
             document.getElementById('sessionExpectancyStats').innerHTML = 'No data';
-            document.getElementById('signalTypeStats').innerHTML = 'No data';
+
         }
         
         document.addEventListener('DOMContentLoaded', function() {
@@ -3642,7 +3634,6 @@
                 createSessionDistributionChart(sessionStats);
                 createSessionWinRateChart(sessionStats);
                 createSessionExpectancyChart(sessionStats);
-                createSignalTypeChart(trades);
                 updateAdvancedSessionInsights(sessionStats, trades);
             } catch (error) {
                 console.error('Session analytics error:', error);
@@ -3652,6 +3643,8 @@
         
         function calculateSessionStatistics(trades) {
             const stats = {};
+            const beStrategy = document.getElementById('beStrategy').value;
+            const rTarget = parseFloat(document.getElementById('rTarget').value) || 2;
             
             if (!trades || !Array.isArray(trades)) {
                 return stats;
@@ -3660,7 +3653,7 @@
             trades.forEach(trade => {
                 if (!trade) return;
                 const session = trade.session || 'Unknown';
-                const mfe = trade.mfe_none || trade.mfe || 0;
+                const result = calculateTradeResult(trade, beStrategy, rTarget);
                 
                 if (!stats[session]) {
                     stats[session] = {
@@ -3675,10 +3668,10 @@
                 }
                 
                 stats[session].total++;
-                stats[session].totalR += mfe;
+                stats[session].totalR += result;
                 
-                if (mfe > 0) stats[session].wins++;
-                else if (mfe < 0) stats[session].losses++;
+                if (result > 0) stats[session].wins++;
+                else if (result < 0) stats[session].losses++;
                 else stats[session].breakevens++;
             });
             
@@ -3781,33 +3774,7 @@
                 `Best: ${bestSession.session} (${bestSession.expectancy.toFixed(3)}R expectancy)`;
         }
         
-        function createSignalTypeChart(trades) {
-            const container = d3.select('#signalTypeChart');
-            container.selectAll('*').remove();
-            
-            const signalTypes = {};
-            trades.forEach(trade => {
-                const type = trade.signal_type || 'Unknown';
-                signalTypes[type] = (signalTypes[type] || 0) + 1;
-            });
-            
-            const data = Object.entries(signalTypes).map(([type, count]) => ({
-                type: type.replace('_', ' '),
-                count,
-                percentage: (count / trades.length) * 100
-            }));
-            
-            createPieChart(container, data, 'count', {
-                colorScale: d3.scaleOrdinal(d3.schemeSet3),
-                labelKey: 'type',
-                valueKey: 'count',
-                showPercentage: true
-            });
-            
-            const mostCommon = data.reduce((max, d) => d.count > max.count ? d : max, data[0]);
-            document.getElementById('signalTypeStats').innerHTML = 
-                `Most Common: ${mostCommon.type} (${mostCommon.percentage.toFixed(1)}%)`;
-        }
+
         
         function createPieChart(container, data, valueKey, options = {}) {
             const width = 250;
