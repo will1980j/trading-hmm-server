@@ -137,10 +137,36 @@ class NasdaqMLPredictor:
         if not self.is_trained:
             raise ValueError("Model must be trained first")
             
-        # Get latest data
-        ticker = yf.Ticker(symbol)
-        df = ticker.history(period='1y')
+        # Get latest data using same method as training
+        try:
+            import requests
+            import os
+            api_key = os.environ.get('ALPHA_VANTAGE_KEY', '3GX5OV6NVBXUB01E')
+            url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=compact&apikey={api_key}'
+            response = requests.get(url, timeout=30)
+            data = response.json()
+            
+            if 'Time Series (Daily)' in data:
+                import pandas as pd
+                ts_data = data['Time Series (Daily)']
+                df = pd.DataFrame({
+                    'Open': [float(ts_data[date]['1. open']) for date in ts_data],
+                    'High': [float(ts_data[date]['2. high']) for date in ts_data], 
+                    'Low': [float(ts_data[date]['3. low']) for date in ts_data],
+                    'Close': [float(ts_data[date]['4. close']) for date in ts_data],
+                    'Volume': [int(ts_data[date]['5. volume']) for date in ts_data]
+                }, index=pd.to_datetime(list(ts_data.keys())))
+                df = df.sort_index()
+            else:
+                raise Exception("Alpha Vantage failed")
+        except:
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(period='1y')
+        
         df = self.create_features(df)
+        
+        if len(df) == 0 or len(df[self.feature_names]) == 0:
+            raise ValueError("No features available for prediction")
         
         # Get latest features
         latest_features = df[self.feature_names].iloc[-1:].values
