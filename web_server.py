@@ -4931,11 +4931,15 @@ Analyze this NQ level tracking data and provide:
 @login_required
 def gpt4_strategy_analysis():
     try:
+        logger.info("GPT-4 strategy analysis endpoint called")
+        
         if not client:
+            logger.error("OpenAI client not available")
             return jsonify({"error": "OpenAI API key not configured"}), 500
             
-        data = request.get_json()
+        data = request.get_json() or {}
         trading_data = data.get('tradingData', {})
+        logger.info(f"Received trading data: {len(str(trading_data))} chars")
         
         # Build analysis context
         context = f"""Trading Strategy Analysis Request:
@@ -4982,17 +4986,24 @@ Keep analysis concise and actionable."""
         
     except Exception as e:
         logger.error(f"Error in GPT-4 strategy analysis: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "analysis": "Strategy analysis temporarily unavailable. Focus on consistency and risk management.",
+            "status": "fallback"
+        }), 200
 
 @app.route('/api/gpt4-stats-analysis', methods=['POST'])
 @login_required
 def gpt4_stats_analysis():
     try:
+        logger.info("GPT-4 stats analysis endpoint called")
+        
         if not client:
+            logger.error("OpenAI client not available")
             return jsonify({"error": "OpenAI API key not configured"}), 500
             
-        data = request.get_json()
+        data = request.get_json() or {}
         stats_data = data.get('statsData', {})
+        logger.info(f"Received stats data: {len(str(stats_data))} chars")
         
         # Build stats analysis context
         context = f"""Trading Statistics Analysis:
@@ -5039,7 +5050,10 @@ Focus on data-driven insights."""
         
     except Exception as e:
         logger.error(f"Error in GPT-4 stats analysis: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "analysis": "Statistical analysis temporarily unavailable. Continue monitoring performance metrics.",
+            "status": "fallback"
+        }), 200
 
 # Add economic news cache table creation and market context columns
 try:
