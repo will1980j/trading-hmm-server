@@ -2858,7 +2858,7 @@
             const availableSessions = [...new Set(trades.map(t => t.session))];
             
             let bestStrategy = null;
-            let bestExpectancy = -999;
+            let bestScore = -999;
             const allResults = [];
             const sessionCombinations = [];
             
@@ -2871,6 +2871,9 @@
                             const results = sessionTrades.map(t => calculateTradeResult(t, beStrategy, rTarget));
                             const stats = calculateStatistics(results, rTarget);
                             
+                            // Calculate psychological score: expectancy penalized by consecutive losses
+                            const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate);
+                            
                             const combination = {
                                 beStrategy,
                                 rTarget,
@@ -2878,14 +2881,16 @@
                                 expectancy: stats.expectancy,
                                 winRate: stats.winRate,
                                 totalTrades: sessionTrades.length,
+                                maxConsecutiveLosses: stats.maxConsecutiveLosses,
+                                psychScore: psychScore,
                                 type: 'single'
                             };
                             
                             allResults.push(combination);
                             sessionCombinations.push(combination);
                             
-                            if (stats.expectancy > bestExpectancy) {
-                                bestExpectancy = stats.expectancy;
+                            if (psychScore > bestScore) {
+                                bestScore = psychScore;
                                 bestStrategy = combination;
                             }
                         }
@@ -2905,6 +2910,8 @@
                                 const results = pairTrades.map(t => calculateTradeResult(t, beStrategy, rTarget));
                                 const stats = calculateStatistics(results, rTarget);
                                 
+                                const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate);
+                                
                                 const combination = {
                                     beStrategy,
                                     rTarget,
@@ -2912,14 +2919,16 @@
                                     expectancy: stats.expectancy,
                                     winRate: stats.winRate,
                                     totalTrades: pairTrades.length,
+                                    maxConsecutiveLosses: stats.maxConsecutiveLosses,
+                                    psychScore: psychScore,
                                     type: 'pair'
                                 };
                                 
                                 allResults.push(combination);
                                 sessionCombinations.push(combination);
                                 
-                                if (stats.expectancy > bestExpectancy) {
-                                    bestExpectancy = stats.expectancy;
+                                if (psychScore > bestScore) {
+                                    bestScore = psychScore;
                                     bestStrategy = combination;
                                 }
                             }
@@ -2928,14 +2937,16 @@
                 }
             }
             
-            // Sort results by expectancy
-            allResults.sort((a, b) => b.expectancy - a.expectancy);
-            sessionCombinations.sort((a, b) => b.expectancy - a.expectancy);
+            // Sort by psychological score (expectancy balanced with drawdown tolerance)
+            allResults.sort((a, b) => b.psychScore - a.psychScore);
+            sessionCombinations.sort((a, b) => b.psychScore - a.psychScore);
             
             return {
                 optimal_strategy: bestStrategy,
                 top_10_results: allResults.slice(0, 10),
                 session_combinations: sessionCombinations.slice(0, 15),
+                best_expectancy: allResults.sort((a, b) => b.expectancy - a.expectancy)[0],
+                best_psychological: bestStrategy,
                 mfe_statistics: {
                     mean: allMFEs.reduce((a, b) => a + b, 0) / allMFEs.length,
                     std_dev: Math.sqrt(allMFEs.reduce((sum, mfe) => sum + Math.pow(mfe - (allMFEs.reduce((a, b) => a + b, 0) / allMFEs.length), 2), 0) / allMFEs.length),
@@ -2945,6 +2956,18 @@
                     }
                 }
             };
+        }
+        
+        function calculatePsychologicalScore(expectancy, maxConsecutiveLosses, winRate) {
+            // Penalize strategies with high consecutive losses
+            const lossPenalty = Math.pow(maxConsecutiveLosses, 1.5) * 0.1;
+            
+            // Bonus for higher win rates (psychological comfort)
+            const winRateBonus = (winRate - 50) * 0.01;
+            
+            // Base score is expectancy, adjusted for psychological factors
+            return expectancy - lossPenalty + winRateBonus;
+        }
         }
         
         function displayRTargetAnalysis(result) {
@@ -2987,12 +3010,16 @@
                             <div style="font-size: 12px; opacity: 0.9;">Best Sessions</div>
                         </div>
                         <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${optimal.expectancy.toFixed(3)}R</div>
-                            <div style="font-size: 12px; opacity: 0.9;">Expectancy</div>
+                            <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${optimal.psychScore.toFixed(3)}</div>
+                            <div style="font-size: 12px; opacity: 0.9;">Psych Score</div>
                         </div>
                         <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
                             <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${optimal.winRate.toFixed(1)}%</div>
                             <div style="font-size: 12px; opacity: 0.9;">Win Rate</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; color: #ff6b7a;">${optimal.maxConsecutiveLosses}L</div>
+                            <div style="font-size: 12px; opacity: 0.9;">Max Losses</div>
                         </div>
                         <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; text-align: center;">
                             <div style="font-size: 18px; font-weight: bold; color: #ffffff;">${optimal.totalTrades}</div>
@@ -3001,7 +3028,7 @@
                     </div>
                     
                     <div style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-                        <h4 style="color: #ffffff; margin-bottom: 15px;">📊 Best Session Combinations</h4>
+                        <h4 style="color: #ffffff; margin-bottom: 15px;">📊 Best Session Combinations (Psychological Score)</h4>
                         <div style="max-height: 200px; overflow-y: auto;">
                             ${sessionCombinations.slice(0, 10).map((combo, idx) => {
                                 const comboSessions = combo.sessions.length === 1 ? combo.sessions[0] : combo.sessions.join(' + ');
@@ -3010,11 +3037,30 @@
                                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ffffff; font-size: 13px;">
                                         <span>${typeIcon} ${beStrategyText[combo.beStrategy]} + ${combo.rTarget}R</span>
                                         <span style="font-weight: 600;">${comboSessions}</span>
-                                        <span style="color: #00ff88; font-weight: 700;">${combo.expectancy.toFixed(3)}R</span>
+                                        <span style="color: #00ff88; font-weight: 700;">${combo.psychScore.toFixed(3)}</span>
+                                        <span style="color: #ff6b7a; font-size: 11px;">${combo.maxConsecutiveLosses}L</span>
                                         <span style="opacity: 0.8;">${combo.winRate.toFixed(1)}% (${combo.totalTrades})</span>
                                     </div>
                                 `;
                             }).join('')}
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <h4 style="color: #ffffff; margin-bottom: 15px;">⚖️ Expectancy vs Psychology Comparison</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div style="background: rgba(0,255,136,0.1); padding: 15px; border-radius: 10px; border-left: 4px solid #00ff88;">
+                                <div style="font-size: 12px; color: #00ff88; margin-bottom: 8px;">BEST EXPECTANCY</div>
+                                <div style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">${result.best_expectancy.expectancy.toFixed(3)}R</div>
+                                <div style="font-size: 11px; opacity: 0.8;">${result.best_expectancy.sessions.join(' + ')} • ${beStrategyText[result.best_expectancy.beStrategy]} • ${result.best_expectancy.rTarget}R</div>
+                                <div style="font-size: 11px; color: #ff6b7a; margin-top: 4px;">⚠️ ${result.best_expectancy.maxConsecutiveLosses} consecutive losses</div>
+                            </div>
+                            <div style="background: rgba(58,123,213,0.1); padding: 15px; border-radius: 10px; border-left: 4px solid #3a7bd5;">
+                                <div style="font-size: 12px; color: #3a7bd5; margin-bottom: 8px;">BEST PSYCHOLOGICAL</div>
+                                <div style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">${result.best_psychological.psychScore.toFixed(3)}</div>
+                                <div style="font-size: 11px; opacity: 0.8;">${result.best_psychological.sessions.join(' + ')} • ${beStrategyText[result.best_psychological.beStrategy]} • ${result.best_psychological.rTarget}R</div>
+                                <div style="font-size: 11px; color: #26de81; margin-top: 4px;">✅ Only ${result.best_psychological.maxConsecutiveLosses} consecutive losses</div>
+                            </div>
                         </div>
                     </div>
                     
