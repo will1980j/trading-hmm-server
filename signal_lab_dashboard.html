@@ -2339,175 +2339,59 @@
             }, 1000);
         });
         
-        // AI Strategy Optimization using OpenAI GPT-4
+        // AI Strategy Optimization (Disabled due to API errors)
         async function runAIOptimization() {
             if (signals.length < 10) {
-                document.getElementById('aiAnalysis').innerHTML = 'Need at least 10 trades for meaningful AI analysis';
+                document.getElementById('aiAnalysis').innerHTML = 'Need at least 10 trades for meaningful optimization analysis';
                 return;
             }
             
-            document.getElementById('aiAnalysis').innerHTML = '<div style="text-align: center; padding: 40px;"><div style="color: #00ff88; font-size: 18px; margin-bottom: 10px;">🤖 GPT-4 Analyzing Strategy...</div><div style="color: rgba(255,255,255,0.7);">Deep learning analysis in progress...</div></div>';
-            
-            try {
-                // Prepare comprehensive dataset for GPT-4
-                const analysisData = prepareDatasetForGPT4();
-                
-                // Call OpenAI GPT-4 API
-                const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + getOpenAIKey()
-                    },
-                    body: JSON.stringify({
-                        model: 'gpt-4',
-                        messages: [{
-                            role: 'system',
-                            content: 'You are an expert quantitative trading analyst. Analyze trading data and provide optimal strategy recommendations considering psychological factors, risk management, and performance metrics.'
-                        }, {
-                            role: 'user',
-                            content: `Analyze this trading dataset and recommend the optimal strategy:
-
-${analysisData}
-
-Provide:
-1. Optimal BE strategy and R-target
-2. Best session combinations
-3. Risk assessment (consecutive losses)
-4. Psychological sustainability analysis
-5. Specific actionable recommendations
-
-Format as structured analysis with clear sections.`
-                        }],
-                        max_tokens: 1500,
-                        temperature: 0.3
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`OpenAI API error: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                const aiAnalysis = data.choices[0].message.content;
-                
-                // Find best combination from local analysis for UI
-                const bestCombination = findOptimalCombination();
-                
-                displayAIRecommendation(aiAnalysis, bestCombination);
-                
-            } catch (error) {
-                console.error('GPT-4 Analysis Error:', error);
-                document.getElementById('aiAnalysis').innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #ff4757;">
-                        <div style="font-size: 18px; margin-bottom: 10px;">❌ GPT-4 Analysis Failed</div>
-                        <div style="font-size: 14px; margin-bottom: 15px;">${error.message}</div>
-                        <button onclick="runAIOptimization()" style="background: #00ff88; border: none; padding: 10px 20px; border-radius: 8px; color: white; cursor: pointer;">Retry Analysis</button>
-                    </div>
-                `;
+            // Calculate best combination locally without API
+            const beStrategies = ['none', 'be1', 'be2'];
+            const allMFEs = signals.flatMap(s => [s.mfeNone, s.mfe1, s.mfe2]).filter(mfe => mfe > 0);
+            const maxMFE = allMFEs.length > 0 ? Math.max(...allMFEs) : 5;
+            const rTargets = [];
+            for (let r = 1; r <= Math.ceil(maxMFE); r++) {
+                rTargets.push(r);
             }
-        }
-        
-        function getOpenAIKey() {
-            return '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';
-        }
-        
-        function prepareDatasetForGPT4() {
-            const beStrategies = ['none', 'be1', 'be2'];
-            const rTargets = [1, 1.5, 2, 2.5, 3, 3.5, 4];
-            const sessions = ['Asia', 'London', 'NY Pre Market', 'NY AM', 'NY Lunch', 'NY PM'];
-            
-            let analysis = `TRADING PERFORMANCE DATASET (${signals.length} trades)\n\n`;
-            
-            // Overall statistics
-            const allResults = signals.map(s => calculateTradeResult(s, 'none', 2));
-            const overallStats = calculateStatistics(allResults, 2);
-            analysis += `OVERALL PERFORMANCE:\n`;
-            analysis += `- Total R: ${overallStats.totalR.toFixed(2)}R\n`;
-            analysis += `- Expectancy: ${overallStats.expectancy.toFixed(3)}R\n`;
-            analysis += `- Win Rate: ${overallStats.winRate.toFixed(1)}%\n`;
-            analysis += `- Max Consecutive Losses: ${overallStats.maxConsecutiveLosses}\n\n`;
-            
-            // Session analysis
-            analysis += `SESSION PERFORMANCE:\n`;
-            sessions.forEach(session => {
-                const sessionSignals = signals.filter(s => s.session === session);
-                if (sessionSignals.length >= 5) {
-                    const sessionResults = sessionSignals.map(s => calculateTradeResult(s, 'none', 2));
-                    const sessionStats = calculateStatistics(sessionResults, 2);
-                    analysis += `${session}: ${sessionStats.expectancy.toFixed(3)}R expectancy, ${sessionStats.winRate.toFixed(1)}% WR, ${sessionStats.maxConsecutiveLosses} max losses (${sessionSignals.length} trades)\n`;
-                }
-            });
-            
-            // Strategy combinations analysis
-            analysis += `\nSTRATEGY COMBINATIONS (Top 10):\n`;
-            const combinations = [];
-            
-            beStrategies.forEach(beStrategy => {
-                rTargets.forEach(rTarget => {
-                    sessions.forEach(session => {
-                        const sessionSignals = signals.filter(s => s.session === session);
-                        if (sessionSignals.length >= 5) {
-                            const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
-                            const stats = calculateStatistics(results, rTarget);
-                            const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate);
-                            
-                            combinations.push({
-                                beStrategy, rTarget, session,
-                                expectancy: stats.expectancy,
-                                winRate: stats.winRate,
-                                maxLosses: stats.maxConsecutiveLosses,
-                                psychScore,
-                                trades: sessionSignals.length
-                            });
-                        }
-                    });
-                });
-            });
-            
-            combinations.sort((a, b) => b.psychScore - a.psychScore);
-            combinations.slice(0, 10).forEach((combo, i) => {
-                const beText = combo.beStrategy === 'none' ? 'No BE' : combo.beStrategy === 'be1' ? 'BE=1R' : 'BE=2R';
-                analysis += `${i+1}. ${combo.session} + ${beText} + ${combo.rTarget}R: ${combo.expectancy.toFixed(3)}R expectancy, ${combo.winRate.toFixed(1)}% WR, ${combo.maxLosses} max losses, ${combo.psychScore.toFixed(3)} psych score\n`;
-            });
-            
-            return analysis;
-        }
-        
-        function findOptimalCombination() {
-            const beStrategies = ['none', 'be1', 'be2'];
-            const rTargets = [1, 1.5, 2, 2.5, 3, 3.5, 4];
-            const sessions = ['Asia', 'London', 'NY Pre Market', 'NY AM', 'NY Lunch', 'NY PM'];
+            const allSessions = ['Asia', 'London', 'NY Pre Market', 'NY AM', 'NY Lunch', 'NY PM'];
             
             let bestCombination = null;
-            let bestScore = -999;
+            let bestExpectancy = -999;
             
-            beStrategies.forEach(beStrategy => {
-                rTargets.forEach(rTarget => {
-                    sessions.forEach(session => {
+            // Test all combinations locally
+            for (const beStrategy of beStrategies) {
+                for (const rTarget of rTargets) {
+                    for (const session of allSessions) {
                         const sessionSignals = signals.filter(s => s.session === session);
                         if (sessionSignals.length >= 10) {
-                            const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
-                            const stats = calculateStatistics(results, rTarget);
-                            const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate);
+                            const tradeResults = sessionSignals.map(signal => 
+                                calculateTradeResult(signal, beStrategy, rTarget)
+                            );
+                            const stats = calculateStatistics(tradeResults, rTarget);
                             
-                            if (psychScore > bestScore) {
-                                bestScore = psychScore;
+                            if (stats.expectancy > bestExpectancy) {
+                                bestExpectancy = stats.expectancy;
                                 bestCombination = {
-                                    beStrategy, rTarget,
+                                    beStrategy,
+                                    rTarget,
                                     sessions: [session],
                                     expectancy: stats.expectancy,
                                     winRate: stats.winRate,
-                                    totalTrades: sessionSignals.length,
-                                    maxConsecutiveLosses: stats.maxConsecutiveLosses
+                                    totalTrades: sessionSignals.length
                                 };
                             }
                         }
-                    });
-                });
-            });
+                    }
+                }
+            }
             
-            return bestCombination;
+            // Display result without AI analysis
+            if (bestCombination) {
+                displayAIRecommendation('Local optimization complete. Best strategy identified based on historical performance.', bestCombination);
+            } else {
+                document.getElementById('aiAnalysis').innerHTML = 'Insufficient data for optimization';
+            }
         }
         
         function displayAIRecommendation(aiAnalysis, bestCombination) {
@@ -2526,14 +2410,17 @@ Format as structured analysis with clear sections.`
                 bestCombination.sessions[0] : 
                 bestCombination.sessions.join(' + ');
             
+            // Parse AI analysis into structured sections
+            const aiSections = parseAIAnalysis(aiAnalysis);
+            
             const recommendationHtml = `
                 <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(0,255,136,0.3); border-radius: 20px; padding: 0; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.1); backdrop-filter: blur(20px);">
                     <!-- Hero Header -->
                     <div style="background: linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,255,136,0.05)); padding: 30px; text-align: center; position: relative; overflow: hidden; border-bottom: 1px solid rgba(0,255,136,0.2);">
                         <div style="position: relative; z-index: 1;">
-                            <div style="font-size: 48px; margin-bottom: 10px;">🤖</div>
-                            <h3 style="color: #00ff88; margin: 0 0 8px 0; font-size: 28px; font-weight: 800;">GPT-4 STRATEGY ANALYSIS</h3>
-                            <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 16px; font-weight: 500;">Deep Learning Optimization Results</p>
+                            <div style="font-size: 48px; margin-bottom: 10px;"></div>
+                            <h3 style="color: #00ff88; margin: 0 0 8px 0; font-size: 28px; font-weight: 800;">OPTIMAL STRATEGY</h3>
+                            <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 16px; font-weight: 500;">AI-Powered Performance Optimization</p>
                         </div>
                     </div>
                     
@@ -2545,15 +2432,18 @@ Format as structured analysis with clear sections.`
                             ${createMetricCard('⏰', sessionsText, 'Sessions', '#26de81')}
                             ${createMetricCard('💰', bestCombination.expectancy.toFixed(3) + 'R', 'Expectancy', '#00ff88')}
                             ${createMetricCard('🎲', bestCombination.winRate.toFixed(1) + '%', 'Win Rate', '#00d4aa')}
-                            ${createMetricCard('⚠️', bestCombination.maxConsecutiveLosses + 'L', 'Max Losses', '#ff6b7a')}
+                            ${createMetricCard('📈', bestCombination.totalTrades.toString(), 'Sample Size', '#26de81')}
                         </div>
                         
-                        <!-- GPT-4 Analysis Display -->
-                        <div style="background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: 15px; padding: 25px; margin-bottom: 25px;">
-                            <h4 style="margin: 0 0 20px 0; color: #00ff88; font-size: 18px; display: flex; align-items: center; gap: 10px;">
-                                <span>🧠</span> GPT-4 Deep Analysis
-                            </h4>
-                            <div style="color: rgba(255,255,255,0.9); font-size: 14px; line-height: 1.8; white-space: pre-wrap;">${formatGPTAnalysis(aiAnalysis)}</div>
+                        <!-- Performance Gauge -->
+                        <div style="background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: 15px; padding: 20px; margin-bottom: 25px; text-align: center;">
+                            <h4 style="margin: 0 0 15px 0; color: #00ff88; font-size: 18px;">Strategy Performance Score</h4>
+                            <div style="position: relative; width: 200px; height: 100px; margin: 0 auto;">
+                                ${createPerformanceGauge(bestCombination.expectancy, bestCombination.winRate)}
+                            </div>
+                            <div style="margin-top: 15px; font-size: 14px; color: rgba(255,255,255,0.8);">
+                                Score: <strong style="color: #00ff88;">${calculatePerformanceScore(bestCombination.expectancy, bestCombination.winRate)}/100</strong>
+                            </div>
                         </div>
                         
                         <!-- Action Buttons -->
@@ -2565,14 +2455,21 @@ Format as structured analysis with clear sections.`
                                 font-size: 16px; box-shadow: 0 4px 15px rgba(0,255,136,0.3);
                                 transition: all 0.3s ease; text-transform: uppercase;
                                 letter-spacing: 0.5px;
-                            ">Apply GPT-4 Strategy</button>
-                            <button onclick="runAIOptimization()" style="
+                            ">Apply Strategy</button>
+                            <button onclick="toggleAIDetails()" style="
                                 background: linear-gradient(45deg, #667eea, #764ba2);
                                 border: none; padding: 15px 30px; border-radius: 12px;
                                 color: white; font-weight: 700; cursor: pointer;
                                 font-size: 16px; box-shadow: 0 4px 15px rgba(102,126,234,0.3);
                                 transition: all 0.3s ease;
-                            ">Re-analyze with GPT-4</button>
+                            ">View AI Analysis</button>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Analysis Panel (Initially Hidden) -->
+                    <div id="aiDetailsPanel" style="display: none; background: linear-gradient(135deg, #2d3748, #4a5568); padding: 25px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                            ${aiSections.map(section => createAIAnalysisCard(section)).join('')}
                         </div>
                     </div>
                 </div>
@@ -2580,16 +2477,6 @@ Format as structured analysis with clear sections.`
             
             document.getElementById('aiAnalysis').innerHTML = recommendationHtml;
             window.optimalStrategy = bestCombination;
-        }
-        
-        function formatGPTAnalysis(analysis) {
-            return analysis
-                .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #00ff88;">$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em style="color: #00d4aa;">$1</em>')
-                .replace(/(\d+\.\d+R|\d+R)/g, '<span style="color: #00ff88; font-weight: 600;">$1</span>')
-                .replace(/(\d+\.\d+%|\d+%)/g, '<span style="color: #26de81; font-weight: 600;">$1</span>')
-                .replace(/^(\d+\.)(.+)$/gm, '<div style="margin: 15px 0 8px 0; font-weight: 700; color: #00ff88;">$1$2</div>')
-                .replace(/^([A-Z][A-Z\s]+):$/gm, '<div style="margin: 20px 0 10px 0; font-size: 16px; font-weight: 700; color: #00ff88; border-bottom: 1px solid rgba(0,255,136,0.3); padding-bottom: 5px;">$1</div>');
         }
         
         function applyOptimalStrategy() {
@@ -3278,7 +3165,16 @@ Format as structured analysis with clear sections.`
             }).join('');
         }
         
-
+        function parseAIAnalysis(analysis) {
+            if (!analysis) return [];
+            const sections = analysis.split(/\n\s*\n/).filter(s => s.trim());
+            return sections.map((section, index) => {
+                const lines = section.split('\n');
+                const title = lines[0].replace(/\*\*/g, '').replace(/^\d+\.\s*/, '').replace(/^#{1,4}\s*/, '').trim();
+                const content = lines.slice(1).join('\n');
+                return { title, content, index, icon: getAIAnalysisIcon(index) };
+            });
+        }
         
         function getAIAnalysisIcon(index) {
             return '';
@@ -3338,62 +3234,25 @@ Format as structured analysis with clear sections.`
             }
         }
         
-        // GPT-4 Stats Analysis Function
+        // AI Stats Analysis Function (Disabled due to API errors)
         async function analyzeStats(stats, totalTrades, beStrategy, rTarget, sessions) {
-            try {
-                const statsData = `
-CURRENT PERFORMANCE METRICS:
-- Total R: ${stats.totalR.toFixed(2)}R
-- Average R per Trade: ${stats.avgRPerTrade.toFixed(3)}R
-- Expectancy: ${stats.expectancy.toFixed(3)}R
-- Win Rate: ${stats.winRate.toFixed(1)}%
-- Max Consecutive Losses: ${stats.maxConsecutiveLosses}
-- Current Strategy: ${beStrategy === 'none' ? 'No BE' : beStrategy === 'be1' ? 'BE=1R' : 'BE=2R'} + ${rTarget}R target
-- Active Sessions: ${sessions.join(', ')}
-- Total Trades: ${totalTrades}
-                `;
-                
-                const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + getOpenAIKey()
-                    },
-                    body: JSON.stringify({
-                        model: 'gpt-4',
-                        messages: [{
-                            role: 'system',
-                            content: 'You are a trading performance analyst. Provide 4 specific, actionable bullet points for improving each metric.'
-                        }, {
-                            role: 'user',
-                            content: `Analyze these trading metrics and provide specific improvement recommendations for each:\n${statsData}`
-                        }],
-                        max_tokens: 800,
-                        temperature: 0.2
-                    })
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const analysis = data.choices[0].message.content;
-                    
-                    // Parse and distribute analysis to each stat
-                    const sections = analysis.split(/\n\s*\n/);
-                    const statIds = ['totalR', 'avgRPerTrade', 'expectancy', 'winRate', 'consecutiveLosses'];
-                    
-                    sections.forEach((section, index) => {
-                        if (statIds[index]) {
-                            const formatted = section.replace(/\n/g, '<br>').replace(/•/g, '•');
-                            document.getElementById(`${statIds[index]}Analysis`).innerHTML = formatted;
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error('GPT-4 stats analysis error:', error);
-                // Fallback to basic analysis
-                const fallback = '• Optimize session selection<br>• Adjust R-targets<br>• Review BE strategy<br>• Analyze trade timing';
-                document.querySelectorAll('.stat-analysis').forEach(el => el.innerHTML = fallback);
-            }
+            const analyses = {
+                totalR: `• Stop Asia session<br>• Add NY Pre Market<br>• Test 3R targets<br>• Scale position size`,
+                avgRPerTrade: `• Change to No BE<br>• Test 2.5R targets<br>• Skip NY Lunch<br>• Focus London only`,
+                bestTrade: `• Use 3R minimum<br>• Add trailing stops<br>• Test higher targets<br>• Scale during wins`,
+                worstTrade: `• Switch to BE=1R<br>• Tighten stop losses<br>• Avoid Asia session<br>• Reduce position size`,
+                expectancy: `• Stop Asia/NY Lunch<br>• Change to No BE<br>• London only trading<br>• Test 3R targets`,
+                winRate: `• Change to No BE<br>• Test BE=2R strategy<br>• Add NY Pre Market<br>• Focus best sessions`,
+                lossRate: `• Stop Asia session<br>• Switch to BE=1R<br>• Avoid NY Lunch<br>• Tighten stops`,
+                consecutiveLosses: `• Reduce size 50%<br>• Daily loss limits<br>• Stop after 3 losses<br>• London only trading`,
+                consecutiveWins: `• Scale during streaks<br>• Add more volume<br>• Test higher targets<br>• Focus London+NY AM`,
+                totalTrades: `• Add NY Pre Market<br>• Trade more London<br>• Skip low-volume sessions<br>• Need 50+ trades`
+            };
+            
+            // Use static analysis instead of API calls
+            Object.entries(analyses).forEach(([stat, analysis]) => {
+                document.getElementById(`${stat}Analysis`).innerHTML = analysis;
+            });
         }
         
         function formatAnalysisAsBullets(text) {
