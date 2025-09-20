@@ -10,7 +10,7 @@ class NasdaqBacktester:
         self.initial_capital = initial_capital
         self.predictor = NasdaqMLPredictor()
         
-    def backtest(self, symbol='QQQ', start_date='2004-01-01', confidence_threshold=60):
+    def backtest(self, symbol='QQQ', start_date='2014-01-01', confidence_threshold=60):
         """Backtest the ML model over 20 years"""
         
         # Download full dataset using Alpha Vantage
