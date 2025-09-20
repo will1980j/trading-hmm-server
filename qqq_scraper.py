@@ -1,50 +1,35 @@
 import requests
-from bs4 import BeautifulSoup
-import re
+import json
 import logging
 
 logger = logging.getLogger(__name__)
 
 def scrape_qqq_volume():
-    """Scrape QQQ volume from MarketWatch"""
+    """Get QQQ volume using stock-web-scraper approach"""
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         
-        response = requests.get('https://www.marketwatch.com/investing/fund/qqq', headers=headers, timeout=10)
+        # Use Yahoo Finance query API
+        url = 'https://query1.finance.yahoo.com/v8/finance/chart/QQQ'
+        response = requests.get(url, headers=headers, timeout=10)
         
         if response.status_code != 200:
-            logger.error(f"MarketWatch returned status {response.status_code}")
+            logger.error(f"Yahoo API returned status {response.status_code}")
             return None
             
-        soup = BeautifulSoup(response.text, 'html.parser')
+        data = response.json()
         
-        # Look for volume in various patterns
-        volume_patterns = [
-            r'Volume[^>]*>([^<]*)',
-            r'data-module="Volume"[^>]*>.*?<span[^>]*>([^<]*)',
-            r'Volume.*?([0-9,]+\.?[0-9]*[KMB]?)',
-            r'([0-9,]+\.?[0-9]*[KMB]?).*?Volume'
-        ]
+        if 'chart' in data and 'result' in data['chart'] and data['chart']['result']:
+            result = data['chart']['result'][0]
+            if 'meta' in result and 'regularMarketVolume' in result['meta']:
+                volume = result['meta']['regularMarketVolume']
+                return int(volume)
         
-        for pattern in volume_patterns:
-            matches = re.findall(pattern, response.text, re.IGNORECASE)
-            for match in matches:
-                # Clean and parse volume
-                volume_str = match.strip().replace(',', '')
-                if 'M' in volume_str:
-                    volume = float(volume_str.replace('M', '')) * 1000000
-                    return int(volume)
-                elif 'K' in volume_str:
-                    volume = float(volume_str.replace('K', '')) * 1000
-                    return int(volume)
-                elif volume_str.replace('.', '').isdigit():
-                    return int(float(volume_str))
-        
-        logger.warning("Could not find QQQ volume in MarketWatch response")
+        logger.warning("Could not find QQQ volume in Yahoo API response")
         return None
         
     except Exception as e:
-        logger.error(f"Error scraping QQQ volume: {str(e)}")
+        logger.error(f"Error getting QQQ volume: {str(e)}")
         return None
