@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NASDAQ ML Predictor - Advanced Machine Learning</title>
+    <link rel="stylesheet" href="/style_preload.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --accent-color: #00ff88;
+            --glass-bg: rgba(255,255,255,0.08);
+            --glass-border: rgba(255,255,255,0.1);
+            --shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0;
+            padding: 0 10px;
+        }
+        
+        .navbar {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .nav-link:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .nav-link.active {
+            color: #00ff88;
+            background: rgba(0,255,136,0.15);
+            border-color: rgba(0,255,136,0.3);
+        }
+        
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ff88, #00d4aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .ml-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .ml-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 25px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .ml-card h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .prediction-display {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,212,170,0.1));
+            border-radius: 15px;
+            margin: 15px 0;
+        }
+        
+        .prediction-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+        
+        .confidence-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4757, #ffa502, #00ff88);
+            transition: width 0.3s ease;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #00ff88, #00d4aa);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,255,136,0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online { background: #00ff88; }
+        .status-offline { background: #ff4757; }
+        .status-training { background: #ffa502; }
+        
+        .backtest-chart {
+            width: 100%;
+            height: 400px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .metric-card {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #00ff88;
+        }
+        
+        .metric-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; gap: 12px; align-items: center; justify-content: center; flex: 1; flex-wrap: wrap;">
+                <a href="/" class="nav-link">Dashboard</a>
+                <a href="/trade-manager" class="nav-link">Trade Manager</a>
+                <a href="/signal-analysis-lab" class="nav-link">Signal Lab</a>
+                <a href="/signal-lab-dashboard" class="nav-link">Lab Dashboard</a>
+                <a href="/nasdaq-ml" class="nav-link active">NASDAQ ML</a>
+                <a href="/prop-portfolio" class="nav-link">Prop Portfolio</a>
+                <a href="/financial-summary" class="nav-link">Financial Summary</a>
+                <a href="/reporting-hub" class="nav-link">Reporting Hub</a>
+                <a href="/chart-showcase" class="nav-link">Chart Library</a>
+                <a href="/styles" class="nav-link">Styles</a>
+                <a href="/tradingview" class="nav-link">TradingView</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🤖 NASDAQ ML Predictor</h1>
+            <p>Advanced Machine Learning for NASDAQ Daily Predictions</p>
+        </div>
+        
+        <div class="ml-grid">
+            <!-- Live Prediction Card -->
+            <div class="ml-card">
+                <h3>📊 Live Prediction</h3>
+                <div class="prediction-display">
+                    <div style="font-size: 14px; opacity: 0.8;">QQQ Next Day Direction</div>
+                    <div class="prediction-value" id="predictionDirection">-</div>
+                    <div style="font-size: 16px; margin: 10px 0;" id="predictionMagnitude">-</div>
+                    <div style="font-size: 14px; opacity: 0.8;">Confidence</div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confidenceBar" style="width: 0%;"></div>
+                    </div>
+                    <div style="font-size: 18px; font-weight: 600;" id="confidenceText">0%</div>
+                    <div style="margin-top: 15px;">
+                        <span class="status-indicator" id="tradeStatus"></span>
+                        <span id="tradeRecommendation">No Signal</span>
+                    </div>
+                </div>
+                <button class="btn" onclick="getPrediction()">🔮 Get Prediction</button>
+                <button class="btn" onclick="trainModel()">🎯 Train Model</button>
+            </div>
+            
+            <!-- Model Status Card -->
+            <div class="ml-card">
+                <h3>🔧 Model Status</h3>
+                <div style="margin: 15px 0;">
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="modelStatus"></span>
+                        <span id="modelStatusText">Checking...</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <strong>Models:</strong> <span id="modelList">-</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <strong>Last Updated:</strong> <span id="lastUpdated">-</span>
+                    </div>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="rfAccuracy">-</div>
+                        <div class="metric-label">RF Accuracy</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="gbAccuracy">-</div>
+                        <div class="metric-label">GB Accuracy</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Backtest Results Card -->
+            <div class="ml-card">
+                <h3>📈 20-Year Backtest</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="totalReturn">-</div>
+                        <div class="metric-label">Total Return</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="winRate">-</div>
+                        <div class="metric-label">Win Rate</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="totalTrades">-</div>
+                        <div class="metric-label">Total Trades</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="buyHoldReturn">-</div>
+                        <div class="metric-label">Buy & Hold</div>
+                    </div>
+                </div>
+                <button class="btn" onclick="runBacktest()">🚀 Run Backtest</button>
+                <div id="backtestStatus" style="margin-top: 15px; text-align: center; color: rgba(255,255,255,0.7);"></div>
+            </div>
+        </div>
+        
+        <!-- Backtest Chart -->
+        <div class="ml-card">
+            <h3>📊 Performance Chart</h3>
+            <div class="backtest-chart" id="backtestChart">
+                Click "Run Backtest" to see 20-year performance comparison
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let modelTrained = false;
+        
+        // Auto-refresh every 60 seconds
+        setInterval(() => {
+            checkModelStatus();
+            if (modelTrained) {
+                getPrediction();
+            }
+        }, 60000);
+        
+        // Initial load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkModelStatus();
+        });
+        
+        async function checkModelStatus() {
+            try {
+                const response = await fetch('/api/nasdaq-status');
+                const data = await response.json();
+                
+                const statusEl = document.getElementById('modelStatus');
+                const statusTextEl = document.getElementById('modelStatusText');
+                
+                if (data.is_trained) {
+                    statusEl.className = 'status-indicator status-online';
+                    statusTextEl.textContent = 'Model Trained';
+                    modelTrained = true;
+                } else {
+                    statusEl.className = 'status-indicator status-offline';
+                    statusTextEl.textContent = 'Not Trained';
+                    modelTrained = false;
+                }
+                
+                document.getElementById('modelList').textContent = data.models ? data.models.join(', ') : '-';
+                document.getElementById('lastUpdated').textContent = new Date(data.timestamp).toLocaleString();
+                
+            } catch (error) {
+                console.error('Error checking model status:', error);
+                document.getElementById('modelStatus').className = 'status-indicator status-offline';
+                document.getElementById('modelStatusText').textContent = 'API Error';
+            }
+        }
+        
+        async function trainModel() {
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = '🔄 Training...';
+            button.disabled = true;
+            
+            document.getElementById('modelStatus').className = 'status-indicator status-training';
+            document.getElementById('modelStatusText').textContent = 'Training...';
+            
+            try {
+                const response = await fetch('/api/nasdaq-train', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol: 'QQQ' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    modelTrained = true;
+                    document.getElementById('modelStatus').className = 'status-indicator status-online';
+                    document.getElementById('modelStatusText').textContent = 'Model Trained';
+                    
+                    // Update accuracy metrics
+                    if (data.training_results.rf) {
+                        document.getElementById('rfAccuracy').textContent = (data.training_results.rf.test_r2 * 100).toFixed(1) + '%';
+                    }
+                    if (data.training_results.gb) {
+                        document.getElementById('gbAccuracy').textContent = (data.training_results.gb.test_r2 * 100).toFixed(1) + '%';
+                    }
+                    
+                    alert('✅ Model trained successfully!');
+                    getPrediction();
+                } else {
+                    throw new Error(data.error || 'Training failed');
+                }
+                
+            } catch (error) {
+                console.error('Training error:', error);
+                alert('❌ Training failed: ' + error.message);
+                document.getElementById('modelStatus').className = 'status-indicator status-offline';
+                document.getElementById('modelStatusText').textContent = 'Training Failed';
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+        
+        async function getPrediction() {
+            if (!modelTrained) {
+                alert('Please train the model first');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/nasdaq-predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol: 'QQQ' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const pred = data.prediction;
+                    
+                    // Update prediction display
+                    document.getElementById('predictionDirection').textContent = pred.direction;
+                    document.getElementById('predictionDirection').style.color = pred.direction === 'UP' ? '#00ff88' : '#ff4757';
+                    
+                    document.getElementById('predictionMagnitude').textContent = `${(pred.magnitude * 100).toFixed(2)}% move`;
+                    
+                    // Update confidence
+                    const confidence = pred.confidence;
+                    document.getElementById('confidenceText').textContent = confidence.toFixed(1) + '%';
+                    document.getElementById('confidenceBar').style.width = confidence + '%';
+                    
+                    // Update trade recommendation
+                    const tradeStatusEl = document.getElementById('tradeStatus');
+                    const tradeRecommendationEl = document.getElementById('tradeRecommendation');
+                    
+                    if (pred.should_trade) {
+                        tradeStatusEl.className = 'status-indicator status-online';
+                        tradeRecommendationEl.textContent = `TRADE SIGNAL: ${pred.direction}`;
+                        tradeRecommendationEl.style.color = '#00ff88';
+                        tradeRecommendationEl.style.fontWeight = '700';
+                    } else {
+                        tradeStatusEl.className = 'status-indicator status-offline';
+                        tradeRecommendationEl.textContent = 'Low Confidence - No Trade';
+                        tradeRecommendationEl.style.color = 'rgba(255,255,255,0.7)';
+                        tradeRecommendationEl.style.fontWeight = '400';
+                    }
+                    
+                } else {
+                    throw new Error(data.error || 'Prediction failed');
+                }
+                
+            } catch (error) {
+                console.error('Prediction error:', error);
+                alert('❌ Prediction failed: ' + error.message);
+            }
+        }
+        
+        async function runBacktest() {
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = '🔄 Running...';
+            button.disabled = true;
+            
+            document.getElementById('backtestStatus').textContent = 'Running 20-year backtest... This may take a few minutes.';
+            
+            try {
+                const response = await fetch('/api/nasdaq-backtest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        symbol: 'QQQ',
+                        start_date: '2004-01-01',
+                        confidence_threshold: 60
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const metrics = data.metrics;
+                    
+                    // Update backtest metrics
+                    document.getElementById('totalReturn').textContent = metrics.total_return.toFixed(1) + '%';
+                    document.getElementById('winRate').textContent = metrics.win_rate.toFixed(1) + '%';
+                    document.getElementById('totalTrades').textContent = metrics.total_trades;
+                    document.getElementById('buyHoldReturn').textContent = metrics.buy_hold_return.toFixed(1) + '%';
+                    
+                    document.getElementById('backtestStatus').textContent = `Backtest completed: ${metrics.backtest_period}`;
+                    document.getElementById('backtestChart').innerHTML = `
+                        <div style="text-align: center;">
+                            <h4>Backtest Results</h4>
+                            <p>ML Strategy: ${metrics.total_return.toFixed(1)}% vs Buy & Hold: ${metrics.buy_hold_return.toFixed(1)}%</p>
+                            <p>${metrics.total_trades} trades with ${metrics.win_rate.toFixed(1)}% win rate</p>
+                        </div>
+                    `;
+                    
+                } else {
+                    throw new Error(data.error || 'Backtest failed');
+                }
+                
+            } catch (error) {
+                console.error('Backtest error:', error);
+                document.getElementById('backtestStatus').textContent = 'Backtest failed: ' + error.message;
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

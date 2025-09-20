@@ -206,6 +206,105 @@ def signal_analysis_15m():
 def signal_lab_dashboard():
     return read_html_file('signal_lab_dashboard.html')
 
+@app.route('/nasdaq-ml')
+@login_required
+def nasdaq_ml():
+    return read_html_file('nasdaq_ml_dashboard.html')
+
+# NASDAQ ML API Endpoints
+@app.route('/api/nasdaq-train', methods=['POST'])
+@login_required
+def nasdaq_train():
+    try:
+        from nasdaq_ml_predictor import NasdaqMLPredictor
+        predictor = NasdaqMLPredictor()
+        
+        data = request.get_json() or {}
+        symbol = data.get('symbol', 'QQQ')
+        
+        results = predictor.train(symbol)
+        
+        return jsonify({
+            'status': 'success',
+            'symbol': symbol,
+            'training_results': results,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"NASDAQ training error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/nasdaq-predict', methods=['POST'])
+@login_required
+def nasdaq_predict():
+    try:
+        from nasdaq_ml_predictor import NasdaqMLPredictor
+        predictor = NasdaqMLPredictor()
+        
+        data = request.get_json() or {}
+        symbol = data.get('symbol', 'QQQ')
+        
+        if not predictor.is_trained:
+            predictor.train(symbol)
+        
+        prediction = predictor.predict_with_confidence(symbol)
+        
+        return jsonify({
+            'status': 'success',
+            'symbol': symbol,
+            'prediction': prediction,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"NASDAQ prediction error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/nasdaq-status', methods=['GET'])
+@login_required
+def nasdaq_status():
+    try:
+        from nasdaq_ml_predictor import NasdaqMLPredictor
+        predictor = NasdaqMLPredictor()
+        
+        return jsonify({
+            'is_trained': predictor.is_trained,
+            'models': list(predictor.models.keys()),
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'is_trained': False,
+            'models': [],
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        })
+
+@app.route('/api/nasdaq-backtest', methods=['POST'])
+@login_required
+def nasdaq_backtest():
+    try:
+        from nasdaq_backtest import NasdaqBacktester
+        
+        data = request.get_json() or {}
+        symbol = data.get('symbol', 'QQQ')
+        start_date = data.get('start_date', '2004-01-01')
+        confidence_threshold = data.get('confidence_threshold', 60)
+        
+        backtester = NasdaqBacktester(initial_capital=10000)
+        results = backtester.backtest(symbol, start_date, confidence_threshold)
+        
+        return jsonify({
+            'status': 'success',
+            'metrics': results['metrics'],
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"NASDAQ backtest error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/ml-dashboard')
 @login_required
 def ml_dashboard():
