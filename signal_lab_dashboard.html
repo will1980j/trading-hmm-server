@@ -693,6 +693,7 @@
                     </div>
                 </div>
                 <button onclick="loadMarketContext()" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #ffa502;">🔄 Refresh Market Data</button>
+                <button onclick="getQQQVolume().then(v => alert('QQQ Volume: ' + (v ? (v/1000000).toFixed(1) + 'M' : 'Failed')))" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #3a7bd5; margin-left: 10px;">📊 Test QQQ Scrape</button>
             </div>
         </div>
         
@@ -2210,6 +2211,23 @@
             }
         }
         
+        async function getQQQVolume() {
+            try {
+                const proxyUrl = 'https://api.allorigins.win/get?url=';
+                const targetUrl = 'https://www.marketwatch.com/investing/fund/qqq';
+                const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
+                const data = await response.json();
+                
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data.contents, 'text/html');
+                const volumeElement = doc.querySelector('[data-module="Volume"] .primary');
+                return volumeElement ? parseInt(volumeElement.textContent.replace(/,/g, '')) : null;
+            } catch (error) {
+                console.error('Error scraping QQQ volume:', error);
+                return null;
+            }
+        }
+        
         async function loadMarketContext() {
             try {
                 const response = await fetch('https://web-production-cd33.up.railway.app/api/current-market-context');
@@ -2225,17 +2243,19 @@
                     throw new Error(data.error);
                 }
                 
+                // Get QQQ volume from MarketWatch
+                const qqqVolume = await getQQQVolume();
+                
                 // Check for fallback data and handle appropriately
                 if (data.data_source === 'Fallback') {
-                    console.warn('API returned fallback data, showing offline status');
-                    // Set all values to indicate no real data available
+                    console.warn('API returned fallback data, using scraped volume only');
                     document.getElementById('vixValue').textContent = '-';
                     document.getElementById('sessionValue').textContent = '-';
-                    document.getElementById('volumeValue').textContent = '-';
+                    document.getElementById('volumeValue').textContent = qqqVolume ? (qqqVolume/1000000).toFixed(1) + 'M' : '-';
                     document.getElementById('dxyValue').textContent = '-';
                     const dataSourceEl = document.getElementById('marketDataSource');
                     if (dataSourceEl) {
-                        dataSourceEl.textContent = 'No Real Data';
+                        dataSourceEl.textContent = 'MarketWatch';
                     }
                     return;
                 }
@@ -2243,12 +2263,12 @@
                 // Update market context values with real data
                 document.getElementById('vixValue').textContent = data.vix ? data.vix.toFixed(1) : '-';
                 document.getElementById('sessionValue').textContent = data.market_session || '-';
-                document.getElementById('volumeValue').textContent = data.qqq_volume ? (data.qqq_volume/1000000).toFixed(1) + 'M' : '-';
+                document.getElementById('volumeValue').textContent = qqqVolume ? (qqqVolume/1000000).toFixed(1) + 'M' : (data.qqq_volume ? (data.qqq_volume/1000000).toFixed(1) + 'M' : '-');
                 document.getElementById('dxyValue').textContent = data.dxy_price ? data.dxy_price.toFixed(2) : '-';
                 
                 const dataSourceEl = document.getElementById('marketDataSource');
                 if (dataSourceEl) {
-                    dataSourceEl.textContent = data.data_source || '-';
+                    dataSourceEl.textContent = qqqVolume ? 'MarketWatch' : (data.data_source || '-');
                 }
                 
                 // Color code VIX based on volatility levels
@@ -2261,13 +2281,14 @@
                 
             } catch (error) {
                 console.error('Error loading market context:', error);
+                const qqqVolume = await getQQQVolume();
                 document.getElementById('vixValue').textContent = '-';
                 document.getElementById('sessionValue').textContent = '-';
-                document.getElementById('volumeValue').textContent = '-';
+                document.getElementById('volumeValue').textContent = qqqVolume ? (qqqVolume/1000000).toFixed(1) + 'M' : '-';
                 document.getElementById('dxyValue').textContent = '-';
                 const dataSourceEl = document.getElementById('marketDataSource');
                 if (dataSourceEl) {
-                    dataSourceEl.textContent = 'Offline';
+                    dataSourceEl.textContent = qqqVolume ? 'MarketWatch' : 'Offline';
                 }
             }
         }
@@ -4290,9 +4311,6 @@
         window.showMLRecommendations = showMLRecommendations;
         window.loadMarketContext = loadMarketContext;
         window.showMLPredictionModal = showMLPredictionModal;
-    </script>
-</body>
-</html>
     </script>
 </body>
 </html>
