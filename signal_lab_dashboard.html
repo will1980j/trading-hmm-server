@@ -427,7 +427,7 @@
                     <label>View Type</label>
                     <select id="viewType">
                         <option value="trade">Trade by Trade</option>
-                        <option value="daily">Daily View</option>
+                        <option value="daily" selected>Daily View</option>
                         <option value="weekly">Weekly View</option>
                         <option value="monthly">Monthly View</option>
                     </select>
@@ -1923,10 +1923,14 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        bias: 'Bullish',
-                        signal_type: 'Bullish FVG',
-                        use_real_data: true,
-                        data_source: 'signal_lab_trades'
+                        session: 'NY AM',
+                        vix: 20.0,
+                        qqq_volume: 50000000,
+                        dxy_price: 104.5,
+                        market_session: 'NY AM',
+                        hour: 14,
+                        minute: 30,
+                        day_of_week: 2
                     })
                 });
                 
@@ -1946,8 +1950,6 @@
                     const confidence = pred.confidence || 0;
                     
                     document.getElementById('currentPrediction').innerHTML = `${predMFE.toFixed(2)}R (${(confidence*100).toFixed(0)}%)`;
-                    
-                    showMLPredictionModal(data);
                 } else if (data.error) {
                     alert('❌ Prediction Error: ' + data.error);
                 } else {
@@ -2688,10 +2690,12 @@
                 });
             });
             
-            results.sort((a, b) => b.expectancy - a.expectancy);
+            // Filter out negative R strategies and sort by expectancy
+            const positiveResults = results.filter(r => r.totalR >= 0);
+            positiveResults.sort((a, b) => b.expectancy - a.expectancy);
             
             return {
-                topCombinations: results.slice(0, 15),
+                topCombinations: positiveResults.slice(0, 15),
                 sessionSummary: summarizeBySession(results),
                 bestByMetric: getBestByMetric(results)
             };
