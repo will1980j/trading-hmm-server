@@ -59,22 +59,28 @@ class NasdaqMLPredictor:
         
         # Try Alpha Vantage first (free tier)
         try:
-            api_key = 'demo'  # Use demo key for now
+            import os
+            api_key = os.environ.get('ALPHA_VANTAGE_KEY', '3GX5OV6NVBXUB01E')
             url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=full&apikey={api_key}'
             response = requests.get(url, timeout=30)
             data = response.json()
             
             if 'Time Series (Daily)' in data:
                 import pandas as pd
-                df = pd.DataFrame(data['Time Series (Daily)']).T
-                df.index = pd.to_datetime(df.index)
-                df = df.astype(float)
-                df.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+                ts_data = data['Time Series (Daily)']
+                df = pd.DataFrame({
+                    'Open': [float(ts_data[date]['1. open']) for date in ts_data],
+                    'High': [float(ts_data[date]['2. high']) for date in ts_data], 
+                    'Low': [float(ts_data[date]['3. low']) for date in ts_data],
+                    'Close': [float(ts_data[date]['4. close']) for date in ts_data],
+                    'Volume': [int(ts_data[date]['5. volume']) for date in ts_data]
+                }, index=pd.to_datetime(list(ts_data.keys())))
                 df = df.sort_index()
                 print(f"Downloaded {len(df)} rows from Alpha Vantage for {symbol}")
             else:
-                raise Exception("Alpha Vantage failed")
-        except:
+                raise Exception(f"Alpha Vantage error: {data.get('Error Message', 'Unknown error')}")
+        except Exception as e:
+            print(f"Alpha Vantage failed: {e}")
             # Fallback to yfinance
             ticker = yf.Ticker(symbol)
             df = ticker.history(period=period)
