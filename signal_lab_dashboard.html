@@ -3086,9 +3086,15 @@
             
             // Group trades by date with advanced metrics
             const dailyData = {};
+            const dayOfWeekCounts = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }; // Debug: count trades by day of week
+            
             filteredSignals.forEach(signal => {
                 const date = signal.date;
                 const result = calculateTradeResult(signal, beStrategy, rTarget);
+                
+                // Debug: check day of week for this trade
+                const dayOfWeek = new Date(date).getDay();
+                dayOfWeekCounts[dayOfWeek]++;
                 
                 if (!dailyData[date]) {
                     dailyData[date] = { trades: [], totalR: 0, wins: 0, losses: 0, sessions: new Set() };
@@ -3100,6 +3106,17 @@
                 else if (result < 0) dailyData[date].losses++;
             });
             
+            // Debug: log day of week distribution
+            console.log('📅 Day of week distribution:', {
+                'Sunday': dayOfWeekCounts[0],
+                'Monday': dayOfWeekCounts[1], 
+                'Tuesday': dayOfWeekCounts[2],
+                'Wednesday': dayOfWeekCounts[3],
+                'Thursday': dayOfWeekCounts[4],
+                'Friday': dayOfWeekCounts[5],
+                'Saturday': dayOfWeekCounts[6]
+            });
+            
             // Get date range and calculate performance metrics
             const dates = Object.keys(dailyData).sort();
             if (dates.length === 0) return;
@@ -3109,9 +3126,30 @@
             const minR = Math.min(...allRValues);
             const avgR = allRValues.reduce((a, b) => a + b, 0) / allRValues.length;
             
-            // Show September 2025 to match signal analysis lab calendar - using NY EST timezone
-            const calendarStartDate = new Date(2025, 8, 1); // September 2025 (NY EST)
-            const calendarEndDate = new Date(2025, 8, 30); // End of September 2025 (NY EST)
+            // Show actual date range from your data instead of hardcoded September 2025
+            const actualDates = Object.keys(dailyData).sort();
+            let calendarStartDate, calendarEndDate;
+            
+            if (actualDates.length > 0) {
+                // Use actual data range
+                const firstDate = new Date(actualDates[0]);
+                const lastDate = new Date(actualDates[actualDates.length - 1]);
+                
+                // Show the month containing the data
+                calendarStartDate = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
+                calendarEndDate = new Date(lastDate.getFullYear(), lastDate.getMonth() + 1, 0);
+                
+                console.log('📅 Calendar showing:', {
+                    'Data range': `${actualDates[0]} to ${actualDates[actualDates.length - 1]}`,
+                    'Calendar range': `${calendarStartDate.toISOString().split('T')[0]} to ${calendarEndDate.toISOString().split('T')[0]}`,
+                    'Total trading days': actualDates.length
+                });
+            } else {
+                // Fallback to current month if no data
+                const now = new Date();
+                calendarStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                calendarEndDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            }
             
             // Create sophisticated calendar with D3.js
             const calendarHtml = `
@@ -3123,7 +3161,7 @@
                     <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
                         <div>
                             <h3 style="color: #00ff88; margin: 0 0 5px 0; font-size: 24px; font-weight: 700;">Performance Calendar (NY EST)</h3>
-                            <div style="color: rgba(255,255,255,0.7); font-size: 14px;">Interactive trading performance heatmap - synchronized with Signal Analysis Lab</div>
+                            <div style="color: rgba(255,255,255,0.7); font-size: 14px;">Interactive trading performance heatmap - showing actual data range</div>
                         </div>
                         <div style="display: flex; gap: 15px; align-items: center;">
                             <div style="text-align: center; padding: 10px 15px; background: rgba(0,255,136,0.1); border-radius: 10px; border: 1px solid rgba(0,255,136,0.3);">
