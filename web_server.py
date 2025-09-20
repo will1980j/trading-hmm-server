@@ -409,6 +409,146 @@ def api_trading_data():
     
     return jsonify(sample_data)
 
+# GPT-4 Strategy Analysis Endpoints
+@app.route('/api/gpt4-strategy-analysis', methods=['POST'])
+@login_required
+def gpt4_strategy_analysis():
+    try:
+        if not client:
+            return jsonify({
+                "error": "OpenAI API not available",
+                "analysis": "GPT-4 analysis temporarily unavailable. Please check API configuration."
+            }), 500
+            
+        data = request.get_json()
+        analysis_data = data.get('analysisData', '')
+        
+        if not analysis_data:
+            return jsonify({"error": "No analysis data provided"}), 400
+        
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': 'gpt-4',
+                'messages': [{
+                    'role': 'system',
+                    'content': 'You are an expert quantitative trading analyst. Analyze trading data and provide optimal strategy recommendations considering psychological factors, risk management, and performance metrics.'
+                }, {
+                    'role': 'user',
+                    'content': f"""Analyze this trading dataset and recommend the optimal strategy:
+
+{analysis_data}
+
+Provide:
+1. Optimal BE strategy and R-target
+2. Best session combinations
+3. Risk assessment (consecutive losses)
+4. Psychological sustainability analysis
+5. Specific actionable recommendations
+
+Format as structured analysis with clear sections."""
+                }],
+                'max_tokens': 1500,
+                'temperature': 0.3
+            },
+            timeout=30
+        )
+        
+        if not response.ok:
+            return jsonify({
+                "error": f"OpenAI API error: {response.status_code}",
+                "analysis": "GPT-4 analysis failed. Please try again."
+            }), 500
+        
+        response_data = response.json()
+        
+        if 'choices' not in response_data or not response_data['choices']:
+            return jsonify({
+                "error": "Invalid OpenAI response",
+                "analysis": "GPT-4 returned invalid response."
+            }), 500
+        
+        ai_analysis = response_data['choices'][0]['message']['content']
+        
+        return jsonify({
+            "analysis": ai_analysis,
+            "status": "success"
+        })
+        
+    except Exception as e:
+        logger.error(f"GPT-4 strategy analysis error: {str(e)}")
+        return jsonify({
+            "error": str(e),
+            "analysis": "GPT-4 analysis encountered an error. Please try again."
+        }), 500
+
+@app.route('/api/gpt4-stats-analysis', methods=['POST'])
+@login_required
+def gpt4_stats_analysis():
+    try:
+        if not client:
+            return jsonify({
+                "error": "OpenAI API not available",
+                "analysis": "GPT-4 analysis temporarily unavailable."
+            }), 500
+            
+        data = request.get_json()
+        stats_data = data.get('statsData', '')
+        
+        if not stats_data:
+            return jsonify({"error": "No stats data provided"}), 400
+        
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': 'gpt-4',
+                'messages': [{
+                    'role': 'system',
+                    'content': 'You are a trading performance analyst. Provide 4 specific, actionable bullet points for improving each metric.'
+                }, {
+                    'role': 'user',
+                    'content': f"""Analyze these trading metrics and provide specific improvement recommendations for each:
+
+{stats_data}"""
+                }],
+                'max_tokens': 800,
+                'temperature': 0.2
+            },
+            timeout=30
+        )
+        
+        if not response.ok:
+            return jsonify({
+                "error": f"OpenAI API error: {response.status_code}",
+                "analysis": "GPT-4 stats analysis failed."
+            }), 500
+        
+        response_data = response.json()
+        
+        if 'choices' not in response_data or not response_data['choices']:
+            return jsonify({
+                "error": "Invalid OpenAI response",
+                "analysis": "GPT-4 returned invalid response."
+            }), 500
+        
+        ai_analysis = response_data['choices'][0]['message']['content']
+        
+        return jsonify({
+            "analysis": ai_analysis,
+            "status": "success"
+        })
+        
+    except Exception as e:
+        logger.error(f"GPT-4 stats analysis error: {str(e)}")
+        return jsonify({
+            "error": str(e),
+            "analysis": "GPT-4 stats analysis encountered an error."
+        }), 500
+
 # OpenAI API endpoint for trading insights
 @app.route('/api/ai-insights', methods=['POST'])
 @login_required
