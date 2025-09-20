@@ -55,9 +55,31 @@ class NasdaqMLPredictor:
     
     def prepare_data(self, symbol='QQQ', period='5y'):
         """Download and prepare NASDAQ data"""
-        ticker = yf.Ticker(symbol)
-        df = ticker.history(period=period)
-        print(f"Downloaded {len(df)} rows for {symbol} over {period}")
+        import requests
+        
+        # Try Alpha Vantage first (free tier)
+        try:
+            api_key = 'demo'  # Use demo key for now
+            url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=full&apikey={api_key}'
+            response = requests.get(url, timeout=30)
+            data = response.json()
+            
+            if 'Time Series (Daily)' in data:
+                import pandas as pd
+                df = pd.DataFrame(data['Time Series (Daily)']).T
+                df.index = pd.to_datetime(df.index)
+                df = df.astype(float)
+                df.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+                df = df.sort_index()
+                print(f"Downloaded {len(df)} rows from Alpha Vantage for {symbol}")
+            else:
+                raise Exception("Alpha Vantage failed")
+        except:
+            # Fallback to yfinance
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(period=period)
+            print(f"Downloaded {len(df)} rows from yfinance for {symbol}")
+        
         if len(df) == 0:
             raise ValueError(f"No data downloaded for {symbol}")
         
