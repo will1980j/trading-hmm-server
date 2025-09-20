@@ -11,45 +11,44 @@ warnings.filterwarnings('ignore')
 class NasdaqMLPredictor:
     def __init__(self):
         self.models = {
-            'rf': RandomForestRegressor(n_estimators=500, min_samples_split=50, random_state=42),
-            'gb': GradientBoostingRegressor(n_estimators=500, min_samples_split=50, random_state=42)
+            'rf': RandomForestRegressor(n_estimators=200, max_depth=10, min_samples_split=20, random_state=42),
+            'gb': GradientBoostingRegressor(n_estimators=200, max_depth=6, learning_rate=0.1, random_state=42)
         }
         self.scaler = StandardScaler()
         self.is_trained = False
         
     def create_features(self, df):
-        """Create advanced technical features from OHLCV data"""
+        """Create predictive technical features"""
         df = df.copy()
         
-        # Price features
-        df['price_range'] = df['High'] - df['Low']
-        df['body_size'] = abs(df['Close'] - df['Open'])
-        df['upper_shadow'] = df['High'] - df[['Open', 'Close']].max(axis=1)
-        df['lower_shadow'] = df[['Open', 'Close']].min(axis=1) - df['Low']
-        
-        # Moving averages
-        for period in [5, 10, 20, 50]:
-            df[f'sma_{period}'] = df['Close'].rolling(period).mean()
-            df[f'price_vs_sma_{period}'] = df['Close'] / df[f'sma_{period}'] - 1
-            
-        # Volatility
-        df['volatility_5'] = df['Close'].rolling(5).std()
-        df['volatility_20'] = df['Close'].rolling(20).std()
-        
-        # Volume features
-        df['volume_sma_10'] = df['Volume'].rolling(10).mean()
-        df['volume_ratio'] = df['Volume'] / df['volume_sma_10']
-        
-        # Price momentum
-        for period in [1, 3, 5, 10]:
+        # Price momentum (most predictive)
+        for period in [2, 3, 5, 10, 20]:
             df[f'return_{period}d'] = df['Close'].pct_change(period)
-            
-        # RSI
-        delta = df['Close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-        rs = gain / loss
-        df['rsi'] = 100 - (100 / (1 + rs))
+            df[f'return_{period}d_ma'] = df[f'return_{period}d'].rolling(5).mean()
+        
+        # Volatility regime
+        df['volatility_10'] = df['Close'].rolling(10).std()
+        df['volatility_30'] = df['Close'].rolling(30).std()
+        df['vol_regime'] = df['volatility_10'] / df['volatility_30']
+        
+        # Volume momentum
+        df['volume_ma_10'] = df['Volume'].rolling(10).mean()
+        df['volume_ratio'] = df['Volume'] / df['volume_ma_10']
+        df['volume_trend'] = df['volume_ratio'].rolling(5).mean()
+        
+        # Price position
+        df['high_20'] = df['High'].rolling(20).max()
+        df['low_20'] = df['Low'].rolling(20).min()
+        df['price_position'] = (df['Close'] - df['low_20']) / (df['high_20'] - df['low_20'])
+        
+        # Trend strength
+        df['sma_20'] = df['Close'].rolling(20).mean()
+        df['sma_50'] = df['Close'].rolling(50).mean()
+        df['trend_strength'] = (df['sma_20'] - df['sma_50']) / df['sma_50']
+        
+        # Gap detection
+        df['gap'] = (df['Open'] - df['Close'].shift(1)) / df['Close'].shift(1)
+        df['gap_size'] = abs(df['gap'])
         
         return df.dropna()
     
@@ -91,8 +90,8 @@ class NasdaqMLPredictor:
         
         df = self.create_features(df)
         
-        # Target: next day's return
-        df['target'] = df['Close'].shift(-1) / df['Close'] - 1
+        # Target: next 3-day return (more predictable than 1-day)
+        df['target'] = df['Close'].shift(-3) / df['Close'] - 1
         df = df.dropna()
         
         feature_cols = [col for col in df.columns if col not in ['target', 'Open', 'High', 'Low', 'Close', 'Volume']]
