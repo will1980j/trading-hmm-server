@@ -2400,7 +2400,7 @@
             const allResults = signals.map(s => calculateTradeResult(s, 'none', 2));
             const overallStats = calculateStatistics(allResults, 2);
             analysis += `OVERALL PERFORMANCE:\n`;
-            analysis += `- Total R: ${overallStats.totalR.toFixed(2)}R\n`;
+            analysis += `- Total R Captured: ${overallStats.totalR.toFixed(2)}R (CRITICAL PROFITABILITY METRIC)\n`;
             analysis += `- Expectancy: ${overallStats.expectancy.toFixed(3)}R\n`;
             analysis += `- Win Rate: ${overallStats.winRate.toFixed(1)}%\n`;
             analysis += `- Max Consecutive Losses: ${overallStats.maxConsecutiveLosses}\n\n`;
@@ -2427,13 +2427,14 @@
                         if (sessionSignals.length >= 5) {
                             const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
                             const stats = calculateStatistics(results, rTarget);
-                            const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate);
+                            const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate, stats.totalR);
                             
                             combinations.push({
                                 beStrategy, rTarget, session,
                                 expectancy: stats.expectancy,
                                 winRate: stats.winRate,
                                 maxLosses: stats.maxConsecutiveLosses,
+                                totalR: stats.totalR,
                                 psychScore,
                                 trades: sessionSignals.length
                             });
@@ -2445,7 +2446,8 @@
             combinations.sort((a, b) => b.psychScore - a.psychScore);
             combinations.slice(0, 10).forEach((combo, i) => {
                 const beText = combo.beStrategy === 'none' ? 'No BE' : combo.beStrategy === 'be1' ? 'BE=1R' : 'BE=2R';
-                analysis += `${i+1}. ${combo.session} + ${beText} + ${combo.rTarget}R: ${combo.expectancy.toFixed(3)}R expectancy, ${combo.winRate.toFixed(1)}% WR, ${combo.maxLosses} max losses, ${combo.psychScore.toFixed(3)} psych score\n`;
+                const rCaptured = combo.totalR ? `, ${combo.totalR.toFixed(1)}R captured` : '';
+                analysis += `${i+1}. ${combo.session} + ${beText} + ${combo.rTarget}R: ${combo.expectancy.toFixed(3)}R expectancy, ${combo.winRate.toFixed(1)}% WR${rCaptured}, ${combo.maxLosses} max losses, ${combo.psychScore.toFixed(3)} psych score\n`;
             });
             
             return analysis;
@@ -2466,7 +2468,7 @@
                         if (sessionSignals.length >= 10) {
                             const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
                             const stats = calculateStatistics(results, rTarget);
-                            const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate);
+                            const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate, stats.totalR);
                             
                             if (psychScore > bestScore) {
                                 bestScore = psychScore;
@@ -2476,6 +2478,7 @@
                                     expectancy: stats.expectancy,
                                     winRate: stats.winRate,
                                     totalTrades: sessionSignals.length,
+                                    totalR: stats.totalR,
                                     maxConsecutiveLosses: stats.maxConsecutiveLosses
                                 };
                             }
@@ -3048,15 +3051,18 @@
             };
         }
         
-        function calculatePsychologicalScore(expectancy, maxConsecutiveLosses, winRate) {
+        function calculatePsychologicalScore(expectancy, maxConsecutiveLosses, winRate, totalR = 0) {
             // Penalize strategies with high consecutive losses
             const lossPenalty = Math.pow(maxConsecutiveLosses, 1.5) * 0.1;
             
             // Bonus for higher win rates (psychological comfort)
             const winRateBonus = (winRate - 50) * 0.01;
             
-            // Base score is expectancy, adjusted for psychological factors
-            return expectancy - lossPenalty + winRateBonus;
+            // R captured bonus - this is crucial for profitability
+            const rCapturedBonus = totalR > 0 ? Math.log(totalR + 1) * 0.2 : totalR * 0.1;
+            
+            // Base score is expectancy, adjusted for psychological factors and R captured
+            return expectancy - lossPenalty + winRateBonus + rCapturedBonus;
         }
         
         function displayRTargetAnalysis(result) {
