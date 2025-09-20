@@ -680,7 +680,7 @@
                         <div id="sessionValue" style="font-weight: 600; color: #00ff88;">-</div>
                     </div>
                     <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                        <div style="font-size: 11px; opacity: 0.8;">SPY Volume</div>
+                        <div style="font-size: 11px; opacity: 0.8;">QQQ Volume</div>
                         <div id="volumeValue" style="font-weight: 600; color: #3a7bd5;">-</div>
                     </div>
                     <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
@@ -2233,7 +2233,7 @@
                 // Update market context values
                 document.getElementById('vixValue').textContent = data.vix ? data.vix.toFixed(1) : '-';
                 document.getElementById('sessionValue').textContent = data.market_session || '-';
-                document.getElementById('volumeValue').textContent = data.spy_volume ? (data.spy_volume/1000000).toFixed(1) + 'M' : '-';
+                document.getElementById('volumeValue').textContent = data.qqq_volume ? (data.qqq_volume/1000000).toFixed(1) + 'M' : '-';
                 document.getElementById('dxyValue').textContent = data.dxy_price ? data.dxy_price.toFixed(2) : '-';
                 
                 const dataSourceEl = document.getElementById('marketDataSource');
@@ -2306,7 +2306,7 @@
                         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 14px;">
                             <div><strong>VIX:</strong> ${market?.vix || 'N/A'}</div>
                             <div><strong>Session:</strong> ${market?.session || 'N/A'}</div>
-                            <div><strong>SPY Volume:</strong> ${market?.spy_volume ? (market.spy_volume/1000000).toFixed(1) + 'M' : 'N/A'}</div>
+                            <div><strong>QQQ Volume:</strong> ${market?.qqq_volume ? (market.qqq_volume/1000000).toFixed(1) + 'M' : 'N/A'}</div>
                             <div><strong>DXY:</strong> ${market?.dxy_price || 'N/A'}</div>
                             <div><strong>Data Source:</strong> ${market?.data_source || 'N/A'}</div>
                         </div>
