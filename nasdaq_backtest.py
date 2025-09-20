@@ -13,11 +13,36 @@ class NasdaqBacktester:
     def backtest(self, symbol='QQQ', start_date='2004-01-01', confidence_threshold=60):
         """Backtest the ML model over 20 years"""
         
-        # Download full dataset
-        ticker = yf.Ticker(symbol)
-        df = ticker.history(start=start_date, end=datetime.now().strftime('%Y-%m-%d'))
+        # Download full dataset using Alpha Vantage
+        import requests
+        import os
         
-        if len(df) < 1000:
+        try:
+            api_key = os.environ.get('ALPHA_VANTAGE_KEY', '3GX5OV6NVBXUB01E')
+            url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=full&apikey={api_key}'
+            response = requests.get(url, timeout=30)
+            data = response.json()
+            
+            if 'Time Series (Daily)' in data:
+                ts_data = data['Time Series (Daily)']
+                df = pd.DataFrame({
+                    'Open': [float(ts_data[date]['1. open']) for date in ts_data],
+                    'High': [float(ts_data[date]['2. high']) for date in ts_data], 
+                    'Low': [float(ts_data[date]['3. low']) for date in ts_data],
+                    'Close': [float(ts_data[date]['4. close']) for date in ts_data],
+                    'Volume': [int(ts_data[date]['5. volume']) for date in ts_data]
+                }, index=pd.to_datetime(list(ts_data.keys())))
+                df = df.sort_index()
+                print(f"Downloaded {len(df)} rows from Alpha Vantage for backtest")
+            else:
+                raise Exception(f"Alpha Vantage error: {data.get('Error Message', 'Unknown error')}")
+        except Exception as e:
+            print(f"Alpha Vantage failed: {e}, falling back to yfinance")
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(start=start_date, end=datetime.now().strftime('%Y-%m-%d'))
+            print(f"Downloaded {len(df)} rows from yfinance for backtest")
+        
+        if len(df) < 200:
             raise ValueError("Insufficient historical data")
             
         # Split into training and testing periods
@@ -47,7 +72,7 @@ class NasdaqBacktester:
                     train_features['target'] = train_features['Close'].shift(-1) / train_features['Close'] - 1
                     train_features = train_features.dropna()
                     
-                    if len(train_features) < 100:
+                    if len(train_features) < 50:
                         continue
                         
                     feature_cols = [col for col in train_features.columns if col not in ['target', 'Open', 'High', 'Low', 'Close', 'Volume']]
