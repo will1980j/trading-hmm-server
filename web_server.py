@@ -250,10 +250,20 @@ def nasdaq_predict():
         
         prediction = predictor.predict_with_confidence(symbol)
         
+        # Convert numpy types to JSON serializable types
+        json_prediction = {
+            'prediction': float(prediction['prediction']),
+            'confidence': float(prediction['confidence']),
+            'individual_predictions': {k: float(v) for k, v in prediction['individual_predictions'].items()},
+            'should_trade': bool(prediction['should_trade']),
+            'direction': str(prediction['direction']),
+            'magnitude': float(prediction['magnitude'])
+        }
+        
         return jsonify({
             'status': 'success',
             'symbol': symbol,
-            'prediction': prediction,
+            'prediction': json_prediction,
             'timestamp': datetime.now().isoformat()
         })
         
