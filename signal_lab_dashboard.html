@@ -2221,16 +2221,26 @@
                 const data = await response.json();
                 console.log('Market Context Response:', data);
                 
-                // Reject fallback data
-                if (data.data_source === 'Fallback') {
-                    throw new Error('Fallback data not allowed');
-                }
-                
                 if (data.error) {
                     throw new Error(data.error);
                 }
                 
-                // Update market context values
+                // Check for fallback data and handle appropriately
+                if (data.data_source === 'Fallback') {
+                    console.warn('API returned fallback data, showing offline status');
+                    // Set all values to indicate no real data available
+                    document.getElementById('vixValue').textContent = '-';
+                    document.getElementById('sessionValue').textContent = '-';
+                    document.getElementById('volumeValue').textContent = '-';
+                    document.getElementById('dxyValue').textContent = '-';
+                    const dataSourceEl = document.getElementById('marketDataSource');
+                    if (dataSourceEl) {
+                        dataSourceEl.textContent = 'No Real Data';
+                    }
+                    return;
+                }
+                
+                // Update market context values with real data
                 document.getElementById('vixValue').textContent = data.vix ? data.vix.toFixed(1) : '-';
                 document.getElementById('sessionValue').textContent = data.market_session || '-';
                 document.getElementById('volumeValue').textContent = data.qqq_volume ? (data.qqq_volume/1000000).toFixed(1) + 'M' : '-';
@@ -2251,10 +2261,10 @@
                 
             } catch (error) {
                 console.error('Error loading market context:', error);
-                document.getElementById('vixValue').textContent = 'N/A';
-                document.getElementById('sessionValue').textContent = 'N/A';
-                document.getElementById('volumeValue').textContent = 'N/A';
-                document.getElementById('dxyValue').textContent = 'N/A';
+                document.getElementById('vixValue').textContent = '-';
+                document.getElementById('sessionValue').textContent = '-';
+                document.getElementById('volumeValue').textContent = '-';
+                document.getElementById('dxyValue').textContent = '-';
                 const dataSourceEl = document.getElementById('marketDataSource');
                 if (dataSourceEl) {
                     dataSourceEl.textContent = 'Offline';
