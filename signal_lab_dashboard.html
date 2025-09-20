@@ -611,10 +611,7 @@
             <div id="dailyCalendar" style="width: 100%; min-height: 400px;"></div>
         </div>
         
-        <div class="chart-container">
-            <h3 style="margin-bottom: 20px; color: #ff6b7a;">Divergence Impact Analysis</h3>
-            <div id="divergenceAnalysis" class="loading">Analyzing divergence performance...</div>
-        </div>
+
         
         <div class="chart-container">
             <h3 style="margin-bottom: 20px; color: #38ef7d;">Time Analysis for Selected Sessions</h3>
@@ -740,7 +737,6 @@
                     }));
                     
                     console.log(`✅ Loaded ${signals.length} ${dataSource.toUpperCase()} signals`);
-                    await runDivergenceAnalysis();
                     await runTimeAnalysis();
                     await runAIOptimization();
                     updateAnalysis();
@@ -1780,75 +1776,7 @@
             });
         }
         
-        // Divergence Analysis Function
-        async function runDivergenceAnalysis() {
-            if (signals.length < 5) {
-                document.getElementById('divergenceAnalysis').innerHTML = 'Need at least 5 signals for divergence analysis';
-                return;
-            }
-            
-            const beStrategy = document.getElementById('beStrategy').value;
-            const rTarget = parseFloat(document.getElementById('rTarget').value) || 2;
-            const selectedSessions = getSelectedSessions();
-            
-            const filteredSignals = signals.filter(signal => 
-                selectedSessions.includes(signal.session)
-            );
-            
-            // Group by divergence type
-            const divergenceGroups = {
-                'None': [],
-                'DXY_Bearish': [],
-                'DXY_Bullish': [],
-                'ES_Divergence': [],
-                'YM_Divergence': [],
-                'Multi_Symbol': []
-            };
-            
-            filteredSignals.forEach(signal => {
-                const divType = signal.divergenceType || 'None';
-                if (divergenceGroups[divType]) {
-                    divergenceGroups[divType].push(signal);
-                }
-            });
-            
-            let analysisHtml = `
-                <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,107,122,0.3); border-radius: 20px; padding: 25px; backdrop-filter: blur(20px);">
-                    <h4 style="color: #ff6b7a; margin-bottom: 20px; font-size: 18px;">📊 Divergence Performance Analysis</h4>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-            `;
-            
-            Object.entries(divergenceGroups).forEach(([divType, signals]) => {
-                if (signals.length > 0) {
-                    const results = signals.map(signal => calculateTradeResult(signal, beStrategy, rTarget));
-                    const wins = results.filter(r => r > 0).length;
-                    const total = results.length;
-                    const winRate = total > 0 ? (wins / total) * 100 : 0;
-                    const expectancy = total > 0 ? results.reduce((sum, r) => sum + r, 0) / total : 0;
-                    
-                    const cardColor = expectancy > 0 ? '#00ff88' : '#ff4757';
-                    
-                    analysisHtml += `
-                        <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 12px; text-align: center; border-left: 4px solid ${cardColor};">
-                            <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: ${cardColor};">${divType.replace('_', ' ')}</div>
-                            <div style="font-size: 20px; font-weight: 700; color: ${cardColor}; margin-bottom: 4px;">${expectancy.toFixed(3)}R</div>
-                            <div style="font-size: 12px; opacity: 0.8;">${winRate.toFixed(1)}% WR</div>
-                            <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">${total} trades</div>
-                        </div>
-                    `;
-                }
-            });
-            
-            analysisHtml += `
-                    </div>
-                    <div style="margin-top: 20px; font-size: 12px; color: rgba(255,255,255,0.7); text-align: center;">
-                        Divergence signals show enhanced performance when multiple symbols confirm the same directional bias
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('divergenceAnalysis').innerHTML = analysisHtml;
-        }
+
         
         // ML Dashboard Functions
         async function loadMLInsights() {
