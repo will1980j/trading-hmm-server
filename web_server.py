@@ -3701,6 +3701,35 @@ def recover_missed_signals_endpoint():
         logger.error(f"Error recovering missed signals: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/scrape-qqq-volume', methods=['GET'])
+def scrape_qqq_volume_endpoint():
+    """Scrape QQQ volume from MarketWatch"""
+    try:
+        from qqq_scraper import scrape_qqq_volume
+        volume = scrape_qqq_volume()
+        
+        if volume:
+            return jsonify({
+                'status': 'success',
+                'volume': volume,
+                'volume_formatted': f"{volume/1000000:.1f}M",
+                'source': 'MarketWatch'
+            })
+        else:
+            return jsonify({
+                'status': 'failed',
+                'volume': None,
+                'error': 'Could not scrape volume'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"QQQ scraping error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'volume': None,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/test-webhook', methods=['POST', 'GET'])
 def test_webhook():
     """Test webhook reception"""
