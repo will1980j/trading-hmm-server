@@ -3117,6 +3117,13 @@
                 'Saturday': dayOfWeekCounts[6]
             });
             
+            // Debug: log Monday trades specifically
+            const mondayTrades = Object.entries(dailyData).filter(([date, data]) => {
+                const dayOfWeek = new Date(date).getDay();
+                return dayOfWeek === 1;
+            });
+            console.log('📅 Monday trades found:', mondayTrades.length, mondayTrades.map(([date]) => date));
+            
             // Get date range and calculate performance metrics
             const dates = Object.keys(dailyData).sort();
             if (dates.length === 0) return;
@@ -4273,6 +4280,9 @@
         window.showMLRecommendations = showMLRecommendations;
         window.loadMarketContext = loadMarketContext;
         window.showMLPredictionModal = showMLPredictionModal;
+    </script>
+</body>
+</html>
     </script>
 </body>
 </html>
