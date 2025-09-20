@@ -4926,6 +4926,121 @@ Analyze this NQ level tracking data and provide:
 
 
 
+# GPT-4 Strategy Analysis Endpoints
+@app.route('/api/gpt4-strategy-analysis', methods=['POST'])
+@login_required
+def gpt4_strategy_analysis():
+    try:
+        if not client:
+            return jsonify({"error": "OpenAI API key not configured"}), 500
+            
+        data = request.get_json()
+        trading_data = data.get('tradingData', {})
+        
+        # Build analysis context
+        context = f"""Trading Strategy Analysis Request:
+        
+Trading Data Summary:
+- Total Trades: {trading_data.get('totalTrades', 0)}
+- Win Rate: {trading_data.get('winRate', 0)}%
+- Expectancy: {trading_data.get('expectancy', 0):.3f}R
+- Consecutive Losses: {trading_data.get('consecutiveLosses', 0)}
+        
+Provide strategic analysis focusing on:
+1. Strategy optimization opportunities
+2. Risk management improvements
+3. Performance enhancement recommendations
+4. Market timing insights
+        
+Keep analysis concise and actionable."""
+        
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': environ.get('OPENAI_MODEL', 'gpt-4o'),
+                'messages': [
+                    {"role": "system", "content": "You are an expert trading strategist specializing in futures optimization and systematic trading."},
+                    {"role": "user", "content": context}
+                ],
+                'max_tokens': 400,
+                'temperature': 0.3
+            }
+        )
+        response_data = response.json()
+        
+        if 'choices' not in response_data or not response_data['choices']:
+            return jsonify({"error": "Invalid AI response format"}), 500
+        
+        ai_content = response_data['choices'][0]['message']['content']
+        
+        return jsonify({
+            "analysis": ai_content,
+            "status": "success"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in GPT-4 strategy analysis: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/gpt4-stats-analysis', methods=['POST'])
+@login_required
+def gpt4_stats_analysis():
+    try:
+        if not client:
+            return jsonify({"error": "OpenAI API key not configured"}), 500
+            
+        data = request.get_json()
+        stats_data = data.get('statsData', {})
+        
+        # Build stats analysis context
+        context = f"""Trading Statistics Analysis:
+        
+Key Metrics:
+- Win Rate: {stats_data.get('winRate', 0)}%
+- Expectancy: {stats_data.get('expectancy', 0):.3f}R
+- Sessions Analysis: {stats_data.get('sessions', {})}
+- Timing Patterns: {stats_data.get('timing', {})}
+        
+Analyze these statistics and provide:
+1. Performance strengths and weaknesses
+2. Statistical significance insights
+3. Optimization recommendations
+4. Risk assessment
+        
+Focus on data-driven insights."""
+        
+        import requests
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {client}', 'Content-Type': 'application/json'},
+            json={
+                'model': environ.get('OPENAI_MODEL', 'gpt-4o'),
+                'messages': [
+                    {"role": "system", "content": "You are an expert quantitative analyst specializing in trading statistics and performance optimization."},
+                    {"role": "user", "content": context}
+                ],
+                'max_tokens': 400,
+                'temperature': 0.3
+            }
+        )
+        response_data = response.json()
+        
+        if 'choices' not in response_data or not response_data['choices']:
+            return jsonify({"error": "Invalid AI response format"}), 500
+        
+        ai_content = response_data['choices'][0]['message']['content']
+        
+        return jsonify({
+            "analysis": ai_content,
+            "status": "success"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in GPT-4 stats analysis: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 # Add economic news cache table creation and market context columns
 try:
     if db_enabled and db:
