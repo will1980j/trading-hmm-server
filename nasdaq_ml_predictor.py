@@ -90,8 +90,8 @@ class NasdaqMLPredictor:
         
         df = self.create_features(df)
         
-        # Target: next 3-day return (more predictable than 1-day)
-        df['target'] = df['Close'].shift(-3) / df['Close'] - 1
+        # Target: next day's return
+        df['target'] = df['Close'].shift(-1) / df['Close'] - 1
         df = df.dropna()
         
         feature_cols = [col for col in df.columns if col not in ['target', 'Open', 'High', 'Low', 'Close', 'Volume']]
