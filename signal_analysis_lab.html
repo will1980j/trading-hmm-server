@@ -1478,11 +1478,13 @@
             
             // Auto-fill news for today immediately after economic news loads
             setTimeout(() => {
-                autoFillNewsFields(today);
+                const timeValue = document.getElementById('entryTime')?.value;
+                autoFillNewsFields(today, timeValue);
             }, 500);
             
             dateEl.addEventListener('change', function() {
-                if (this.value) autoFillNewsFields(this.value);
+                const timeValue = document.getElementById('entryTime')?.value;
+                if (this.value) autoFillNewsFields(this.value, timeValue);
             });
         }
         
@@ -1555,6 +1557,8 @@
         if (timeEl) {
             timeEl.addEventListener('input', function() {
                 autoAssignSession(this.value);
+                const dateValue = document.getElementById('signalDate')?.value;
+                if (dateValue && this.value) autoFillNewsFields(dateValue, this.value);
             });
         }
         
@@ -1714,9 +1718,9 @@
             };
         }
         
-        function autoFillNewsFields(date) {
-            const newsData = getNewsForDate(date);
-            console.log('📅 Auto-fill for', date, ':', newsData);
+        function autoFillNewsFields(date, time) {
+            const newsData = getNewsForDateTime(date, time);
+            console.log('📅 Auto-fill for', date, time, ':', newsData);
             
             if (newsData.proximity !== 'None') {
                 document.getElementById('newsProximity').value = newsData.proximity;
@@ -1732,6 +1736,67 @@
                 updateNewsSelection();
                 console.log('✅ News auto-filled');
             }
+        }
+        
+        function getNewsForDateTime(dateStr, timeStr) {
+            if (!timeStr) return getNewsForDate(dateStr);
+            
+            const tradeDateTime = new Date(`${dateStr}T${timeStr}:00`);
+            const events = [];
+            
+            // Check news within 30 minutes of trade time
+            Object.keys(economicNewsData).forEach(newsDateStr => {
+                if (newsDateStr.startsWith(dateStr)) {
+                    // Parse news time if available in the data
+                    economicNewsData[newsDateStr].forEach(event => {
+                        // If event has time info, check if within 30 minutes
+                        if (typeof event === 'object' && event.time) {
+                            const eventDateTime = new Date(`${dateStr}T${event.time}:00`);
+                            const timeDiff = Math.abs(tradeDateTime - eventDateTime) / (1000 * 60); // minutes
+                            if (timeDiff <= 30) {
+                                events.push(event.title || event.name || event.event);
+                            }
+                        } else {
+                            // Fallback: include all events for the day
+                            events.push(typeof event === 'string' ? event : event.title || event.name);
+                        }
+                    });
+                }
+            });
+            
+            if (events.length > 0) {
+                // Determine proximity based on time difference
+                let proximity = 'Low';
+                if (timeStr) {
+                    const tradeDateTime = new Date(`${dateStr}T${timeStr}:00`);
+                    let minTimeDiff = Infinity;
+                    
+                    Object.keys(economicNewsData).forEach(newsDateStr => {
+                        if (newsDateStr.startsWith(dateStr)) {
+                            economicNewsData[newsDateStr].forEach(event => {
+                                if (typeof event === 'object' && event.time) {
+                                    const eventDateTime = new Date(`${dateStr}T${event.time}:00`);
+                                    const timeDiff = Math.abs(tradeDateTime - eventDateTime) / (1000 * 60);
+                                    minTimeDiff = Math.min(minTimeDiff, timeDiff);
+                                }
+                            });
+                        }
+                    });
+                    
+                    if (minTimeDiff <= 10) proximity = 'High';
+                    else if (minTimeDiff <= 20) proximity = 'Medium';
+                    else proximity = 'Low';
+                }
+                
+                return {
+                    proximity: proximity,
+                    events: events
+                };
+            }
+            return {
+                proximity: 'None',
+                events: ['None']
+            };
         }
         
         // Save/restore form state
