@@ -3599,6 +3599,37 @@ def remove_fake_trades():
     except Exception as e:
         return f"ERROR: {str(e)}"
 
+@app.route('/api/check-signals', methods=['GET'])
+def check_signals_endpoint():
+    """Quick signal check endpoint"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'})
+        
+        cursor = db.conn.cursor()
+        
+        # Check live signals
+        cursor.execute("SELECT COUNT(*) as count FROM live_signals")
+        live_count = cursor.fetchone()['count']
+        
+        # Check recent signals
+        cursor.execute("SELECT symbol, bias, strength, timestamp FROM live_signals ORDER BY timestamp DESC LIMIT 10")
+        recent_signals = [dict(row) for row in cursor.fetchall()]
+        
+        # Check signal lab trades
+        cursor.execute("SELECT COUNT(*) as count FROM signal_lab_trades")
+        lab_count = cursor.fetchone()['count']
+        
+        return jsonify({
+            'live_signals_count': live_count,
+            'signal_lab_trades_count': lab_count,
+            'recent_signals': recent_signals,
+            'status': 'success'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
 @app.route('/api/debug-trades', methods=['GET'])
 @login_required
 def debug_trades_endpoint():
