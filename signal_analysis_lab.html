@@ -636,7 +636,10 @@
                     <label>Session</label>
                     <input type="text" id="session" readonly style="background: #f0f0f0 !important; color: #666 !important;" placeholder="Auto-assigned">
                 </div>
-
+                <div class="input-group price">
+                    <label>Target</label>
+                    <input type="number" id="targetRScore" step="0.1" placeholder="2.0">
+                </div>
 
                 <div class="input-group breakeven">
                     <label>BE (None)</label>
@@ -796,7 +799,7 @@
                             <th>Time</th>
                             <th>Bias</th>
                             <th>Session</th>
-
+                            <th>Target</th>
                             <th>MFE(None)</th>
                             <th>BE1</th>
                             <th>Hit1</th>
@@ -861,6 +864,7 @@
                         be2Level: parseFloat(trade.be2_level) || 2,
                         be2Hit: Boolean(trade.be2_hit),
                         mfe2: parseFloat(trade.mfe2) || 0,
+                        targetRScore: parseFloat(trade.target_r_score) || 0,
                         newsProximity: trade.newsProximity || trade.news_proximity || 'None',
                         newsEvent: trade.newsEvent || trade.news_event || 'None',
                         screenshot: trade.screenshot
@@ -980,6 +984,7 @@
                 time: document.getElementById('entryTime')?.value || '',
                 bias: document.getElementById('bias')?.value || 'Bullish',
                 session: document.getElementById('session')?.value || 'Asia',
+                targetRScore: parseFloat(document.getElementById('targetRScore')?.value) || 0,
                 mfeNone: parseFloat(document.getElementById('mfeNone')?.value) || 0,
                 be1Level: parseFloat(document.getElementById('be1Level')?.value) || 1,
                 be1Hit: document.getElementById('be1Hit')?.checked || false,
@@ -1005,7 +1010,7 @@
                         time: signal.time,
                         bias: signal.bias,
                         session: signal.session,
-
+                        target_r_score: signal.targetRScore,
                         mfe_none: signal.mfeNone,
                         be1_level: signal.be1Level,
                         be1_hit: signal.be1Hit,
@@ -1044,7 +1049,7 @@
                 entryTime: document.getElementById('entryTime'),
                 bias: document.getElementById('bias'),
                 session: document.getElementById('session'),
-
+                targetRScore: document.getElementById('targetRScore'),
                 mfeNone: document.getElementById('mfeNone'),
                 be1Level: document.getElementById('be1Level'),
                 be1Hit: document.getElementById('be1Hit'),
@@ -1059,7 +1064,7 @@
             if (els.entryTime) els.entryTime.value = signal.time;
             if (els.bias) els.bias.value = signal.bias;
             if (els.session) els.session.value = signal.session;
-
+            if (els.targetRScore) els.targetRScore.value = signal.targetRScore || 0;
             if (els.mfeNone) els.mfeNone.value = signal.mfeNone || 0;
             if (els.be1Level) els.be1Level.value = signal.be1Level || 1;
             if (els.be1Hit) els.be1Hit.checked = signal.be1Hit || false;
@@ -1100,7 +1105,7 @@
                 time: document.getElementById('entryTime')?.value || '',
                 bias: document.getElementById('bias')?.value || 'Bullish',
                 session: document.getElementById('session')?.value || 'Asia',
-
+                targetRScore: parseFloat(document.getElementById('targetRScore')?.value) || 0,
                 mfeNone: parseFloat(document.getElementById('mfeNone')?.value) || 0,
                 be1Level: parseFloat(document.getElementById('be1Level')?.value) || 1,
                 be1Hit: document.getElementById('be1Hit')?.checked || false,
@@ -1126,7 +1131,7 @@
                         time: updatedSignal.time,
                         bias: updatedSignal.bias,
                         session: updatedSignal.session,
-
+                        target_r_score: updatedSignal.targetRScore,
                         mfe_none: updatedSignal.mfeNone,
                         be1_level: updatedSignal.be1Level,
                         be1_hit: updatedSignal.be1Hit,
@@ -1180,6 +1185,7 @@
             
             if (els.signalDate) els.signalDate.value = '';
             if (els.entryTime) els.entryTime.value = '';
+            if (els.targetRScore) els.targetRScore.value = '';
             if (els.mfeNone) els.mfeNone.value = '';
             if (els.be1Hit) els.be1Hit.checked = false;
             if (els.mfe1) els.mfe1.value = '';
@@ -1260,8 +1266,7 @@
                     <td>${signal.time}</td>
                     <td>${signal.bias}</td>
                     <td>${signal.session}</td>
-
-
+                    <td class="editable-cell" onclick="editInline(${signal.id}, 'targetRScore', this)">${signal.targetRScore ? signal.targetRScore.toFixed(1) + 'R' : '-'}</td>
                     <td class="editable-cell ${signal.mfeNone > 0 ? 'positive' : signal.mfeNone < 0 ? 'negative' : 'neutral'}" onclick="editInline(${signal.id}, 'mfeNone', this)">${signal.mfeNone ? signal.mfeNone.toFixed(1) + 'R' : '-'}</td>
                     <td>${signal.be1Level}R</td>
                     <td class="editable-cell" onclick="editInlineCheckbox(${signal.id}, 'be1Hit', this)">${signal.be1Hit ? '✓' : '✗'}</td>
@@ -2585,7 +2590,8 @@
                     const fieldMap = {
                         'mfeNone': 'mfe_none',
                         'mfe1': 'mfe1',
-                        'mfe2': 'mfe2'
+                        'mfe2': 'mfe2',
+                        'targetRScore': 'target_r_score'
                     };
                     const dbField = fieldMap[field] || field;
                     const updateData = { [dbField]: newValue };
