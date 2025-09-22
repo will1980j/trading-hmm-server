@@ -640,17 +640,6 @@
                     <label>Target</label>
                     <input type="number" id="targetRScore" step="0.1" placeholder="2.0">
                 </div>
-
-                <div class="input-group breakeven">
-                    <label>BE (None)</label>
-                    <select disabled style="background: #f0f0f0 !important;">
-                        <option>None</option>
-                    </select>
-                </div>
-                <div class="input-group mfe">
-                    <label>MFE</label>
-                    <input type="number" id="mfeNone" step="0.1" placeholder="2.5">
-                </div>
                 <div class="input-group breakeven">
                     <label>BE (1)</label>
                     <select id="be1Level">
@@ -667,6 +656,17 @@
                 <div class="input-group mfe">
                     <label>MFE</label>
                     <input type="number" id="mfe1" step="0.1" placeholder="2.5">
+                </div>
+
+                <div class="input-group breakeven">
+                    <label>BE (None)</label>
+                    <select disabled style="background: #f0f0f0 !important;">
+                        <option>None</option>
+                    </select>
+                </div>
+                <div class="input-group mfe">
+                    <label>MFE</label>
+                    <input type="number" id="mfeNone" step="0.1" placeholder="2.5">
                 </div>
 
 
@@ -800,10 +800,10 @@
                             <th>Bias</th>
                             <th>Session</th>
                             <th>Target</th>
-                            <th>MFE(None)</th>
                             <th>BE1</th>
                             <th>Hit1</th>
                             <th>MFE1</th>
+                            <th>MFE(None)</th>
 
                             <th>News</th>
                             <th>Event</th>
@@ -1259,10 +1259,10 @@
                     <td>${signal.bias}</td>
                     <td>${signal.session}</td>
                     <td class="editable-cell" onclick="editInline(${signal.id}, 'targetRScore', this)">${signal.targetRScore ? signal.targetRScore.toFixed(1) + 'R' : '-'}</td>
-                    <td class="editable-cell ${signal.mfeNone > 0 ? 'positive' : signal.mfeNone < 0 ? 'negative' : 'neutral'}" onclick="editInline(${signal.id}, 'mfeNone', this)">${signal.mfeNone ? signal.mfeNone.toFixed(1) + 'R' : '-'}</td>
                     <td>${signal.be1Level}R</td>
                     <td class="editable-cell" onclick="editInlineCheckbox(${signal.id}, 'be1Hit', this)">${signal.be1Hit ? '✓' : '✗'}</td>
                     <td class="editable-cell ${signal.mfe1 > 0 ? 'positive' : signal.mfe1 < 0 ? 'negative' : 'neutral'}" onclick="editInline(${signal.id}, 'mfe1', this)">${signal.mfe1 ? signal.mfe1.toFixed(1) + 'R' : '-'}</td>
+                    <td class="editable-cell ${signal.mfeNone > 0 ? 'positive' : signal.mfeNone < 0 ? 'negative' : 'neutral'}" onclick="editInline(${signal.id}, 'mfeNone', this)">${signal.mfeNone ? signal.mfeNone.toFixed(1) + 'R' : '-'}</td>
 
 
 
