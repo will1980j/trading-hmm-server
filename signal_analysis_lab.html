@@ -864,7 +864,7 @@
                         be2Level: parseFloat(trade.be2_level) || 2,
                         be2Hit: Boolean(trade.be2_hit),
                         mfe2: parseFloat(trade.mfe2) || 0,
-                        targetRScore: parseFloat(trade.target_r_score) || 0,
+                        targetRScore: parseFloat(trade.target_r_score || trade.targetRScore) || 0,
                         newsProximity: trade.newsProximity || trade.news_proximity || 'None',
                         newsEvent: trade.newsEvent || trade.news_event || 'None',
                         screenshot: trade.screenshot

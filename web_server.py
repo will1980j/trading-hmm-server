@@ -85,6 +85,20 @@ try:
     db = RailwayDB()
     db_enabled = True
     logger.info("Database connected successfully")
+    
+    # Auto-add missing target_r_score column if needed
+    if db and db.conn:
+        try:
+            cursor = db.conn.cursor()
+            cursor.execute("""
+                ALTER TABLE signal_lab_trades 
+                ADD COLUMN IF NOT EXISTS target_r_score REAL DEFAULT NULL
+            """)
+            db.conn.commit()
+            logger.info("✅ Ensured target_r_score column exists")
+        except Exception as e:
+            logger.warning(f"Column check/creation failed: {str(e)}")
+            
 except (ImportError, ConnectionError) as e:
     safe_error = sanitize_log_input(str(e))
     logger.error(f"Database connection failed: {safe_error}")
@@ -1740,6 +1754,7 @@ def update_signal_lab_trade(trade_id):
             'entry_price': 'entry_price',
             'stop_loss': 'stop_loss',
             'take_profit': 'take_profit',
+            'target_r_score': 'target_r_score',
             'mfe_none': 'mfe_none',
             'be1_level': 'be1_level',
             'be1_hit': 'be1_hit',
