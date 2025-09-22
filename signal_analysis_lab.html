@@ -758,7 +758,7 @@
 
         
         <div class="data-input">
-            <h3>Signal Analysis Data <span id="activeTradesCounter" style="background: linear-gradient(45deg, #ff6b35, #f7931e); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-left: 10px; box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3); animation: pulse 2s infinite;">0 Active</span></h3>
+            <h3>Signal Analysis Data</h3>
             
             <!-- Trading Calendar - NY EST Timezone Synchronized -->
             <!-- This calendar uses the same timezone handling as /signal-lab-dashboard -->
@@ -787,7 +787,7 @@
                 
                 <div style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); display: flex; gap: 15px; justify-content: center;">
                     <span><span style="color: #00ff88;">●</span> Has trades</span>
-                    <span><span style="color: #ffa502;">●</span> Active trades (need MFE)</span>
+
                     <span>Click days to filter</span>
                 </div>
             </div>
@@ -1236,7 +1236,7 @@
             const tbody = document.getElementById('signalsBody');
             tbody.innerHTML = '';
             
-            let activeTradesCount = 0;
+
             
             // Filter signals by selected date if any (using NY EST timezone for consistency)
             let displaySignals = signals;
@@ -1246,23 +1246,15 @@
             
             displaySignals.forEach(signal => {
                 const row = tbody.insertRow();
-                const isActiveTrade = !signal.mfeNone || !signal.mfe1 || !signal.mfe2;
-                
-                if (isActiveTrade) {
-                    activeTradesCount++;
-                }
+
                 const screenshotCell = signal.screenshot ? 
                     `<img src="${signal.screenshot}" style="width: 30px; height: 20px; object-fit: cover; border-radius: 3px; cursor: pointer; margin-right: 5px;" onclick="viewScreenshot('${signal.id}')" title="Click to view full size">` : 
                     '';
                 
-                if (isActiveTrade) {
-                    row.style.background = 'rgba(255, 165, 0, 0.3)';
-                    row.style.border = '2px solid rgba(255, 165, 0, 0.8)';
-                    row.title = 'ACTIVE TRADE - Add MFE when closed';
-                }
+
                 
                 row.innerHTML = `
-                    <td>${signal.date}${isActiveTrade ? ' 🔄' : ''}</td>
+                    <td>${signal.date}</td>
                     <td>${signal.time}</td>
                     <td>${signal.bias}</td>
                     <td>${signal.session}</td>
@@ -1286,20 +1278,7 @@
                 `;
             });
             
-            // Update active trades counter
-            const counter = document.getElementById('activeTradesCounter');
-            if (counter) {
-                const totalShown = displaySignals.length;
-                const totalAll = signals.length;
-                counter.textContent = selectedDate ? 
-                    `${totalShown}/${totalAll} (${selectedDate})` : 
-                    `${activeTradesCount} Active`;
-                counter.style.background = selectedDate ? 
-                    'linear-gradient(45deg, #3742fa, #5352ed)' : 
-                    (activeTradesCount > 0 ? 
-                        'linear-gradient(45deg, #ff6b35, #f7931e)' : 
-                        'linear-gradient(45deg, #00ff88, #00d4aa)');
-            }
+
             
             // Update calendar
             updateCalendar();
@@ -1956,41 +1935,35 @@
             const daysInMonth = lastDay.getDate();
             const startingDayOfWeek = firstDay.getDay();
             
-            // Count trades, active trades, and calculate win rates by date
+            // Count trades and calculate win rates by date
             const tradesByDate = {};
-            const activeByDate = {};
             const winRatesByDate = {};
             
             signals.forEach(signal => {
                 if (signal.date) {
                     if (!tradesByDate[signal.date]) {
                         tradesByDate[signal.date] = 0;
-                        activeByDate[signal.date] = 0;
                         winRatesByDate[signal.date] = { noBE: 0, be1: 0, be2: 0, total: 0 };
                     }
                     
                     tradesByDate[signal.date]++;
                     winRatesByDate[signal.date].total++;
                     
-                    // Check if trade is active (missing MFE data)
-                    const isActive = !signal.mfeNone || !signal.mfe1 || !signal.mfe2;
-                    if (isActive) {
-                        activeByDate[signal.date]++;
-                    }
+
                     
                     // Calculate wins for each BE approach
-                    // No BE: MFE != -1 (not stopped out) OR active trade (no MFE yet)
-                    if ((signal.mfeNone && signal.mfeNone !== -1) || (!signal.mfeNone && isActive)) {
+                    // No BE: MFE != -1 (not stopped out)
+                    if (signal.mfeNone && signal.mfeNone !== -1) {
                         winRatesByDate[signal.date].noBE++;
                     }
                     
-                    // BE=1: BE1 was hit (triggered at 1R) OR active trade (assume winner)
-                    if (signal.be1Hit || (!signal.mfe1 && isActive)) {
+                    // BE=1: BE1 was hit (triggered at 1R)
+                    if (signal.be1Hit) {
                         winRatesByDate[signal.date].be1++;
                     }
                     
-                    // BE=2: BE2 was hit (triggered at 2R) OR active trade (assume winner)
-                    if (signal.be2Hit || (!signal.mfe2 && isActive)) {
+                    // BE=2: BE2 was hit (triggered at 2R)
+                    if (signal.be2Hit) {
                         winRatesByDate[signal.date].be2++;
                     }
                 }
@@ -2012,14 +1985,10 @@
                 // Generate date string in YYYY-MM-DD format (NY EST timezone)
                 const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 const tradeCount = tradesByDate[dateStr] || 0;
-                const activeCount = activeByDate[dateStr] || 0;
                 
                 dayElement.className = 'calendar-day';
                 if (tradeCount > 0) {
                     dayElement.classList.add('has-trades');
-                }
-                if (activeCount > 0) {
-                    dayElement.classList.add('has-active');
                 }
                 if (selectedDate === dateStr) {
                     dayElement.classList.add('selected');
@@ -2054,7 +2023,6 @@
                     <div class="day-number">${day}</div>
                     <div class="day-data">
                         ${tradeCount > 0 ? `<div class="day-trades">${tradeCount} trades</div>` : ''}
-                        ${activeCount > 0 ? `<div class="day-active">${activeCount} ACTIVE</div>` : ''}
                         ${winRatesHtml}
                         ${newsHtml}
                         ${tradeCount > 0 ? `<div style="margin-top: 5px; display: flex; gap: 3px;"><button onclick="event.stopPropagation(); filterDate('${dateStr}')" style="background: #00ff88; border: none; color: #1e3c72; padding: 2px 6px; border-radius: 3px; font-size: 9px; cursor: pointer; font-weight: 600;">Filter</button><button onclick="event.stopPropagation(); showDailyPopup('${dateStr}')" style="background: #3742fa; border: none; color: white; padding: 2px 6px; border-radius: 3px; font-size: 9px; cursor: pointer; font-weight: 600;">Chart</button></div>` : ''}
