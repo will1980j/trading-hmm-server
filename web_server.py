@@ -37,18 +37,16 @@ def get_current_session():
     hour = ny_time.hour
     minute = ny_time.minute
     
-    # Session times in NY timezone - EXACT TIMES PROVIDED
-    if 18 <= hour <= 23:
-        return "Asia"
-    elif 0 <= hour <= 5:
+    # Session times in NY timezone - UPDATED TO MATCH IMAGE
+    if 0 <= hour <= 5:
         return "London"
-    elif 6 <= hour <= 9 or (hour == 9 and minute <= 29):
+    elif 6 <= hour <= 8 or (hour == 8 and minute <= 29):
         return "NY Pre Market"
-    elif (hour == 9 and minute >= 30) or (10 <= hour <= 11):
+    elif (hour == 8 and minute >= 30) or (9 <= hour <= 11):
         return "NY AM"
     elif hour == 12:
         return "NY Lunch"
-    elif 13 <= hour <= 16:
+    elif 13 <= hour <= 15:
         return "NY PM"
     else:
         return "After Hours"
