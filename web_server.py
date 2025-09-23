@@ -49,7 +49,7 @@ def get_current_session():
     elif 13 <= hour < 16:
         return "NY PM"
     else:
-        return "After Hours"
+        return "Asia"
 
 # Constants - Updated for Railway deployment
 NEWLINE_CHAR = '\n'

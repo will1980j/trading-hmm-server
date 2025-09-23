@@ -1546,7 +1546,7 @@
             const [hours, minutes] = timeStr.split(':').map(Number);
             const totalMinutes = hours * 60 + minutes;
             
-            let session = 'After Hours'; // default
+            let session = 'Asia'; // default
             
             if (totalMinutes >= 0 && totalMinutes < 6 * 60) { // 00:00-05:59
                 session = 'London';
@@ -1559,7 +1559,7 @@
             } else if (totalMinutes >= 13 * 60 && totalMinutes < 16 * 60) { // 13:00-15:59
                 session = 'NY PM';
             } else {
-                session = 'After Hours';
+                session = 'Asia';
             }
             
             document.getElementById('session').value = session;
