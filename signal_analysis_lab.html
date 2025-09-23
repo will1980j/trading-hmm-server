@@ -1553,20 +1553,20 @@
             const [hours, minutes] = timeStr.split(':').map(Number);
             const totalMinutes = hours * 60 + minutes;
             
-            let session = 'Asia'; // default
+            let session = 'After Hours'; // default
             
-            if (totalMinutes >= 18 * 60) { // 18:00+
-                session = 'Asia';
-            } else if (totalMinutes >= 13 * 60) { // 13:00-16:59
-                session = 'NY PM';
-            } else if (totalMinutes >= 12 * 60) { // 12:00-12:59
-                session = 'NY Lunch';
-            } else if (totalMinutes >= 9.5 * 60) { // 09:30-11:59
-                session = 'NY AM';
-            } else if (totalMinutes >= 6 * 60) { // 06:00-09:29
-                session = 'NY Pre Market';
-            } else { // 00:00-05:59
+            if (totalMinutes >= 0 && totalMinutes < 6 * 60) { // 00:00-05:59
                 session = 'London';
+            } else if (totalMinutes >= 6 * 60 && totalMinutes < 8.5 * 60) { // 06:00-08:29
+                session = 'NY Pre Market';
+            } else if (totalMinutes >= 8.5 * 60 && totalMinutes < 12 * 60) { // 08:30-11:59
+                session = 'NY AM';
+            } else if (totalMinutes >= 12 * 60 && totalMinutes < 13 * 60) { // 12:00-12:59
+                session = 'NY Lunch';
+            } else if (totalMinutes >= 13 * 60 && totalMinutes < 16 * 60) { // 13:00-15:59
+                session = 'NY PM';
+            } else {
+                session = 'After Hours';
             }
             
             document.getElementById('session').value = session;
