@@ -1603,6 +1603,7 @@ def get_signal_lab_trades():
         # COMPLETELY UNIFIED QUERY: Both dashboards get identical data - all completed trades (including losses)
         cursor.execute("""
             SELECT id, date, time, bias, session, signal_type, 
+                   COALESCE(target_r_score, 0) as target_r_score,
                    COALESCE(mfe_none, mfe, 0) as mfe_none,
                    COALESCE(be1_level, 1) as be1_level,
                    COALESCE(be1_hit, false) as be1_hit,
@@ -1629,6 +1630,7 @@ def get_signal_lab_trades():
                 'bias': row['bias'],
                 'session': row['session'],
                 'signal_type': row['signal_type'],
+                'target_r_score': float(row['target_r_score']) if row['target_r_score'] is not None else 0,
                 'mfe': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
                 'mfe_none': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
                 'be1_level': float(row['be1_level']) if row['be1_level'] is not None else 1,
@@ -1682,9 +1684,9 @@ def create_signal_lab_trade():
         
         cursor.execute("""
             INSERT INTO signal_lab_trades 
-            (date, time, bias, session, signal_type, mfe_none, be1_level, be1_hit, mfe1, be2_level, be2_hit, mfe2, 
+            (date, time, bias, session, signal_type, target_r_score, mfe_none, be1_level, be1_hit, mfe1, be2_level, be2_hit, mfe2, 
              news_proximity, news_event, screenshot, analysis_data)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             data.get('date'),
@@ -1692,6 +1694,7 @@ def create_signal_lab_trade():
             data.get('bias'),
             data.get('session'),
             data.get('signal_type'),
+            data.get('target_r_score', 0),
             data.get('mfe_none', 0),
             data.get('be1_level', 1),
             data.get('be1_hit', False),
@@ -2963,6 +2966,7 @@ def get_signal_lab_15m_trades():
                 'bias': row['bias'],
                 'session': row['session'],
                 'signal_type': row['signal_type'],
+                'target_r_score': float(row.get('target_r_score', 0)) if row.get('target_r_score') is not None else 0,
                 'mfe': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
                 'mfe_none': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
                 'be1_level': float(row['be1_level']) if row['be1_level'] is not None else 1,
