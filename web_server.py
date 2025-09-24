@@ -208,6 +208,11 @@ def trade_manager():
 def signal_analysis_lab():
     return read_html_file('signal_analysis_lab.html')
 
+@app.route('/signal-analysis-5m')
+@login_required
+def signal_analysis_5m():
+    return read_html_file('signal-analysis-5m.html')
+
 @app.route('/signal-analysis-15m')
 @login_required
 def signal_analysis_15m():
@@ -2919,6 +2924,218 @@ def get_signal_correlations():
             pass
         logger.error(f"Error getting correlations: {str(e)}")
         return jsonify({'correlations': [], 'error': str(e)})
+
+# 5M Signal Lab API endpoints
+@app.route('/api/signal-lab-5m-trades', methods=['GET'])
+@login_required
+def get_signal_lab_5m_trades():
+    try:
+        if not db_enabled or not db:
+            logger.info("Database not available - returning empty array for local development")
+            return jsonify([]), 200
+        
+        cursor = db.conn.cursor()
+        
+        try:
+            cursor.execute("""
+                SELECT id, date, time, bias, session, signal_type, 
+                       COALESCE(mfe_none, 0) as mfe_none,
+                       COALESCE(be1_level, 1) as be1_level,
+                       COALESCE(be1_hit, false) as be1_hit,
+                       COALESCE(mfe1, 0) as mfe1,
+                       COALESCE(be2_level, 2) as be2_level,
+                       COALESCE(be2_hit, false) as be2_hit,
+                       COALESCE(mfe2, 0) as mfe2,
+                       news_proximity, news_event, screenshot, 
+                       analysis_data, created_at
+                FROM signal_lab_5m_trades 
+                ORDER BY created_at DESC
+            """)
+        except Exception as e:
+            logger.error(f"Query error: {sanitize_log_input(str(e))}")
+            return jsonify([]), 200
+        
+        rows = cursor.fetchall()
+        logger.info(f"Query returned {len(rows)} 5M signal rows")
+        
+        trades = []
+        for row in rows:
+            trade = {
+                'id': row['id'],
+                'date': str(row['date']) if row['date'] else None,
+                'time': str(row['time']) if row['time'] else None,
+                'bias': row['bias'],
+                'session': row['session'],
+                'signal_type': row['signal_type'],
+                'mfe': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
+                'mfe_none': float(row['mfe_none']) if row['mfe_none'] is not None else 0,
+                'be1_level': float(row['be1_level']) if row['be1_level'] is not None else 1,
+                'be1_hit': bool(row['be1_hit']) if row['be1_hit'] is not None else False,
+                'mfe1': float(row['mfe1']) if row['mfe1'] is not None else 0,
+                'be2_level': float(row['be2_level']) if row['be2_level'] is not None else 2,
+                'be2_hit': bool(row['be2_hit']) if row['be2_hit'] is not None else False,
+                'mfe2': float(row['mfe2']) if row['mfe2'] is not None else 0,
+                'newsProximity': row['news_proximity'] or 'None',
+                'newsEvent': row['news_event'] or 'None',
+                'screenshot': row['screenshot']
+            }
+            trades.append(trade)
+        
+        logger.info(f"Returning {len(trades)} 5M trades to client")
+        return jsonify(trades)
+        
+    except Exception as e:
+        import traceback
+        error_details = f"{str(e)} | Traceback: {traceback.format_exc()}"
+        logger.error(f"Error getting 5M signal lab trades: {error_details}")
+        return jsonify([]), 200
+
+@app.route('/api/signal-lab-5m-trades', methods=['POST'])
+@login_required
+def create_signal_lab_5m_trade():
+    try:
+        logger.info("POST /api/signal-lab-5m-trades called")
+        
+        if not db_enabled or not db:
+            logger.error("Database not available")
+            return jsonify({"error": "Database not available"}), 500
+        
+        data = request.get_json()
+        logger.info(f"Received 5M data: {data}")
+        
+        if not data:
+            logger.error("No JSON data received")
+            return jsonify({"error": "No data provided"}), 400
+        
+        try:
+            db.conn.rollback()
+        except Exception as e:
+            logger.error(f"Error rolling back transaction: {str(e)}")
+        
+        cursor = db.conn.cursor()
+        logger.info("Executing 5M INSERT query")
+        
+        cursor.execute("""
+            INSERT INTO signal_lab_5m_trades 
+            (date, time, bias, session, signal_type, mfe_none, be1_level, be1_hit, mfe1, be2_level, be2_hit, mfe2, 
+             news_proximity, news_event, screenshot, analysis_data)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (
+            data.get('date'),
+            data.get('time'),
+            data.get('bias'),
+            data.get('session'),
+            data.get('signal_type'),
+            data.get('mfe_none', 0),
+            data.get('be1_level', 1),
+            data.get('be1_hit', False),
+            data.get('mfe1', 0),
+            data.get('be2_level', 2),
+            data.get('be2_hit', False),
+            data.get('mfe2', 0),
+            data.get('news_proximity', 'None'),
+            data.get('news_event', 'None'),
+            data.get('screenshot'),
+            None
+        ))
+        
+        result = cursor.fetchone()
+        if result:
+            trade_id = result['id']
+        else:
+            raise Exception("INSERT failed - no ID returned")
+        db.conn.commit()
+        logger.info(f"Successfully created 5M trade with ID: {trade_id}")
+        
+        return jsonify({"id": trade_id, "status": "success"})
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        error_msg = str(e)
+        logger.error(f"Error creating 5M signal lab trade: {error_msg}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({"error": error_msg, "details": traceback.format_exc()}), 500
+
+@app.route('/api/signal-lab-5m-trades/<int:trade_id>', methods=['PUT'])
+@login_required
+def update_signal_lab_5m_trade(trade_id):
+    try:
+        if not db_enabled or not db:
+            return jsonify({"error": "Database not available"}), 500
+        
+        data = request.get_json()
+        logger.info(f"PUT /api/signal-lab-5m-trades/{trade_id} - Data: {data}")
+        
+        cursor = db.conn.cursor()
+        cursor.execute("SELECT id FROM signal_lab_5m_trades WHERE id = %s", (trade_id,))
+        if not cursor.fetchone():
+            return jsonify({"error": f"5M Trade with ID {trade_id} not found"}), 404
+        
+        update_fields = []
+        update_values = []
+        
+        field_mapping = {
+            'date': 'date',
+            'time': 'time', 
+            'bias': 'bias',
+            'session': 'session',
+            'signal_type': 'signal_type',
+            'mfe_none': 'mfe_none',
+            'be1_level': 'be1_level',
+            'be1_hit': 'be1_hit',
+            'mfe1': 'mfe1',
+            'be2_level': 'be2_level', 
+            'be2_hit': 'be2_hit',
+            'mfe2': 'mfe2',
+            'news_proximity': 'news_proximity',
+            'news_event': 'news_event',
+            'screenshot': 'screenshot'
+        }
+        
+        for field_key, db_column in field_mapping.items():
+            if field_key in data:
+                update_fields.append(f"{db_column} = %s")
+                update_values.append(data[field_key])
+        
+        if not update_fields:
+            return jsonify({"error": "No valid fields to update"}), 400
+        
+        update_values.append(trade_id)
+        
+        update_query = f"UPDATE signal_lab_5m_trades SET {', '.join(update_fields)} WHERE id = %s"
+        cursor.execute(update_query, update_values)
+        rows_affected = cursor.rowcount
+        db.conn.commit()
+        
+        return jsonify({"status": "success", "rows_affected": rows_affected})
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error updating 5M signal lab trade {trade_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/signal-lab-5m-trades/<int:trade_id>', methods=['DELETE'])
+@login_required
+def delete_signal_lab_5m_trade(trade_id):
+    try:
+        if not db_enabled or not db:
+            return jsonify({"error": "Database not available"}), 500
+        
+        cursor = db.conn.cursor()
+        cursor.execute("DELETE FROM signal_lab_5m_trades WHERE id = %s", (trade_id,))
+        db.conn.commit()
+        
+        return jsonify({"status": "success"})
+        
+    except Exception as e:
+        if hasattr(db, 'conn') and db.conn:
+            db.conn.rollback()
+        logger.error(f"Error deleting 5M signal lab trade: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 # 15M Signal Lab API endpoints
 @app.route('/api/signal-lab-15m-trades', methods=['GET'])
