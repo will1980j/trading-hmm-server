@@ -249,6 +249,171 @@
             box-shadow: 0 8px 25px rgba(255,107,53,0.4);
             background: linear-gradient(45deg, #ff8c42, var(--accent-color));
         }
+        
+        .trades-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .trades-table th,
+        .trades-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 13px;
+        }
+        
+        .trades-table th {
+            background: rgba(255,255,255,0.1);
+            font-weight: 600;
+            color: #ff6b35;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .trades-table tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .positive { color: #00ff88; font-weight: 600; }
+        .negative { color: #ff4757; font-weight: 600; }
+        .neutral { color: #ffa502; font-weight: 600; }
+        
+        .action-btn {
+            background: linear-gradient(45deg, #3742fa, #5352ed);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            color: white;
+            font-size: 11px;
+            cursor: pointer;
+            margin-right: 5px;
+            transition: all 0.2s ease;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(55,66,250,0.3);
+        }
+        
+        .delete-btn {
+            background: linear-gradient(45deg, #ff4757, #ff6b7a);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            color: white;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .delete-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(255,71,87,0.3);
+        }
+        
+        /* Calendar Styles */
+        .calendar-container {
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-top: 20px;
+        }
+        
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 14px;
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+        }
+        
+        .calendar-day:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(255,107,53,0.3);
+        }
+        
+        .calendar-day.positive {
+            background: linear-gradient(45deg, #00ff88, #00d4aa);
+            color: #000;
+        }
+        
+        .calendar-day.negative {
+            background: linear-gradient(45deg, #ff4757, #ff6b7a);
+            color: #fff;
+        }
+        
+        .calendar-day.neutral {
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .calendar-day.no-data {
+            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.3);
+            cursor: default;
+        }
+        
+        .calendar-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .calendar-header-day {
+            text-align: center;
+            font-weight: 600;
+            color: #ff6b35;
+            font-size: 12px;
+            padding: 8px;
+        }
+        
+        .daily-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(30,60,114,0.95));
+            border: 2px solid #ff6b35;
+            border-radius: 20px;
+            padding: 30px;
+            z-index: 10000;
+            min-width: 600px;
+            max-width: 80vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+        }
     </style>
 </head>
 <body>
@@ -430,6 +595,40 @@
                 </table>
             </div>
         </div>
+        
+        <div class="calendar-container">
+            <h3>5M Trading Calendar</h3>
+            <p>Daily performance overview - click on any day to see detailed trades</p>
+            
+            <div class="calendar-header">
+                <div class="calendar-header-day">SUN</div>
+                <div class="calendar-header-day">MON</div>
+                <div class="calendar-header-day">TUE</div>
+                <div class="calendar-header-day">WED</div>
+                <div class="calendar-header-day">THU</div>
+                <div class="calendar-header-day">FRI</div>
+                <div class="calendar-header-day">SAT</div>
+            </div>
+            
+            <div class="calendar-grid" id="tradingCalendar">
+                <!-- Calendar days will be populated by JavaScript -->
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 16px; height: 16px; background: linear-gradient(45deg, #00ff88, #00d4aa); border-radius: 4px;"></div>
+                    <span style="font-size: 12px; color: rgba(255,255,255,0.8);">Profitable Day</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 16px; height: 16px; background: linear-gradient(45deg, #ff4757, #ff6b7a); border-radius: 4px;"></div>
+                    <span style="font-size: 12px; color: rgba(255,255,255,0.8);">Loss Day</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 16px; height: 16px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px;"></div>
+                    <span style="font-size: 12px; color: rgba(255,255,255,0.8);">No Trades</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -561,6 +760,161 @@
                     </td>
                 `;
             });
+            
+            // Update calendar after updating table
+            generateTradingCalendar();
+        }
+        
+        function generateTradingCalendar() {
+            const calendarGrid = document.getElementById('tradingCalendar');
+            if (!calendarGrid) return;
+            
+            // Group signals by date
+            const dailyData = {};
+            signals.forEach(signal => {
+                const date = signal.date;
+                if (!dailyData[date]) {
+                    dailyData[date] = { trades: [], totalR: 0 };
+                }
+                dailyData[date].trades.push(signal);
+                // Calculate simple R based on MFE (using mfeNone as primary)
+                const r = signal.mfeNone || 0;
+                dailyData[date].totalR += r > 0 ? Math.min(r, 2) : (r < 0 ? -1 : 0);
+            });
+            
+            // Get current month or month with data
+            const dates = Object.keys(dailyData).sort();
+            let currentDate;
+            if (dates.length > 0) {
+                currentDate = new Date(dates[0]);
+            } else {
+                currentDate = new Date();
+            }
+            
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            // Get first day of month and number of days
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const firstDayOfWeek = firstDay.getDay();
+            const daysInMonth = lastDay.getDate();
+            
+            // Clear calendar
+            calendarGrid.innerHTML = '';
+            
+            // Add empty cells for days before month starts
+            for (let i = 0; i < firstDayOfWeek; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'calendar-day no-data';
+                calendarGrid.appendChild(emptyDay);
+            }
+            
+            // Add days of month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayData = dailyData[dateStr];
+                const dayOfWeek = new Date(year, month, day).getDay();
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                dayElement.textContent = day;
+                
+                if (dayData && dayData.trades.length > 0) {
+                    if (dayData.totalR > 0) {
+                        dayElement.classList.add('positive');
+                    } else if (dayData.totalR < 0) {
+                        dayElement.classList.add('negative');
+                    } else {
+                        dayElement.classList.add('neutral');
+                    }
+                    
+                    dayElement.title = `${dateStr}: ${dayData.totalR.toFixed(1)}R (${dayData.trades.length} trades)`;
+                    dayElement.onclick = () => showDailyPopup(dateStr, dayData);
+                } else {
+                    dayElement.classList.add('no-data');
+                    if (isWeekend) {
+                        dayElement.style.opacity = '0.3';
+                    }
+                }
+                
+                calendarGrid.appendChild(dayElement);
+            }
+        }
+        
+        function showDailyPopup(dateStr, dayData) {
+            const overlay = document.createElement('div');
+            overlay.className = 'popup-overlay';
+            overlay.onclick = () => document.body.removeChild(overlay);
+            
+            const popup = document.createElement('div');
+            popup.className = 'daily-popup';
+            
+            const tradesHtml = dayData.trades.map(trade => `
+                <tr>
+                    <td>${trade.time}</td>
+                    <td>${trade.bias}</td>
+                    <td>${trade.session}</td>
+                    <td class="${trade.mfeNone > 0 ? 'positive' : trade.mfeNone < 0 ? 'negative' : 'neutral'}">
+                        ${trade.mfeNone ? trade.mfeNone.toFixed(1) + 'R' : '-'}
+                    </td>
+                    <td>${trade.newsProximity}</td>
+                    <td>${trade.newsEvent || 'None'}</td>
+                </tr>
+            `).join('');
+            
+            popup.innerHTML = `
+                <h3 style="color: #ff6b35; margin-bottom: 20px;">📅 ${dateStr} - 5M Trades</h3>
+                <div style="margin-bottom: 20px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                        <div style="text-align: center; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+                            <div style="font-size: 20px; font-weight: 700; color: ${dayData.totalR > 0 ? '#00ff88' : dayData.totalR < 0 ? '#ff4757' : '#ffa502'};">
+                                ${dayData.totalR > 0 ? '+' : ''}${dayData.totalR.toFixed(1)}R
+                            </div>
+                            <div style="font-size: 12px; opacity: 0.8;">Total R</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+                            <div style="font-size: 20px; font-weight: 700; color: #00d4aa;">${dayData.trades.length}</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Total Trades</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+                            <div style="font-size: 16px; font-weight: 700; color: #26de81;">
+                                ${(dayData.totalR / dayData.trades.length).toFixed(2)}R
+                            </div>
+                            <div style="font-size: 12px; opacity: 0.8;">Avg per Trade</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: rgba(255,255,255,0.1);">
+                                <th style="padding: 10px; text-align: left; color: #ff6b35;">Time</th>
+                                <th style="padding: 10px; text-align: left; color: #ff6b35;">Bias</th>
+                                <th style="padding: 10px; text-align: left; color: #ff6b35;">Session</th>
+                                <th style="padding: 10px; text-align: left; color: #ff6b35;">MFE</th>
+                                <th style="padding: 10px; text-align: left; color: #ff6b35;">News</th>
+                                <th style="padding: 10px; text-align: left; color: #ff6b35;">Event</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tradesHtml}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="margin-top: 20px; text-align: center;">
+                    <button onclick="document.body.removeChild(document.querySelector('.popup-overlay'))" 
+                            style="background: #ff6b35; border: none; padding: 10px 20px; border-radius: 8px; color: white; cursor: pointer;">
+                        Close
+                    </button>
+                </div>
+            `;
+            
+            overlay.appendChild(popup);
+            document.body.appendChild(overlay);
         }
         
         function clearInputs() {
@@ -695,6 +1049,7 @@
         // Load signals when page loads
         document.addEventListener('DOMContentLoaded', function() {
             loadSignals();
+            generateTradingCalendar();
         });
         
         // Make functions globally available
