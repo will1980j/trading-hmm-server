@@ -705,7 +705,7 @@
         
         async function loadSignals() {
             try {
-                const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-trades?signal_type=5M Signal');
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-5m-trades');
                 if (response.ok) {
                     const data = await response.json();
                     const trades = Array.isArray(data) ? data : data.trades || [];
@@ -765,7 +765,7 @@
             }
             
             try {
-                const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-trades', {
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-5m-trades', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -805,7 +805,7 @@
         async function deleteSignal(id) {
             if (confirm('Delete this 5M signal?')) {
                 try {
-                    const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${id}`, {
+                    const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-5m-trades/${id}`, {
                         method: 'DELETE'
                     });
                     
@@ -1002,114 +1002,7 @@
             selectDate(dateStr, 1);
         }
         
-        function showDailyPopup(date) {
-            const dayTrades = signals.filter(signal => signal.date === date)
-                .sort((a, b) => {
-                    const timeA = a.time || '00:00';
-                    const timeB = b.time || '00:00';
-                    
-                    // Convert to minutes, treating 18:00+ as start of day (0+)
-                    const getMinutes = (timeStr) => {
-                        const [hours, minutes] = timeStr.split(':').map(Number);
-                        const totalMinutes = hours * 60 + minutes;
-                        // If time is 18:00 or later, it's early in trading day
-                        // If time is before 17:00, it's later in trading day
-                        return totalMinutes >= 18 * 60 ? totalMinutes - 18 * 60 : totalMinutes + 6 * 60;
-                    };
-                    
-                    return getMinutes(timeA) - getMinutes(timeB);
-                });
-            if (dayTrades.length === 0) return;
-            
-            // Calculate daily stats using MFE data
-            const wins = dayTrades.filter(t => {
-                // Count as win if any MFE > 0 (hit target)
-                return (t.mfeNone && t.mfeNone > 0) || (t.mfe1 && t.mfe1 > 0) || (t.mfe2 && t.mfe2 > 0);
-            }).length;
-            
-            const losses = dayTrades.filter(t => {
-                // Count as loss if all MFEs are negative or -1 (stopped out)
-                const mfeNone = t.mfeNone || 0;
-                const mfe1 = t.mfe1 || 0;
-                const mfe2 = t.mfe2 || 0;
-                return mfeNone < 0 && mfe1 <= 0 && mfe2 <= 0;
-            }).length;
-            
-            const breakevens = dayTrades.filter(t => {
-                // Count as BE if hit BE level but didn't reach target
-                return (t.be1Hit && (!t.mfe1 || t.mfe1 === 0)) || (t.be2Hit && (!t.mfe2 || t.mfe2 === 0));
-            }).length;
-            
-            const winRate = dayTrades.length > 0 ? ((wins + breakevens) / dayTrades.length) * 100 : 0;
-            
-            // Calculate expectancy and profit factor using best MFE for each trade
-            let totalR = 0;
-            let grossProfit = 0;
-            let grossLoss = 0;
-            
-            dayTrades.forEach(trade => {
-                const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
-                if (bestMFE > 0) {
-                    totalR += bestMFE; // Use actual MFE value
-                    grossProfit += bestMFE;
-                } else if (bestMFE < 0) {
-                    totalR -= 1; // Standard 1R loss
-                    grossLoss += 1;
-                }
-            });
-            
-            const expectancy = dayTrades.length > 0 ? totalR / dayTrades.length : 0;
-            const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 999 : 0);
-            
-            const popupHtml = `
-                <div class="popup-overlay" onclick="closeDailyPopup()"></div>
-                <div class="daily-popup">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                        <h2 style="color: #3742fa; margin: 0; font-size: 24px;">${new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h2>
-                        <button onclick="closeDailyPopup()" style="background: #ff4757; border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">✕ Close</button>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-bottom: 25px;">
-                        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; text-align: center;">
-                            <div style="font-size: 20px; font-weight: 700; color: ${totalR >= 0 ? '#00ff88' : '#ff4757'};">${totalR >= 0 ? '+' : ''}${totalR.toFixed(2)}R</div>
-                            <div style="font-size: 12px; opacity: 0.8;">Total R</div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: 700; color: #3742fa;">${winRate.toFixed(1)}%</div>
-                            <div style="font-size: 12px; opacity: 0.8;">Win Rate</div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: 700; color: #00d4aa;">${expectancy.toFixed(3)}R</div>
-                            <div style="font-size: 12px; opacity: 0.8;">Expectancy</div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: 700; color: ${profitFactor >= 2 ? '#00ff88' : profitFactor >= 1 ? '#ffa502' : '#ff4757'};">${profitFactor === 999 ? '∞' : profitFactor.toFixed(2)}</div>
-                            <div style="font-size: 12px; opacity: 0.8;">Profit Factor</div>
-                        </div>
-                    </div>
-                    
-                    <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
-                        <h3 style="color: #3742fa; margin-bottom: 15px;">Trade Details (${dayTrades.length} trades)</h3>
-                        <div style="max-height: 200px; overflow-y: auto;">
-                            ${dayTrades.map((trade, index) => {
-                                const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
-                                const result = bestMFE > 0 ? bestMFE : (bestMFE < 0 ? -1 : 0);
-                                return `
-                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                                        <span style="font-size: 14px;">#${index + 1} - ${trade.time || 'N/A'} (${trade.session})</span>
-                                        <span style="font-weight: 600; color: ${result > 0 ? '#00ff88' : result < 0 ? '#ff4757' : '#ffa502'};">
-                                            ${result > 0 ? '+' : ''}${result.toFixed(2)}R
-                                        </span>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', popupHtml);
-        }
+
         
         function closeDailyPopup() {
             const popup = document.querySelector('.daily-popup');
@@ -1335,6 +1228,44 @@
         window.filterDate = filterDate;
         window.showDailyPopup = showDailyPopup;
         window.closeDailyPopup = closeDailyPopup;
+        
+        // Ensure showDailyPopup is defined before it's called
+        if (typeof showDailyPopup === 'undefined') {
+            window.showDailyPopup = function(date) {
+                const dayTrades = signals.filter(signal => signal.date === date);
+                if (dayTrades.length === 0) return;
+                
+                const popupHtml = `
+                    <div class="popup-overlay" onclick="closeDailyPopup()"></div>
+                    <div class="daily-popup">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                            <h2 style="color: #3742fa; margin: 0; font-size: 24px;">5M - ${date}</h2>
+                            <button onclick="closeDailyPopup()" style="background: #ff4757; border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">✕ Close</button>
+                        </div>
+                        
+                        <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
+                            <h3 style="color: #3742fa; margin-bottom: 15px;">Trade Details (${dayTrades.length} trades)</h3>
+                            <div style="max-height: 200px; overflow-y: auto;">
+                                ${dayTrades.map((trade, index) => {
+                                    const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
+                                    const result = bestMFE > 0 ? bestMFE : (bestMFE < 0 ? -1 : 0);
+                                    return `
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                            <span style="font-size: 14px;">#${index + 1} - ${trade.time || 'N/A'} (${trade.session})</span>
+                                            <span style="font-weight: 600; color: ${result > 0 ? '#3742fa' : result < 0 ? '#ff4757' : '#ffa502'};">
+                                                ${result > 0 ? '+' : ''}${result.toFixed(2)}R
+                                            </span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', popupHtml);
+            };
+        }
         
         async function autoFillAllNews() {
             alert('Auto-fill news feature will be implemented for 5M signals');
