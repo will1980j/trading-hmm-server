@@ -328,62 +328,133 @@
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             gap: 8px;
-            margin-top: 20px;
+            margin-bottom: 15px;
         }
         
         .calendar-day {
-            aspect-ratio: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background: rgba(255,255,255,0.05);
             border-radius: 8px;
+            padding: 6px;
             cursor: pointer;
             transition: all 0.3s ease;
-            font-weight: 600;
-            font-size: 14px;
-            border: 1px solid rgba(255,255,255,0.1);
-            position: relative;
+            border: 2px solid transparent;
+            min-height: 85px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
         }
         
         .calendar-day:hover {
-            transform: scale(1.1);
-            box-shadow: 0 4px 15px rgba(255,107,53,0.3);
+            background: rgba(255,107,53,0.2);
+            transform: translateY(-2px);
         }
         
-        .calendar-day.positive {
-            background: linear-gradient(45deg, #00ff88, #00d4aa);
-            color: #000;
+        .calendar-day.has-trades {
+            background: rgba(255,107,53,0.1);
+            border-color: rgba(255,107,53,0.3);
         }
         
-        .calendar-day.negative {
-            background: linear-gradient(45deg, #ff4757, #ff6b7a);
-            color: #fff;
+        .calendar-day.selected {
+            background: rgba(255,107,53,0.3);
+            border-color: #ff6b35;
         }
         
-        .calendar-day.neutral {
-            background: rgba(255,255,255,0.1);
-            color: rgba(255,255,255,0.7);
-        }
-        
-        .calendar-day.no-data {
-            background: rgba(255,255,255,0.05);
-            color: rgba(255,255,255,0.3);
+        .calendar-day.empty {
+            opacity: 0.3;
             cursor: default;
+        }
+        
+        .calendar-day.empty:hover {
+            background: rgba(255,255,255,0.05);
+            transform: none;
+        }
+        
+        .day-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.9);
+            line-height: 1;
+            min-width: 32px;
+            flex-shrink: 0;
+        }
+        
+        .day-data {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 10px;
+            line-height: 1.2;
+        }
+        
+        .day-news {
+            font-size: 9px;
+            color: #ff4757;
+            font-weight: 600;
+            margin-top: 2px;
+            background: rgba(255,71,87,0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
+        .day-trades {
+            font-size: 9px;
+            color: #ff6b35;
+            font-weight: 500;
+            line-height: 1.2;
+        }
+        
+        .day-winrates {
+            font-size: 8px;
+            color: rgba(255,255,255,0.8);
+            margin-top: 3px;
+            line-height: 1.1;
+        }
+        
+        .winrate-line {
+            margin: 1px 0;
         }
         
         .calendar-header {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             gap: 8px;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         
         .calendar-header-day {
             text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.7);
+            padding: 8px;
+        }
+        
+        .month-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .month-nav button {
+            background: rgba(255,107,53,0.2);
+            border: 1px solid rgba(255,107,53,0.3);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .month-nav button:hover {
+            background: rgba(255,107,53,0.3);
+        }
+        
+        .month-title {
+            font-size: 16px;
             font-weight: 600;
             color: #ff6b35;
-            font-size: 12px;
-            padding: 8px;
         }
         
         .daily-popup {
@@ -427,6 +498,7 @@
                 <a href="/signal-analysis-15m" class="nav-link">15M Signal Lab</a>
                 <a href="/signal-lab-dashboard" class="nav-link">Lab Dashboard</a>
                 <a href="/live-signals-dashboard" class="nav-link">🎯 Live Signals</a>
+                <a href="/nasdaq-ml" class="nav-link">NASDAQ ML</a>
                 <a href="/prop-portfolio" class="nav-link">Prop Portfolio</a>
                 <a href="/financial-summary" class="nav-link">Financial Summary</a>
                 <a href="/reporting-hub" class="nav-link">Reporting Hub</a>

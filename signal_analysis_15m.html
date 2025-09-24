@@ -560,12 +560,14 @@
     <nav class="navbar">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
-                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/" class="nav-link">Dashboard</a>
                 <a href="/trade-manager" class="nav-link">Trade Manager</a>
                 <a href="/signal-analysis-lab" class="nav-link">1M Signal Lab</a>
+                <a href="/signal-analysis-5m" class="nav-link">5M Signal Lab</a>
                 <a href="/signal-analysis-15m" class="nav-link active">15M Signal Lab</a>
                 <a href="/signal-lab-dashboard" class="nav-link">Lab Dashboard</a>
                 <a href="/live-signals-dashboard" class="nav-link">🎯 Live Signals</a>
+                <a href="/nasdaq-ml" class="nav-link">NASDAQ ML</a>
                 <a href="/prop-portfolio" class="nav-link">Prop Portfolio</a>
                 <a href="/financial-summary" class="nav-link">Financial Summary</a>
                 <a href="/reporting-hub" class="nav-link">Reporting Hub</a>
@@ -1607,17 +1609,60 @@
             alert('Auto-fill news feature will be implemented for 15M signals');
         }
         
-        // Load economic news (simplified for 15M)
+        // Load economic news data
         async function loadEconomicNews() {
             try {
-                const response = await fetch('/api/economic-news');
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/economic-news');
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('Economic news loaded for 15M signals');
+                    if (data.news_data) {
+                        processEconomicNews(data.news_data);
+                    }
                 }
             } catch (error) {
                 console.error('Failed to load economic news:', error);
             }
+        }
+        
+        function processEconomicNews(newsData) {
+            economicNewsData = {};
+            
+            if (newsData && Array.isArray(newsData)) {
+                newsData.forEach(event => {
+                    if (event.impact === 'HIGH' || event.impact === 'Red' || event.impact === 'high') {
+                        const date = event.date;
+                        if (!economicNewsData[date]) {
+                            economicNewsData[date] = [];
+                        }
+                        economicNewsData[date].push(event.title || event.name || event.event);
+                    }
+                });
+            }
+        }
+        
+        function getNewsForDate(dateStr) {
+            let news = economicNewsData[dateStr];
+            
+            if (!news || news.length === 0) {
+                const allEvents = [];
+                Object.keys(economicNewsData).forEach(key => {
+                    if (key.startsWith(dateStr)) {
+                        allEvents.push(...economicNewsData[key]);
+                    }
+                });
+                news = allEvents;
+            }
+            
+            if (news && news.length > 0) {
+                return {
+                    proximity: 'High',
+                    events: news
+                };
+            }
+            return {
+                proximity: 'None',
+                events: ['None']
+            };
         }
         
         // Load signals when page loads
