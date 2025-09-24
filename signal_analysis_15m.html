@@ -1183,6 +1183,10 @@
                     row.title = 'ACTIVE TRADE - Add MFE when closed';
                 }
                 
+                const screenshotCell = signal.screenshot ? 
+                    `<img src="${signal.screenshot}" style="width: 30px; height: 20px; object-fit: cover; border-radius: 3px; cursor: pointer; margin-right: 5px;" onclick="viewScreenshot('${signal.id}')" title="Click to view full size">` : 
+                    '';
+                
                 row.innerHTML = `
                     <td>${signal.date}${isActiveTrade ? ' 🔄' : ''}</td>
                     <td>${signal.time}</td>
@@ -3510,6 +3514,138 @@
         window.editInline = editInline;
         window.editInlineCheckbox = editInlineCheckbox;
         window.filterDate = filterDate;
+        window.viewScreenshot = viewScreenshot;
+        
+        // Inline editing functions
+        async function editInline(signalId, field, cell) {
+            const signal = signals.find(s => s.id === signalId);
+            if (!signal) return;
+            
+            const currentValue = signal[field] || 0;
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.step = '0.1';
+            input.value = currentValue;
+            input.className = 'inline-input';
+            input.style.cssText = 'background: white; color: black; border: 2px solid #ff6b35; border-radius: 3px; padding: 2px 4px; font-size: 11px; width: 50px; text-align: center;';
+            
+            cell.innerHTML = '';
+            cell.appendChild(input);
+            input.focus();
+            input.select();
+            
+            const saveValue = async () => {
+                const newValue = parseFloat(input.value) || 0;
+                signal[field] = newValue;
+                
+                try {
+                    const fieldMap = {
+                        'mfeNone': 'mfe_none',
+                        'mfe1': 'mfe1',
+                        'mfe2': 'mfe2'
+                    };
+                    const dbField = fieldMap[field] || field;
+                    const updateData = { [dbField]: newValue };
+                    const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${signalId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    if (response.ok) {
+                        updateDisplay();
+                    } else {
+                        alert('Update failed');
+                        updateDisplay();
+                    }
+                } catch (error) {
+                    alert('Update error: ' + error.message);
+                    updateDisplay();
+                }
+            };
+            
+            input.addEventListener('blur', saveValue);
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') saveValue();
+            });
+        }
+        
+        async function editInlineCheckbox(signalId, field, cell) {
+            const signal = signals.find(s => s.id === signalId);
+            if (!signal) return;
+            
+            const currentValue = signal[field] || false;
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = currentValue;
+            checkbox.style.cssText = 'width: 16px; height: 16px; margin: 6px auto; accent-color: #ff6b35; cursor: pointer;';
+            
+            cell.innerHTML = '';
+            cell.appendChild(checkbox);
+            checkbox.focus();
+            
+            const saveValue = async () => {
+                const newValue = checkbox.checked;
+                signal[field] = newValue;
+                
+                try {
+                    const fieldMap = {
+                        'be1Hit': 'be1_hit',
+                        'be2Hit': 'be2_hit'
+                    };
+                    const dbField = fieldMap[field] || field;
+                    const updateData = { [dbField]: newValue };
+                    const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${signalId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    if (response.ok) {
+                        updateDisplay();
+                    } else {
+                        alert('Update failed');
+                        updateDisplay();
+                    }
+                } catch (error) {
+                    alert('Update error: ' + error.message);
+                    updateDisplay();
+                }
+            };
+            
+            checkbox.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setTimeout(saveValue, 50);
+            });
+            checkbox.addEventListener('change', saveValue);
+            checkbox.addEventListener('blur', saveValue);
+        }
+        
+        function viewScreenshot(signalId) {
+            const signal = signals.find(s => s.id == signalId);
+            if (!signal || !signal.screenshot) return;
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center;
+                z-index: 10000; cursor: pointer;
+            `;
+            
+            const img = document.createElement('img');
+            img.src = signal.screenshot;
+            img.style.cssText = `
+                max-width: 90%; max-height: 90%; border-radius: 8px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            `;
+            
+            modal.appendChild(img);
+            document.body.appendChild(modal);
+            
+            modal.addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+        }
         
         } catch (error) {
             console.error('15M Signal Lab JavaScript Error:', error);
