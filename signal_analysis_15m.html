@@ -840,15 +840,14 @@
             console.log('🔄 Loading 15M signals from database...');
             
             try {
-                const response = await fetch('/api/signal-lab-15m-trades');
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-trades?signal_type=15M%20Signal');
                 console.log('Response status:', response.status);
                 
                 if (response.ok) {
                     const data = await response.json();
                     console.log('API returned:', data);
                     const trades = Array.isArray(data) ? data : data.trades || [];
-                    
-                    signals = trades.map(trade => ({
+                    signals = trades.filter(trade => trade.signal_type === '15M Signal').map(trade => ({
                         id: trade.id,
                         date: trade.date,
                         time: trade.time,
@@ -943,7 +942,7 @@
             }
             
             try {
-                const response = await fetch('/api/signal-lab-15m-trades', {
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-trades', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1064,7 +1063,7 @@
             }
             
             try {
-                const response = await fetch(`/api/signal-lab-15m-trades/${updatedSignal.id}`, {
+                const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${updatedSignal.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1136,7 +1135,7 @@
         async function deleteSignal(id) {
             if (confirm('Delete this 15M signal?')) {
                 try {
-                    const response = await fetch(`/api/signal-lab-15m-trades/${id}`, {
+                    const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${id}`, {
                         method: 'DELETE'
                     });
                     
@@ -1707,7 +1706,7 @@
             console.log('🔄 Loading 15M signals from database...');
             
             try {
-                const apiUrl = 'https://web-production-cd33.up.railway.app/api/signal-lab-15m-trades';
+                const apiUrl = 'https://web-production-cd33.up.railway.app/api/signal-lab-trades?signal_type=15M%20Signal';
                 console.log('Calling API:', apiUrl);
                 
                 const response = await fetch(apiUrl);
@@ -1779,7 +1778,7 @@
                 const trades = JSON.parse(localData);
                 
                 if (confirm(`Migrate ${trades.length} 15M trades to database? This will enable proper functionality.`)) {
-                    const response = await fetch('/api/signal-lab-15m-migrate', {
+                    const response = await fetch('/api/signal-lab-migrate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ trades: trades })
@@ -1828,7 +1827,7 @@
         // Delete signal from database
         async function deleteSignalFromDatabase(id) {
             try {
-                const apiUrl = 'https://web-production-cd33.up.railway.app/api/signal-lab-15m-trades/' + id;
+                const apiUrl = 'https://web-production-cd33.up.railway.app/api/signal-lab-trades/' + id;
                 const response = await fetch(apiUrl, {
                     method: 'DELETE'
                 });
@@ -1881,7 +1880,7 @@
             }
             
             try {
-                const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-15m-trades', {
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-trades', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1889,7 +1888,7 @@
                         time: signal.time,
                         bias: signal.bias,
                         session: signal.session,
-                        signal_type: signal.signalType,
+                        signal_type: '15M Signal',
                         open_price: 0,
                         entry_price: 0,
                         stop_loss: 0,
@@ -2014,7 +2013,7 @@
             }
             
             try {
-                const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-15m-trades/${updatedSignal.id}`, {
+                const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${updatedSignal.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -2022,7 +2021,7 @@
                         time: updatedSignal.time,
                         bias: updatedSignal.bias,
                         session: updatedSignal.session,
-                        signal_type: updatedSignal.signalType,
+                        signal_type: '15M Signal',
 
                         entry_price: 0,
                         stop_loss: 0,
@@ -2096,7 +2095,7 @@
         async function deleteSignal(id) {
             if (confirm('Delete this 15M signal?')) {
                 try {
-                    const apiUrl = 'https://web-production-cd33.up.railway.app/api/signal-lab-15m-trades/' + id;
+                    const apiUrl = 'https://web-production-cd33.up.railway.app/api/signal-lab-trades/' + id;
                     const response = await fetch(apiUrl, {
                         method: 'DELETE'
                     });
@@ -3109,7 +3108,7 @@
                         
                         console.log(`🔄 Updating 15M ${signal.id} with:`, updateData);
                         
-                        const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-15m-trades/${signal.id}`, {
+                        const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${signal.id}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(updateData)
@@ -3178,7 +3177,7 @@
             }
             
             try {
-                const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-15m-trades/bulk-delete', {
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-trades/bulk-delete?signal_type=15M%20Signal', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -3402,7 +3401,7 @@
                     };
                     const dbField = fieldMap[field] || field;
                     const updateData = { [dbField]: newValue };
-                    const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-15m-trades/${signalId}`, {
+                    const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${signalId}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(updateData)
@@ -3452,7 +3451,7 @@
                     };
                     const dbField = fieldMap[field] || field;
                     const updateData = { [dbField]: newValue };
-                    const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-15m-trades/${signalId}`, {
+                    const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${signalId}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(updateData)
