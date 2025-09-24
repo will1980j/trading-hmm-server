@@ -9,7 +9,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
         :root {
-            --accent-color: #ff6b35;
+            --accent-color: #3742fa;
             --glass-bg: rgba(255,255,255,0.08);
             --glass-border: rgba(255,255,255,0.1);
             --shadow: 0 8px 32px rgba(0,0,0,0.1);
@@ -59,9 +59,9 @@
         }
         
         .nav-link.active {
-            color: #ff6b35;
-            background: rgba(255,107,53,0.15);
-            border-color: rgba(255,107,53,0.3);
+            color: #3742fa;
+            background: rgba(55,66,250,0.15);
+            border-color: rgba(55,66,250,0.3);
         }
         
         .header {
@@ -79,7 +79,7 @@
             font-size: 2.5em;
             font-weight: 700;
             margin-bottom: 10px;
-            background: linear-gradient(45deg, #ff6b35, #ff8c42);
+            background: linear-gradient(45deg, #3742fa, #5352ed);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -203,14 +203,14 @@
             height: 28px;
             padding: 0 12px;
             font-size: 11px;
-            background: linear-gradient(45deg, #ff6b35, #ff8c42);
+            background: linear-gradient(45deg, #3742fa, #5352ed);
             border: none;
             border-radius: 4px;
             color: white;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(255, 107, 53, 0.2);
+            box-shadow: 0 2px 4px rgba(55, 66, 250, 0.2);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -218,20 +218,20 @@
         
         .add-signal-btn:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
-            background: linear-gradient(45deg, #ff8c42, #ff6b35);
+            box-shadow: 0 4px 8px rgba(55, 66, 250, 0.3);
+            background: linear-gradient(45deg, #5352ed, #3742fa);
         }
         
         .checkbox-input {
             width: 16px !important;
             height: 16px !important;
             margin: 6px auto !important;
-            accent-color: #ff6b35;
+            accent-color: #3742fa;
             cursor: pointer;
         }
         
         .btn {
-            background: linear-gradient(45deg, var(--accent-color), #ff8c42);
+            background: linear-gradient(45deg, var(--accent-color), #5352ed);
             border: none;
             padding: 12px 24px;
             border-radius: 12px;
@@ -241,13 +241,13 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             font-size: 14px;
             letter-spacing: 0.5px;
-            box-shadow: 0 4px 15px rgba(255,107,53,0.2);
+            box-shadow: 0 4px 15px rgba(55,66,250,0.2);
         }
         
         .btn:hover {
             transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(255,107,53,0.4);
-            background: linear-gradient(45deg, #ff8c42, var(--accent-color));
+            box-shadow: 0 8px 25px rgba(55,66,250,0.4);
+            background: linear-gradient(45deg, #5352ed, var(--accent-color));
         }
         
         .trades-table {
@@ -267,7 +267,7 @@
         .trades-table th {
             background: rgba(255,255,255,0.1);
             font-weight: 600;
-            color: #ff6b35;
+            color: #3742fa;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -345,18 +345,18 @@
         }
         
         .calendar-day:hover {
-            background: rgba(255,107,53,0.2);
+            background: rgba(55,66,250,0.2);
             transform: translateY(-2px);
         }
         
         .calendar-day.has-trades {
-            background: rgba(255,107,53,0.1);
-            border-color: rgba(255,107,53,0.3);
+            background: rgba(55,66,250,0.1);
+            border-color: rgba(55,66,250,0.3);
         }
         
         .calendar-day.selected {
-            background: rgba(255,107,53,0.3);
-            border-color: #ff6b35;
+            background: rgba(55,66,250,0.3);
+            border-color: #3742fa;
         }
         
         .calendar-day.empty {
@@ -399,7 +399,7 @@
         
         .day-trades {
             font-size: 9px;
-            color: #ff6b35;
+            color: #3742fa;
             font-weight: 500;
             line-height: 1.2;
         }
@@ -438,8 +438,8 @@
         }
         
         .month-nav button {
-            background: rgba(255,107,53,0.2);
-            border: 1px solid rgba(255,107,53,0.3);
+            background: rgba(55,66,250,0.2);
+            border: 1px solid rgba(55,66,250,0.3);
             color: white;
             padding: 8px 12px;
             border-radius: 6px;
@@ -448,13 +448,13 @@
         }
         
         .month-nav button:hover {
-            background: rgba(255,107,53,0.3);
+            background: rgba(55,66,250,0.3);
         }
         
         .month-title {
             font-size: 16px;
             font-weight: 600;
-            color: #ff6b35;
+            color: #3742fa;
         }
         
         .daily-popup {
@@ -463,7 +463,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
             background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(30,60,114,0.95));
-            border: 2px solid #ff6b35;
+            border: 2px solid #3742fa;
             border-radius: 20px;
             padding: 30px;
             z-index: 10000;
@@ -669,8 +669,8 @@
         </div>
         
         <!-- Trading Calendar - NY EST Timezone Synchronized -->
-        <div id="tradingCalendar" style="background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.3); border-radius: 12px; padding: 15px; margin-bottom: 15px;">
-            <div style="font-size: 14px; font-weight: 600; color: #ff6b35; margin-bottom: 15px;">📅 5M Trading Calendar (NY EST)</div>
+        <div id="tradingCalendar" style="background: rgba(55,66,250,0.1); border: 1px solid rgba(55,66,250,0.3); border-radius: 12px; padding: 15px; margin-bottom: 15px;">
+            <div style="font-size: 14px; font-weight: 600; color: #3742fa; margin-bottom: 15px;">📅 5M Trading Calendar (NY EST)</div>
             
             <div class="month-nav">
                 <button onclick="changeMonth(-1)">← Prev</button>
@@ -693,7 +693,7 @@
             </div>
             
             <div style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); display: flex; gap: 15px; justify-content: center;">
-                <span><span style="color: #ff6b35;">●</span> Has trades</span>
+                <span><span style="color: #3742fa;">●</span> Has trades</span>
                 <span>Click days to filter</span>
             </div>
         </div>
@@ -943,7 +943,7 @@
                         ${tradeCount > 0 ? `<div class="day-trades">${tradeCount} trades</div>` : ''}
                         ${winRatesHtml}
                         ${newsHtml}
-                        ${tradeCount > 0 ? `<div style="margin-top: 5px; display: flex; gap: 3px;"><button onclick="event.stopPropagation(); filterDate('${dateStr}')" style="background: #ff6b35; border: none; color: white; padding: 2px 6px; border-radius: 3px; font-size: 9px; cursor: pointer; font-weight: 600;">Filter</button><button onclick="event.stopPropagation(); showDailyPopup('${dateStr}')" style="background: #3742fa; border: none; color: white; padding: 2px 6px; border-radius: 3px; font-size: 9px; cursor: pointer; font-weight: 600;">Chart</button></div>` : ''}
+                        ${tradeCount > 0 ? `<div style="margin-top: 5px; display: flex; gap: 3px;"><button onclick="event.stopPropagation(); filterDate('${dateStr}')" style="background: #3742fa; border: none; color: white; padding: 2px 6px; border-radius: 3px; font-size: 9px; cursor: pointer; font-weight: 600;">Filter</button><button onclick="event.stopPropagation(); showDailyPopup('${dateStr}')" style="background: #3742fa; border: none; color: white; padding: 2px 6px; border-radius: 3px; font-size: 9px; cursor: pointer; font-weight: 600;">Chart</button></div>` : ''}
                     </div>
                 `;
                 
@@ -1036,7 +1036,7 @@
                 <div class="popup-overlay" onclick="closeDailyPopup()"></div>
                 <div class="daily-popup">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                        <h2 style="color: #ff6b35; margin: 0; font-size: 24px;">${new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h2>
+                        <h2 style="color: #3742fa; margin: 0; font-size: 24px;">${new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h2>
                         <button onclick="closeDailyPopup()" style="background: #ff4757; border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">✕ Close</button>
                     </div>
                     
@@ -1046,7 +1046,7 @@
                             <div style="font-size: 12px; opacity: 0.8;">Total R</div>
                         </div>
                         <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: 700; color: #ff6b35;">${winRate.toFixed(1)}%</div>
+                            <div style="font-size: 18px; font-weight: 700; color: #3742fa;">${winRate.toFixed(1)}%</div>
                             <div style="font-size: 12px; opacity: 0.8;">Win Rate</div>
                         </div>
                         <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; text-align: center;">
@@ -1060,7 +1060,7 @@
                     </div>
                     
                     <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
-                        <h3 style="color: #ff6b35; margin-bottom: 15px;">Trade Details (${dayTrades.length} trades)</h3>
+                        <h3 style="color: #3742fa; margin-bottom: 15px;">Trade Details (${dayTrades.length} trades)</h3>
                         <div style="max-height: 200px; overflow-y: auto;">
                             ${dayTrades.map((trade, index) => {
                                 const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
