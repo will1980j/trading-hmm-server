@@ -1107,14 +1107,25 @@
         }
         
         function clearInputs() {
-            document.getElementById('signalDate').value = '';
-            document.getElementById('entryTime').value = '';
-            document.getElementById('mfeNone').value = '';
-            document.getElementById('be1Hit').checked = false;
-            document.getElementById('mfe1').value = '';
-            document.getElementById('be2Hit').checked = false;
-            document.getElementById('mfe2').value = '';
-            document.getElementById('newsProximity').value = 'None';
+            const els = {
+                signalDate: document.getElementById('signalDate'),
+                entryTime: document.getElementById('entryTime'),
+                mfeNone: document.getElementById('mfeNone'),
+                be1Hit: document.getElementById('be1Hit'),
+                mfe1: document.getElementById('mfe1'),
+                be2Hit: document.getElementById('be2Hit'),
+                mfe2: document.getElementById('mfe2'),
+                newsProximity: document.getElementById('newsProximity')
+            };
+            
+            if (els.signalDate) els.signalDate.value = '';
+            if (els.entryTime) els.entryTime.value = '';
+            if (els.mfeNone) els.mfeNone.value = '';
+            if (els.be1Hit) els.be1Hit.checked = false;
+            if (els.mfe1) els.mfe1.value = '';
+            if (els.be2Hit) els.be2Hit.checked = false;
+            if (els.mfe2) els.mfe2.value = '';
+            if (els.newsProximity) els.newsProximity.value = 'None';
             clearNewsSelection();
         }
         
