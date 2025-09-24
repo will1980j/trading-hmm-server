@@ -135,7 +135,7 @@
         .input-group.time { flex: 1 1 70px; }
         .input-group.bias { flex: 1 1 70px; }
         .input-group.session { flex: 1 1 80px; }
-        .input-group.signal-type { flex: 1 1 80px; }
+
         .input-group.price { flex: 1 1 75px; }
         .input-group.breakeven { flex: 1 1 60px; }
         .input-group.mfe { flex: 1 1 55px; }
@@ -212,6 +212,9 @@
             background: rgba(255,255,255,0.1);
             font-weight: bold;
             font-size: 11px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
         
         .positive { color: #00ff88; }
@@ -221,6 +224,33 @@
         .trades-container {
             max-height: 600px;
             overflow-y: auto;
+        }
+        
+        .editable-cell {
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+        
+        .editable-cell:hover {
+            background: rgba(255,107,53,0.2);
+        }
+        
+        .inline-input {
+            background: white;
+            color: black;
+            border: 2px solid #ff6b35;
+            border-radius: 3px;
+            padding: 2px 4px;
+            font-size: 11px;
+            width: 50px;
+            text-align: center;
+        }
+        
+        .inline-checkbox {
+            transform: scale(1.2);
+            accent-color: #ff6b35;
         }
         
         .action-btn {
@@ -581,24 +611,7 @@
             <p>15-Minute Timeframe Strategy Data Collection & Analysis</p>
         </div>
         
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Total Signals</div>
-                <div class="stat-value" id="totalSignals">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Win Rate</div>
-                <div class="stat-value" id="winRate">0%</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Avg R-Multiple</div>
-                <div class="stat-value" id="avgR">0.0R</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Best Session</div>
-                <div class="stat-value" id="bestSession">-</div>
-            </div>
-        </div>
+
         
         <div class="data-input">
             <h3>Add 15M Signal Data</h3>
@@ -622,15 +635,7 @@
                     <label>Session</label>
                     <input type="text" id="session" readonly style="background: #f0f0f0 !important; color: #666 !important;" placeholder="Auto-assigned">
                 </div>
-                <div class="input-group signal-type">
-                    <label>Signal</label>
-                    <select id="signalType">
-                        <option value="Bullish FVG">Bull FVG</option>
-                        <option value="Bearish FVG">Bear FVG</option>
-                        <option value="Bullish IFVG">Bull IFVG</option>
-                        <option value="Bearish IFVG">Bear IFVG</option>
-                    </select>
-                </div>
+
 
                 <div class="input-group breakeven">
                     <label>BE (None)</label>
@@ -800,7 +805,6 @@
                             <th>Time</th>
                             <th>Bias</th>
                             <th>Session</th>
-                            <th>Signal</th>
                             <th>MFE(None)</th>
                             <th>BE1</th>
                             <th>Hit1</th>
@@ -1151,7 +1155,6 @@
         
         function updateDisplay() {
             updateTable();
-            updateStats();
         }
         
         function updateTable() {
@@ -1185,19 +1188,21 @@
                     <td>${signal.time}</td>
                     <td>${signal.bias}</td>
                     <td>${signal.session}</td>
-                    <td>${signal.signalType}</td>
-                    <td class="${signal.mfeNone > 0 ? 'positive' : signal.mfeNone < 0 ? 'negative' : 'neutral'}">${signal.mfeNone ? signal.mfeNone.toFixed(1) + 'R' : '-'}</td>
+                    <td class="editable-cell ${signal.mfeNone > 0 ? 'positive' : signal.mfeNone < 0 ? 'negative' : 'neutral'}" onclick="editInline(${signal.id}, 'mfeNone', this)">${signal.mfeNone ? signal.mfeNone.toFixed(1) + 'R' : '-'}</td>
                     <td>${signal.be1Level}R</td>
-                    <td>${signal.be1Hit ? '✓' : '✗'}</td>
-                    <td class="${signal.mfe1 > 0 ? 'positive' : signal.mfe1 < 0 ? 'negative' : 'neutral'}">${signal.mfe1 ? signal.mfe1.toFixed(1) + 'R' : '-'}</td>
+                    <td class="editable-cell" onclick="editInlineCheckbox(${signal.id}, 'be1Hit', this)">${signal.be1Hit ? '✓' : '✗'}</td>
+                    <td class="editable-cell ${signal.mfe1 > 0 ? 'positive' : signal.mfe1 < 0 ? 'negative' : 'neutral'}" onclick="editInline(${signal.id}, 'mfe1', this)">${signal.mfe1 ? signal.mfe1.toFixed(1) + 'R' : '-'}</td>
                     <td>${signal.be2Level}R</td>
-                    <td>${signal.be2Hit ? '✓' : '✗'}</td>
-                    <td class="${signal.mfe2 > 0 ? 'positive' : signal.mfe2 < 0 ? 'negative' : 'neutral'}">${signal.mfe2 ? signal.mfe2.toFixed(1) + 'R' : '-'}</td>
+                    <td class="editable-cell" onclick="editInlineCheckbox(${signal.id}, 'be2Hit', this)">${signal.be2Hit ? '✓' : '✗'}</td>
+                    <td class="editable-cell ${signal.mfe2 > 0 ? 'positive' : signal.mfe2 < 0 ? 'negative' : 'neutral'}" onclick="editInline(${signal.id}, 'mfe2', this)">${signal.mfe2 ? signal.mfe2.toFixed(1) + 'R' : '-'}</td>
                     <td>${signal.newsProximity}</td>
                     <td>${signal.newsEvent}</td>
                     <td>
+                        ${screenshotCell}
+                        ${signal.analysis_data ? `<span title="AI Analysis Available" style="color: #ff6b35; margin-right: 5px;">🤖</span>` : ''}
                         <button onclick="editSignal(${signal.id})" class="action-btn">Edit</button>
                         <button onclick="deleteSignal(${signal.id})" class="delete-btn">Del</button>
+                        ${signal.analysis_data ? `<button onclick="viewAnalysis(${signal.id})" class="action-btn" style="background: #ff6b35;">AI</button>` : ''}
                     </td>
                 `;
             });
@@ -2870,6 +2875,7 @@
                         ${activeCount > 0 ? `<div class="day-active">${activeCount} ACTIVE</div>` : ''}
                         ${winRatesHtml}
                         ${newsHtml}
+                        ${tradeCount > 0 ? `<div style="margin-top: 5px; display: flex; gap: 3px;"><button onclick="event.stopPropagation(); filterDate('${dateStr}')" style="background: #ff6b35; border: none; color: white; padding: 2px 6px; border-radius: 3px; font-size: 9px; cursor: pointer; font-weight: 600;">Filter</button><button onclick="event.stopPropagation(); showDailyPopup('${dateStr}')" style="background: #3742fa; border: none; color: white; padding: 2px 6px; border-radius: 3px; font-size: 9px; cursor: pointer; font-weight: 600;">Chart</button></div>` : ''}
                     </div>
                 `;
                 
@@ -2892,9 +2898,7 @@
         
         function selectDate(dateStr, tradeCount) {
             if (tradeCount === 0) return;
-            
-            // Show daily popup instead of just filtering
-            showDailyPopup(dateStr);
+            filterDate(dateStr);
         }
         
         function showDailyPopup(date) {
@@ -3368,6 +3372,120 @@
             if (overlay) overlay.remove();
         }
         
+        // Inline editing functions
+        async function editInline(signalId, field, cell) {
+            const signal = signals.find(s => s.id === signalId);
+            if (!signal) return;
+            
+            const currentValue = signal[field] || 0;
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.step = '0.1';
+            input.value = currentValue;
+            input.className = 'inline-input';
+            
+            cell.innerHTML = '';
+            cell.appendChild(input);
+            input.focus();
+            input.select();
+            
+            const saveValue = async () => {
+                const newValue = parseFloat(input.value) || 0;
+                signal[field] = newValue;
+                
+                try {
+                    const fieldMap = {
+                        'mfeNone': 'mfe_none',
+                        'mfe1': 'mfe1',
+                        'mfe2': 'mfe2'
+                    };
+                    const dbField = fieldMap[field] || field;
+                    const updateData = { [dbField]: newValue };
+                    const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-15m-trades/${signalId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    if (response.ok) {
+                        updateDisplay();
+                    } else {
+                        alert('Update failed');
+                        updateDisplay();
+                    }
+                } catch (error) {
+                    alert('Update error: ' + error.message);
+                    updateDisplay();
+                }
+            };
+            
+            input.addEventListener('blur', saveValue);
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') saveValue();
+            });
+        }
+        
+        async function editInlineCheckbox(signalId, field, cell) {
+            const signal = signals.find(s => s.id === signalId);
+            if (!signal) return;
+            
+            const currentValue = signal[field] || false;
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = currentValue;
+            checkbox.className = 'inline-checkbox';
+            checkbox.style.cursor = 'pointer';
+            
+            cell.innerHTML = '';
+            cell.appendChild(checkbox);
+            checkbox.focus();
+            
+            const saveValue = async () => {
+                const newValue = checkbox.checked;
+                signal[field] = newValue;
+                
+                try {
+                    const fieldMap = {
+                        'be1Hit': 'be1_hit',
+                        'be2Hit': 'be2_hit'
+                    };
+                    const dbField = fieldMap[field] || field;
+                    const updateData = { [dbField]: newValue };
+                    const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-15m-trades/${signalId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    if (response.ok) {
+                        updateDisplay();
+                    } else {
+                        alert('Update failed');
+                        updateDisplay();
+                    }
+                } catch (error) {
+                    alert('Update error: ' + error.message);
+                    updateDisplay();
+                }
+            };
+            
+            checkbox.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setTimeout(saveValue, 50);
+            });
+            checkbox.addEventListener('change', saveValue);
+            checkbox.addEventListener('blur', saveValue);
+        }
+        
+        function filterDate(dateStr) {
+            if (selectedDate === dateStr) {
+                selectedDate = null;
+            } else {
+                selectedDate = dateStr;
+            }
+            updateDisplay();
+        }
+        
         // Make functions globally available
         window.addSignal = addSignal;
         window.editSignal = editSignal;
@@ -3389,6 +3507,9 @@
         window.bulkDeleteAllTrades = bulkDeleteAllTrades;
         window.showDailyPopup = showDailyPopup;
         window.closeDailyPopup = closeDailyPopup;
+        window.editInline = editInline;
+        window.editInlineCheckbox = editInlineCheckbox;
+        window.filterDate = filterDate;
         
         } catch (error) {
             console.error('15M Signal Lab JavaScript Error:', error);
