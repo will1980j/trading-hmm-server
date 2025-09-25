@@ -2080,11 +2080,14 @@
             }).length;
             
             const losses = dayTrades.filter(t => {
-                // Count as loss if all MFEs are negative or -1 (stopped out)
-                const mfeNone = t.mfeNone || 0;
-                const mfe1 = t.mfe1 || 0;
-                const mfe2 = t.mfe2 || 0;
-                return mfeNone < 0 && mfe1 <= 0 && mfe2 <= 0;
+                // Count as loss if all MFEs are negative, -1 (stopped out), or null/undefined (no data = loss)
+                const mfeNone = t.mfeNone;
+                const mfe1 = t.mfe1;
+                const mfe2 = t.mfe2;
+                
+                // If all MFE values are null/undefined/0 or negative, it's a loss
+                const hasPositiveMFE = (mfeNone && mfeNone > 0) || (mfe1 && mfe1 > 0) || (mfe2 && mfe2 > 0);
+                return !hasPositiveMFE;
             }).length;
             
             const breakevens = dayTrades.filter(t => {
@@ -2100,12 +2103,15 @@
             let grossLoss = 0;
             
             dayTrades.forEach(trade => {
-                const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
+                // Get actual MFE values without defaulting to 0
+                const mfeValues = [trade.mfeNone, trade.mfe1, trade.mfe2].filter(val => val !== null && val !== undefined);
+                const bestMFE = mfeValues.length > 0 ? Math.max(...mfeValues) : -1; // Default to -1 if no MFE data
+                
                 if (bestMFE > 0) {
                     totalR += bestMFE; // Use actual MFE value
                     grossProfit += bestMFE;
-                } else if (bestMFE < 0) {
-                    totalR -= 1; // Standard 1R loss
+                } else {
+                    totalR -= 1; // Standard 1R loss (includes null/undefined MFE as losses)
                     grossLoss += 1;
                 }
             });
@@ -2120,12 +2126,15 @@
             let currentWins = 0;
             
             dayTrades.forEach(trade => {
-                const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
-                if (bestMFE < 0) {
+                // Get actual MFE values without defaulting to 0
+                const mfeValues = [trade.mfeNone, trade.mfe1, trade.mfe2].filter(val => val !== null && val !== undefined);
+                const bestMFE = mfeValues.length > 0 ? Math.max(...mfeValues) : -1; // Default to -1 if no MFE data
+                
+                if (bestMFE <= 0) { // Loss or no data
                     currentLosses++;
                     maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentLosses);
                     currentWins = 0;
-                } else if (bestMFE > 0) {
+                } else { // Win
                     currentWins++;
                     maxConsecutiveWins = Math.max(maxConsecutiveWins, currentWins);
                     currentLosses = 0;
@@ -2135,12 +2144,15 @@
             // Create equity curve data with session info
             let cumulative = 0;
             const equityData = dayTrades.map((trade, index) => {
-                const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
+                // Get actual MFE values without defaulting to 0
+                const mfeValues = [trade.mfeNone, trade.mfe1, trade.mfe2].filter(val => val !== null && val !== undefined);
+                const bestMFE = mfeValues.length > 0 ? Math.max(...mfeValues) : -1; // Default to -1 if no MFE data
+                
                 let result = 0;
                 if (bestMFE > 0) {
                     result = bestMFE; // Use actual MFE value
-                } else if (bestMFE < 0) {
-                    result = -1; // Standard loss
+                } else {
+                    result = -1; // Standard loss (includes null/undefined MFE as losses)
                 }
                 cumulative += result;
                 return { x: index, y: cumulative, result: result, time: trade.time, session: trade.session };
@@ -2190,12 +2202,15 @@
                         <h3 style="color: #00ff88; margin-bottom: 15px;">Trade Details (${dayTrades.length} trades)</h3>
                         <div style="max-height: 200px; overflow-y: auto;">
                             ${dayTrades.map((trade, index) => {
-                                const bestMFE = Math.max(trade.mfeNone || 0, trade.mfe1 || 0, trade.mfe2 || 0);
-                                const result = bestMFE > 0 ? bestMFE : (bestMFE < 0 ? -1 : 0);
+                                // Get actual MFE values without defaulting to 0
+                                const mfeValues = [trade.mfeNone, trade.mfe1, trade.mfe2].filter(val => val !== null && val !== undefined);
+                                const bestMFE = mfeValues.length > 0 ? Math.max(...mfeValues) : -1; // Default to -1 if no MFE data
+                                
+                                const result = bestMFE > 0 ? bestMFE : -1; // Win or loss
                                 return `
                                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
                                         <span style="font-size: 14px;">#${index + 1} - ${trade.time || 'N/A'} (${trade.session})</span>
-                                        <span style="font-weight: 600; color: ${result > 0 ? '#00ff88' : result < 0 ? '#ff4757' : '#ffa502'};">
+                                        <span style="font-weight: 600; color: ${result > 0 ? '#00ff88' : '#ff4757'};">
                                             ${result > 0 ? '+' : ''}${result.toFixed(2)}R
                                         </span>
                                     </div>
