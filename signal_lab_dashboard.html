@@ -2764,6 +2764,11 @@
                 getCurrentPredictionAuto();
             }, 2000);
             
+            // Trade data refresh every minute to capture new trades
+            setInterval(() => {
+                loadSignals();
+            }, 60000);
+            
             // Market data refresh every 30 seconds
             setInterval(() => {
                 loadMarketContext();
@@ -2781,10 +2786,10 @@
                 autoTrainMLModels();
             }, 300000);
             
-            // Prediction refresh every 2 minutes
+            // Prediction refresh every minute
             setInterval(() => {
                 getCurrentPredictionAuto();
-            }, 120000);
+            }, 60000);
         }
         
         // AI Strategy Optimization using OpenAI GPT-4
