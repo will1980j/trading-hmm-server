@@ -1006,37 +1006,112 @@
         }
         
         function updateStatsDisplay(stats, totalTrades) {
-            document.getElementById('totalR').textContent = (stats.totalR >= 0 ? '+' : '') + stats.totalR.toFixed(2) + 'R';
-            document.getElementById('avgRPerTrade').textContent = stats.avgRPerTrade.toFixed(3) + 'R';
-            document.getElementById('bestTrade').textContent = '+' + stats.bestTrade.toFixed(2) + 'R';
-            document.getElementById('worstTrade').textContent = stats.worstTrade.toFixed(2) + 'R';
+            const propMetrics = calculatePropFirmMetrics(stats);
             
-            document.getElementById('expectancy').textContent = stats.expectancy.toFixed(2) + 'R';
-            document.getElementById('winRate').textContent = stats.winRate.toFixed(1) + '%';
-            document.getElementById('lossRate').textContent = stats.lossRate.toFixed(1) + '%';
-            document.getElementById('consecutiveLosses').textContent = stats.maxConsecutiveLosses;
-            document.getElementById('consecutiveWins').textContent = stats.maxConsecutiveWins;
-            document.getElementById('totalTrades').textContent = totalTrades;
-            
-            // Color code total R
+            // Update R-based metrics with null checks
             const totalREl = document.getElementById('totalR');
-            if (stats.totalR > 0) {
-                totalREl.style.background = 'linear-gradient(45deg, #00ff88, #00d4aa)';
-            } else {
-                totalREl.style.background = 'linear-gradient(45deg, #ff4757, #ff6b7a)';
-            }
-            totalREl.style.webkitBackgroundClip = 'text';
-            totalREl.style.webkitTextFillColor = 'transparent';
+            const avgREl = document.getElementById('avgRPerTrade');
+            const bestTradeEl = document.getElementById('bestTrade');
+            const totalPercentEl = document.getElementById('totalPercent');
+            const maxDrawdownEl = document.getElementById('maxDrawdown');
             
-            // Color code expectancy
-            const expectancyEl = document.getElementById('expectancy');
-            if (stats.expectancy > 0) {
-                expectancyEl.style.background = 'linear-gradient(45deg, #00ff88, #00d4aa)';
-            } else {
-                expectancyEl.style.background = 'linear-gradient(45deg, #ff4757, #ff6b7a)';
+            if (totalREl) totalREl.textContent = (stats.totalR >= 0 ? '+' : '') + stats.totalR.toFixed(2) + 'R';
+            if (avgREl) avgREl.textContent = stats.avgRPerTrade.toFixed(3) + 'R';
+            if (bestTradeEl) bestTradeEl.textContent = '+' + stats.bestTrade.toFixed(2) + 'R';
+            if (totalPercentEl) totalPercentEl.textContent = (propMetrics.totalPercent >= 0 ? '+' : '') + propMetrics.totalPercent.toFixed(2) + '%';
+            if (maxDrawdownEl) maxDrawdownEl.textContent = propMetrics.maxDrawdownPercent.toFixed(2) + '%';
+            
+            // Prop firm viability
+            const propViableEl = document.getElementById('propFirmViable');
+            if (propViableEl) {
+                if (propMetrics.propFirmViable) {
+                    propViableEl.textContent = '✅ VIABLE';
+                    propViableEl.style.background = 'linear-gradient(45deg, #00ff88, #00d4aa)';
+                } else {
+                    propViableEl.textContent = '❌ BREACH';
+                    propViableEl.style.background = 'linear-gradient(45deg, #ff4757, #ff6b7a)';
+                }
+                propViableEl.style.webkitBackgroundClip = 'text';
+                propViableEl.style.webkitTextFillColor = 'transparent';
             }
-            expectancyEl.style.webkitBackgroundClip = 'text';
-            expectancyEl.style.webkitTextFillColor = 'transparent';
+            
+            // Standard metrics with null checks
+            const expectancyEl = document.getElementById('expectancy');
+            const winRateEl = document.getElementById('winRate');
+            const lossRateEl = document.getElementById('lossRate');
+            const consecutiveLossesEl = document.getElementById('consecutiveLosses');
+            const consecutiveWinsEl = document.getElementById('consecutiveWins');
+            const totalTradesEl = document.getElementById('totalTrades');
+            
+            if (expectancyEl) expectancyEl.textContent = stats.expectancy.toFixed(2) + 'R';
+            if (winRateEl) winRateEl.textContent = stats.winRate.toFixed(1) + '%';
+            if (lossRateEl) lossRateEl.textContent = stats.lossRate.toFixed(1) + '%';
+            if (consecutiveLossesEl) consecutiveLossesEl.textContent = stats.maxConsecutiveLosses;
+            if (consecutiveWinsEl) consecutiveWinsEl.textContent = stats.maxConsecutiveWins;
+            if (totalTradesEl) totalTradesEl.textContent = totalTrades;
+            
+            // Color code based on prop firm viability
+            if (propMetrics.propFirmViable && stats.totalR > 0) {
+                if (totalREl) {
+                    totalREl.style.background = 'linear-gradient(45deg, #00ff88, #00d4aa)';
+                    totalREl.style.webkitBackgroundClip = 'text';
+                    totalREl.style.webkitTextFillColor = 'transparent';
+                }
+                if (totalPercentEl) {
+                    totalPercentEl.style.background = 'linear-gradient(45deg, #00ff88, #00d4aa)';
+                    totalPercentEl.style.webkitBackgroundClip = 'text';
+                    totalPercentEl.style.webkitTextFillColor = 'transparent';
+                }
+            } else {
+                if (totalREl) {
+                    totalREl.style.background = 'linear-gradient(45deg, #ff4757, #ff6b7a)';
+                    totalREl.style.webkitBackgroundClip = 'text';
+                    totalREl.style.webkitTextFillColor = 'transparent';
+                }
+                if (totalPercentEl) {
+                    totalPercentEl.style.background = 'linear-gradient(45deg, #ff4757, #ff6b7a)';
+                    totalPercentEl.style.webkitBackgroundClip = 'text';
+                    totalPercentEl.style.webkitTextFillColor = 'transparent';
+                }
+            }
+            
+            // Color code drawdown based on limits
+            if (maxDrawdownEl) {
+                if (propMetrics.exceedsDrawdownLimit) {
+                    maxDrawdownEl.style.background = 'linear-gradient(45deg, #ff4757, #ff6b7a)';
+                } else if (propMetrics.maxDrawdownPercent > parseFloat(document.getElementById('maxTotalDrawdown').value) * 0.7) {
+                    maxDrawdownEl.style.background = 'linear-gradient(45deg, #ffa502, #ff6348)';
+                } else {
+                    maxDrawdownEl.style.background = 'linear-gradient(45deg, #00ff88, #00d4aa)';
+                }
+                maxDrawdownEl.style.webkitBackgroundClip = 'text';
+                maxDrawdownEl.style.webkitTextFillColor = 'transparent';
+            }
+            
+            // Update risk warning
+            updateRiskWarning(propMetrics, stats);
+        }
+        
+        function updateRiskWarning(propMetrics, stats) {
+            const warningEl = document.getElementById('riskWarning');
+            if (!warningEl) return;
+            
+            let warnings = [];
+            
+            if (propMetrics.exceedsDrawdownLimit) {
+                warnings.push(`⚠️ Max drawdown (${propMetrics.maxDrawdownPercent.toFixed(1)}%) exceeds prop firm limit`);
+            }
+            
+            if (propMetrics.exceedsConsecutiveLossLimit) {
+                warnings.push(`⚠️ Max consecutive losses (${stats.maxConsecutiveLosses} = ${propMetrics.maxConsecutiveLossPercent.toFixed(1)}%) exceeds daily limit`);
+            }
+            
+            if (warnings.length > 0) {
+                warningEl.innerHTML = `<strong>PROP FIRM RULE VIOLATIONS:</strong><br>${warnings.join('<br>')}`;
+                warningEl.style.display = 'block';
+            } else {
+                warningEl.style.display = 'none';
+            }
         }
         
         function aggregateData(tradeResults, viewType) {
@@ -1828,16 +1903,11 @@
         }
         
         function showNoData() {
-            document.getElementById('totalR').textContent = '-';
-            document.getElementById('avgRPerTrade').textContent = '-';
-            document.getElementById('bestTrade').textContent = '-';
-            document.getElementById('worstTrade').textContent = '-';
-            document.getElementById('expectancy').textContent = '-';
-            document.getElementById('winRate').textContent = '-';
-            document.getElementById('lossRate').textContent = '-';
-            document.getElementById('consecutiveLosses').textContent = '-';
-            document.getElementById('consecutiveWins').textContent = '-';
-            document.getElementById('totalTrades').textContent = '0';
+            const elements = ['totalR', 'totalPercent', 'maxDrawdown', 'propFirmViable', 'avgRPerTrade', 'bestTrade', 'expectancy', 'winRate', 'lossRate', 'consecutiveLosses', 'consecutiveWins', 'totalTrades'];
+            elements.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '-';
+            });
             
             document.querySelectorAll('.stat-analysis').forEach(el => el.textContent = 'No data available');
             
