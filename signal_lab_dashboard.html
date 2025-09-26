@@ -3585,28 +3585,32 @@
                         for (const rTarget of rTargets) {
                             const results = sessionTrades.map(t => calculateTradeResult(t, beStrategy, rTarget));
                             const stats = calculateStatistics(results, rTarget);
+                            const propMetrics = calculatePropFirmMetrics(stats);
                             
-                            // Calculate psychological score: expectancy penalized by consecutive losses
-                            const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate);
-                            
-                            const combination = {
-                                beStrategy,
-                                rTarget,
-                                sessions: [session],
-                                expectancy: stats.expectancy,
-                                winRate: stats.winRate,
-                                totalTrades: sessionTrades.length,
-                                maxConsecutiveLosses: stats.maxConsecutiveLosses,
-                                psychScore: psychScore,
-                                type: 'single'
-                            };
-                            
-                            allResults.push(combination);
-                            sessionCombinations.push(combination);
-                            
-                            if (psychScore > bestScore) {
-                                bestScore = psychScore;
-                                bestStrategy = combination;
+                            // Only consider prop firm viable strategies
+                            if (propMetrics.propFirmViable) {
+                                const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate, stats.totalR, propMetrics);
+                                
+                                const combination = {
+                                    beStrategy,
+                                    rTarget,
+                                    sessions: [session],
+                                    expectancy: stats.expectancy,
+                                    winRate: stats.winRate,
+                                    totalTrades: sessionTrades.length,
+                                    maxConsecutiveLosses: stats.maxConsecutiveLosses,
+                                    psychScore: psychScore,
+                                    type: 'single',
+                                    propFirmViable: true
+                                };
+                                
+                                allResults.push(combination);
+                                sessionCombinations.push(combination);
+                                
+                                if (psychScore > bestScore) {
+                                    bestScore = psychScore;
+                                    bestStrategy = combination;
+                                }
                             }
                         }
                     }
@@ -3624,27 +3628,32 @@
                             for (const rTarget of rTargets) {
                                 const results = pairTrades.map(t => calculateTradeResult(t, beStrategy, rTarget));
                                 const stats = calculateStatistics(results, rTarget);
+                                const propMetrics = calculatePropFirmMetrics(stats);
                                 
-                                const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate);
-                                
-                                const combination = {
-                                    beStrategy,
-                                    rTarget,
-                                    sessions: sessionPair,
-                                    expectancy: stats.expectancy,
-                                    winRate: stats.winRate,
-                                    totalTrades: pairTrades.length,
-                                    maxConsecutiveLosses: stats.maxConsecutiveLosses,
-                                    psychScore: psychScore,
-                                    type: 'pair'
-                                };
-                                
-                                allResults.push(combination);
-                                sessionCombinations.push(combination);
-                                
-                                if (psychScore > bestScore) {
-                                    bestScore = psychScore;
-                                    bestStrategy = combination;
+                                // Only consider prop firm viable strategies
+                                if (propMetrics.propFirmViable) {
+                                    const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate, stats.totalR, propMetrics);
+                                    
+                                    const combination = {
+                                        beStrategy,
+                                        rTarget,
+                                        sessions: sessionPair,
+                                        expectancy: stats.expectancy,
+                                        winRate: stats.winRate,
+                                        totalTrades: pairTrades.length,
+                                        maxConsecutiveLosses: stats.maxConsecutiveLosses,
+                                        psychScore: psychScore,
+                                        type: 'pair',
+                                        propFirmViable: true
+                                    };
+                                    
+                                    allResults.push(combination);
+                                    sessionCombinations.push(combination);
+                                    
+                                    if (psychScore > bestScore) {
+                                        bestScore = psychScore;
+                                        bestStrategy = combination;
+                                    }
                                 }
                             }
                         }
