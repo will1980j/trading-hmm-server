@@ -713,12 +713,22 @@
                     'https://web-production-cd33.up.railway.app/api/signal-lab-15m-trades' : 
                     'https://web-production-cd33.up.railway.app/api/signal-lab-trades';
                 
+                console.log(`Loading ${dataSource} signals from:`, endpoint);
+                
                 // Add analysis_only parameter for dashboard to get only processed trades
                 const analysisParam = '?analysis_only=true';
                 const response = await fetch(endpoint + analysisParam);
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('Raw API response:', data);
+                    
                     const trades = Array.isArray(data) ? data : data.trades || [];
+                    
+                    if (trades.length === 0) {
+                        console.warn('No trades returned from API');
+                        showNoData();
+                        return;
+                    }
                     
                     signals = trades.filter(trade => {
                         const date = new Date(trade.date);
@@ -741,10 +751,33 @@
                     updateAnalysis();
                     generateDailyCalendar();
                 } else {
-                    console.error('Failed to load signals');
+                    const errorText = await response.text();
+                    console.error('Failed to load signals:', response.status, errorText);
+                    
+                    // Show user-friendly error message
+                    document.getElementById('aiAnalysis').innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #ff4757;">
+                            <div style="font-size: 18px; margin-bottom: 10px;">❌ Database Connection Error</div>
+                            <div style="font-size: 14px; margin-bottom: 15px;">HTTP ${response.status}: Unable to load trading data</div>
+                            <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 15px;">${errorText.substring(0, 200)}...</div>
+                            <button onclick="loadSignals()" style="background: #00ff88; border: none; padding: 10px 20px; border-radius: 8px; color: white; cursor: pointer;">Retry Connection</button>
+                        </div>
+                    `;
+                    showNoData();
                 }
             } catch (error) {
                 console.error('Error loading signals:', error);
+                
+                // Show user-friendly error message
+                document.getElementById('aiAnalysis').innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ff4757;">
+                        <div style="font-size: 18px; margin-bottom: 10px;">❌ Connection Failed</div>
+                        <div style="font-size: 14px; margin-bottom: 15px;">Unable to connect to trading database</div>
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 15px;">${error.message}</div>
+                        <button onclick="loadSignals()" style="background: #00ff88; border: none; padding: 10px 20px; border-radius: 8px; color: white; cursor: pointer;">Retry Connection</button>
+                    </div>
+                `;
+                showNoData();
             }
         }
         
@@ -1796,7 +1829,8 @@
                     if (modelMetrics) {
                         const r2 = (modelMetrics.test_r2 * 100).toFixed(1);
                         const mae = modelMetrics.test_mae.toFixed(3);
-                        performanceDiv.innerHTML = `${r2}% R², ${mae}R MAE`;
+                        const quality = modelMetrics.test_r2 > 0.5 ? 'Good' : modelMetrics.test_r2 > 0 ? 'Fair' : 'Poor';
+                        performanceDiv.innerHTML = `${quality}: ${r2}% R²`;
                     } else {
                         performanceDiv.innerHTML = `${bestModel} Active`;
                     }
@@ -1808,7 +1842,8 @@
                         Object.entries(perf.performance_metrics).forEach(([model, metrics]) => {
                             const r2 = (metrics.test_r2 * 100).toFixed(1);
                             const mae = metrics.test_mae.toFixed(3);
-                            insightsHtml += `• ${model}: ${r2}% accuracy, ${mae}R error<br>`;
+                            const status = metrics.test_r2 > 0.5 ? '✅' : metrics.test_r2 > 0 ? '⚠️' : '❌';
+                            insightsHtml += `• ${model}: ${status} ${r2}% R², ${mae}R MAE<br>`;
                         });
                         insightsHtml += '<br>';
                     }
@@ -1823,9 +1858,20 @@
                     }
                     
                     insightsHtml += '<strong>💡 Key Insights:</strong><br>';
-                    insightsHtml += '• ML models are learning from your actual MFE results<br>';
-                    insightsHtml += '• Predictions improve as you add more trade data<br>';
-                    insightsHtml += '• Market context (VIX, session, volume) influences predictions<br>';
+                    const bestR2 = Math.max(...Object.values(perf.performance_metrics).map(m => m.test_r2));
+                    if (bestR2 < 0) {
+                        insightsHtml += '• ⚠️ Models performing poorly - need more diverse training data<br>';
+                        insightsHtml += '• 📊 Add more trades across different market conditions<br>';
+                        insightsHtml += '• 🔄 Consider feature engineering improvements<br>';
+                    } else if (bestR2 < 0.3) {
+                        insightsHtml += '• 📈 Models showing basic patterns but need improvement<br>';
+                        insightsHtml += '• 📊 More training data will improve accuracy<br>';
+                        insightsHtml += '• 🎯 Focus on consistent trading sessions<br>';
+                    } else {
+                        insightsHtml += '• ✅ Models are learning meaningful patterns<br>';
+                        insightsHtml += '• 📊 Predictions improve as you add more trade data<br>';
+                        insightsHtml += '• 🎯 Market context influences predictions effectively<br>';
+                    }
                     
                     insightsDiv.innerHTML = insightsHtml;
                 } else {
@@ -1856,13 +1902,17 @@
             try {
                 console.log('Starting ML model training...');
                 
+                // Get current data source from UI
+                const dataSource = document.getElementById('dataSource').value;
+                const tableName = dataSource === '15m' ? 'signal_lab_15m_trades' : 'signal_lab_trades';
+                
                 const response = await fetch('https://web-production-cd33.up.railway.app/api/ml-train', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        retrain: true,
+                        force_retrain: true,
                         use_real_data: true,
-                        data_source: 'signal_lab_trades'
+                        data_source: tableName
                     })
                 });
                 
@@ -1884,6 +1934,15 @@
                     setTimeout(() => {
                         loadMLInsights();
                     }, 1000);
+                } else if (result.status === 'already_trained') {
+                    // Handle already trained models - show current status instead of error
+                    const modelsText = Array.isArray(result.models) ? result.models.join(', ') : 'Multiple models';
+                    alert(`ℹ️ MODELS ALREADY TRAINED\n\nModels: ${modelsText}\nStatus: Ready for predictions\n\nUse "Get Prediction" to test current models or wait for automatic retraining.`);
+                    
+                    // Still refresh insights to show current status
+                    setTimeout(() => {
+                        loadMLInsights();
+                    }, 500);
                 } else if (result.error) {
                     alert('❌ Training Error: ' + result.error);
                 } else {
