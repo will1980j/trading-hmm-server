@@ -634,21 +634,21 @@
                 <div class="stat-card" style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3);">
                     <div class="stat-label">ML Engine Status</div>
                     <div class="stat-value" id="mlStatus" style="font-size: 1.2em;">Loading...</div>
-                    <button onclick="trainMLModels()" class="update-btn" style="margin-top: 10px; padding: 8px 16px; font-size: 12px;">🎯 Train Models</button>
+                    <div id="mlStatusDetails" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3;">Checking model status...</div>
                 </div>
                 
                 <!-- Current Prediction Card -->
                 <div class="stat-card" style="background: rgba(58,123,213,0.1); border: 1px solid rgba(58,123,213,0.3);">
                     <div class="stat-label">Current Market Prediction</div>
-                    <div class="stat-value" id="currentPrediction" style="font-size: 1.2em;">-</div>
-                    <button onclick="getCurrentPrediction()" class="update-btn" style="margin-top: 10px; padding: 8px 16px; font-size: 12px; background: #3a7bd5;">📊 Get Prediction</button>
+                    <div class="stat-value" id="currentPrediction" style="font-size: 1.2em;">Loading...</div>
+                    <div id="predictionDetails" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3;">Analyzing market conditions...</div>
                 </div>
                 
                 <!-- Model Performance Card -->
                 <div class="stat-card" style="background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.3);">
                     <div class="stat-label">Best Model Performance</div>
-                    <div class="stat-value" id="modelPerformance" style="font-size: 1.2em;">-</div>
-                    <button onclick="showModelComparison()" class="update-btn" style="margin-top: 10px; padding: 8px 16px; font-size: 12px; background: #ff6b35;">📈 Compare Models</button>
+                    <div class="stat-value" id="modelPerformance" style="font-size: 1.2em;">Loading...</div>
+                    <div id="performanceDetails" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3;">Evaluating model accuracy...</div>
                 </div>
             </div>
             
@@ -658,11 +658,13 @@
                 <div id="mlInsights" style="min-height: 100px; color: rgba(255,255,255,0.8); font-size: 14px; line-height: 1.6;">
                     Loading ML insights...
                 </div>
-                <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button onclick="loadMLInsights()" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #00d4aa;">🔄 Refresh Insights</button>
-
-                    <button onclick="showFeatureImportance()" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #3742fa;">🎯 Feature Analysis</button>
-                    <button onclick="showMLRecommendations()" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #2ed573;">💡 ML Recommendations</button>
+                <div id="featureImportanceDisplay" style="margin-top: 15px; background: rgba(255,255,255,0.03); border-radius: 10px; padding: 15px;">
+                    <h5 style="color: #3742fa; margin: 0 0 10px 0; font-size: 14px;">🎯 Top Features</h5>
+                    <div id="topFeatures" style="font-size: 12px; color: rgba(255,255,255,0.8);">Loading feature analysis...</div>
+                </div>
+                <div id="mlRecommendationsDisplay" style="margin-top: 15px; background: rgba(255,255,255,0.03); border-radius: 10px; padding: 15px;">
+                    <h5 style="color: #2ed573; margin: 0 0 10px 0; font-size: 14px;">💡 AI Recommendations</h5>
+                    <div id="aiRecommendations" style="font-size: 12px; color: rgba(255,255,255,0.8);">Loading recommendations...</div>
                 </div>
             </div>
             
@@ -691,8 +693,10 @@
                         <div id="marketDataSource" style="font-weight: 600; color: #00d4aa;">-</div>
                     </div>
                 </div>
-                <button onclick="loadMarketContext()" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #ffa502;">🔄 Refresh Market Data</button>
-                <button onclick="getQQQVolume().then(v => alert('QQQ Volume: ' + (v ? (v/1000000).toFixed(1) + 'M' : 'Failed')))" class="update-btn" style="padding: 8px 16px; font-size: 12px; background: #3a7bd5; margin-left: 10px;">📊 Test QQQ Scrape</button>
+                <div style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.6); text-align: center;">
+                    <div id="marketDataLastUpdate">Last updated: Loading...</div>
+                    <div id="marketDataStatus" style="margin-top: 5px;">Auto-refresh: Active</div>
+                </div>
             </div>
         </div>
         
@@ -1817,22 +1821,27 @@
                 
                 const insightsDiv = document.getElementById('mlInsights');
                 const statusDiv = document.getElementById('mlStatus');
+                const statusDetailsDiv = document.getElementById('mlStatusDetails');
                 const performanceDiv = document.getElementById('modelPerformance');
+                const performanceDetailsDiv = document.getElementById('performanceDetails');
                 
                 if (data.performance && data.performance.is_trained) {
                     const perf = data.performance;
                     const bestModel = perf.best_model || 'Unknown';
                     const modelMetrics = perf.performance_metrics?.[bestModel];
                     
-                    statusDiv.innerHTML = `<span style="color: #00ff88;">✓ Trained</span>`;
+                    statusDiv.innerHTML = `<span style="color: #00ff88;">✓ Active</span>`;
+                    statusDetailsDiv.innerHTML = `Models trained on ${perf.training_samples || 'N/A'} trades`;
                     
                     if (modelMetrics) {
                         const r2 = (modelMetrics.test_r2 * 100).toFixed(1);
                         const mae = modelMetrics.test_mae.toFixed(3);
                         const quality = modelMetrics.test_r2 > 0.5 ? 'Good' : modelMetrics.test_r2 > 0 ? 'Fair' : 'Poor';
                         performanceDiv.innerHTML = `${quality}: ${r2}% R²`;
+                        performanceDetailsDiv.innerHTML = `${bestModel} • MAE: ${mae}R`;
                     } else {
                         performanceDiv.innerHTML = `${bestModel} Active`;
+                        performanceDetailsDiv.innerHTML = 'Performance metrics loading...';
                     }
                     
                     let insightsHtml = `<strong>🎯 Best Model:</strong> ${bestModel}<br><br>`;
@@ -1848,46 +1857,43 @@
                         insightsHtml += '<br>';
                     }
                     
-                    if (perf.feature_importance) {
-                        insightsHtml += '<strong>🔍 Top Features:</strong><br>';
-                        const topFeatures = Object.entries(perf.feature_importance).slice(0, 5);
-                        topFeatures.forEach(([feature, importance]) => {
-                            insightsHtml += `• ${feature.replace('_', ' ')}: ${(importance * 100).toFixed(1)}%<br>`;
-                        });
-                        insightsHtml += '<br>';
-                    }
-                    
                     insightsHtml += '<strong>💡 Key Insights:</strong><br>';
                     const bestR2 = Math.max(...Object.values(perf.performance_metrics).map(m => m.test_r2));
                     if (bestR2 < 0) {
-                        insightsHtml += '• ⚠️ Models performing poorly - need more diverse training data<br>';
-                        insightsHtml += '• 📊 Add more trades across different market conditions<br>';
-                        insightsHtml += '• 🔄 Consider feature engineering improvements<br>';
+                        insightsHtml += '• ⚠️ Models need more diverse training data<br>';
+                        insightsHtml += '• 📊 Add trades across different market conditions<br>';
+                        insightsHtml += '• 🔄 Feature engineering improvements needed<br>';
                     } else if (bestR2 < 0.3) {
-                        insightsHtml += '• 📈 Models showing basic patterns but need improvement<br>';
+                        insightsHtml += '• 📈 Models showing basic patterns<br>';
                         insightsHtml += '• 📊 More training data will improve accuracy<br>';
                         insightsHtml += '• 🎯 Focus on consistent trading sessions<br>';
                     } else {
-                        insightsHtml += '• ✅ Models are learning meaningful patterns<br>';
-                        insightsHtml += '• 📊 Predictions improve as you add more trade data<br>';
-                        insightsHtml += '• 🎯 Market context influences predictions effectively<br>';
+                        insightsHtml += '• ✅ Models learning meaningful patterns<br>';
+                        insightsHtml += '• 📊 Predictions improve with more data<br>';
+                        insightsHtml += '• 🎯 Market context influences predictions<br>';
                     }
                     
                     insightsDiv.innerHTML = insightsHtml;
                 } else {
                     statusDiv.innerHTML = `<span style="color: #ffa502;">⚠ Not Trained</span>`;
-                    performanceDiv.innerHTML = 'Train models first';
-                    insightsDiv.innerHTML = '📊 <strong>ML Training Required</strong><br><br>Click "Train Models" to start learning from your trading data. The system needs at least 30 trades with MFE data to build accurate predictions.';
+                    statusDetailsDiv.innerHTML = 'Auto-training will start when sufficient data available';
+                    performanceDiv.innerHTML = 'Pending Training';
+                    performanceDetailsDiv.innerHTML = 'Need 30+ trades with MFE data';
+                    insightsDiv.innerHTML = '📊 <strong>ML Training Required</strong><br><br>System will automatically train models when sufficient trade data is available (30+ trades with MFE data).';
                 }
             } catch (error) {
                 console.error('Error loading ML insights:', error);
                 const statusDiv = document.getElementById('mlStatus');
+                const statusDetailsDiv = document.getElementById('mlStatusDetails');
                 const performanceDiv = document.getElementById('modelPerformance');
+                const performanceDetailsDiv = document.getElementById('performanceDetails');
                 const insightsDiv = document.getElementById('mlInsights');
                 
-                statusDiv.innerHTML = `<span style="color: #ff4757;">❌ Error</span>`;
-                performanceDiv.innerHTML = 'Connection failed';
-                insightsDiv.innerHTML = `❌ <strong>Connection Error</strong><br><br>Unable to load ML insights: ${error.message}<br><br>Please check your internet connection and try again.`;
+                statusDiv.innerHTML = `<span style="color: #ff4757;">❌ Offline</span>`;
+                statusDetailsDiv.innerHTML = 'Connection failed - retrying automatically';
+                performanceDiv.innerHTML = 'Connection Error';
+                performanceDetailsDiv.innerHTML = 'Auto-retry in progress';
+                insightsDiv.innerHTML = `❌ <strong>Connection Error</strong><br><br>Unable to load ML insights: ${error.message}<br><br>System will retry automatically.`;
             }
         }
         
@@ -2230,20 +2236,6 @@
                 // Get QQQ volume from MarketWatch
                 const qqqVolume = await getQQQVolume();
                 
-                // Check for fallback data and handle appropriately
-                if (data.data_source === 'Fallback') {
-                    console.warn('API returned fallback data, using scraped volume only');
-                    document.getElementById('vixValue').textContent = '-';
-                    document.getElementById('sessionValue').textContent = '-';
-                    document.getElementById('volumeValue').textContent = qqqVolume ? (qqqVolume/1000000).toFixed(1) + 'M' : '-';
-                    document.getElementById('dxyValue').textContent = '-';
-                    const dataSourceEl = document.getElementById('marketDataSource');
-                    if (dataSourceEl) {
-                        dataSourceEl.textContent = 'MarketWatch';
-                    }
-                    return;
-                }
-                
                 // Update market context values with real data
                 document.getElementById('vixValue').textContent = data.vix ? data.vix.toFixed(1) : '-';
                 document.getElementById('sessionValue').textContent = data.market_session || '-';
@@ -2253,6 +2245,17 @@
                 const dataSourceEl = document.getElementById('marketDataSource');
                 if (dataSourceEl) {
                     dataSourceEl.textContent = qqqVolume ? 'MarketWatch' : (data.data_source || '-');
+                }
+                
+                // Update status indicators
+                const lastUpdateEl = document.getElementById('marketDataLastUpdate');
+                const statusEl = document.getElementById('marketDataStatus');
+                if (lastUpdateEl) {
+                    lastUpdateEl.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+                }
+                if (statusEl) {
+                    statusEl.textContent = 'Auto-refresh: Active • Next: 30s';
+                    statusEl.style.color = '#00ff88';
                 }
                 
                 // Color code VIX based on volatility levels
@@ -2273,6 +2276,17 @@
                 const dataSourceEl = document.getElementById('marketDataSource');
                 if (dataSourceEl) {
                     dataSourceEl.textContent = qqqVolume ? 'MarketWatch' : 'Offline';
+                }
+                
+                // Update status indicators for error state
+                const lastUpdateEl = document.getElementById('marketDataLastUpdate');
+                const statusEl = document.getElementById('marketDataStatus');
+                if (lastUpdateEl) {
+                    lastUpdateEl.textContent = `Last update failed: ${new Date().toLocaleTimeString()}`;
+                }
+                if (statusEl) {
+                    statusEl.textContent = 'Auto-refresh: Retrying • Error: ' + error.message.substring(0, 20);
+                    statusEl.style.color = '#ff4757';
                 }
             }
         }
@@ -2341,33 +2355,375 @@
             });
         }
         
-        // Test ML API connectivity
-        async function testMLConnectivity(showAlert = false) {
+        // Auto-train ML models without user interaction
+        async function autoTrainMLModels() {
             try {
-                console.log('Testing ML API connectivity...');
-                const response = await fetch('https://web-production-cd33.up.railway.app/api/ml-insights');
-                console.log('ML API Test - Status:', response.status);
+                console.log('Auto-training ML models...');
+                
+                // Get current data source from UI
+                const dataSource = document.getElementById('dataSource').value;
+                const tableName = dataSource === '15m' ? 'signal_lab_15m_trades' : 'signal_lab_trades';
+                
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/ml-train', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        force_retrain: false, // Only train if needed
+                        use_real_data: true,
+                        data_source: tableName
+                    })
+                });
                 
                 if (response.ok) {
-                    console.log('✅ ML API is accessible');
-                    if (showAlert) {
-                        alert('✅ ML API Connection Test\n\nStatus: Connected\nEndpoint: Accessible\nResponse: OK');
+                    const result = await response.json();
+                    console.log('Auto ML Training Result:', result);
+                    
+                    // Update status without alerts
+                    if (result.status === 'success') {
+                        console.log('✅ ML models auto-trained successfully');
+                        // Refresh insights after successful training
+                        setTimeout(() => {
+                            loadMLInsights();
+                        }, 1000);
                     }
-                    return true;
-                } else {
-                    console.log('⚠ ML API returned error status:', response.status);
-                    if (showAlert) {
-                        alert(`⚠ ML API Connection Test\n\nStatus: Error\nHTTP Code: ${response.status}\nEndpoint: Accessible but returned error`);
-                    }
-                    return false;
                 }
             } catch (error) {
-                console.log('❌ ML API connectivity test failed:', error.message);
-                if (showAlert) {
-                    alert(`❌ ML API Connection Test\n\nStatus: Failed\nError: ${error.message}\nEndpoint: Not accessible`);
-                }
-                return false;
+                console.error('Auto ML Training Error:', error);
+                // Silent failure - will retry on next interval
             }
+        }
+        
+        // Auto-get current prediction without user interaction
+        async function getCurrentPredictionAuto() {
+            try {
+                console.log('Auto-getting current ML prediction...');
+                
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/ml-predict-advanced', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session: 'NY AM',
+                        vix: 20.0,
+                        qqq_volume: 50000000,
+                        dxy_price: 104.5,
+                        market_session: 'NY AM',
+                        hour: 14,
+                        minute: 30,
+                        day_of_week: 2
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Auto ML Prediction Result:', data);
+                    
+                    if (data.prediction) {
+                        const pred = data.prediction;
+                        const predMFE = pred.predicted_mfe || 0;
+                        const confidence = pred.confidence || 0;
+                        
+                        document.getElementById('currentPrediction').innerHTML = `${predMFE.toFixed(2)}R`;
+                        document.getElementById('predictionDetails').innerHTML = `Confidence: ${(confidence*100).toFixed(0)}% • Auto-updated`;
+                    } else {
+                        document.getElementById('currentPrediction').innerHTML = 'No Prediction';
+                        document.getElementById('predictionDetails').innerHTML = 'Models not ready or insufficient data';
+                    }
+                } else {
+                    document.getElementById('currentPrediction').innerHTML = 'Error';
+                    document.getElementById('predictionDetails').innerHTML = 'Prediction service unavailable';
+                }
+            } catch (error) {
+                console.error('Auto ML Prediction Error:', error);
+                document.getElementById('currentPrediction').innerHTML = 'Offline';
+                document.getElementById('predictionDetails').innerHTML = 'Connection error - retrying automatically';
+            }
+        }
+        
+        // Auto-load feature importance
+        async function loadFeatureImportance() {
+            try {
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/ml-feature-importance');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('topFeatures').innerHTML = 'Feature analysis unavailable';
+                    return;
+                }
+                
+                let featuresHtml = '';
+                if (data.feature_importance && data.best_model) {
+                    const modelFeatures = data.feature_importance[data.best_model];
+                    if (modelFeatures && modelFeatures.top_features) {
+                        featuresHtml = modelFeatures.top_features.slice(0, 5).map(([feature, importance]) => {
+                            const barWidth = (importance * 100).toFixed(1);
+                            return `<div style="margin: 4px 0; display: flex; align-items: center; gap: 8px;">
+                                <span style="min-width: 80px; font-size: 11px;">${feature.replace('_', ' ')}</span>
+                                <div style="flex: 1; background: rgba(255,255,255,0.1); height: 12px; border-radius: 6px; overflow: hidden;">
+                                    <div style="background: #3742fa; height: 100%; width: ${barWidth}%; border-radius: 6px;"></div>
+                                </div>
+                                <span style="min-width: 35px; font-size: 11px; text-align: right;">${barWidth}%</span>
+                            </div>`;
+                        }).join('');
+                    }
+                }
+                
+                document.getElementById('topFeatures').innerHTML = featuresHtml || 'No feature data available';
+                
+            } catch (error) {
+                console.error('Error loading feature importance:', error);
+                document.getElementById('topFeatures').innerHTML = 'Feature analysis offline';
+            }
+        }
+        
+        // Auto-load ML recommendations
+        async function loadMLRecommendations() {
+            try {
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/ml-insights');
+                const data = await response.json();
+                
+                let recommendationsHtml = '';
+                if (data.performance && data.performance.is_trained) {
+                    const bestR2 = data.performance.performance_metrics ? 
+                        Math.max(...Object.values(data.performance.performance_metrics).map(m => m.test_r2)) : 0;
+                    
+                    if (bestR2 < 0) {
+                        recommendationsHtml = '• Add more diverse training data<br>• Focus on different market conditions<br>• Consider feature improvements';
+                    } else if (bestR2 < 0.3) {
+                        recommendationsHtml = '• Models showing basic patterns<br>• More training data needed<br>• Focus on consistent sessions';
+                    } else {
+                        recommendationsHtml = '• Models performing well<br>• Use predictions for position sizing<br>• Monitor accuracy over time';
+                    }
+                } else {
+                    recommendationsHtml = '• Add at least 30 trades with MFE data<br>• System will auto-train when ready<br>• Focus on data quality';
+                }
+                
+                document.getElementById('aiRecommendations').innerHTML = recommendationsHtml;
+                
+            } catch (error) {
+                console.error('Error loading ML recommendations:', error);
+                document.getElementById('aiRecommendations').innerHTML = 'Recommendations offline';
+            }
+        }
+        
+        function updateSessionAnalytics(filteredSignals) {
+            const beStrategy = document.getElementById('beStrategy').value;
+            const rTarget = parseFloat(document.getElementById('rTarget').value) || 2;
+            
+            const sessionColors = {
+                'Asia': '#ffa502',
+                'London': '#3742fa', 
+                'NY Pre Market': '#26de81',
+                'NY AM': '#00ff88',
+                'NY Lunch': '#ffffff',
+                'NY PM': '#a55eea'
+            };
+            
+            // Calculate session statistics
+            const sessionStats = {};
+            Object.keys(sessionColors).forEach(session => {
+                const sessionTrades = filteredSignals.filter(s => s.session === session);
+                if (sessionTrades.length > 0) {
+                    const results = sessionTrades.map(s => calculateTradeResult(s, beStrategy, rTarget));
+                    const stats = calculateStatistics(results, rTarget);
+                    sessionStats[session] = {
+                        count: sessionTrades.length,
+                        winRate: stats.winRate,
+                        expectancy: stats.expectancy,
+                        color: sessionColors[session]
+                    };
+                }
+            });
+            
+            // Create session distribution chart
+            createSessionDistributionChart(sessionStats);
+            
+            // Create win rate chart with distinct colors
+            createSessionWinRateChart(sessionStats);
+            
+            // Create expectancy chart
+            createSessionExpectancyChart(sessionStats);
+        }
+        
+        function createSessionWinRateChart(sessionStats) {
+            const container = d3.select('#sessionWinRateChart');
+            container.selectAll('*').remove();
+            
+            const data = Object.entries(sessionStats).map(([session, stats]) => ({
+                session,
+                winRate: stats.winRate,
+                color: stats.color,
+                count: stats.count
+            }));
+            
+            if (data.length === 0) return;
+            
+            const width = 250;
+            const height = 250;
+            const radius = Math.min(width, height) / 2;
+            
+            const svg = container.append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${width/2}, ${height/2})`);
+            
+            const pie = d3.pie()
+                .value(d => d.winRate)
+                .sort(null);
+            
+            const arc = d3.arc()
+                .innerRadius(radius * 0.4)
+                .outerRadius(radius * 0.8);
+            
+            const arcs = g.selectAll('.arc')
+                .data(pie(data))
+                .enter().append('g')
+                .attr('class', 'arc');
+            
+            arcs.append('path')
+                .attr('d', arc)
+                .attr('fill', d => d.data.color)
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 2)
+                .style('opacity', 0.8)
+                .on('mouseover', function(event, d) {
+                    d3.select(this).style('opacity', 1);
+                })
+                .on('mouseout', function(event, d) {
+                    d3.select(this).style('opacity', 0.8);
+                });
+            
+            // Add labels
+            arcs.append('text')
+                .attr('transform', d => `translate(${arc.centroid(d)})`)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '11px')
+                .style('font-weight', '600')
+                .style('fill', '#fff')
+                .text(d => `${d.data.winRate.toFixed(0)}%`);
+            
+            // Create legend
+            const legend = d3.select('#sessionWinRateLegend');
+            legend.selectAll('*').remove();
+            
+            data.forEach(d => {
+                const legendItem = legend.append('div')
+                    .style('display', 'inline-flex')
+                    .style('align-items', 'center')
+                    .style('margin', '2px 4px')
+                    .style('font-size', '11px');
+                
+                legendItem.append('div')
+                    .style('width', '12px')
+                    .style('height', '12px')
+                    .style('background', d.color)
+                    .style('margin-right', '4px')
+                    .style('border-radius', '2px');
+                
+                legendItem.append('span')
+                    .style('color', 'rgba(255,255,255,0.9)')
+                    .text(`${d.session}: ${d.winRate.toFixed(1)}%`);
+            });
+        }
+        
+        function createSessionDistributionChart(sessionStats) {
+            const container = d3.select('#sessionDistributionChart');
+            container.selectAll('*').remove();
+            
+            const data = Object.entries(sessionStats).map(([session, stats]) => ({
+                session,
+                count: stats.count,
+                color: stats.color
+            }));
+            
+            if (data.length === 0) return;
+            
+            const width = 250;
+            const height = 250;
+            const radius = Math.min(width, height) / 2;
+            
+            const svg = container.append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${width/2}, ${height/2})`);
+            
+            const pie = d3.pie()
+                .value(d => d.count)
+                .sort(null);
+            
+            const arc = d3.arc()
+                .innerRadius(radius * 0.4)
+                .outerRadius(radius * 0.8);
+            
+            const arcs = g.selectAll('.arc')
+                .data(pie(data))
+                .enter().append('g')
+                .attr('class', 'arc');
+            
+            arcs.append('path')
+                .attr('d', arc)
+                .attr('fill', d => d.data.color)
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 2)
+                .style('opacity', 0.8);
+            
+            arcs.append('text')
+                .attr('transform', d => `translate(${arc.centroid(d)})`)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '11px')
+                .style('font-weight', '600')
+                .style('fill', '#fff')
+                .text(d => d.data.count);
+        }
+        
+        function createSessionExpectancyChart(sessionStats) {
+            const container = d3.select('#sessionExpectancyChart');
+            container.selectAll('*').remove();
+            
+            const data = Object.entries(sessionStats).map(([session, stats]) => ({
+                session,
+                expectancy: stats.expectancy,
+                color: stats.color
+            }));
+            
+            if (data.length === 0) return;
+            
+            const width = 250;
+            const height = 250;
+            const margin = {top: 20, right: 20, bottom: 40, left: 40};
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+            
+            const svg = container.append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left}, ${margin.top})`);
+            
+            const xScale = d3.scaleBand()
+                .domain(data.map(d => d.session))
+                .range([0, innerWidth])
+                .padding(0.1);
+            
+            const yScale = d3.scaleLinear()
+                .domain(d3.extent(data, d => d.expectancy))
+                .nice()
+                .range([innerHeight, 0]);
+            
+            g.selectAll('.bar')
+                .data(data)
+                .enter().append('rect')
+                .attr('class', 'bar')
+                .attr('x', d => xScale(d.session))
+                .attr('y', d => d.expectancy >= 0 ? yScale(d.expectancy) : yScale(0))
+                .attr('width', xScale.bandwidth())
+                .attr('height', d => Math.abs(yScale(d.expectancy) - yScale(0)))
+                .attr('fill', d => d.color)
+                .style('opacity', 0.8);
         }
         
         function clearSessionCharts() {
@@ -2384,7 +2740,6 @@
             document.getElementById('sessionDistributionStats').innerHTML = 'No data';
             document.getElementById('sessionWinRateStats').innerHTML = 'No data';
             document.getElementById('sessionExpectancyStats').innerHTML = 'No data';
-
         }
         
         document.addEventListener('DOMContentLoaded', function() {
@@ -2392,25 +2747,43 @@
             loadSignals();
             setupAutoUpdate();
             startAutomaticRefresh();
+            
+            // Show loading states initially
+            document.getElementById('mlStatus').innerHTML = 'Loading...';
+            document.getElementById('currentPrediction').innerHTML = 'Loading...';
+            document.getElementById('modelPerformance').innerHTML = 'Loading...';
         });
         
         function startAutomaticRefresh() {
+            // Initial load after 2 seconds
             setTimeout(() => {
                 loadMarketContext();
                 loadMLInsights();
+                loadFeatureImportance();
+                loadMLRecommendations();
+                getCurrentPredictionAuto();
             }, 2000);
             
+            // Market data refresh every 30 seconds
             setInterval(() => {
                 loadMarketContext();
-                loadMLInsights();
             }, 30000);
             
+            // ML insights refresh every 60 seconds
             setInterval(() => {
-                trainMLModels();
+                loadMLInsights();
+                loadFeatureImportance();
+                loadMLRecommendations();
+            }, 60000);
+            
+            // Auto-train models every 5 minutes if needed
+            setInterval(() => {
+                autoTrainMLModels();
             }, 300000);
             
+            // Prediction refresh every 2 minutes
             setInterval(() => {
-                getCurrentPrediction();
+                getCurrentPredictionAuto();
             }, 120000);
         }
         
