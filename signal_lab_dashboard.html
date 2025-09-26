@@ -1934,10 +1934,10 @@
                     setTimeout(() => {
                         loadMLInsights();
                     }, 1000);
-                } else if (result.status === 'already_trained') {
+                } else if (result.status === 'already_trained' || (result.models && result.status)) {
                     // Handle already trained models - show current status instead of error
                     const modelsText = Array.isArray(result.models) ? result.models.join(', ') : 'Multiple models';
-                    alert(`ℹ️ MODELS ALREADY TRAINED\n\nModels: ${modelsText}\nStatus: Ready for predictions\n\nUse "Get Prediction" to test current models or wait for automatic retraining.`);
+                    alert(`ℹ️ MODELS ALREADY TRAINED\n\nModels: ${modelsText}\nStatus: Ready for predictions\n\nUse "Get Prediction" to test current models.`);
                     
                     // Still refresh insights to show current status
                     setTimeout(() => {
