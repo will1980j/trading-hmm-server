@@ -400,6 +400,30 @@
         <div class="controls-panel">
             <h3 style="margin-bottom: 20px; color: #00ff88;">Analysis Controls</h3>
             
+            <!-- Prop Firm Risk Management -->
+            <div style="background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.3); border-radius: 15px; padding: 20px; margin-bottom: 25px;">
+                <h4 style="color: #ff4757; margin: 0 0 15px 0; font-size: 16px;">🚨 Prop Firm Risk Management</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div class="control-group">
+                        <label>Risk Per Trade (%)</label>
+                        <input type="number" id="riskPerTrade" min="0.1" max="2" step="0.1" value="0.5" placeholder="0.5" style="flex: 1;">
+                    </div>
+                    <div class="control-group">
+                        <label>Max Daily Loss (%)</label>
+                        <input type="number" id="maxDailyLoss" min="1" max="10" step="0.5" value="5" placeholder="5" style="flex: 1;">
+                    </div>
+                    <div class="control-group">
+                        <label>Max Total Drawdown (%)</label>
+                        <input type="number" id="maxTotalDrawdown" min="5" max="20" step="1" value="10" placeholder="10" style="flex: 1;">
+                    </div>
+                    <div class="control-group">
+                        <label>Account Size ($)</label>
+                        <input type="number" id="accountSize" min="10000" max="1000000" step="10000" value="100000" placeholder="100000" style="flex: 1;">
+                    </div>
+                </div>
+                <div id="riskWarning" style="margin-top: 15px; padding: 10px; background: rgba(255,71,87,0.2); border-radius: 8px; font-size: 12px; color: #ff4757; display: none;"></div>
+            </div>
+            
             <div class="controls-grid">
                 <div class="control-group">
                     <label>Data Source</label>
@@ -500,12 +524,27 @@
         </div>
         
         <div class="chart-container" style="margin-bottom: 20px;">
-            <h3 style="margin-bottom: 20px; color: #00ff88;">Total R Performance</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <h3 style="margin-bottom: 20px; color: #00ff88;">Performance Metrics</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px;">
                 <div class="stat-card">
                     <div class="stat-value" id="totalR">-</div>
                     <div class="stat-label">Total R</div>
                     <div class="stat-analysis" id="totalRAnalysis" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3; min-height: 40px; text-align: left;">Loading analysis...</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalPercent">-</div>
+                    <div class="stat-label">Total %</div>
+                    <div class="stat-analysis" id="totalPercentAnalysis" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3; min-height: 40px; text-align: left;">Loading analysis...</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="maxDrawdown">-</div>
+                    <div class="stat-label">Max Drawdown</div>
+                    <div class="stat-analysis" id="maxDrawdownAnalysis" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3; min-height: 40px; text-align: left;">Loading analysis...</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="propFirmViable">-</div>
+                    <div class="stat-label">Prop Firm Viable</div>
+                    <div class="stat-analysis" id="propFirmViableAnalysis" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3; min-height: 40px; text-align: left;">Loading analysis...</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" id="avgRPerTrade">-</div>
@@ -516,11 +555,6 @@
                     <div class="stat-value" id="bestTrade">-</div>
                     <div class="stat-label">Best Trade</div>
                     <div class="stat-analysis" id="bestTradeAnalysis" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3; min-height: 40px; text-align: left;">Loading analysis...</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="worstTrade">-</div>
-                    <div class="stat-label">Worst Trade</div>
-                    <div class="stat-analysis" id="worstTradeAnalysis" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3; min-height: 40px; text-align: left;">Loading analysis...</div>
                 </div>
             </div>
         </div>
@@ -894,15 +928,29 @@
             const bestTrade = results.length > 0 ? Math.max(...results) : 0;
             const worstTrade = results.length > 0 ? Math.min(...results) : 0;
             
-            // Calculate max consecutive losses (only wins reset, not BEs)
+            // Calculate max consecutive losses and max drawdown
             let maxConsecutiveLosses = 0;
             let currentConsecutiveLosses = 0;
-            
-            // Calculate max consecutive wins
             let maxConsecutiveWins = 0;
             let currentConsecutiveWins = 0;
+            let maxDrawdown = 0;
+            let currentDrawdown = 0;
+            let peak = 0;
+            let runningTotal = 0;
             
             results.forEach(result => {
+                runningTotal += result;
+                
+                // Track drawdown
+                if (runningTotal > peak) {
+                    peak = runningTotal;
+                    currentDrawdown = 0;
+                } else {
+                    currentDrawdown = peak - runningTotal;
+                    maxDrawdown = Math.max(maxDrawdown, currentDrawdown);
+                }
+                
+                // Track consecutive losses/wins
                 if (result < 0) {
                     currentConsecutiveLosses++;
                     maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentConsecutiveLosses);
@@ -912,7 +960,6 @@
                     maxConsecutiveWins = Math.max(maxConsecutiveWins, currentConsecutiveWins);
                     currentConsecutiveLosses = 0;
                 }
-                // Breakevens (result === 0) don't reset either counter
             });
             
             return {
@@ -921,11 +968,40 @@
                 lossRate,
                 maxConsecutiveLosses,
                 maxConsecutiveWins,
+                maxDrawdown,
                 totalR,
                 avgRPerTrade,
                 bestTrade,
                 worstTrade,
                 total
+            };
+        }
+        
+        function calculatePropFirmMetrics(stats) {
+            const riskPerTrade = parseFloat(document.getElementById('riskPerTrade').value) || 0.5;
+            const maxDailyLoss = parseFloat(document.getElementById('maxDailyLoss').value) || 5;
+            const maxTotalDrawdown = parseFloat(document.getElementById('maxTotalDrawdown').value) || 10;
+            const accountSize = parseFloat(document.getElementById('accountSize').value) || 100000;
+            
+            // Calculate percentage metrics
+            const totalPercent = stats.totalR * riskPerTrade;
+            const maxDrawdownPercent = stats.maxDrawdown * riskPerTrade;
+            const maxConsecutiveLossPercent = stats.maxConsecutiveLosses * riskPerTrade;
+            
+            // Check prop firm viability
+            const exceedsDrawdownLimit = maxDrawdownPercent > maxTotalDrawdown;
+            const exceedsConsecutiveLossLimit = maxConsecutiveLossPercent > maxDailyLoss;
+            
+            const propFirmViable = !exceedsDrawdownLimit && !exceedsConsecutiveLossLimit;
+            
+            return {
+                totalPercent,
+                maxDrawdownPercent,
+                maxConsecutiveLossPercent,
+                propFirmViable,
+                riskPerTrade,
+                exceedsDrawdownLimit,
+                exceedsConsecutiveLossLimit
             };
         }
         
@@ -1787,6 +1863,14 @@
             document.getElementById('rTarget').addEventListener('input', updateAnalysis);
             document.getElementById('viewType').addEventListener('change', updateAnalysis);
             document.getElementById('sessionOverlay').addEventListener('change', updateAnalysis);
+            
+            // Prop firm risk controls
+            ['riskPerTrade', 'maxDailyLoss', 'maxTotalDrawdown', 'accountSize'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('input', updateAnalysis);
+                }
+            });
             
             // Chart visualization toggles
             ['heatmapOverlay', 'volatilityBands', 'milestoneMarkers', 'riskRewardViz', 'showLegend'].forEach(id => {
@@ -2900,7 +2984,8 @@
             combinations.slice(0, 10).forEach((combo, i) => {
                 const beText = combo.beStrategy === 'none' ? 'No BE' : combo.beStrategy === 'be1' ? 'BE=1R' : 'BE=2R';
                 const rCaptured = combo.totalR ? `, ${combo.totalR.toFixed(1)}R captured` : '';
-                analysis += `${i+1}. ${combo.session} + ${beText} + ${combo.rTarget}R: ${combo.expectancy.toFixed(3)}R expectancy, ${combo.winRate.toFixed(1)}% WR${rCaptured}, ${combo.maxLosses} max losses, ${combo.psychScore.toFixed(3)} psych score\n`;
+                const propStatus = combo.propFirmViable ? 'VIABLE' : 'BREACH';
+                analysis += `${i+1}. ${combo.session} + ${beText} + ${combo.rTarget}R: ${combo.expectancy.toFixed(3)}R expectancy, ${combo.winRate.toFixed(1)}% WR${rCaptured}, ${combo.maxLosses} max losses, ${propStatus}, ${combo.psychScore.toFixed(3)} psych score\n`;
             });
             
             return analysis;
@@ -2921,9 +3006,10 @@
                         if (sessionSignals.length >= 10) {
                             const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
                             const stats = calculateStatistics(results, rTarget);
-                            const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate, stats.totalR);
+                            const propMetrics = calculatePropFirmMetrics(stats);
+                            const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate, stats.totalR, propMetrics);
                             
-                            if (psychScore > bestScore) {
+                            if (psychScore > bestScore && propMetrics.propFirmViable) {
                                 bestScore = psychScore;
                                 bestCombination = {
                                     beStrategy, rTarget,
@@ -2932,7 +3018,8 @@
                                     winRate: stats.winRate,
                                     totalTrades: sessionSignals.length,
                                     totalR: stats.totalR,
-                                    maxConsecutiveLosses: stats.maxConsecutiveLosses
+                                    maxConsecutiveLosses: stats.maxConsecutiveLosses,
+                                    propFirmViable: propMetrics.propFirmViable
                                 };
                             }
                         }
@@ -3505,18 +3592,33 @@
             };
         }
         
-        function calculatePsychologicalScore(expectancy, maxConsecutiveLosses, winRate, totalR = 0) {
-            // Penalize strategies with high consecutive losses
-            const lossPenalty = Math.pow(maxConsecutiveLosses, 1.5) * 0.1;
+        function calculatePsychologicalScore(expectancy, maxConsecutiveLosses, winRate, totalR = 0, propFirmMetrics = null) {
+            // Base expectancy score
+            let score = expectancy;
             
-            // Bonus for higher win rates (psychological comfort)
-            const winRateBonus = (winRate - 50) * 0.01;
+            // Heavy penalty for prop firm rule violations
+            if (propFirmMetrics) {
+                if (propFirmMetrics.exceedsDrawdownLimit) {
+                    score -= 10; // Massive penalty - strategy is unusable
+                }
+                if (propFirmMetrics.exceedsConsecutiveLossLimit) {
+                    score -= 5; // Large penalty for daily loss limit breach
+                }
+                
+                // Additional penalty based on how close to limits
+                const drawdownRatio = propFirmMetrics.maxDrawdownPercent / parseFloat(document.getElementById('maxTotalDrawdown').value || 10);
+                const consecutiveRatio = propFirmMetrics.maxConsecutiveLossPercent / parseFloat(document.getElementById('maxDailyLoss').value || 5);
+                
+                score -= Math.max(0, (drawdownRatio - 0.5) * 2); // Penalty when > 50% of limit
+                score -= Math.max(0, (consecutiveRatio - 0.5) * 1); // Penalty when > 50% of limit
+            }
             
-            // R captured bonus - this is crucial for profitability
-            const rCapturedBonus = totalR > 0 ? Math.log(totalR + 1) * 0.2 : totalR * 0.1;
+            // Traditional psychological factors (reduced weight)
+            const lossPenalty = Math.pow(maxConsecutiveLosses, 1.2) * 0.05;
+            const winRateBonus = (winRate - 50) * 0.005;
+            const rCapturedBonus = totalR > 0 ? Math.log(totalR + 1) * 0.1 : totalR * 0.05;
             
-            // Base score is expectancy, adjusted for psychological factors and R captured
-            return expectancy - lossPenalty + winRateBonus + rCapturedBonus;
+            return score - lossPenalty + winRateBonus + rCapturedBonus;
         }
         
         function displayRTargetAnalysis(result) {
