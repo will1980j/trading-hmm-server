@@ -2533,7 +2533,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        force_retrain: false, // Only train if needed
+                        force_retrain: true, // Always retrain with new data
                         use_real_data: true,
                         data_source: tableName
                     })
