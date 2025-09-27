@@ -3591,8 +3591,8 @@
                             
                             console.log(`${session} ${beStrategy} ${rTarget}R: ${stats.maxConsecutiveLosses} losses, ${propMetrics.maxDrawdownPercent.toFixed(1)}% DD, viable: ${propMetrics.propFirmViable}`);
                             
-                            // STRICT prop firm filtering - only include viable strategies
-                            if (propMetrics.propFirmViable && stats.expectancy > 0) {
+                            // STRICT filtering - must be profitable AND prop firm viable
+                            if (propMetrics.propFirmViable && stats.expectancy > 0 && stats.totalR > 0 && stats.winRate >= 40 && sessionTrades.length >= 10) {
                                 const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate, stats.totalR, propMetrics);
                                 
                                 const combination = {
@@ -3636,8 +3636,8 @@
                                 const stats = calculateStatistics(results, rTarget);
                                 const propMetrics = calculatePropFirmMetrics(stats);
                                 
-                                // STRICT prop firm filtering - only include viable strategies
-                                if (propMetrics.propFirmViable && stats.expectancy > 0) {
+                                // STRICT filtering - must be profitable AND prop firm viable
+                                if (propMetrics.propFirmViable && stats.expectancy > 0 && stats.totalR > 0 && stats.winRate >= 40 && pairTrades.length >= 15) {
                                     const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate, stats.totalR, propMetrics);
                                     
                                     const combination = {
@@ -3693,32 +3693,30 @@
         }
         
         function calculatePsychologicalScore(expectancy, maxConsecutiveLosses, winRate, totalR = 0, propFirmMetrics = null) {
-            // Base expectancy score
-            let score = expectancy;
+            // Must be profitable - reject negative strategies immediately
+            if (expectancy <= 0 || totalR <= 0) return -999;
             
-            // CRITICAL: Heavy penalty for prop firm rule violations
-            if (propFirmMetrics) {
-                if (propFirmMetrics.exceedsDrawdownLimit) {
-                    score -= 100; // MASSIVE penalty - strategy is completely unusable
-                }
-                if (propFirmMetrics.exceedsConsecutiveLossLimit) {
-                    score -= 50; // HUGE penalty for daily loss limit breach
-                }
-                
-                // Additional penalty based on how close to limits
-                const drawdownRatio = propFirmMetrics.maxDrawdownPercent / parseFloat(document.getElementById('maxTotalDrawdown').value || 10);
-                const consecutiveRatio = propFirmMetrics.maxConsecutiveLossPercent / parseFloat(document.getElementById('maxDailyLoss').value || 5);
-                
-                score -= Math.max(0, (drawdownRatio - 0.7) * 5); // Penalty when > 70% of limit
-                score -= Math.max(0, (consecutiveRatio - 0.7) * 3); // Penalty when > 70% of limit
+            // Base score: heavily weight total R captured
+            let score = totalR * 2 + expectancy * 10;
+            
+            // Win rate bonus (40%+ required)
+            if (winRate >= 40) {
+                score += (winRate - 40) * 0.1;
+            } else {
+                score -= 50; // Heavy penalty for low win rate
             }
             
-            // Traditional psychological factors (reduced weight)
-            const lossPenalty = Math.pow(maxConsecutiveLosses, 1.2) * 0.05;
-            const winRateBonus = (winRate - 50) * 0.005;
-            const rCapturedBonus = totalR > 0 ? Math.log(totalR + 1) * 0.1 : totalR * 0.05;
+            // Consecutive loss penalty
+            score -= Math.pow(maxConsecutiveLosses, 1.5) * 0.1;
             
-            return score - lossPenalty + winRateBonus + rCapturedBonus;
+            // Prop firm compliance bonus
+            if (propFirmMetrics && propFirmMetrics.propFirmViable) {
+                score += 5; // Bonus for compliance
+            } else {
+                score -= 1000; // Massive penalty for non-compliance
+            }
+            
+            return score;
         }
         
         function displayRTargetAnalysis(result) {
