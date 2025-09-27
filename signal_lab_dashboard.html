@@ -3577,6 +3577,8 @@
             const allResults = [];
             const sessionCombinations = [];
             
+            console.log('🔍 Analyzing R-targets with STRICT prop firm filtering...');
+            
             // Test individual sessions
             for (const session of availableSessions) {
                 const sessionTrades = trades.filter(t => t.session === session);
@@ -3587,8 +3589,10 @@
                             const stats = calculateStatistics(results, rTarget);
                             const propMetrics = calculatePropFirmMetrics(stats);
                             
-                            // Only consider prop firm viable strategies
-                            if (propMetrics.propFirmViable) {
+                            console.log(`${session} ${beStrategy} ${rTarget}R: ${stats.maxConsecutiveLosses} losses, ${propMetrics.maxDrawdownPercent.toFixed(1)}% DD, viable: ${propMetrics.propFirmViable}`);
+                            
+                            // STRICT prop firm filtering - only include viable strategies
+                            if (propMetrics.propFirmViable && stats.expectancy > 0) {
                                 const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate, stats.totalR, propMetrics);
                                 
                                 const combination = {
@@ -3601,7 +3605,9 @@
                                     maxConsecutiveLosses: stats.maxConsecutiveLosses,
                                     psychScore: psychScore,
                                     type: 'single',
-                                    propFirmViable: true
+                                    propFirmViable: true,
+                                    maxDrawdownPercent: propMetrics.maxDrawdownPercent,
+                                    totalR: stats.totalR
                                 };
                                 
                                 allResults.push(combination);
@@ -3630,8 +3636,8 @@
                                 const stats = calculateStatistics(results, rTarget);
                                 const propMetrics = calculatePropFirmMetrics(stats);
                                 
-                                // Only consider prop firm viable strategies
-                                if (propMetrics.propFirmViable) {
+                                // STRICT prop firm filtering - only include viable strategies
+                                if (propMetrics.propFirmViable && stats.expectancy > 0) {
                                     const psychScore = calculatePsychologicalScore(stats.expectancy, stats.maxConsecutiveLosses, stats.winRate, stats.totalR, propMetrics);
                                     
                                     const combination = {
@@ -3644,7 +3650,9 @@
                                         maxConsecutiveLosses: stats.maxConsecutiveLosses,
                                         psychScore: psychScore,
                                         type: 'pair',
-                                        propFirmViable: true
+                                        propFirmViable: true,
+                                        maxDrawdownPercent: propMetrics.maxDrawdownPercent,
+                                        totalR: stats.totalR
                                     };
                                     
                                     allResults.push(combination);
@@ -3660,6 +3668,8 @@
                     }
                 }
             }
+            
+            console.log(`✅ Found ${allResults.length} prop firm viable strategies out of ${beStrategies.length * rTargets.length * availableSessions.length} tested`);
             
             // Sort by psychological score (expectancy balanced with drawdown tolerance)
             allResults.sort((a, b) => b.psychScore - a.psychScore);
@@ -3686,21 +3696,21 @@
             // Base expectancy score
             let score = expectancy;
             
-            // Heavy penalty for prop firm rule violations
+            // CRITICAL: Heavy penalty for prop firm rule violations
             if (propFirmMetrics) {
                 if (propFirmMetrics.exceedsDrawdownLimit) {
-                    score -= 10; // Massive penalty - strategy is unusable
+                    score -= 100; // MASSIVE penalty - strategy is completely unusable
                 }
                 if (propFirmMetrics.exceedsConsecutiveLossLimit) {
-                    score -= 5; // Large penalty for daily loss limit breach
+                    score -= 50; // HUGE penalty for daily loss limit breach
                 }
                 
                 // Additional penalty based on how close to limits
                 const drawdownRatio = propFirmMetrics.maxDrawdownPercent / parseFloat(document.getElementById('maxTotalDrawdown').value || 10);
                 const consecutiveRatio = propFirmMetrics.maxConsecutiveLossPercent / parseFloat(document.getElementById('maxDailyLoss').value || 5);
                 
-                score -= Math.max(0, (drawdownRatio - 0.5) * 2); // Penalty when > 50% of limit
-                score -= Math.max(0, (consecutiveRatio - 0.5) * 1); // Penalty when > 50% of limit
+                score -= Math.max(0, (drawdownRatio - 0.7) * 5); // Penalty when > 70% of limit
+                score -= Math.max(0, (consecutiveRatio - 0.7) * 3); // Penalty when > 70% of limit
             }
             
             // Traditional psychological factors (reduced weight)
@@ -3717,7 +3727,19 @@
             const sessionCombinations = result.session_combinations || [];
             
             if (!optimal) {
-                document.getElementById('rTargetAnalysis').innerHTML = 'Insufficient data for optimal R-target analysis';
+                document.getElementById('rTargetAnalysis').innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ff4757;">
+                        <div style="font-size: 18px; margin-bottom: 10px;">❌ No Prop Firm Compliant Strategies Found</div>
+                        <div style="font-size: 14px; margin-bottom: 15px;">All tested combinations exceed prop firm risk limits</div>
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.7); line-height: 1.6;">
+                            Current limits:<br>
+                            • Max Daily Loss: ${document.getElementById('maxDailyLoss').value}%<br>
+                            • Max Drawdown: ${document.getElementById('maxTotalDrawdown').value}%<br>
+                            • Risk Per Trade: ${document.getElementById('riskPerTrade').value}%<br><br>
+                            Try reducing risk limits or increasing sample size.
+                        </div>
+                    </div>
+                `;
                 return;
             }
             
