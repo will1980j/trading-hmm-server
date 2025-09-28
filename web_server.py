@@ -384,6 +384,11 @@ def fix_active_trades_page():
 def prop_portfolio():
     return read_html_file('prop_firms_v2.html')
 
+@app.route('/prop-firm-management')
+@login_required
+def prop_firm_management():
+    return read_html_file('prop_firm_management.html')
+
 @app.route('/financial-summary')
 @login_required
 def financial_summary():
@@ -4481,6 +4486,211 @@ def detect_contract_rollover():
 def contract_manager_dashboard():
     """Contract management dashboard"""
     return read_html_file('contract_manager.html')
+
+# Prop Firm Management API Endpoints
+@app.route('/api/prop-firm/overview', methods=['GET'])
+@login_required
+def get_prop_firm_overview():
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+            
+        cursor = db.conn.cursor()
+        
+        # Mock data for now - you can implement real queries later
+        return jsonify({
+            'total_accounts': 4,
+            'total_equity': 330000.0,
+            'violations_today': 1,
+            'payouts_ready': 2,
+            'recent_activity': [
+                {'account_id': 'APX-123456', 'description': 'Trade executed', 'timestamp': '2025-01-15 14:30:00'},
+                {'account_id': 'FTMO-789012', 'description': 'Profit target reached', 'timestamp': '2025-01-15 13:45:00'}
+            ],
+            'compliance_alerts': [
+                {'account_id': 'MFF-901234', 'violation_type': 'drawdown', 'timestamp': '2025-01-15 12:20:00'}
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/prop-firm/firms', methods=['GET'])
+@login_required
+def get_prop_firms():
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+            
+        # Mock data - replace with real database queries
+        firms = [
+            {
+                'id': 1,
+                'name': 'Apex Trader Funding',
+                'base_currency': 'USD',
+                'max_drawdown': 2500.00,
+                'daily_loss_limit': 1000.00,
+                'profit_target': 5000.00,
+                'account_count': 1
+            },
+            {
+                'id': 2,
+                'name': 'FTMO',
+                'base_currency': 'USD',
+                'max_drawdown': 5000.00,
+                'daily_loss_limit': 2500.00,
+                'profit_target': 10000.00,
+                'account_count': 1
+            }
+        ]
+        
+        return jsonify(firms)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/prop-firm/accounts', methods=['GET'])
+@login_required
+def get_prop_accounts():
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+            
+        # Mock data - replace with real database queries
+        accounts = [
+            {
+                'account_id': 'APX-123456',
+                'firm_name': 'Apex Trader Funding',
+                'balance': 50000.00,
+                'equity': 52500.00,
+                'drawdown': 0.00,
+                'status': 'active'
+            },
+            {
+                'account_id': 'FTMO-789012',
+                'firm_name': 'FTMO',
+                'balance': 100000.00,
+                'equity': 98500.00,
+                'drawdown': 4500.00,
+                'status': 'active'
+            }
+        ]
+        
+        return jsonify(accounts)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/prop-firm/violations', methods=['GET'])
+@login_required
+def get_prop_violations():
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+            
+        # Mock data - replace with real database queries
+        violations = [
+            {
+                'account_id': 'MFF-901234',
+                'firm_name': 'MyForexFunds',
+                'violation_type': 'drawdown',
+                'description': 'Account exceeded maximum drawdown limit',
+                'timestamp': '2025-01-15 12:20:00'
+            }
+        ]
+        
+        return jsonify(violations)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/prop-firm/daily-summary', methods=['GET'])
+@login_required
+def get_daily_summary():
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+            
+        # Mock data - replace with real calculations
+        return jsonify({
+            'total_pnl': 2500.00,
+            'active_trades': 3,
+            'accounts_trading': 2
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/prop-firm/payout-eligibility', methods=['GET'])
+@login_required
+def get_payout_eligibility():
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+            
+        # Mock data - replace with real calculations
+        payouts = [
+            {
+                'account_id': 'APX-123456',
+                'amount': 2000.00,
+                'eligible': True
+            },
+            {
+                'account_id': 'FTMO-789012',
+                'amount': 0.00,
+                'eligible': False
+            }
+        ]
+        
+        return jsonify(payouts)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Prop Firm Management POST endpoints
+@app.route('/api/prop-firm/firms', methods=['POST'])
+@login_required
+def add_prop_firm():
+    try:
+        data = request.get_json()
+        # Mock response - implement real database insert
+        return jsonify({'id': 999, 'message': 'Firm added successfully (mock)'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/prop-firm/accounts', methods=['POST'])
+@login_required
+def add_prop_account():
+    try:
+        data = request.get_json()
+        # Mock response - implement real database insert
+        return jsonify({'id': 999, 'message': 'Account added successfully (mock)'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/prop-firm/compliance-check', methods=['POST'])
+@login_required
+def run_compliance_check():
+    try:
+        data = request.get_json()
+        account_id = data['account_id']
+        
+        # Mock compliance check - implement real logic
+        violations = []
+        if account_id == 'MFF-901234':
+            violations.append({
+                'type': 'drawdown',
+                'description': 'Drawdown $10,000.00 exceeds limit $6,000.00'
+            })
+        
+        return jsonify({
+            'account_id': account_id,
+            'violations': violations,
+            'compliant': len(violations) == 0
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # Market Context Analysis Endpoints
 @app.route('/api/market-context-analysis', methods=['GET'])
