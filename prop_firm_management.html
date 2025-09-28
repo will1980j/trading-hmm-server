@@ -768,5 +768,60 @@
             loadOverview();
         });
     </script>
+
+    <section id="copier">
+        <h2>⚡ Copier Integration Layer</h2>
+        <p>The trade copier is the <strong>execution layer</strong> that replicates validated trades across multiple prop firm accounts. It must be treated as a <em>pluggable module</em> so that different vendors (e.g., TradeSyncer, Rithmic-native, Tradovate/NinjaTrader copiers) can be swapped without changing the compliance or strategy logic.</p>
+
+        <h3>Integration pattern</h3>
+        <ol>
+            <li><strong>Flow:</strong> TradingView → AWS Compliance Middleware → Copier Adapter → Prop Firm Accounts</li>
+            <li><strong>Guarantee:</strong> Only trades that pass compliance checks are forwarded to the copier.</li>
+            <li><strong>Abstraction:</strong> Define a standard Copier API payload; implement vendor-specific adapters.</li>
+        </ol>
+
+        <h3>Standard Copier API payload</h3>
+        <pre><code>{
+  "action": "placeOrder",
+  "accountId": "APX-123456",
+  "symbol": "NQ1!",
+  "direction": "long",
+  "qty": 2,
+  "entry": 15678.25,
+  "stop": 15658.25,
+  "takeProfit": 15718.25,
+  "strategyId": "liq_sweep_momo_v3",
+  "timestamp": "2025-09-28T04:30:00Z"
+}</code></pre>
+
+        <h3>Vendor adapter examples</h3>
+        <ul>
+            <li><strong>TradeSyncer:</strong> Cloud API; supports Apex, Bulenox, Take Profit Trader. Adapter translates standard payload into TradeSyncer API calls.</li>
+            <li><strong>Rithmic-native copier:</strong> Ultra-low latency; adapter must handle Rithmic session auth and order placement.</li>
+            <li><strong>Tradovate/NinjaTrader copiers:</strong> Adapter wraps their APIs or local connectors.</li>
+        </ul>
+
+        <h3>Risk guardrails at copier level</h3>
+        <ul>
+            <li><strong>Lot multipliers:</strong> Scale trades differently per account.</li>
+            <li><strong>Max contracts:</strong> Enforce hard caps per account.</li>
+            <li><strong>Equity-based scaling:</strong> Adjust trade size proportional to account balance.</li>
+        </ul>
+
+        <h3>Monitoring and health checks</h3>
+        <ul>
+            <li><strong>Heartbeat:</strong> Lambda scheduled check against copier API; update dashboard with status (Online/Offline).</li>
+            <li><strong>Execution logs:</strong> Every copier action (accepted, rejected, delayed) is written to DynamoDB <code>Trades</code> with <code>ExecutionStatus</code>.</li>
+            <li><strong>Alerts:</strong> CloudWatch alarm if copier API fails or latency exceeds threshold.</li>
+        </ul>
+
+        <h3>Developer TODOs</h3>
+        <ul>
+            <li>Implement <code>copierAdapter</code> interface with methods: <code>placeOrder()</code>, <code>cancelOrder()</code>, <code>getStatus()</code>.</li>
+            <li>Create vendor-specific adapters (e.g., <code>adapterTradeSyncer.js</code>, <code>adapterRithmic.js</code>).</li>
+            <li>Integrate copier health check Lambda (<code>checkCopierHealth</code>) with EventBridge schedule.</li>
+            <li>Extend dashboard with Copier Status card and Execution Logs view.</li>
+        </ul>
+    </section>
 </body>
 </html>
