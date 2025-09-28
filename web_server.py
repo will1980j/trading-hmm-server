@@ -5353,34 +5353,7 @@ def ml_intelligence_dashboard():
     return read_html_file('ml_dashboard_fallback.html')
 
 # Prop firm endpoints
-@app.route('/api/prop-firms')
-@login_required
-def get_prop_firms():
-    try:
-        month_year = request.args.get('month', '2024-08')
-        if not db_enabled or not db:
-            return jsonify({"firms": []})
-        
-        cursor = db.conn.cursor()
-        cursor.execute("""
-            SELECT firm_name, status, account_size, monthly_profit 
-            FROM prop_firms WHERE month_year = %s
-        """, (month_year,))
-        
-        firms = []
-        for row in cursor.fetchall():
-            firms.append({
-                'firmName': row[0],
-                'status': row[1], 
-                'accountSize': float(row[2]) if row[2] else 0,
-                'monthlyProfit': float(row[3]) if row[3] else 0
-            })
-        
-        return jsonify({"firms": firms})
-    except (ConnectionError, ValueError, Exception) as e:
-        error_msg = sanitize_log_input(str(e))
-        logger.error(f"Prop firms query error: {error_msg}")
-        return jsonify({"firms": []})
+
 
 @app.route('/api/scrape-propfirms')
 @login_required
