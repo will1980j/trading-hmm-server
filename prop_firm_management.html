@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prop Firm Management - Second Skies</title>
+    <link rel="stylesheet" href="/style_preload.css">
+    <style>
+        :root {
+            --bg: #0b0f14;
+            --fg: #e6edf3;
+            --muted: #9aa7b4;
+            --accent: #54b6ff;
+            --card: #11161d;
+            --border: #1c2430;
+            --good: #37d67a;
+            --warn: #ffae42;
+            --bad: #ff6b6b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #54b6ff, #37d67a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            background: var(--card);
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .grid-2 { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
+        .grid-3 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+        .grid-4 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--fg);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #4a9de8;
+            transform: translateY(-2px);
+        }
+
+        .btn-success { background: var(--good); }
+        .btn-warning { background: var(--warn); }
+        .btn-danger { background: var(--bad); }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-active { background: var(--good); color: white; }
+        .status-evaluation { background: var(--warn); color: white; }
+        .status-violation { background: var(--bad); color: white; }
+        .status-paused { background: var(--muted); color: white; }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .table th, .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table th {
+            background: rgba(255,255,255,0.05);
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .metric-card {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            color: var(--muted);
+            font-size: 0.9em;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--muted);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Prop Firm Management</h1>
+            <p>Centralized platform for managing futures prop firm operations</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('overview')">Overview</div>
+            <div class="tab" onclick="showTab('firms')">Firm Registry</div>
+            <div class="tab" onclick="showTab('accounts')">Accounts</div>
+            <div class="tab" onclick="showTab('compliance')">Compliance</div>
+            <div class="tab" onclick="showTab('reports')">Reports</div>
+        </div>
+
+        <!-- Overview Tab -->
+        <div id="overview" class="tab-content active">
+            <div class="grid grid-4">
+                <div class="card metric-card">
+                    <div class="metric-value" id="totalAccounts">-</div>
+                    <div class="metric-label">Active Accounts</div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-value" id="totalEquity">-</div>
+                    <div class="metric-label">Total Equity (AUD)</div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-value" id="violationsToday">-</div>
+                    <div class="metric-label">Violations Today</div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-value" id="payoutsReady">-</div>
+                    <div class="metric-label">Payouts Ready</div>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3>Recent Activity</h3>
+                    <div id="recentActivity" class="loading">Loading recent activity...</div>
+                </div>
+                <div class="card">
+                    <h3>Compliance Alerts</h3>
+                    <div id="complianceAlerts" class="loading">Loading compliance alerts...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Firms Tab -->
+        <div id="firms" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>Prop Firm Registry</h3>
+                    <button class="btn" onclick="showAddFirmModal()">Add Firm</button>
+                </div>
+                <div id="firmsTable" class="loading">Loading firms...</div>
+            </div>
+        </div>
+
+        <!-- Accounts Tab -->
+        <div id="accounts" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>Account Management</h3>
+                    <button class="btn" onclick="showAddAccountModal()">Add Account</button>
+                </div>
+                <div id="accountsTable" class="loading">Loading accounts...</div>
+            </div>
+        </div>
+
+        <!-- Compliance Tab -->
+        <div id="compliance" class="tab-content">
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3>Rule Violations</h3>
+                    <div id="violationsTable" class="loading">Loading violations...</div>
+                </div>
+                <div class="card">
+                    <h3>Compliance Check</h3>
+                    <div class="form-group">
+                        <label>Account ID</label>
+                        <input type="text" id="complianceAccountId" placeholder="Enter account ID">
+                    </div>
+                    <button class="btn" onclick="runComplianceCheck()">Run Check</button>
+                    <div id="complianceResult" style="margin-top: 15px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Tab -->
+        <div id="reports" class="tab-content">
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3>Daily Summary</h3>
+                    <div id="dailySummary" class="loading">Loading daily summary...</div>
+                </div>
+                <div class="card">
+                    <h3>Payout Eligibility</h3>
+                    <div id="payoutEligibility" class="loading">Loading payout eligibility...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Firm Modal -->
+    <div id="addFirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addFirmModal')">&times;</span>
+            <h3>Add New Prop Firm</h3>
+            <form id="addFirmForm">
+                <div class="form-group">
+                    <label>Firm Name</label>
+                    <input type="text" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label>Base Currency</label>
+                    <select name="base_currency" required>
+                        <option value="USD">USD</option>
+                        <option value="AUD">AUD</option>
+                        <option value="EUR">EUR</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Max Drawdown ($)</label>
+                    <input type="number" name="max_drawdown" required>
+                </div>
+                <div class="form-group">
+                    <label>Daily Loss Limit ($)</label>
+                    <input type="number" name="daily_loss_limit" required>
+                </div>
+                <div class="form-group">
+                    <label>Profit Target ($)</label>
+                    <input type="number" name="profit_target" required>
+                </div>
+                <button type="submit" class="btn">Add Firm</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Account Modal -->
+    <div id="addAccountModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addAccountModal')">&times;</span>
+            <h3>Add New Account</h3>
+            <form id="addAccountForm">
+                <div class="form-group">
+                    <label>Account ID</label>
+                    <input type="text" name="account_id" required>
+                </div>
+                <div class="form-group">
+                    <label>Firm</label>
+                    <select name="firm_id" id="firmSelect" required>
+                        <option value="">Select Firm</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Starting Balance ($)</label>
+                    <input type="number" name="balance" required>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select name="status" required>
+                        <option value="evaluation">Evaluation</option>
+                        <option value="active">Active</option>
+                        <option value="paused">Paused</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn">Add Account</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            
+            // Load tab-specific data
+            loadTabData(tabName);
+        }
+
+        // Modal functions
+        function showAddFirmModal() {
+            document.getElementById('addFirmModal').style.display = 'block';
+        }
+
+        function showAddAccountModal() {
+            loadFirmOptions();
+            document.getElementById('addAccountModal').style.display = 'block';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Load tab data
+        async function loadTabData(tabName) {
+            switch(tabName) {
+                case 'overview':
+                    await loadOverview();
+                    break;
+                case 'firms':
+                    await loadFirms();
+                    break;
+                case 'accounts':
+                    await loadAccounts();
+                    break;
+                case 'compliance':
+                    await loadCompliance();
+                    break;
+                case 'reports':
+                    await loadReports();
+                    break;
+            }
+        }
+
+        // API functions
+        async function loadOverview() {
+            try {
+                const response = await fetch('/api/prop-firm/overview');
+                const data = await response.json();
+                
+                document.getElementById('totalAccounts').textContent = data.total_accounts || 0;
+                document.getElementById('totalEquity').textContent = '$' + (data.total_equity || 0).toLocaleString();
+                document.getElementById('violationsToday').textContent = data.violations_today || 0;
+                document.getElementById('payoutsReady').textContent = data.payouts_ready || 0;
+                
+                // Load recent activity
+                document.getElementById('recentActivity').innerHTML = data.recent_activity?.map(activity => 
+                    `<div style="padding: 10px; border-bottom: 1px solid var(--border);">
+                        <strong>${activity.account_id}</strong> - ${activity.description}
+                        <div style="font-size: 0.8em; color: var(--muted);">${activity.timestamp}</div>
+                    </div>`
+                ).join('') || 'No recent activity';
+                
+                // Load compliance alerts
+                document.getElementById('complianceAlerts').innerHTML = data.compliance_alerts?.map(alert => 
+                    `<div style="padding: 10px; border-bottom: 1px solid var(--border); color: var(--bad);">
+                        <strong>${alert.account_id}</strong> - ${alert.violation_type}
+                        <div style="font-size: 0.8em; color: var(--muted);">${alert.timestamp}</div>
+                    </div>`
+                ).join('') || 'No compliance alerts';
+                
+            } catch (error) {
+                console.error('Error loading overview:', error);
+            }
+        }
+
+        async function loadFirms() {
+            try {
+                const response = await fetch('/api/prop-firm/firms');
+                const firms = await response.json();
+                
+                const table = `
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Firm Name</th>
+                                <th>Currency</th>
+                                <th>Max Drawdown</th>
+                                <th>Daily Loss Limit</th>
+                                <th>Profit Target</th>
+                                <th>Accounts</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${firms.map(firm => `
+                                <tr>
+                                    <td>${firm.name}</td>
+                                    <td>${firm.base_currency}</td>
+                                    <td>$${firm.max_drawdown.toLocaleString()}</td>
+                                    <td>$${firm.daily_loss_limit.toLocaleString()}</td>
+                                    <td>$${firm.profit_target.toLocaleString()}</td>
+                                    <td>${firm.account_count || 0}</td>
+                                    <td>
+                                        <button class="btn btn-warning" onclick="editFirm('${firm.id}')">Edit</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                
+                document.getElementById('firmsTable').innerHTML = table;
+            } catch (error) {
+                console.error('Error loading firms:', error);
+                document.getElementById('firmsTable').innerHTML = 'Error loading firms';
+            }
+        }
+
+        async function loadAccounts() {
+            try {
+                const response = await fetch('/api/prop-firm/accounts');
+                const accounts = await response.json();
+                
+                const table = `
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Account ID</th>
+                                <th>Firm</th>
+                                <th>Balance</th>
+                                <th>Equity</th>
+                                <th>Drawdown</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${accounts.map(account => `
+                                <tr>
+                                    <td>${account.account_id}</td>
+                                    <td>${account.firm_name}</td>
+                                    <td>$${account.balance.toLocaleString()}</td>
+                                    <td>$${account.equity.toLocaleString()}</td>
+                                    <td>$${account.drawdown.toLocaleString()}</td>
+                                    <td><span class="status-badge status-${account.status}">${account.status}</span></td>
+                                    <td>
+                                        <button class="btn btn-warning" onclick="viewAccount('${account.account_id}')">View</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                
+                document.getElementById('accountsTable').innerHTML = table;
+            } catch (error) {
+                console.error('Error loading accounts:', error);
+                document.getElementById('accountsTable').innerHTML = 'Error loading accounts';
+            }
+        }
+
+        async function loadCompliance() {
+            try {
+                const response = await fetch('/api/prop-firm/violations');
+                const violations = await response.json();
+                
+                const table = `
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Account</th>
+                                <th>Violation Type</th>
+                                <th>Description</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${violations.map(violation => `
+                                <tr>
+                                    <td>${violation.account_id}</td>
+                                    <td>${violation.violation_type}</td>
+                                    <td>${violation.description}</td>
+                                    <td>${new Date(violation.timestamp).toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                
+                document.getElementById('violationsTable').innerHTML = table;
+            } catch (error) {
+                console.error('Error loading violations:', error);
+                document.getElementById('violationsTable').innerHTML = 'Error loading violations';
+            }
+        }
+
+        async function loadReports() {
+            // Load daily summary and payout eligibility
+            try {
+                const [summaryResponse, payoutResponse] = await Promise.all([
+                    fetch('/api/prop-firm/daily-summary'),
+                    fetch('/api/prop-firm/payout-eligibility')
+                ]);
+                
+                const summary = await summaryResponse.json();
+                const payouts = await payoutResponse.json();
+                
+                document.getElementById('dailySummary').innerHTML = `
+                    <div style="display: grid; gap: 15px;">
+                        <div>Total PnL Today: <strong>$${summary.total_pnl?.toLocaleString() || 0}</strong></div>
+                        <div>Active Trades: <strong>${summary.active_trades || 0}</strong></div>
+                        <div>Accounts Trading: <strong>${summary.accounts_trading || 0}</strong></div>
+                    </div>
+                `;
+                
+                document.getElementById('payoutEligibility').innerHTML = payouts.map(payout => 
+                    `<div style="padding: 10px; border-bottom: 1px solid var(--border);">
+                        <strong>${payout.account_id}</strong> - $${payout.amount.toLocaleString()}
+                        <div style="font-size: 0.8em; color: var(--muted);">Eligible: ${payout.eligible ? 'Yes' : 'No'}</div>
+                    </div>`
+                ).join('') || 'No eligible payouts';
+                
+            } catch (error) {
+                console.error('Error loading reports:', error);
+            }
+        }
+
+        // Form submissions
+        document.getElementById('addFirmForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/api/prop-firm/firms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal('addFirmModal');
+                    loadFirms();
+                    e.target.reset();
+                }
+            } catch (error) {
+                console.error('Error adding firm:', error);
+            }
+        });
+
+        document.getElementById('addAccountForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/api/prop-firm/accounts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal('addAccountModal');
+                    loadAccounts();
+                    e.target.reset();
+                }
+            } catch (error) {
+                console.error('Error adding account:', error);
+            }
+        });
+
+        async function loadFirmOptions() {
+            try {
+                const response = await fetch('/api/prop-firm/firms');
+                const firms = await response.json();
+                
+                const select = document.getElementById('firmSelect');
+                select.innerHTML = '<option value="">Select Firm</option>' + 
+                    firms.map(firm => `<option value="${firm.id}">${firm.name}</option>`).join('');
+            } catch (error) {
+                console.error('Error loading firm options:', error);
+            }
+        }
+
+        async function runComplianceCheck() {
+            const accountId = document.getElementById('complianceAccountId').value;
+            if (!accountId) return;
+            
+            try {
+                const response = await fetch('/api/prop-firm/compliance-check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ account_id: accountId })
+                });
+                
+                const result = await response.json();
+                document.getElementById('complianceResult').innerHTML = `
+                    <div style="padding: 15px; background: ${result.violations?.length ? 'var(--bad)' : 'var(--good)'}; border-radius: 8px; margin-top: 10px;">
+                        <strong>Result: ${result.violations?.length ? 'VIOLATIONS FOUND' : 'COMPLIANT'}</strong>
+                        ${result.violations?.map(v => `<div>• ${v.type}: ${v.description}</div>`).join('') || ''}
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error running compliance check:', error);
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadOverview();
+        });
+    </script>
+</body>
+</html>

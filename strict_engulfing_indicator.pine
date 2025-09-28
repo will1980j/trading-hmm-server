@@ -1,0 +1,33 @@
+//@version=5
+indicator("Strict Engulfing Candles", overlay=true)
+
+// Previous candle values
+prev_open = open[1]
+prev_close = close[1]
+
+// Current candle values
+curr_open = open
+curr_close = close
+
+// Strict Bearish Engulfing
+bearish_engulfing = curr_close < curr_open and     // Current is bearish
+                   prev_close > prev_open and      // Previous was bullish
+                   curr_open >= prev_close and     // Opens at/above prev close
+                   curr_close < prev_open          // Closes below prev open
+
+// Strict Bullish Engulfing  
+bullish_engulfing = curr_close > curr_open and     // Current is bullish
+                   prev_close < prev_open and      // Previous was bearish
+                   curr_open <= prev_close and     // Opens at/below prev close
+                   curr_close > prev_open          // Closes above prev open
+
+// Plot markers
+plotshape(bearish_engulfing, style=shape.triangledown, location=location.abovebar, 
+          color=color.red, size=size.small, title="Bearish Engulfing")
+          
+plotshape(bullish_engulfing, style=shape.triangleup, location=location.belowbar, 
+          color=color.green, size=size.small, title="Bullish Engulfing")
+
+// Alerts
+alertcondition(bearish_engulfing, title="Bearish Engulfing", message="Strict Bearish Engulfing Pattern")
+alertcondition(bullish_engulfing, title="Bullish Engulfing", message="Strict Bullish Engulfing Pattern")
