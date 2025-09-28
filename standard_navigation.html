@@ -1,0 +1,50 @@
+<!-- Standard Navigation Component - Include this in all pages -->
+<nav class="navbar">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; gap: 12px; align-items: center; justify-content: center; flex: 1; flex-wrap: wrap;">
+            <a href="/trade-manager" class="nav-link">Trade Manager</a>
+            <a href="/signal-analysis-lab" class="nav-link">1M Signal Lab</a>
+            <a href="/signal-lab-dashboard" class="nav-link">Lab Dashboard</a>
+            <a href="/nasdaq-ml" class="nav-link">NASDAQ ML</a>
+            <a href="/prop-portfolio" class="nav-link">Prop Portfolio</a>
+            <a href="/prop-firm-management" class="nav-link">Prop Firm Management</a>
+            <a href="/financial-summary" class="nav-link">Financial Summary</a>
+            <a href="/reporting-hub" class="nav-link">Reporting Hub</a>
+        </div>
+    </div>
+</nav>
+
+<style>
+.navbar {
+    background: rgba(255,255,255,0.1);
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 15px;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+.nav-link {
+    color: rgba(255,255,255,0.8);
+    text-decoration: none;
+    padding: 10px 18px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.nav-link:hover {
+    background: rgba(255,255,255,0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.nav-link.active {
+    color: #00ff88;
+    background: rgba(0,255,136,0.15);
+    border-color: rgba(0,255,136,0.3);
+}
+</style>
