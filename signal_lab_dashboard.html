@@ -392,6 +392,80 @@
             <p>Advanced Performance Analytics & Strategy Optimization</p>
         </div>
         
+        <!-- Trading Day Preparation Section -->
+        <div class="chart-container" style="background: linear-gradient(135deg, rgba(0,255,136,0.08) 0%, rgba(0,212,170,0.04) 100%); border: 2px solid rgba(0,255,136,0.2); margin-bottom: 30px;">
+            <h3 style="color: #00ff88; margin-bottom: 25px; display: flex; align-items: center; gap: 10px;">
+                📊 Trading Day Preparation
+                <span style="font-size: 12px; background: rgba(0,255,136,0.2); padding: 4px 8px; border-radius: 6px; font-weight: 500;" id="tradingDate">Loading...</span>
+            </h3>
+            
+            <!-- Portfolio & Performance Overview -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                <div class="stat-card" style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3);">
+                    <div class="stat-value" id="portfolioWorth">Loading...</div>
+                    <div class="stat-label">Portfolio Worth</div>
+                </div>
+                <div class="stat-card" style="background: rgba(58,123,213,0.1); border: 1px solid rgba(58,123,213,0.3);">
+                    <div class="stat-value" id="weeklyProfit">Loading...</div>
+                    <div class="stat-label">Weekly Profit</div>
+                </div>
+                <div class="stat-card" style="background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.3);">
+                    <div class="stat-value" id="monthlyProfit">Loading...</div>
+                    <div class="stat-label">Monthly Profit</div>
+                </div>
+                <div class="stat-card" style="background: rgba(255,165,2,0.1); border: 1px solid rgba(255,165,2,0.3);">
+                    <div class="stat-value" id="highestDayProfit">Loading...</div>
+                    <div class="stat-label">Highest Day Profit</div>
+                </div>
+            </div>
+            
+            <!-- Contract Specifications & Economic News -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                <!-- Contract Specs -->
+                <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
+                    <h4 style="color: #00d4aa; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                        📈 NQ Contract Specifications
+                    </h4>
+                    <div style="display: grid; gap: 12px;">
+                        <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px;">
+                            <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 4px;">E-Mini Nasdaq-100 (NQ)</div>
+                            <div style="font-weight: 600; color: #00ff88;" id="nqContract">Loading...</div>
+                            <div style="font-size: 11px; color: rgba(255,255,255,0.8);" id="nqMinTick">Loading...</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px;">
+                            <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 4px;">Micro E-Mini Nasdaq-100 (MNQ)</div>
+                            <div style="font-weight: 600; color: #26de81;" id="mnqContract">Loading...</div>
+                            <div style="font-size: 11px; color: rgba(255,255,255,0.8);" id="mnqMinTick">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Economic News -->
+                <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
+                    <h4 style="color: #ffa502; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                        📰 Economic Calendar
+                    </h4>
+                    <div id="economicNews" style="max-height: 200px; overflow-y: auto;">
+                        Loading economic events...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Options & Key Levels -->
+            <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
+                <h4 style="color: #3742fa; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                    🎯 Options Expiry & Key Levels
+                    <span style="font-size: 10px; background: rgba(255,165,2,0.3); padding: 2px 6px; border-radius: 4px;">CME API Pending</span>
+                </h4>
+                <div id="optionsData" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.7);">
+                        CME Group API integration in progress...<br>
+                        <small>Will display options expiry, strike prices, and open interest levels</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <div class="controls-panel">
             <h3 style="margin-bottom: 20px; color: #00ff88;">Analysis Controls</h3>
             
@@ -2902,11 +2976,157 @@
             document.getElementById('sessionExpectancyStats').innerHTML = 'No data';
         }
         
+        // Trading Day Preparation Functions
+        async function loadTradingDayPrep() {
+            const today = new Date();
+            document.getElementById('tradingDate').textContent = today.toLocaleDateString('en-US', { 
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+            });
+            
+            await Promise.all([
+                loadPortfolioMetrics(),
+                loadContractSpecs(),
+                loadEconomicNews(),
+                loadOptionsData()
+            ]);
+        }
+        
+        async function loadPortfolioMetrics() {
+            try {
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/portfolio-metrics');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('portfolioWorth').textContent = `$${(data.total_worth || 0).toLocaleString()}`;
+                    document.getElementById('weeklyProfit').textContent = `${data.weekly_profit >= 0 ? '+' : ''}$${(data.weekly_profit || 0).toLocaleString()}`;
+                    document.getElementById('monthlyProfit').textContent = `${data.monthly_profit >= 0 ? '+' : ''}$${(data.monthly_profit || 0).toLocaleString()}`;
+                    document.getElementById('highestDayProfit').textContent = `$${(data.highest_day_profit || 0).toLocaleString()}`;
+                    
+                    document.getElementById('weeklyProfit').style.color = data.weekly_profit >= 0 ? '#00ff88' : '#ff4757';
+                    document.getElementById('monthlyProfit').style.color = data.monthly_profit >= 0 ? '#00ff88' : '#ff4757';
+                } else {
+                    throw new Error('Portfolio API unavailable');
+                }
+            } catch (error) {
+                console.error('Error loading portfolio metrics:', error);
+                document.getElementById('portfolioWorth').textContent = 'Offline';
+                document.getElementById('weeklyProfit').textContent = 'Offline';
+                document.getElementById('monthlyProfit').textContent = 'Offline';
+                document.getElementById('highestDayProfit').textContent = 'Offline';
+            }
+        }
+        
+        async function loadContractSpecs() {
+            try {
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/cme-contract-specs');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('nqContract').textContent = data.nq?.globex_code || 'NQZ23';
+                    document.getElementById('nqMinTick').textContent = `Min Tick: ${data.nq?.min_tick || '$5.00'} (0.25 pts)`;
+                    document.getElementById('mnqContract').textContent = data.mnq?.globex_code || 'MNQZ23';
+                    document.getElementById('mnqMinTick').textContent = `Min Tick: ${data.mnq?.min_tick || '$0.50'} (0.25 pts)`;
+                } else {
+                    throw new Error('CME API unavailable');
+                }
+            } catch (error) {
+                console.error('Error loading contract specs:', error);
+                const month = new Date().getMonth();
+                const year = new Date().getFullYear().toString().slice(-1);
+                const monthCodes = ['F', 'G', 'H', 'J', 'K', 'M', 'N', 'Q', 'U', 'V', 'X', 'Z'];
+                const currentCode = monthCodes[Math.floor(month / 3) * 3 + (month % 3 >= 2 ? 3 : 0)] + year;
+                
+                document.getElementById('nqContract').textContent = `NQ${currentCode}`;
+                document.getElementById('nqMinTick').textContent = 'Min Tick: $5.00 (0.25 pts)';
+                document.getElementById('mnqContract').textContent = `MNQ${currentCode}`;
+                document.getElementById('mnqMinTick').textContent = 'Min Tick: $0.50 (0.25 pts)';
+            }
+        }
+        
+        async function loadEconomicNews() {
+            try {
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/economic-calendar');
+                if (response.ok) {
+                    const data = await response.json();
+                    let newsHtml = '';
+                    
+                    if (data.events && data.events.length > 0) {
+                        data.events.slice(0, 5).forEach(event => {
+                            const impactColor = event.impact === 'High' ? '#ff4757' : event.impact === 'Medium' ? '#ffa502' : '#26de81';
+                            newsHtml += `
+                                <div style="margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 6px; border-left: 3px solid ${impactColor};">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-size: 12px; font-weight: 600;">${event.title}</span>
+                                        <span style="font-size: 10px; color: ${impactColor};">${event.time}</span>
+                                    </div>
+                                    <div style="font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 2px;">${event.currency} • ${event.impact}</div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        newsHtml = '<div style="text-align: center; color: rgba(255,255,255,0.7); padding: 20px;">No major events today</div>';
+                    }
+                    
+                    document.getElementById('economicNews').innerHTML = newsHtml;
+                } else {
+                    throw new Error('Economic calendar unavailable');
+                }
+            } catch (error) {
+                console.error('Error loading economic news:', error);
+                document.getElementById('economicNews').innerHTML = `
+                    <div style="text-align: center; color: rgba(255,255,255,0.7); padding: 20px;">
+                        Economic calendar offline<br>
+                        <small>Check ForexFactory or TradingView for events</small>
+                    </div>
+                `;
+            }
+        }
+        
+        async function loadOptionsData() {
+            try {
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/cme-options-data');
+                if (response.ok) {
+                    const data = await response.json();
+                    let optionsHtml = '';
+                    
+                    if (data.expiring_today && data.expiring_today.length > 0) {
+                        data.expiring_today.forEach(option => {
+                            optionsHtml += `
+                                <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px;">
+                                    <div style="font-weight: 600; color: #3742fa; margin-bottom: 4px;">${option.strike}</div>
+                                    <div style="font-size: 11px; color: rgba(255,255,255,0.8);">OI: ${option.open_interest}</div>
+                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);">${option.type}</div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        optionsHtml = `
+                            <div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.7);">
+                                CME Group API integration in progress...<br>
+                                <small>Will display options expiry, strike prices, and open interest levels</small>
+                            </div>
+                        `;
+                    }
+                    
+                    document.getElementById('optionsData').innerHTML = optionsHtml;
+                } else {
+                    throw new Error('CME options API unavailable');
+                }
+            } catch (error) {
+                console.error('Error loading options data:', error);
+                document.getElementById('optionsData').innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.7);">
+                        CME Group API integration in progress...<br>
+                        <small>Will display options expiry, strike prices, and open interest levels</small>
+                    </div>
+                `;
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             clearSessionCharts();
             loadSignals();
             setupAutoUpdate();
             startAutomaticRefresh();
+            loadTradingDayPrep();
             
             // Show loading states initially
             document.getElementById('mlStatus').innerHTML = 'Loading...';
@@ -2950,6 +3170,11 @@
             setInterval(() => {
                 getCurrentPredictionAuto();
             }, 60000);
+            
+            // Trading day prep refresh every 5 minutes
+            setInterval(() => {
+                loadTradingDayPrep();
+            }, 300000);
         }
         
         // AI Strategy Optimization using OpenAI GPT-4
