@@ -3043,13 +3043,27 @@
         
         async function loadEconomicNews() {
             try {
-                const response = await fetch('https://web-production-cd33.up.railway.app/api/economic-calendar');
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/economic-calendar?filter=nq');
                 if (response.ok) {
                     const data = await response.json();
                     let newsHtml = '';
                     
                     if (data.events && data.events.length > 0) {
-                        data.events.slice(0, 5).forEach(event => {
+                        const nqRelevantEvents = data.events.filter(event => {
+                            const title = event.title.toLowerCase();
+                            const currency = event.currency?.toLowerCase() || '';
+                            return (
+                                currency === 'usd' ||
+                                title.includes('fed') || title.includes('fomc') || title.includes('powell') ||
+                                title.includes('cpi') || title.includes('ppi') || title.includes('inflation') ||
+                                title.includes('gdp') || title.includes('employment') || title.includes('jobless') ||
+                                title.includes('retail') || title.includes('consumer') || title.includes('pce') ||
+                                title.includes('ism') || title.includes('manufacturing') || title.includes('services') ||
+                                title.includes('earnings') || title.includes('tech') || title.includes('nasdaq')
+                            );
+                        });
+                        
+                        nqRelevantEvents.slice(0, 5).forEach(event => {
                             const impactColor = event.impact === 'High' ? '#ff4757' : event.impact === 'Medium' ? '#ffa502' : '#26de81';
                             newsHtml += `
                                 <div style="margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 6px; border-left: 3px solid ${impactColor};">
@@ -3061,8 +3075,12 @@
                                 </div>
                             `;
                         });
+                        
+                        if (nqRelevantEvents.length === 0) {
+                            newsHtml = '<div style="text-align: center; color: rgba(255,255,255,0.7); padding: 20px;">No NQ-relevant events today</div>';
+                        }
                     } else {
-                        newsHtml = '<div style="text-align: center; color: rgba(255,255,255,0.7); padding: 20px;">No major events today</div>';
+                        newsHtml = '<div style="text-align: center; color: rgba(255,255,255,0.7); padding: 20px;">No NQ-relevant events today</div>';
                     }
                     
                     document.getElementById('economicNews').innerHTML = newsHtml;
