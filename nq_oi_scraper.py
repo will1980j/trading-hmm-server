@@ -34,7 +34,7 @@ class OIFeatures:
 
 class NQOIScraper:
     def __init__(self):
-        self.qs_url = os.getenv('QS_URL', 'https://www.cmegroup.com/tools-information/quikstrike/options-calendar.html')
+        self.qs_url = os.getenv('QS_URL', 'https://www.cmegroup.com/markets/equities/nasdaq/e-mini-nasdaq-100.html')
         self.nq_product_value = os.getenv('NQ_PRODUCT_VALUE', 'NQ')
         self.timeout_ms = int(os.getenv('TIMEOUT_MS', '30000'))
         self.db_url = os.getenv('DB_URL', 'postgresql://localhost/trading')
@@ -43,49 +43,76 @@ class NQOIScraper:
 
     async def scrape_nq_oi(self) -> List[OIStrike]:
         """Scrape NQ options OI from CME QuikStrike"""
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context()
-            page = await context.new_page()
-            
-            try:
-                # Navigate to QuikStrike
-                await page.goto(self.qs_url, wait_until="domcontentloaded")
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=['--disable-blink-features=AutomationControlled', '--disable-dev-shm-usage', '--no-sandbox']
+                )
+                context = await browser.new_context(
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    extra_http_headers={
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                        "Accept-Language": "en-US,en;q=0.5",
+                        "Connection": "keep-alive"
+                    }
+                )
+                page = await context.new_page()
                 
-                # Wait for iframe and select NQ
-                iframe = page.frame_locator("iframe").first
-                await iframe.locator('select[name="product"]').wait_for(state="visible", timeout=self.timeout_ms)
-                await iframe.locator('select[name="product"]').select_option(self.nq_product_value)
-                
-                # Navigate to OI heatmap
-                await iframe.locator('button:has-text("Open Interest"), a:has-text("Open Interest")').first.click()
-                await iframe.wait_for_load_state("networkidle")
-                
-                # Extract OI data from DOM
-                strikes_data = []
-                rows = await iframe.locator('table tbody tr').all()
-                
-                for row in rows:
-                    cells = await row.locator('td').all()
-                    if len(cells) >= 5:
-                        strike = float(await cells[0].text_content())
-                        call_oi = int((await cells[1].text_content()).replace(',', '') or '0')
-                        put_oi = int((await cells[2].text_content()).replace(',', '') or '0')
-                        dte = int(await cells[3].text_content() or '0')
-                        
-                        strikes_data.append(OIStrike(
-                            expiry_date=date.today(),  # Simplified - would parse from header
-                            dte=dte,
-                            strike=strike,
-                            call_oi=call_oi,
-                            put_oi=put_oi,
-                            total_oi=call_oi + put_oi
-                        ))
-                
-                return strikes_data
-                
-            finally:
-                await browser.close()
+                try:
+                    # Navigate to QuikStrike directly
+                    qs_url = 'https://www.cmegroup.com/tools-information/quikstrike/options-calendar.html'
+                    print(f"Attempting to reach CME QuikStrike: {qs_url}")
+                    await page.goto(qs_url, wait_until="domcontentloaded", timeout=60000)
+                    
+                    # Wait for QuikStrike iframe
+                    print("Waiting for QuikStrike iframe...")
+                    await page.wait_for_selector("iframe", timeout=30000)
+                    iframe = page.frame_locator("iframe").first
+                    
+                    # Select NQ product
+                    print("Selecting NQ product...")
+                    await iframe.locator('select[name="product"]').wait_for(state="visible", timeout=30000)
+                    await iframe.locator('select[name="product"]').select_option(self.nq_product_value)
+                    await page.wait_for_timeout(2000)
+                    
+                    # Navigate to Open Interest
+                    print("Navigating to Open Interest section...")
+                    await iframe.locator('button:has-text("Open Interest"), a:has-text("Open Interest")').first.click()
+                    await iframe.wait_for_load_state("networkidle")
+                    
+                    # Extract OI data
+                    print("Extracting OI data...")
+                    strikes_data = []
+                    rows = await iframe.locator('table tbody tr').all()
+                    
+                    for row in rows:
+                        cells = await row.locator('td').all()
+                        if len(cells) >= 5:
+                            strike = float(await cells[0].text_content())
+                            call_oi = int((await cells[1].text_content()).replace(',', '') or '0')
+                            put_oi = int((await cells[2].text_content()).replace(',', '') or '0')
+                            dte = int(await cells[3].text_content() or '0')
+                            
+                            strikes_data.append(OIStrike(
+                                expiry_date=date.today(),
+                                dte=dte,
+                                strike=strike,
+                                call_oi=call_oi,
+                                put_oi=put_oi,
+                                total_oi=call_oi + put_oi
+                            ))
+                    
+                    print(f"Successfully extracted {len(strikes_data)} strikes")
+                    return strikes_data
+                    
+                finally:
+                    await browser.close()
+                    
+        except Exception as e:
+            print(f"Scraping failed: {e}")
+            print("This may work when deployed to Railway cloud due to different IP ranges")
+            raise e
 
     def compute_features(self, strikes: List[OIStrike]) -> OIFeatures:
         """Compute OI features from raw strikes"""
@@ -204,11 +231,17 @@ async def get_latest_oi():
 
 async def run_scraper():
     """Main scraper execution"""
-    scraper = NQOIScraper()
-    strikes = await scraper.scrape_nq_oi()
-    features = scraper.compute_features(strikes)
-    await scraper.store_data(strikes, features)
-    print(f"Scraped {len(strikes)} strikes, computed features for DTE {features.nearest_dte}")
+    try:
+        scraper = NQOIScraper()
+        strikes = await scraper.scrape_nq_oi()
+        features = scraper.compute_features(strikes)
+        await scraper.store_data(strikes, features)
+        print(f"SUCCESS: Scraped {len(strikes)} strikes, computed features for DTE {features.nearest_dte}")
+        return True
+    except Exception as e:
+        print(f"SCRAPER FAILED: {e}")
+        print("Deploy to Railway cloud - local networks may be blocked by CME")
+        return False
 
 if __name__ == "__main__":
     if len(os.sys.argv) > 1 and os.sys.argv[1] == "scrape":
