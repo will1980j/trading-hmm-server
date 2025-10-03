@@ -5,7 +5,7 @@ from flask import session, redirect, url_for, request
 def authenticate(username, password):
     """Simple authentication - can be enhanced with proper password hashing"""
     # Basic auth for now
-    return username == "admin" and password == "password"
+    return username == "admin" and password == "n2351447"
 
 def login_required(f):
     """Decorator to require login"""
