@@ -3073,56 +3073,21 @@
             console.log('📅 Looking for news on:', today);
             console.log('📊 Raw news data:', newsData);
             
+            // Just show ALL events for today - no filtering
             let allEvents = [];
-            
             if (newsData && Array.isArray(newsData)) {
                 allEvents = newsData;
             } else if (newsData && newsData.events) {
                 allEvents = newsData.events;
             }
             
-            console.log('📋 Total events found:', allEvents.length);
-            
-            // Filter for today's events (any impact level)
-            const todaysEvents = allEvents.filter(event => {
-                const eventDate = event.date;
-                console.log('🔍 Checking event:', event.title || event.name, 'Date:', eventDate, 'Impact:', event.impact);
-                return eventDate === today;
-            });
-            
-            console.log('📅 Today\'s events:', todaysEvents.length);
+            const todaysEvents = allEvents.filter(event => event.date === today);
+            console.log('📅 Today\'s events found:', todaysEvents.length);
             
             let newsHtml = '';
             
             if (todaysEvents.length > 0) {
-                // Show USA/USD high-impact events
-                const relevantEvents = todaysEvents.filter(event => {
-                    const impact = (event.impact || '').toLowerCase();
-                    const currency = (event.currency || '').toLowerCase();
-                    const country = (event.country || '').toLowerCase();
-                    
-                    const isHighImpact = impact.includes('high') || impact.includes('red') || impact === 'h';
-                    const isUSARelated = currency === 'usd' || country === 'usa' || country === 'us';
-                    
-                    console.log('🔍 Event check:', event.title || event.name, 'Impact:', impact, 'Currency:', currency, 'Country:', country, 'High:', isHighImpact, 'USA:', isUSARelated);
-                    
-                    return isHighImpact && isUSARelated;
-                });
-                
-                console.log('🇺🇸 USA high-impact events:', relevantEvents.length);
-                
-                const nqRelevantEvents = relevantEvents;
-                
-                console.log('📋 Final events to display:', nqRelevantEvents.length);
-                
-                if (nqRelevantEvents.length === 0) {
-                    console.log('⚠️ No USA high-impact events found, showing all today\'s events for debug:');
-                    todaysEvents.forEach(event => {
-                        console.log('📅 Event:', event.title || event.name, 'Impact:', event.impact, 'Currency:', event.currency, 'Country:', event.country);
-                    });
-                }
-                
-                nqRelevantEvents.slice(0, 5).forEach(event => {
+                todaysEvents.slice(0, 8).forEach(event => {
                     const impact = event.impact || 'Medium';
                     const impactColor = impact.toLowerCase().includes('high') || impact.toLowerCase().includes('red') ? '#ff4757' : 
                                       impact.toLowerCase().includes('medium') || impact.toLowerCase().includes('orange') ? '#ffa502' : '#26de81';
@@ -3137,12 +3102,13 @@
                         </div>
                     `;
                 });
-                
-                if (nqRelevantEvents.length === 0) {
-                    newsHtml = '<div style="text-align: center; color: rgba(255,255,255,0.7); padding: 20px;">No NQ-relevant events today</div>';
-                }
             } else {
-                newsHtml = '<div style="text-align: center; color: rgba(255,255,255,0.7); padding: 20px;">No events found for today</div>';
+                newsHtml = `
+                    <div style="text-align: center; color: rgba(255,255,255,0.7); padding: 20px;">
+                        No events found for ${today}<br>
+                        <small>Total events in API: ${allEvents.length}</small>
+                    </div>
+                `;
             }
             
             document.getElementById('economicNews').innerHTML = newsHtml;
