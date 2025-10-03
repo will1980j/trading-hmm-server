@@ -1,0 +1,27 @@
+//@version=5
+indicator("NQ Options OI Levels (Daily)", overlay=true)
+
+// Single line inputs for daily levels
+put1 = input.float(25000.0, "Put 1"); put2 = input.float(24975.0, "Put 2"); put3 = input.float(25025.0, "Put 3")
+call1 = input.float(25200.0, "Call 1"); call2 = input.float(25175.0, "Call 2"); call3 = input.float(25150.0, "Call 3")
+pin = input.float(25100.0, "Pin Candidate"); showPin = input.bool(true, "Show Pin")
+
+// Plot support levels (puts) in teal
+plot(put1, "Put 1", color=color.teal, linewidth=2, style=plot.style_linebr)
+plot(put2, "Put 2", color=color.teal, linewidth=2, style=plot.style_linebr)
+plot(put3, "Put 3", color=color.teal, linewidth=2, style=plot.style_linebr)
+
+// Plot resistance levels (calls) in orange
+plot(call1, "Call 1", color=color.orange, linewidth=2, style=plot.style_linebr)
+plot(call2, "Call 2", color=color.orange, linewidth=2, style=plot.style_linebr)
+plot(call3, "Call 3", color=color.orange, linewidth=2, style=plot.style_linebr)
+
+// Plot pin candidate in gray
+plot(showPin ? pin : na, "Pin", color=color.new(color.gray, 40), linewidth=1, style=plot.style_linebr)
+
+// Add labels on last bar for audit
+if barstate.islast
+    label.new(bar_index, put1, "PUT OI", color=color.teal, style=label.style_label_left, size=size.small)
+    label.new(bar_index, call1, "CALL OI", color=color.orange, style=label.style_label_left, size=size.small)
+    if showPin
+        label.new(bar_index, pin, "PIN", color=color.gray, style=label.style_label_left, size=size.small)

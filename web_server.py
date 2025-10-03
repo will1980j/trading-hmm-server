@@ -4647,6 +4647,79 @@ def get_payout_eligibility():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# NQ Options Open Interest API Endpoints
+@app.route('/nq/levels/daily', methods=['GET'])
+@login_required
+def get_nq_daily_levels():
+    """Get daily NQ options OI levels for overlay"""
+    try:
+        from nq_oi_endpoints import nq_oi_processor
+        levels = nq_oi_processor.get_daily_levels()
+        
+        if levels:
+            return jsonify(levels)
+        else:
+            return jsonify({
+                "date": datetime.now().date().isoformat(),
+                "nearest_dte": 0,
+                "top_puts": [],
+                "top_calls": [],
+                "pin_candidate": None,
+                "rules_version": "v1.0",
+                "generated_at": datetime.now().isoformat()
+            })
+    except Exception as e:
+        logger.error(f"Error getting NQ OI levels: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/portfolio-metrics', methods=['GET'])
+@login_required
+def get_portfolio_metrics():
+    """Get portfolio metrics for trading day prep"""
+    try:
+        # Mock data - replace with real prop firm API integration
+        return jsonify({
+            'total_worth': 250000,
+            'weekly_profit': 3500,
+            'monthly_profit': 12800,
+            'highest_day_profit': 8500
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cme-contract-specs', methods=['GET'])
+@login_required
+def get_cme_contract_specs():
+    """Get CME contract specifications"""
+    try:
+        # Generate current contract codes
+        from datetime import datetime
+        month = datetime.now().month
+        year = datetime.now().year % 10
+        
+        # Quarterly contract months: Mar(H), Jun(M), Sep(U), Dec(Z)
+        if month <= 3:
+            contract_month = 'H'
+        elif month <= 6:
+            contract_month = 'M'
+        elif month <= 9:
+            contract_month = 'U'
+        else:
+            contract_month = 'Z'
+        
+        return jsonify({
+            'nq': {
+                'globex_code': f'NQ{contract_month}{year}',
+                'min_tick': '$5.00'
+            },
+            'mnq': {
+                'globex_code': f'MNQ{contract_month}{year}',
+                'min_tick': '$0.50'
+            }
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # Prop Firm Management POST endpoints
 @app.route('/api/prop-firm/firms', methods=['POST'])
 @login_required
