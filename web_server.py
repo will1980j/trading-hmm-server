@@ -693,15 +693,10 @@ def ai_insights():
             timeout=30
         )
         response_data = response.json()
-        
-        class MockResponse:
-            def __init__(self, content):
-                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
-        
-        response = MockResponse(response_data['choices'][0]['message']['content'])
+        ai_content = response_data['choices'][0]['message']['content']
         
         return jsonify({
-            "analysis": response.choices[0].message.content,
+            "analysis": ai_content,
             "chart_type": chart_type,
             "status": "success"
         })
@@ -759,13 +754,7 @@ def ai_strategy_summary():
         )
         response_data = response.json()
         
-        class MockResponse:
-            def __init__(self, content):
-                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
-        
-        response = MockResponse(response_data['choices'][0]['message']['content'])
-        
-        ai_response = response.choices[0].message.content
+        ai_response = response_data['choices'][0]['message']['content']
         
         return jsonify({
             "summary": ai_response,
@@ -956,14 +945,7 @@ def ai_economic_analysis():
             }
         )
         response_data = response.json()
-        
-        class MockResponse:
-            def __init__(self, content):
-                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
-        
-        response = MockResponse(response_data['choices'][0]['message']['content'])
-        
-        ai_response = response.choices[0].message.content
+        ai_response = response_data['choices'][0]['message']['content']
         
         # Parse response for structured data
         impact = 'NEUTRAL'
@@ -1057,14 +1039,7 @@ def ai_market_analysis():
             }
         )
         response_data = response.json()
-        
-        class MockResponse:
-            def __init__(self, content):
-                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
-        
-        response = MockResponse(response_data['choices'][0]['message']['content'])
-        
-        ai_response = response.choices[0].message.content
+        ai_response = response_data['choices'][0]['message']['content']
         
         # Parse AI response for structured data
         parsed_response = parse_market_analysis(ai_response)
@@ -1274,15 +1249,10 @@ def ai_risk_assessment():
             }
         )
         response_data = response.json()
-        
-        class MockResponse:
-            def __init__(self, content):
-                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
-        
-        response = MockResponse(response_data['choices'][0]['message']['content'])
+        ai_content = response_data['choices'][0]['message']['content']
         
         return jsonify({
-            "risk_assessment": response.choices[0].message.content,
+            "risk_assessment": ai_content,
             "status": "success"
         })
         
@@ -1490,15 +1460,10 @@ def ai_signal_recommendations():
             }
         )
         response_data = response.json()
-        
-        class MockResponse:
-            def __init__(self, content):
-                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
-        
-        response = MockResponse(response_data['choices'][0]['message']['content'])
+        ai_content = response_data['choices'][0]['message']['content']
         
         # Parse recommendations into list
-        recommendations = [line.strip('• -') for line in response.choices[0].message.content.split('\n') if line.strip() and ('•' in line or '-' in line)]
+        recommendations = [line.strip('• -') for line in ai_content.split('\n') if line.strip() and ('•' in line or '-' in line)]
         
         return jsonify({
             "recommendations": recommendations[:5],
@@ -5584,15 +5549,10 @@ Analyze this NQ level tracking data and provide:
             }
         )
         response_data = response.json()
-        
-        class MockResponse:
-            def __init__(self, content):
-                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})})()]
-        
-        response = MockResponse(response_data['choices'][0]['message']['content'])
+        ai_content = response_data['choices'][0]['message']['content']
         
         return jsonify({
-            "analysis": response.choices[0].message.content,
+            "analysis": ai_content,
             "accuracy_data": accuracy_data,
             "status": "success"
         })
