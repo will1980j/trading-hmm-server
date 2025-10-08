@@ -87,6 +87,7 @@ try:
     # Auto-add missing target_r_score column if needed
     if db and db.conn:
         try:
+            db.conn.rollback()  # Clear any aborted transactions
             cursor = db.conn.cursor()
             cursor.execute("""
                 ALTER TABLE signal_lab_trades 
@@ -95,6 +96,7 @@ try:
             db.conn.commit()
             logger.info("✅ Ensured target_r_score column exists")
         except Exception as e:
+            db.conn.rollback()
             logger.warning(f"Column check/creation failed: {str(e)}")
             
 except (ImportError, ConnectionError) as e:
@@ -134,6 +136,16 @@ app = Flask(__name__)
 app.secret_key = environ.get('SECRET_KEY', 'dev-key-change-in-production')
 CORS(app, origins=['chrome-extension://abndgpgodnhhkchaoiiopnondcpmnanc', 'https://www.tradingview.com'], supports_credentials=True)
 csrf.init_app(app)
+
+# Global error handler for database transaction errors
+@app.before_request
+def reset_db_transaction():
+    """Reset any aborted database transactions before each request"""
+    if db_enabled and db and hasattr(db, 'conn') and db.conn:
+        try:
+            db.conn.rollback()
+        except:
+            pass
 
 # Initialize SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
