@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>1M Signal Diagnostic</title>
+    <style>
+        body { font-family: monospace; background: #1a1a1a; color: #0f0; padding: 20px; }
+        .signal { background: #2a2a2a; padding: 10px; margin: 10px 0; border-left: 4px solid #0f0; }
+        .old { border-left-color: #f00; }
+        .test { border-left-color: #ff0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 1M Signal Diagnostic</h1>
+    <div id="output"></div>
+    
+    <script>
+        async function diagnose() {
+            const response = await fetch('/api/live-signals?timeframe=1m&limit=20');
+            const data = await response.json();
+            
+            const now = new Date();
+            let html = `<h2>Found ${data.signals.length} signals with timeframe='1m'</h2>`;
+            
+            data.signals.forEach(signal => {
+                const signalTime = new Date(signal.timestamp);
+                const ageHours = (now - signalTime) / (1000 * 60 * 60);
+                const isOld = ageHours > 24;
+                const isTest = signal.signal_type.includes('TEST') || signal.signal_type.includes('DEBUG');
+                
+                const cssClass = isTest ? 'test' : (isOld ? 'old' : '');
+                const status = isTest ? '⚠️ TEST' : (isOld ? '❌ OLD' : '✅ RECENT');
+                
+                html += `
+                    <div class="signal ${cssClass}">
+                        <strong>${status}</strong> ${signalTime.toLocaleString()}<br>
+                        Symbol: ${signal.symbol} | Bias: ${signal.bias} | Price: $${signal.price}<br>
+                        Type: ${signal.signal_type} | Strength: ${signal.strength}%<br>
+                        Age: ${ageHours.toFixed(1)} hours ago
+                    </div>
+                `;
+            });
+            
+            if (data.signals.length === 0) {
+                html += '<p style="color: #f00;">❌ NO 1M SIGNALS FOUND - TradingView webhook not sending 1m signals!</p>';
+            }
+            
+            document.getElementById('output').innerHTML = html;
+        }
+        
+        diagnose();
+    </script>
+</body>
+</html>

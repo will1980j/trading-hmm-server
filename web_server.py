@@ -228,6 +228,11 @@ def signal_lab_dashboard():
 def execution_dashboard():
     return read_html_file('1m_execution_dashboard.html')
 
+@app.route('/diagnose-1m-signals')
+@login_required
+def diagnose_1m_signals():
+    return read_html_file('diagnose_1m_signals.html')
+
 @app.route('/nasdaq-ml')
 @login_required
 def nasdaq_ml():

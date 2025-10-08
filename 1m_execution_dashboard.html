@@ -169,10 +169,15 @@
         }
 
         async function loadLiveSignals() {
-            const response = await fetch('/api/live-signals?timeframe=1m&limit=10');
+            const response = await fetch('/api/live-signals?timeframe=1m&limit=50');
             const data = await response.json();
             
-            const signalsWithML = await Promise.all(data.signals.map(async signal => {
+            // Filter for NQ1! only with valid prices (10,000 - 25,000)
+            const nqSignals = data.signals.filter(s => 
+                s.symbol === 'NQ1!' && s.price >= 10000 && s.price <= 25000
+            ).slice(0, 10);
+            
+            const signalsWithML = await Promise.all(nqSignals.map(async signal => {
                 const mlPrediction = await getMLPrediction(signal);
                 return { ...signal, ml: mlPrediction };
             }));
@@ -194,7 +199,7 @@
                 `;
             }).join('');
             
-            document.getElementById('liveSignals').innerHTML = signalsHtml || '<div style="text-align: center; padding: 40px; opacity: 0.5;">Waiting for signals...</div>';
+            document.getElementById('liveSignals').innerHTML = signalsHtml || '<div style="text-align: center; padding: 40px; opacity: 0.5;">Waiting for NQ1! signals...</div>';
         }
         
         setInterval(loadLiveSignals, 5000);
