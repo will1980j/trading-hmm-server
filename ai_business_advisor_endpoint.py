@@ -59,7 +59,10 @@ TRADER'S QUESTION: {question}
                 timeout=30
             )
             
-            ai_response = response.json()['choices'][0]['message']['content']
+            response_data = response.json()
+            if 'choices' not in response_data or not response_data['choices']:
+                return jsonify({'error': 'Invalid API response'}), 500
+            ai_response = response_data['choices'][0]['message']['content']
             
             return jsonify({
                 'advice': ai_response,
