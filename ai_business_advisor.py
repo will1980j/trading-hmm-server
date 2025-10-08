@@ -57,14 +57,17 @@ def get_business_context(db):
     recent_performance = cursor.fetchall()
     
     # ML prediction accuracy
-    cursor.execute("""
-        SELECT 
-            AVG(CASE WHEN ml_prediction IS NOT NULL THEN 1 ELSE 0 END) as ml_coverage,
-            COUNT(*) as signals_with_ml
-        FROM live_signals
-        WHERE timestamp > NOW() - INTERVAL '7 days'
-    """)
-    ml_stats = cursor.fetchone()
+    try:
+        cursor.execute("""
+            SELECT 
+                AVG(CASE WHEN ml_prediction IS NOT NULL THEN 1 ELSE 0 END) as ml_coverage,
+                COUNT(*) as signals_with_ml
+            FROM live_signals
+            WHERE timestamp > NOW() - INTERVAL '7 days'
+        """)
+        ml_stats = cursor.fetchone()
+    except:
+        ml_stats = {'ml_coverage': 0, 'signals_with_ml': 0}
     
     return {
         'session_performance': [dict(row) for row in session_stats],
