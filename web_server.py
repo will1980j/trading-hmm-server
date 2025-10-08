@@ -84,7 +84,7 @@ try:
     db_enabled = True
     logger.info("Database connected successfully")
     
-    # Auto-add missing target_r_score column if needed
+    # Auto-add missing columns if needed
     if db and db.conn:
         try:
             db.conn.rollback()  # Clear any aborted transactions
@@ -93,8 +93,12 @@ try:
                 ALTER TABLE signal_lab_trades 
                 ADD COLUMN IF NOT EXISTS target_r_score REAL DEFAULT NULL
             """)
+            cursor.execute("""
+                ALTER TABLE signal_lab_trades 
+                ADD COLUMN IF NOT EXISTS ml_prediction JSONB DEFAULT NULL
+            """)
             db.conn.commit()
-            logger.info("✅ Ensured target_r_score column exists")
+            logger.info("✅ Ensured required columns exist")
         except Exception as e:
             db.conn.rollback()
             logger.warning(f"Column check/creation failed: {str(e)}")
