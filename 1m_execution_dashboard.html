@@ -109,7 +109,12 @@
     
     <div class="execution-grid">
         <div class="signal-panel">
-            <h2>🎯 Live 1M NQ Signals</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>🎯 Live 1M NQ Signals</h2>
+                <div style="font-size: 14px; padding: 8px 15px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+                    Webhook: <span id="webhookStatus">⏳ Checking...</span>
+                </div>
+            </div>
             <div id="liveSignals"></div>
         </div>
         
@@ -147,6 +152,26 @@
     </div>
 
     <script>
+        // Real-time webhook monitoring
+        let lastWebhookTime = null;
+        
+        async function checkWebhookStatus() {
+            const response = await fetch('/api/check-signals');
+            const data = await response.json();
+            const recentSignals = data.recent_signals || [];
+            
+            if (recentSignals.length > 0) {
+                const latest = new Date(recentSignals[0].timestamp);
+                const now = new Date();
+                const secondsAgo = Math.floor((now - latest) / 1000);
+                
+                document.getElementById('webhookStatus').innerHTML = 
+                    secondsAgo < 60 ? `✅ Live (${secondsAgo}s ago)` : `⚠️ ${Math.floor(secondsAgo/60)}m ago`;
+            } else {
+                document.getElementById('webhookStatus').innerHTML = '❌ No signals';
+            }
+        }
+        
         async function getMLPrediction(signal) {
             try {
                 const response = await fetch('/api/ml-predict', {
@@ -202,8 +227,10 @@
             document.getElementById('liveSignals').innerHTML = signalsHtml || '<div style="text-align: center; padding: 40px; opacity: 0.5;">Waiting for NQ1! signals...</div>';
         }
         
-        setInterval(loadLiveSignals, 5000);
+        setInterval(loadLiveSignals, 2000);  // Check every 2 seconds
+        setInterval(checkWebhookStatus, 5000);
         loadLiveSignals();
+        checkWebhookStatus();
     </script>
 </body>
 </html>
