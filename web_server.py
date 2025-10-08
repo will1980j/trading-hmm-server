@@ -223,6 +223,11 @@ def signal_analysis_15m():
 def signal_lab_dashboard():
     return read_html_file('signal_lab_dashboard.html')
 
+@app.route('/1m-execution')
+@login_required
+def execution_dashboard():
+    return read_html_file('1m_execution_dashboard.html')
+
 @app.route('/nasdaq-ml')
 @login_required
 def nasdaq_ml():
