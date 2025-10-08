@@ -59,6 +59,9 @@ TRADER'S QUESTION: {question}
                 timeout=30
             )
             
+            if response.status_code != 200:
+                return jsonify({'error': f'OpenAI API error: {response.status_code}', 'details': response.text}), 500
+            
             response_data = response.json()
             ai_response = response_data['choices'][0]['message']['content']
             
