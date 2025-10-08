@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1M NQ Execution Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0e27;
+            color: #fff;
+            padding: 10px;
+        }
+        .navbar {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .nav-link:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+        }
+        .nav-link.active {
+            color: #00ff88;
+            background: rgba(0,255,136,0.15);
+            border-color: rgba(0,255,136,0.3);
+        }
+        .execution-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 15px;
+            height: 100vh;
+        }
+        .signal-panel {
+            background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,212,170,0.05));
+            border: 2px solid #00ff88;
+            border-radius: 15px;
+            padding: 20px;
+        }
+        .live-signal {
+            background: rgba(0,0,0,0.5);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid #00ff88;
+        }
+        .signal-time {
+            font-size: 24px;
+            font-weight: 700;
+            color: #00ff88;
+        }
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .stat-box {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #00ff88;
+        }
+        .risk-meter {
+            height: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .risk-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #ffa502, #ff4757);
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/trade-manager" class="nav-link">Trade Manager</a>
+        <a href="/signal-analysis-lab" class="nav-link">1M Signal Lab</a>
+        <a href="/signal-lab-dashboard" class="nav-link">Lab Dashboard</a>
+        <a href="/1m-execution" class="nav-link active">1M Execution</a>
+        <a href="/nasdaq-ml" class="nav-link">NASDAQ ML</a>
+        <a href="/prop-portfolio" class="nav-link">Prop Portfolio</a>
+        <a href="/financial-summary" class="nav-link">Financial Summary</a>
+    </nav>
+    
+    <div class="execution-grid">
+        <div class="signal-panel">
+            <h2>🎯 Live 1M NQ Signals</h2>
+            <div id="liveSignals"></div>
+        </div>
+        
+        <div>
+            <div class="signal-panel" style="margin-bottom: 15px;">
+                <h3>Today's Performance</h3>
+                <div class="quick-stats">
+                    <div class="stat-box">
+                        <div class="stat-value" id="todayPnL">$0</div>
+                        <div>P&L</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="todayTrades">0</div>
+                        <div>Trades</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="winRate">0%</div>
+                        <div>Win Rate</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="avgR">0R</div>
+                        <div>Avg R</div>
+                    </div>
+                </div>
+                
+                <h4 style="margin-top: 20px;">Daily Risk Usage</h4>
+                <div class="risk-meter">
+                    <div class="risk-fill" id="riskFill" style="width: 0%"></div>
+                </div>
+                <div style="text-align: center; margin-top: 5px; font-size: 12px;">
+                    <span id="riskPercent">0%</span> of daily limit used
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function getMLPrediction(signal) {
+            try {
+                const response = await fetch('/api/ml-predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        bias: signal.bias,
+                        session: signal.session,
+                        signal_type: signal.signal_type,
+                        price: signal.price,
+                        market_context: signal.market_context || {}
+                    })
+                });
+                const prediction = await response.json();
+                return prediction;
+            } catch (error) {
+                console.error('ML prediction error:', error);
+                return { predicted_mfe: 0, confidence: 0 };
+            }
+        }
+
+        async function loadLiveSignals() {
+            const response = await fetch('/api/live-signals?timeframe=1m&limit=10');
+            const data = await response.json();
+            
+            const signalsWithML = await Promise.all(data.signals.map(async signal => {
+                const mlPrediction = await getMLPrediction(signal);
+                return { ...signal, ml: mlPrediction };
+            }));
+            
+            const signalsHtml = signalsWithML.map(signal => {
+                const mlConfidence = (signal.ml.confidence * 100).toFixed(0);
+                const mlMFE = signal.ml.predicted_mfe?.toFixed(2) || '0.00';
+                const confidenceColor = mlConfidence > 70 ? '#00ff88' : mlConfidence > 50 ? '#ffa502' : '#ff4757';
+                
+                return `
+                    <div class="live-signal">
+                        <div class="signal-time">${new Date(signal.timestamp).toLocaleTimeString()}</div>
+                        <div style="font-size: 18px; margin: 5px 0;">${signal.bias} @ ${signal.price}</div>
+                        <div style="font-size: 14px; opacity: 0.8;">Strength: ${signal.strength}% | ${signal.session}</div>
+                        <div style="font-size: 16px; margin-top: 8px; color: ${confidenceColor}; font-weight: 600;">
+                            🤖 ML: ${mlMFE}R (${mlConfidence}% confidence)
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('liveSignals').innerHTML = signalsHtml || '<div style="text-align: center; padding: 40px; opacity: 0.5;">Waiting for signals...</div>';
+        }
+        
+        setInterval(loadLiveSignals, 5000);
+        loadLiveSignals();
+    </script>
+</body>
+</html>

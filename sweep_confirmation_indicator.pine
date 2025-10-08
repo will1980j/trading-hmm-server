@@ -1,0 +1,60 @@
+//@version=5
+indicator("Sweep & Confirmation Signals", overlay=true)
+
+// Input settings
+buyColor = input.color(color.green, "Buy Signal Color")
+sellColor = input.color(color.red, "Sell Signal Color")
+maxLookback = input.int(10, "Max Confirmation Lookback", minval=1, maxval=50)
+
+// Variables to track pending sweeps
+var float pendingSweepHigh = na
+var float pendingSweepLow = na
+var int pendingSweepBar = na
+var string pendingSignal = na
+
+// Sweep detection - must be a true sweep (wick through level, not close)
+bullishSweep = low < low[1] and (open > low[1] or close > low[1])
+bearishSweep = high > high[1] and (open < high[1] or close < high[1])
+
+// Immediate confirmation on same candle
+bullishImmediate = bullishSweep and close > high[1]  // Sweeps low but closes above previous high
+bearishImmediate = bearishSweep and close < low[1]   // Sweeps high but closes below previous low
+
+// Track pending sweeps (only if not immediately confirmed)
+if bullishSweep and not bullishImmediate
+    pendingSweepLow := high  // Track the high of the sweep candle for confirmation
+    pendingSweepBar := bar_index
+    pendingSignal := "bullish"
+
+if bearishSweep and not bearishImmediate
+    pendingSweepHigh := low  // Track the low of the sweep candle for confirmation
+    pendingSweepBar := bar_index
+    pendingSignal := "bearish"
+
+// Delayed confirmation logic
+bullishDelayed = pendingSignal == "bullish" and 
+                 close > pendingSweepLow and 
+                 bar_index <= pendingSweepBar + maxLookback
+
+bearishDelayed = pendingSignal == "bearish" and 
+                 close < pendingSweepHigh and 
+                 bar_index <= pendingSweepBar + maxLookback
+
+// Generate confirmed signals (immediate or delayed)
+buySignal = bullishImmediate or bullishDelayed
+sellSignal = bearishImmediate or bearishDelayed
+
+// Cancel pending signals when confirmed signal occurs
+if buySignal
+    pendingSignal := na
+    
+if sellSignal
+    pendingSignal := na
+
+// Plot signals
+plotshape(buySignal, "Buy", shape.triangleup, location.belowbar, buyColor, size=size.normal)
+plotshape(sellSignal, "Sell", shape.triangledown, location.abovebar, sellColor, size=size.normal)
+
+// Alert conditions
+alertcondition(buySignal, "Buy Signal", "Bullish sweep confirmed")
+alertcondition(sellSignal, "Sell Signal", "Bearish sweep confirmed")
