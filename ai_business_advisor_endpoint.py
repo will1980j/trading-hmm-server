@@ -60,8 +60,6 @@ TRADER'S QUESTION: {question}
             )
             
             response_data = response.json()
-            if 'choices' not in response_data or not response_data['choices']:
-                return jsonify({'error': 'Invalid API response'}), 500
             ai_response = response_data['choices'][0]['message']['content']
             
             return jsonify({
@@ -72,7 +70,14 @@ TRADER'S QUESTION: {question}
             })
             
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            import traceback
+            import logging
+            logging.error(f"AI Business Advisor error: {str(e)}")
+            logging.error(traceback.format_exc())
+            return jsonify({
+                'error': str(e),
+                'details': traceback.format_exc()
+            }), 500
     
     @app.route('/api/business-health', methods=['GET'])
     def business_health_check():
