@@ -138,6 +138,11 @@ csrf.init_app(app)
 # Initialize SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
+# Register AI Business Advisor
+if db_enabled and db:
+    from ai_business_advisor_endpoint import register_advisor_routes
+    register_advisor_routes(app, db)
+
 # Read HTML files and serve them
 def read_html_file(filename):
     try:
@@ -232,6 +237,11 @@ def execution_dashboard():
 @login_required
 def diagnose_1m_signals():
     return read_html_file('diagnose_1m_signals.html')
+
+@app.route('/ai-business-advisor')
+@login_required
+def ai_business_advisor_page():
+    return read_html_file('ai_business_dashboard.html')
 
 @app.route('/nasdaq-ml')
 @login_required

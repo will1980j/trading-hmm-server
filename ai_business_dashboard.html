@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Business Advisor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #fff;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(20px);
+        }
+        .health-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .health-card {
+            background: rgba(0,255,136,0.1);
+            border: 2px solid #00ff88;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+        .health-score {
+            font-size: 48px;
+            font-weight: 700;
+            color: #00ff88;
+        }
+        .advisor-panel {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        .question-input {
+            width: 100%;
+            padding: 15px;
+            background: rgba(0,0,0,0.3);
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        .ask-btn {
+            background: linear-gradient(135deg, #00ff88, #00d4aa);
+            color: #000;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .advice-box {
+            background: rgba(0,0,0,0.5);
+            padding: 25px;
+            border-radius: 10px;
+            border-left: 4px solid #00ff88;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            line-height: 1.8;
+        }
+        .quick-questions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        .quick-q {
+            background: rgba(255,255,255,0.1);
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .quick-q:hover {
+            background: rgba(0,255,136,0.2);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Business Advisor</h1>
+            <p>Strategic guidance for scaling your prop trading business</p>
+        </div>
+        
+        <div class="health-grid">
+            <div class="health-card">
+                <div class="health-score" id="overallScore">--</div>
+                <div>Overall Health</div>
+            </div>
+            <div class="health-card">
+                <div class="health-score" id="volumeScore">--</div>
+                <div>Volume Score</div>
+            </div>
+            <div class="health-card">
+                <div class="health-score" id="consistencyScore">--</div>
+                <div>Consistency</div>
+            </div>
+            <div class="health-card">
+                <div class="health-score" id="mlScore">--</div>
+                <div>ML Integration</div>
+            </div>
+        </div>
+        
+        <div class="advisor-panel">
+            <h2>Ask Your Business Advisor</h2>
+            
+            <div class="quick-questions">
+                <div class="quick-q" onclick="askQuestion('How should I scale to 10 prop accounts?')">📈 Scaling Strategy</div>
+                <div class="quick-q" onclick="askQuestion('What is my optimal capital allocation?')">💰 Capital Allocation</div>
+                <div class="quick-q" onclick="askQuestion('When should I request payouts?')">💸 Payout Strategy</div>
+                <div class="quick-q" onclick="askQuestion('How can I improve my win rate?')">🎯 Performance Optimization</div>
+                <div class="quick-q" onclick="askQuestion('What are my biggest risks right now?')">⚠️ Risk Analysis</div>
+                <div class="quick-q" onclick="askQuestion('Give me a 90-day growth plan')">🗓️ Growth Roadmap</div>
+            </div>
+            
+            <textarea id="questionInput" class="question-input" rows="3" placeholder="Ask anything about growing your trading business..."></textarea>
+            <button class="ask-btn" onclick="getAdvice()">Get Strategic Advice</button>
+            
+            <div id="adviceBox" class="advice-box" style="display: none;"></div>
+        </div>
+    </div>
+    
+    <script>
+        async function loadBusinessHealth() {
+            const response = await fetch('/api/business-health');
+            const data = await response.json();
+            
+            if (data.health) {
+                document.getElementById('overallScore').textContent = data.health.overall_score;
+                document.getElementById('volumeScore').textContent = data.health.volume_score;
+                document.getElementById('consistencyScore').textContent = data.health.consistency_score;
+                document.getElementById('mlScore').textContent = data.health.ml_integration_score;
+            }
+        }
+        
+        function askQuestion(question) {
+            document.getElementById('questionInput').value = question;
+            getAdvice();
+        }
+        
+        async function getAdvice() {
+            const question = document.getElementById('questionInput').value;
+            if (!question) return;
+            
+            const adviceBox = document.getElementById('adviceBox');
+            adviceBox.style.display = 'block';
+            adviceBox.textContent = '🤔 Analyzing your business and formulating strategy...';
+            
+            try {
+                const response = await fetch('/api/ai-business-advisor', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question })
+                });
+                
+                const data = await response.json();
+                
+                if (data.advice) {
+                    adviceBox.textContent = data.advice;
+                } else {
+                    adviceBox.textContent = 'Error: ' + (data.error || 'Unknown error');
+                }
+            } catch (error) {
+                adviceBox.textContent = 'Error connecting to advisor: ' + error.message;
+            }
+        }
+        
+        loadBusinessHealth();
+        setInterval(loadBusinessHealth, 60000);
+    </script>
+</body>
+</html>
