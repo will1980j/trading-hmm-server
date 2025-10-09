@@ -371,7 +371,13 @@ def nasdaq_backtest():
 @app.route('/ml-dashboard')
 @login_required
 def ml_dashboard():
-    """ML Intelligence Dashboard with fallback support"""
+    """Unified ML Intelligence Dashboard"""
+    return read_html_file('ml_intelligence_dashboard.html')
+
+@app.route('/ml-dashboard-old')
+@login_required
+def ml_dashboard_old():
+    """Old ML Intelligence Dashboard with fallback support"""
     try:
         # Try to check if ML engine is available
         if db_enabled and db:
@@ -2408,16 +2414,9 @@ def capture_live_signal():
         else:
             clean_symbol = raw_symbol  # Keep original if no match
         
-        # Extract HTF alignment - Pine Script only sends HTF aligned signals
-        htf_aligned = data.get('htf_aligned', True)  # Default True since Pine filters
-        
-        logger.info(f"HTF Status: {htf_aligned} (Pine Script pre-filtered)")
-        
-        htf_status = 'ALIGNED' if htf_aligned else 'AGAINST'
-        
-        # Pine Script filtering working correctly - all signals are HTF aligned
-        if not htf_aligned:
-            logger.error(f"❌ CRITICAL: Non-HTF signal received - this should never happen!")
+        # All signals are now accepted regardless of HTF status
+        htf_aligned = data.get('htf_aligned', False)
+        htf_status = data.get('htf_status', 'N/A')
         
         # Ensure price is valid - handle string and numeric prices with commas
         raw_price = data.get('price', 0)
@@ -2434,8 +2433,8 @@ def capture_live_signal():
         if price == 0:
             logger.warning(f"Invalid price in signal: {data}")
         
-        # Use ML confidence as strength (will be populated after ML prediction)
-        base_strength = 50  # Default, will be replaced by ML confidence
+        # Strength will be set by ML confidence after prediction
+        base_strength = 0
         
         # Determine current session
         current_session = get_current_session()
@@ -2555,77 +2554,55 @@ def capture_live_signal():
             logger.error(f"❌ ML analysis error: {str(ml_error)}")
             pass
         
-        # 🤖 ADVANCED ML PREDICTION - Professional ML engine
+        # 🤖 UNIFIED ML PREDICTION - Learns from ALL your data
         context_quality = signal.get('context_quality_score', 0.5)
         ml_prediction = None
         
         try:
-            from advanced_ml_engine import get_advanced_ml_engine
-            ml_engine = get_advanced_ml_engine(db)
+            from unified_ml_intelligence import get_unified_ml
+            ml_engine = get_unified_ml(db)
             
             # Auto-train if not trained yet
             if not ml_engine.is_trained:
-                logger.info("🎯 Training ML models...")
-                training_result = ml_engine.train_models()
+                logger.info("🎯 Training unified ML on all trading data...")
+                training_result = ml_engine.train_on_all_data()
                 if 'error' not in training_result:
-                    logger.info(f"✅ ML training complete: {training_result.get('best_model', 'Unknown')} model selected")
+                    logger.info(f"✅ ML training complete: {training_result.get('training_samples', 0)} trades, {training_result.get('success_accuracy', 0):.1f}% accuracy")
             
-            # Get advanced ML prediction
+            # Get ML prediction
             ml_prediction = ml_engine.predict_signal_quality(
-                signal.get('market_context', {}),
                 {
                     'bias': signal['bias'], 
                     'session': signal['session'],
                     'price': signal['price'],
                     'signal_type': signal['signal_type']
-                }
+                },
+                signal.get('market_context', {})
             )
             
-            # Log comprehensive ML prediction and update strength with ML confidence
+            # Use ML confidence as strength
+            base_strength = int(ml_prediction.get('confidence', 0))
+            
             pred_mfe = ml_prediction.get('predicted_mfe', 0)
-            confidence = ml_prediction.get('confidence', 0)
-            models_used = ml_prediction.get('models_used', 0)
+            success_prob = ml_prediction.get('success_probability', 0)
             recommendation = ml_prediction.get('recommendation', 'N/A')
             
-            # Replace strength with ML confidence (0-1 scale to 0-100%)
-            base_strength = min(95, confidence * 100) if confidence > 0 else 50
-            
-            logger.info(f"🤖 ADVANCED ML: MFE={pred_mfe:.3f}R, Confidence={confidence:.2f} ({base_strength}%), Models={models_used}, Rec={recommendation[:50]}")
-            
-            # Log model consensus if available
-            consensus = ml_prediction.get('model_consensus', {})
-            if len(consensus) > 1:
-                consensus_str = ', '.join([f"{k}:{v:.2f}R" for k, v in list(consensus.items())[:3]])
-                logger.info(f"📈 Model Consensus: {consensus_str}")
+            logger.info(f"🤖 ML: Strength={base_strength}%, MFE={pred_mfe:.2f}R, Success={success_prob:.1f}%, Rec={recommendation}")
             
         except Exception as e:
-            logger.error(f"Advanced ML prediction error: {str(e)}")
-            ml_prediction = {
-                'predicted_mfe': 0.0, 
-                'confidence': 0.0, 
-                'recommendation': f'ML error: {str(e)[:50]}',
-                'models_used': 0
-            }
+            logger.error(f"ML prediction error: {str(e)}")
+            ml_prediction = None
+            base_strength = 0
         
-        # 🎯 ENHANCED AUTO-POPULATION LOGIC - Now handles contract rollovers automatically
-        # Get current active NQ contract from contract manager
+        # 🎯 AUTO-POPULATION LOGIC - All NQ signals are now captured
         active_nq_contract = contract_manager.get_active_contract('NQ')
         
-        # DEBUG: Log the contract comparison
-        logger.info(f"🔍 Contract check: signal={signal['symbol']}, active={active_nq_contract}, htf={htf_aligned}")
-        
-        # FALLBACK: If contract manager fails, default to NQ1!
         if not active_nq_contract:
             active_nq_contract = 'NQ1!'
-            logger.warning("⚠️ Contract manager returned None, defaulting to NQ1!")
         
-        should_populate = (
-            signal['symbol'] == active_nq_contract and 
-            htf_aligned  # HTF alignment still required
-        )
+        should_populate = signal['symbol'] == active_nq_contract
         
-        # Log auto-population decision with contract info
-        logger.info(f"🎯 Auto-population check: Symbol={signal['symbol']}, Active NQ={active_nq_contract}, HTF={htf_aligned}, Should populate={should_populate}")
+        logger.info(f"🎯 Auto-population: Symbol={signal['symbol']}, Active={active_nq_contract}, Populate={should_populate}")
         
         # Log final signal storage with market context
         lab_status = 'Yes' if should_populate else 'No'
@@ -2636,9 +2613,9 @@ def capture_live_signal():
         logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | {vix_info} | {quality_info} | ID: {signal_id} | Lab: {lab_status}")
         
         if should_populate:
-            logger.info(f"✅ {active_nq_contract} HTF ALIGNED: {signal['bias']} - Auto-populating Signal Lab")
+            logger.info(f"✅ {active_nq_contract} signal: {signal['bias']} - Auto-populating Signal Lab")
         else:
-            logger.info(f"❌ SKIPPED auto-population: Symbol={signal['symbol']}, Active={active_nq_contract}, HTF={htf_aligned}")
+            logger.info(f"❌ SKIPPED: Symbol={signal['symbol']} != Active={active_nq_contract}")
         
         if should_populate:
             try:
@@ -2651,7 +2628,6 @@ def capture_live_signal():
                     'signal_type': signal['signal_type'],
                     'entry_price': signal['price'],
                     'active_trade': True,
-                    'htf_aligned': signal['htf_aligned'],
                     'market_context': market_context_json,
                     'context_quality_score': context_quality,
                     'ml_prediction': dumps(ml_prediction) if ml_prediction else None
@@ -2659,34 +2635,25 @@ def capture_live_signal():
                 
                 cursor.execute("""
                     INSERT INTO signal_lab_trades 
-                    (date, time, bias, session, signal_type, entry_price, active_trade, htf_aligned, 
+                    (date, time, bias, session, signal_type, entry_price, active_trade, 
                      market_context, context_quality_score, ml_prediction)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     lab_trade['date'], lab_trade['time'], lab_trade['bias'], 
                     lab_trade['session'], lab_trade['signal_type'], lab_trade['entry_price'],
-                    lab_trade['active_trade'], lab_trade['htf_aligned'],
+                    lab_trade['active_trade'],
                     lab_trade['market_context'], lab_trade['context_quality_score'],
                     lab_trade['ml_prediction']
                 ))
                 db.conn.commit()
                 
                 ml_info = f"ML: {ml_prediction['predicted_mfe']:.2f}R" if ml_prediction else "ML: N/A"
-                logger.info(f"✅ Auto-populated Signal Lab: {signal['bias']} {signal['symbol']} | HTF Aligned | Quality: {context_quality:.2f} | {ml_info}")
+                logger.info(f"✅ Auto-populated Signal Lab: {signal['bias']} {signal['symbol']} | Quality: {context_quality:.2f} | {ml_info}")
                 
             except Exception as e:
                 logger.error(f"Failed to auto-populate Signal Lab: {str(e)}")
         else:
-            if signal['symbol'] != active_nq_contract:
-                reason = f"not {active_nq_contract} (got {signal['symbol']})"
-            elif not htf_aligned:
-                reason = "not HTF aligned"
-            else:
-                reason = "unknown"
-            logger.info(f"⚠️ Skipped Signal Lab auto-population - {reason} (Symbol: {signal['symbol']}, Active NQ: {active_nq_contract}, HTF: {htf_aligned})")
-            
-            # Additional debug info
-            logger.info(f"🔍 Debug info: contract_manager type: {type(contract_manager)}, get_active_contract result: {repr(active_nq_contract)}")
+            logger.info(f"⚠️ Skipped: {signal['symbol']} is not active NQ contract {active_nq_contract}")
         
         # Broadcast enriched signal to all connected clients
         enhanced_signal = dict(signal)
@@ -4213,7 +4180,7 @@ def get_ml_analytics():
 @app.route('/api/ml-train', methods=['POST'])
 @login_required
 def train_ml_models():
-    """Train ML models with current data"""
+    """Train unified ML models on all trading data"""
     if not ml_available:
         return jsonify({
             'status': 'dependencies_missing',
@@ -4227,15 +4194,15 @@ def train_ml_models():
         }), 200
     
     try:
-        from advanced_ml_engine import get_advanced_ml_engine
-        ml_engine = get_advanced_ml_engine(db)
-        training_result = ml_engine.train_models()
+        from unified_ml_intelligence import get_unified_ml
+        ml_engine = get_unified_ml(db)
+        training_result = ml_engine.train_on_all_data()
         return jsonify(training_result)
     except Exception as e:
         logger.error(f"ML training error: {str(e)}")
         return jsonify({
             'status': 'error',
-            'message': 'Training failed'
+            'message': f'Training failed: {str(e)}'
         }), 200
 
 @app.route('/api/ml-predict', methods=['POST'])
@@ -5014,7 +4981,7 @@ def get_ml_performance():
 @app.route('/api/ml-insights', methods=['GET'])
 @login_required
 def get_ml_insights():
-    """Get advanced ML model insights and performance metrics"""
+    """Get unified ML insights from all trading data"""
     try:
         if not ml_available:
             return jsonify({
@@ -5038,13 +5005,24 @@ def get_ml_insights():
                 'status': 'database_offline'
             }), 200
         
-        from advanced_ml_engine import get_advanced_ml_engine
-        ml_engine = get_advanced_ml_engine(db)
-        performance = ml_engine.get_model_performance()
+        from unified_ml_intelligence import get_unified_ml
+        ml_engine = get_unified_ml(db)
+        
+        # Get fundamental insights
+        insights = ml_engine.get_fundamental_insights()
+        
+        # Get training status
+        performance = {
+            'is_trained': ml_engine.is_trained,
+            'training_samples': ml_engine.training_data_count,
+            'last_training': ml_engine.last_training.isoformat() if ml_engine.last_training else None,
+            'models_available': list(ml_engine.models.keys())
+        }
         
         return jsonify({
             'status': 'active',
             'performance': performance,
+            'insights': insights,
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:

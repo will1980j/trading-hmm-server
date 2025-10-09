@@ -250,6 +250,7 @@
                     <a href="/signal-analysis-lab" style="color: #00ff88; text-decoration: none; margin-right: 15px;">📊 1M Signal Lab</a>
                     <a href="/signal-analysis-5m" style="color: #00ff88; text-decoration: none; margin-right: 15px;">📈 5M Signal Lab</a>
                     <a href="/signal-analysis-15m" style="color: #00ff88; text-decoration: none; margin-right: 15px;">📈 15M Signal Lab</a>
+                    <a href="/ml-dashboard" style="color: #00ff88; text-decoration: none; margin-right: 15px;">🤖 ML Intelligence</a>
                     <a href="/dashboard" style="color: #00ff88; text-decoration: none; margin-right: 15px;">🏠 Dashboard</a>
                     <a href="/trade-manager" style="color: #00ff88; text-decoration: none;">💼 Trade Manager</a>
                 </div>
@@ -310,8 +311,8 @@
                     <div class="metric-label">Bearish</div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-value" id="signalStrength">--</div>
-                    <div class="metric-label">ML Confidence</div>
+                    <div class="metric-value" id="avgStrength">--</div>
+                    <div class="metric-label">Avg Strength</div>
                 </div>
             </div>
             
@@ -332,7 +333,7 @@
                                 <th>Session</th>
                                 <th>Symbol</th>
                                 <th>Triangle Bias</th>
-                                <th>HTF Status</th>
+
                                 <th>Price</th>
                                 <th>Strength</th>
                                 <th>NQ Context</th>
@@ -490,7 +491,6 @@
             timeline.innerHTML = signals.slice(0, 10).map(signal => {
                 const bias = signal.bias || 'Neutral';
                 const arrow = bias === 'Bullish' ? '▲' : bias === 'Bearish' ? '▼' : '◆';
-                const htfAligned = signal.htf_aligned === true || signal.htf_aligned === 'true';
                 const time = formatTime(signal.timestamp);
                 
                 return `
@@ -501,8 +501,8 @@
                         </div>
                         <div class="signal-details">
                             <div>Price: <strong>${parseFloat(signal.price || 0).toLocaleString()}</strong></div>
-                            <div>Strength: <strong>${Math.round(signal.strength || 0)}%</strong></div>
-                            <div>HTF: <strong class="${htfAligned ? 'signal-bullish' : 'signal-bearish'}">${htfAligned ? '✓ ALIGNED' : '✗ AGAINST'}</strong></div>
+                            <div>ML: <strong>${signal.strength ? Math.round(signal.strength) + '%' : 'Pending'}</strong></div>
+                            <div>Session: <strong>${signal.session || 'N/A'}</strong></div>
                         </div>
                         <div style="margin-top: 10px; text-align: right;">
                             <button onclick="sendToSignalLab(${signal.id})" style="background: #00ff88; border: none; padding: 5px 12px; border-radius: 5px; color: #000; font-size: 11px; cursor: pointer; font-weight: 600;">→ Signal Lab</button>
@@ -562,24 +562,19 @@
                 <div class="${biasClass}"><strong>${arrow} ${bias.toUpperCase()}</strong></div>
                 <div style="font-size: 10px; opacity: 0.8;">
                     ${signalDetail}<br>
-                    ML: ${Math.round(signal.strength || 0)}%
+                    ${signal.strength ? 'ML: ' + Math.round(signal.strength) + '%' : 'ML: Pending'}
                 </div>
             `;
             
             // HTF Status display - fix boolean check
-            const htfAligned = signal.htf_aligned === true || signal.htf_aligned === 'true' || signal.htf_aligned === 1;
-            const htfDisplay = htfAligned ? 
-                `<div style="color: #00ff88; font-size: 10px;">✓ ALIGNED</div>` :
-                `<div style="color: #ff4757; font-size: 10px;">✗ AGAINST</div>`;
-            
-            // NQ Context - focus on NQ HTF aligned signals only
+            // NQ Context
             let nqContext = '';
             let nqContextClass = '';
             let action = '';
             let actionClass = '';
             const symbol = signal.symbol || '';
             
-            if (symbol.includes('NQ') && htfAligned) {
+            if (symbol.includes('NQ')) {
                 if (bias === 'Bullish') {
                     nqContext = '🟢 HTF Aligned Long';
                     nqContextClass = 'signal-bullish';
@@ -606,7 +601,7 @@
                     <td style="font-size: 10px;">${signal.session || getSession(signal.timestamp)}</td>
                     <td><strong>${signal.symbol || 'N/A'}</strong></td>
                     <td>${triangleDisplay}</td>
-                    <td>${htfDisplay}</td>
+
                     <td>${parseFloat(signal.price || 0).toLocaleString()}</td>
                     <td>${Math.round(signal.strength || 0)}%</td>
                     <td style="font-size: 11px;" class="${nqContextClass}">${nqContext}</td>
@@ -621,12 +616,12 @@
             const bullish = signals.filter(s => s.bias === 'Bullish').length;
             const bearish = signals.filter(s => s.bias === 'Bearish').length;
             const avgStrength = signals.length > 0 ? 
-                (signals.reduce((sum, s) => sum + s.strength, 0) / signals.length).toFixed(1) : '--';
+                (signals.reduce((sum, s) => sum + (parseFloat(s.strength) || 0), 0) / signals.length).toFixed(1) : '--';
             
             document.getElementById('totalSignals').textContent = total;
             document.getElementById('bullishSignals').textContent = bullish;
             document.getElementById('bearishSignals').textContent = bearish;
-            document.getElementById('signalStrength').textContent = avgStrength !== '--' ? avgStrength + '%' : '--';
+            document.getElementById('avgStrength').textContent = avgStrength !== '--' ? avgStrength + '%' : '--';
         }
         
         // Switch timeframe

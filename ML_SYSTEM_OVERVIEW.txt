@@ -1,0 +1,107 @@
+╔══════════════════════════════════════════════════════════════════╗
+║           UNIFIED ML INTELLIGENCE SYSTEM - OVERVIEW              ║
+╚══════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────┐
+│  DATA SOURCES (Your 300+ Trades)                                │
+├─────────────────────────────────────────────────────────────────┤
+│  • signal_lab_trades (1M timeframe)                             │
+│  • signal_lab_15m_trades (15M timeframe)                        │
+│  • Live signals from TradingView                                │
+│  • Market context data                                          │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  ML TRAINING (unified_ml_intelligence.py)                       │
+├─────────────────────────────────────────────────────────────────┤
+│  • Extracts features: Session, Bias, Signal Type, News, etc.   │
+│  • Trains 2 models:                                             │
+│    - MFE Predictor (Gradient Boosting)                         │
+│    - Success Classifier (Random Forest)                        │
+│  • Validates accuracy on test data                             │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  REAL-TIME PREDICTIONS                                          │
+├─────────────────────────────────────────────────────────────────┤
+│  Every TradingView signal gets:                                │
+│  • Predicted MFE (how far it will go)                          │
+│  • Success Probability (% chance of 1R+)                       │
+│  • Confidence Score (how sure ML is)                           │
+│  • Recommendation (TAKE/SKIP/CONSIDER)                         │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  OUTPUTS TO DASHBOARDS                                          │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Live Signals Dashboard                                      │
+│     → Shows ML confidence as "Strength"                         │
+│                                                                  │
+│  2. ML Intelligence Dashboard (/ml-dashboard)                   │
+│     → Best sessions, signal types, targets                      │
+│     → Key recommendations                                       │
+│                                                                  │
+│  3. Signal Lab Dashboard                                        │
+│     → Historical ML analysis                                    │
+│                                                                  │
+│  4. API Endpoints                                               │
+│     → /api/ml-insights (JSON insights)                         │
+│     → /api/ml-train (train models)                             │
+└─────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════╗
+║                    DEPLOYMENT TO RAILWAY                         ║
+╚══════════════════════════════════════════════════════════════════╝
+
+Step 1: Push to Git
+  git add .
+  git commit -m "Deploy ML intelligence"
+  git push origin main
+
+Step 2: Railway Auto-Deploys (~2 min)
+  ✓ Installs ML dependencies
+  ✓ Starts web_server.py
+  ✓ ML system ready
+
+Step 3: Train ML (One-Time)
+  Visit: https://your-app.railway.app/ml-dashboard
+  Click: "Train ML Models"
+  Wait: 30 seconds
+
+Step 4: ML Works Automatically
+  ✓ Every signal gets ML prediction
+  ✓ Dashboard shows insights
+  ✓ API provides recommendations
+
+╔══════════════════════════════════════════════════════════════════╗
+║                    WHAT YOU GET                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+✅ Real-time ML predictions on every signal
+✅ Best sessions identified from YOUR data
+✅ Best signal types ranked by performance
+✅ Optimal R-targets with hit rates
+✅ Bias performance comparison
+✅ News impact analysis
+✅ Breakeven strategy recommendations
+✅ Continuous learning as you add trades
+
+╔══════════════════════════════════════════════════════════════════╗
+║                    ZERO CONFIGURATION                            ║
+╚══════════════════════════════════════════════════════════════════╝
+
+✓ Uses existing Railway database
+✓ Uses existing dependencies (requirements.txt)
+✓ Auto-trains when needed
+✓ Works with current setup
+✓ No environment variables needed
+✓ No additional Railway config
+
+╔══════════════════════════════════════════════════════════════════╗
+║                    DEPLOY NOW!                                   ║
+╚══════════════════════════════════════════════════════════════════╝
+
+Windows:  deploy_ml_to_railway.bat
+Manual:   git add . && git commit -m "Deploy ML" && git push
+
+Then visit: https://your-app.railway.app/ml-dashboard
