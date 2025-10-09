@@ -159,6 +159,24 @@ if db_enabled and db:
     from ai_business_advisor_endpoint import register_advisor_routes
     register_advisor_routes(app, db)
 
+# Auto-train ML on startup
+if ml_available and db_enabled and db:
+    def auto_train_ml():
+        try:
+            from unified_ml_intelligence import get_unified_ml
+            ml_engine = get_unified_ml(db)
+            logger.info("🤖 Auto-training ML on server startup...")
+            result = ml_engine.train_on_all_data()
+            if 'error' not in result:
+                logger.info(f"✅ ML auto-trained: {result['training_samples']} samples, {result['success_accuracy']:.1f}% accuracy")
+            else:
+                logger.warning(f"⚠️ ML auto-train skipped: {result['error']}")
+        except Exception as e:
+            logger.error(f"❌ ML auto-train error: {str(e)}")
+    
+    import threading
+    threading.Thread(target=auto_train_ml, daemon=True).start()
+
 # Read HTML files and serve them
 def read_html_file(filename):
     try:
