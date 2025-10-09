@@ -2434,15 +2434,8 @@ def capture_live_signal():
         if price == 0:
             logger.warning(f"Invalid price in signal: {data}")
         
-        # Calculate signal strength based on HTF alignment and divergence
-        base_strength = float(data.get('strength', 50)) if data.get('strength') else 50
-        
-        # Apply HTF alignment bonus only for truly aligned signals
-        if htf_aligned:
-            base_strength = min(95, base_strength + 20)  # +20% for HTF alignment
-            logger.info(f"HTF ALIGNED: {triangle_bias} bias with HTF support - boosting strength to {base_strength}%")
-        else:
-            logger.info(f"HTF AGAINST: {triangle_bias} bias against HTF - strength remains {base_strength}%")
+        # Use ML confidence as strength (will be populated after ML prediction)
+        base_strength = 50  # Default, will be replaced by ML confidence
         
         # Determine current session
         current_session = get_current_session()
@@ -2500,6 +2493,9 @@ def capture_live_signal():
         context_quality = signal.get('context_quality_score', 0.5)
         context_recommendations_json = dumps(signal.get('context_recommendations', []))
         
+        # Update signal strength with ML confidence before storing
+        signal['strength'] = base_strength
+        
         cursor.execute("""
             INSERT INTO live_signals 
             (symbol, timeframe, signal_type, bias, price, strength, htf_aligned, htf_status, session, timestamp,
@@ -2508,7 +2504,7 @@ def capture_live_signal():
             RETURNING id
         """, (
             signal['symbol'], signal['timeframe'], signal['signal_type'],
-            signal['bias'], signal['price'], signal['strength'], 
+            signal['bias'], signal['price'], base_strength, 
             signal['htf_aligned'], signal['htf_status'], signal['session'], get_ny_time(),
             market_context_json, context_quality, context_recommendations_json
         ))
@@ -2585,13 +2581,16 @@ def capture_live_signal():
                 }
             )
             
-            # Log comprehensive ML prediction
+            # Log comprehensive ML prediction and update strength with ML confidence
             pred_mfe = ml_prediction.get('predicted_mfe', 0)
             confidence = ml_prediction.get('confidence', 0)
             models_used = ml_prediction.get('models_used', 0)
             recommendation = ml_prediction.get('recommendation', 'N/A')
             
-            logger.info(f"🤖 ADVANCED ML: MFE={pred_mfe:.3f}R, Confidence={confidence:.2f}, Models={models_used}, Rec={recommendation[:50]}")
+            # Replace strength with ML confidence (0-1 scale to 0-100%)
+            base_strength = min(95, confidence * 100) if confidence > 0 else 50
+            
+            logger.info(f"🤖 ADVANCED ML: MFE={pred_mfe:.3f}R, Confidence={confidence:.2f} ({base_strength}%), Models={models_used}, Rec={recommendation[:50]}")
             
             # Log model consensus if available
             consensus = ml_prediction.get('model_consensus', {})

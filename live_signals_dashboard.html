@@ -311,7 +311,7 @@
                 </div>
                 <div class="metric-card">
                     <div class="metric-value" id="signalStrength">--</div>
-                    <div class="metric-label">Avg Strength</div>
+                    <div class="metric-label">ML Confidence</div>
                 </div>
             </div>
             
@@ -562,7 +562,7 @@
                 <div class="${biasClass}"><strong>${arrow} ${bias.toUpperCase()}</strong></div>
                 <div style="font-size: 10px; opacity: 0.8;">
                     ${signalDetail}<br>
-                    ${Math.round(signal.strength || 0)}%
+                    ML: ${Math.round(signal.strength || 0)}%
                 </div>
             `;
             
@@ -626,7 +626,7 @@
             document.getElementById('totalSignals').textContent = total;
             document.getElementById('bullishSignals').textContent = bullish;
             document.getElementById('bearishSignals').textContent = bearish;
-            document.getElementById('signalStrength').textContent = avgStrength + '%';
+            document.getElementById('signalStrength').textContent = avgStrength !== '--' ? avgStrength + '%' : '--';
         }
         
         // Switch timeframe
