@@ -116,17 +116,24 @@ class UnifiedMLIntelligence:
     def predict_signal_quality(self, signal_data: Dict, market_context: Dict) -> Dict:
         """Predict signal quality using trained ML models"""
         
-        # Auto-train if needed
-        if not self.is_trained or self._should_retrain():
-            logger.info("🔄 Auto-training ML models...")
+        # Auto-train on first signal or when needed
+        if not self.is_trained:
+            logger.info("🎯 First signal received - training ML on all historical data...")
             training_result = self.train_on_all_data()
             if 'error' in training_result:
+                logger.warning(f"⚠️ ML training failed: {training_result['error']}")
                 return {
                     'predicted_mfe': 0.0,
                     'success_probability': 0.0,
                     'confidence': 0.0,
                     'recommendation': 'ML not trained - insufficient data'
                 }
+            logger.info(f"✅ ML trained on first signal: {training_result['training_samples']} trades")
+        elif self._should_retrain():
+            logger.info("🔄 Auto-retraining ML models (24h or 50 trades threshold)...")
+            training_result = self.train_on_all_data()
+            if 'error' in training_result:
+                logger.warning(f"⚠️ Auto-retrain failed: {training_result['error']}")
         
         try:
             # Extract features
