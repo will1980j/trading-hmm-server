@@ -3542,8 +3542,19 @@
             const rTargets = [1, 1.5, 2, 2.5, 3, 3.5, 4];
             const results = [];
             
-            selectedSessions.forEach(session => {
-                const sessionSignals = allSignals.filter(s => s.session === session);
+            // Generate all possible session combinations
+            const sessionCombinations = [];
+            const n = selectedSessions.length;
+            for (let i = 1; i < (1 << n); i++) {
+                const combo = [];
+                for (let j = 0; j < n; j++) {
+                    if (i & (1 << j)) combo.push(selectedSessions[j]);
+                }
+                sessionCombinations.push(combo);
+            }
+            
+            sessionCombinations.forEach(sessions => {
+                const sessionSignals = allSignals.filter(s => sessions.includes(s.session));
                 if (sessionSignals.length < 5) return;
                 
                 beStrategies.forEach(beStrategy => {
@@ -3554,7 +3565,7 @@
                         const stats = calculateStatistics(tradeResults, rTarget);
                         
                         results.push({
-                            session,
+                            session: sessions.length === 1 ? sessions[0] : sessions.join(' + '),
                             beStrategy,
                             rTarget,
                             expectancy: stats.expectancy,
