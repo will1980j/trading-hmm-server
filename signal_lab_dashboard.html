@@ -4402,71 +4402,70 @@ CURRENT PERFORMANCE METRICS:
             const minR = Math.min(...allRValues);
             const avgR = allRValues.reduce((a, b) => a + b, 0) / allRValues.length;
             
-            // Show actual date range from your data instead of hardcoded September 2025
+            // Get all months that have data
             const actualDates = Object.keys(dailyData).sort();
-            let calendarStartDate, calendarEndDate;
+            const monthsWithData = new Set();
+            actualDates.forEach(date => {
+                const d = new Date(date);
+                monthsWithData.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+            });
+            const sortedMonths = Array.from(monthsWithData).sort();
             
-            if (actualDates.length > 0) {
-                // Use actual data range
-                const firstDate = new Date(actualDates[0]);
-                const lastDate = new Date(actualDates[actualDates.length - 1]);
+            // Build calendar HTML with multiple months
+            let monthsHtml = '';
+            sortedMonths.forEach(monthKey => {
+                const [year, month] = monthKey.split('-').map(Number);
+                const monthDate = new Date(year, month - 1, 1);
+                const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
                 
-                // Show the month containing the data
-                calendarStartDate = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
-                calendarEndDate = new Date(lastDate.getFullYear(), lastDate.getMonth() + 1, 0);
-                
-                console.log('📅 Calendar showing:', {
-                    'Data range': `${actualDates[0]} to ${actualDates[actualDates.length - 1]}`,
-                    'Calendar range': `${calendarStartDate.toISOString().split('T')[0]} to ${calendarEndDate.toISOString().split('T')[0]}`,
-                    'Total trading days': actualDates.length
-                });
-            } else {
-                // Fallback to current month if no data
-                const now = new Date();
-                calendarStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                calendarEndDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-            }
-            
-            // Create sophisticated calendar with D3.js
-            const calendarHtml = `
-                <div style="position: relative; background: linear-gradient(135deg, rgba(0,0,0,0.1), rgba(30,60,114,0.1)); border-radius: 25px; padding: 30px; overflow: hidden;">
-                    <!-- Holographic Background -->
-                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at 30% 20%, rgba(0,255,136,0.05) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(58,123,213,0.05) 0%, transparent 50%); pointer-events: none;"></div>
-                    
-                    <!-- Calendar Header -->
-                    <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                        <div>
-                            <h3 style="color: #00ff88; margin: 0 0 5px 0; font-size: 24px; font-weight: 700;">Performance Calendar (NY EST)</h3>
-                            <div style="color: rgba(255,255,255,0.7); font-size: 14px;">Interactive trading performance heatmap - showing actual data range</div>
+                monthsHtml += `
+                    <div style="margin-bottom: 30px; background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
+                        <h4 style="color: #00ff88; margin: 0 0 15px 0; font-size: 18px; text-align: center;">${monthName}</h4>
+                        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 10px;">
+                            <div style="text-align: center; font-size: 12px; font-weight: 600; color: #00ff88;">SUN</div>
+                            <div style="text-align: center; font-size: 12px; font-weight: 600; color: #00ff88;">MON</div>
+                            <div style="text-align: center; font-size: 12px; font-weight: 600; color: #00ff88;">TUE</div>
+                            <div style="text-align: center; font-size: 12px; font-weight: 600; color: #00ff88;">WED</div>
+                            <div style="text-align: center; font-size: 12px; font-weight: 600; color: #00ff88;">THU</div>
+                            <div style="text-align: center; font-size: 12px; font-weight: 600; color: #00ff88;">FRI</div>
+                            <div style="text-align: center; font-size: 12px; font-weight: 600; color: #00ff88;">SAT</div>
                         </div>
-                        <div style="display: flex; gap: 15px; align-items: center;">
-                            <div style="text-align: center; padding: 10px 15px; background: rgba(0,255,136,0.1); border-radius: 10px; border: 1px solid rgba(0,255,136,0.3);">
+                        <div id="month-${monthKey}" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;"></div>
+                    </div>
+                `;
+            });
+            
+            const calendarHtml = `
+                <div style="background: linear-gradient(135deg, rgba(0,0,0,0.1), rgba(30,60,114,0.1)); border-radius: 25px; padding: 30px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                        <div>
+                            <h3 style="color: #00ff88; margin: 0 0 5px 0; font-size: 24px;">Performance Calendar (NY EST)</h3>
+                            <div style="color: rgba(255,255,255,0.7); font-size: 14px;">${actualDates[0]} to ${actualDates[actualDates.length - 1]}</div>
+                        </div>
+                        <div style="display: flex; gap: 15px;">
+                            <div style="text-align: center; padding: 10px 15px; background: rgba(0,255,136,0.1); border-radius: 10px;">
                                 <div style="font-size: 18px; font-weight: 700; color: #00ff88;">${avgR.toFixed(2)}R</div>
                                 <div style="font-size: 11px; color: rgba(255,255,255,0.7);">Daily Avg</div>
                             </div>
-                            <div style="text-align: center; padding: 10px 15px; background: rgba(58,123,213,0.1); border-radius: 10px; border: 1px solid rgba(58,123,213,0.3);">
+                            <div style="text-align: center; padding: 10px 15px; background: rgba(58,123,213,0.1); border-radius: 10px;">
                                 <div style="font-size: 18px; font-weight: 700; color: #3a7bd5;">${Object.keys(dailyData).length}</div>
                                 <div style="font-size: 11px; color: rgba(255,255,255,0.7);">Active Days</div>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Advanced Calendar Grid -->
-                    <div id="sophisticatedCalendar" style="position: relative; z-index: 2;"></div>
-                    
-                    <!-- Performance Legend -->
-                    <div style="position: relative; z-index: 2; margin-top: 25px; display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;">
+                    ${monthsHtml}
+                    <div style="margin-top: 25px; display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;">
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="width: 20px; height: 20px; background: linear-gradient(45deg, #00ff88, #00d4aa); border-radius: 6px; box-shadow: 0 0 10px rgba(0,255,136,0.3);"></div>
-                            <span style="color: rgba(255,255,255,0.9); font-weight: 500;">Profitable (${allRValues.filter(r => r > 0).length} days)</span>
+                            <div style="width: 20px; height: 20px; background: linear-gradient(45deg, #00ff88, #00d4aa); border-radius: 6px;"></div>
+                            <span style="color: rgba(255,255,255,0.9);">Profitable (${allRValues.filter(r => r > 0).length} days)</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="width: 20px; height: 20px; background: linear-gradient(45deg, #ff4757, #ff6b7a); border-radius: 6px; box-shadow: 0 0 10px rgba(255,71,87,0.3);"></div>
-                            <span style="color: rgba(255,255,255,0.9); font-weight: 500;">Loss Days (${allRValues.filter(r => r < 0).length} days)</span>
+                            <div style="width: 20px; height: 20px; background: linear-gradient(45deg, #ff4757, #ff6b7a); border-radius: 6px;"></div>
+                            <span style="color: rgba(255,255,255,0.9);">Loss Days (${allRValues.filter(r => r < 0).length} days)</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <div style="width: 20px; height: 20px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); border-radius: 6px;"></div>
-                            <span style="color: rgba(255,255,255,0.9); font-weight: 500;">No Trades</span>
+                            <span style="color: rgba(255,255,255,0.9);">No Trades</span>
                         </div>
                     </div>
                 </div>
@@ -4474,21 +4473,66 @@ CURRENT PERFORMANCE METRICS:
             
             document.getElementById('dailyCalendar').innerHTML = calendarHtml;
             
-            // Create D3 calendar visualization with actual data dates
-            setTimeout(() => createSophisticatedCalendar(dailyData, calendarStartDate, calendarEndDate, maxR, minR), 100);
+            // Render each month
+            setTimeout(() => {
+                sortedMonths.forEach(monthKey => {
+                    const [year, month] = monthKey.split('-').map(Number);
+                    renderMonthCalendar(monthKey, year, month, dailyData, maxR, minR);
+                });
+            }, 100);
             
             // Store daily data globally
             window.dailyTradeData = dailyData;
         }
         
-        function createSophisticatedCalendar(dailyData, startDate, endDate, maxR, minR) {
-            const container = d3.select('#sophisticatedCalendar');
-            container.selectAll('*').remove();
+        function renderMonthCalendar(monthKey, year, month, dailyData, maxR, minR) {
+            const container = document.getElementById(`month-${monthKey}`);
+            if (!container) return;
             
-            const containerWidth = container.node().getBoundingClientRect().width;
-            const cellSize = Math.min(80, (containerWidth - 100) / 7);
-            const width = cellSize * 7 + 60;
-            const height = cellSize * 6 + 120;
+            const firstDay = new Date(year, month - 1, 1);
+            const lastDay = new Date(year, month, 0);
+            const startDayOfWeek = firstDay.getDay();
+            const daysInMonth = lastDay.getDate();
+            
+            let html = '';
+            
+            // Empty cells before month starts
+            for (let i = 0; i < startDayOfWeek; i++) {
+                html += '<div></div>';
+            }
+            
+            // Days of month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const data = dailyData[dateStr];
+                const dayOfWeek = new Date(dateStr).getDay();
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                
+                if (data) {
+                    const intensity = Math.abs(data.totalR) / Math.max(Math.abs(maxR), Math.abs(minR));
+                    const bgColor = data.totalR > 0 ? `rgba(0,255,136,${0.3 + intensity * 0.7})` : `rgba(255,71,87,${0.3 + intensity * 0.7})`;
+                    html += `
+                        <div onclick="showDayDetails('${dateStr}')" style="
+                            background: ${bgColor};
+                            padding: 8px;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            text-align: center;
+                            border: 2px solid ${data.totalR > 0 ? '#00ff88' : '#ff4757'};
+                            transition: transform 0.2s;
+                        " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                            <div style="font-weight: 700; font-size: 14px;">${day}</div>
+                            <div style="font-size: 11px; font-weight: 600; margin-top: 2px;">${data.totalR > 0 ? '+' : ''}${data.totalR.toFixed(1)}R</div>
+                        </div>
+                    `;
+                } else if (isWeekend) {
+                    html += `<div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 8px; text-align: center; opacity: 0.5;"><div style="font-size: 14px;">${day}</div></div>`;
+                } else {
+                    html += `<div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; text-align: center;"><div style="font-size: 14px; color: rgba(255,255,255,0.5);">${day}</div></div>`;
+                }
+            }
+            
+            container.innerHTML = html;
             
             const svg = container.append('svg')
                 .attr('width', width)
