@@ -4411,60 +4411,62 @@ CURRENT PERFORMANCE METRICS:
             });
             const sortedMonths = Array.from(monthsWithData).sort();
             
-            // Build calendar HTML with multiple months
+            // Build compact year calendar
             let monthsHtml = '';
             sortedMonths.forEach(monthKey => {
                 const [year, month] = monthKey.split('-').map(Number);
                 const monthDate = new Date(year, month - 1, 1);
-                const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                const monthName = monthDate.toLocaleDateString('en-US', { month: 'short' });
                 
                 monthsHtml += `
-                    <div style="margin-bottom: 30px; background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
-                        <h4 style="color: #00ff88; margin: 0 0 15px 0; font-size: 18px; text-align: center;">${monthName}</h4>
-                        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 10px;">
-                            <div style="text-align: center; font-size: 12px; font-weight: 600; color: #00ff88;">SUN</div>
-                            <div style="text-align: center; font-size: 12px; font-weight: 600; color: #00ff88;">MON</div>
-                            <div style="text-align: center; font-size: 12px; font-weight: 600; color: #00ff88;">TUE</div>
-                            <div style="text-align: center; font-size: 12px; font-weight: 600; color: #00ff88;">WED</div>
-                            <div style="text-align: center; font-size: 12px; font-weight: 600; color: #00ff88;">THU</div>
-                            <div style="text-align: center; font-size: 12px; font-weight: 600; color: #00ff88;">FRI</div>
-                            <div style="text-align: center; font-size: 12px; font-weight: 600; color: #00ff88;">SAT</div>
+                    <div style="background: rgba(255,255,255,0.05); border-radius: 10px; padding: 10px;">
+                        <h4 style="color: #00ff88; margin: 0 0 8px 0; font-size: 13px; text-align: center;">${monthName} ${year}</h4>
+                        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 4px;">
+                            <div style="text-align: center; font-size: 9px; font-weight: 600; color: #00ff88;">S</div>
+                            <div style="text-align: center; font-size: 9px; font-weight: 600; color: #00ff88;">M</div>
+                            <div style="text-align: center; font-size: 9px; font-weight: 600; color: #00ff88;">T</div>
+                            <div style="text-align: center; font-size: 9px; font-weight: 600; color: #00ff88;">W</div>
+                            <div style="text-align: center; font-size: 9px; font-weight: 600; color: #00ff88;">T</div>
+                            <div style="text-align: center; font-size: 9px; font-weight: 600; color: #00ff88;">F</div>
+                            <div style="text-align: center; font-size: 9px; font-weight: 600; color: #00ff88;">S</div>
                         </div>
-                        <div id="month-${monthKey}" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;"></div>
+                        <div id="month-${monthKey}" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;"></div>
                     </div>
                 `;
             });
             
             const calendarHtml = `
-                <div style="background: linear-gradient(135deg, rgba(0,0,0,0.1), rgba(30,60,114,0.1)); border-radius: 25px; padding: 30px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <div style="background: linear-gradient(135deg, rgba(0,0,0,0.1), rgba(30,60,114,0.1)); border-radius: 20px; padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <div>
-                            <h3 style="color: #00ff88; margin: 0 0 5px 0; font-size: 24px;">Performance Calendar (NY EST)</h3>
-                            <div style="color: rgba(255,255,255,0.7); font-size: 14px;">${actualDates[0]} to ${actualDates[actualDates.length - 1]}</div>
+                            <h3 style="color: #00ff88; margin: 0 0 5px 0; font-size: 20px;">Performance Calendar (NY EST)</h3>
+                            <div style="color: rgba(255,255,255,0.7); font-size: 12px;">${actualDates[0]} to ${actualDates[actualDates.length - 1]}</div>
                         </div>
-                        <div style="display: flex; gap: 15px;">
-                            <div style="text-align: center; padding: 10px 15px; background: rgba(0,255,136,0.1); border-radius: 10px;">
-                                <div style="font-size: 18px; font-weight: 700; color: #00ff88;">${avgR.toFixed(2)}R</div>
-                                <div style="font-size: 11px; color: rgba(255,255,255,0.7);">Daily Avg</div>
+                        <div style="display: flex; gap: 10px;">
+                            <div style="text-align: center; padding: 8px 12px; background: rgba(0,255,136,0.1); border-radius: 8px;">
+                                <div style="font-size: 16px; font-weight: 700; color: #00ff88;">${avgR.toFixed(2)}R</div>
+                                <div style="font-size: 10px; color: rgba(255,255,255,0.7);">Avg</div>
                             </div>
-                            <div style="text-align: center; padding: 10px 15px; background: rgba(58,123,213,0.1); border-radius: 10px;">
-                                <div style="font-size: 18px; font-weight: 700; color: #3a7bd5;">${Object.keys(dailyData).length}</div>
-                                <div style="font-size: 11px; color: rgba(255,255,255,0.7);">Active Days</div>
+                            <div style="text-align: center; padding: 8px 12px; background: rgba(58,123,213,0.1); border-radius: 8px;">
+                                <div style="font-size: 16px; font-weight: 700; color: #3a7bd5;">${Object.keys(dailyData).length}</div>
+                                <div style="font-size: 10px; color: rgba(255,255,255,0.7);">Days</div>
                             </div>
                         </div>
                     </div>
-                    ${monthsHtml}
-                    <div style="margin-top: 25px; display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="width: 20px; height: 20px; background: linear-gradient(45deg, #00ff88, #00d4aa); border-radius: 6px;"></div>
-                            <span style="color: rgba(255,255,255,0.9);">Profitable (${allRValues.filter(r => r > 0).length} days)</span>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                        ${monthsHtml}
+                    </div>
+                    <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; font-size: 11px;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 14px; height: 14px; background: linear-gradient(45deg, #00ff88, #00d4aa); border-radius: 4px;"></div>
+                            <span style="color: rgba(255,255,255,0.9);">Profit (${allRValues.filter(r => r > 0).length})</span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="width: 20px; height: 20px; background: linear-gradient(45deg, #ff4757, #ff6b7a); border-radius: 6px;"></div>
-                            <span style="color: rgba(255,255,255,0.9);">Loss Days (${allRValues.filter(r => r < 0).length} days)</span>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 14px; height: 14px; background: linear-gradient(45deg, #ff4757, #ff6b7a); border-radius: 4px;"></div>
+                            <span style="color: rgba(255,255,255,0.9);">Loss (${allRValues.filter(r => r < 0).length})</span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="width: 20px; height: 20px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); border-radius: 6px;"></div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 14px; height: 14px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px;"></div>
                             <span style="color: rgba(255,255,255,0.9);">No Trades</span>
                         </div>
                     </div>
@@ -4513,41 +4515,83 @@ CURRENT PERFORMANCE METRICS:
                     const bgColor = data.totalR > 0 ? `rgba(0,255,136,${0.3 + intensity * 0.7})` : `rgba(255,71,87,${0.3 + intensity * 0.7})`;
                     const hasNews = data.trades.some(t => t.economic_news);
                     html += `
-                        <div onclick="showDayDetails('${dateStr}')" style="
+                        <div onclick="showDayDetails('${dateStr}')" title="${dateStr}: ${data.totalR > 0 ? '+' : ''}${data.totalR.toFixed(1)}R (${data.trades.length} trades)" style="
                             background: ${bgColor};
-                            padding: 8px;
-                            border-radius: 8px;
+                            padding: 4px;
+                            border-radius: 4px;
                             cursor: pointer;
                             text-align: center;
-                            border: 2px solid ${data.totalR > 0 ? '#00ff88' : '#ff4757'};
+                            border: 1px solid ${data.totalR > 0 ? '#00ff88' : '#ff4757'};
                             transition: transform 0.2s;
                             position: relative;
-                        " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
-                            ${hasNews ? '<div style="position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; background: #ffa502; border-radius: 50%;"></div>' : ''}
-                            <div style="font-weight: 700; font-size: 14px;">${day}</div>
-                            <div style="font-size: 11px; font-weight: 600; margin-top: 2px;">${data.totalR > 0 ? '+' : ''}${data.totalR.toFixed(1)}R</div>
+                            min-height: 24px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        " onmouseover="this.style.transform='scale(1.15)';this.style.zIndex='10'" onmouseout="this.style.transform='scale(1)';this.style.zIndex='1'">
+                            ${hasNews ? '<div style="position: absolute; top: 1px; right: 1px; width: 4px; height: 4px; background: #ffa502; border-radius: 50%;"></div>' : ''}
+                            <div style="font-weight: 700; font-size: 11px;">${day}</div>
                         </div>
                     `;
                 } else if (isWeekend) {
-                    html += `<div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 8px; text-align: center; opacity: 0.5;"><div style="font-size: 14px;">${day}</div></div>`;
+                    html += `<div style="background: rgba(255,255,255,0.03); padding: 4px; border-radius: 4px; text-align: center; opacity: 0.5; min-height: 24px; display: flex; align-items: center; justify-content: center;"><div style="font-size: 10px;">${day}</div></div>`;
                 } else {
-                    html += `<div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; text-align: center;"><div style="font-size: 14px; color: rgba(255,255,255,0.5);">${day}</div></div>`;
+                    html += `<div style="background: rgba(255,255,255,0.05); padding: 4px; border-radius: 4px; text-align: center; min-height: 24px; display: flex; align-items: center; justify-content: center;"><div style="font-size: 10px; color: rgba(255,255,255,0.5);">${day}</div></div>`;
                 }
             }
             
             container.innerHTML = html;
+        }
+        
+        function showDayDetails(dateStr) {
+            const data = window.dailyTradeData[dateStr];
+            if (!data) return;
             
-            const svg = container.append('svg')
-                .attr('width', width)
-                .attr('height', height)
-                .style('display', 'block')
-                .style('margin', '0 auto');
+            const sessionColors = {'Asia': '#ffa502', 'London': '#3742fa', 'NY Pre Market': '#26de81', 'NY AM': '#00ff88', 'NY Lunch': '#ffffff', 'NY PM': '#a55eea'};
             
-            // Create gradient definitions
-            const defs = svg.append('defs');
+            let tradesHtml = data.trades.map(trade => `
+                <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid ${sessionColors[trade.session]};">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span style="color: ${sessionColors[trade.session]}; font-weight: 600;">${trade.session}</span>
+                        <span style="font-weight: 700; color: ${trade.result > 0 ? '#00ff88' : trade.result < 0 ? '#ff4757' : '#ffa502'};">${trade.result > 0 ? '+' : ''}${trade.result.toFixed(2)}R</span>
+                    </div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.7);">${trade.time || 'N/A'}</div>
+                    ${trade.economic_news ? `<div style="font-size: 11px; color: #ffa502; margin-top: 4px;">📰 ${trade.economic_news}</div>` : ''}
+                </div>
+            `).join('');
             
-            // Profit gradient
-            const profitGradient = defs.append('radialGradient')
+            const modal = document.createElement('div');
+            modal.className = 'popup-overlay';
+            modal.innerHTML = `
+                <div class="daily-popup">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="color: #00ff88; margin: 0;">${dateStr}</h3>
+                        <button onclick="this.closest('.popup-overlay').remove()" style="background: none; border: none; color: #fff; font-size: 24px; cursor: pointer;">&times;</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
+                        <div style="text-align: center; padding: 15px; background: rgba(0,255,136,0.1); border-radius: 10px;">
+                            <div style="font-size: 24px; font-weight: 700; color: #00ff88;">${data.totalR > 0 ? '+' : ''}${data.totalR.toFixed(2)}R</div>
+                            <div style="font-size: 12px; color: rgba(255,255,255,0.7);">Total R</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; background: rgba(58,123,213,0.1); border-radius: 10px;">
+                            <div style="font-size: 24px; font-weight: 700; color: #3a7bd5;">${data.trades.length}</div>
+                            <div style="font-size: 12px; color: rgba(255,255,255,0.7);">Trades</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; background: rgba(255,165,2,0.1); border-radius: 10px;">
+                            <div style="font-size: 24px; font-weight: 700; color: #ffa502;">${((data.wins / data.trades.length) * 100).toFixed(0)}%</div>
+                            <div style="font-size: 12px; color: rgba(255,255,255,0.7);">Win Rate</div>
+                        </div>
+                    </div>
+                    <h4 style="color: #00d4aa; margin-bottom: 15px;">Trade Details</h4>
+                    <div style="max-height: 400px; overflow-y: auto;">${tradesHtml}</div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+        }
+        
+        // OLD D3 CODE REMOVED - function showDayDetails now handles clicks
+        function showCalendarTooltip_OLD(event, d) {
                 .attr('id', 'profit-gradient')
                 .attr('cx', '30%').attr('cy', '30%');
             profitGradient.append('stop').attr('offset', '0%').attr('stop-color', '#ffffff').attr('stop-opacity', 0.3);
