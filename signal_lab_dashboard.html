@@ -3044,18 +3044,37 @@
         
         async function loadEconomicNews() {
             try {
-                console.log('🔄 Loading economic news...');
-                const response = await fetch('https://web-production-cd33.up.railway.app/api/economic-calendar');
-                console.log('📡 API response status:', response.status);
+                console.log('🔄 Loading economic news from database...');
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('📊 API data received:', data);
-                    displayTodaysNews(data);
+                // First try to load from database (where auto-fill stores it)
+                const dbResponse = await fetch('https://web-production-cd33.up.railway.app/api/economic-news');
+                console.log('📡 Database response status:', dbResponse.status);
+                
+                if (dbResponse.ok) {
+                    const dbData = await dbResponse.json();
+                    console.log('📊 Database data received:', dbData);
+                    
+                    if (dbData.news_data || dbData.economic_news) {
+                        const newsData = dbData.news_data || dbData.economic_news;
+                        displayTodaysNews(newsData);
+                        console.log('✅ Loaded economic news from database');
+                        return;
+                    }
+                }
+                
+                // Fallback to API if database is empty
+                console.log('📡 Falling back to API...');
+                const apiResponse = await fetch('https://web-production-cd33.up.railway.app/api/economic-calendar');
+                console.log('📡 API response status:', apiResponse.status);
+                
+                if (apiResponse.ok) {
+                    const apiData = await apiResponse.json();
+                    console.log('📊 API data received:', apiData);
+                    displayTodaysNews(apiData);
                 } else {
-                    const errorText = await response.text();
-                    console.error('❌ API error:', response.status, errorText);
-                    throw new Error(`Economic calendar API error: ${response.status}`);
+                    const errorText = await apiResponse.text();
+                    console.error('❌ API error:', apiResponse.status, errorText);
+                    throw new Error(`Economic calendar API error: ${apiResponse.status}`);
                 }
             } catch (error) {
                 console.error('Failed to load economic news:', error);
@@ -3212,10 +3231,10 @@
                 loadTradingDayPrep();
             }, 300000);
             
-            // Economic news refresh every hour
+            // Economic news refresh every 2 minutes to pick up auto-fill updates
             setInterval(() => {
                 loadEconomicNews();
-            }, 3600000);
+            }, 120000);
         }
         
         // AI Strategy Optimization using OpenAI GPT-4
