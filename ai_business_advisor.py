@@ -193,10 +193,7 @@ def get_platform_health_score(total_trades, active_signals, ml_models):
 def analyze_business_health(context):
     """Calculate comprehensive business health"""
     return {
-        'platform_health': context.get('platform_health', 0),
         'total_trades': context.get('total_trades', 0),
-        'total_r': context.get('total_r', 0),
-        'win_rate': context.get('win_rate', 0),
-        'active_signals': context.get('active_signals', 0),
-        'ml_models': context.get('ml_models', 0)
+        'ml_models': context.get('ml_models', 0),
+        'active_signals': context.get('active_signals', 0)
     }

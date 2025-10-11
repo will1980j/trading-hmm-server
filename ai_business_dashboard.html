@@ -19,23 +19,52 @@
             margin-bottom: 20px;
             backdrop-filter: blur(20px);
         }
-        .health-grid {
+        .roadmap-container {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        .roadmap-phases {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 15px;
-            margin-bottom: 20px;
+            margin-top: 20px;
         }
-        .health-card {
-            background: rgba(0,255,136,0.1);
-            border: 2px solid #00ff88;
-            border-radius: 15px;
+        .phase-card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
             padding: 20px;
-            text-align: center;
+            border-left: 4px solid #555;
+            transition: all 0.3s;
         }
-        .health-score {
-            font-size: 48px;
+        .phase-card.active {
+            border-left-color: #00ff88;
+            background: rgba(0,255,136,0.1);
+        }
+        .phase-card.complete {
+            border-left-color: #00d4aa;
+            background: rgba(0,212,170,0.05);
+        }
+        .phase-status {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        .phase-title {
             font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        .phase-desc {
+            font-size: 12px;
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+        .phase-metric {
+            margin-top: 10px;
+            font-size: 14px;
             color: #00ff88;
+            font-weight: 600;
         }
         .advisor-panel {
             background: rgba(255,255,255,0.05);
@@ -179,22 +208,34 @@
             <p>Strategic guidance for scaling your prop trading business</p>
         </div>
         
-        <div class="health-grid">
-            <div class="health-card">
-                <div class="health-score" id="overallScore">--</div>
-                <div>Overall Health</div>
-            </div>
-            <div class="health-card">
-                <div class="health-score" id="volumeScore">--</div>
-                <div>Volume Score</div>
-            </div>
-            <div class="health-card">
-                <div class="health-score" id="consistencyScore">--</div>
-                <div>Consistency</div>
-            </div>
-            <div class="health-card">
-                <div class="health-score" id="mlScore">--</div>
-                <div>ML Integration</div>
+        <div class="roadmap-container">
+            <h2 style="margin-bottom: 5px;">🗺️ Platform Development Roadmap</h2>
+            <p style="opacity: 0.7; font-size: 14px;">Building a data-driven NQ futures trading system</p>
+            <div class="roadmap-phases">
+                <div class="phase-card active">
+                    <div class="phase-status">🔄</div>
+                    <div class="phase-title">Data Collection</div>
+                    <div class="phase-desc">Capturing all intraday signals across sessions to build comprehensive dataset</div>
+                    <div class="phase-metric" id="dataMetric">-- signals</div>
+                </div>
+                <div class="phase-card active">
+                    <div class="phase-status">🔬</div>
+                    <div class="phase-title">Pattern Discovery</div>
+                    <div class="phase-desc">Signal Lab testing to identify profitable setups and optimal sessions</div>
+                    <div class="phase-metric" id="labMetric">Testing filters</div>
+                </div>
+                <div class="phase-card">
+                    <div class="phase-status">🤖</div>
+                    <div class="phase-title">ML Optimization</div>
+                    <div class="phase-desc">Train models to auto-identify best signals and filter noise</div>
+                    <div class="phase-metric" id="mlMetric">-- models</div>
+                </div>
+                <div class="phase-card">
+                    <div class="phase-status">🎯</div>
+                    <div class="phase-title">Live Filtering</div>
+                    <div class="phase-desc">Real-time signal filtering with proven edge for consistent profits</div>
+                    <div class="phase-metric" id="edgeMetric">Goal: Q1 2026</div>
+                </div>
             </div>
         </div>
         
@@ -313,10 +354,12 @@
             const data = await response.json();
             
             if (data.health) {
-                document.getElementById('overallScore').textContent = data.health.overall_score;
-                document.getElementById('volumeScore').textContent = data.health.volume_score;
-                document.getElementById('consistencyScore').textContent = data.health.consistency_score;
-                document.getElementById('mlScore').textContent = data.health.ml_integration_score;
+                document.getElementById('dataMetric').textContent = `${data.health.total_trades || 0} signals`;
+                document.getElementById('mlMetric').textContent = data.health.ml_models > 0 ? `${data.health.ml_models} trained` : 'Not started';
+                
+                // Update phase status based on progress
+                const mlCard = document.querySelectorAll('.phase-card')[2];
+                if (data.health.ml_models > 0) mlCard.classList.add('active');
             }
         }
         
