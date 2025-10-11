@@ -10,6 +10,7 @@ import requests
 from os import environ
 import uuid
 from datetime import datetime, timedelta
+import psycopg2.extras
 
 def register_advisor_routes(app, db):
     
@@ -28,11 +29,17 @@ def register_advisor_routes(app, db):
                 context = get_business_context(db)
                 health = analyze_business_health(context)
                 
-                business_intel = f"""TRADER'S QUESTION: {question}
+                business_intel = f"""QUESTION: {question}
 
-BUSINESS CONTEXT:
-- Health: {health['overall_score']}/100
-- Volume: {context['total_trades_30d']} trades (30d)
+PLATFORM STATUS:
+- Total Trades: {context['total_trades']:,}
+- Total R: {context['total_r']:.2f}R  
+- Win Rate: {context['win_rate']:.1f}%
+- Active Signals: {context['active_signals']}
+- Platform Health: {context['platform_health']}/100
+
+RECENT PERFORMANCE:
+{chr(10).join([f"- {d['date']}: {d['daily_r']:.2f}R ({d['trades']} trades)" for d in context['daily_performance'][:5]]) if context['daily_performance'] else 'No recent data'}
 """
                 
                 history = load_conversation_history(db, session_id)
@@ -88,24 +95,45 @@ BUSINESS CONTEXT:
             health = analyze_business_health(context)
             site_structure = get_site_context_for_ai()
             
-            # Build comprehensive context
-            session_text = '\n'.join([f"- {s['session']}: {s['session_trades']} trades, {s.get('wins',0)} wins, avg {s.get('avg_mfe',0):.2f}R" for s in context['session_performance']]) if context['session_performance'] else 'No session data'
-            trend_text = '\n'.join([f"- {r['date']}: {r['daily_r']:.2f}R ({r.get('trades',0)} trades)" for r in context['recent_trend']]) if context['recent_trend'] else 'No recent data'
+            # Build comprehensive business intelligence
+            sessions_text = '\n'.join([f"- {s['session']}: {s['trades']} trades, {s['wins']} wins ({s['wins']/s['trades']*100:.1f}%), avg {s['avg_r']:.2f}R, last: {s['last_trade']}" for s in context['session_performance']]) if context['session_performance'] else 'No session data'
+            
+            daily_text = '\n'.join([f"- {d['date']}: {d['daily_r']:.2f}R ({d['trades']} trades, {d['wins']} wins)" for d in context['daily_performance'][:10]]) if context['daily_performance'] else 'No recent data'
+            
+            symbols_text = '\n'.join([f"- {s['symbol']}: {s['trades']} trades, {s['wins']/s['trades']*100:.1f}% win rate, {s['avg_r']:.2f}R avg" for s in context['symbol_performance'][:5]]) if context['symbol_performance'] else 'No symbol data'
+            
+            # Get infrastructure status
+            import os
+            db_url = os.environ.get('DATABASE_URL', 'Not configured')
+            railway_env = 'Railway' if 'railway' in db_url.lower() else 'Local/Other'
             
             business_intel = f"""
 QUESTION: {question}
 
-DATA:
-- Health: {health['overall_score']}/100
-- Trades (30d): {context['total_trades_30d']}
+PLATFORM STATUS:
+- Total Trades: {context['total_trades']:,}
+- Total R: {context['total_r']:.2f}R
+- Win Rate: {context['win_rate']:.1f}%
+- Active Signals: {context['active_signals']}
+- ML Models: {context['ml_models']}
+- Platform Health: {context['platform_health']}/100
 
-SESSIONS (30d):
-{session_text}
+INFRASTRUCTURE:
+- Database: {railway_env} PostgreSQL
+- Hosting: Railway cloud platform
+- Auto-scaling: Enabled
+- Backup: Automated
 
-RECENT (7d):
-{trend_text}
+SESSION PERFORMANCE:
+{sessions_text}
 
-PLATFORM:
+RECENT DAILY PERFORMANCE:
+{daily_text}
+
+TOP SYMBOLS:
+{symbols_text}
+
+SITE ARCHITECTURE:
 {site_structure}
 """
             
@@ -249,7 +277,7 @@ PLATFORM:
 def load_conversation_history(db, session_id, limit=10):
     """Load recent conversation history from database"""
     try:
-        cursor = db.cursor(dictionary=True)
+        cursor = db.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
             SELECT role, content FROM ai_conversation_history
             WHERE session_id = %s
@@ -265,12 +293,12 @@ def load_conversation_history(db, session_id, limit=10):
 def save_conversation(db, session_id, role, content):
     """Save conversation message to database"""
     try:
-        cursor = db.cursor()
+        cursor = db.conn.cursor()
         cursor.execute("""
             INSERT INTO ai_conversation_history (session_id, role, content)
             VALUES (%s, %s, %s)
         """, (session_id, role, content))
-        db.commit()
+        db.conn.commit()
         cursor.close()
     except Exception as e:
         print(f"Error saving conversation: {e}")
