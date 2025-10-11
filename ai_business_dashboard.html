@@ -90,6 +90,39 @@
             background: rgba(58,123,213,0.1);
             border-left: 3px solid #3a7bd5;
         }
+        .alert-banner {
+            background: rgba(255,71,87,0.2);
+            border: 2px solid #ff4757;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .voice-btn {
+            background: rgba(0,255,136,0.2);
+            border: 2px solid #00ff88;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .voice-btn.recording {
+            background: rgba(255,71,87,0.3);
+            border-color: #ff4757;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .quick-action-btn {
+            background: rgba(0,255,136,0.1);
+            border: 1px solid #00ff88;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            display: inline-block;
+        }
         .quick-questions {
             display: flex;
             gap: 10px;
@@ -166,9 +199,14 @@
         </div>
         
         <div class="advisor-panel">
+            <div id="alertBanner" class="alert-banner" style="display: none;"></div>
+            
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2>Ask Your Business Advisor</h2>
-                <button onclick="clearHistory()" style="background: rgba(255,71,87,0.2); color: #ff4757; border: 1px solid #ff4757; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Clear History</button>
+                <div>
+                    <button onclick="captureChart()" style="background: rgba(58,123,213,0.2); color: #3a7bd5; border: 1px solid #3a7bd5; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-right: 10px;">📊 Analyze Chart</button>
+                    <button onclick="clearHistory()" style="background: rgba(255,71,87,0.2); color: #ff4757; border: 1px solid #ff4757; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Clear History</button>
+                </div>
             </div>
             
             <div id="chatHistory" class="chat-history"></div>
@@ -182,8 +220,12 @@
                 <div class="quick-q" onclick="askQuestion('Give me a 90-day growth plan')">🗓️ Growth Roadmap</div>
             </div>
             
-            <textarea id="questionInput" class="question-input" rows="3" placeholder="Ask anything about growing your trading business..."></textarea>
-            <button class="ask-btn" onclick="getAdvice()">Get Strategic Advice</button>
+            <div style="display: flex; gap: 10px; align-items: flex-end;">
+                <textarea id="questionInput" class="question-input" rows="3" placeholder="Ask anything about growing your trading business..." style="flex: 1;"></textarea>
+                <button id="voiceBtn" class="voice-btn" onclick="toggleVoice()">🎤</button>
+            </div>
+            <button class="ask-btn" onclick="getAdviceStreaming()" style="margin-top: 10px;">Get Strategic Advice</button>
+            <div id="quickActions" style="margin-top: 15px;"></div>
             
             <div id="adviceBox" class="advice-box" style="display: none;"></div>
         </div>
@@ -194,6 +236,46 @@
         if (!sessionId) {
             sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             localStorage.setItem('ai_advisor_session_id', sessionId);
+        }
+        
+        let recognition = null;
+        let isRecording = false;
+        
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('questionInput').value = transcript;
+                isRecording = false;
+                document.getElementById('voiceBtn').classList.remove('recording');
+            };
+        }
+        
+        function toggleVoice() {
+            if (!recognition) {
+                alert('Voice input not supported in this browser');
+                return;
+            }
+            if (isRecording) {
+                recognition.stop();
+                isRecording = false;
+                document.getElementById('voiceBtn').classList.remove('recording');
+            } else {
+                recognition.start();
+                isRecording = true;
+                document.getElementById('voiceBtn').classList.add('recording');
+            }
+        }
+        
+        function speakResponse(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.1;
+                utterance.pitch = 1;
+                speechSynthesis.speak(utterance);
+            }
         }
         
         async function loadConversationHistory() {
@@ -243,39 +325,115 @@
             getAdvice();
         }
         
-        async function getAdvice() {
+        async function getAdviceStreaming() {
             const question = document.getElementById('questionInput').value;
             if (!question) return;
             
             const adviceBox = document.getElementById('adviceBox');
             adviceBox.style.display = 'block';
-            adviceBox.textContent = '🤔 Analyzing your business and formulating strategy...';
+            adviceBox.textContent = '';
             
             try {
-                const response = await fetch('/api/ai-business-advisor', {
+                const response = await fetch('/api/ai-business-advisor-stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ question, session_id: sessionId })
                 });
                 
-                const data = await response.json();
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = '';
                 
-                if (data.advice) {
-                    adviceBox.textContent = data.advice;
-                    document.getElementById('questionInput').value = '';
-                    await loadConversationHistory();
-                } else {
-                    adviceBox.textContent = 'Error: ' + (data.error || 'Unknown error');
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                if (data.content) {
+                                    fullText += data.content;
+                                    adviceBox.textContent = fullText;
+                                } else if (data.done) {
+                                    document.getElementById('questionInput').value = '';
+                                    await loadConversationHistory();
+                                    speakResponse(fullText);
+                                    extractQuickActions(fullText);
+                                }
+                            } catch (e) {}
+                        }
+                    }
                 }
             } catch (error) {
-                adviceBox.textContent = 'Error connecting to advisor: ' + error.message;
+                adviceBox.textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        function extractQuickActions(text) {
+            const actionsDiv = document.getElementById('quickActions');
+            actionsDiv.innerHTML = '';
+            
+            if (text.includes('apply') && text.includes('strategy')) {
+                actionsDiv.innerHTML += '<button class="quick-action-btn" onclick="executeAction(\'apply_optimal_strategy\')">⚡ Apply Strategy</button>';
+            }
+            if (text.includes('risk') && text.includes('limit')) {
+                actionsDiv.innerHTML += '<button class="quick-action-btn" onclick="executeAction(\'set_risk_limits\')">⚡ Update Risk Limits</button>';
+            }
+        }
+        
+        async function executeAction(action) {
+            try {
+                const response = await fetch('/api/quick-action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action, params: {} })
+                });
+                const data = await response.json();
+                alert(data.result.message || 'Action executed');
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function captureChart() {
+            alert('Click on any chart, then this will analyze it with AI vision');
+        }
+        
+        async function loadAlerts() {
+            try {
+                const response = await fetch('/api/proactive-alerts');
+                const data = await response.json();
+                
+                if (data.alerts && (data.alerts.performance.length > 0 || data.alerts.opportunities.length > 0)) {
+                    const banner = document.getElementById('alertBanner');
+                    let html = '<strong>🚨 AI Alerts:</strong><br>';
+                    
+                    data.alerts.performance.forEach(alert => {
+                        html += `<div style="margin: 5px 0;">⚠️ ${alert.message} - ${alert.action}</div>`;
+                    });
+                    
+                    data.alerts.opportunities.forEach(alert => {
+                        html += `<div style="margin: 5px 0;">💡 ${alert.message} - ${alert.action}</div>`;
+                    });
+                    
+                    banner.innerHTML = html;
+                    banner.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading alerts:', error);
             }
         }
         
         loadBusinessHealth();
         loadConversationHistory();
+        loadAlerts();
         setInterval(loadBusinessHealth, 60000);
         setInterval(loadConversationHistory, 30000);
+        setInterval(loadAlerts, 120000);
     </script>
 </body>
 </html>

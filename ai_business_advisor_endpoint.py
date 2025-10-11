@@ -4,12 +4,76 @@ API endpoint for AI Business Advisor
 from flask import request, jsonify
 from ai_business_advisor import BUSINESS_ADVISOR_PROMPT, get_business_context, analyze_business_health
 from site_structure_context import get_site_context_for_ai
+from ai_proactive_alerts import get_all_alerts
+from ai_quick_actions import execute_action, AVAILABLE_ACTIONS
 import requests
 from os import environ
 import uuid
 from datetime import datetime, timedelta
 
 def register_advisor_routes(app, db):
+    
+    @app.route('/api/ai-business-advisor-stream', methods=['POST'])
+    def ai_business_advisor_stream():
+        """Streaming AI responses"""
+        from flask import Response, stream_with_context
+        import json
+        
+        def generate():
+            try:
+                data = request.get_json()
+                question = data.get('question', '')
+                session_id = data.get('session_id', str(uuid.uuid4()))
+                
+                context = get_business_context(db)
+                health = analyze_business_health(context)
+                
+                business_intel = f"""TRADER'S QUESTION: {question}
+
+BUSINESS CONTEXT:
+- Health: {health['overall_score']}/100
+- Volume: {context['total_trades_30d']} trades (30d)
+"""
+                
+                history = load_conversation_history(db, session_id)
+                messages = [{'role': 'system', 'content': BUSINESS_ADVISOR_PROMPT}]
+                messages.extend(history)
+                messages.append({'role': 'user', 'content': business_intel})
+                
+                api_key = environ.get('OPENAI_API_KEY')
+                response = requests.post(
+                    'https://api.openai.com/v1/chat/completions',
+                    headers={'Authorization': f'Bearer {api_key}'},
+                    json={'model': 'gpt-4', 'messages': messages, 'stream': True, 'max_tokens': 1000},
+                    stream=True
+                )
+                
+                full_response = ''
+                for line in response.iter_lines():
+                    if line:
+                        line = line.decode('utf-8')
+                        if line.startswith('data: '):
+                            if line.strip() == 'data: [DONE]':
+                                break
+                            try:
+                                chunk = json.loads(line[6:])
+                                if 'choices' in chunk and len(chunk['choices']) > 0:
+                                    delta = chunk['choices'][0].get('delta', {})
+                                    if 'content' in delta:
+                                        content = delta['content']
+                                        full_response += content
+                                        yield f"data: {json.dumps({'content': content})}\n\n"
+                            except:
+                                pass
+                
+                save_conversation(db, session_id, 'user', business_intel)
+                save_conversation(db, session_id, 'assistant', full_response)
+                yield f"data: {json.dumps({'done': True, 'session_id': session_id})}\n\n"
+                
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        
+        return Response(stream_with_context(generate()), mimetype='text/event-stream')
     
     @app.route('/api/ai-business-advisor', methods=['POST'])
     def ai_business_advisor():
@@ -24,23 +88,21 @@ def register_advisor_routes(app, db):
             health = analyze_business_health(context)
             site_structure = get_site_context_for_ai()
             
-            # Build comprehensive context
+            # Build comprehensive context with question first
             business_intel = f"""
-{site_structure}
+TRADER'S QUESTION: {question}
 
-CURRENT BUSINESS STATE:
-- Overall Health Score: {health['overall_score']}/100
+BUSINESS CONTEXT FOR YOUR ANSWER:
+- Overall Health: {health['overall_score']}/100
 - Trading Volume: {context['total_trades_30d']} trades (30 days)
-- ML Integration: {health['ml_integration_score']}% coverage
+- ML Integration: {health['ml_integration_score']}%
 - Consistency: {health['consistency_score']}/100
 
 SESSION PERFORMANCE:
-{chr(10).join([f"- {s['session']}: {s['session_trades']} trades, {s['win_rate']*100:.1f}% win rate" for s in context['session_performance']])}
+{chr(10).join([f"- {s['session']}: {s['session_trades']} trades, {s['win_rate']*100:.1f}% WR" for s in context['session_performance']])}
 
-RECENT TREND (7 days):
+RECENT TREND:
 {chr(10).join([f"- {r['date']}: {r['daily_r']:.2f}R" for r in context['recent_trend']])}
-
-TRADER'S QUESTION: {question}
 """
             
             # Call OpenAI for strategic advice
@@ -105,6 +167,65 @@ TRADER'S QUESTION: {question}
         try:
             history = load_conversation_history(db, session_id)
             return jsonify({'history': history, 'status': 'success'})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/analyze-chart', methods=['POST'])
+    def analyze_chart():
+        """Analyze chart image with GPT-4 Vision"""
+        try:
+            data = request.get_json()
+            chart_image = data.get('image')  # base64 encoded
+            question = data.get('question', 'Analyze this chart')
+            
+            api_key = environ.get('OPENAI_API_KEY')
+            response = requests.post(
+                'https://api.openai.com/v1/chat/completions',
+                headers={'Authorization': f'Bearer {api_key}'},
+                json={
+                    'model': 'gpt-4-vision-preview',
+                    'messages': [{
+                        'role': 'user',
+                        'content': [
+                            {'type': 'text', 'text': f"{question}\n\nYou're analyzing a trading performance chart. Give specific, actionable insights."},
+                            {'type': 'image_url', 'image_url': {'url': f"data:image/png;base64,{chart_image}"}}
+                        ]
+                    }],
+                    'max_tokens': 500
+                }
+            )
+            
+            if response.status_code == 200:
+                analysis = response.json()['choices'][0]['message']['content']
+                return jsonify({'analysis': analysis, 'status': 'success'})
+            else:
+                return jsonify({'error': 'Vision API error'}), 500
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/quick-action', methods=['POST'])
+    def quick_action():
+        """Execute quick action from AI recommendation"""
+        try:
+            data = request.get_json()
+            action = data.get('action')
+            params = data.get('params', {})
+            result = execute_action(action, params, db)
+            return jsonify({'result': result, 'status': 'success'})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/available-actions', methods=['GET'])
+    def available_actions():
+        """Get list of available quick actions"""
+        return jsonify({'actions': AVAILABLE_ACTIONS, 'status': 'success'})
+    
+    @app.route('/api/proactive-alerts', methods=['GET'])
+    def proactive_alerts():
+        """Get AI-generated proactive alerts"""
+        try:
+            alerts = get_all_alerts(db)
+            return jsonify({'alerts': alerts, 'status': 'success'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     
