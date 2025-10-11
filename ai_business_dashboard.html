@@ -407,14 +407,15 @@
                                 const data = JSON.parse(line.slice(6));
                                 if (data.tool_result) {
                                     toolsUsed.push(data.tool_name || 'data_query');
-                                    adviceBox.innerHTML = `<div style="color: #00ff88;">✅ Retrieved data from: ${toolsUsed.join(', ')}</div><div style="margin-top: 10px;">🤖 Analyzing results...</div>`;
+                                    fullText += data.tool_result + '\n\n';
+                                    adviceBox.innerHTML = `<div style="color: #00ff88;">✅ Data retrieved from: ${toolsUsed.join(', ')}</div><pre style="margin-top: 10px; white-space: pre-wrap;">${fullText}</pre>`;
                                 } else if (data.content) {
-                                    if (adviceBox.innerHTML.includes('Analyzing results')) {
-                                        adviceBox.innerHTML = '';
-                                    }
                                     fullText += data.content;
-                                    adviceBox.textContent = fullText;
+                                    adviceBox.innerHTML = `<div style="color: #00ff88;">✅ Data from: ${toolsUsed.join(', ')}</div><pre style="margin-top: 10px; white-space: pre-wrap;">${fullText}</pre>`;
                                 } else if (data.done) {
+                                    if (toolsUsed.length > 0 && fullText) {
+                                        adviceBox.innerHTML = `<div style="color: #00ff88; margin-bottom: 10px;">✅ Analysis complete using: ${toolsUsed.join(', ')}</div><pre style="white-space: pre-wrap;">${fullText}</pre>`;
+                                    }
                                     document.getElementById('questionInput').value = '';
                                     await loadConversationHistory();
                                     extractQuickActions(fullText);

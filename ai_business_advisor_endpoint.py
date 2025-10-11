@@ -79,48 +79,10 @@ def register_advisor_routes(app, db):
                 
                 # Execute tool calls if any
                 if tool_calls:
-                    tool_results = []
                     for tool_call in tool_calls:
                         result = execute_tool(tool_call, db)
-                        tool_results.append(result)
                         yield f"data: {json.dumps({'tool_result': result, 'tool_name': tool_call['function']['name']})}\n\n"
-                        full_response += f"\n\n[Data from {tool_call['function']['name']}]\n{result}"
-                    
-                    # If no content was generated but tools were called, make a second request with tool results
-                    if not full_response.strip() and tool_results:
-                        messages.append({'role': 'assistant', 'content': None, 'tool_calls': tool_calls})
-                        for i, tool_call in enumerate(tool_calls):
-                            messages.append({
-                                'role': 'tool',
-                                'tool_call_id': tool_call['id'],
-                                'content': tool_results[i]
-                            })
-                        
-                        # Make second request to get AI's analysis of the tool results
-                        response2 = requests.post(
-                            'https://api.openai.com/v1/chat/completions',
-                            headers={'Authorization': f'Bearer {api_key}'},
-                            json={'model': 'gpt-4', 'messages': messages, 'stream': True, 'max_tokens': 1500},
-                            stream=True,
-                            timeout=60
-                        )
-                        
-                        for line in response2.iter_lines():
-                            if line:
-                                line = line.decode('utf-8')
-                                if line.startswith('data: '):
-                                    if line.strip() == 'data: [DONE]':
-                                        break
-                                    try:
-                                        chunk = json.loads(line[6:])
-                                        if 'choices' in chunk and len(chunk['choices']) > 0:
-                                            delta = chunk['choices'][0].get('delta', {})
-                                            if 'content' in delta and delta['content']:
-                                                content = delta['content']
-                                                full_response += content
-                                                yield f"data: {json.dumps({'content': content})}\n\n"
-                                    except:
-                                        pass
+                        full_response += f"\n\n{result}\n\n"
                 
                 save_conversation(db, session_id, 'user', question)
                 save_conversation(db, session_id, 'assistant', full_response)
