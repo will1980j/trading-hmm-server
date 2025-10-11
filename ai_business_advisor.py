@@ -73,14 +73,14 @@ def get_business_context(db):
     try:
         cursor = db.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
-        # Complete trading data
-        cursor.execute("SELECT COUNT(*) as total FROM signal_lab_trades")
+        # Complete trading data - only completed trades
+        cursor.execute("SELECT COUNT(*) as total FROM signal_lab_trades WHERE COALESCE(active_trade, false) = false")
         total_trades = cursor.fetchone()['total'] or 0
         
-        cursor.execute("SELECT SUM(COALESCE(mfe_none, mfe, 0)) as total_r FROM signal_lab_trades")
+        cursor.execute("SELECT SUM(COALESCE(mfe_none, mfe, 0)) as total_r FROM signal_lab_trades WHERE COALESCE(active_trade, false) = false")
         total_r = cursor.fetchone()['total_r'] or 0
         
-        cursor.execute("SELECT COUNT(*) as wins FROM signal_lab_trades WHERE COALESCE(mfe_none, mfe, 0) > 0")
+        cursor.execute("SELECT COUNT(*) as wins FROM signal_lab_trades WHERE COALESCE(active_trade, false) = false AND COALESCE(mfe_none, mfe, 0) > 0")
         total_wins = cursor.fetchone()['wins'] or 0
         
         # Session performance
