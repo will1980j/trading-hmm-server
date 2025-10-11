@@ -79,16 +79,16 @@ def get_business_context(db):
         cursor.execute("SELECT COUNT(*) as total FROM signal_lab_trades")
         total_trades = cursor.fetchone()['total'] or 0
         
-        cursor.execute("SELECT SUM(mfe_none) as total_r FROM signal_lab_trades")
+        cursor.execute("SELECT SUM(mfe) as total_r FROM signal_lab_trades")
         total_r = cursor.fetchone()['total_r'] or 0
         
-        cursor.execute("SELECT COUNT(*) as wins FROM signal_lab_trades WHERE mfe_none > 0")
+        cursor.execute("SELECT COUNT(*) as wins FROM signal_lab_trades WHERE mfe > 0")
         total_wins = cursor.fetchone()['wins'] or 0
         
         # Session performance
         cursor.execute("""
-            SELECT session, COUNT(*) as trades, AVG(mfe_none) as avg_r, 
-                   SUM(CASE WHEN mfe_none > 0 THEN 1 ELSE 0 END) as wins,
+            SELECT session, COUNT(*) as trades, AVG(mfe) as avg_r, 
+                   SUM(CASE WHEN mfe > 0 THEN 1 ELSE 0 END) as wins,
                    MAX(date) as last_trade
             FROM signal_lab_trades GROUP BY session ORDER BY avg_r DESC
         """)
@@ -96,19 +96,19 @@ def get_business_context(db):
         
         # Daily performance last 30 days
         cursor.execute("""
-            SELECT date, SUM(mfe_none) as daily_r, COUNT(*) as trades,
-                   SUM(CASE WHEN mfe_none > 0 THEN 1 ELSE 0 END) as wins
+            SELECT date, SUM(mfe) as daily_r, COUNT(*) as trades,
+                   SUM(CASE WHEN mfe > 0 THEN 1 ELSE 0 END) as wins
             FROM signal_lab_trades 
             WHERE date >= CURRENT_DATE - INTERVAL '30 days'
             GROUP BY date ORDER BY date DESC
         """)
         daily_performance = cursor.fetchall()
         
-        # Symbol performance
+        # Symbol performance - use NQ as default since no symbol column
         cursor.execute("""
-            SELECT symbol, COUNT(*) as trades, AVG(mfe_none) as avg_r,
-                   SUM(CASE WHEN mfe_none > 0 THEN 1 ELSE 0 END) as wins
-            FROM signal_lab_trades GROUP BY symbol ORDER BY trades DESC
+            SELECT 'NQ' as symbol, COUNT(*) as trades, AVG(mfe) as avg_r,
+                   SUM(CASE WHEN mfe > 0 THEN 1 ELSE 0 END) as wins
+            FROM signal_lab_trades
         """)
         symbols = cursor.fetchall()
         
