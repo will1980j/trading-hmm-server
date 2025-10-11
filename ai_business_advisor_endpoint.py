@@ -88,21 +88,25 @@ BUSINESS CONTEXT:
             health = analyze_business_health(context)
             site_structure = get_site_context_for_ai()
             
-            # Build comprehensive context with question first
+            # Build comprehensive context
+            session_text = '\n'.join([f"- {s['session']}: {s['session_trades']} trades, {s.get('wins',0)} wins, avg {s.get('avg_mfe',0):.2f}R" for s in context['session_performance']]) if context['session_performance'] else 'No session data'
+            trend_text = '\n'.join([f"- {r['date']}: {r['daily_r']:.2f}R ({r.get('trades',0)} trades)" for r in context['recent_trend']]) if context['recent_trend'] else 'No recent data'
+            
             business_intel = f"""
-TRADER'S QUESTION: {question}
+QUESTION: {question}
 
-BUSINESS CONTEXT FOR YOUR ANSWER:
-- Overall Health: {health['overall_score']}/100
-- Trading Volume: {context['total_trades_30d']} trades (30 days)
-- ML Integration: {health['ml_integration_score']}%
-- Consistency: {health['consistency_score']}/100
+DATA:
+- Health: {health['overall_score']}/100
+- Trades (30d): {context['total_trades_30d']}
 
-SESSION PERFORMANCE:
-{chr(10).join([f"- {s['session']}: {s['session_trades']} trades, {s['win_rate']*100:.1f}% WR" for s in context['session_performance']])}
+SESSIONS (30d):
+{session_text}
 
-RECENT TREND:
-{chr(10).join([f"- {r['date']}: {r['daily_r']:.2f}R" for r in context['recent_trend']])}
+RECENT (7d):
+{trend_text}
+
+PLATFORM:
+{site_structure}
 """
             
             # Call OpenAI for strategic advice
