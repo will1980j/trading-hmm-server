@@ -110,31 +110,25 @@ RECENT PERFORMANCE:
             business_intel = f"""
 QUESTION: {question}
 
-PLATFORM STATUS:
-- Total Trades: {context['total_trades']:,}
-- Total R: {context['total_r']:.2f}R
-- Win Rate: {context['win_rate']:.1f}%
-- Active Signals: {context['active_signals']}
-- ML Models: {context['ml_models']}
-- Platform Health: {context['platform_health']}/100
+RAW DATA OVERVIEW (Unfiltered):
+- Total Signals Captured: {context['total_trades']:,}
+- Raw R Total: {context['total_r']:.2f}R
+- Raw Win Rate: {context['win_rate']:.1f}% (before optimization)
+- Active Live Signals: {context['active_signals']}
+- Platform Tools Available: Signal Lab, ML Models, Performance Analytics
 
-INFRASTRUCTURE:
-- Database: {railway_env} PostgreSQL
-- Hosting: Railway cloud platform
-- Auto-scaling: Enabled
-- Backup: Automated
+REMEMBER: This is raw, unfiltered data. The real work is using the platform tools to identify the best setups and filter out the noise.
 
-SESSION PERFORMANCE:
+SESSION BREAKDOWN (Raw):
 {sessions_text}
 
-RECENT DAILY PERFORMANCE:
+DAILY ACTIVITY (Raw):
 {daily_text}
 
-TOP SYMBOLS:
-{symbols_text}
-
-SITE ARCHITECTURE:
+PLATFORM TOOLS FOR OPTIMIZATION:
 {site_structure}
+
+Note: Focus on helping analyze and filter this data rather than judging current raw performance.
 """
             
             # Call OpenAI for strategic advice
@@ -159,8 +153,8 @@ SITE ARCHITECTURE:
                 json={
                     'model': model,
                     'messages': messages,
-                    'max_tokens': 1000,
-                    'temperature': 0.9
+                    'max_tokens': 800,
+                    'temperature': 0.7
                 },
                 timeout=30
             )
