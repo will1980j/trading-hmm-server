@@ -3,6 +3,7 @@ API endpoint for AI Business Advisor
 """
 from flask import request, jsonify
 from ai_business_advisor import BUSINESS_ADVISOR_PROMPT, get_business_context, analyze_business_health
+from site_structure_context import get_site_context_for_ai
 import requests
 from os import environ
 
@@ -18,9 +19,12 @@ def register_advisor_routes(app, db):
             # Gather business intelligence
             context = get_business_context(db)
             health = analyze_business_health(context)
+            site_structure = get_site_context_for_ai()
             
             # Build comprehensive context
             business_intel = f"""
+{site_structure}
+
 CURRENT BUSINESS STATE:
 - Overall Health Score: {health['overall_score']}/100
 - Trading Volume: {context['total_trades_30d']} trades (30 days)
@@ -53,8 +57,8 @@ TRADER'S QUESTION: {question}
                         {'role': 'system', 'content': BUSINESS_ADVISOR_PROMPT},
                         {'role': 'user', 'content': business_intel}
                     ],
-                    'max_tokens': 800,
-                    'temperature': 0.7
+                    'max_tokens': 1000,
+                    'temperature': 0.9
                 },
                 timeout=30
             )
