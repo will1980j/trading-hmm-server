@@ -240,7 +240,11 @@ def get_ai_tools():
         # BUSINESS INTELLIGENCE
         {'type': 'function', 'function': {'name': 'revenue_projection', 'description': 'Project prop firm income based on current edge', 'parameters': {'type': 'object', 'properties': {'num_accounts': {'type': 'number'}, 'account_size': {'type': 'number'}}, 'required': ['num_accounts', 'account_size']}}},
         {'type': 'function', 'function': {'name': 'scaling_roadmap', 'description': 'Create roadmap for scaling to multiple accounts', 'parameters': {'type': 'object', 'properties': {'target_monthly': {'type': 'number'}}}}},
-        {'type': 'function', 'function': {'name': 'risk_calculator', 'description': 'Calculate risk across multiple prop accounts', 'parameters': {'type': 'object', 'properties': {'accounts': {'type': 'array', 'items': {'type': 'object'}}}}}}
+        {'type': 'function', 'function': {'name': 'risk_calculator', 'description': 'Calculate risk across multiple prop accounts', 'parameters': {'type': 'object', 'properties': {'accounts': {'type': 'array', 'items': {'type': 'object'}}}}},
+        
+        # SYSTEM INFO
+        {'type': 'function', 'function': {'name': 'list_available_pages', 'description': 'List all available pages and features in the platform', 'parameters': {'type': 'object', 'properties': {}}}},
+        {'type': 'function', 'function': {'name': 'request_page_screenshot', 'description': 'Request user to share a screenshot of a specific page for visual analysis', 'parameters': {'type': 'object', 'properties': {'page_name': {'type': 'string', 'description': 'Name of the page to screenshot'}}, 'required': ['page_name']}}}
     ]
 
 def execute_tool(tool_call, db):
@@ -279,6 +283,8 @@ def execute_tool(tool_call, db):
         elif function_name == 'revenue_projection': return revenue_projection(db, arguments)
         elif function_name == 'scaling_roadmap': return scaling_roadmap(db, arguments)
         elif function_name == 'risk_calculator': return risk_calculator(db, arguments)
+        # System
+        elif function_name == 'list_available_pages': return list_available_pages()
         else: return f"Unknown function: {function_name}"
     except Exception as e:
         import traceback
@@ -486,3 +492,18 @@ def risk_calculator(db, args):
     accounts = args.get('accounts', [])
     total_risk = len(accounts) * 0.05
     return f"Risk across {len(accounts)} accounts: {total_risk*100:.1f}% max daily exposure. Ensure correlation is low between accounts."
+
+def list_available_pages():
+    return """ACTUAL PLATFORM PAGES:
+• /live-signals-dashboard - Real-time NQ signals from TradingView
+• /signal-lab-dashboard - Backtest historical signals with filters
+• /signal-analysis-lab - Deep analysis of signal performance
+• /ml-dashboard - ML model training and predictions
+• /trade-manager - Manual trade entry and tracking
+• /prop-portfolio - Prop firm account management
+• /financial-summary - P&L and performance metrics
+• /reporting-hub - Export and reporting tools
+• /ai-business-advisor - This page (strategic guidance)
+• /contract-manager - Futures contract rollover management
+
+NOTE: I cannot visually see these pages. I can only query the database for data shown on them."""

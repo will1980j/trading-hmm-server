@@ -408,10 +408,19 @@
                                 if (data.tool_result) {
                                     toolsUsed.push(data.tool_name || 'data_query');
                                     fullText += data.tool_result + '\n\n';
-                                    adviceBox.innerHTML = `<div style="color: #00ff88;">✅ Data retrieved from: ${toolsUsed.join(', ')}</div><pre style="margin-top: 10px; white-space: pre-wrap;">${fullText}</pre>`;
+                                    
+                                    if (data.tool_result.includes('[SCREENSHOT_REQUEST:')) {
+                                        adviceBox.innerHTML = `<div style="color: #3a7bd5;">📸 ${data.tool_result.replace(/\[SCREENSHOT_REQUEST:[^\]]+\]/, '')}</div>`;
+                                    } else {
+                                        adviceBox.innerHTML = `<div style="color: #00ff88;">✅ Data retrieved from: ${toolsUsed.join(', ')}</div><pre style="margin-top: 10px; white-space: pre-wrap;">${fullText}</pre>`;
+                                    }
                                 } else if (data.content) {
                                     fullText += data.content;
-                                    adviceBox.innerHTML = `<div style="color: #00ff88;">✅ Data from: ${toolsUsed.join(', ')}</div><pre style="margin-top: 10px; white-space: pre-wrap;">${fullText}</pre>`;
+                                    if (toolsUsed.length > 0) {
+                                        adviceBox.innerHTML = `<div style="color: #00ff88;">✅ Data from: ${toolsUsed.join(', ')}</div><pre style="margin-top: 10px; white-space: pre-wrap;">${fullText}</pre>`;
+                                    } else {
+                                        adviceBox.innerHTML = `<pre style="white-space: pre-wrap;">${fullText}</pre>`;
+                                    }
                                 } else if (data.done) {
                                     if (toolsUsed.length > 0 && fullText) {
                                         adviceBox.innerHTML = `<div style="color: #00ff88; margin-bottom: 10px;">✅ Analysis complete using: ${toolsUsed.join(', ')}</div><pre style="white-space: pre-wrap;">${fullText}</pre>`;
