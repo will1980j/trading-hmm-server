@@ -331,18 +331,22 @@
             
             const adviceBox = document.getElementById('adviceBox');
             adviceBox.style.display = 'block';
-            adviceBox.textContent = '';
+            adviceBox.textContent = '🤔 Thinking...';
             
             try {
+                // Try streaming first
                 const response = await fetch('/api/ai-business-advisor-stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ question, session_id: sessionId })
                 });
                 
+                if (!response.ok) throw new Error('Streaming failed');
+                
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let fullText = '';
+                adviceBox.textContent = '';
                 
                 while (true) {
                     const {done, value} = await reader.read();
@@ -361,7 +365,6 @@
                                 } else if (data.done) {
                                     document.getElementById('questionInput').value = '';
                                     await loadConversationHistory();
-                                    speakResponse(fullText);
                                     extractQuickActions(fullText);
                                 }
                             } catch (e) {}
@@ -369,7 +372,26 @@
                     }
                 }
             } catch (error) {
-                adviceBox.textContent = 'Error: ' + error.message;
+                // Fallback to non-streaming
+                console.log('Streaming failed, using fallback');
+                try {
+                    const response = await fetch('/api/ai-business-advisor', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ question, session_id: sessionId })
+                    });
+                    const data = await response.json();
+                    if (data.advice) {
+                        adviceBox.textContent = data.advice;
+                        document.getElementById('questionInput').value = '';
+                        await loadConversationHistory();
+                        extractQuickActions(data.advice);
+                    } else {
+                        adviceBox.textContent = 'Error: ' + (data.error || 'Unknown error');
+                    }
+                } catch (e2) {
+                    adviceBox.textContent = 'Error: ' + e2.message;
+                }
             }
         }
         

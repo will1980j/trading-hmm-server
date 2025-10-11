@@ -57,51 +57,47 @@ def get_page_health_metrics(db):
 
 def get_business_context(db):
     """Gather comprehensive business metrics"""
-    cursor = db.cursor(dictionary=True)
-    
-    # Trading performance
-    cursor.execute("""
-        SELECT 
-            COUNT(*) as total_trades,
-            AVG(CASE WHEN mfe_none > 0 THEN mfe_none ELSE 0 END) as avg_winner,
-            COUNT(CASE WHEN mfe_none > 0 THEN 1 END)::float / NULLIF(COUNT(*), 0) as win_rate,
-            session,
-            COUNT(*) as session_trades
-        FROM signal_lab_trades
-        WHERE date > CURRENT_DATE - INTERVAL '30 days'
-        GROUP BY session
-    """)
-    session_stats = cursor.fetchall()
-    
-    # Recent performance trend
-    cursor.execute("""
-        SELECT date, SUM(mfe_none) as daily_r
-        FROM signal_lab_trades
-        WHERE date > CURRENT_DATE - INTERVAL '7 days'
-        GROUP BY date
-        ORDER BY date DESC
-    """)
-    recent_performance = cursor.fetchall()
-    
-    # ML prediction accuracy
     try:
+        cursor = db.cursor(dictionary=True)
+        
+        # Trading performance
         cursor.execute("""
             SELECT 
-                AVG(CASE WHEN ml_prediction IS NOT NULL THEN 1 ELSE 0 END) as ml_coverage,
-                COUNT(*) as signals_with_ml
-            FROM live_signals
-            WHERE timestamp > NOW() - INTERVAL '7 days'
+                COUNT(*) as total_trades,
+                AVG(CASE WHEN mfe_none > 0 THEN mfe_none ELSE 0 END) as avg_winner,
+                session,
+                COUNT(*) as session_trades
+            FROM signal_lab_trades
+            WHERE date > DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            GROUP BY session
         """)
-        ml_stats = cursor.fetchone()
-    except:
-        ml_stats = {'ml_coverage': 0, 'signals_with_ml': 0}
-    
-    return {
-        'session_performance': [dict(row) for row in session_stats],
-        'recent_trend': [dict(row) for row in recent_performance],
-        'ml_integration': dict(ml_stats) if ml_stats else {},
-        'total_trades_30d': sum(s['total_trades'] for s in session_stats) if session_stats else 0
-    }
+        session_stats = cursor.fetchall()
+        
+        # Recent performance trend
+        cursor.execute("""
+            SELECT date, SUM(mfe_none) as daily_r
+            FROM signal_lab_trades
+            WHERE date > DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+            GROUP BY date
+            ORDER BY date DESC
+        """)
+        recent_performance = cursor.fetchall()
+        cursor.close()
+        
+        return {
+            'session_performance': session_stats if session_stats else [],
+            'recent_trend': recent_performance if recent_performance else [],
+            'ml_integration': {'ml_coverage': 0, 'signals_with_ml': 0},
+            'total_trades_30d': sum(s['total_trades'] for s in session_stats) if session_stats else 0
+        }
+    except Exception as e:
+        print(f"Error in get_business_context: {e}")
+        return {
+            'session_performance': [],
+            'recent_trend': [],
+            'ml_integration': {'ml_coverage': 0, 'signals_with_ml': 0},
+            'total_trades_30d': 0
+        }
 
 def analyze_business_health(context):
     """Calculate business health score"""
