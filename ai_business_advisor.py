@@ -140,9 +140,9 @@ def get_business_context(db):
         """)
         symbols = cursor.fetchall()
         
-        # Live signals status
+        # Live signals status - count recent signals from last 24 hours
         try:
-            cursor.execute("SELECT COUNT(*) as active FROM live_signals WHERE status = 'active'")
+            cursor.execute("SELECT COUNT(*) as active FROM live_signals WHERE timestamp > NOW() - INTERVAL '24 hours'")
             active_signals = cursor.fetchone()['active'] or 0
         except:
             active_signals = 0
