@@ -4590,17 +4590,13 @@ CURRENT PERFORMANCE METRICS:
             modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
         }
         
-        // OLD D3 CODE REMOVED - function showDayDetails now handles clicks
-        function showCalendarTooltip_OLD(event, d) {
-                .attr('id', 'profit-gradient')
-                .attr('cx', '30%').attr('cy', '30%');
-            profitGradient.append('stop').attr('offset', '0%').attr('stop-color', '#ffffff').attr('stop-opacity', 0.3);
-            profitGradient.append('stop').attr('offset', '70%').attr('stop-color', '#00ff88').attr('stop-opacity', 0.8);
-            profitGradient.append('stop').attr('offset', '100%').attr('stop-color', '#00d4aa').attr('stop-opacity', 1);
-            
-            // Loss gradient
-            const lossGradient = defs.append('radialGradient')
-                .attr('id', 'loss-gradient')
+        // Timezone consistency helper
+        function ensureNYTimezone(dateStr) {
+            return dateStr;
+        }
+        
+        function showDayDetails(dateStr) {
+            const data = window.dailyTradeData[dateStr];
                 .attr('cx', '30%').attr('cy', '30%');
             lossGradient.append('stop').attr('offset', '0%').attr('stop-color', '#ffffff').attr('stop-opacity', 0.2);
             lossGradient.append('stop').attr('offset', '70%').attr('stop-color', '#ff4757').attr('stop-opacity', 0.8);
