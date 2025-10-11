@@ -45,7 +45,7 @@ def register_advisor_routes(app, db):
                 response = requests.post(
                     'https://api.openai.com/v1/chat/completions',
                     headers={'Authorization': f'Bearer {api_key}'},
-                    json={'model': 'gpt-4', 'messages': messages, 'tools': tools, 'stream': True, 'max_tokens': 2000, 'temperature': 0.7},
+                    json={'model': 'gpt-4', 'messages': messages, 'tools': tools, 'stream': True, 'max_tokens': 300, 'temperature': 0.2},
                     stream=True,
                     timeout=60
                 )
@@ -94,7 +94,7 @@ def register_advisor_routes(app, db):
                     response2 = requests.post(
                         'https://api.openai.com/v1/chat/completions',
                         headers={'Authorization': f'Bearer {api_key}'},
-                        json={'model': 'gpt-4', 'messages': messages, 'stream': True, 'max_tokens': 1500},
+                        json={'model': 'gpt-4', 'messages': messages, 'stream': True, 'max_tokens': 200},
                         stream=True,
                         timeout=60
                     )
