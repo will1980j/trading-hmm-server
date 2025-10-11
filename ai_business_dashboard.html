@@ -206,6 +206,9 @@
         <div class="header">
             <h1>🤖 AI Business Advisor</h1>
             <p>Strategic guidance for scaling your prop trading business</p>
+            <div style="background: rgba(0,255,136,0.1); border-left: 3px solid #00ff88; padding: 10px; margin-top: 10px; font-size: 13px;">
+                <strong>ℹ️ Data-Driven Analysis:</strong> This advisor queries your actual trading data from the database. All recommendations are based on real performance metrics, not assumptions.
+            </div>
         </div>
         
         <div class="roadmap-container">
@@ -253,12 +256,12 @@
             <div id="chatHistory" class="chat-history"></div>
             
             <div class="quick-questions">
-                <div class="quick-q" onclick="askQuestion('How should I scale to 10 prop accounts?')">📈 Scaling Strategy</div>
-                <div class="quick-q" onclick="askQuestion('What is my optimal capital allocation?')">💰 Capital Allocation</div>
-                <div class="quick-q" onclick="askQuestion('When should I request payouts?')">💸 Payout Strategy</div>
-                <div class="quick-q" onclick="askQuestion('How can I improve my win rate?')">🎯 Performance Optimization</div>
-                <div class="quick-q" onclick="askQuestion('What are my biggest risks right now?')">⚠️ Risk Analysis</div>
-                <div class="quick-q" onclick="askQuestion('Give me a 90-day growth plan')">🗓️ Growth Roadmap</div>
+                <div class="quick-q" onclick="askQuestion('Query my actual trading data and give me a summary')">📊 Data Summary</div>
+                <div class="quick-q" onclick="askQuestion('What sessions perform best based on my real data?')">🎯 Best Sessions</div>
+                <div class="quick-q" onclick="askQuestion('Analyze my actual win rate and expectancy')">📈 Performance Analysis</div>
+                <div class="quick-q" onclick="askQuestion('What does my real data say about optimal R-targets?')">🎲 Optimal Targets</div>
+                <div class="quick-q" onclick="askQuestion('Check my platform status and data quality')">🔍 Platform Status</div>
+                <div class="quick-q" onclick="askQuestion('Find my best performing strategy from actual trades')">⭐ Best Strategy</div>
             </div>
             
             <div style="display: flex; gap: 10px; align-items: flex-end;">
@@ -373,7 +376,7 @@
             
             const adviceBox = document.getElementById('adviceBox');
             adviceBox.style.display = 'block';
-            adviceBox.textContent = '🤔 Thinking...';
+            adviceBox.innerHTML = '<div style="color: #00ff88;">🔍 Querying database for real data...</div>';
             
             try {
                 // Try streaming first
@@ -388,7 +391,8 @@
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let fullText = '';
-                adviceBox.textContent = '';
+                let toolsUsed = [];
+                adviceBox.innerHTML = '';
                 
                 while (true) {
                     const {done, value} = await reader.read();
@@ -401,13 +405,21 @@
                         if (line.startsWith('data: ')) {
                             try {
                                 const data = JSON.parse(line.slice(6));
-                                if (data.content) {
+                                if (data.tool_result) {
+                                    toolsUsed.push(data.tool_name || 'data_query');
+                                    adviceBox.innerHTML = `<div style="color: #00ff88;">✅ Retrieved data from: ${toolsUsed.join(', ')}</div><div style="margin-top: 10px;">🤖 Analyzing results...</div>`;
+                                } else if (data.content) {
+                                    if (adviceBox.innerHTML.includes('Analyzing results')) {
+                                        adviceBox.innerHTML = '';
+                                    }
                                     fullText += data.content;
                                     adviceBox.textContent = fullText;
                                 } else if (data.done) {
                                     document.getElementById('questionInput').value = '';
                                     await loadConversationHistory();
                                     extractQuickActions(fullText);
+                                } else if (data.error) {
+                                    adviceBox.innerHTML = `<div style="color: #ff4757;">❌ Error: ${data.error}</div>`;
                                 }
                             } catch (e) {}
                         }

@@ -16,7 +16,7 @@ def register_advisor_routes(app, db):
     
     @app.route('/api/ai-business-advisor-stream', methods=['POST'])
     def ai_business_advisor_stream():
-        """Streaming AI responses"""
+        """Streaming AI responses with tool calling"""
         from flask import Response, stream_with_context
         import json
         
@@ -26,6 +26,10 @@ def register_advisor_routes(app, db):
                 question = data.get('question', '')
                 session_id = data.get('session_id', str(uuid.uuid4()))
                 
+                if not question:
+                    yield f"data: {json.dumps({'error': 'No question provided'})}\n\n"
+                    return
+                
                 history = load_conversation_history(db, session_id)
                 messages = [{'role': 'system', 'content': BUSINESS_ADVISOR_PROMPT}]
                 messages.extend(history)
@@ -34,11 +38,16 @@ def register_advisor_routes(app, db):
                 tools = get_ai_tools()
                 
                 api_key = environ.get('OPENAI_API_KEY')
+                if not api_key:
+                    yield f"data: {json.dumps({'error': 'OpenAI API key not configured'})}\n\n"
+                    return
+                
                 response = requests.post(
                     'https://api.openai.com/v1/chat/completions',
                     headers={'Authorization': f'Bearer {api_key}'},
-                    json={'model': 'gpt-4', 'messages': messages, 'tools': tools, 'stream': True, 'max_tokens': 1500},
-                    stream=True
+                    json={'model': 'gpt-4', 'messages': messages, 'tools': tools, 'stream': True, 'max_tokens': 2000, 'temperature': 0.7},
+                    stream=True,
+                    timeout=60
                 )
                 
                 full_response = ''
@@ -70,10 +79,48 @@ def register_advisor_routes(app, db):
                 
                 # Execute tool calls if any
                 if tool_calls:
+                    tool_results = []
                     for tool_call in tool_calls:
                         result = execute_tool(tool_call, db)
-                        yield f"data: {json.dumps({'tool_result': result})}\n\n"
-                        full_response += f"\n\n[Tool: {tool_call['function']['name']}]\n{result}"
+                        tool_results.append(result)
+                        yield f"data: {json.dumps({'tool_result': result, 'tool_name': tool_call['function']['name']})}\n\n"
+                        full_response += f"\n\n[Data from {tool_call['function']['name']}]\n{result}"
+                    
+                    # If no content was generated but tools were called, make a second request with tool results
+                    if not full_response.strip() and tool_results:
+                        messages.append({'role': 'assistant', 'content': None, 'tool_calls': tool_calls})
+                        for i, tool_call in enumerate(tool_calls):
+                            messages.append({
+                                'role': 'tool',
+                                'tool_call_id': tool_call['id'],
+                                'content': tool_results[i]
+                            })
+                        
+                        # Make second request to get AI's analysis of the tool results
+                        response2 = requests.post(
+                            'https://api.openai.com/v1/chat/completions',
+                            headers={'Authorization': f'Bearer {api_key}'},
+                            json={'model': 'gpt-4', 'messages': messages, 'stream': True, 'max_tokens': 1500},
+                            stream=True,
+                            timeout=60
+                        )
+                        
+                        for line in response2.iter_lines():
+                            if line:
+                                line = line.decode('utf-8')
+                                if line.startswith('data: '):
+                                    if line.strip() == 'data: [DONE]':
+                                        break
+                                    try:
+                                        chunk = json.loads(line[6:])
+                                        if 'choices' in chunk and len(chunk['choices']) > 0:
+                                            delta = chunk['choices'][0].get('delta', {})
+                                            if 'content' in delta and delta['content']:
+                                                content = delta['content']
+                                                full_response += content
+                                                yield f"data: {json.dumps({'content': content})}\n\n"
+                                    except:
+                                        pass
                 
                 save_conversation(db, session_id, 'user', question)
                 save_conversation(db, session_id, 'assistant', full_response)
@@ -277,16 +324,24 @@ def execute_tool(tool_call, db):
 
 # STRATEGY TESTING TOOLS
 def backtest_strategy(db, args):
-    cursor = db.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    sessions = args.get('sessions', [])
-    bias = args.get('bias', 'Both')
-    session_list = ','.join(["'" + s + "'" for s in sessions])
-    session_filter = f"AND session IN ({session_list})" if sessions else ''
-    bias_filter = f"AND bias = '{bias}'" if bias != 'Both' else ''
-    cursor.execute(f"SELECT COUNT(*) as trades, AVG(COALESCE(mfe_none, mfe, 0)) as avg_r, SUM(COALESCE(mfe_none, mfe, 0)) as total_r, COUNT(CASE WHEN COALESCE(mfe_none, mfe, 0) > 0 THEN 1 END) as wins FROM signal_lab_trades WHERE 1=1 {session_filter} {bias_filter}")
-    r = cursor.fetchone()
-    cursor.close()
-    return f"Backtest: {r['trades']} trades, {r['avg_r']:.3f}R avg, {r['total_r']:.2f}R total, {r['wins']/r['trades']*100:.1f}% win rate"
+    try:
+        cursor = db.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        sessions = args.get('sessions', [])
+        bias = args.get('bias', 'Both')
+        session_list = ','.join(["'" + s + "'" for s in sessions])
+        session_filter = f"AND session IN ({session_list})" if sessions else ''
+        bias_filter = f"AND bias = '{bias}'" if bias != 'Both' else ''
+        cursor.execute(f"SELECT COUNT(*) as trades, AVG(COALESCE(mfe_none, mfe, 0)) as avg_r, SUM(COALESCE(mfe_none, mfe, 0)) as total_r, COUNT(CASE WHEN COALESCE(mfe_none, mfe, 0) > 0 THEN 1 END) as wins FROM signal_lab_trades WHERE COALESCE(active_trade, false) = false {session_filter} {bias_filter}")
+        r = cursor.fetchone()
+        cursor.close()
+        
+        if r['trades'] == 0:
+            return f"No completed trades found for the specified filters (sessions: {sessions or 'all'}, bias: {bias}). Data collection in progress."
+        
+        win_rate = (r['wins']/r['trades']*100) if r['trades'] > 0 else 0
+        return f"REAL DATA - Backtest Results:\n• {r['trades']} completed trades\n• {r['avg_r']:.3f}R average per trade\n• {r['total_r']:.2f}R total profit\n• {win_rate:.1f}% win rate\n• Filters: Sessions={sessions or 'all'}, Bias={bias}"
+    except Exception as e:
+        return f"Error querying backtest data: {str(e)}"
 
 def compare_strategies(db, args):
     return "Strategy comparison: Use Signal Lab dashboard for visual comparison. This tool will format results for multiple strategy configs."
@@ -344,19 +399,37 @@ def recommend_prop_firms(db, args):
 
 # DATA ANALYSIS TOOLS
 def query_trading_data(db, args):
-    cursor = db.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    query_type = args['query_type']
-    if query_type == 'summary':
-        cursor.execute("SELECT COUNT(*) as total, SUM(COALESCE(mfe_none, mfe, 0)) as total_r, AVG(COALESCE(mfe_none, mfe, 0)) as avg_r, COUNT(CASE WHEN COALESCE(mfe_none, mfe, 0) > 0 THEN 1 END) as wins FROM signal_lab_trades")
-        r = cursor.fetchone()
-        cursor.close()
-        return f"{r['total']} trades, {r['total_r']:.2f}R total, {r['avg_r']:.3f}R avg, {r['wins']/r['total']*100:.1f}% win rate"
-    elif query_type == 'session_breakdown':
-        cursor.execute("SELECT session, COUNT(*) as trades, AVG(COALESCE(mfe_none, mfe, 0)) as avg_r FROM signal_lab_trades GROUP BY session ORDER BY avg_r DESC")
-        results = cursor.fetchall()
-        cursor.close()
-        return '\n'.join([f"{r['session']}: {r['trades']} trades, {r['avg_r']:.3f}R avg" for r in results])
-    return "Query complete"
+    try:
+        cursor = db.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        query_type = args['query_type']
+        
+        if query_type == 'summary':
+            cursor.execute("SELECT COUNT(*) as total, SUM(COALESCE(mfe_none, mfe, 0)) as total_r, AVG(COALESCE(mfe_none, mfe, 0)) as avg_r, COUNT(CASE WHEN COALESCE(mfe_none, mfe, 0) > 0 THEN 1 END) as wins FROM signal_lab_trades WHERE COALESCE(active_trade, false) = false")
+            r = cursor.fetchone()
+            cursor.close()
+            
+            if r['total'] == 0:
+                return "REAL DATA - No completed trades in database yet. System is collecting data."
+            
+            win_rate = (r['wins']/r['total']*100) if r['total'] > 0 else 0
+            return f"REAL DATA - Trading Summary:\n• Total: {r['total']} completed trades\n• Total R: {r['total_r']:.2f}R\n• Average: {r['avg_r']:.3f}R per trade\n• Win Rate: {win_rate:.1f}%\n• Winners: {r['wins']} trades"
+            
+        elif query_type == 'session_breakdown':
+            cursor.execute("SELECT session, COUNT(*) as trades, AVG(COALESCE(mfe_none, mfe, 0)) as avg_r, SUM(COALESCE(mfe_none, mfe, 0)) as total_r FROM signal_lab_trades WHERE COALESCE(active_trade, false) = false GROUP BY session ORDER BY avg_r DESC")
+            results = cursor.fetchall()
+            cursor.close()
+            
+            if not results:
+                return "REAL DATA - No session data available yet."
+            
+            output = "REAL DATA - Session Performance:\n"
+            for r in results:
+                output += f"• {r['session']}: {r['trades']} trades, {r['avg_r']:.3f}R avg, {r['total_r']:.2f}R total\n"
+            return output
+            
+        return "Query type not recognized"
+    except Exception as e:
+        return f"Error querying trading data: {str(e)}"
 
 def analyze_losing_trades(db, args):
     cursor = db.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -406,8 +479,11 @@ def check_data_quality(db, args):
     return f"Data Quality: {r['total']} trades, {r['missing_r']} missing R values, {r['missing_session']} missing sessions"
 
 def get_platform_status_tool(db):
-    context = get_business_context(db)
-    return f"Platform: {context['total_trades']} trades, {context['total_r']:.2f}R, {context['ml_models']} ML models, {context['active_signals']} active signals"
+    try:
+        context = get_business_context(db)
+        return f"REAL DATA - Platform Status:\n• Completed Trades: {context['total_trades']}\n• Total Performance: {context['total_r']:.2f}R\n• Win Rate: {context['win_rate']:.1f}%\n• ML Models: {context['ml_models']}\n• Active Signals (24h): {context['active_signals']}\n• Platform Health: {context['platform_health']:.1f}%"
+    except Exception as e:
+        return f"Error getting platform status: {str(e)}"
 
 # ML TOOLS
 def train_ml_model(db, args):
