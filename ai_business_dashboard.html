@@ -435,11 +435,11 @@
                     let html = '<strong>🚨 AI Alerts:</strong><br>';
                     
                     data.alerts.performance.forEach(alert => {
-                        html += `<div style="margin: 5px 0;">⚠️ ${alert.message} - ${alert.action}</div>`;
+                        html += `<div style="margin: 5px 0;">⚠️ ${alert.message}</div>`;
                     });
                     
                     data.alerts.opportunities.forEach(alert => {
-                        html += `<div style="margin: 5px 0;">💡 ${alert.message} - ${alert.action}</div>`;
+                        html += `<div style="margin: 5px 0;">💡 ${alert.message}</div>`;
                     });
                     
                     banner.innerHTML = html;
