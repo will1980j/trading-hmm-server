@@ -14,7 +14,8 @@ def get_all_alerts(db):
             
             # Check for low activity
             cursor.execute("SELECT COUNT(*) FROM signal_lab_trades WHERE date >= CURRENT_DATE - INTERVAL '7 days'")
-            recent_trades = cursor.fetchone()[0]
+            result = cursor.fetchone()
+            recent_trades = result[0] if result else 0
             
             if recent_trades < 10:
                 performance.append({
