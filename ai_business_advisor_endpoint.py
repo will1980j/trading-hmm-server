@@ -280,7 +280,8 @@ def backtest_strategy(db, args):
     cursor = db.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     sessions = args.get('sessions', [])
     bias = args.get('bias', 'Both')
-    session_filter = f"AND session IN ({','.join([f"'{s}'" for s in sessions])})" if sessions else ''
+    session_list = ','.join(["'" + s + "'" for s in sessions])
+    session_filter = f"AND session IN ({session_list})" if sessions else ''
     bias_filter = f"AND bias = '{bias}'" if bias != 'Both' else ''
     cursor.execute(f"SELECT COUNT(*) as trades, AVG(COALESCE(mfe_none, mfe, 0)) as avg_r, SUM(COALESCE(mfe_none, mfe, 0)) as total_r, COUNT(CASE WHEN COALESCE(mfe_none, mfe, 0) > 0 THEN 1 END) as wins FROM signal_lab_trades WHERE 1=1 {session_filter} {bias_filter}")
     r = cursor.fetchone()
