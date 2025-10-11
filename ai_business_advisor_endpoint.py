@@ -240,7 +240,7 @@ def get_ai_tools():
         # BUSINESS INTELLIGENCE
         {'type': 'function', 'function': {'name': 'revenue_projection', 'description': 'Project prop firm income based on current edge', 'parameters': {'type': 'object', 'properties': {'num_accounts': {'type': 'number'}, 'account_size': {'type': 'number'}}, 'required': ['num_accounts', 'account_size']}}},
         {'type': 'function', 'function': {'name': 'scaling_roadmap', 'description': 'Create roadmap for scaling to multiple accounts', 'parameters': {'type': 'object', 'properties': {'target_monthly': {'type': 'number'}}}}},
-        {'type': 'function', 'function': {'name': 'risk_calculator', 'description': 'Calculate risk across multiple prop accounts', 'parameters': {'type': 'object', 'properties': {'accounts': {'type': 'array', 'items': {'type': 'object'}}}}},
+        {'type': 'function', 'function': {'name': 'risk_calculator', 'description': 'Calculate risk across multiple prop accounts', 'parameters': {'type': 'object', 'properties': {'accounts': {'type': 'array', 'items': {'type': 'object'}}}}}},
         
         # SYSTEM INFO
         {'type': 'function', 'function': {'name': 'list_available_pages', 'description': 'List all available pages and features in the platform', 'parameters': {'type': 'object', 'properties': {}}}},
