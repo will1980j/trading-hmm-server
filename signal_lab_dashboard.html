@@ -848,7 +848,10 @@
                     await runTimeAnalysis();
                     await runAIOptimization();
                     updateAnalysis();
-                    generateDailyCalendar();
+                    generateDailyCalendar(() => {
+                        // Trigger Analysis Lab calendar refresh via localStorage
+                        localStorage.setItem('dashboardCalendarRefreshed', Date.now().toString());
+                    });
                 } else {
                     const errorText = await response.text();
                     console.error('Failed to load signals:', response.status, errorText);
@@ -962,8 +965,11 @@
             // Update session analytics
             updateSessionAnalytics(filteredSignals);
             
-            // Update daily calendar
-            generateDailyCalendar();
+            // Update daily calendar with callback to refresh Analysis Lab
+            generateDailyCalendar(() => {
+                // Trigger Analysis Lab calendar refresh via localStorage
+                localStorage.setItem('dashboardCalendarRefreshed', Date.now().toString());
+            });
         }
         
         function calculateStatistics(results, rTarget) {
@@ -4339,7 +4345,7 @@ CURRENT PERFORMANCE METRICS:
         
         // Advanced Performance Calendar - NY EST Timezone Synchronized
         // This calendar uses the same timezone handling as /signal-analysis-lab
-        function generateDailyCalendar() {
+        function generateDailyCalendar(callback) {
             const beStrategy = document.getElementById('beStrategy').value;
             const rTarget = parseFloat(document.getElementById('rTarget').value) || 2;
             const selectedSessions = getSelectedSessions();
@@ -4541,6 +4547,11 @@ CURRENT PERFORMANCE METRICS:
             }
             
             container.innerHTML = html;
+            
+            // Call callback after calendar generation completes
+            if (callback && typeof callback === 'function') {
+                callback();
+            }
         }
         
         function showDayDetails(dateStr) {

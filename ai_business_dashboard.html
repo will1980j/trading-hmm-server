@@ -72,6 +72,24 @@
             white-space: pre-wrap;
             line-height: 1.8;
         }
+        .chat-history {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .chat-message {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+        }
+        .user-message {
+            background: rgba(0,255,136,0.1);
+            border-left: 3px solid #00ff88;
+        }
+        .assistant-message {
+            background: rgba(58,123,213,0.1);
+            border-left: 3px solid #3a7bd5;
+        }
         .quick-questions {
             display: flex;
             gap: 10px;
@@ -148,7 +166,12 @@
         </div>
         
         <div class="advisor-panel">
-            <h2>Ask Your Business Advisor</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Ask Your Business Advisor</h2>
+                <button onclick="clearHistory()" style="background: rgba(255,71,87,0.2); color: #ff4757; border: 1px solid #ff4757; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Clear History</button>
+            </div>
+            
+            <div id="chatHistory" class="chat-history"></div>
             
             <div class="quick-questions">
                 <div class="quick-q" onclick="askQuestion('How should I scale to 10 prop accounts?')">📈 Scaling Strategy</div>
@@ -167,6 +190,42 @@
     </div>
     
     <script>
+        let sessionId = localStorage.getItem('ai_advisor_session_id');
+        if (!sessionId) {
+            sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('ai_advisor_session_id', sessionId);
+        }
+        
+        async function loadConversationHistory() {
+            try {
+                const response = await fetch(`/api/conversation-history/${sessionId}`);
+                const data = await response.json();
+                
+                if (data.history && data.history.length > 0) {
+                    const historyDiv = document.getElementById('chatHistory');
+                    historyDiv.innerHTML = data.history.map(msg => {
+                        const isUser = msg.role === 'user';
+                        return `<div class="chat-message ${isUser ? 'user-message' : 'assistant-message'}">
+                            <strong>${isUser ? '👤 You' : '🤖 Advisor'}:</strong><br>
+                            ${msg.content.replace(/\n/g, '<br>')}
+                        </div>`;
+                    }).join('');
+                    historyDiv.scrollTop = historyDiv.scrollHeight;
+                }
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+        
+        function clearHistory() {
+            if (confirm('Clear conversation history? This will start a fresh session.')) {
+                sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('ai_advisor_session_id', sessionId);
+                document.getElementById('chatHistory').innerHTML = '';
+                document.getElementById('adviceBox').style.display = 'none';
+            }
+        }
+        
         async function loadBusinessHealth() {
             const response = await fetch('/api/business-health');
             const data = await response.json();
@@ -196,13 +255,15 @@
                 const response = await fetch('/api/ai-business-advisor', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question })
+                    body: JSON.stringify({ question, session_id: sessionId })
                 });
                 
                 const data = await response.json();
                 
                 if (data.advice) {
                     adviceBox.textContent = data.advice;
+                    document.getElementById('questionInput').value = '';
+                    await loadConversationHistory();
                 } else {
                     adviceBox.textContent = 'Error: ' + (data.error || 'Unknown error');
                 }
@@ -212,7 +273,9 @@
         }
         
         loadBusinessHealth();
+        loadConversationHistory();
         setInterval(loadBusinessHealth, 60000);
+        setInterval(loadConversationHistory, 30000);
     </script>
 </body>
 </html>
