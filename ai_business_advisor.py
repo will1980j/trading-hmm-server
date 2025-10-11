@@ -51,8 +51,8 @@ def get_business_context(db):
     try:
         cursor = db.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
-        # Complete trading data - only completed trades
-        cursor.execute("SELECT COUNT(*) as total FROM signal_lab_trades WHERE COALESCE(active_trade, false) = false")
+        # ALL trading data - both active and completed
+        cursor.execute("SELECT COUNT(*) as total FROM signal_lab_trades")
         total_trades = cursor.fetchone()['total'] or 0
         
         cursor.execute("SELECT SUM(COALESCE(mfe_none, mfe, 0)) as total_r FROM signal_lab_trades WHERE COALESCE(active_trade, false) = false")

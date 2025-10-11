@@ -24,47 +24,95 @@
             border-radius: 15px;
             padding: 25px;
             margin-bottom: 20px;
+            position: relative;
         }
-        .roadmap-phases {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin-top: 20px;
+        .journey-timeline {
+            position: relative;
+            padding: 40px 0;
         }
-        .phase-card {
-            background: rgba(0,0,0,0.3);
-            border-radius: 10px;
-            padding: 20px;
-            border-left: 4px solid #555;
+        .timeline-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-50%);
+        }
+        .timeline-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00d4aa);
+            transition: width 1s ease;
+            box-shadow: 0 0 20px rgba(0,255,136,0.5);
+        }
+        .milestones {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1;
+        }
+        .milestone {
+            flex: 1;
+            text-align: center;
+            cursor: pointer;
             transition: all 0.3s;
         }
-        .phase-card.active {
-            border-left-color: #00ff88;
-            background: rgba(0,255,136,0.1);
+        .milestone-dot {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 15px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.5);
+            border: 3px solid #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s;
+            position: relative;
         }
-        .phase-card.complete {
-            border-left-color: #00d4aa;
-            background: rgba(0,212,170,0.05);
+        .milestone.active .milestone-dot {
+            border-color: #00ff88;
+            background: rgba(0,255,136,0.2);
+            box-shadow: 0 0 20px rgba(0,255,136,0.5);
+            animation: pulse-dot 2s infinite;
         }
-        .phase-status {
-            font-size: 32px;
-            margin-bottom: 10px;
+        .milestone.complete .milestone-dot {
+            border-color: #00d4aa;
+            background: rgba(0,212,170,0.3);
         }
-        .phase-title {
+        @keyframes pulse-dot {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .milestone-title {
             font-weight: 700;
-            font-size: 16px;
-            margin-bottom: 8px;
-        }
-        .phase-desc {
-            font-size: 12px;
-            opacity: 0.8;
-            line-height: 1.4;
-        }
-        .phase-metric {
-            margin-top: 10px;
             font-size: 14px;
+            margin-bottom: 5px;
+        }
+        .milestone-metric {
+            font-size: 13px;
             color: #00ff88;
             font-weight: 600;
+        }
+        .milestone-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            margin-top: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 0 15px;
+        }
+        .milestone.expanded .milestone-details {
+            max-height: 200px;
+            padding: 15px;
+        }
+        .milestone:hover .milestone-dot {
+            transform: scale(1.15);
         }
         .advisor-panel {
             background: rgba(255,255,255,0.05);
@@ -212,32 +260,45 @@
         </div>
         
         <div class="roadmap-container">
-            <h2 style="margin-bottom: 5px;">🗺️ Platform Development Roadmap</h2>
-            <p style="opacity: 0.7; font-size: 14px;">Building a data-driven NQ futures trading system</p>
-            <div class="roadmap-phases">
-                <div class="phase-card active">
-                    <div class="phase-status">🔄</div>
-                    <div class="phase-title">Data Collection</div>
-                    <div class="phase-desc">Capturing all intraday signals across sessions to build comprehensive dataset</div>
-                    <div class="phase-metric" id="dataMetric">-- signals</div>
+            <h2 style="margin-bottom: 5px;">🗺️ Interactive Journey Map</h2>
+            <p style="opacity: 0.7; font-size: 14px;">Click milestones to expand details</p>
+            <div class="journey-timeline">
+                <div class="timeline-line">
+                    <div class="timeline-progress" id="timelineProgress" style="width: 0%;"></div>
                 </div>
-                <div class="phase-card active">
-                    <div class="phase-status">🔬</div>
-                    <div class="phase-title">Pattern Discovery</div>
-                    <div class="phase-desc">Signal Lab testing to identify profitable setups and optimal sessions</div>
-                    <div class="phase-metric" id="labMetric">Testing filters</div>
-                </div>
-                <div class="phase-card">
-                    <div class="phase-status">🤖</div>
-                    <div class="phase-title">ML Optimization</div>
-                    <div class="phase-desc">Train models to auto-identify best signals and filter noise</div>
-                    <div class="phase-metric" id="mlMetric">-- models</div>
-                </div>
-                <div class="phase-card">
-                    <div class="phase-status">🎯</div>
-                    <div class="phase-title">Live Filtering</div>
-                    <div class="phase-desc">Real-time signal filtering with proven edge for consistent profits</div>
-                    <div class="phase-metric" id="edgeMetric">Goal: Q1 2026</div>
+                <div class="milestones">
+                    <div class="milestone" onclick="toggleMilestone(0)">
+                        <div class="milestone-dot">🔄</div>
+                        <div class="milestone-title">Data Collection</div>
+                        <div class="milestone-metric" id="dataMetric">-- signals</div>
+                        <div class="milestone-details">
+                            <p style="font-size: 12px; opacity: 0.8;">Capturing all intraday signals across sessions to build comprehensive dataset</p>
+                        </div>
+                    </div>
+                    <div class="milestone" onclick="toggleMilestone(1)">
+                        <div class="milestone-dot">🔬</div>
+                        <div class="milestone-title">Pattern Discovery</div>
+                        <div class="milestone-metric" id="labMetric">Testing filters</div>
+                        <div class="milestone-details">
+                            <p style="font-size: 12px; opacity: 0.8;">Signal Lab testing to identify profitable setups and optimal sessions</p>
+                        </div>
+                    </div>
+                    <div class="milestone" onclick="toggleMilestone(2)">
+                        <div class="milestone-dot">🤖</div>
+                        <div class="milestone-title">ML Optimization</div>
+                        <div class="milestone-metric" id="mlMetric">-- models</div>
+                        <div class="milestone-details">
+                            <p style="font-size: 12px; opacity: 0.8;">Train models to auto-identify best signals and filter noise</p>
+                        </div>
+                    </div>
+                    <div class="milestone" onclick="toggleMilestone(3)">
+                        <div class="milestone-dot">🎯</div>
+                        <div class="milestone-title">Live Filtering</div>
+                        <div class="milestone-metric" id="edgeMetric">Q1 2026</div>
+                        <div class="milestone-details">
+                            <p style="font-size: 12px; opacity: 0.8;">Real-time signal filtering with proven edge for consistent profits</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -356,13 +417,25 @@
             const data = await response.json();
             
             if (data.health) {
-                document.getElementById('dataMetric').textContent = `${data.health.total_trades || 0} signals`;
+                const totalTrades = data.health.total_trades || 0;
+                document.getElementById('dataMetric').textContent = `${totalTrades} signals`;
                 document.getElementById('mlMetric').textContent = data.health.ml_models > 0 ? `${data.health.ml_models} trained` : 'Not started';
                 
-                // Update phase status based on progress
-                const mlCard = document.querySelectorAll('.phase-card')[2];
-                if (data.health.ml_models > 0) mlCard.classList.add('active');
+                // Calculate progress percentage
+                const progress = Math.min((totalTrades / 2000) * 25 + (data.health.ml_models > 0 ? 25 : 0), 50);
+                document.getElementById('timelineProgress').style.width = progress + '%';
+                
+                // Update milestone states
+                const milestones = document.querySelectorAll('.milestone');
+                if (totalTrades > 0) milestones[0].classList.add('active');
+                if (totalTrades > 500) milestones[1].classList.add('active');
+                if (data.health.ml_models > 0) milestones[2].classList.add('active');
             }
+        }
+        
+        function toggleMilestone(index) {
+            const milestone = document.querySelectorAll('.milestone')[index];
+            milestone.classList.toggle('expanded');
         }
         
         function askQuestion(question) {
