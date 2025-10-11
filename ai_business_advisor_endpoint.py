@@ -285,6 +285,7 @@ def execute_tool(tool_call, db):
         elif function_name == 'risk_calculator': return risk_calculator(db, arguments)
         # System
         elif function_name == 'list_available_pages': return list_available_pages()
+        elif function_name == 'request_page_screenshot': return request_page_screenshot(arguments)
         else: return f"Unknown function: {function_name}"
     except Exception as e:
         import traceback
@@ -507,3 +508,7 @@ def list_available_pages():
 • /contract-manager - Futures contract rollover management
 
 NOTE: I cannot visually see these pages. I can only query the database for data shown on them."""
+
+def request_page_screenshot(args):
+    page_name = args.get('page_name', 'unknown')
+    return f"[SCREENSHOT_REQUEST:{page_name}] I need to see the {page_name} page to answer your question. Please use the 📊 Analyze Chart button above to capture and share a screenshot."
