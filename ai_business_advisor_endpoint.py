@@ -149,4 +149,3 @@ def save_conversation(db, session_id, role, content):
         cursor.close()
     except Exception as e:
         print(f"Error saving conversation: {e}")
-        db.rollback()
