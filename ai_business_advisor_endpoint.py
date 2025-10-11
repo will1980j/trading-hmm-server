@@ -208,21 +208,43 @@ def register_advisor_routes(app, db):
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
-def load_conversation_history(db, session_id, limit=10):
-    """Load recent conversation history from database"""
+def load_conversation_history(db, session_id):
+    """Load ALL conversation history and create summary if needed"""
     try:
         cursor = db.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
             SELECT role, content FROM ai_conversation_history
             WHERE session_id = %s
-            ORDER BY timestamp DESC
-            LIMIT %s
-        """, (session_id, limit))
+            ORDER BY timestamp ASC
+        """, (session_id,))
         rows = cursor.fetchall()
         cursor.close()
-        return [{'role': r['role'], 'content': r['content']} for r in reversed(rows)]
+        
+        messages = [{'role': r['role'], 'content': r['content']} for r in rows]
+        
+        # If conversation is long, summarize older messages
+        if len(messages) > 30:
+            return summarize_long_conversation(messages)
+        
+        return messages
     except:
         return []
+
+def summarize_long_conversation(messages):
+    """Keep recent messages + summary of older ones"""
+    # Keep last 20 messages as-is
+    recent = messages[-20:]
+    older = messages[:-20]
+    
+    # Create summary of older messages
+    summary_text = "Previous conversation summary:\n"
+    for msg in older:
+        if msg['role'] == 'user':
+            summary_text += f"- User asked: {msg['content'][:100]}...\n"
+        else:
+            summary_text += f"- Advisor: {msg['content'][:100]}...\n"
+    
+    return [{'role': 'system', 'content': summary_text}] + recent
 
 def save_conversation(db, session_id, role, content):
     """Save conversation message to database"""
