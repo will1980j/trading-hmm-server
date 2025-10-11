@@ -4597,17 +4597,53 @@ CURRENT PERFORMANCE METRICS:
         
         function showDayDetails(dateStr) {
             const data = window.dailyTradeData[dateStr];
-                .attr('cx', '30%').attr('cy', '30%');
-            lossGradient.append('stop').attr('offset', '0%').attr('stop-color', '#ffffff').attr('stop-opacity', 0.2);
-            lossGradient.append('stop').attr('offset', '70%').attr('stop-color', '#ff4757').attr('stop-opacity', 0.8);
-            lossGradient.append('stop').attr('offset', '100%').attr('stop-color', '#ff6b7a').attr('stop-opacity', 1);
+            if (!data) return;
             
-            // Glow filter
-            const glowFilter = defs.append('filter')
-                .attr('id', 'calendar-glow')
-                .attr('x', '-50%').attr('y', '-50%')
-                .attr('width', '200%').attr('height', '200%');
-            glowFilter.append('feGaussianBlur')
+            const sessionColors = {'Asia': '#ffa502', 'London': '#3742fa', 'NY Pre Market': '#26de81', 'NY AM': '#00ff88', 'NY Lunch': '#ffffff', 'NY PM': '#a55eea'};
+            
+            let tradesHtml = data.trades.map(trade => `
+                <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid ${sessionColors[trade.session]};">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span style="color: ${sessionColors[trade.session]}; font-weight: 600;">${trade.session}</span>
+                        <span style="font-weight: 700; color: ${trade.result > 0 ? '#00ff88' : trade.result < 0 ? '#ff4757' : '#ffa502'};">${trade.result > 0 ? '+' : ''}${trade.result.toFixed(2)}R</span>
+                    </div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.7);">${trade.time || 'N/A'}</div>
+                    ${trade.economic_news ? `<div style="font-size: 11px; color: #ffa502; margin-top: 4px;">📰 ${trade.economic_news}</div>` : ''}
+                </div>
+            `).join('');
+            
+            const modal = document.createElement('div');
+            modal.className = 'popup-overlay';
+            modal.innerHTML = `
+                <div class="daily-popup">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="color: #00ff88; margin: 0;">${dateStr}</h3>
+                        <button onclick="this.closest('.popup-overlay').remove()" style="background: none; border: none; color: #fff; font-size: 24px; cursor: pointer;">&times;</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
+                        <div style="text-align: center; padding: 15px; background: rgba(0,255,136,0.1); border-radius: 10px;">
+                            <div style="font-size: 24px; font-weight: 700; color: #00ff88;">${data.totalR > 0 ? '+' : ''}${data.totalR.toFixed(2)}R</div>
+                            <div style="font-size: 12px; color: rgba(255,255,255,0.7);">Total R</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; background: rgba(58,123,213,0.1); border-radius: 10px;">
+                            <div style="font-size: 24px; font-weight: 700; color: #3a7bd5;">${data.trades.length}</div>
+                            <div style="font-size: 12px; color: rgba(255,255,255,0.7);">Trades</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; background: rgba(255,165,2,0.1); border-radius: 10px;">
+                            <div style="font-size: 24px; font-weight: 700; color: #ffa502;">${((data.wins / data.trades.length) * 100).toFixed(0)}%</div>
+                            <div style="font-size: 12px; color: rgba(255,255,255,0.7);">Win Rate</div>
+                        </div>
+                    </div>
+                    <h4 style="color: #00d4aa; margin-bottom: 15px;">Trade Details</h4>
+                    <div style="max-height: 400px; overflow-y: auto;">${tradesHtml}</div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+        }
+        
+        // REMOVED OLD D3 CODE
+        function OLD_D3_CODE_REMOVED() { return; } function glowFilter_REMOVED()
                 .attr('stdDeviation', '3')
                 .attr('result', 'coloredBlur');
             const feMerge = glowFilter.append('feMerge');
