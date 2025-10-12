@@ -389,8 +389,8 @@ def nasdaq_backtest():
 @app.route('/ml-dashboard')
 @login_required
 def ml_dashboard():
-    """Unified ML Intelligence Dashboard"""
-    return read_html_file('ml_intelligence_dashboard.html')
+    """Unified ML Intelligence Dashboard - Auto-Training Version"""
+    return read_html_file('ml_dashboard.html')
 
 @app.route('/ml-dashboard-old')
 @login_required

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ML Intelligence Dashboard</title>
+    <title>Auto-Training ML Dashboard</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -17,16 +17,28 @@
         .container { max-width: 1400px; margin: 0 auto; }
         
         .header {
-            background: rgba(255,255,255,0.1);
-            padding: 20px;
+            background: rgba(0,255,136,0.1);
+            border: 2px solid rgba(0,255,136,0.3);
+            padding: 25px;
             border-radius: 15px;
-            margin-bottom: 20px;
-            backdrop-filter: blur(20px);
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        
+        .auto-badge {
+            background: #00ff88;
+            color: #000;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            display: inline-block;
+            margin-bottom: 15px;
         }
         
         .ml-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 20px;
             margin-bottom: 20px;
         }
@@ -36,31 +48,14 @@
             border-radius: 15px;
             padding: 25px;
             backdrop-filter: blur(10px);
-        }
-        
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 10px;
-        }
-        
-        .status-active { background: #00ff88; animation: pulse 2s infinite; }
-        .status-training { background: #ffa502; animation: pulse 1s infinite; }
-        .status-offline { background: #ff4757; }
-        
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+            border: 1px solid rgba(255,255,255,0.1);
         }
         
         .metric-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 0;
+            padding: 12px 0;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         
@@ -72,28 +67,35 @@
             color: #00ff88;
         }
         
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
         .insights-list {
             list-style: none;
             padding: 0;
         }
         
         .insights-list li {
-            padding: 8px 0;
+            padding: 10px 0;
             border-bottom: 1px solid rgba(255,255,255,0.1);
             font-size: 14px;
-            line-height: 1.4;
+            line-height: 1.5;
         }
         
         .insights-list li:last-child { border-bottom: none; }
-        
-        .auto-status {
-            background: rgba(0,255,136,0.1);
-            border: 1px solid rgba(0,255,136,0.3);
-            border-radius: 8px;
-            padding: 15px;
-            margin: 15px 0;
-            font-size: 14px;
-        }
         
         .nav {
             background: rgba(255,255,255,0.05);
@@ -127,24 +129,16 @@
     
     <div class="container">
         <div class="header">
-            <h1>🤖 ML Intelligence Dashboard</h1>
-            <p>Automated machine learning insights from your trading data</p>
-            <div class="auto-status">
-                <strong>🎯 Fully Automated:</strong> ML trains automatically on your 1676 signals, provides insights without manual intervention
-            </div>
+            <div class="auto-badge">🤖 FULLY AUTOMATED</div>
+            <h1>Auto-Training ML Intelligence</h1>
+            <p>Real insights from your 1676 signals - no buttons, no manual training</p>
         </div>
         
         <div class="ml-grid">
             <div class="ml-card">
-                <h3>📊 ML Training Status</h3>
+                <h3><span class="status-indicator"></span>Training Status</h3>
                 <div class="metric-row">
-                    <span>Training Status:</span>
-                    <span class="metric-value" id="trainingStatus">
-                        <span class="status-indicator status-training"></span>Auto-Training...
-                    </span>
-                </div>
-                <div class="metric-row">
-                    <span>Training Samples:</span>
+                    <span>Samples Analyzed:</span>
                     <span class="metric-value" id="trainingSamples">Loading...</span>
                 </div>
                 <div class="metric-row">
@@ -152,185 +146,127 @@
                     <span class="metric-value" id="modelAccuracy">Loading...</span>
                 </div>
                 <div class="metric-row">
-                    <span>Last Training:</span>
+                    <span>Last Auto-Training:</span>
                     <span class="metric-value" id="lastTraining">Loading...</span>
                 </div>
             </div>
             
             <div class="ml-card">
-                <h3>🎯 Key Insights</h3>
-                <ul class="insights-list" id="keyInsights">
-                    <li>🔄 Loading ML insights from your trading data...</li>
-                    <li>📊 Analyzing 1676 signals for patterns...</li>
-                    <li>🎯 Identifying optimal sessions and setups...</li>
-                </ul>
-            </div>
-        </div>
-        
-        <div class="ml-grid">
-            <div class="ml-card">
                 <h3>📈 Session Performance</h3>
-                <div id="sessionPerformance">
-                    <div class="metric-row">
-                        <span>Best Session:</span>
-                        <span class="metric-value" id="bestSession">Analyzing...</span>
-                    </div>
-                    <div class="metric-row">
-                        <span>Average MFE:</span>
-                        <span class="metric-value" id="bestSessionMFE">Loading...</span>
-                    </div>
-                    <div class="metric-row">
-                        <span>Trade Count:</span>
-                        <span class="metric-value" id="bestSessionCount">Loading...</span>
-                    </div>
+                <div class="metric-row">
+                    <span>Best Session:</span>
+                    <span class="metric-value" id="bestSession">Analyzing...</span>
+                </div>
+                <div class="metric-row">
+                    <span>Average MFE:</span>
+                    <span class="metric-value" id="bestSessionMFE">Loading...</span>
+                </div>
+                <div class="metric-row">
+                    <span>Trade Count:</span>
+                    <span class="metric-value" id="bestSessionCount">Loading...</span>
                 </div>
             </div>
             
             <div class="ml-card">
-                <h3>🎲 Optimal Targets</h3>
-                <div id="optimalTargets">
-                    <div class="metric-row">
-                        <span>1R Hit Rate:</span>
-                        <span class="metric-value" id="target1R">Loading...</span>
-                    </div>
-                    <div class="metric-row">
-                        <span>2R Hit Rate:</span>
-                        <span class="metric-value" id="target2R">Loading...</span>
-                    </div>
-                    <div class="metric-row">
-                        <span>3R Hit Rate:</span>
-                        <span class="metric-value" id="target3R">Loading...</span>
-                    </div>
+                <h3>🎯 Optimal Targets</h3>
+                <div class="metric-row">
+                    <span>1R Hit Rate:</span>
+                    <span class="metric-value" id="target1R">Loading...</span>
+                </div>
+                <div class="metric-row">
+                    <span>2R Hit Rate:</span>
+                    <span class="metric-value" id="target2R">Loading...</span>
+                </div>
+                <div class="metric-row">
+                    <span>3R Hit Rate:</span>
+                    <span class="metric-value" id="target3R">Loading...</span>
+                </div>
+            </div>
+            
+            <div class="ml-card">
+                <h3>⚖️ Bias Analysis</h3>
+                <div class="metric-row">
+                    <span>Bullish Performance:</span>
+                    <span class="metric-value" id="bullishPerf">Loading...</span>
+                </div>
+                <div class="metric-row">
+                    <span>Bearish Performance:</span>
+                    <span class="metric-value" id="bearishPerf">Loading...</span>
+                </div>
+                <div class="metric-row">
+                    <span>Recommended Bias:</span>
+                    <span class="metric-value" id="recBias">Loading...</span>
                 </div>
             </div>
         </div>
         
         <div class="ml-card">
-            <h3>🔮 ML Recommendations</h3>
+            <h3>🔮 AI Recommendations</h3>
             <ul class="insights-list" id="mlRecommendations">
-                <li>🎯 Training ML models on your historical data...</li>
-                <li>📊 Will provide personalized recommendations based on your actual performance</li>
-                <li>🚀 Insights will appear automatically once training completes</li>
+                <li>🎯 Auto-training on your historical data...</li>
+                <li>📊 Analyzing patterns from 1676 signals...</li>
+                <li>🚀 Personalized insights loading...</li>
             </ul>
         </div>
     </div>
 
     <script>
-        let mlData = null;
-        
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🤖 ML Dashboard initializing...');
-            loadMLData();
+            console.log('🤖 Auto-Training ML Dashboard loaded');
+            loadMLInsights();
             
             // Auto-refresh every 30 seconds
-            setInterval(loadMLData, 30000);
+            setInterval(loadMLInsights, 30000);
         });
         
-        async function loadMLData() {
+        async function loadMLInsights() {
             try {
-                // First trigger training
-                const trainResponse = await fetch('/api/ml-train', { method: 'POST' });
-                const trainData = await trainResponse.json();
+                const response = await fetch('/api/ml-insights');
+                const data = await response.json();
                 
-                updateTrainingStatus(trainData);
-                
-                // Then get insights
-                const insightsResponse = await fetch('/api/ml-insights');
-                const insightsData = await insightsResponse.json();
-                
-                updateInsights(insightsData);
+                updateDashboard(data);
                 
             } catch (error) {
-                console.error('❌ Error loading ML data:', error);
-                updateErrorState();
+                console.error('❌ Error loading ML insights:', error);
+                showError();
             }
         }
         
-        function updateTrainingStatus(data) {
-            const statusEl = document.getElementById('trainingStatus');
-            const samplesEl = document.getElementById('trainingSamples');
-            const accuracyEl = document.getElementById('modelAccuracy');
-            const lastTrainingEl = document.getElementById('lastTraining');
-            
-            if (data.status === 'success') {
-                statusEl.innerHTML = '<span class="status-indicator status-active"></span>Trained';
-                samplesEl.textContent = data.training_samples || 0;
-                accuracyEl.textContent = data.success_accuracy ? `${data.success_accuracy.toFixed(1)}%` : 'N/A';
-                lastTrainingEl.textContent = 'Just now';
-            } else if (data.status === 'dependencies_missing') {
-                statusEl.innerHTML = '<span class="status-indicator status-offline"></span>Dependencies Missing';
-                samplesEl.textContent = '0';
-                accuracyEl.textContent = 'N/A';
-                lastTrainingEl.textContent = 'Never';
-            } else if (data.status === 'database_offline') {
-                statusEl.innerHTML = '<span class="status-indicator status-offline"></span>Database Offline';
-                samplesEl.textContent = '0';
-                accuracyEl.textContent = 'N/A';
-                lastTrainingEl.textContent = 'Never';
-            } else {
-                statusEl.innerHTML = '<span class="status-indicator status-training"></span>Training...';
-                samplesEl.textContent = 'Loading...';
-                accuracyEl.textContent = 'Loading...';
-                lastTrainingEl.textContent = 'In progress';
-            }
-        }
-        
-        function updateInsights(data) {
-            if (data.error) {
-                document.getElementById('keyInsights').innerHTML = 
-                    `<li>❌ ${data.error}</li>`;
-                return;
+        function updateDashboard(data) {
+            // Update training status
+            if (data.performance) {
+                const perf = data.performance;
+                document.getElementById('trainingSamples').textContent = perf.training_samples || '0';
+                document.getElementById('modelAccuracy').textContent = perf.success_accuracy ? `${perf.success_accuracy.toFixed(1)}%` : 'Training...';
+                document.getElementById('lastTraining').textContent = perf.last_training ? 'Recently' : 'In Progress';
             }
             
-            // Update key insights
-            const insights = [];
-            
-            if (data.best_sessions && data.best_sessions.best_session) {
+            // Update session performance
+            if (data.best_sessions) {
                 const session = data.best_sessions;
-                insights.push(`✅ Best session: ${session.best_session} (${session.avg_mfe.toFixed(2)}R avg from ${session.trade_count} trades)`);
-                
-                document.getElementById('bestSession').textContent = session.best_session;
-                document.getElementById('bestSessionMFE').textContent = `${session.avg_mfe.toFixed(2)}R`;
-                document.getElementById('bestSessionCount').textContent = session.trade_count;
+                document.getElementById('bestSession').textContent = session.best_session || 'Analyzing';
+                document.getElementById('bestSessionMFE').textContent = session.avg_mfe ? `${session.avg_mfe.toFixed(2)}R` : 'Loading';
+                document.getElementById('bestSessionCount').textContent = session.trade_count || '0';
             }
             
-            if (data.best_signal_types && data.best_signal_types.best_signal_type) {
-                const signal = data.best_signal_types;
-                insights.push(`✅ Best signal: ${signal.best_signal_type} (${signal.avg_mfe.toFixed(2)}R avg)`);
-            }
-            
+            // Update optimal targets
             if (data.optimal_targets) {
                 const targets = data.optimal_targets;
-                if (targets['1.0R']) {
-                    document.getElementById('target1R').textContent = `${targets['1.0R'].hit_rate.toFixed(1)}%`;
-                }
-                if (targets['2.0R']) {
-                    document.getElementById('target2R').textContent = `${targets['2.0R'].hit_rate.toFixed(1)}%`;
-                }
-                if (targets['3.0R']) {
-                    document.getElementById('target3R').textContent = `${targets['3.0R'].hit_rate.toFixed(1)}%`;
-                }
-                
-                const bestTarget = Object.entries(targets)
-                    .sort(([,a], [,b]) => (b.hit_rate * b.avg_when_hit) - (a.hit_rate * a.avg_when_hit))[0];
-                
-                if (bestTarget) {
-                    insights.push(`✅ Optimal target: ${bestTarget[0]} (${bestTarget[1].hit_rate.toFixed(1)}% hit rate)`);
-                }
+                document.getElementById('target1R').textContent = targets['1.0R'] ? `${targets['1.0R'].hit_rate.toFixed(1)}%` : 'Loading';
+                document.getElementById('target2R').textContent = targets['2.0R'] ? `${targets['2.0R'].hit_rate.toFixed(1)}%` : 'Loading';
+                document.getElementById('target3R').textContent = targets['3.0R'] ? `${targets['3.0R'].hit_rate.toFixed(1)}%` : 'Loading';
             }
             
+            // Update bias analysis
             if (data.bias_performance) {
                 const bias = data.bias_performance;
-                if (bias.bullish.avg_mfe > bias.bearish.avg_mfe) {
-                    insights.push(`✅ Bullish bias performs better (${bias.bullish.avg_mfe.toFixed(2)}R vs ${bias.bearish.avg_mfe.toFixed(2)}R)`);
-                } else {
-                    insights.push(`✅ Bearish bias performs better (${bias.bearish.avg_mfe.toFixed(2)}R vs ${bias.bullish.avg_mfe.toFixed(2)}R)`);
+                document.getElementById('bullishPerf').textContent = bias.bullish ? `${bias.bullish.avg_mfe.toFixed(2)}R` : 'Loading';
+                document.getElementById('bearishPerf').textContent = bias.bearish ? `${bias.bearish.avg_mfe.toFixed(2)}R` : 'Loading';
+                
+                if (bias.bullish && bias.bearish) {
+                    const better = bias.bullish.avg_mfe > bias.bearish.avg_mfe ? 'Bullish' : 'Bearish';
+                    document.getElementById('recBias').textContent = better;
                 }
-            }
-            
-            if (insights.length > 0) {
-                document.getElementById('keyInsights').innerHTML = 
-                    insights.map(insight => `<li>${insight}</li>`).join('');
             }
             
             // Update recommendations
@@ -340,11 +276,9 @@
             }
         }
         
-        function updateErrorState() {
-            document.getElementById('trainingStatus').innerHTML = 
-                '<span class="status-indicator status-offline"></span>Error';
-            document.getElementById('keyInsights').innerHTML = 
-                '<li>❌ Unable to load ML insights. Check server connection.</li>';
+        function showError() {
+            document.getElementById('mlRecommendations').innerHTML = 
+                '<li>❌ Unable to load ML insights. Auto-training may be in progress.</li>';
         }
     </script>
 </body>
