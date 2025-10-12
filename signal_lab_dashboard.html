@@ -4500,6 +4500,11 @@ CURRENT PERFORMANCE METRICS:
                     renderMonthCalendar(monthKey, year, month, dailyData, maxR, minR);
                 });
                 console.log('✅ Calendar rendering complete');
+                
+                // Call callback after all months rendered
+                if (callback && typeof callback === 'function') {
+                    callback();
+                }
             }, 100);
             
             // Store daily data globally
@@ -4573,11 +4578,6 @@ CURRENT PERFORMANCE METRICS:
             
             container.innerHTML = html;
             console.log(`📅 Rendered ${daysInMonth} days for ${monthKey}, HTML length: ${html.length}`);
-            
-            // Call callback after calendar generation completes
-            if (callback && typeof callback === 'function') {
-                callback();
-            }
         }
         
         function showDayDetails(dateStr) {
