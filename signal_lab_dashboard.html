@@ -4346,15 +4346,24 @@ CURRENT PERFORMANCE METRICS:
         // Advanced Performance Calendar - NY EST Timezone Synchronized
         // This calendar uses the same timezone handling as /signal-analysis-lab
         function generateDailyCalendar(callback) {
+            console.log('🗓️ Generating daily calendar...');
+            console.log('📊 Total signals available:', signals.length);
+            
             const beStrategy = document.getElementById('beStrategy').value;
             const rTarget = parseFloat(document.getElementById('rTarget').value) || 2;
             const selectedSessions = getSelectedSessions();
+            
+            console.log('🎯 Selected sessions:', selectedSessions);
+            console.log('⚙️ BE Strategy:', beStrategy, 'R-Target:', rTarget);
             
             const filteredSignals = signals.filter(signal => 
                 selectedSessions.includes(signal.session)
             );
             
+            console.log('📈 Filtered signals for calendar:', filteredSignals.length);
+            
             if (filteredSignals.length === 0) {
+                console.log('❌ No signals after filtering - showing no data message');
                 document.getElementById('dailyCalendar').innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.7);">No data available for selected filters</div>';
                 return;
             }
@@ -4479,14 +4488,18 @@ CURRENT PERFORMANCE METRICS:
                 </div>
             `;
             
+            console.log('📅 Setting calendar HTML...');
             document.getElementById('dailyCalendar').innerHTML = calendarHtml;
             
             // Render each month
+            console.log('🎨 Rendering', sortedMonths.length, 'months:', sortedMonths);
             setTimeout(() => {
                 sortedMonths.forEach(monthKey => {
                     const [year, month] = monthKey.split('-').map(Number);
+                    console.log('📆 Rendering month:', monthKey);
                     renderMonthCalendar(monthKey, year, month, dailyData, maxR, minR);
                 });
+                console.log('✅ Calendar rendering complete');
             }, 100);
             
             // Store daily data globally
@@ -4494,8 +4507,13 @@ CURRENT PERFORMANCE METRICS:
         }
         
         function renderMonthCalendar(monthKey, year, month, dailyData, maxR, minR) {
+            console.log('📆 Rendering calendar for month:', monthKey);
             const container = document.getElementById(`month-${monthKey}`);
-            if (!container) return;
+            if (!container) {
+                console.log('❌ Container not found for month:', monthKey);
+                return;
+            }
+            console.log('✅ Container found for month:', monthKey);
             
             const firstDay = new Date(year, month - 1, 1);
             const lastDay = new Date(year, month, 0);
