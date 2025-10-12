@@ -54,8 +54,8 @@ class UnifiedMLIntelligence:
             # Get ALL training data
             trades = self._get_all_trades()
             
-            if len(trades) < 20:
-                return {'error': f'Insufficient data: {len(trades)} trades (need 20+)'}
+            if len(trades) < 10:
+                return {'error': f'Insufficient data: {len(trades)} trades (need 10+)'}
             
             logger.info(f"🎯 Training ML on {len(trades)} trades...")
             
@@ -177,22 +177,41 @@ class UnifiedMLIntelligence:
         """Answer fundamental questions about your trading using ML"""
         
         try:
-            trades = self._get_all_trades()
+            # Get ALL trades for insights (not just those with MFE)
+            cursor = self.db.conn.cursor()
+            cursor.execute("""
+                SELECT date, time, bias, session, signal_type,
+                       COALESCE(mfe_none, mfe, 0) as mfe,
+                       COALESCE(be1_hit, false) as be1_hit,
+                       COALESCE(be2_hit, false) as be2_hit,
+                       news_proximity, news_event
+                FROM signal_lab_trades
+                ORDER BY date DESC, time DESC
+            """)
             
-            if len(trades) < 10:
-                return {'error': 'Insufficient data for insights'}
+            trades = [dict(row) for row in cursor.fetchall()]
+            
+            if len(trades) < 5:
+                return {'error': f'Insufficient data for insights: {len(trades)} trades'}
             
             df = pd.DataFrame(trades)
             
+            # Separate trades with and without MFE
+            trades_with_mfe = df[df['mfe'] != 0]
+            
             insights = {
+                'total_trades': len(trades),
+                'trades_with_outcomes': len(trades_with_mfe),
                 'best_sessions': self._analyze_best_sessions(df),
                 'best_signal_types': self._analyze_best_signals(df),
-                'optimal_targets': self._analyze_optimal_targets(df),
-                'news_impact': self._analyze_news_impact(df),
                 'bias_performance': self._analyze_bias_performance(df),
-                'breakeven_effectiveness': self._analyze_breakeven(df),
                 'key_recommendations': []
             }
+            
+            # Only analyze targets if we have outcome data
+            if len(trades_with_mfe) > 0:
+                insights['optimal_targets'] = self._analyze_optimal_targets(trades_with_mfe)
+                insights['breakeven_effectiveness'] = self._analyze_breakeven(trades_with_mfe)
             
             # Generate key recommendations
             insights['key_recommendations'] = self._generate_key_recommendations(insights)
@@ -208,7 +227,7 @@ class UnifiedMLIntelligence:
         
         cursor = self.db.conn.cursor()
         
-        # Get 1M trades
+        # Get ALL 1M trades (including those without MFE for pattern analysis)
         cursor.execute("""
             SELECT date, time, bias, session, signal_type,
                    COALESCE(mfe_none, mfe, 0) as mfe,
@@ -219,27 +238,27 @@ class UnifiedMLIntelligence:
                    news_proximity, news_event,
                    market_context, context_quality_score
             FROM signal_lab_trades
-            WHERE COALESCE(mfe_none, mfe, 0) != 0
             ORDER BY date DESC, time DESC
         """)
         
         trades_1m = [dict(row) for row in cursor.fetchall()]
         
-        # Get 15M trades
-        cursor.execute("""
-            SELECT date, time, bias, session, signal_type,
-                   COALESCE(mfe_none, 0) as mfe,
-                   COALESCE(be1_hit, false) as be1_hit,
-                   COALESCE(be2_hit, false) as be2_hit,
-                   COALESCE(mfe1, 0) as mfe1,
-                   COALESCE(mfe2, 0) as mfe2,
-                   news_proximity, news_event
-            FROM signal_lab_15m_trades
-            WHERE COALESCE(mfe_none, 0) != 0
-            ORDER BY date DESC, time DESC
-        """)
-        
-        trades_15m = [dict(row) for row in cursor.fetchall()]
+        # Get 15M trades if table exists
+        try:
+            cursor.execute("""
+                SELECT date, time, bias, session, signal_type,
+                       COALESCE(mfe_none, 0) as mfe,
+                       COALESCE(be1_hit, false) as be1_hit,
+                       COALESCE(be2_hit, false) as be2_hit,
+                       COALESCE(mfe1, 0) as mfe1,
+                       COALESCE(mfe2, 0) as mfe2,
+                       news_proximity, news_event
+                FROM signal_lab_15m_trades
+                ORDER BY date DESC, time DESC
+            """)
+            trades_15m = [dict(row) for row in cursor.fetchall()]
+        except:
+            trades_15m = []
         
         # Mark timeframe
         for trade in trades_1m:
@@ -249,9 +268,12 @@ class UnifiedMLIntelligence:
         
         all_trades = trades_1m + trades_15m
         
-        logger.info(f"📊 Loaded {len(trades_1m)} 1M trades + {len(trades_15m)} 15M trades = {len(all_trades)} total")
+        # Filter for trades with actual outcomes for training
+        training_trades = [t for t in all_trades if t.get('mfe', 0) != 0]
         
-        return all_trades
+        logger.info(f"📊 Loaded {len(all_trades)} total trades ({len(training_trades)} with MFE for training)")
+        
+        return training_trades if len(training_trades) >= 20 else all_trades
     
     def _prepare_training_data(self, trades: List[Dict]):
         """Prepare features and targets for ML training"""
@@ -361,38 +383,68 @@ class UnifiedMLIntelligence:
     def _analyze_best_sessions(self, df: pd.DataFrame) -> Dict:
         """Find best trading sessions"""
         
-        session_stats = df.groupby('session').agg({
-            'mfe': ['count', 'mean', 'std']
-        }).round(3)
+        # Count all trades by session
+        session_counts = df.groupby('session').size()
         
-        best_session = session_stats['mfe']['mean'].idxmax()
+        # For sessions with MFE data, calculate performance
+        df_with_mfe = df[df['mfe'] != 0]
         
+        if len(df_with_mfe) > 0:
+            session_stats = df_with_mfe.groupby('session').agg({
+                'mfe': ['count', 'mean', 'std']
+            }).round(3)
+            
+            if len(session_stats) > 0:
+                best_session = session_stats['mfe']['mean'].idxmax()
+                
+                return {
+                    'best_session': best_session,
+                    'avg_mfe': float(session_stats.loc[best_session, ('mfe', 'mean')]),
+                    'trade_count': int(session_stats.loc[best_session, ('mfe', 'count')]),
+                    'total_trades_in_session': int(session_counts.get(best_session, 0))
+                }
+        
+        # Fallback: most active session
+        most_active_session = session_counts.idxmax()
         return {
-            'best_session': best_session,
-            'avg_mfe': float(session_stats.loc[best_session, ('mfe', 'mean')]),
-            'trade_count': int(session_stats.loc[best_session, ('mfe', 'count')]),
-            'all_sessions': session_stats.to_dict()
+            'best_session': most_active_session,
+            'avg_mfe': 0.0,
+            'trade_count': int(session_counts[most_active_session]),
+            'total_trades_in_session': int(session_counts[most_active_session])
         }
     
     def _analyze_best_signals(self, df: pd.DataFrame) -> Dict:
         """Find best signal types"""
         
-        signal_stats = df.groupby('signal_type').agg({
-            'mfe': ['count', 'mean']
-        }).round(3)
+        # Count all signal types
+        signal_counts = df.groupby('signal_type').size()
         
-        # Filter signals with at least 5 occurrences
-        signal_stats = signal_stats[signal_stats[('mfe', 'count')] >= 5]
+        # For signals with MFE data, calculate performance
+        df_with_mfe = df[df['mfe'] != 0]
         
-        if len(signal_stats) == 0:
-            return {'error': 'No signal types with sufficient data'}
+        if len(df_with_mfe) > 0:
+            signal_stats = df_with_mfe.groupby('signal_type').agg({
+                'mfe': ['count', 'mean']
+            }).round(3)
+            
+            # Filter signals with at least 3 occurrences
+            signal_stats = signal_stats[signal_stats[('mfe', 'count')] >= 3]
+            
+            if len(signal_stats) > 0:
+                best_signal = signal_stats['mfe']['mean'].idxmax()
+                
+                return {
+                    'best_signal_type': best_signal,
+                    'avg_mfe': float(signal_stats.loc[best_signal, ('mfe', 'mean')]),
+                    'trade_count': int(signal_stats.loc[best_signal, ('mfe', 'count')])
+                }
         
-        best_signal = signal_stats['mfe']['mean'].idxmax()
-        
+        # Fallback: most common signal type
+        most_common_signal = signal_counts.idxmax()
         return {
-            'best_signal_type': best_signal,
-            'avg_mfe': float(signal_stats.loc[best_signal, ('mfe', 'mean')]),
-            'trade_count': int(signal_stats.loc[best_signal, ('mfe', 'count')])
+            'best_signal_type': most_common_signal,
+            'avg_mfe': 0.0,
+            'trade_count': int(signal_counts[most_common_signal])
         }
     
     def _analyze_optimal_targets(self, df: pd.DataFrame) -> Dict:
@@ -427,20 +479,39 @@ class UnifiedMLIntelligence:
     def _analyze_bias_performance(self, df: pd.DataFrame) -> Dict:
         """Analyze bias performance"""
         
-        bias_stats = df.groupby('bias').agg({
-            'mfe': ['count', 'mean']
-        }).round(3)
+        # Count all trades by bias
+        bias_counts = df.groupby('bias').size()
         
-        return {
-            'bullish': {
-                'count': int(bias_stats.loc['Bullish', ('mfe', 'count')]) if 'Bullish' in bias_stats.index else 0,
-                'avg_mfe': float(bias_stats.loc['Bullish', ('mfe', 'mean')]) if 'Bullish' in bias_stats.index else 0
-            },
-            'bearish': {
-                'count': int(bias_stats.loc['Bearish', ('mfe', 'count')]) if 'Bearish' in bias_stats.index else 0,
-                'avg_mfe': float(bias_stats.loc['Bearish', ('mfe', 'mean')]) if 'Bearish' in bias_stats.index else 0
-            }
+        # For trades with MFE data, calculate performance
+        df_with_mfe = df[df['mfe'] != 0]
+        
+        result = {
+            'bullish': {'count': 0, 'avg_mfe': 0.0},
+            'bearish': {'count': 0, 'avg_mfe': 0.0}
         }
+        
+        if len(df_with_mfe) > 0:
+            bias_stats = df_with_mfe.groupby('bias').agg({
+                'mfe': ['count', 'mean']
+            }).round(3)
+            
+            if 'Bullish' in bias_stats.index:
+                result['bullish'] = {
+                    'count': int(bias_stats.loc['Bullish', ('mfe', 'count')]),
+                    'avg_mfe': float(bias_stats.loc['Bullish', ('mfe', 'mean')])
+                }
+            
+            if 'Bearish' in bias_stats.index:
+                result['bearish'] = {
+                    'count': int(bias_stats.loc['Bearish', ('mfe', 'count')]),
+                    'avg_mfe': float(bias_stats.loc['Bearish', ('mfe', 'mean')])
+                }
+        
+        # Add total counts
+        result['bullish']['total_count'] = int(bias_counts.get('Bullish', 0))
+        result['bearish']['total_count'] = int(bias_counts.get('Bearish', 0))
+        
+        return result
     
     def _analyze_breakeven(self, df: pd.DataFrame) -> Dict:
         """Analyze breakeven strategy effectiveness"""
