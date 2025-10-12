@@ -4520,6 +4520,9 @@ CURRENT PERFORMANCE METRICS:
             const startDayOfWeek = firstDay.getDay();
             const daysInMonth = lastDay.getDate();
             
+            console.log(`📅 Month ${monthKey}: ${daysInMonth} days, starts on day ${startDayOfWeek}`);
+            console.log(`📊 Days with data:`, Object.keys(dailyData).filter(d => d.startsWith(monthKey)).length);
+            
             let html = '';
             
             // Empty cells before month starts
@@ -4533,6 +4536,10 @@ CURRENT PERFORMANCE METRICS:
                 const data = dailyData[dateStr];
                 const dayOfWeek = new Date(dateStr).getDay();
                 const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                
+                if (day <= 3 || day >= daysInMonth - 2) {
+                    console.log(`📆 ${dateStr}: hasData=${!!data}, isWeekend=${isWeekend}, dayOfWeek=${dayOfWeek}`);
+                }
                 
                 if (data) {
                     const intensity = Math.abs(data.totalR) / Math.max(Math.abs(maxR), Math.abs(minR));
@@ -4558,13 +4565,14 @@ CURRENT PERFORMANCE METRICS:
                         </div>
                     `;
                 } else if (isWeekend) {
-                    html += `<div style="background: rgba(255,255,255,0.03); padding: 4px; border-radius: 4px; text-align: center; opacity: 0.5; min-height: 24px; display: flex; align-items: center; justify-content: center;"><div style="font-size: 10px;">${day}</div></div>`;
+                    html += `<div style="background: rgba(255,255,255,0.03); padding: 4px; border-radius: 4px; text-align: center; opacity: 0.5; min-height: 24px; display: flex; align-items: center; justify-content: center;"><div style="font-size: 10px; font-weight: 500;">${day}</div></div>`;
                 } else {
-                    html += `<div style="background: rgba(255,255,255,0.05); padding: 4px; border-radius: 4px; text-align: center; min-height: 24px; display: flex; align-items: center; justify-content: center;"><div style="font-size: 10px; color: rgba(255,255,255,0.5);">${day}</div></div>`;
+                    html += `<div style="background: rgba(255,255,255,0.05); padding: 4px; border-radius: 4px; text-align: center; min-height: 24px; display: flex; align-items: center; justify-content: center;"><div style="font-size: 10px; color: rgba(255,255,255,0.5); font-weight: 500;">${day}</div></div>`;
                 }
             }
             
             container.innerHTML = html;
+            console.log(`📅 Rendered ${daysInMonth} days for ${monthKey}, HTML length: ${html.length}`);
             
             // Call callback after calendar generation completes
             if (callback && typeof callback === 'function') {
