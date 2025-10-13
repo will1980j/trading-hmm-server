@@ -154,6 +154,7 @@
             const avgWin = winResults.length > 0 ? winResults.reduce((a, b) => a + b, 0) / winResults.length : 0;
             const avgLoss = lossResults.length > 0 ? Math.abs(lossResults.reduce((a, b) => a + b, 0) / lossResults.length) : 0;
             const expectancy = total > 0 ? (((wins + breakevens) / total) * avgWin) - ((losses / total) * avgLoss) : 0;
+            console.log(`Session stats - Wins: ${wins}, Losses: ${losses}, BEs: ${breakevens}, AvgWin: ${avgWin.toFixed(2)}, AvgLoss: ${avgLoss.toFixed(2)}, Expectancy: ${expectancy.toFixed(3)}, TotalR: ${totalR.toFixed(1)}`);
             let maxConsecLosses = 0, currentConsecLosses = 0, maxDrawdown = 0, currentDrawdown = 0, peak = 0, runningTotal = 0;
             results.forEach(result => {
                 runningTotal += result;
@@ -233,6 +234,7 @@
                     selectedSessions.forEach(session => {
                         const sessionSignals = signals.filter(s => s.session === session);
                         if (sessionSignals.length < 30) return;
+                        console.log(`Testing ${session} - BE:${beStrategy} - R:${rTarget} - Signals:${sessionSignals.length}`);
                         const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
                         const stats = calculateStats(results);
                         const maxDailyLossPercent = stats.maxConsecLosses * constraints.riskPerTrade;
