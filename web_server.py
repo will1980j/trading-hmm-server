@@ -392,6 +392,11 @@ def ml_dashboard():
     """Unified ML Intelligence Dashboard - Auto-Training Version"""
     return read_html_file('ml_dashboard.html')
 
+@app.route('/strategy-optimizer')
+@login_required
+def strategy_optimizer():
+    return read_html_file('strategy_optimizer.html')
+
 @app.route('/ml-dashboard-old')
 @login_required
 def ml_dashboard_old():
