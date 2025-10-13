@@ -220,6 +220,7 @@
             const rTargets = [1, 1.5, 2, 2.5, 3, 3.5, 4];
             let allCombinations = [], bestOverall = null, bestScore = -999;
             
+            // Single sessions
             beStrategies.forEach(beStrategy => {
                 rTargets.forEach(rTarget => {
                     selectedSessions.forEach(session => {
@@ -241,6 +242,31 @@
                 });
             });
             
+            // Multi-session combinations
+            beStrategies.forEach(beStrategy => {
+                rTargets.forEach(rTarget => {
+                    for (let i = 0; i < selectedSessions.length; i++) {
+                        for (let j = i + 1; j < selectedSessions.length; j++) {
+                            const sessionPair = [selectedSessions[i], selectedSessions[j]];
+                            const combinedSignals = signals.filter(s => sessionPair.includes(s.session));
+                            if (combinedSignals.length < 20) continue;
+                            const results = combinedSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
+                            const stats = calculateStats(results);
+                            const maxDailyLossPercent = stats.maxConsecLosses * constraints.riskPerTrade;
+                            const maxDrawdownPercent = stats.maxDrawdown * constraints.riskPerTrade;
+                            const propViable = maxDailyLossPercent <= constraints.maxDailyLoss && 
+                                             maxDrawdownPercent <= constraints.maxDrawdown && 
+                                             stats.winRate >= constraints.minWinRate;
+                            if (!propViable) continue;
+                            const score = (stats.expectancy * 50) + (stats.winRate / 100 * 25) + ((stats.totalR / stats.total) * 15) + 10;
+                            const combo = { sessions: sessionPair, beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent };
+                            allCombinations.push(combo);
+                            if (score > bestScore) { bestScore = score; bestOverall = combo; }
+                        }
+                    }
+                });
+            });
+            
             if (!bestOverall) {
                 document.getElementById('results').innerHTML = '<div class="warning-box"><strong>❌ No viable strategy found</strong><br>All combinations violate prop firm constraints.</div>';
                 return;
@@ -250,7 +276,8 @@
             const topAlternatives = allCombinations.slice(0, 10);
             
             const timeWindows = {};
-            selectedSessions.forEach(session => {
+            const sessionsToAnalyze = [...new Set(bestOverall.sessions)];
+            sessionsToAnalyze.forEach(session => {
                 const sessionSignals = signals.filter(s => s.session === session);
                 if (sessionSignals.length >= 10) timeWindows[session] = analyzeTimeWindows(sessionSignals, session);
             });
@@ -309,9 +336,9 @@
                 <div class="section">
                     <div class="section-title">📊 Top 10 Alternative Strategies</div>
                     <table class="comparison-table">
-                        <thead><tr><th>Rank</th><th>Session</th><th>BE</th><th>R-Target</th><th>Expectancy</th><th>Win Rate</th><th>Daily Loss</th><th>Score</th></tr></thead>
+                        <thead><tr><th>Rank</th><th>Sessions</th><th>BE</th><th>R-Target</th><th>Expectancy</th><th>Win Rate</th><th>Daily Loss</th><th>Trades</th><th>Score</th></tr></thead>
                         <tbody>
-                            ${alternatives.map((c, i) => `<tr><td>${i+1}</td><td>${c.sessions[0]}</td><td>${beText[c.beStrategy]}</td><td>${c.rTarget}R</td><td>${c.stats.expectancy.toFixed(3)}R</td><td>${c.stats.winRate.toFixed(1)}%</td><td>${c.maxDailyLossPercent.toFixed(1)}%</td><td style="color: #00ff88; font-weight: 600;">${c.score.toFixed(1)}</td></tr>`).join('')}
+                            ${alternatives.map((c, i) => `<tr><td>${i+1}</td><td>${c.sessions.join(' + ')}</td><td>${beText[c.beStrategy]}</td><td>${c.rTarget}R</td><td>${c.stats.expectancy.toFixed(3)}R</td><td>${c.stats.winRate.toFixed(1)}%</td><td>${c.maxDailyLossPercent.toFixed(1)}%</td><td>${c.stats.total}</td><td style="color: #00ff88; font-weight: 600;">${c.score.toFixed(1)}</td></tr>`).join('')}
                         </tbody>
                     </table>
                 </div>
