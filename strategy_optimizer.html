@@ -134,7 +134,7 @@
         
         function calculateTradeResult(signal, beStrategy, rTarget) {
             const mfe = beStrategy === 'be1' ? signal.mfe1 : signal.mfeNone;
-            if (!mfe || mfe === 0) return rTarget;
+            if (!mfe || mfe === 0) return -1;
             if (beStrategy === 'none') return mfe < 0 ? -1 : (mfe >= rTarget ? rTarget : -1);
             if (mfe < 1) return -1;
             if (mfe >= 1 && mfe < rTarget) return 0;
@@ -232,7 +232,7 @@
                 rTargets.forEach(rTarget => {
                     selectedSessions.forEach(session => {
                         const sessionSignals = signals.filter(s => s.session === session);
-                        if (sessionSignals.length < 10) return;
+                        if (sessionSignals.length < 30) return;
                         const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
                         const stats = calculateStats(results);
                         const maxDailyLossPercent = stats.maxConsecLosses * constraints.riskPerTrade;
@@ -258,7 +258,7 @@
                         for (let j = i + 1; j < selectedSessions.length; j++) {
                             const sessionPair = [selectedSessions[i], selectedSessions[j]];
                             const combinedSignals = signals.filter(s => sessionPair.includes(s.session));
-                            if (combinedSignals.length < 20) continue;
+                            if (combinedSignals.length < 50) continue;
                             const results = combinedSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
                             const stats = calculateStats(results);
                             const maxDailyLossPercent = stats.maxConsecLosses * constraints.riskPerTrade;
