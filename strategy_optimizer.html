@@ -241,8 +241,10 @@
                                          maxDrawdownPercent <= constraints.maxDrawdown && 
                                          stats.winRate >= constraints.minWinRate;
                         if (!propViable) return;
-                        const score = (stats.expectancy * 50) + (stats.winRate / 100 * 25) + ((stats.totalR / stats.total) * 15) + 10;
-                        const combo = { sessions: [session], beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent };
+                        const avgRPerTrade = stats.totalR / stats.total;
+                        const sharpe = stats.expectancy / (stats.maxDrawdown > 0 ? stats.maxDrawdown : 1);
+                        const score = (stats.expectancy * 40) + (stats.winRate / 100 * 20) + (avgRPerTrade * 15) + (sharpe * 10) + (Math.log(stats.total) * 5);
+                        const combo = { sessions: [session], beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade };
                         allCombinations.push(combo);
                         if (score > bestScore) { bestScore = score; bestOverall = combo; }
                     });
@@ -265,8 +267,10 @@
                                              maxDrawdownPercent <= constraints.maxDrawdown && 
                                              stats.winRate >= constraints.minWinRate;
                             if (!propViable) continue;
-                            const score = (stats.expectancy * 50) + (stats.winRate / 100 * 25) + ((stats.totalR / stats.total) * 15) + 10;
-                            const combo = { sessions: sessionPair, beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent };
+                            const avgRPerTrade = stats.totalR / stats.total;
+                            const sharpe = stats.expectancy / (stats.maxDrawdown > 0 ? stats.maxDrawdown : 1);
+                            const score = (stats.expectancy * 40) + (stats.winRate / 100 * 20) + (avgRPerTrade * 15) + (sharpe * 10) + (Math.log(stats.total) * 5);
+                            const combo = { sessions: sessionPair, beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade };
                             allCombinations.push(combo);
                             if (score > bestScore) { bestScore = score; bestOverall = combo; }
                         }
@@ -343,9 +347,9 @@
                 <div class="section">
                     <div class="section-title">📊 Top 10 Alternative Strategies</div>
                     <table class="comparison-table">
-                        <thead><tr><th>Rank</th><th>Sessions</th><th>BE</th><th>R-Target</th><th>Expectancy</th><th>Win Rate</th><th>Daily Loss</th><th>Trades</th><th>Score</th></tr></thead>
+                        <thead><tr><th>Rank</th><th>Sessions</th><th>BE</th><th>R-Target</th><th>Expectancy</th><th>Win Rate</th><th>Avg R/Trade</th><th>Daily Loss</th><th>Trades</th><th>Score</th></tr></thead>
                         <tbody>
-                            ${alternatives.map((c, i) => `<tr><td>${i+1}</td><td>${c.sessions.join(' + ')}</td><td>${beText[c.beStrategy]}</td><td>${c.rTarget}R</td><td>${c.stats.expectancy.toFixed(3)}R</td><td>${c.stats.winRate.toFixed(1)}%</td><td>${c.maxDailyLossPercent.toFixed(1)}%</td><td>${c.stats.total}</td><td style="color: #00ff88; font-weight: 600;">${c.score.toFixed(1)}</td></tr>`).join('')}
+                            ${alternatives.map((c, i) => `<tr><td>${i+1}</td><td>${c.sessions.join(' + ')}</td><td>${beText[c.beStrategy]}</td><td>${c.rTarget}R</td><td>${c.stats.expectancy.toFixed(3)}R</td><td>${c.stats.winRate.toFixed(1)}%</td><td>${c.avgRPerTrade.toFixed(3)}R</td><td>${c.maxDailyLossPercent.toFixed(1)}%</td><td>${c.stats.total}</td><td style="color: #00ff88; font-weight: 600;">${c.score.toFixed(1)}</td></tr>`).join('')}
                         </tbody>
                     </table>
                 </div>
