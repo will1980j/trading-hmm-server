@@ -84,6 +84,11 @@
                     <label>Min Win Rate (%)</label>
                     <input type="number" id="minWinRate" value="40" min="0" max="100" step="5">
                 </div>
+                <div class="control-group" style="grid-column: 1/-1; background: rgba(0,255,136,0.1); padding: 15px; border-radius: 10px; margin-top: 10px;">
+                    <label style="color: #00ff88;">📊 Max R-Target (Auto-calculated)</label>
+                    <div id="maxRDisplay" style="font-size: 24px; font-weight: 700; color: #00ff88; margin-top: 5px;">-</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">Based on: Max Daily Loss ÷ Risk Per Trade</div>
+                </div>
             </div>
             
             <h3 style="color: #00ff88; margin: 20px 0;">⏰ Session Selection</h3>
@@ -217,7 +222,9 @@
             
             const selectedSessions = getSelectedSessions();
             const beStrategies = ['none', 'be1'];
-            const rTargets = [1, 1.5, 2, 2.5, 3, 3.5, 4];
+            const maxPossibleR = Math.floor(constraints.maxDailyLoss / constraints.riskPerTrade);
+            const rTargets = [];
+            for (let r = 1; r <= maxPossibleR; r += 0.5) rTargets.push(r);
             let allCombinations = [], bestOverall = null, bestScore = -999;
             
             // Single sessions
@@ -346,7 +353,20 @@
             document.getElementById('results').innerHTML = html;
         }
         
-        document.addEventListener('DOMContentLoaded', () => { loadSignals(); });
+        function updateMaxR() {
+            const maxDailyLoss = parseFloat(document.getElementById('maxDailyLoss').value);
+            const riskPerTrade = parseFloat(document.getElementById('riskPerTrade').value);
+            const maxR = Math.floor(maxDailyLoss / riskPerTrade);
+            document.getElementById('maxRDisplay').textContent = `${maxR}R (${maxDailyLoss}% ÷ ${riskPerTrade}% = ${maxR} max consecutive losses)`;
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => { 
+            loadSignals(); 
+            updateMaxR();
+            ['maxDailyLoss', 'riskPerTrade'].forEach(id => {
+                document.getElementById(id).addEventListener('input', updateMaxR);
+            });
+        });
     </script>
 </body>
 </html>
