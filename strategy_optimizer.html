@@ -211,6 +211,8 @@
             if (signals.length === 0) { await loadSignals(); if (signals.length === 0) return; }
             document.getElementById('results').innerHTML = '<div class="loading">🔄 Running unified analysis (TIME + ML + GPT-4)...</div>';
             
+            console.log('Starting optimization...');
+            
             const constraints = {
                 maxDailyLoss: parseFloat(document.getElementById('maxDailyLoss').value),
                 maxDrawdown: parseFloat(document.getElementById('maxDrawdown').value),
@@ -245,7 +247,11 @@
                         const score = (stats.expectancy * 40) + (stats.winRate / 100 * 20) + (avgRPerTrade * 15) + (sharpe * 10) + (Math.log(stats.total) * 5);
                         const combo = { sessions: [session], beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade };
                         allCombinations.push(combo);
-                        if (score > bestScore) { bestScore = score; bestOverall = combo; }
+                        if (score > bestScore) { 
+                            bestScore = score; 
+                            bestOverall = combo;
+                            console.log(`New best: ${session}, ${beStrategy}, ${rTarget}R - Expectancy: ${stats.expectancy.toFixed(3)}R, Score: ${score.toFixed(1)}`);
+                        }
                     });
                 });
             });
@@ -277,10 +283,14 @@
                 });
             });
             
+            console.log(`Optimization complete. Tested ${allCombinations.length} combinations.`);
+            
             if (!bestOverall) {
                 document.getElementById('results').innerHTML = '<div class="warning-box"><strong>❌ No viable strategy found</strong><br>All combinations violate prop firm constraints.</div>';
                 return;
             }
+            
+            console.log(`Best strategy: ${bestOverall.sessions.join('+')} ${bestOverall.beStrategy} ${bestOverall.rTarget}R`);
             
             allCombinations.sort((a, b) => b.score - a.score);
             const topAlternatives = allCombinations.slice(0, 10);
