@@ -2154,10 +2154,10 @@
                     `;
                 }
                 
-                // Check for economic news on this date
+                // ALWAYS show economic news on this date if available
                 const newsData = getNewsForDate(dateStr);
                 let newsHtml = '';
-                if (newsData.proximity === 'High') {
+                if (newsData.proximity !== 'None' && newsData.events.length > 0 && newsData.events[0] !== 'None') {
                     const newsText = newsData.events.length > 2 ? 
                         `${newsData.events.slice(0, 2).join(', ')}+` : 
                         newsData.events.join(', ');
