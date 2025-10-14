@@ -1814,22 +1814,22 @@
             }, 2000);
         });
         
-        // Auto-fill news for current month only
+        // Auto-fill news for entire current year
         async function autoFillCurrentMonthNews() {
             if (signals.length === 0) {
                 console.log('No trades to auto-fill');
                 return;
             }
             
-            // Get current month in YYYY-MM format
+            // Get current year in YYYY format
             const now = new Date();
-            const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const currentYearPrefix = `${now.getFullYear()}`;
             
-            // Filter signals for current month only
-            const currentMonthSignals = signals.filter(s => s.date && s.date.startsWith(currentMonthPrefix));
+            // Filter signals for current year only
+            const currentMonthSignals = signals.filter(s => s.date && s.date.startsWith(currentYearPrefix));
             
             if (currentMonthSignals.length === 0) {
-                console.log('No trades in current month to auto-fill');
+                console.log('No trades in current year to auto-fill');
                 return;
             }
             
@@ -1845,7 +1845,7 @@
                 return;
             }
             
-            console.log(`🔄 Auto-filling news for ${currentMonthSignals.length} trades in ${currentMonthPrefix}...`);
+            console.log(`🔄 Auto-filling news for ${currentMonthSignals.length} trades in ${currentYearPrefix}...`);
             let updatedCount = 0;
             let skippedCount = 0;
             
@@ -1894,7 +1894,7 @@
                 }
             }
             
-            console.log(`✅ Auto-fill complete for ${currentMonthPrefix}: ${updatedCount} updated, ${skippedCount} already current`);
+            console.log(`✅ Auto-fill complete for ${currentYearPrefix}: ${updatedCount} updated, ${skippedCount} already current`);
             if (updatedCount > 0) {
                 updateDisplay();
             }
