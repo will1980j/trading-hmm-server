@@ -1,0 +1,297 @@
+//@version=5
+indicator("FVG + ML Validated Signals", overlay=true)
+
+// === SETTINGS ===
+webhook_url = input.string("https://web-production-cd33.up.railway.app/api/live-signals", "Webhook URL")
+enable_webhooks = input.bool(true, "Enable Webhooks")
+
+// HTF Filters (Optional)
+use_1h = input.bool(false, "1H", group="HTF Bias Filter")
+use_15m = input.bool(false, "15M", group="HTF Bias Filter")
+use_5m = input.bool(false, "5M", group="HTF Bias Filter")
+
+// ML Model Settings
+training = input.int(500, "ML Training Length", group="ML Model")
+ml_accuracy_threshold = input.float(50.0, "Min ML Accuracy %", group="ML Model")
+select_x1 = input.string("Stochastic", "X1 Variable", ["Stochastic", "RSI", "MFI", "Volume"], group="ML Model")
+select_x2 = input.string("Volume", "X2 Variable", ["Stochastic", "RSI", "MFI", "Volume"], group="ML Model")
+
+// Signal Filters
+require_ml_confirmation = input.bool(true, "Require ML Confirmation", group="Signal Filter")
+require_engulfing = input.bool(false, "Require Engulfing", group="Signal Filter")
+
+// Display
+show_htf_status = input.bool(true, "Show Status Table", group="Display")
+triangle_size = input.string("Normal", "Triangle Size", ["Tiny", "Small", "Normal", "Large"], group="Display")
+bull_color = input.color(color.green, "Bullish Color", group="Display")
+bear_color = input.color(color.red, "Bearish Color", group="Display")
+
+// === ML INDICATORS ===
+rsi = ta.rsi(close, 14)
+sto = ta.stoch(close, high, low, 14)
+mfi = ta.mfi(hlc3, 14)
+
+float x1_input = switch select_x1
+    "Stochastic" => sto
+    "RSI" => rsi
+    "MFI" => mfi
+    "Volume" => volume
+
+float x2_input = switch select_x2
+    "Stochastic" => sto
+    "RSI" => rsi
+    "MFI" => mfi
+    "Volume" => volume
+
+float x1_threshold = select_x1 == "Volume" ? ta.stdev(volume, 14) : 0.5
+float x2_threshold = select_x2 == "Volume" ? ta.stdev(volume, 14) : 0.5
+
+// === ML CLASSIFICATION ===
+shuffle_indices(n) =>
+    indices = array.new_int(n)
+    for i = 0 to n - 1
+        array.set(indices, i, i)
+    for i = 0 to n - 1
+        rand_index = math.floor(math.random(0, n))
+        temp = array.get(indices, i)
+        array.set(indices, i, array.get(indices, rand_index))
+        array.set(indices, rand_index, temp)
+    indices
+
+shuffle_matrix(matrix, rows) =>
+    shuffled_matrix = matrix.new<float>(rows, matrix.columns(matrix), 0)
+    indices = shuffle_indices(rows)
+    for i = 0 to rows - 1
+        for j = 0 to matrix.columns(matrix) - 1
+            matrix.set(shuffled_matrix, i, j, matrix.get(matrix, array.get(indices, i), j))
+    shuffled_matrix
+
+ml_classify(x1, x2, y, train) =>
+    x1m = matrix.new<float>(train, 2, 0)
+    x2m = matrix.new<float>(train, 2, 0)
+    lx1 = x1[1]
+    lx2 = x2[1]
+    ly = y
+    for i = 0 to train - 1
+        matrix.set(x1m, i, 0, lx1[i])
+        matrix.set(x1m, i, 1, ly[i])
+        matrix.set(x2m, i, 0, lx2[i])
+        matrix.set(x2m, i, 1, ly[i])
+    x1m_random = shuffle_matrix(x1m, train)
+    x2m_random = shuffle_matrix(x2m, train)
+    
+    int y1_pass = 0
+    int y1_fail = 0
+    for i = 0 to train - 2
+        if matrix.get(x1m_random, i, 0) > 0
+            if matrix.get(x1m_random, i, 0) >= x1 - x1_threshold and matrix.get(x1m_random, i, 0) <= x1 + x1_threshold
+                if matrix.get(x1m_random, i, 1) == 1
+                    y1_pass += 1
+                else
+                    y1_fail += 1
+    
+    int y2_pass = 0
+    int y2_fail = 0
+    for i = 0 to train - 2
+        if matrix.get(x2m_random, i, 0) >= x2 - x2_threshold and matrix.get(x2m_random, i, 0) <= x2 + x2_threshold
+            if matrix.get(x2m_random, i, 1) == 1
+                y2_pass += 1
+            else
+                y2_fail += 1
+    
+    passes = y1_pass + y2_pass
+    fails = y1_fail + y2_fail
+    vote = passes > fails ? 1 : 0
+    
+    int success = 0
+    int failure = 0
+    for i = 0 to train - 1
+        if vote[i] == y[i]
+            success += 1
+        else
+            failure += 1
+    accuracy = success / (success + failure) * 100
+    [vote, accuracy]
+
+sent = close > open ? 1 : 0
+[ml_result, ml_accuracy] = ml_classify(x1_input, x2_input, sent, training)
+
+// === ENGULFING DETECTION ===
+bearish_engulfing = close < open and close[1] > open[1] and open >= close[1] and close < open[1]
+bullish_engulfing = close > open and close[1] < open[1] and open <= close[1] and close > open[1]
+
+// === FVG/IFVG BIAS ===
+get_bias() =>
+    var string bias = "Neutral"
+    var float ath = na
+    var float atl = na
+    var bull_fvg_highs = array.new<float>()
+    var bull_fvg_lows = array.new<float>()
+    var bear_fvg_highs = array.new<float>()
+    var bear_fvg_lows = array.new<float>()
+    var bull_ifvg_highs = array.new<float>()
+    var bull_ifvg_lows = array.new<float>()
+    var bear_ifvg_highs = array.new<float>()
+    var bear_ifvg_lows = array.new<float>()
+
+    if barstate.isconfirmed
+        ath := na(ath) ? high : math.max(ath, high)
+        atl := na(atl) ? low : math.min(atl, low)
+        
+        if close > ath[1] and bias != "Bullish"
+            bias := "Bullish"
+        else if close < atl[1] and bias != "Bearish"
+            bias := "Bearish"
+        
+        bullish_fvg = high[2] < low
+        bearish_fvg = low[2] > high
+        
+        if bullish_fvg
+            array.push(bull_fvg_highs, low)
+            array.push(bull_fvg_lows, high[2])
+            
+        if bearish_fvg
+            array.push(bear_fvg_highs, low[2])
+            array.push(bear_fvg_lows, high)
+        
+        if array.size(bull_fvg_highs) > 0
+            for i = array.size(bull_fvg_highs) - 1 to 0
+                if close < array.get(bull_fvg_lows, i)
+                    array.push(bear_ifvg_highs, array.get(bull_fvg_highs, i))
+                    array.push(bear_ifvg_lows, array.get(bull_fvg_lows, i))
+                    array.remove(bull_fvg_highs, i)
+                    array.remove(bull_fvg_lows, i)
+                    bias := "Bearish"
+                    
+        if array.size(bear_fvg_highs) > 0
+            for i = array.size(bear_fvg_highs) - 1 to 0
+                if close > array.get(bear_fvg_highs, i)
+                    array.push(bull_ifvg_highs, array.get(bear_fvg_highs, i))
+                    array.push(bull_ifvg_lows, array.get(bear_fvg_lows, i))
+                    array.remove(bear_fvg_highs, i)
+                    array.remove(bear_fvg_lows, i)
+                    bias := "Bullish"
+                    
+        if array.size(bear_ifvg_highs) > 0
+            for i = array.size(bear_ifvg_highs) - 1 to 0
+                if close > array.get(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_lows, i)
+                    bias := "Bullish"
+                    
+        if array.size(bull_ifvg_highs) > 0
+            for i = array.size(bull_ifvg_highs) - 1 to 0
+                if close < array.get(bull_ifvg_lows, i)
+                    array.remove(bull_ifvg_highs, i)
+                    array.remove(bull_ifvg_lows, i)
+                    bias := "Bearish"
+    bias
+
+bias = get_bias()
+h1_bias = use_1h ? request.security(syminfo.tickerid, "60", get_bias()) : "Neutral"
+m15_bias = use_15m ? request.security(syminfo.tickerid, "15", get_bias()) : "Neutral"
+m5_bias = use_5m ? request.security(syminfo.tickerid, "5", get_bias()) : "Neutral"
+
+h1_bull_ok = not use_1h or h1_bias == "Bullish"
+h1_bear_ok = not use_1h or h1_bias == "Bearish"
+m15_bull_ok = not use_15m or m15_bias == "Bullish"
+m15_bear_ok = not use_15m or m15_bias == "Bearish"
+m5_bull_ok = not use_5m or m5_bias == "Bullish"
+m5_bear_ok = not use_5m or m5_bias == "Bearish"
+
+htf_bullish = h1_bull_ok and m15_bull_ok and m5_bull_ok
+htf_bearish = h1_bear_ok and m15_bear_ok and m5_bear_ok
+htf_enabled = use_1h or use_15m or use_5m
+
+// === SIGNAL LOGIC ===
+fvg_bull_signal = bias != bias[1] and bias == "Bullish"
+fvg_bear_signal = bias != bias[1] and bias == "Bearish"
+
+ml_confirms_bull = not require_ml_confirmation or (ml_result == 1 and ml_accuracy >= ml_accuracy_threshold)
+ml_confirms_bear = not require_ml_confirmation or (ml_result == 0 and ml_accuracy >= ml_accuracy_threshold)
+
+show_bull = fvg_bull_signal and (not htf_enabled or htf_bullish) and (not require_engulfing or bullish_engulfing) and ml_confirms_bull
+show_bear = fvg_bear_signal and (not htf_enabled or htf_bearish) and (not require_engulfing or bearish_engulfing) and ml_confirms_bear
+
+// Debug plots
+plot(bias == "Bullish" ? 1 : bias == "Bearish" ? -1 : 0, "Bias", color.blue, 2, plot.style_stepline)
+plot(fvg_bull_signal ? 1 : fvg_bear_signal ? -1 : 0, "FVG Signal", color.orange, 2, plot.style_circles)
+plot(ml_result, "ML Result", color.purple, 1)
+plot(ml_accuracy / 100, "ML Accuracy", color.yellow, 1)
+
+signal_strength = 50.0
+if htf_enabled and ((bias == "Bullish" and htf_bullish) or (bias == "Bearish" and htf_bearish))
+    signal_strength := 85.0
+else if not htf_enabled
+    signal_strength := 70.0
+if require_ml_confirmation and ml_accuracy >= ml_accuracy_threshold
+    signal_strength := signal_strength + 15.0
+
+// === WEBHOOKS ===
+if enable_webhooks and barstate.isconfirmed and (show_bull or show_bear)
+    htf_status = "1H:" + h1_bias + " 15M:" + m15_bias + " 5M:" + m5_bias
+    signal_type = "FVG+ML"
+    alert_message = 'SIGNAL:' + bias + ':' + str.tostring(close) + ':' + str.tostring(signal_strength) + ':' + htf_status + ':' + signal_type + ':ML_ACC:' + str.tostring(math.round(ml_accuracy, 2)) + ':' + str.tostring(time)
+    alert(alert_message, alert.freq_once_per_bar)
+
+// === VISUALS ===
+plotshape(triangle_size == "Tiny" and show_bull, "Bull", shape.triangleup, location.belowbar, bull_color, size=size.tiny)
+plotshape(triangle_size == "Small" and show_bull, "Bull", shape.triangleup, location.belowbar, bull_color, size=size.small)
+plotshape(triangle_size == "Normal" and show_bull, "Bull", shape.triangleup, location.belowbar, bull_color, size=size.normal)
+plotshape(triangle_size == "Large" and show_bull, "Bull", shape.triangleup, location.belowbar, bull_color, size=size.large)
+
+plotshape(triangle_size == "Tiny" and show_bear, "Bear", shape.triangledown, location.abovebar, bear_color, size=size.tiny)
+plotshape(triangle_size == "Small" and show_bear, "Bear", shape.triangledown, location.abovebar, bear_color, size=size.small)
+plotshape(triangle_size == "Normal" and show_bear, "Bear", shape.triangledown, location.abovebar, bear_color, size=size.normal)
+plotshape(triangle_size == "Large" and show_bear, "Bear", shape.triangledown, location.abovebar, bear_color, size=size.large)
+
+// === STATUS TABLE ===
+if show_htf_status
+    var table status_table = na
+    if barstate.islast
+        if not na(status_table)
+            table.delete(status_table)
+        
+        status_table := table.new(position.top_right, 3, 7, bgcolor=color.new(color.black, 80), border_width=1, border_color=color.gray)
+        
+        table.cell(status_table, 0, 0, "Timeframe", text_color=color.white, text_size=size.small)
+        table.cell(status_table, 1, 0, "Bias", text_color=color.white, text_size=size.small)
+        table.cell(status_table, 2, 0, "Status", text_color=color.white, text_size=size.small)
+        
+        current_color = bias == "Bullish" ? bull_color : bias == "Bearish" ? bear_color : color.gray
+        table.cell(status_table, 0, 1, "Current", text_color=color.white, text_size=size.small)
+        table.cell(status_table, 1, 1, bias, text_color=current_color, text_size=size.small)
+        table.cell(status_table, 2, 1, "●", text_color=color.yellow, text_size=size.small)
+        
+        ml_color = ml_result == 1 ? bull_color : bear_color
+        ml_text = ml_result == 1 ? "BULL" : "BEAR"
+        table.cell(status_table, 0, 2, "ML Model", text_color=color.white, text_size=size.small)
+        table.cell(status_table, 1, 2, ml_text, text_color=ml_color, text_size=size.small)
+        table.cell(status_table, 2, 2, str.tostring(math.round(ml_accuracy, 1)) + "%", text_color=ml_accuracy >= ml_accuracy_threshold ? color.green : color.red, text_size=size.small)
+        
+        row = 3
+        if use_5m
+            htf_color = m5_bias == "Bullish" ? bull_color : m5_bias == "Bearish" ? bear_color : color.gray
+            align_status = (bias == "Bullish" and m5_bull_ok) or (bias == "Bearish" and m5_bear_ok) ? "✓" : "✗"
+            align_color = (bias == "Bullish" and m5_bull_ok) or (bias == "Bearish" and m5_bear_ok) ? color.green : color.red
+            table.cell(status_table, 0, row, "5M", text_color=color.white, text_size=size.small)
+            table.cell(status_table, 1, row, m5_bias, text_color=htf_color, text_size=size.small)
+            table.cell(status_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+            row := row + 1
+            
+        if use_15m
+            htf_color = m15_bias == "Bullish" ? bull_color : m15_bias == "Bearish" ? bear_color : color.gray
+            align_status = (bias == "Bullish" and m15_bull_ok) or (bias == "Bearish" and m15_bear_ok) ? "✓" : "✗"
+            align_color = (bias == "Bullish" and m15_bull_ok) or (bias == "Bearish" and m15_bear_ok) ? color.green : color.red
+            table.cell(status_table, 0, row, "15M", text_color=color.white, text_size=size.small)
+            table.cell(status_table, 1, row, m15_bias, text_color=htf_color, text_size=size.small)
+            table.cell(status_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+            row := row + 1
+            
+        if use_1h
+            htf_color = h1_bias == "Bullish" ? bull_color : h1_bias == "Bearish" ? bear_color : color.gray
+            align_status = (bias == "Bullish" and h1_bull_ok) or (bias == "Bearish" and h1_bear_ok) ? "✓" : "✗"
+            align_color = (bias == "Bullish" and h1_bull_ok) or (bias == "Bearish" and h1_bear_ok) ? color.green : color.red
+            table.cell(status_table, 0, row, "1H", text_color=color.white, text_size=size.small)
+            table.cell(status_table, 1, row, h1_bias, text_color=htf_color, text_size=size.small)
+            table.cell(status_table, 2, row, align_status, text_color=align_color, text_size=size.small)

@@ -746,7 +746,6 @@
                 <button class="btn" onclick="analyzeSignals()" style="background: #3742fa;">AI Analysis</button>
                 <button class="btn" onclick="getRecommendations()" style="background: #2ed573;">AI Recommendations</button>
                 <button class="btn" onclick="optimizeStrategy()" style="background: #ff6b7a;">Strategy Optimizer</button>
-                <button class="btn" onclick="autoFillAllNews()" style="background: #ff4757;">🔄 Refresh News</button>
                 <button class="btn" onclick="recoverMissedSignals()" style="background: #ffa502;">🔄 Recover Signals</button>
                 <button class="btn" onclick="bulkDeleteAllTrades()" style="background: #ff3838;">🗑️ Delete All</button>
 
@@ -1805,17 +1804,103 @@
             localStorage.removeItem('economicNewsData');
             
             await loadEconomicNews();
-            loadSignals();
+            await loadSignals();
             setTimeout(restoreFormState, 600);
             
-            // Auto-fill news for all trades after loading
+            // Auto-fill news for current month only
             setTimeout(async () => {
-                console.log('🔄 Auto-filling news for all trades...');
-                await autoFillAllNewsAutomatically();
+                console.log('🔄 Auto-filling news for current month...');
+                await autoFillCurrentMonthNews();
             }, 2000);
         });
         
-        // Automatic version that doesn't show alerts
+        // Auto-fill news for current month only
+        async function autoFillCurrentMonthNews() {
+            if (signals.length === 0) {
+                console.log('No trades to auto-fill');
+                return;
+            }
+            
+            // Get current month in YYYY-MM format
+            const now = new Date();
+            const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            
+            // Filter signals for current month only
+            const currentMonthSignals = signals.filter(s => s.date && s.date.startsWith(currentMonthPrefix));
+            
+            if (currentMonthSignals.length === 0) {
+                console.log('No trades in current month to auto-fill');
+                return;
+            }
+            
+            // Force reload economic news
+            console.log('🔄 Reloading economic news data...');
+            await loadEconomicNews();
+            
+            const newsDateCount = Object.keys(economicNewsData).length;
+            console.log(`📊 Economic news available for ${newsDateCount} dates`);
+            
+            if (newsDateCount === 0) {
+                console.warn('⚠️ No economic news data available - API may be down');
+                return;
+            }
+            
+            console.log(`🔄 Auto-filling news for ${currentMonthSignals.length} trades in ${currentMonthPrefix}...`);
+            let updatedCount = 0;
+            let skippedCount = 0;
+            
+            for (const signal of currentMonthSignals) {
+                try {
+                    const newsData = getNewsForDate(signal.date);
+                    
+                    // Only update if there's actual news and it's different
+                    if (newsData.proximity !== 'None') {
+                        const currentNews = signal.newsEvent || 'None';
+                        const newNews = newsData.events.join(', ');
+                        
+                        if (signal.newsProximity !== newsData.proximity || currentNews !== newNews) {
+                            const updateData = {
+                                news_proximity: newsData.proximity,
+                                news_event: newNews
+                            };
+                            
+                            console.log(`📝 Updating ${signal.date}: ${newsData.proximity} - ${newNews.substring(0, 50)}...`);
+                            
+                            const response = await fetch(`https://web-production-cd33.up.railway.app/api/signal-lab-trades/${signal.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(updateData)
+                            });
+                            
+                            if (response.ok) {
+                                const result = await response.json();
+                                if (result.rows_affected > 0) {
+                                    signal.newsProximity = newsData.proximity;
+                                    signal.newsEvent = newNews;
+                                    updatedCount++;
+                                    console.log(`✅ Updated trade ${signal.id}`);
+                                } else {
+                                    console.warn(`⚠️ No rows affected for trade ${signal.id}`);
+                                }
+                            } else {
+                                console.error(`❌ Update failed for trade ${signal.id}: ${response.status}`);
+                            }
+                        } else {
+                            skippedCount++;
+                        }
+                    }
+                } catch (error) {
+                    console.error(`❌ Error auto-filling signal ${signal.id}:`, error);
+                }
+            }
+            
+            console.log(`✅ Auto-fill complete for ${currentMonthPrefix}: ${updatedCount} updated, ${skippedCount} already current`);
+            if (updatedCount > 0) {
+                updateDisplay();
+            }
+        }
+        
+        // Automatic version that doesn't show alerts (kept for manual use if needed)
         async function autoFillAllNewsAutomatically() {
             if (signals.length === 0) {
                 console.log('No trades to auto-fill');
