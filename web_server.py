@@ -397,6 +397,26 @@ def ml_dashboard():
 def strategy_optimizer():
     return read_html_file('strategy_optimizer.html')
 
+@app.route('/time-analysis')
+@login_required
+def time_analysis():
+    return read_html_file('time_analysis.html')
+
+@app.route('/api/time-analysis', methods=['GET'])
+@login_required
+def get_time_analysis():
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from time_analyzer import analyze_time_performance
+        analysis = analyze_time_performance(db)
+        return jsonify(analysis)
+        
+    except Exception as e:
+        logger.error(f'Time analysis error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/ml-dashboard-old')
 @login_required
 def ml_dashboard_old():
