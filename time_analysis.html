@@ -438,12 +438,13 @@
                     let className = '';
                     
                     if (col === 'expectancy' || col === 'avg_r') {
+                        value = parseFloat(value);
                         className = value > 0 ? 'positive' : value < 0 ? 'negative' : '';
                         value = value.toFixed(3) + 'R';
                     } else if (col === 'win_rate') {
-                        value = (value * 100).toFixed(1) + '%';
+                        value = (parseFloat(value) * 100).toFixed(1) + '%';
                     } else if (col === 'std_dev') {
-                        value = value.toFixed(3);
+                        value = parseFloat(value).toFixed(3);
                     }
                     
                     html += `<td class="${className}">${value}</td>`;
