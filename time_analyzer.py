@@ -63,11 +63,14 @@ def analyze_hourly(trades):
     
     for trade in trades:
         try:
-            hour = int(trade['time'].split(':')[0])
+            time_str = str(trade['time']) if trade['time'] else ''
+            if not time_str or ':' not in time_str:
+                continue
+            hour = int(time_str.split(':')[0])
             if hour not in hourly_data:
                 hourly_data[hour] = []
-            hourly_data[hour].append(trade['r_value'])
-        except:
+            hourly_data[hour].append(float(trade['r_value']))
+        except Exception as e:
             continue
     
     results = []
