@@ -183,7 +183,15 @@
         </div>
         
         <div class="analysis-section">
-            <div class="section-title">1. Hourly Analysis (24-Hour Distribution)</div>
+            <div class="section-title">1. Macro Window Analysis (xx:50-xx:10 + MOC 15:15-15:45)</div>
+            <div class="chart-container">
+                <canvas id="macroChart"></canvas>
+            </div>
+            <table class="data-table" id="macroTable"></table>
+        </div>
+        
+        <div class="analysis-section">
+            <div class="section-title">2. Hourly Analysis (24-Hour Distribution)</div>
             <div class="chart-container">
                 <canvas id="hourlyChart"></canvas>
             </div>
@@ -191,7 +199,7 @@
         </div>
         
         <div class="analysis-section">
-            <div class="section-title">2. Session Analysis</div>
+            <div class="section-title">3. Session Analysis</div>
             <div class="chart-container">
                 <canvas id="sessionChart"></canvas>
             </div>
@@ -199,7 +207,7 @@
         </div>
         
         <div class="analysis-section">
-            <div class="section-title">3. Day of Week Analysis</div>
+            <div class="section-title">4. Day of Week Analysis</div>
             <div class="chart-container">
                 <canvas id="dayChart"></canvas>
             </div>
@@ -207,7 +215,7 @@
         </div>
         
         <div class="analysis-section">
-            <div class="section-title">4. Week of Month Analysis</div>
+            <div class="section-title">5. Week of Month Analysis</div>
             <div class="chart-container">
                 <canvas id="weekChart"></canvas>
             </div>
@@ -215,7 +223,7 @@
         </div>
         
         <div class="analysis-section">
-            <div class="section-title">5. Monthly Analysis</div>
+            <div class="section-title">6. Monthly Analysis</div>
             <div class="chart-container">
                 <canvas id="monthChart"></canvas>
             </div>
@@ -240,6 +248,7 @@
                 console.log('Time analysis loaded:', timeAnalysisData);
                 
                 updateStats();
+                renderMacroAnalysis();
                 renderHourlyAnalysis();
                 renderSessionAnalysis();
                 renderDayAnalysis();
@@ -259,6 +268,36 @@
             document.getElementById('bestSession').textContent = timeAnalysisData.best_session.session;
             document.getElementById('bestDay').textContent = timeAnalysisData.best_day.day;
             document.getElementById('bestMonth').textContent = timeAnalysisData.best_month.month;
+        }
+        
+        function renderMacroAnalysis() {
+            const data = timeAnalysisData.macro;
+            const ctx = document.getElementById('macroChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.window),
+                    datasets: [{
+                        label: 'Expectancy (R)',
+                        data: data.map(d => d.expectancy),
+                        backgroundColor: data.map(d => d.expectancy > 0 ? 'rgba(0, 255, 136, 0.6)' : 'rgba(255, 71, 87, 0.6)'),
+                        borderColor: data.map(d => d.expectancy > 0 ? '#00ff88' : '#ff4757'),
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#fff' } },
+                        x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#fff' } }
+                    },
+                    plugins: { legend: { labels: { color: '#fff' } } }
+                }
+            });
+            
+            renderTable('macroTable', data, ['window', 'trades', 'expectancy', 'win_rate', 'avg_r', 'std_dev']);
         }
         
         function renderHourlyAnalysis() {
@@ -416,6 +455,7 @@
             let html = '<thead><tr>';
             
             const headers = {
+                window: 'Window',
                 hour: 'Hour',
                 session: 'Session',
                 day: 'Day',

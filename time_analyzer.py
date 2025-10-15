@@ -27,6 +27,7 @@ def analyze_time_performance(db):
         return generate_empty_analysis()
     
     # Analyze each time window
+    macro = analyze_macro_windows(trades)
     hourly = analyze_hourly(trades)
     session = analyze_session(trades)
     day_of_week = analyze_day_of_week(trades)
@@ -46,6 +47,7 @@ def analyze_time_performance(db):
     return {
         'total_trades': len(trades),
         'overall_expectancy': overall_expectancy,
+        'macro': macro,
         'hourly': hourly,
         'session': session,
         'day_of_week': day_of_week,
@@ -56,6 +58,57 @@ def analyze_time_performance(db):
         'best_day': {'day': best_day['day'], 'expectancy': best_day['expectancy']},
         'best_month': {'month': best_month['month'], 'expectancy': best_month.get('expectancy', 0)}
     }
+
+def analyze_macro_windows(trades):
+    """Analyze macro windows (xx:50-xx:10 + MOC 15:15-15:45) vs non-macro"""
+    macro_trades = []
+    non_macro_trades = []
+    
+    for trade in trades:
+        try:
+            time_str = str(trade['time']) if trade['time'] else ''
+            if not time_str or ':' not in time_str:
+                continue
+            hour = int(time_str.split(':')[0])
+            minute = int(time_str.split(':')[1])
+            
+            is_macro = False
+            # MOC window: 15:15-15:45
+            if hour == 15 and 15 <= minute <= 45:
+                is_macro = True
+            # Hourly macros: xx:50-xx:10 (50-59 of current hour, 0-10 of next hour)
+            elif minute >= 50 or minute <= 10:
+                is_macro = True
+            
+            if is_macro:
+                macro_trades.append(float(trade['r_value']))
+            else:
+                non_macro_trades.append(float(trade['r_value']))
+        except:
+            continue
+    
+    results = []
+    if macro_trades:
+        results.append({
+            'window': 'Macro (xx:50-xx:10 + MOC)',
+            'trades': len(macro_trades),
+            'expectancy': statistics.mean(macro_trades),
+            'win_rate': len([r for r in macro_trades if r > 0]) / len(macro_trades),
+            'avg_r': statistics.mean(macro_trades),
+            'std_dev': statistics.stdev(macro_trades) if len(macro_trades) > 1 else 0
+        })
+    
+    if non_macro_trades:
+        results.append({
+            'window': 'Non-Macro',
+            'trades': len(non_macro_trades),
+            'expectancy': statistics.mean(non_macro_trades),
+            'win_rate': len([r for r in non_macro_trades if r > 0]) / len(non_macro_trades),
+            'avg_r': statistics.mean(non_macro_trades),
+            'std_dev': statistics.stdev(non_macro_trades) if len(non_macro_trades) > 1 else 0
+        })
+    
+    return results
 
 def analyze_hourly(trades):
     """Analyze by hour of day (0-23)"""
@@ -213,6 +266,7 @@ def generate_empty_analysis():
     return {
         'total_trades': 0,
         'overall_expectancy': 0,
+        'macro': [],
         'hourly': [],
         'session': [],
         'day_of_week': [],
