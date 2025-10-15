@@ -1560,7 +1560,7 @@
         // Load economic news data
         async function loadEconomicNews() {
             try {
-                console.log('📡 Loading economic news...');
+                console.log('📡 Loading economic news for entire year...');
                 
                 // Try API first for fresh data
                 try {
@@ -1568,9 +1568,16 @@
                     if (response.ok) {
                         const data = await response.json();
                         if (data.events && data.events.length > 0) {
-                            console.log(`✅ Loaded ${data.events.length} events from API`);
+                            console.log(`✅ Loaded ${data.events.length} HIGH-IMPACT events from API`);
                             processEconomicNews(data);
                             await saveEconomicNewsToDatabase(data);
+                            
+                            // Log date range of loaded events
+                            const dates = Object.keys(economicNewsData).sort();
+                            if (dates.length > 0) {
+                                console.log(`📅 Economic news date range: ${dates[0]} to ${dates[dates.length-1]}`);
+                                console.log(`📊 Total dates with news: ${dates.length}`);
+                            }
                             return;
                         }
                     }
@@ -1585,6 +1592,7 @@
                 
                 if (Object.keys(economicNewsData).length === 0) {
                     console.error('❌ No economic news data available from any source');
+                    console.log('💡 Note: Economic calendar API may only provide current week data');
                 }
             } catch (error) {
                 console.error('❌ Failed to load economic news:', error);
