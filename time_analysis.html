@@ -254,7 +254,7 @@
         
         function updateStats() {
             document.getElementById('totalTrades').textContent = timeAnalysisData.total_trades;
-            document.getElementById('avgExpectancy').textContent = timeAnalysisData.overall_expectancy.toFixed(2) + 'R';
+            document.getElementById('avgExpectancy').textContent = parseFloat(timeAnalysisData.overall_expectancy).toFixed(2) + 'R';
             document.getElementById('bestHour').textContent = timeAnalysisData.best_hour.hour;
             document.getElementById('bestSession').textContent = timeAnalysisData.best_session.session;
             document.getElementById('bestDay').textContent = timeAnalysisData.best_day.day;
