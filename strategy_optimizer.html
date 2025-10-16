@@ -97,6 +97,12 @@
                 <div class="session-item"><input type="checkbox" id="sessNYLunch" value="NY Lunch" checked><label for="sessNYLunch">NY Lunch</label></div>
                 <div class="session-item"><input type="checkbox" id="sessNYPM" value="NY PM" checked><label for="sessNYPM">NY PM</label></div>
             </div>
+            <div style="margin-top: 15px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="useOptimalHours" style="width: 16px; height: 16px; accent-color: #00ff88;">
+                    <span style="color: #00ff88; font-weight: 600;">Use optimal time windows only</span>
+                </label>
+            </div>
             
             <div style="text-align: center; margin-top: 25px;">
                 <button class="btn" onclick="runUnifiedOptimization()">🚀 Find Optimal Strategy (All Methods)</button>
@@ -218,38 +224,59 @@
             const resultsByRisk = {};
             
             const selectedSessions = getSelectedSessions();
+            const useOptimalHours = document.getElementById('useOptimalHours').checked;
+            const beStrategies = ['none', 'be1'];
             
             // Calculate optimal time windows (best hour per session) - declare at function scope
             let optimalTimeWindows = {};
-            selectedSessions.forEach(session => {
-                const sessionSignals = signals.filter(s => s.session === session);
-                const hourlyPerf = {};
-                sessionSignals.forEach(s => {
-                    if (!s.time) return;
-                    const hour = parseInt(s.time.split(':')[0]);
-                    if (!hourlyPerf[hour]) hourlyPerf[hour] = [];
-                    hourlyPerf[hour].push(s);
-                });
-                const hourlyStats = Object.entries(hourlyPerf)
-                    .map(([hour, sigs]) => {
-                        if (sigs.length < 3) return null;
-                        const results = sigs.map(s => calculateTradeResult(s, 'none', 2));
-                        const stats = calculateStats(results);
-                        return { hour: parseInt(hour), expectancy: stats.expectancy };
-                    })
-                    .filter(h => h !== null)
-                    .sort((a, b) => b.expectancy - a.expectancy);
-                if (hourlyStats.length > 0) optimalTimeWindows[session] = [hourlyStats[0]];
-            });
+            let filteredSignals = signals;
             
-            // Filter signals to only optimal time windows
-            const filteredSignals = signals.filter(signal => {
-                const sessionWindows = optimalTimeWindows[signal.session];
-                if (!sessionWindows || sessionWindows.length === 0) return false;
-                const hour = signal.time ? parseInt(signal.time.split(':')[0]) : null;
-                if (hour === null) return false;
-                return sessionWindows.some(w => hour === w.hour);
-            });
+            if (useOptimalHours) {
+                // Calculate optimal hours for EACH BE/R combination to match what will be tested
+                const allOptimalWindows = {};
+                
+                beStrategies.forEach(beStrategy => {
+                    riskLevels.forEach(riskPerTrade => {
+                        const maxPossibleR = Math.floor(constraints.maxDailyLoss / riskPerTrade);
+                        for (let r = 1; r <= maxPossibleR; r += 0.5) {
+                            const key = `${beStrategy}_${r}`;
+                            if (!allOptimalWindows[key]) allOptimalWindows[key] = {};
+                            
+                            selectedSessions.forEach(session => {
+                                const sessionSignals = signals.filter(s => s.session === session);
+                                const hourlyPerf = {};
+                                sessionSignals.forEach(s => {
+                                    if (!s.time) return;
+                                    const hour = parseInt(s.time.split(':')[0]);
+                                    if (!hourlyPerf[hour]) hourlyPerf[hour] = [];
+                                    hourlyPerf[hour].push(s);
+                                });
+                                const hourlyStats = Object.entries(hourlyPerf)
+                                    .map(([hour, sigs]) => {
+                                        if (sigs.length < 3) return null;
+                                        const results = sigs.map(s => calculateTradeResult(s, beStrategy, r));
+                                        const stats = calculateStats(results);
+                                        return { hour: parseInt(hour), expectancy: stats.expectancy };
+                                    })
+                                    .filter(h => h !== null)
+                                    .sort((a, b) => b.expectancy - a.expectancy);
+                                if (hourlyStats.length > 0) allOptimalWindows[key][session] = [hourlyStats[0]];
+                            });
+                        }
+                    });
+                });
+                
+                optimalTimeWindows = allOptimalWindows;
+                
+                // Filter signals to only optimal time windows
+                filteredSignals = signals.filter(signal => {
+                    const sessionWindows = optimalTimeWindows[signal.session];
+                    if (!sessionWindows || sessionWindows.length === 0) return false;
+                    const hour = signal.time ? parseInt(signal.time.split(':')[0]) : null;
+                    if (hour === null) return false;
+                    return sessionWindows.some(w => hour === w.hour);
+                });
+            }
             const beStrategies = ['none', 'be1'];
             
             riskLevels.forEach(riskPerTrade => {
@@ -261,7 +288,17 @@
                 beStrategies.forEach(beStrategy => {
                     rTargets.forEach(rTarget => {
                         selectedSessions.forEach(session => {
-                            const sessionSignals = filteredSignals.filter(s => s.session === session);
+                            const key = `${beStrategy}_${rTarget}`;
+                            const windowsForCombo = optimalTimeWindows[key] || {};
+                            
+                            let sessionSignals = signals.filter(s => s.session === session);
+                            if (useOptimalHours && windowsForCombo[session]) {
+                                sessionSignals = sessionSignals.filter(s => {
+                                    const hour = s.time ? parseInt(s.time.split(':')[0]) : null;
+                                    if (hour === null) return false;
+                                    return windowsForCombo[session].some(w => hour === w.hour);
+                                });
+                            }
                             if (sessionSignals.length < 30) return;
                             const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
                             const stats = calculateStats(results);
@@ -286,7 +323,19 @@
                         for (let i = 0; i < selectedSessions.length; i++) {
                             for (let j = i + 1; j < selectedSessions.length; j++) {
                                 const sessionPair = [selectedSessions[i], selectedSessions[j]];
-                                const combinedSignals = filteredSignals.filter(s => sessionPair.includes(s.session));
+                                const key = `${beStrategy}_${rTarget}`;
+                                const windowsForCombo = optimalTimeWindows[key] || {};
+                                
+                                let combinedSignals = signals.filter(s => sessionPair.includes(s.session));
+                                if (useOptimalHours) {
+                                    combinedSignals = combinedSignals.filter(s => {
+                                        const sessionWindows = windowsForCombo[s.session];
+                                        if (!sessionWindows) return false;
+                                        const hour = s.time ? parseInt(s.time.split(':')[0]) : null;
+                                        if (hour === null) return false;
+                                        return sessionWindows.some(w => hour === w.hour);
+                                    });
+                                }
                                 if (combinedSignals.length < 50) continue;
                                 const results = combinedSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
                                 const stats = calculateStats(results);
