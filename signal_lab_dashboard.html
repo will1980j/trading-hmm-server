@@ -946,13 +946,20 @@
             // Apply optimal time window filter if enabled
             if (useOptimalHours && window.optimalTimeWindows) {
                 console.log('Optimal windows:', window.optimalTimeWindows);
+                const optimalHours = window.optimalTimeWindows['NY PM']?.map(w => w.hour) || [];
+                console.log('Optimal hours for NY PM:', optimalHours);
                 console.log('Before filter:', filteredSignals.length);
+                
+                const sampleHours = filteredSignals.slice(0, 10).map(s => s.time ? parseInt(s.time.split(':')[0]) : null);
+                console.log('Sample signal hours:', sampleHours);
+                
                 filteredSignals = filteredSignals.filter(signal => {
                     const sessionWindows = window.optimalTimeWindows[signal.session];
                     if (!sessionWindows || sessionWindows.length === 0) return false;
                     const hour = signal.time ? parseInt(signal.time.split(':')[0]) : null;
                     if (hour === null) return false;
-                    return sessionWindows.some(w => hour === w.hour);
+                    const matches = sessionWindows.some(w => hour === w.hour);
+                    return matches;
                 });
                 console.log('After filter:', filteredSignals.length);
             }
