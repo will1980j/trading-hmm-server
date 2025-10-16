@@ -273,7 +273,7 @@
                             const avgRPerTrade = stats.totalR / stats.total;
                             const sharpe = stats.expectancy / (stats.maxDrawdown > 0 ? stats.maxDrawdown : 1);
                             const score = (stats.expectancy * 40) + (stats.winRate / 100 * 20) + (avgRPerTrade * 15) + (sharpe * 10) + (Math.log(stats.total) * 5);
-                            const combo = { sessions: [session], beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade, riskPerTrade };
+                            const combo = { sessions: [session], beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade, riskPerTrade, optimalWindows, signals: sessionSignals };
                             allCombinations.push(combo);
                             if (score > bestScore) { bestScore = score; bestOverall = combo; }
                         });
@@ -298,7 +298,7 @@
                                 const avgRPerTrade = stats.totalR / stats.total;
                                 const sharpe = stats.expectancy / (stats.maxDrawdown > 0 ? stats.maxDrawdown : 1);
                                 const score = (stats.expectancy * 40) + (stats.winRate / 100 * 20) + (avgRPerTrade * 15) + (sharpe * 10) + (Math.log(stats.total) * 5);
-                                const combo = { sessions: sessionPair, beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade, riskPerTrade };
+                                const combo = { sessions: sessionPair, beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade, riskPerTrade, optimalWindows, signals: combinedSignals };
                                 allCombinations.push(combo);
                                 if (score > bestScore) { bestScore = score; bestOverall = combo; }
                             }
@@ -321,6 +321,16 @@
             const mlPrediction = await getMLPrediction();
             
             displayRiskBasedResults(resultsByRisk, timeWindows, mlPrediction, constraints);
+            
+            // Store strategy data for chart rendering
+            Object.entries(resultsByRisk).forEach(([risk, data]) => {
+                const riskId = risk.toString().replace('.', '_');
+                strategyData[riskId] = {
+                    signals: data.best.signals,
+                    beStrategy: data.best.beStrategy,
+                    rTarget: data.best.rTarget
+                };
+            });
         }
         
         function displayRiskBasedResults(resultsByRisk, timeWindows, mlPrediction, constraints) {
@@ -351,6 +361,16 @@
                 const sessionsText = best.sessions.join(' + ');
                 const totalPercent = best.stats.totalR * best.riskPerTrade;
                 
+                const optimalHoursText = best.sessions.map(session => {
+                    const windows = best.optimalWindows?.[session];
+                    if (windows && windows.length > 0) {
+                        return `${session}: ${windows[0].hour}:00`;
+                    }
+                    return `${session}: All hours`;
+                }).join(' | ');
+                
+                const riskId = risk.toString().replace('.', '_');
+                
                 html += `
                     <div class="strategy-box" style="margin-bottom: 30px;">
                         <h4 style="color: #00ff88; margin-bottom: 15px;">🎯 Risk ${risk}% Per Trade</h4>
@@ -364,6 +384,19 @@
                         </div>
                         <div style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
                             <strong>Risk Metrics:</strong> Max Daily Loss: ${best.maxDailyLossPercent.toFixed(1)}% | Max Drawdown: ${best.maxDrawdownPercent.toFixed(1)}% | Trades: ${best.stats.total}
+                        </div>
+                        <div style="margin-top: 10px; padding: 10px; background: rgba(58,123,213,0.1); border: 1px solid rgba(58,123,213,0.3); border-radius: 8px;">
+                            <strong>⏰ Optimal Trading Hours:</strong> ${optimalHoursText}
+                        </div>
+                        <div style="margin-top: 15px; display: flex; gap: 10px;">
+                            <button onclick="toggleChart('equity_${riskId}')" style="flex: 1; padding: 10px; background: rgba(0,255,136,0.2); border: 1px solid rgba(0,255,136,0.3); border-radius: 8px; color: #00ff88; cursor: pointer; font-weight: 600;">📈 Toggle Equity Curve</button>
+                            <button onclick="toggleChart('calendar_${riskId}')" style="flex: 1; padding: 10px; background: rgba(255,165,2,0.2); border: 1px solid rgba(255,165,2,0.3); border-radius: 8px; color: #ffa502; cursor: pointer; font-weight: 600;">📅 Toggle Calendar</button>
+                        </div>
+                        <div id="equity_${riskId}" style="display: none; margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
+                            <div style="height: 400px; width: 100%;" id="equity_chart_${riskId}"></div>
+                        </div>
+                        <div id="calendar_${riskId}" style="display: none; margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
+                            <div id="calendar_content_${riskId}"></div>
                         </div>
                     </div>
                 `;
@@ -379,6 +412,95 @@
             html += '</tbody></table></div>';
             
             document.getElementById('results').innerHTML = html;
+        }
+        
+        let strategyData = {};
+        
+        function toggleChart(chartId) {
+            const el = document.getElementById(chartId);
+            if (el.style.display === 'none') {
+                el.style.display = 'block';
+                const riskId = chartId.split('_').slice(1).join('_');
+                const data = strategyData[riskId];
+                if (!data) return;
+                
+                if (chartId.startsWith('equity_')) {
+                    renderEquityCurve(riskId, data);
+                } else if (chartId.startsWith('calendar_')) {
+                    renderCalendar(riskId, data);
+                }
+            } else {
+                el.style.display = 'none';
+            }
+        }
+        
+        function renderEquityCurve(riskId, data) {
+            const container = document.getElementById(`equity_chart_${riskId}`);
+            const results = data.signals.map(s => calculateTradeResult(s, data.beStrategy, data.rTarget));
+            let cumulative = 0;
+            const equityData = results.map((r, i) => {
+                cumulative += r;
+                return { index: i + 1, equity: cumulative };
+            });
+            
+            let html = '<svg width="100%" height="400" style="background: rgba(0,0,0,0.2); border-radius: 8px;">';
+            const maxEquity = Math.max(...equityData.map(d => d.equity));
+            const minEquity = Math.min(...equityData.map(d => d.equity));
+            const range = maxEquity - minEquity || 1;
+            const width = container.offsetWidth || 800;
+            const height = 400;
+            const padding = 40;
+            
+            equityData.forEach((d, i) => {
+                if (i === 0) return;
+                const x1 = padding + ((i - 1) / equityData.length) * (width - 2 * padding);
+                const x2 = padding + (i / equityData.length) * (width - 2 * padding);
+                const y1 = height - padding - ((equityData[i - 1].equity - minEquity) / range) * (height - 2 * padding);
+                const y2 = height - padding - ((d.equity - minEquity) / range) * (height - 2 * padding);
+                html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#00ff88" stroke-width="2"/>`;
+            });
+            
+            html += `<text x="${width/2}" y="${height - 10}" fill="#fff" text-anchor="middle" font-size="12">Trade Number</text>`;
+            html += `<text x="20" y="${height/2}" fill="#fff" text-anchor="middle" font-size="12" transform="rotate(-90 20 ${height/2})">Cumulative R</text>`;
+            html += '</svg>';
+            container.innerHTML = html;
+        }
+        
+        function renderCalendar(riskId, data) {
+            const container = document.getElementById(`calendar_content_${riskId}`);
+            const dailyResults = {};
+            
+            data.signals.forEach(s => {
+                if (!dailyResults[s.date]) dailyResults[s.date] = [];
+                dailyResults[s.date].push(calculateTradeResult(s, data.beStrategy, data.rTarget));
+            });
+            
+            const dailyTotals = Object.entries(dailyResults).map(([date, results]) => ({
+                date,
+                total: results.reduce((sum, r) => sum + r, 0),
+                count: results.length
+            })).sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            let html = '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;">';
+            html += '<div style="text-align: center; font-weight: 600; padding: 5px;">Mon</div>';
+            html += '<div style="text-align: center; font-weight: 600; padding: 5px;">Tue</div>';
+            html += '<div style="text-align: center; font-weight: 600; padding: 5px;">Wed</div>';
+            html += '<div style="text-align: center; font-weight: 600; padding: 5px;">Thu</div>';
+            html += '<div style="text-align: center; font-weight: 600; padding: 5px;">Fri</div>';
+            html += '<div style="text-align: center; font-weight: 600; padding: 5px;">Sat</div>';
+            html += '<div style="text-align: center; font-weight: 600; padding: 5px;">Sun</div>';
+            
+            dailyTotals.forEach(day => {
+                const color = day.total > 0 ? '#00ff88' : day.total < 0 ? '#ff4757' : '#666';
+                html += `<div style="background: ${color}; padding: 10px; border-radius: 8px; text-align: center;">`;
+                html += `<div style="font-size: 10px;">${day.date.split('-')[2]}</div>`;
+                html += `<div style="font-weight: 600;">${day.total > 0 ? '+' : ''}${day.total.toFixed(1)}R</div>`;
+                html += `<div style="font-size: 10px;">${day.count} trades</div>`;
+                html += '</div>';
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
         }
         
         document.addEventListener('DOMContentLoaded', () => { loadSignals(); });
