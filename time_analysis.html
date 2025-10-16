@@ -256,7 +256,7 @@
             const dst = isDST(now);
             const offset = dst ? 0 : 1;
             return {
-                'Asia': { start: 20 + offset, end: 23 + offset },
+                'Asia': { start: 20 + offset, end: 23 },
                 'London': { start: 0 + offset, end: 5 + offset },
                 'NY Pre Market': { start: 6 + offset, end: 8 + offset },
                 'NY AM': { start: 8 + offset, end: 11 + offset },
@@ -321,16 +321,21 @@
                 let session = null;
                 
                 for (const [name, time] of Object.entries(sessionTimes)) {
-                    if (name === 'Asia' && (hour >= time.start || hour <= time.end)) {
-                        session = name;
-                        break;
+                    if (name === 'Asia') {
+                        if (hour >= time.start || hour <= time.end) {
+                            session = name;
+                            break;
+                        }
                     } else if (hour >= time.start && hour <= time.end) {
                         session = name;
                         break;
                     }
                 }
                 
-                if (!session) session = 'NY PM';
+                if (!session) {
+                    if (hour >= 16 && hour <= 19) session = 'NY PM';
+                    else session = 'NY Lunch';
+                }
                 if (!sessions[session]) sessions[session] = [];
                 sessions[session].push({ hour, expectancy: h.expectancy, trades: h.trades, winRate: h.win_rate });
             });
