@@ -339,6 +339,7 @@
                 best.forEach(h => {
                     const barWidth = (Math.abs(h.expectancy) / maxExp) * 100;
                     const color = h.expectancy > 0 ? '#00ff88' : '#ff4757';
+                    const winRate = h.win_rate || h.winRate || 0;
                     html += `
                         <div style="margin-bottom: 12px;">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px;">
@@ -347,7 +348,7 @@
                             </div>
                             <div style="background: rgba(255,255,255,0.1); height: 24px; border-radius: 4px; overflow: hidden;">
                                 <div style="width: ${barWidth}%; height: 100%; background: ${color}; display: flex; align-items: center; padding: 0 8px; font-size: 11px; color: #000;">
-                                    ${h.trades} trades | ${(h.winRate * 100).toFixed(0)}% WR
+                                    ${h.trades} trades | ${(winRate * 100).toFixed(0)}% WR
                                 </div>
                             </div>
                         </div>
