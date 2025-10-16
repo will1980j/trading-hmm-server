@@ -313,37 +313,22 @@
         }
         
         function renderSessionTimeWindows() {
-            const sessionTimes = getSessionTimes();
-            const sessions = {};
-            
-            timeAnalysisData.hourly.forEach(h => {
-                const hour = h.hour;
-                let session = null;
-                
-                for (const [name, time] of Object.entries(sessionTimes)) {
-                    if (name === 'Asia') {
-                        if (hour >= time.start || hour <= time.end) {
-                            session = name;
-                            break;
-                        }
-                    } else if (hour >= time.start && hour <= time.end) {
-                        session = name;
-                        break;
-                    }
-                }
-                
-                if (!session) {
-                    if (hour >= 16 && hour <= 19) session = 'NY PM';
-                    else session = 'NY Lunch';
-                }
-                if (!sessions[session]) sessions[session] = [];
-                sessions[session].push({ hour, expectancy: h.expectancy, trades: h.trades, winRate: h.win_rate });
-            });
-            
             const container = document.getElementById('sessionTimeWindows');
             container.innerHTML = '';
             
-            Object.entries(sessions).forEach(([session, hours]) => {
+            const sessionMap = {
+                'Asia': { hours: [20, 21, 22, 23] },
+                'London': { hours: [0, 1, 2, 3, 4, 5] },
+                'NY Pre Market': { hours: [6, 7, 8] },
+                'NY AM': { hours: [9, 10, 11] },
+                'NY Lunch': { hours: [12] },
+                'NY PM': { hours: [13, 14, 15, 16, 17, 18, 19] }
+            };
+            
+            Object.entries(sessionMap).forEach(([session, config]) => {
+                const hours = timeAnalysisData.hourly.filter(h => config.hours.includes(h.hour));
+                if (hours.length === 0) return;
+                
                 hours.sort((a, b) => b.expectancy - a.expectancy);
                 const best = hours.slice(0, 3);
                 const maxExp = Math.max(...hours.map(h => Math.abs(h.expectancy)));
