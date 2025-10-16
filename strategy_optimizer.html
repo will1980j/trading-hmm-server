@@ -217,6 +217,38 @@
             const resultsByRisk = {};
             
             const selectedSessions = getSelectedSessions();
+            
+            // Calculate optimal time windows (best hour per session)
+            const optimalTimeWindows = {};
+            selectedSessions.forEach(session => {
+                const sessionSignals = signals.filter(s => s.session === session);
+                const hourlyPerf = {};
+                sessionSignals.forEach(s => {
+                    if (!s.time) return;
+                    const hour = parseInt(s.time.split(':')[0]);
+                    if (!hourlyPerf[hour]) hourlyPerf[hour] = [];
+                    hourlyPerf[hour].push(s);
+                });
+                const hourlyStats = Object.entries(hourlyPerf)
+                    .map(([hour, sigs]) => {
+                        if (sigs.length < 3) return null;
+                        const results = sigs.map(s => calculateTradeResult(s, 'none', 2));
+                        const stats = calculateStats(results);
+                        return { hour: parseInt(hour), expectancy: stats.expectancy };
+                    })
+                    .filter(h => h !== null)
+                    .sort((a, b) => b.expectancy - a.expectancy);
+                if (hourlyStats.length > 0) optimalTimeWindows[session] = [hourlyStats[0]];
+            });
+            
+            // Filter signals to only optimal time windows
+            const filteredSignals = signals.filter(signal => {
+                const sessionWindows = optimalTimeWindows[signal.session];
+                if (!sessionWindows || sessionWindows.length === 0) return false;
+                const hour = signal.time ? parseInt(signal.time.split(':')[0]) : null;
+                if (hour === null) return false;
+                return sessionWindows.some(w => hour === w.hour);
+            });
             const beStrategies = ['none', 'be1'];
             
             riskLevels.forEach(riskPerTrade => {
@@ -228,7 +260,7 @@
                 beStrategies.forEach(beStrategy => {
                     rTargets.forEach(rTarget => {
                         selectedSessions.forEach(session => {
-                            const sessionSignals = signals.filter(s => s.session === session);
+                            const sessionSignals = filteredSignals.filter(s => s.session === session);
                             if (sessionSignals.length < 30) return;
                             const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
                             const stats = calculateStats(results);
@@ -253,7 +285,7 @@
                         for (let i = 0; i < selectedSessions.length; i++) {
                             for (let j = i + 1; j < selectedSessions.length; j++) {
                                 const sessionPair = [selectedSessions[i], selectedSessions[j]];
-                                const combinedSignals = signals.filter(s => sessionPair.includes(s.session));
+                                const combinedSignals = filteredSignals.filter(s => sessionPair.includes(s.session));
                                 if (combinedSignals.length < 50) continue;
                                 const results = combinedSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
                                 const stats = calculateStats(results);
@@ -298,10 +330,13 @@
             if (timeWindows.session && timeWindows.session.length > 0) {
                 timeHtml = '<div class="time-window"><strong>⏰ Time Analysis (from /api/time-analysis):</strong><br>';
                 timeWindows.session.slice(0, 3).forEach(s => {
-                    timeHtml += `${s.session}: ${s.expectancy.toFixed(3)}R expectancy, ${(s.win_rate * 100).toFixed(1)}% win rate (${s.trades} trades)<br>`;
+                    const exp = typeof s.expectancy === 'number' ? s.expectancy : parseFloat(s.expectancy) || 0;
+                    const wr = typeof s.win_rate === 'number' ? s.win_rate : parseFloat(s.win_rate) || 0;
+                    timeHtml += `${s.session}: ${exp.toFixed(3)}R expectancy, ${(wr * 100).toFixed(1)}% win rate (${s.trades} trades)<br>`;
                 });
                 if (timeWindows.bestHour && timeWindows.bestHour.hour) {
-                    timeHtml += `<br>Best Hour: ${timeWindows.bestHour.hour}:00 (${timeWindows.bestHour.expectancy.toFixed(3)}R)`;
+                    const exp = typeof timeWindows.bestHour.expectancy === 'number' ? timeWindows.bestHour.expectancy : parseFloat(timeWindows.bestHour.expectancy) || 0;
+                    timeHtml += `<br>Best Hour: ${timeWindows.bestHour.hour}:00 (${exp.toFixed(3)}R)`;
                 }
                 timeHtml += '</div>';
             }
