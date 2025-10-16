@@ -158,6 +158,7 @@
         <div class="header">
             <h1>⏰ Time-Based Performance Analysis</h1>
             <p>R-Value Distribution Across Time Windows</p>
+            <div id="sessionTimes" style="margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 10px; font-size: 14px;"></div>
         </div>
         
         <div class="stats-grid">
@@ -241,6 +242,44 @@
     <script>
         let timeAnalysisData = null;
         
+        function isDST(date) {
+            const year = date.getFullYear();
+            const marchSecondSunday = new Date(year, 2, 1);
+            marchSecondSunday.setDate(1 + (7 - marchSecondSunday.getDay() + 7) % 7 + 7);
+            const novFirstSunday = new Date(year, 10, 1);
+            novFirstSunday.setDate(1 + (7 - novFirstSunday.getDay()) % 7);
+            return date >= marchSecondSunday && date < novFirstSunday;
+        }
+        
+        function getSessionTimes() {
+            const now = new Date();
+            const dst = isDST(now);
+            const offset = dst ? 0 : 1;
+            return {
+                'Asia': { start: 20 + offset, end: 23 + offset },
+                'London': { start: 0 + offset, end: 5 + offset },
+                'NY Pre Market': { start: 6 + offset, end: 8 + offset },
+                'NY AM': { start: 8 + offset, end: 11 + offset },
+                'NY Lunch': { start: 12 + offset, end: 12 + offset },
+                'NY PM': { start: 13 + offset, end: 15 + offset }
+            };
+        }
+        
+        function displaySessionTimes() {
+            const now = new Date();
+            const dst = isDST(now);
+            const times = getSessionTimes();
+            const container = document.getElementById('sessionTimes');
+            
+            let html = `<strong>Current Session Times (${dst ? 'DST Active' : 'Standard Time'}):</strong><br><div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px;">`;
+            Object.entries(times).forEach(([session, time]) => {
+                const endHour = session === 'Asia' ? (time.end === 24 ? '23:59' : `${String(time.end).padStart(2, '0')}:59`) : `${String(time.end).padStart(2, '0')}:59`;
+                html += `<div style="background: rgba(0,255,136,0.1); padding: 8px; border-radius: 6px;"><strong>${session}:</strong> ${String(time.start).padStart(2, '0')}:00-${endHour}</div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
         async function loadTimeAnalysis() {
             try {
                 const response = await fetch('/api/time-analysis');
@@ -249,6 +288,7 @@
                 timeAnalysisData = await response.json();
                 console.log('Time analysis loaded:', timeAnalysisData);
                 
+                displaySessionTimes();
                 updateStats();
                 renderSessionTimeWindows();
                 renderHourlyAnalysis();
@@ -273,16 +313,24 @@
         }
         
         function renderSessionTimeWindows() {
+            const sessionTimes = getSessionTimes();
             const sessions = {};
+            
             timeAnalysisData.hourly.forEach(h => {
                 const hour = h.hour;
-                let session;
-                if (hour >= 0 && hour < 8) session = 'Asia';
-                else if (hour >= 8 && hour < 13) session = 'London';
-                else if (hour >= 13 && hour < 16) session = 'NY AM';
-                else if (hour >= 16 && hour < 21) session = 'NY PM';
-                else session = 'NY Lunch';
+                let session = null;
                 
+                for (const [name, time] of Object.entries(sessionTimes)) {
+                    if (name === 'Asia' && (hour >= time.start || hour <= time.end)) {
+                        session = name;
+                        break;
+                    } else if (hour >= time.start && hour <= time.end) {
+                        session = name;
+                        break;
+                    }
+                }
+                
+                if (!session) session = 'NY PM';
                 if (!sessions[session]) sessions[session] = [];
                 sessions[session].push({ hour, expectancy: h.expectancy, trades: h.trades, winRate: h.win_rate });
             });
