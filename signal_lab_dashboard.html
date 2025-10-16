@@ -583,6 +583,12 @@
                             <label for="sessionNYPM">NY PM</label>
                         </div>
                     </div>
+                    <div style="margin-top: 10px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                            <input type="checkbox" id="useOptimalHours" style="width: 16px; height: 16px; accent-color: #00ff88;">
+                            <span>Use optimal time windows only</span>
+                        </label>
+                    </div>
                 </div>
             </div>
             
@@ -930,11 +936,23 @@
             const rTarget = parseFloat(document.getElementById('rTarget').value) || 2;
             const selectedSessions = getSelectedSessions();
             const viewType = document.getElementById('viewType').value;
+            const useOptimalHours = document.getElementById('useOptimalHours')?.checked || false;
             
-            // Filter signals by selected sessions (using NY EST timezone for date consistency)
-            const filteredSignals = signals.filter(signal => 
+            // Filter signals by selected sessions
+            let filteredSignals = signals.filter(signal => 
                 selectedSessions.includes(signal.session)
             );
+            
+            // Apply optimal time window filter if enabled
+            if (useOptimalHours && window.optimalTimeWindows) {
+                filteredSignals = filteredSignals.filter(signal => {
+                    const sessionWindows = window.optimalTimeWindows[signal.session];
+                    if (!sessionWindows || sessionWindows.length === 0) return true;
+                    const hour = signal.time ? parseInt(signal.time.split(':')[0]) : null;
+                    if (hour === null) return true;
+                    return sessionWindows.some(w => hour === w.hour);
+                });
+            }
             
             if (filteredSignals.length === 0) {
                 showNoData();
@@ -2024,6 +2042,7 @@
             document.getElementById('rTarget').addEventListener('input', updateAnalysis);
             document.getElementById('viewType').addEventListener('change', updateAnalysis);
             document.getElementById('sessionOverlay').addEventListener('change', updateAnalysis);
+            document.getElementById('useOptimalHours')?.addEventListener('change', updateAnalysis);
             
             // Prop firm risk controls
             ['riskPerTrade', 'maxDailyLoss', 'maxTotalDrawdown', 'accountSize'].forEach(id => {
@@ -3540,6 +3559,30 @@
                 document.getElementById('timeAnalysis').innerHTML = 'Need at least 10 trades for meaningful time analysis';
                 return;
             }
+            
+            // Calculate optimal time windows for each session
+            window.optimalTimeWindows = {};
+            selectedSessions.forEach(session => {
+                const sessionSignals = signals.filter(s => s.session === session);
+                const hourlyPerf = {};
+                sessionSignals.forEach(s => {
+                    if (!s.time) return;
+                    const hour = parseInt(s.time.split(':')[0]);
+                    if (!hourlyPerf[hour]) hourlyPerf[hour] = [];
+                    hourlyPerf[hour].push(s);
+                });
+                const hourlyStats = Object.entries(hourlyPerf)
+                    .map(([hour, sigs]) => {
+                        if (sigs.length < 3) return null;
+                        const results = sigs.map(s => calculateTradeResult(s, 'none', 2));
+                        const stats = calculateStatistics(results, 2);
+                        return { hour: parseInt(hour), expectancy: stats.expectancy };
+                    })
+                    .filter(h => h !== null)
+                    .sort((a, b) => b.expectancy - a.expectancy)
+                    .slice(0, 3);
+                window.optimalTimeWindows[session] = hourlyStats;
+            });
             
             const analysis = analyzeTimePerformance(signals, selectedSessions);
             displayEnhancedTimeAnalysis(analysis);
