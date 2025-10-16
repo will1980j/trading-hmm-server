@@ -3587,16 +3587,19 @@
                     if (!hourlyPerf[hour]) hourlyPerf[hour] = [];
                     hourlyPerf[hour].push(s);
                 });
+                
+                console.log(`${session} - All hours with trade counts:`, Object.keys(hourlyPerf).map(h => `${h}:${hourlyPerf[h].length}`).join(', '));
+                
                 const hourlyStats = Object.entries(hourlyPerf)
                     .map(([hour, sigs]) => {
                         if (sigs.length < 3) return null;
                         const results = sigs.map(s => calculateTradeResult(s, beStrategy, rTarget));
                         const stats = calculateStatistics(results, rTarget);
-                        return { hour: parseInt(hour), expectancy: stats.expectancy };
+                        return { hour: parseInt(hour), expectancy: stats.expectancy, count: sigs.length };
                     })
                     .filter(h => h !== null)
                     .sort((a, b) => b.expectancy - a.expectancy)
-                    .slice(0, 3);
+                    .slice(0, 1);
                 window.optimalTimeWindows[session] = hourlyStats;
                 console.log(`Optimal windows for ${session}:`, hourlyStats);
             });
