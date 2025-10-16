@@ -218,8 +218,8 @@
             
             const selectedSessions = getSelectedSessions();
             
-            // Calculate optimal time windows (best hour per session)
-            const optimalTimeWindows = {};
+            // Calculate optimal time windows (best hour per session) - declare at function scope
+            let optimalTimeWindows = {};
             selectedSessions.forEach(session => {
                 const sessionSignals = signals.filter(s => s.session === session);
                 const hourlyPerf = {};
@@ -273,7 +273,7 @@
                             const avgRPerTrade = stats.totalR / stats.total;
                             const sharpe = stats.expectancy / (stats.maxDrawdown > 0 ? stats.maxDrawdown : 1);
                             const score = (stats.expectancy * 40) + (stats.winRate / 100 * 20) + (avgRPerTrade * 15) + (sharpe * 10) + (Math.log(stats.total) * 5);
-                            const combo = { sessions: [session], beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade, riskPerTrade, optimalWindows, signals: sessionSignals };
+                            const combo = { sessions: [session], beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade, riskPerTrade, optimalWindows: optimalTimeWindows, signals: sessionSignals };
                             allCombinations.push(combo);
                             if (score > bestScore) { bestScore = score; bestOverall = combo; }
                         });
@@ -298,7 +298,7 @@
                                 const avgRPerTrade = stats.totalR / stats.total;
                                 const sharpe = stats.expectancy / (stats.maxDrawdown > 0 ? stats.maxDrawdown : 1);
                                 const score = (stats.expectancy * 40) + (stats.winRate / 100 * 20) + (avgRPerTrade * 15) + (sharpe * 10) + (Math.log(stats.total) * 5);
-                                const combo = { sessions: sessionPair, beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade, riskPerTrade, optimalWindows, signals: combinedSignals };
+                                const combo = { sessions: sessionPair, beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade, riskPerTrade, optimalWindows: optimalTimeWindows, signals: combinedSignals };
                                 allCombinations.push(combo);
                                 if (score > bestScore) { bestScore = score; bestOverall = combo; }
                             }
