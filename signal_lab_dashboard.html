@@ -945,13 +945,16 @@
             
             // Apply optimal time window filter if enabled
             if (useOptimalHours && window.optimalTimeWindows) {
+                console.log('Optimal windows:', window.optimalTimeWindows);
+                console.log('Before filter:', filteredSignals.length);
                 filteredSignals = filteredSignals.filter(signal => {
                     const sessionWindows = window.optimalTimeWindows[signal.session];
-                    if (!sessionWindows || sessionWindows.length === 0) return false; // Exclude if no optimal windows
+                    if (!sessionWindows || sessionWindows.length === 0) return false;
                     const hour = signal.time ? parseInt(signal.time.split(':')[0]) : null;
-                    if (hour === null) return false; // Exclude if no time data
+                    if (hour === null) return false;
                     return sessionWindows.some(w => hour === w.hour);
                 });
+                console.log('After filter:', filteredSignals.length);
             }
             
             if (filteredSignals.length === 0) {
@@ -3588,6 +3591,7 @@
                     .sort((a, b) => b.expectancy - a.expectancy)
                     .slice(0, 3);
                 window.optimalTimeWindows[session] = hourlyStats;
+                console.log(`Optimal windows for ${session}:`, hourlyStats);
             });
             
             const analysis = analyzeTimePerformance(signals, selectedSessions);
