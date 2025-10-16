@@ -278,7 +278,6 @@
                     return sessionWindows.some(w => hour === w.hour);
                 });
             }
-            const beStrategies = ['none', 'be1'];
             
             riskLevels.forEach(riskPerTrade => {
                 const maxPossibleR = Math.floor(constraints.maxDailyLoss / riskPerTrade);
