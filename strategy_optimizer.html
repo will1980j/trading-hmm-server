@@ -436,34 +436,92 @@
         
         function renderEquityCurve(riskId, data) {
             const container = document.getElementById(`equity_chart_${riskId}`);
+            container.innerHTML = '';
+            
             const results = data.signals.map(s => calculateTradeResult(s, data.beStrategy, data.rTarget));
             let cumulative = 0;
             const equityData = results.map((r, i) => {
                 cumulative += r;
-                return { index: i + 1, equity: cumulative };
+                return { index: i + 1, equity: cumulative, result: r };
             });
             
-            let html = '<svg width="100%" height="400" style="background: rgba(0,0,0,0.2); border-radius: 8px;">';
-            const maxEquity = Math.max(...equityData.map(d => d.equity));
-            const minEquity = Math.min(...equityData.map(d => d.equity));
-            const range = maxEquity - minEquity || 1;
             const width = container.offsetWidth || 800;
             const height = 400;
-            const padding = 40;
+            const margin = {top: 20, right: 30, bottom: 40, left: 60};
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
             
-            equityData.forEach((d, i) => {
-                if (i === 0) return;
-                const x1 = padding + ((i - 1) / equityData.length) * (width - 2 * padding);
-                const x2 = padding + (i / equityData.length) * (width - 2 * padding);
-                const y1 = height - padding - ((equityData[i - 1].equity - minEquity) / range) * (height - 2 * padding);
-                const y2 = height - padding - ((d.equity - minEquity) / range) * (height - 2 * padding);
-                html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#00ff88" stroke-width="2"/>`;
-            });
+            const svg = d3.select(container).append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .style('background', 'rgba(0,0,0,0.2)')
+                .style('border-radius', '8px');
             
-            html += `<text x="${width/2}" y="${height - 10}" fill="#fff" text-anchor="middle" font-size="12">Trade Number</text>`;
-            html += `<text x="20" y="${height/2}" fill="#fff" text-anchor="middle" font-size="12" transform="rotate(-90 20 ${height/2})">Cumulative R</text>`;
-            html += '</svg>';
-            container.innerHTML = html;
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            const xScale = d3.scaleLinear()
+                .domain([0, equityData.length])
+                .range([0, innerWidth]);
+            
+            const yScale = d3.scaleLinear()
+                .domain([d3.min(equityData, d => d.equity) - 2, d3.max(equityData, d => d.equity) + 2])
+                .range([innerHeight, 0]);
+            
+            const line = d3.line()
+                .x(d => xScale(d.index))
+                .y(d => yScale(d.equity))
+                .curve(d3.curveMonotoneX);
+            
+            const area = d3.area()
+                .x(d => xScale(d.index))
+                .y0(innerHeight)
+                .y1(d => yScale(d.equity))
+                .curve(d3.curveMonotoneX);
+            
+            g.append('path')
+                .datum(equityData)
+                .attr('fill', 'url(#gradient)')
+                .attr('d', area)
+                .style('opacity', 0.3);
+            
+            const gradient = svg.append('defs').append('linearGradient')
+                .attr('id', 'gradient')
+                .attr('x1', '0%').attr('y1', '0%')
+                .attr('x2', '0%').attr('y2', '100%');
+            gradient.append('stop').attr('offset', '0%').attr('stop-color', '#00ff88').attr('stop-opacity', 0.8);
+            gradient.append('stop').attr('offset', '100%').attr('stop-color', '#00ff88').attr('stop-opacity', 0.1);
+            
+            g.append('path')
+                .datum(equityData)
+                .attr('fill', 'none')
+                .attr('stroke', '#00ff88')
+                .attr('stroke-width', 3)
+                .attr('d', line);
+            
+            g.append('g')
+                .attr('transform', `translate(0,${innerHeight})`)
+                .call(d3.axisBottom(xScale).ticks(10))
+                .style('color', '#fff');
+            
+            g.append('g')
+                .call(d3.axisLeft(yScale).tickFormat(d => d + 'R'))
+                .style('color', '#fff');
+            
+            g.append('text')
+                .attr('x', innerWidth / 2)
+                .attr('y', innerHeight + 35)
+                .attr('text-anchor', 'middle')
+                .style('fill', '#fff')
+                .text('Trade Number');
+            
+            g.append('text')
+                .attr('transform', 'rotate(-90)')
+                .attr('x', -innerHeight / 2)
+                .attr('y', -45)
+                .attr('text-anchor', 'middle')
+                .style('fill', '#fff')
+                .text('Cumulative R');
         }
         
         function renderCalendar(riskId, data) {
@@ -475,31 +533,77 @@
                 dailyResults[s.date].push(calculateTradeResult(s, data.beStrategy, data.rTarget));
             });
             
-            const dailyTotals = Object.entries(dailyResults).map(([date, results]) => ({
-                date,
-                total: results.reduce((sum, r) => sum + r, 0),
-                count: results.length
-            })).sort((a, b) => new Date(a.date) - new Date(b.date));
-            
-            let html = '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;">';
-            html += '<div style="text-align: center; font-weight: 600; padding: 5px;">Mon</div>';
-            html += '<div style="text-align: center; font-weight: 600; padding: 5px;">Tue</div>';
-            html += '<div style="text-align: center; font-weight: 600; padding: 5px;">Wed</div>';
-            html += '<div style="text-align: center; font-weight: 600; padding: 5px;">Thu</div>';
-            html += '<div style="text-align: center; font-weight: 600; padding: 5px;">Fri</div>';
-            html += '<div style="text-align: center; font-weight: 600; padding: 5px;">Sat</div>';
-            html += '<div style="text-align: center; font-weight: 600; padding: 5px;">Sun</div>';
-            
-            dailyTotals.forEach(day => {
-                const color = day.total > 0 ? '#00ff88' : day.total < 0 ? '#ff4757' : '#666';
-                html += `<div style="background: ${color}; padding: 10px; border-radius: 8px; text-align: center;">`;
-                html += `<div style="font-size: 10px;">${day.date.split('-')[2]}</div>`;
-                html += `<div style="font-weight: 600;">${day.total > 0 ? '+' : ''}${day.total.toFixed(1)}R</div>`;
-                html += `<div style="font-size: 10px;">${day.count} trades</div>`;
-                html += '</div>';
+            const dailyTotals = {};
+            Object.entries(dailyResults).forEach(([date, results]) => {
+                dailyTotals[date] = {
+                    total: results.reduce((sum, r) => sum + r, 0),
+                    count: results.length
+                };
             });
             
-            html += '</div>';
+            const dates = Object.keys(dailyTotals).sort();
+            if (dates.length === 0) return;
+            
+            const startDate = new Date(dates[0]);
+            const endDate = new Date(dates[dates.length - 1]);
+            const startMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+            const endMonth = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
+            
+            let html = '';
+            let currentDate = new Date(startMonth);
+            
+            while (currentDate <= endMonth) {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+                
+                html += `<div style="margin-bottom: 30px;"><h4 style="color: #00ff88; margin-bottom: 15px;">${monthName}</h4>`;
+                html += '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 10px;">';
+                html += '<div style="text-align: center; font-weight: 600; font-size: 12px; color: rgba(255,255,255,0.6);">Sun</div>';
+                html += '<div style="text-align: center; font-weight: 600; font-size: 12px; color: rgba(255,255,255,0.6);">Mon</div>';
+                html += '<div style="text-align: center; font-weight: 600; font-size: 12px; color: rgba(255,255,255,0.6);">Tue</div>';
+                html += '<div style="text-align: center; font-weight: 600; font-size: 12px; color: rgba(255,255,255,0.6);">Wed</div>';
+                html += '<div style="text-align: center; font-weight: 600; font-size: 12px; color: rgba(255,255,255,0.6);">Thu</div>';
+                html += '<div style="text-align: center; font-weight: 600; font-size: 12px; color: rgba(255,255,255,0.6);">Fri</div>';
+                html += '<div style="text-align: center; font-weight: 600; font-size: 12px; color: rgba(255,255,255,0.6);">Sat</div>';
+                html += '</div>';
+                
+                html += '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;">';
+                
+                const firstDay = new Date(year, month, 1).getDay();
+                for (let i = 0; i < firstDay; i++) {
+                    html += '<div></div>';
+                }
+                
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const dayData = dailyTotals[dateStr];
+                    const dayOfWeek = new Date(year, month, day).getDay();
+                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                    
+                    if (dayData) {
+                        const intensity = Math.min(Math.abs(dayData.total) / 5, 1);
+                        const bgColor = dayData.total > 0 ? 
+                            `rgba(0, 255, 136, ${0.3 + intensity * 0.7})` : 
+                            `rgba(255, 71, 87, ${0.3 + intensity * 0.7})`;
+                        html += `<div style="background: ${bgColor}; padding: 12px; border-radius: 10px; text-align: center; border: 2px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.3s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">`;
+                        html += `<div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">${day}</div>`;
+                        html += `<div style="font-weight: 700; font-size: 16px; margin-bottom: 2px;">${dayData.total > 0 ? '+' : ''}${dayData.total.toFixed(1)}R</div>`;
+                        html += `<div style="font-size: 10px; opacity: 0.7;">${dayData.count} trades</div>`;
+                        html += '</div>';
+                    } else {
+                        const bgColor = isWeekend ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)';
+                        html += `<div style="background: ${bgColor}; padding: 12px; border-radius: 10px; text-align: center; border: 1px solid rgba(255,255,255,0.05);">`;
+                        html += `<div style="font-size: 11px; opacity: 0.4;">${day}</div>`;
+                        html += '</div>';
+                    }
+                }
+                
+                html += '</div></div>';
+                currentDate.setMonth(currentDate.getMonth() + 1);
+            }
+            
             container.innerHTML = html;
         }
         
