@@ -188,15 +188,12 @@
         </div>
         
         <div class="analysis-section">
-            <div class="section-title">1. Macro Window Analysis (xx:50-xx:10 + MOC 15:15-15:45)</div>
-            <div class="chart-container">
-                <canvas id="macroChart"></canvas>
-            </div>
-            <table class="data-table" id="macroTable"></table>
+            <div class="section-title">Best Time Windows by Session</div>
+            <div id="sessionTimeWindows" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;"></div>
         </div>
         
         <div class="analysis-section">
-            <div class="section-title">2. Hourly Analysis (24-Hour Distribution)</div>
+            <div class="section-title">Hourly Analysis (24-Hour Distribution)</div>
             <div class="chart-container">
                 <canvas id="hourlyChart"></canvas>
             </div>
@@ -204,7 +201,7 @@
         </div>
         
         <div class="analysis-section">
-            <div class="section-title">3. Session Analysis</div>
+            <div class="section-title">Session Analysis</div>
             <div class="chart-container">
                 <canvas id="sessionChart"></canvas>
             </div>
@@ -253,7 +250,7 @@
                 console.log('Time analysis loaded:', timeAnalysisData);
                 
                 updateStats();
-                renderMacroAnalysis();
+                renderSessionTimeWindows();
                 renderHourlyAnalysis();
                 renderSessionAnalysis();
                 renderDayAnalysis();
@@ -275,34 +272,52 @@
             document.getElementById('bestMonth').textContent = timeAnalysisData.best_month.month;
         }
         
-        function renderMacroAnalysis() {
-            const data = timeAnalysisData.macro;
-            const ctx = document.getElementById('macroChart').getContext('2d');
-            
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: data.map(d => d.window),
-                    datasets: [{
-                        label: 'Expectancy (R)',
-                        data: data.map(d => d.expectancy),
-                        backgroundColor: data.map(d => d.expectancy > 0 ? 'rgba(0, 255, 136, 0.6)' : 'rgba(255, 71, 87, 0.6)'),
-                        borderColor: data.map(d => d.expectancy > 0 ? '#00ff88' : '#ff4757'),
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#fff' } },
-                        x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#fff' } }
-                    },
-                    plugins: { legend: { labels: { color: '#fff' } } }
-                }
+        function renderSessionTimeWindows() {
+            const sessions = {};
+            timeAnalysisData.hourly.forEach(h => {
+                const hour = h.hour;
+                let session = 'Other';
+                if (hour >= 0 && hour < 8) session = 'Asia';
+                else if (hour >= 8 && hour < 13) session = 'London';
+                else if (hour >= 13 && hour < 16) session = 'NY AM';
+                else if (hour >= 16 && hour < 20) session = 'NY PM';
+                
+                if (!sessions[session]) sessions[session] = [];
+                sessions[session].push({ hour, expectancy: h.expectancy, trades: h.trades, winRate: h.win_rate });
             });
             
-            renderTable('macroTable', data, ['window', 'trades', 'expectancy', 'win_rate', 'avg_r', 'std_dev']);
+            const container = document.getElementById('sessionTimeWindows');
+            container.innerHTML = '';
+            
+            Object.entries(sessions).forEach(([session, hours]) => {
+                hours.sort((a, b) => b.expectancy - a.expectancy);
+                const best = hours.slice(0, 3);
+                const maxExp = Math.max(...hours.map(h => Math.abs(h.expectancy)));
+                
+                let html = `<div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px;">`;
+                html += `<h3 style="color: #00ff88; margin-bottom: 15px;">${session}</h3>`;
+                
+                best.forEach(h => {
+                    const barWidth = (Math.abs(h.expectancy) / maxExp) * 100;
+                    const color = h.expectancy > 0 ? '#00ff88' : '#ff4757';
+                    html += `
+                        <div style="margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px;">
+                                <span>${h.hour}:00-${h.hour+1}:00</span>
+                                <span style="color: ${color}; font-weight: 600;">${h.expectancy.toFixed(3)}R</span>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.1); height: 24px; border-radius: 4px; overflow: hidden;">
+                                <div style="width: ${barWidth}%; height: 100%; background: ${color}; display: flex; align-items: center; padding: 0 8px; font-size: 11px;">
+                                    ${h.trades} trades | ${(h.winRate * 100).toFixed(0)}% WR
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                container.innerHTML += html;
+            });
         }
         
         function renderHourlyAnalysis() {
