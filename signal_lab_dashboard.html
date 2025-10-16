@@ -2042,7 +2042,10 @@
             document.getElementById('rTarget').addEventListener('input', updateAnalysis);
             document.getElementById('viewType').addEventListener('change', updateAnalysis);
             document.getElementById('sessionOverlay').addEventListener('change', updateAnalysis);
-            document.getElementById('useOptimalHours')?.addEventListener('change', updateAnalysis);
+            document.getElementById('useOptimalHours')?.addEventListener('change', async () => {
+                await runTimeAnalysis();
+                updateAnalysis();
+            });
             
             // Prop firm risk controls
             ['riskPerTrade', 'maxDailyLoss', 'maxTotalDrawdown', 'accountSize'].forEach(id => {
@@ -2062,9 +2065,9 @@
             
             // Session checkboxes
             document.querySelectorAll('.session-checkboxes input[type="checkbox"]').forEach(cb => {
-                cb.addEventListener('change', () => {
+                cb.addEventListener('change', async () => {
+                    await runTimeAnalysis();
                     updateAnalysis();
-                    runTimeAnalysis();
                 });
             });
         }
