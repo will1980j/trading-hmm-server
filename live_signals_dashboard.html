@@ -290,14 +290,8 @@
                 <label><input type="checkbox" id="filter-OTHER"> Other</label>
             </div>
             
-            <h3>Session Times (NY EST)</h3>
-            <div style="font-size: 11px; line-height: 1.3; margin: 10px 0; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 5px;">
-                <div><strong>ASIA:</strong> 18:00-23:59</div>
-                <div><strong>LONDON:</strong> 00:00-05:59</div>
-                <div><strong>NY PRE:</strong> 06:00-09:29</div>
-                <div><strong>NY AM:</strong> 09:30-11:59</div>
-                <div><strong>NY LUNCH:</strong> 12:00-12:59</div>
-                <div><strong>NY PM:</strong> 13:00-16:59</div>
+            <h3>Session Times</h3>
+            <div id="sessionTimesDisplay" style="font-size: 11px; line-height: 1.3; margin: 10px 0; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 5px;">
             </div>
         </div>
         
@@ -361,9 +355,42 @@
         let signals = [];
         let wsConnection = null;
         
+        function isDST(date) {
+            const year = date.getFullYear();
+            const marchSecondSunday = new Date(year, 2, 1);
+            marchSecondSunday.setDate(1 + (7 - marchSecondSunday.getDay() + 7) % 7 + 7);
+            const novFirstSunday = new Date(year, 10, 1);
+            novFirstSunday.setDate(1 + (7 - novFirstSunday.getDay()) % 7);
+            return date >= marchSecondSunday && date < novFirstSunday;
+        }
+        
+        function displaySessionTimes() {
+            const now = new Date();
+            const dst = isDST(now);
+            const offset = dst ? 0 : 1;
+            const container = document.getElementById('sessionTimesDisplay');
+            
+            const sessions = [
+                { name: 'ASIA', start: 20 + offset, end: 23 + offset },
+                { name: 'LONDON', start: 0 + offset, end: 5 + offset },
+                { name: 'NY PRE', start: 6 + offset, end: 8 + offset },
+                { name: 'NY AM', start: 8 + offset, end: 11 + offset },
+                { name: 'NY LUNCH', start: 12 + offset, end: 12 + offset },
+                { name: 'NY PM', start: 13 + offset, end: 15 + offset }
+            ];
+            
+            let html = `<div style="font-size: 10px; opacity: 0.7; margin-bottom: 5px;">${dst ? 'DST Active' : 'Standard Time'}</div>`;
+            sessions.forEach(s => {
+                const endTime = s.name === 'ASIA' && s.end >= 24 ? '23:59' : `${String(s.end).padStart(2, '0')}:59`;
+                html += `<div><strong>${s.name}:</strong> ${String(s.start).padStart(2, '0')}:00-${endTime}</div>`;
+            });
+            container.innerHTML = html;
+        }
+        
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            signals = []; // Clear any cached data
+            signals = [];
+            displaySessionTimes();
             initializeWebSocket();
             loadHistoricalSignals();
             startMetricsUpdate();
@@ -691,18 +718,20 @@
             });
         }
         
-        // Get trading session based on NY time - EXACT TIMES
         function getSession(timestamp) {
             const date = new Date(timestamp);
             const nyTime = new Date(date.toLocaleString("en-US", {timeZone: "America/New_York"}));
             const hour = nyTime.getHours();
+            const minute = nyTime.getMinutes();
+            const dst = isDST(nyTime);
+            const offset = dst ? 0 : 1;
             
-            if (hour >= 18 && hour <= 23) return 'Asia';
-            if (hour >= 0 && hour <= 5) return 'London';
-            if (hour >= 6 && hour <= 9 || (hour == 9 && nyTime.getMinutes() <= 29)) return 'NY Pre';
-            if ((hour == 9 && nyTime.getMinutes() >= 30) || (hour >= 10 && hour <= 11)) return 'NY AM';
-            if (hour == 12) return 'NY Lunch';
-            if (hour >= 13 && hour <= 16) return 'NY PM';
+            if (hour >= (20 + offset) || hour <= (23 + offset)) return 'Asia';
+            if (hour >= (0 + offset) && hour <= (5 + offset)) return 'London';
+            if (hour >= (6 + offset) && (hour < (8 + offset) || (hour === (8 + offset) && minute < 30))) return 'NY Pre';
+            if ((hour === (8 + offset) && minute >= 30) || (hour > (8 + offset) && hour <= (11 + offset))) return 'NY AM';
+            if (hour === (12 + offset)) return 'NY Lunch';
+            if (hour >= (13 + offset) && hour <= (15 + offset)) return 'NY PM';
             return 'After Hours';
         }
         
