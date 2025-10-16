@@ -947,9 +947,9 @@
             if (useOptimalHours && window.optimalTimeWindows) {
                 filteredSignals = filteredSignals.filter(signal => {
                     const sessionWindows = window.optimalTimeWindows[signal.session];
-                    if (!sessionWindows || sessionWindows.length === 0) return true;
+                    if (!sessionWindows || sessionWindows.length === 0) return false; // Exclude if no optimal windows
                     const hour = signal.time ? parseInt(signal.time.split(':')[0]) : null;
-                    if (hour === null) return true;
+                    if (hour === null) return false; // Exclude if no time data
                     return sessionWindows.some(w => hour === w.hour);
                 });
             }
@@ -3560,7 +3560,10 @@
                 return;
             }
             
-            // Calculate optimal time windows for each session
+            // Calculate optimal time windows for each session using current BE/R-target settings
+            const beStrategy = document.getElementById('beStrategy').value;
+            const rTarget = parseFloat(document.getElementById('rTarget').value) || 2;
+            
             window.optimalTimeWindows = {};
             selectedSessions.forEach(session => {
                 const sessionSignals = signals.filter(s => s.session === session);
@@ -3574,8 +3577,8 @@
                 const hourlyStats = Object.entries(hourlyPerf)
                     .map(([hour, sigs]) => {
                         if (sigs.length < 3) return null;
-                        const results = sigs.map(s => calculateTradeResult(s, 'none', 2));
-                        const stats = calculateStatistics(results, 2);
+                        const results = sigs.map(s => calculateTradeResult(s, beStrategy, rTarget));
+                        const stats = calculateStatistics(results, rTarget);
                         return { hour: parseInt(hour), expectancy: stats.expectancy };
                     })
                     .filter(h => h !== null)
