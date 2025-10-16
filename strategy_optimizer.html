@@ -225,11 +225,12 @@
             
             const selectedSessions = getSelectedSessions();
             const useOptimalHours = document.getElementById('useOptimalHours').checked;
-            const beStrategies = ['none', 'be1'];
             
             // Calculate optimal time windows (best hour per session) - declare at function scope
             let optimalTimeWindows = {};
             let filteredSignals = signals;
+            
+            const beStrategies = ['none', 'be1'];
             
             if (useOptimalHours) {
                 // Calculate optimal hours for EACH BE/R combination to match what will be tested
