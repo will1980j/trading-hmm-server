@@ -13,37 +13,34 @@ def get_ml_insights_response(ml_available, db_enabled, db):
     try:
         if not ml_available:
             return jsonify({
-                'performance': {
-                    'is_trained': False,
-                    'training_samples': 0,
-                    'success_accuracy': 0,
-                    'last_training': None
-                },
+                'performance': {'is_trained': False, 'training_samples': 0, 'success_accuracy': 0, 'last_training': None},
                 'best_sessions': {},
                 'optimal_targets': {},
                 'bias_performance': {},
-                'key_recommendations': ['ML dependencies not installed - install sklearn, pandas, numpy, xgboost'],
+                'key_recommendations': [],
                 'status': 'dependencies_missing'
             }), 200
         
         if not db_enabled or not db:
             return jsonify({
-                'performance': {
-                    'is_trained': False,
-                    'training_samples': 0,
-                    'success_accuracy': 0,
-                    'last_training': None
-                },
+                'performance': {'is_trained': False, 'training_samples': 0, 'success_accuracy': 0, 'last_training': None},
                 'best_sessions': {},
                 'optimal_targets': {},
                 'bias_performance': {},
-                'key_recommendations': ['Database connection required for ML training'],
+                'key_recommendations': [],
                 'status': 'database_offline'
             }), 200
         
         # Get unified ML instance
         from unified_ml_intelligence import get_unified_ml
         ml_engine = get_unified_ml(db)
+        
+        # Train if not trained
+        if not ml_engine.is_trained:
+            logger.info("ML not trained, training now...")
+            train_result = ml_engine.train_on_all_data()
+            if 'error' in train_result:
+                logger.error(f"Training failed: {train_result['error']}")
         
         # Get fundamental insights
         insights = ml_engine.get_fundamental_insights()
@@ -59,7 +56,7 @@ def get_ml_insights_response(ml_available, db_enabled, db):
                 'best_sessions': {},
                 'optimal_targets': {},
                 'bias_performance': {},
-                'key_recommendations': [f'Error: {insights["error"]}'],
+                'key_recommendations': [],
                 'status': 'error'
             }), 200
         
@@ -87,15 +84,10 @@ def get_ml_insights_response(ml_available, db_enabled, db):
     except Exception as e:
         logger.error(f"ML insights error: {str(e)}")
         return jsonify({
-            'performance': {
-                'is_trained': False,
-                'training_samples': 0,
-                'success_accuracy': 0,
-                'last_training': None
-            },
+            'performance': {'is_trained': False, 'training_samples': 0, 'success_accuracy': 0, 'last_training': None},
             'best_sessions': {},
             'optimal_targets': {},
             'bias_performance': {},
-            'key_recommendations': [f'Error loading ML insights: {str(e)}'],
+            'key_recommendations': [],
             'status': 'error'
         }), 200

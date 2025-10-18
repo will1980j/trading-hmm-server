@@ -250,45 +250,47 @@
         }
         
         function updateDashboard(data) {
+            const getEl = (id) => document.getElementById(id);
+            
             // Update training status
             if (data.performance) {
                 const perf = data.performance;
-                document.getElementById('trainingSamples').textContent = perf.training_samples || '0';
-                document.getElementById('modelAccuracy').textContent = perf.success_accuracy ? `${perf.success_accuracy.toFixed(1)}%` : 'Training...';
-                document.getElementById('lastTraining').textContent = perf.last_training ? 'Recently' : 'In Progress';
+                if (getEl('trainingSamples')) getEl('trainingSamples').textContent = perf.training_samples || '0';
+                if (getEl('modelAccuracy')) getEl('modelAccuracy').textContent = perf.success_accuracy ? `${perf.success_accuracy.toFixed(1)}%` : 'Training...';
+                if (getEl('lastTraining')) getEl('lastTraining').textContent = perf.last_training ? 'Recently' : 'In Progress';
             }
             
             // Update session performance
             if (data.best_sessions) {
                 const session = data.best_sessions;
-                document.getElementById('bestSession').textContent = session.best_session || 'Analyzing';
-                document.getElementById('bestSessionMFE').textContent = session.avg_mfe ? `${session.avg_mfe.toFixed(2)}R` : 'Loading';
-                document.getElementById('bestSessionCount').textContent = session.trade_count || '0';
+                if (getEl('bestSession')) getEl('bestSession').textContent = session.best_session || 'Analyzing';
+                if (getEl('bestSessionMFE')) getEl('bestSessionMFE').textContent = session.avg_mfe ? `${session.avg_mfe.toFixed(2)}R` : 'Loading';
+                if (getEl('bestSessionCount')) getEl('bestSessionCount').textContent = session.trade_count || '0';
             }
             
             // Update optimal targets
             if (data.optimal_targets) {
                 const targets = data.optimal_targets;
-                document.getElementById('target1R').textContent = targets['1.0R'] ? `${targets['1.0R'].hit_rate.toFixed(1)}%` : 'Loading';
-                document.getElementById('target2R').textContent = targets['2.0R'] ? `${targets['2.0R'].hit_rate.toFixed(1)}%` : 'Loading';
-                document.getElementById('target3R').textContent = targets['3.0R'] ? `${targets['3.0R'].hit_rate.toFixed(1)}%` : 'Loading';
+                if (getEl('target1R')) getEl('target1R').textContent = targets['1.0R'] ? `${targets['1.0R'].hit_rate.toFixed(1)}%` : 'Loading';
+                if (getEl('target2R')) getEl('target2R').textContent = targets['2.0R'] ? `${targets['2.0R'].hit_rate.toFixed(1)}%` : 'Loading';
+                if (getEl('target3R')) getEl('target3R').textContent = targets['3.0R'] ? `${targets['3.0R'].hit_rate.toFixed(1)}%` : 'Loading';
             }
             
             // Update bias analysis
             if (data.bias_performance) {
                 const bias = data.bias_performance;
-                document.getElementById('bullishPerf').textContent = bias.bullish ? `${bias.bullish.avg_mfe.toFixed(2)}R` : 'Loading';
-                document.getElementById('bearishPerf').textContent = bias.bearish ? `${bias.bearish.avg_mfe.toFixed(2)}R` : 'Loading';
+                if (getEl('bullishPerf')) getEl('bullishPerf').textContent = bias.bullish ? `${bias.bullish.avg_mfe.toFixed(2)}R` : 'Loading';
+                if (getEl('bearishPerf')) getEl('bearishPerf').textContent = bias.bearish ? `${bias.bearish.avg_mfe.toFixed(2)}R` : 'Loading';
                 
-                if (bias.bullish && bias.bearish) {
+                if (bias.bullish && bias.bearish && getEl('recBias')) {
                     const better = bias.bullish.avg_mfe > bias.bearish.avg_mfe ? 'Bullish' : 'Bearish';
-                    document.getElementById('recBias').textContent = better;
+                    getEl('recBias').textContent = better;
                 }
             }
             
             // Update recommendations
-            if (data.key_recommendations && data.key_recommendations.length > 0) {
-                document.getElementById('mlRecommendations').innerHTML = 
+            if (data.key_recommendations && data.key_recommendations.length > 0 && getEl('mlRecommendations')) {
+                getEl('mlRecommendations').innerHTML = 
                     data.key_recommendations.map(rec => `<li>${rec}</li>`).join('');
             }
         }
