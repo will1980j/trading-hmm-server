@@ -14,6 +14,7 @@ from ai_prompts import get_ai_system_prompt, get_chart_analysis_prompt, get_stra
 from news_api import NewsAPI, get_market_sentiment, extract_key_levels
 from datetime import datetime
 from auth import login_required, authenticate
+from ml_insights_endpoint import get_ml_insights_response
 import math
 import pytz
 
