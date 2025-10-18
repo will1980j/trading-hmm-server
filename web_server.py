@@ -5025,63 +5025,7 @@ def get_ml_performance():
 @login_required
 def get_ml_insights():
     """Get unified ML insights from all trading data"""
-    try:
-        if not ml_available:
-            return jsonify({
-                'performance': {
-                    'is_trained': False,
-                    'best_model': 'Dependencies Missing',
-                    'training_samples': 0,
-                    'models_available': []
-                },
-                'status': 'dependencies_missing'
-            }), 200
-        
-        if not db_enabled or not db:
-            return jsonify({
-                'performance': {
-                    'is_trained': False,
-                    'best_model': 'Database Offline',
-                    'training_samples': 0,
-                    'models_available': []
-                },
-                'status': 'database_offline'
-            }), 200
-        
-        from unified_ml_intelligence import get_unified_ml
-        ml_engine = get_unified_ml(db)
-        
-        # Get fundamental insights
-        insights = ml_engine.get_fundamental_insights()
-        
-        # Get training status
-        performance = {
-            'is_trained': ml_engine.is_trained,
-            'training_samples': ml_engine.training_data_count,
-            'last_training': ml_engine.last_training.isoformat() if ml_engine.last_training else None,
-            'models_available': list(ml_engine.models.keys())
-        }
-        
-        return jsonify({
-            'status': 'active',
-            'performance': performance,
-            'insights': insights,
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        logger.error(f"ML insights error: {str(e)}")
-        return jsonify({
-            'performance': {
-                'is_trained': False,
-                'best_model': f'Error: {str(e)[:50]}',
-                'training_samples': 0,
-                'models_available': []
-            },
-            'status': 'error',
-            'error_details': str(e)
-        }), 200
-
-
+    return get_ml_insights_response(ml_available, db_enabled, db)
 
 @app.route('/api/ml-predict-advanced', methods=['POST'])
 @login_required

@@ -137,7 +137,7 @@
         <div class="header">
             <div class="auto-badge">🤖 FULLY AUTOMATED</div>
             <h1>Auto-Training ML Intelligence</h1>
-            <p>Real insights from your 1676 signals - no buttons, no manual training</p>
+            <p>Real insights from your <span id="totalSignals">loading...</span> signals - no buttons, no manual training</p>
         </div>
         
         <div class="ml-grid">
@@ -210,7 +210,7 @@
             <h3>🔮 AI Recommendations</h3>
             <ul class="insights-list" id="mlRecommendations">
                 <li>🎯 Auto-training on your historical data...</li>
-                <li>📊 Analyzing patterns from 1676 signals...</li>
+                <li>📊 Analyzing patterns from <span id="totalSignalsInsights">loading...</span> signals...</li>
                 <li>🚀 Personalized insights loading...</li>
             </ul>
         </div>
@@ -227,10 +227,21 @@
         
         async function loadMLInsights() {
             try {
-                const response = await fetch('/api/ml-insights');
-                const data = await response.json();
+                const [mlResponse, tradesResponse] = await Promise.all([
+                    fetch('/api/ml-insights'),
+                    fetch('https://web-production-cd33.up.railway.app/api/signal-lab-trades?analysis_only=true')
+                ]);
                 
-                updateDashboard(data);
+                const mlData = await mlResponse.json();
+                const tradesData = await tradesResponse.json();
+                
+                const trades = Array.isArray(tradesData) ? tradesData : tradesData.trades || [];
+                const totalTrades = trades.length;
+                
+                document.getElementById('totalSignals').textContent = totalTrades;
+                document.getElementById('totalSignalsInsights').textContent = totalTrades;
+                
+                updateDashboard(mlData);
                 
             } catch (error) {
                 console.error('❌ Error loading ML insights:', error);
@@ -284,7 +295,10 @@
         
         function showError() {
             document.getElementById('mlRecommendations').innerHTML = 
-                '<li>❌ Unable to load ML insights. Auto-training may be in progress.</li>';
+                '<li>⏳ ML training in progress... Refresh in a moment.</li>';
+            document.getElementById('trainingSamples').textContent = '0';
+            document.getElementById('modelAccuracy').textContent = 'Training...';
+            document.getElementById('lastTraining').textContent = 'In Progress';
         }
     </script>
 </body>
