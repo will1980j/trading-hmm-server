@@ -442,12 +442,16 @@
                         <div style="margin-top: 15px; display: flex; gap: 10px;">
                             <button onclick="toggleChart('equity_${riskId}')" style="flex: 1; padding: 10px; background: rgba(0,255,136,0.2); border: 1px solid rgba(0,255,136,0.3); border-radius: 8px; color: #00ff88; cursor: pointer; font-weight: 600;">📈 Toggle Equity Curve</button>
                             <button onclick="toggleChart('calendar_${riskId}')" style="flex: 1; padding: 10px; background: rgba(255,165,2,0.2); border: 1px solid rgba(255,165,2,0.3); border-radius: 8px; color: #ffa502; cursor: pointer; font-weight: 600;">📅 Toggle Calendar</button>
+                            <button onclick="toggleChart('trades_${riskId}')" style="flex: 1; padding: 10px; background: rgba(58,123,213,0.2); border: 1px solid rgba(58,123,213,0.3); border-radius: 8px; color: #3a7bd5; cursor: pointer; font-weight: 600;">📋 View Trades</button>
                         </div>
                         <div id="equity_${riskId}" style="display: none; margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
                             <div style="height: 400px; width: 100%;" id="equity_chart_${riskId}"></div>
                         </div>
                         <div id="calendar_${riskId}" style="display: none; margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
                             <div id="calendar_content_${riskId}"></div>
+                        </div>
+                        <div id="trades_${riskId}" style="display: none; margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
+                            <div id="trades_content_${riskId}"></div>
                         </div>
                     </div>
                 `;
@@ -479,6 +483,8 @@
                     renderEquityCurve(riskId, data);
                 } else if (chartId.startsWith('calendar_')) {
                     renderCalendar(riskId, data);
+                } else if (chartId.startsWith('trades_')) {
+                    renderTrades(riskId, data);
                 }
             } else {
                 el.style.display = 'none';
@@ -655,6 +661,34 @@
                 currentDate.setMonth(currentDate.getMonth() + 1);
             }
             
+            container.innerHTML = html;
+        }
+        
+        function renderTrades(riskId, data) {
+            const container = document.getElementById(`trades_content_${riskId}`);
+            const tradesWithResults = data.signals.map(s => {
+                const result = calculateTradeResult(s, data.beStrategy, data.rTarget);
+                return { ...s, result };
+            });
+            
+            let html = `<div style="max-height: 600px; overflow-y: auto;">`;
+            html += '<table class="comparison-table"><thead><tr><th>Date</th><th>Time</th><th>Session</th><th>MFE</th><th>Result</th><th>Status</th></tr></thead><tbody>';
+            
+            tradesWithResults.forEach(trade => {
+                const mfe = data.beStrategy === 'be1' ? trade.mfe1 : trade.mfeNone;
+                const statusColor = trade.result > 0 ? '#00ff88' : (trade.result === 0 ? '#ffa502' : '#ff4757');
+                const statusText = trade.result > 0 ? 'WIN' : (trade.result === 0 ? 'BE' : 'LOSS');
+                html += `<tr>
+                    <td>${trade.date}</td>
+                    <td>${trade.time || 'N/A'}</td>
+                    <td>${trade.session}</td>
+                    <td>${mfe.toFixed(2)}R</td>
+                    <td style="color: ${statusColor}; font-weight: 700;">${trade.result > 0 ? '+' : ''}${trade.result.toFixed(2)}R</td>
+                    <td style="color: ${statusColor}; font-weight: 600;">${statusText}</td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table></div>';
             container.innerHTML = html;
         }
         
