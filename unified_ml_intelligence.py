@@ -383,19 +383,25 @@ class UnifiedMLIntelligence:
     def _analyze_best_sessions(self, df: pd.DataFrame) -> Dict:
         """Find best trading sessions"""
         
+        if len(df) == 0:
+            return {'best_session': 'Unknown', 'avg_mfe': 0.0, 'trade_count': 0, 'total_trades_in_session': 0}
+        
         # Count all trades by session
         session_counts = df.groupby('session').size()
+        
+        if len(session_counts) == 0:
+            return {'best_session': 'Unknown', 'avg_mfe': 0.0, 'trade_count': 0, 'total_trades_in_session': 0}
         
         # For sessions with MFE data, calculate performance
         df_with_mfe = df[df['mfe'] != 0]
         
         if len(df_with_mfe) > 0:
             session_stats = df_with_mfe.groupby('session').agg({
-                'mfe': ['count', 'mean', 'std']
+                'mfe': ['count', 'mean']
             }).round(3)
             
-            if len(session_stats) > 0:
-                best_session = session_stats['mfe']['mean'].idxmax()
+            if len(session_stats) > 0 and len(session_stats['mfe']['mean']) > 0:
+                best_session = str(session_stats['mfe']['mean'].idxmax())
                 
                 return {
                     'best_session': best_session,
@@ -405,7 +411,7 @@ class UnifiedMLIntelligence:
                 }
         
         # Fallback: most active session
-        most_active_session = session_counts.idxmax()
+        most_active_session = str(session_counts.idxmax())
         return {
             'best_session': most_active_session,
             'avg_mfe': 0.0,
@@ -416,8 +422,14 @@ class UnifiedMLIntelligence:
     def _analyze_best_signals(self, df: pd.DataFrame) -> Dict:
         """Find best signal types"""
         
+        if len(df) == 0:
+            return {'best_signal_type': 'Unknown', 'avg_mfe': 0.0, 'trade_count': 0}
+        
         # Count all signal types
         signal_counts = df.groupby('signal_type').size()
+        
+        if len(signal_counts) == 0:
+            return {'best_signal_type': 'Unknown', 'avg_mfe': 0.0, 'trade_count': 0}
         
         # For signals with MFE data, calculate performance
         df_with_mfe = df[df['mfe'] != 0]
@@ -430,8 +442,8 @@ class UnifiedMLIntelligence:
             # Filter signals with at least 3 occurrences
             signal_stats = signal_stats[signal_stats[('mfe', 'count')] >= 3]
             
-            if len(signal_stats) > 0:
-                best_signal = signal_stats['mfe']['mean'].idxmax()
+            if len(signal_stats) > 0 and len(signal_stats['mfe']['mean']) > 0:
+                best_signal = str(signal_stats['mfe']['mean'].idxmax())
                 
                 return {
                     'best_signal_type': best_signal,
@@ -440,7 +452,7 @@ class UnifiedMLIntelligence:
                 }
         
         # Fallback: most common signal type
-        most_common_signal = signal_counts.idxmax()
+        most_common_signal = str(signal_counts.idxmax())
         return {
             'best_signal_type': most_common_signal,
             'avg_mfe': 0.0,
