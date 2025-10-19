@@ -400,8 +400,12 @@ class UnifiedMLIntelligence:
                 'mfe': ['count', 'mean']
             }).round(3)
             
-            if len(session_stats) > 0 and len(session_stats['mfe']['mean']) > 0:
-                best_session = str(session_stats['mfe']['mean'].idxmax())
+            if len(session_stats) > 0:
+                mean_series = session_stats['mfe']['mean']
+                if len(mean_series) > 0 and mean_series.dtype in ['float64', 'int64']:
+                    best_session = str(mean_series.idxmax())
+                else:
+                    best_session = str(mean_series.index[0])
                 
                 return {
                     'best_session': best_session,
@@ -442,8 +446,12 @@ class UnifiedMLIntelligence:
             # Filter signals with at least 3 occurrences
             signal_stats = signal_stats[signal_stats[('mfe', 'count')] >= 3]
             
-            if len(signal_stats) > 0 and len(signal_stats['mfe']['mean']) > 0:
-                best_signal = str(signal_stats['mfe']['mean'].idxmax())
+            if len(signal_stats) > 0:
+                mean_series = signal_stats['mfe']['mean']
+                if len(mean_series) > 0 and mean_series.dtype in ['float64', 'int64']:
+                    best_signal = str(mean_series.idxmax())
+                else:
+                    best_signal = str(mean_series.index[0])
                 
                 return {
                     'best_signal_type': best_signal,
