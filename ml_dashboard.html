@@ -238,8 +238,10 @@
                 const trades = Array.isArray(tradesData) ? tradesData : tradesData.trades || [];
                 const totalTrades = trades.length;
                 
-                document.getElementById('totalSignals').textContent = totalTrades;
-                document.getElementById('totalSignalsInsights').textContent = totalTrades;
+                const totalEl = document.getElementById('totalSignals');
+                const totalInsightsEl = document.getElementById('totalSignalsInsights');
+                if (totalEl) totalEl.textContent = totalTrades;
+                if (totalInsightsEl) totalInsightsEl.textContent = totalTrades;
                 
                 updateDashboard(mlData);
                 
