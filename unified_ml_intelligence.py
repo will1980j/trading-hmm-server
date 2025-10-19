@@ -318,7 +318,7 @@ class UnifiedMLIntelligence:
         features.append(1.0 if session == 'NY PM' else 0.0)
         
         # Signal type encoding
-        signal_type = trade.get('signal_type', '')
+        signal_type = trade.get('signal_type') or ''
         features.append(1.0 if 'FVG' in signal_type else 0.0)
         features.append(1.0 if 'IFVG' in signal_type else 0.0)
         
