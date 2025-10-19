@@ -97,14 +97,10 @@
                 <div class="session-item"><input type="checkbox" id="sessNYLunch" value="NY Lunch" checked><label for="sessNYLunch">NY Lunch</label></div>
                 <div class="session-item"><input type="checkbox" id="sessNYPM" value="NY PM" checked><label for="sessNYPM">NY PM</label></div>
             </div>
-            <div style="margin-top: 15px; display: flex; gap: 20px;">
+            <div style="margin-top: 15px;">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                     <input type="checkbox" id="useOptimalHours" style="width: 16px; height: 16px; accent-color: #00ff88;">
                     <span style="color: #00ff88; font-weight: 600;">Use optimal time windows only</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="useMacroWindows" style="width: 16px; height: 16px; accent-color: #8a2be2;">
-                    <span style="color: #8a2be2; font-weight: 600;">Use macro windows only (xx:45-xx:15)</span>
                 </label>
             </div>
             
@@ -229,20 +225,10 @@
             
             const selectedSessions = getSelectedSessions();
             const useOptimalHours = document.getElementById('useOptimalHours').checked;
-            const useMacroWindows = document.getElementById('useMacroWindows').checked;
-            
-            // Filter signals based on macro windows if enabled
-            let filteredSignals = signals;
-            if (useMacroWindows) {
-                filteredSignals = signals.filter(s => {
-                    if (!s.time) return false;
-                    const [hour, minute] = s.time.split(':').map(Number);
-                    return (minute >= 45) || (minute <= 15);
-                });
-            }
             
             // Calculate optimal time windows (best hour per session) - declare at function scope
             let optimalTimeWindows = {};
+            let filteredSignals = signals;
             
             const beStrategies = ['none', 'be1'];
             
@@ -258,7 +244,7 @@
                             if (!allOptimalWindows[key]) allOptimalWindows[key] = {};
                             
                             selectedSessions.forEach(session => {
-                                const sessionSignals = filteredSignals.filter(s => s.session === session);
+                                const sessionSignals = signals.filter(s => s.session === session);
                                 const hourlyPerf = {};
                                 sessionSignals.forEach(s => {
                                     if (!s.time) return;
@@ -284,7 +270,7 @@
                 optimalTimeWindows = allOptimalWindows;
                 
                 // Filter signals to only optimal time windows
-                filteredSignals = filteredSignals.filter(signal => {
+                filteredSignals = signals.filter(signal => {
                     const sessionWindows = optimalTimeWindows[signal.session];
                     if (!sessionWindows || sessionWindows.length === 0) return false;
                     const hour = signal.time ? parseInt(signal.time.split(':')[0]) : null;
@@ -305,7 +291,7 @@
                             const key = `${beStrategy}_${rTarget}`;
                             const windowsForCombo = optimalTimeWindows[key] || {};
                             
-                            let sessionSignals = filteredSignals.filter(s => s.session === session);
+                            let sessionSignals = signals.filter(s => s.session === session);
                             if (useOptimalHours && windowsForCombo[session]) {
                                 sessionSignals = sessionSignals.filter(s => {
                                     const hour = s.time ? parseInt(s.time.split(':')[0]) : null;
@@ -340,7 +326,7 @@
                                 const key = `${beStrategy}_${rTarget}`;
                                 const windowsForCombo = optimalTimeWindows[key] || {};
                                 
-                                let combinedSignals = filteredSignals.filter(s => sessionPair.includes(s.session));
+                                let combinedSignals = signals.filter(s => sessionPair.includes(s.session));
                                 if (useOptimalHours) {
                                     combinedSignals = combinedSignals.filter(s => {
                                         const sessionWindows = windowsForCombo[s.session];
@@ -457,7 +443,6 @@
                             <button onclick="toggleChart('equity_${riskId}')" style="flex: 1; padding: 10px; background: rgba(0,255,136,0.2); border: 1px solid rgba(0,255,136,0.3); border-radius: 8px; color: #00ff88; cursor: pointer; font-weight: 600;">📈 Equity Curve</button>
                             <button onclick="toggleChart('calendar_${riskId}')" style="flex: 1; padding: 10px; background: rgba(255,165,2,0.2); border: 1px solid rgba(255,165,2,0.3); border-radius: 8px; color: #ffa502; cursor: pointer; font-weight: 600;">📅 Calendar</button>
                             <button onclick="toggleChart('trades_${riskId}')" style="flex: 1; padding: 10px; background: rgba(58,123,213,0.2); border: 1px solid rgba(58,123,213,0.3); border-radius: 8px; color: #3a7bd5; cursor: pointer; font-weight: 600;">📋 Trades</button>
-                            <button onclick="toggleChart('macro_${riskId}')" style="flex: 1; padding: 10px; background: rgba(138,43,226,0.2); border: 1px solid rgba(138,43,226,0.3); border-radius: 8px; color: #8a2be2; cursor: pointer; font-weight: 600;">⏰ Macro Window</button>
                         </div>
                         <div id="equity_${riskId}" style="display: none; margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
                             <div style="height: 400px; width: 100%;" id="equity_chart_${riskId}"></div>
@@ -467,9 +452,6 @@
                         </div>
                         <div id="trades_${riskId}" style="display: none; margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
                             <div id="trades_content_${riskId}"></div>
-                        </div>
-                        <div id="macro_${riskId}" style="display: none; margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
-                            <div id="macro_content_${riskId}"></div>
                         </div>
                     </div>
                 `;
@@ -503,8 +485,6 @@
                     renderCalendar(riskId, data);
                 } else if (chartId.startsWith('trades_')) {
                     renderTrades(riskId, data);
-                } else if (chartId.startsWith('macro_')) {
-                    renderMacroWindow(riskId, data);
                 }
             } else {
                 el.style.display = 'none';
@@ -712,56 +692,7 @@
             container.innerHTML = html;
         }
         
-        function renderMacroWindow(riskId, data) {
-            const container = document.getElementById(`macro_content_${riskId}`);
-            
-            const macroTrades = signals.filter(s => {
-                if (!s.time) return false;
-                const [hour, minute] = s.time.split(':').map(Number);
-                return (minute >= 45) || (minute <= 15);
-            });
-            
-            const macroResults = macroTrades.map(s => calculateTradeResult(s, data.beStrategy, data.rTarget));
-            const macroStats = calculateStats(macroResults);
-            
-            const sessionBreakdown = {};
-            macroTrades.forEach(s => {
-                if (!sessionBreakdown[s.session]) sessionBreakdown[s.session] = [];
-                sessionBreakdown[s.session].push(s);
-            });
-            
-            let html = `<h4 style="color: #8a2be2; margin-bottom: 20px;">⏰ Macro Time Window Analysis (xx:45 to xx:15)</h4>`;
-            
-            html += `<div style="background: rgba(138,43,226,0.1); border: 2px solid rgba(138,43,226,0.3); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-                <h5 style="color: #8a2be2; margin-bottom: 15px;">Macro Window Performance</h5>
-                <div style="font-size: 32px; font-weight: 700; color: #8a2be2; margin: 10px 0;">${macroStats.expectancy.toFixed(3)}R</div>
-                <div style="opacity: 0.8;">Expectancy</div>
-                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
-                    <div style="display: flex; justify-content: space-between; margin: 8px 0;"><span>Win Rate:</span><span style="color: #8a2be2; font-weight: 600;">${macroStats.winRate.toFixed(1)}%</span></div>
-                    <div style="display: flex; justify-content: space-between; margin: 8px 0;"><span>Trades:</span><span style="color: #8a2be2; font-weight: 600;">${macroStats.total}</span></div>
-                    <div style="display: flex; justify-content: space-between; margin: 8px 0;"><span>Total R:</span><span style="color: #8a2be2; font-weight: 600;">${macroStats.totalR.toFixed(1)}R</span></div>
-                </div>
-            </div>`;
-            
-            html += `<h5 style="color: #8a2be2; margin: 30px 0 15px 0;">Session Breakdown</h5>`;
-            html += `<table class="comparison-table"><thead><tr><th>Session</th><th>Trades</th><th>Expectancy</th><th>Win Rate</th><th>Total R</th></tr></thead><tbody>`;
-            
-            Object.entries(sessionBreakdown).forEach(([session, trades]) => {
-                const results = trades.map(s => calculateTradeResult(s, data.beStrategy, data.rTarget));
-                const stats = calculateStats(results);
-                
-                html += `<tr>
-                    <td>${session}</td>
-                    <td>${stats.total}</td>
-                    <td style="color: #8a2be2; font-weight: 600;">${stats.expectancy.toFixed(3)}R</td>
-                    <td>${stats.winRate.toFixed(1)}%</td>
-                    <td style="color: ${stats.totalR > 0 ? '#00ff88' : '#ff4757'}; font-weight: 700;">${stats.totalR > 0 ? '+' : ''}${stats.totalR.toFixed(1)}R</td>
-                </tr>`;
-            });
-            
-            html += `</tbody></table>`;
-            container.innerHTML = html;
-        }
+
         
         document.addEventListener('DOMContentLoaded', () => { loadSignals(); });
     </script>
