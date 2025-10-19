@@ -142,18 +142,22 @@
         
         <div class="ml-grid">
             <div class="ml-card">
-                <h3><span class="status-indicator"></span>Training Status</h3>
+                <h3><span class="status-indicator"></span>ML Model Status</h3>
                 <div class="metric-row">
-                    <span>Samples Analyzed:</span>
+                    <span>Model Type:</span>
+                    <span class="metric-value" style="font-size: 14px;">Random Forest + Gradient Boosting</span>
+                </div>
+                <div class="metric-row">
+                    <span>Training Samples:</span>
                     <span class="metric-value" id="trainingSamples">Loading...</span>
                 </div>
                 <div class="metric-row">
-                    <span>Model Accuracy:</span>
+                    <span>Success Prediction Accuracy:</span>
                     <span class="metric-value" id="modelAccuracy">Loading...</span>
                 </div>
                 <div class="metric-row">
-                    <span>Last Auto-Training:</span>
-                    <span class="metric-value" id="lastTraining">Loading...</span>
+                    <span>Last Trained:</span>
+                    <span class="metric-value" id="lastTraining" style="font-size: 14px;">Loading...</span>
                 </div>
             </div>
             
