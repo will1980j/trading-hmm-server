@@ -164,19 +164,26 @@ if db_enabled and db:
 if ml_available and db_enabled and db:
     def auto_train_ml():
         try:
+            logger.info("🤖 Starting ML auto-train thread...")
             from unified_ml_intelligence import get_unified_ml
             ml_engine = get_unified_ml(db)
             logger.info("🤖 Auto-training ML on server startup...")
             result = ml_engine.train_on_all_data()
+            logger.info(f"Training result: {result}")
             if 'error' not in result:
                 logger.info(f"✅ ML auto-trained: {result['training_samples']} samples, {result['success_accuracy']:.1f}% accuracy")
             else:
-                logger.warning(f"⚠️ ML auto-train skipped: {result['error']}")
+                logger.error(f"❌ ML auto-train failed: {result['error']}")
         except Exception as e:
+            import traceback
             logger.error(f"❌ ML auto-train error: {str(e)}")
+            logger.error(traceback.format_exc())
     
     import threading
     threading.Thread(target=auto_train_ml, daemon=True).start()
+    logger.info("✅ ML auto-train thread started")
+else:
+    logger.warning(f"⚠️ ML auto-train skipped: ml_available={ml_available}, db_enabled={db_enabled}")
 
 # Read HTML files and serve them
 def read_html_file(filename):
