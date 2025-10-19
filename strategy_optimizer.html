@@ -440,9 +440,10 @@
                             <strong>⏰ Optimal Trading Hours:</strong> ${optimalHoursText}
                         </div>
                         <div style="margin-top: 15px; display: flex; gap: 10px;">
-                            <button onclick="toggleChart('equity_${riskId}')" style="flex: 1; padding: 10px; background: rgba(0,255,136,0.2); border: 1px solid rgba(0,255,136,0.3); border-radius: 8px; color: #00ff88; cursor: pointer; font-weight: 600;">📈 Toggle Equity Curve</button>
-                            <button onclick="toggleChart('calendar_${riskId}')" style="flex: 1; padding: 10px; background: rgba(255,165,2,0.2); border: 1px solid rgba(255,165,2,0.3); border-radius: 8px; color: #ffa502; cursor: pointer; font-weight: 600;">📅 Toggle Calendar</button>
-                            <button onclick="toggleChart('trades_${riskId}')" style="flex: 1; padding: 10px; background: rgba(58,123,213,0.2); border: 1px solid rgba(58,123,213,0.3); border-radius: 8px; color: #3a7bd5; cursor: pointer; font-weight: 600;">📋 View Trades</button>
+                            <button onclick="toggleChart('equity_${riskId}')" style="flex: 1; padding: 10px; background: rgba(0,255,136,0.2); border: 1px solid rgba(0,255,136,0.3); border-radius: 8px; color: #00ff88; cursor: pointer; font-weight: 600;">📈 Equity Curve</button>
+                            <button onclick="toggleChart('calendar_${riskId}')" style="flex: 1; padding: 10px; background: rgba(255,165,2,0.2); border: 1px solid rgba(255,165,2,0.3); border-radius: 8px; color: #ffa502; cursor: pointer; font-weight: 600;">📅 Calendar</button>
+                            <button onclick="toggleChart('trades_${riskId}')" style="flex: 1; padding: 10px; background: rgba(58,123,213,0.2); border: 1px solid rgba(58,123,213,0.3); border-radius: 8px; color: #3a7bd5; cursor: pointer; font-weight: 600;">📋 Trades</button>
+                            <button onclick="toggleChart('macro_${riskId}')" style="flex: 1; padding: 10px; background: rgba(138,43,226,0.2); border: 1px solid rgba(138,43,226,0.3); border-radius: 8px; color: #8a2be2; cursor: pointer; font-weight: 600;">⏰ Macro Window</button>
                         </div>
                         <div id="equity_${riskId}" style="display: none; margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
                             <div style="height: 400px; width: 100%;" id="equity_chart_${riskId}"></div>
@@ -452,6 +453,9 @@
                         </div>
                         <div id="trades_${riskId}" style="display: none; margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
                             <div id="trades_content_${riskId}"></div>
+                        </div>
+                        <div id="macro_${riskId}" style="display: none; margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
+                            <div id="macro_content_${riskId}"></div>
                         </div>
                     </div>
                 `;
@@ -485,6 +489,8 @@
                     renderCalendar(riskId, data);
                 } else if (chartId.startsWith('trades_')) {
                     renderTrades(riskId, data);
+                } else if (chartId.startsWith('macro_')) {
+                    renderMacroWindow(riskId, data);
                 }
             } else {
                 el.style.display = 'none';
@@ -689,6 +695,87 @@
             });
             
             html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+        
+        function renderMacroWindow(riskId, data) {
+            const container = document.getElementById(`macro_content_${riskId}`);
+            
+            const macroTrades = data.signals.filter(s => {
+                if (!s.time) return false;
+                const [hour, minute] = s.time.split(':').map(Number);
+                return (minute >= 45) || (minute <= 15);
+            });
+            
+            const nonMacroTrades = data.signals.filter(s => {
+                if (!s.time) return false;
+                const [hour, minute] = s.time.split(':').map(Number);
+                return (minute < 45) && (minute > 15);
+            });
+            
+            const macroResults = macroTrades.map(s => calculateTradeResult(s, data.beStrategy, data.rTarget));
+            const nonMacroResults = nonMacroTrades.map(s => calculateTradeResult(s, data.beStrategy, data.rTarget));
+            
+            const macroStats = calculateStats(macroResults);
+            const nonMacroStats = calculateStats(nonMacroResults);
+            
+            const sessionBreakdown = {};
+            data.signals.forEach(s => {
+                if (!sessionBreakdown[s.session]) sessionBreakdown[s.session] = { macro: [], nonMacro: [] };
+                if (!s.time) return;
+                const [hour, minute] = s.time.split(':').map(Number);
+                const isMacro = (minute >= 45) || (minute <= 15);
+                if (isMacro) sessionBreakdown[s.session].macro.push(s);
+                else sessionBreakdown[s.session].nonMacro.push(s);
+            });
+            
+            let html = `<h4 style="color: #8a2be2; margin-bottom: 20px;">⏰ Macro Time Window Analysis (xx:45 to xx:15)</h4>`;
+            
+            html += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">`;
+            html += `<div style="background: rgba(138,43,226,0.1); border: 2px solid rgba(138,43,226,0.3); border-radius: 12px; padding: 20px;">
+                <h5 style="color: #8a2be2; margin-bottom: 15px;">Macro Window (xx:45-xx:15)</h5>
+                <div style="font-size: 32px; font-weight: 700; color: #8a2be2; margin: 10px 0;">${macroStats.expectancy.toFixed(3)}R</div>
+                <div style="opacity: 0.8;">Expectancy</div>
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <div style="display: flex; justify-content: space-between; margin: 8px 0;"><span>Win Rate:</span><span style="color: #8a2be2; font-weight: 600;">${macroStats.winRate.toFixed(1)}%</span></div>
+                    <div style="display: flex; justify-content: space-between; margin: 8px 0;"><span>Trades:</span><span style="color: #8a2be2; font-weight: 600;">${macroStats.total}</span></div>
+                    <div style="display: flex; justify-content: space-between; margin: 8px 0;"><span>Total R:</span><span style="color: #8a2be2; font-weight: 600;">${macroStats.totalR.toFixed(1)}R</span></div>
+                </div>
+            </div>`;
+            
+            html += `<div style="background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
+                <h5 style="color: rgba(255,255,255,0.7); margin-bottom: 15px;">Non-Macro (xx:16-xx:44)</h5>
+                <div style="font-size: 32px; font-weight: 700; color: rgba(255,255,255,0.7); margin: 10px 0;">${nonMacroStats.expectancy.toFixed(3)}R</div>
+                <div style="opacity: 0.8;">Expectancy</div>
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <div style="display: flex; justify-content: space-between; margin: 8px 0;"><span>Win Rate:</span><span style="font-weight: 600;">${nonMacroStats.winRate.toFixed(1)}%</span></div>
+                    <div style="display: flex; justify-content: space-between; margin: 8px 0;"><span>Trades:</span><span style="font-weight: 600;">${nonMacroStats.total}</span></div>
+                    <div style="display: flex; justify-content: space-between; margin: 8px 0;"><span>Total R:</span><span style="font-weight: 600;">${nonMacroStats.totalR.toFixed(1)}R</span></div>
+                </div>
+            </div></div>`;
+            
+            html += `<h5 style="color: #8a2be2; margin: 30px 0 15px 0;">Session Breakdown</h5>`;
+            html += `<table class="comparison-table"><thead><tr><th>Session</th><th>Macro Trades</th><th>Macro Exp</th><th>Non-Macro Trades</th><th>Non-Macro Exp</th><th>Difference</th></tr></thead><tbody>`;
+            
+            Object.entries(sessionBreakdown).forEach(([session, breakdown]) => {
+                const macroRes = breakdown.macro.map(s => calculateTradeResult(s, data.beStrategy, data.rTarget));
+                const nonMacroRes = breakdown.nonMacro.map(s => calculateTradeResult(s, data.beStrategy, data.rTarget));
+                const macroExp = macroRes.length > 0 ? calculateStats(macroRes).expectancy : 0;
+                const nonMacroExp = nonMacroRes.length > 0 ? calculateStats(nonMacroRes).expectancy : 0;
+                const diff = macroExp - nonMacroExp;
+                const diffColor = diff > 0 ? '#00ff88' : '#ff4757';
+                
+                html += `<tr>
+                    <td>${session}</td>
+                    <td>${breakdown.macro.length}</td>
+                    <td style="color: #8a2be2; font-weight: 600;">${macroExp.toFixed(3)}R</td>
+                    <td>${breakdown.nonMacro.length}</td>
+                    <td>${nonMacroExp.toFixed(3)}R</td>
+                    <td style="color: ${diffColor}; font-weight: 700;">${diff > 0 ? '+' : ''}${diff.toFixed(3)}R</td>
+                </tr>`;
+            });
+            
+            html += `</tbody></table>`;
             container.innerHTML = html;
         }
         
