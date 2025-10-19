@@ -329,6 +329,7 @@
             
             <div style="display: flex; gap: 10px; align-items: flex-end;">
                 <textarea id="questionInput" class="question-input" rows="3" placeholder="Ask anything about growing your trading business..." style="flex: 1;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();getAdviceStreaming();}"></textarea>
+                <button onclick="getAdviceStreaming()" class="ask-btn">Ask</button>
                 <button id="voiceBtn" class="voice-btn" onclick="toggleVoice()">🎤</button>
             </div>
             <div id="quickActions" style="margin-top: 15px;"></div>
