@@ -207,7 +207,14 @@
         </div>
         
         <div class="ml-card">
-            <h3>🔮 AI Recommendations</h3>
+            <h3>🔮 Live Predictions</h3>
+            <div id="livePredictions" style="padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 15px;">
+                <div style="text-align: center; opacity: 0.7;">Waiting for next signal...</div>
+            </div>
+        </div>
+        
+        <div class="ml-card">
+            <h3>💡 AI Recommendations</h3>
             <ul class="insights-list" id="mlRecommendations">
                 <li>🎯 Auto-training on your historical data...</li>
                 <li>📊 Analyzing patterns from <span id="totalSignalsInsights">loading...</span> signals...</li>
@@ -220,10 +227,50 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🤖 Auto-Training ML Dashboard loaded');
             loadMLInsights();
+            loadLatestPrediction();
             
             // Auto-refresh every 30 seconds
             setInterval(loadMLInsights, 30000);
+            setInterval(loadLatestPrediction, 10000);
         });
+        
+        async function loadLatestPrediction() {
+            try {
+                const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-trades?analysis_only=true');
+                const trades = await response.json();
+                
+                if (trades.length > 0) {
+                    const latest = trades[0];
+                    const predDiv = document.getElementById('livePredictions');
+                    
+                    if (latest.ml_prediction) {
+                        const pred = JSON.parse(latest.ml_prediction);
+                        const mfe = pred.predicted_mfe || 0;
+                        const prob = pred.success_probability || 0;
+                        const rec = pred.recommendation || 'N/A';
+                        
+                        predDiv.innerHTML = `
+                            <div style="margin-bottom: 10px;"><strong>${latest.bias} ${latest.signal_type}</strong> @ ${latest.session}</div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span>Predicted MFE:</span>
+                                <span style="color: #00ff88; font-weight: bold;">${mfe.toFixed(2)}R</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span>Success Probability:</span>
+                                <span style="color: #00ff88; font-weight: bold;">${prob.toFixed(1)}%</span>
+                            </div>
+                            <div style="padding: 10px; background: rgba(0,255,136,0.1); border-radius: 6px; margin-top: 10px;">
+                                <strong>Recommendation:</strong> ${rec}
+                            </div>
+                        `;
+                    } else {
+                        predDiv.innerHTML = `<div style="text-align: center; opacity: 0.7;">Latest signal has no ML prediction yet</div>`;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading prediction:', error);
+            }
+        }
         
         async function loadMLInsights() {
             try {
