@@ -97,10 +97,14 @@
                 <div class="session-item"><input type="checkbox" id="sessNYLunch" value="NY Lunch" checked><label for="sessNYLunch">NY Lunch</label></div>
                 <div class="session-item"><input type="checkbox" id="sessNYPM" value="NY PM" checked><label for="sessNYPM">NY PM</label></div>
             </div>
-            <div style="margin-top: 15px;">
+            <div style="margin-top: 15px; display: flex; gap: 20px;">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                     <input type="checkbox" id="useOptimalHours" style="width: 16px; height: 16px; accent-color: #00ff88;">
                     <span style="color: #00ff88; font-weight: 600;">Use optimal time windows only</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="useMacroWindows" style="width: 16px; height: 16px; accent-color: #8a2be2;">
+                    <span style="color: #8a2be2; font-weight: 600;">Use macro windows only (xx:45-xx:15)</span>
                 </label>
             </div>
             
@@ -225,10 +229,21 @@
             
             const selectedSessions = getSelectedSessions();
             const useOptimalHours = document.getElementById('useOptimalHours').checked;
+            const useMacroWindows = document.getElementById('useMacroWindows').checked;
+            
+            // Apply macro filter first if enabled
+            let baseSignals = signals;
+            if (useMacroWindows) {
+                baseSignals = signals.filter(s => {
+                    if (!s.time) return false;
+                    const [hour, minute] = s.time.split(':').map(Number);
+                    return (minute >= 45) || (minute <= 15);
+                });
+            }
             
             // Calculate optimal time windows (best hour per session) - declare at function scope
             let optimalTimeWindows = {};
-            let filteredSignals = signals;
+            let filteredSignals = baseSignals;
             
             const beStrategies = ['none', 'be1'];
             
@@ -244,7 +259,7 @@
                             if (!allOptimalWindows[key]) allOptimalWindows[key] = {};
                             
                             selectedSessions.forEach(session => {
-                                const sessionSignals = signals.filter(s => s.session === session);
+                                const sessionSignals = baseSignals.filter(s => s.session === session);
                                 const hourlyPerf = {};
                                 sessionSignals.forEach(s => {
                                     if (!s.time) return;
@@ -270,7 +285,7 @@
                 optimalTimeWindows = allOptimalWindows;
                 
                 // Filter signals to only optimal time windows
-                filteredSignals = signals.filter(signal => {
+                filteredSignals = baseSignals.filter(signal => {
                     const sessionWindows = optimalTimeWindows[signal.session];
                     if (!sessionWindows || sessionWindows.length === 0) return false;
                     const hour = signal.time ? parseInt(signal.time.split(':')[0]) : null;
@@ -291,7 +306,7 @@
                             const key = `${beStrategy}_${rTarget}`;
                             const windowsForCombo = optimalTimeWindows[key] || {};
                             
-                            let sessionSignals = signals.filter(s => s.session === session);
+                            let sessionSignals = baseSignals.filter(s => s.session === session);
                             if (useOptimalHours && windowsForCombo[session]) {
                                 sessionSignals = sessionSignals.filter(s => {
                                     const hour = s.time ? parseInt(s.time.split(':')[0]) : null;
@@ -326,7 +341,7 @@
                                 const key = `${beStrategy}_${rTarget}`;
                                 const windowsForCombo = optimalTimeWindows[key] || {};
                                 
-                                let combinedSignals = signals.filter(s => sessionPair.includes(s.session));
+                                let combinedSignals = baseSignals.filter(s => sessionPair.includes(s.session));
                                 if (useOptimalHours) {
                                     combinedSignals = combinedSignals.filter(s => {
                                         const sessionWindows = windowsForCombo[s.session];
