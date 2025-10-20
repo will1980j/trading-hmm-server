@@ -466,53 +466,48 @@ def get_strategy_trades():
         r_target = float(request.args.get('r', 1.0))
         time_filter = request.args.get('time', 'all')
         
+        # Use strategy_evaluator to get EXACT SAME results
+        from strategy_evaluator import StrategyEvaluator
+        evaluator = StrategyEvaluator(db)
+        
         cursor = db.conn.cursor()
         cursor.execute("""
             SELECT date, time, session, bias,
                    COALESCE(mfe_none, mfe, 0) as mfe_none,
                    COALESCE(mfe1, 0) as mfe1
             FROM signal_lab_trades
-            ORDER BY date DESC, time DESC
         """)
         
         all_trades = cursor.fetchall()
         
-        # Filter by session
-        if '+' in session:
-            sessions = session.split('+')
-            filtered = [t for t in all_trades if t['session'] in sessions]
-        else:
-            filtered = [t for t in all_trades if t['session'] == session]
+        # Use evaluator's _test_strategy - returns results AND trades
+        strategy_result = evaluator._test_strategy(
+            all_trades, 
+            session, 
+            be_strategy, 
+            r_target, 
+            time_filter
+        )
         
-        # Calculate results
-        results = []
-        for trade in filtered:
-            if be_strategy == 'none':
-                mfe = trade['mfe_none']
-                result = r_target if mfe >= r_target else -1
-            else:
-                mfe1 = trade['mfe1']
-                if mfe1 < 1:
-                    result = -1
-                elif mfe1 >= r_target:
-                    result = r_target
-                else:
-                    result = 0
-            results.append(result)
+        # Use the EXACT results from evaluator
+        results = strategy_result.get('results', [])
+        trades_used = strategy_result.get('trades', [])
         
         # Build trade list with results
         trades_with_results = []
-        for i, trade in enumerate(filtered):
+        for i, trade in enumerate(trades_used):
             trades_with_results.append({
                 'date': str(trade['date']),
                 'time': str(trade['time']) if trade['time'] else None,
                 'session': trade['session'],
-                'result': results[i]
+                'result': results[i] if i < len(results) else 0
             })
         
         return jsonify({
             'trades': trades_with_results,
-            'results': results
+            'results': results,
+            'total_r': strategy_result.get('total_r', 0),
+            'expectancy': strategy_result.get('expectancy', 0)
         })
         
     except Exception as e:

@@ -238,6 +238,11 @@ class StrategyEvaluator:
         else:
             session_trades = [t for t in trades if t['session'] == session]
         
+        # DEBUG: Log what we're testing
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Testing: {session} | {be_strategy} | {r_target}R | {time_filter} | {len(session_trades)} trades")
+        
         # Apply time filter
         if time_filter == 'optimal' and optimal_hours:
             filtered = []
@@ -325,7 +330,9 @@ class StrategyEvaluator:
             'total_r': total_r,
             'total_trades': len(results),
             'max_drawdown': max_dd,
-            'omega_ratio': omega
+            'omega_ratio': omega,
+            'results': results,  # Return actual results for frontend
+            'trades': session_trades  # Return actual trades used
         }
     
     def _apply_constraints(self, strategies: List[Dict], constraints: Dict) -> List[Dict]:
