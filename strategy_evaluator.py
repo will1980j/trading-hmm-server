@@ -189,9 +189,10 @@ class StrategyEvaluator:
             session_trades = [t for t in trades if t['session'] == session]
             hourly = {}
             for trade in session_trades:
-                if not trade.get('time'):
+                time_val = trade.get('time')
+                if not time_val:
                     continue
-                hour = int(trade['time'].split(':')[0])
+                hour = time_val.hour if hasattr(time_val, 'hour') else int(str(time_val).split(':')[0])
                 if hour not in hourly:
                     hourly[hour] = []
                 hourly[hour].append(trade['mfe_none'])
@@ -224,15 +225,23 @@ class StrategyEvaluator:
         if time_filter == 'optimal' and optimal_hours:
             filtered = []
             for t in session_trades:
-                if not t.get('time'):
+                time_val = t.get('time')
+                if not time_val:
                     continue
-                hour = int(t['time'].split(':')[0])
+                hour = time_val.hour if hasattr(time_val, 'hour') else int(str(time_val).split(':')[0])
                 if optimal_hours.get(t['session']) == hour:
                     filtered.append(t)
             session_trades = filtered
         elif time_filter == 'macro':
-            session_trades = [t for t in session_trades if t.get('time') and 
-                            (int(t['time'].split(':')[1]) >= 45 or int(t['time'].split(':')[1]) <= 15)]
+            filtered = []
+            for t in session_trades:
+                time_val = t.get('time')
+                if not time_val:
+                    continue
+                minute = time_val.minute if hasattr(time_val, 'minute') else int(str(time_val).split(':')[1])
+                if minute >= 45 or minute <= 15:
+                    filtered.append(t)
+            session_trades = filtered
         
         results = []
         for trade in session_trades:
