@@ -271,10 +271,12 @@ class StrategyEvaluator:
         
         wins = [r for r in results if r > 0]
         losses = [r for r in results if r < 0]
+        breakevens = [r for r in results if r == 0]
         
         total_r = sum(results)
         expectancy = total_r / len(results)
-        win_rate = len(wins) / len(results)
+        # Win rate = (wins + breakevens) / total
+        win_rate = (len(wins) + len(breakevens)) / len(results)
         
         gross_profit = sum(wins) if wins else 0
         gross_loss = abs(sum(losses)) if losses else 1

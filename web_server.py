@@ -436,10 +436,8 @@ def get_strategy_comparison():
         cursor.execute("""
             SELECT date, time, session, bias,
                    COALESCE(mfe_none, mfe, 0) as mfe_none,
-                   COALESCE(mfe1, 0) as mfe1,
-                   COALESCE(be1_hit, false) as be1_hit
+                   COALESCE(mfe1, 0) as mfe1
             FROM signal_lab_trades
-            WHERE COALESCE(mfe_none, mfe, 0) != 0
         """)
         
         trades = cursor.fetchall()
@@ -454,6 +452,71 @@ def get_strategy_comparison():
         
     except Exception as e:
         logger.error(f'Strategy comparison error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/strategy-trades', methods=['GET'])
+@login_required
+def get_strategy_trades():
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        session = request.args.get('session', '')
+        be_strategy = request.args.get('be', 'none')
+        r_target = float(request.args.get('r', 1.0))
+        time_filter = request.args.get('time', 'all')
+        
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            SELECT date, time, session, bias,
+                   COALESCE(mfe_none, mfe, 0) as mfe_none,
+                   COALESCE(mfe1, 0) as mfe1
+            FROM signal_lab_trades
+            ORDER BY date DESC, time DESC
+        """)
+        
+        all_trades = cursor.fetchall()
+        
+        # Filter by session
+        if '+' in session:
+            sessions = session.split('+')
+            filtered = [t for t in all_trades if t['session'] in sessions]
+        else:
+            filtered = [t for t in all_trades if t['session'] == session]
+        
+        # Calculate results
+        results = []
+        for trade in filtered:
+            if be_strategy == 'none':
+                mfe = trade['mfe_none']
+                result = r_target if mfe >= r_target else -1
+            else:
+                mfe1 = trade['mfe1']
+                if mfe1 < 1:
+                    result = -1
+                elif mfe1 >= r_target:
+                    result = r_target
+                else:
+                    result = 0
+            results.append(result)
+        
+        # Build trade list with results
+        trades_with_results = []
+        for i, trade in enumerate(filtered):
+            trades_with_results.append({
+                'date': str(trade['date']),
+                'time': str(trade['time']) if trade['time'] else None,
+                'session': trade['session'],
+                'result': results[i]
+            })
+        
+        return jsonify({
+            'trades': trades_with_results,
+            'results': results
+        })
+        
+    except Exception as e:
+        logger.error(f'Strategy trades error: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
 @app.route('/time-analysis')
