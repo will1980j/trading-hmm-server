@@ -11,22 +11,20 @@ class StrategyEvaluator:
         
     def evaluate_strategy(self, strategy: Dict) -> Dict:
         """
-        Evaluate a strategy for 1m scalping
-        HARD FILTERS: Must have positive expectancy, 50%+ win rate, reasonable drawdown
+        Evaluate a strategy - SAME LOGIC AS OPTIMIZER
         """
-        # HARD FILTERS - reject immediately if fails
         exp = strategy.get('expectancy', 0)
         wr = strategy.get('win_rate', 0)
-        dd = strategy.get('max_drawdown', 999)
         total_r = strategy.get('total_r', 0)
         
-        if exp <= 0 or wr < 0.50 or dd > 50 or total_r <= 0:
+        # Must be profitable
+        if exp <= 0 or total_r <= 0:
             return {
                 'composite_score': 0,
                 'scores': {},
                 'weights': {},
                 'metrics': self._calculate_metrics(strategy),
-                'recommendation': 'AVOID - Failed minimum requirements'
+                'recommendation': 'AVOID - Not profitable'
             }
         
         scores = {
