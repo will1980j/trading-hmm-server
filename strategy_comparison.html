@@ -185,18 +185,86 @@
         let strategyData = [];
         
         async function renderEquityCurve(index) {
-            const container = document.getElementById(`equity_${index}`);
-            container.innerHTML = '<div style="text-align: center; padding: 20px;">Equity curve coming soon</div>';
+            const container = document.getElementById(`equity_chart_${index}`);
+            const strat = strategyData[index];
+            if (!strat) return;
+            
+            const response = await fetch(`/api/strategy-trades?session=${strat.strategy.session}&be=${strat.strategy.be_strategy}&r=${strat.strategy.r_target}&time=${strat.strategy.time_filter || 'all'}`);
+            const data = await response.json();
+            
+            let cumulative = 0;
+            const equity = data.results.map((r, i) => ({ x: i + 1, y: cumulative += r }));
+            
+            const canvas = container;
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width = container.parentElement.offsetWidth - 30;
+            const height = canvas.height = 200;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            const maxY = Math.max(...equity.map(e => e.y), 0);
+            const minY = Math.min(...equity.map(e => e.y), 0);
+            const range = maxY - minY || 1;
+            
+            ctx.strokeStyle = '#00ff88';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            equity.forEach((point, i) => {
+                const x = (point.x / equity.length) * width;
+                const y = height - ((point.y - minY) / range) * (height - 20) - 10;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px Inter';
+            ctx.fillText(`Final: ${cumulative.toFixed(2)}R`, 10, 20);
         }
         
         async function renderCalendar(index) {
             const container = document.getElementById(`calendar_${index}`);
-            container.innerHTML = '<div style="text-align: center; padding: 20px;">Calendar coming soon</div>';
+            const strat = strategyData[index];
+            if (!strat) return;
+            
+            const response = await fetch(`/api/strategy-trades?session=${strat.strategy.session}&be=${strat.strategy.be_strategy}&r=${strat.strategy.r_target}&time=${strat.strategy.time_filter || 'all'}`);
+            const data = await response.json();
+            
+            const dailyTotals = {};
+            data.trades.forEach(t => {
+                if (!dailyTotals[t.date]) dailyTotals[t.date] = { total: 0, count: 0 };
+                dailyTotals[t.date].total += t.result;
+                dailyTotals[t.date].count++;
+            });
+            
+            let html = '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;">';
+            Object.entries(dailyTotals).sort().forEach(([date, d]) => {
+                const color = d.total > 0 ? '#00ff88' : (d.total === 0 ? '#ffa502' : '#ff4757');
+                html += `<div style="background: ${color}33; border: 1px solid ${color}; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 10px;">${date.split('-')[2]}</div>
+                    <div style="font-weight: 700;">${d.total > 0 ? '+' : ''}${d.total.toFixed(1)}R</div>
+                    <div style="font-size: 9px; opacity: 0.7;">${d.count}</div>
+                </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
         }
         
         async function renderTrades(index) {
             const container = document.getElementById(`trades_${index}`);
-            container.innerHTML = '<div style="text-align: center; padding: 20px;">Trade list coming soon</div>';
+            const strat = strategyData[index];
+            if (!strat) return;
+            
+            const response = await fetch(`/api/strategy-trades?session=${strat.strategy.session}&be=${strat.strategy.be_strategy}&r=${strat.strategy.r_target}&time=${strat.strategy.time_filter || 'all'}`);
+            const data = await response.json();
+            
+            let html = '<table style="width: 100%; font-size: 11px;"><tr><th>Date</th><th>Time</th><th>Session</th><th>Result</th></tr>';
+            data.trades.forEach(t => {
+                const color = t.result > 0 ? '#00ff88' : (t.result === 0 ? '#ffa502' : '#ff4757');
+                html += `<tr><td>${t.date}</td><td>${t.time || 'N/A'}</td><td>${t.session}</td><td style="color: ${color}; font-weight: 700;">${t.result > 0 ? '+' : ''}${t.result.toFixed(2)}R</td></tr>`;
+            });
+            html += '</table>';
+            container.innerHTML = html;
         }
         
         // Auto-load on page load
