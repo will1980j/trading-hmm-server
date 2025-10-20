@@ -27,24 +27,25 @@ class StrategyEvaluator:
                 'recommendation': 'AVOID - Not profitable'
             }
         
+        # Use EXACT same scoring as optimizer
+        exp = strategy.get('expectancy', 0)
+        wr = strategy.get('win_rate', 0)
+        total = strategy.get('total_trades', 0)
+        total_r = strategy.get('total_r', 0)
+        dd = strategy.get('max_drawdown', 1)
+        
+        avg_r_per_trade = total_r / total if total > 0 else 0
+        sharpe = exp / dd if dd > 0 else 0
+        
+        composite = (exp * 40) + (wr * 20) + (avg_r_per_trade * 15) + (sharpe * 10) + (math.log(total) * 5 if total > 0 else 0)
+        
         scores = {
-            'expectancy': self._score_expectancy(strategy),
-            'win_rate': self._score_win_rate(strategy),
-            'profit_factor': self._score_profit_factor(strategy),
-            'drawdown': self._score_drawdown(strategy),
-            'omega': self._score_omega(strategy)
+            'expectancy': exp * 40,
+            'win_rate': wr * 20,
+            'avg_r': avg_r_per_trade * 15,
+            'sharpe': sharpe * 10,
+            'sample': math.log(total) * 5 if total > 0 else 0
         }
-        
-        # Heavily weight win rate and drawdown for scalping
-        weights = {
-            'expectancy': 0.20,
-            'win_rate': 0.35,
-            'profit_factor': 0.15,
-            'drawdown': 0.20,
-            'omega': 0.10
-        }
-        
-        composite = sum(scores[k] * weights[k] for k in weights)
         
         return {
             'composite_score': composite,
@@ -63,14 +64,9 @@ class StrategyEvaluator:
         return min(100, (exp / 0.5) * 100)
     
     def _score_win_rate(self, strategy: Dict) -> float:
-        """Win rate: 50%+ required, 70%+ is excellent"""
+        """Win rate: Linear scale 0-100%"""
         wr = strategy.get('win_rate', 0)
-        if wr < 0.50:
-            return 0
-        elif wr < 0.70:
-            return ((wr - 0.50) / 0.20) * 70
-        else:
-            return 70 + ((wr - 0.70) / 0.20) * 30
+        return wr * 100
     
     def _score_profit_factor(self, strategy: Dict) -> float:
         """PF: 2.0+ = excellent for scalping"""
@@ -295,8 +291,7 @@ class StrategyEvaluator:
         
         total_r = sum(results)
         expectancy = total_r / len(results)
-        # Win rate = (wins + breakevens) / total
-        win_rate = (len(wins) + len(breakevens)) / len(results)
+        win_rate = len(wins) / len(results)
         
         gross_profit = sum(wins) if wins else 0
         gross_loss = abs(sum(losses)) if losses else 1
