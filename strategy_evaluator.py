@@ -135,10 +135,8 @@ class StrategyEvaluator:
         cursor.execute("""
             SELECT date, time, session, bias,
                    COALESCE(mfe_none, mfe, 0) as mfe_none,
-                   COALESCE(mfe1, 0) as mfe1,
-                   COALESCE(be1_hit, false) as be1_hit
+                   COALESCE(mfe1, 0) as mfe1
             FROM signal_lab_trades
-            WHERE COALESCE(mfe_none, mfe, 0) != 0
         """)
         
         trades = cursor.fetchall()
@@ -183,14 +181,20 @@ class StrategyEvaluator:
         for trade in session_trades:
             if be_strategy == 'none':
                 mfe = trade['mfe_none']
-                result = r_target if mfe >= r_target else -1
-            else:  # be1
-                if not trade['be1_hit']:
+                if mfe < 0:
                     result = -1
-                elif trade['mfe1'] >= r_target:
+                elif mfe >= r_target:
                     result = r_target
                 else:
-                    result = 0  # Breakeven
+                    result = -1
+            else:  # be1
+                mfe1 = trade['mfe1']
+                if mfe1 < 1:
+                    result = -1
+                elif mfe1 >= r_target:
+                    result = r_target
+                else:
+                    result = 0  # Hit BE but not target
             
             results.append(result)
         
