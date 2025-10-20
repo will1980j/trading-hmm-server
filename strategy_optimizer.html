@@ -232,9 +232,11 @@
             const useOptimalHours = document.getElementById('useOptimalHours').checked;
             const useMacroWindows = document.getElementById('useMacroWindows').checked;
             
-            // Apply macro filter first if enabled
+            // Base signals - no filtering yet if both options selected
             let baseSignals = signals;
-            if (useMacroWindows) {
+            
+            // If ONLY macro (not optimal), filter macro globally
+            if (useMacroWindows && !useOptimalHours) {
                 baseSignals = signals.filter(s => {
                     if (!s.time) return false;
                     const [hour, minute] = s.time.split(':').map(Number);
@@ -309,10 +311,15 @@
                             
                             let sessionSignals = baseSignals.filter(s => s.session === session);
                             if (useOptimalHours && windowsForCombo[session]) {
+                                const optimalHour = windowsForCombo[session][0].hour;
                                 sessionSignals = sessionSignals.filter(s => {
-                                    const hour = s.time ? parseInt(s.time.split(':')[0]) : null;
-                                    if (hour === null) return false;
-                                    return windowsForCombo[session].some(w => hour === w.hour);
+                                    if (!s.time) return false;
+                                    const [hour, minute] = s.time.split(':').map(Number);
+                                    if (useMacroWindows) {
+                                        return (hour === optimalHour && minute >= 45) || (hour === (optimalHour + 1) % 24 && minute <= 15);
+                                    } else {
+                                        return hour === optimalHour;
+                                    }
                                 });
                             }
                             if (sessionSignals.length < 30) return;
@@ -347,9 +354,14 @@
                                     combinedSignals = combinedSignals.filter(s => {
                                         const sessionWindows = windowsForCombo[s.session];
                                         if (!sessionWindows) return false;
-                                        const hour = s.time ? parseInt(s.time.split(':')[0]) : null;
-                                        if (hour === null) return false;
-                                        return sessionWindows.some(w => hour === w.hour);
+                                        if (!s.time) return false;
+                                        const [hour, minute] = s.time.split(':').map(Number);
+                                        const optimalHour = sessionWindows[0].hour;
+                                        if (useMacroWindows) {
+                                            return (hour === optimalHour && minute >= 45) || (hour === (optimalHour + 1) % 24 && minute <= 15);
+                                        } else {
+                                            return hour === optimalHour;
+                                        }
                                     });
                                 }
                                 if (combinedSignals.length < 50) continue;
