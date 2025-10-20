@@ -12,8 +12,23 @@ class StrategyEvaluator:
     def evaluate_strategy(self, strategy: Dict) -> Dict:
         """
         Evaluate a strategy for 1m scalping
-        Focus: Win Rate, Profit Factor, Drawdown, Omega, Sortino
+        HARD FILTERS: Must have positive expectancy, 50%+ win rate, reasonable drawdown
         """
+        # HARD FILTERS - reject immediately if fails
+        exp = strategy.get('expectancy', 0)
+        wr = strategy.get('win_rate', 0)
+        dd = strategy.get('max_drawdown', 999)
+        total_r = strategy.get('total_r', 0)
+        
+        if exp <= 0 or wr < 0.50 or dd > 50 or total_r <= 0:
+            return {
+                'composite_score': 0,
+                'scores': {},
+                'weights': {},
+                'metrics': self._calculate_metrics(strategy),
+                'recommendation': 'AVOID - Failed minimum requirements'
+            }
+        
         scores = {
             'expectancy': self._score_expectancy(strategy),
             'win_rate': self._score_win_rate(strategy),
@@ -22,13 +37,13 @@ class StrategyEvaluator:
             'omega': self._score_omega(strategy)
         }
         
-        # Weighted for scalping - prioritize win rate
+        # Heavily weight win rate and drawdown for scalping
         weights = {
-            'expectancy': 0.25,
-            'win_rate': 0.25,
-            'profit_factor': 0.20,
-            'drawdown': 0.15,
-            'omega': 0.15
+            'expectancy': 0.20,
+            'win_rate': 0.35,
+            'profit_factor': 0.15,
+            'drawdown': 0.20,
+            'omega': 0.10
         }
         
         composite = sum(scores[k] * weights[k] for k in weights)
@@ -50,14 +65,14 @@ class StrategyEvaluator:
         return min(100, (exp / 0.5) * 100)
     
     def _score_win_rate(self, strategy: Dict) -> float:
-        """Win rate: 30%+ gets bonus, 50%+ is excellent"""
+        """Win rate: 50%+ required, 70%+ is excellent"""
         wr = strategy.get('win_rate', 0)
-        if wr < 0.30:
-            return (wr / 0.30) * 50
-        elif wr < 0.50:
-            return 50 + ((wr - 0.30) / 0.20) * 30
+        if wr < 0.50:
+            return 0
+        elif wr < 0.70:
+            return ((wr - 0.50) / 0.20) * 70
         else:
-            return 80 + ((wr - 0.50) / 0.30) * 20
+            return 70 + ((wr - 0.70) / 0.20) * 30
     
     def _score_profit_factor(self, strategy: Dict) -> float:
         """PF: 2.0+ = excellent for scalping"""
@@ -74,12 +89,14 @@ class StrategyEvaluator:
         return min(100, ((omega - 1.0) / 1.0) * 100)
     
     def _score_drawdown(self, strategy: Dict) -> float:
-        """Lower drawdown = higher score"""
+        """Lower drawdown = higher score. 10R+ is unacceptable"""
         dd = strategy.get('max_drawdown', 0)
         if dd == 0:
             return 100
-        # 5R drawdown = 50 score, scales inversely
-        return max(0, 100 - (dd / 5.0) * 50)
+        if dd > 10:
+            return 0
+        # 5R drawdown = 50 score
+        return max(0, 100 - (dd / 10.0) * 100)
     
 
     
