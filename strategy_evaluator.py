@@ -17,14 +17,15 @@ class StrategyEvaluator:
         wr = strategy.get('win_rate', 0)
         total_r = strategy.get('total_r', 0)
         
-        # Must be profitable
-        if exp <= 0 or total_r <= 0:
+        dd = strategy.get('max_drawdown', 999)
+        
+        # Filter: profitable AND reasonable drawdown
+        if exp <= 0 or total_r <= 0 or dd > 50:
             return {
                 'composite_score': 0,
                 'scores': {},
-                'weights': {},
                 'metrics': self._calculate_metrics(strategy),
-                'recommendation': 'AVOID - Not profitable'
+                'recommendation': 'AVOID - Not profitable or excessive drawdown'
             }
         
         # Use EXACT same scoring as optimizer
