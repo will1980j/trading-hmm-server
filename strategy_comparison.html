@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategy Comparison - Unified Analysis</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); color: #fff; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { text-align: center; padding: 30px; background: rgba(255,255,255,0.08); border-radius: 20px; margin-bottom: 30px; }
+        .header h1 { font-size: 2.5em; background: linear-gradient(45deg, #00ff88, #00d4aa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .comparison-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .strategy-card { background: rgba(255,255,255,0.08); border-radius: 15px; padding: 20px; border: 2px solid transparent; transition: all 0.3s; }
+        .strategy-card.winner { border-color: #00ff88; box-shadow: 0 0 20px rgba(0,255,136,0.3); }
+        .score-circle { width: 120px; height: 120px; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 2em; font-weight: 700; }
+        .score-high { background: linear-gradient(135deg, #00ff88, #00d4aa); color: #000; }
+        .score-medium { background: linear-gradient(135deg, #ffa502, #ff6348); color: #fff; }
+        .score-low { background: linear-gradient(135deg, #ff4757, #c23616); color: #fff; }
+        .metric-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .metric-label { opacity: 0.8; }
+        .metric-value { font-weight: 600; color: #00ff88; }
+        .recommendation { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); border-radius: 10px; padding: 15px; margin-top: 15px; text-align: center; font-weight: 600; }
+        .btn { background: linear-gradient(45deg, #00ff88, #00d4aa); border: none; padding: 15px 30px; border-radius: 12px; color: white; font-weight: 700; cursor: pointer; margin: 10px; }
+        .loading { text-align: center; padding: 60px; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Strategy Comparison</h1>
+            <p>Unified evaluation across all metrics</p>
+        </div>
+        
+        <div style="text-align: center; margin-bottom: 30px;">
+            <button class="btn" onclick="loadComparison()">🔄 Run Analysis</button>
+            <button class="btn" onclick="showConstraints()">⚙️ Set Constraints</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function loadComparison() {
+            document.getElementById('results').innerHTML = '<div class="loading">🔄 Analyzing strategies...</div>';
+            
+            try {
+                const response = await fetch('/api/strategy-comparison');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('results').innerHTML = `<div class="loading">❌ ${data.error}</div>`;
+                    return;
+                }
+                
+                displayComparison(data.strategies);
+                
+            } catch (error) {
+                document.getElementById('results').innerHTML = `<div class="loading">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        function displayComparison(strategies) {
+            let html = '<div class="comparison-grid">';
+            
+            strategies.slice(0, 6).forEach((strat, index) => {
+                const isWinner = index === 0;
+                const score = strat.composite_score;
+                const scoreClass = score >= 80 ? 'score-high' : score >= 65 ? 'score-medium' : 'score-low';
+                
+                html += `
+                    <div class="strategy-card ${isWinner ? 'winner' : ''}">
+                        ${isWinner ? '<div style="text-align: center; color: #00ff88; font-weight: 700; margin-bottom: 10px;">🏆 OPTIMAL STRATEGY</div>' : ''}
+                        
+                        <div class="score-circle ${scoreClass}">
+                            ${score.toFixed(0)}
+                        </div>
+                        
+                        <h3 style="text-align: center; margin-bottom: 15px; color: #00ff88;">
+                            ${strat.strategy.session} | ${strat.strategy.be_strategy.toUpperCase()} | ${strat.strategy.r_target}R
+                        </h3>
+                        
+                        <div class="metric-row">
+                            <span class="metric-label">Expectancy</span>
+                            <span class="metric-value">${strat.metrics.expectancy}R</span>
+                        </div>
+                        
+                        <div class="metric-row">
+                            <span class="metric-label">Win Rate</span>
+                            <span class="metric-value">${strat.metrics.win_rate}%</span>
+                        </div>
+                        
+                        <div class="metric-row">
+                            <span class="metric-label">Profit Factor</span>
+                            <span class="metric-value">${strat.metrics.profit_factor}</span>
+                        </div>
+                        
+                        <div class="metric-row">
+                            <span class="metric-label">Sharpe Ratio</span>
+                            <span class="metric-value">${strat.metrics.sharpe_ratio}</span>
+                        </div>
+                        
+                        <div class="metric-row">
+                            <span class="metric-label">Sample Size</span>
+                            <span class="metric-value">${strat.metrics.total_trades} trades</span>
+                        </div>
+                        
+                        <div class="recommendation">
+                            ${strat.recommendation}
+                        </div>
+                        
+                        <div style="margin-top: 15px; font-size: 12px; opacity: 0.7;">
+                            Score Breakdown:<br>
+                            Expectancy: ${strat.scores.expectancy.toFixed(0)} | 
+                            Risk-Adj: ${strat.scores.risk_adjusted.toFixed(0)} | 
+                            Consistency: ${strat.scores.consistency.toFixed(0)}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            
+            document.getElementById('results').innerHTML = html;
+        }
+        
+        function showConstraints() {
+            alert('Constraint settings coming soon!\n\nYou will be able to set:\n- Minimum win rate\n- Maximum drawdown\n- Minimum sample size\n- Minimum expectancy');
+        }
+        
+        // Auto-load on page load
+        document.addEventListener('DOMContentLoaded', loadComparison);
+    </script>
+</body>
+</html>

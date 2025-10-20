@@ -405,6 +405,57 @@ def ml_dashboard():
 def strategy_optimizer():
     return read_html_file('strategy_optimizer.html')
 
+@app.route('/strategy-comparison')
+@login_required
+def strategy_comparison():
+    return read_html_file('strategy_comparison.html')
+
+@app.route('/api/strategy-comparison', methods=['GET'])
+@login_required
+def get_strategy_comparison():
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from strategy_evaluator import StrategyEvaluator
+        evaluator = StrategyEvaluator(db)
+        
+        # Get optimal strategy with optional constraints
+        constraints = {
+            'min_trades': 10,
+            'min_expectancy': 0.0
+        }
+        
+        result = evaluator.get_optimal_strategy(constraints)
+        
+        if 'error' in result:
+            return jsonify(result), 404
+        
+        # Get top strategies for comparison
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            SELECT date, time, session, bias,
+                   COALESCE(mfe_none, mfe, 0) as mfe_none,
+                   COALESCE(mfe1, 0) as mfe1,
+                   COALESCE(be1_hit, false) as be1_hit
+            FROM signal_lab_trades
+            WHERE COALESCE(mfe_none, mfe, 0) != 0
+        """)
+        
+        trades = cursor.fetchall()
+        strategies = evaluator._generate_strategy_combinations(trades)
+        evaluated = evaluator.compare_strategies(strategies)
+        
+        return jsonify({
+            'strategies': evaluated[:10],  # Top 10
+            'optimal': result,
+            'total_evaluated': len(strategies)
+        })
+        
+    except Exception as e:
+        logger.error(f'Strategy comparison error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/time-analysis')
 @login_required
 def time_analysis():
