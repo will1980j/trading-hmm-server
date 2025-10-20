@@ -331,8 +331,7 @@ class StrategyEvaluator:
             'total_trades': len(results),
             'max_drawdown': max_dd,
             'omega_ratio': omega,
-            'results': results,  # Return actual results for frontend
-            'trades': session_trades  # Return actual trades used
+            'results': results
         }
     
     def _apply_constraints(self, strategies: List[Dict], constraints: Dict) -> List[Dict]:

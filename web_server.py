@@ -480,7 +480,7 @@ def get_strategy_trades():
         
         all_trades = cursor.fetchall()
         
-        # Use evaluator's _test_strategy - returns results AND trades
+        # Use evaluator's _test_strategy - returns EXACT results
         strategy_result = evaluator._test_strategy(
             all_trades, 
             session, 
@@ -491,16 +491,22 @@ def get_strategy_trades():
         
         # Use the EXACT results from evaluator
         results = strategy_result.get('results', [])
-        trades_used = strategy_result.get('trades', [])
         
-        # Build trade list with results
+        # Filter trades manually for display
+        if '+' in session:
+            sessions = session.split('+')
+            filtered = [t for t in all_trades if t['session'] in sessions]
+        else:
+            filtered = [t for t in all_trades if t['session'] == session]
+        
+        # Build trade list
         trades_with_results = []
-        for i, trade in enumerate(trades_used):
+        for i, trade in enumerate(filtered[:len(results)]):
             trades_with_results.append({
                 'date': str(trade['date']),
                 'time': str(trade['time']) if trade['time'] else None,
                 'session': trade['session'],
-                'result': results[i] if i < len(results) else 0
+                'result': results[i]
             })
         
         return jsonify({
