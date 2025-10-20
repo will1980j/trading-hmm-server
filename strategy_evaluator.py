@@ -12,23 +12,23 @@ class StrategyEvaluator:
     def evaluate_strategy(self, strategy: Dict) -> Dict:
         """
         Evaluate a strategy for 1m scalping
-        Focus: Profit Factor, Drawdown, Omega, Sortino, Calmar
+        Focus: Win Rate, Profit Factor, Drawdown, Omega, Sortino
         """
         scores = {
             'expectancy': self._score_expectancy(strategy),
+            'win_rate': self._score_win_rate(strategy),
             'profit_factor': self._score_profit_factor(strategy),
             'drawdown': self._score_drawdown(strategy),
-            'omega': self._score_omega(strategy),
-            'sortino': self._score_sortino(strategy)
+            'omega': self._score_omega(strategy)
         }
         
-        # Weighted for scalping
+        # Weighted for scalping - prioritize win rate
         weights = {
             'expectancy': 0.25,
-            'profit_factor': 0.25,
-            'drawdown': 0.20,
-            'omega': 0.15,
-            'sortino': 0.15
+            'win_rate': 0.25,
+            'profit_factor': 0.20,
+            'drawdown': 0.15,
+            'omega': 0.15
         }
         
         composite = sum(scores[k] * weights[k] for k in weights)
@@ -49,6 +49,16 @@ class StrategyEvaluator:
         # 0.5R = 100, scales down from there
         return min(100, (exp / 0.5) * 100)
     
+    def _score_win_rate(self, strategy: Dict) -> float:
+        """Win rate: 30%+ gets bonus, 50%+ is excellent"""
+        wr = strategy.get('win_rate', 0)
+        if wr < 0.30:
+            return (wr / 0.30) * 50
+        elif wr < 0.50:
+            return 50 + ((wr - 0.30) / 0.20) * 30
+        else:
+            return 80 + ((wr - 0.50) / 0.30) * 20
+    
     def _score_profit_factor(self, strategy: Dict) -> float:
         """PF: 2.0+ = excellent for scalping"""
         pf = strategy.get('profit_factor', 0)
@@ -62,13 +72,6 @@ class StrategyEvaluator:
         if omega <= 1.0:
             return 0
         return min(100, ((omega - 1.0) / 1.0) * 100)
-    
-    def _score_sortino(self, strategy: Dict) -> float:
-        """Sortino: downside deviation focus"""
-        sortino = strategy.get('sortino_ratio', 0)
-        if sortino <= 0:
-            return 0
-        return min(100, (sortino / 2.0) * 100)
     
     def _score_drawdown(self, strategy: Dict) -> float:
         """Lower drawdown = higher score"""
@@ -92,7 +95,6 @@ class StrategyEvaluator:
             'win_rate': round(wr * 100, 1),
             'profit_factor': round(strategy.get('profit_factor', 0), 2),
             'omega_ratio': round(strategy.get('omega_ratio', 0), 2),
-            'sortino_ratio': round(strategy.get('sortino_ratio', 0), 2),
             'calmar_ratio': round(strategy.get('total_r', 0) / dd, 2) if dd > 0 else 0,
             'max_drawdown': round(dd, 2),
             'total_trades': total
@@ -290,11 +292,6 @@ class StrategyEvaluator:
             if dd > max_dd:
                 max_dd = dd
         
-        # Downside deviation (for Sortino)
-        downside_returns = [r for r in results if r < 0]
-        downside_dev = math.sqrt(sum(r**2 for r in downside_returns) / len(downside_returns)) if downside_returns else 0.01
-        sortino = expectancy / downside_dev if downside_dev > 0 else 0
-        
         # Omega ratio
         gains = sum(r for r in results if r > 0)
         losses = abs(sum(r for r in results if r < 0))
@@ -311,7 +308,6 @@ class StrategyEvaluator:
             'total_r': total_r,
             'total_trades': len(results),
             'max_drawdown': max_dd,
-            'sortino_ratio': sortino,
             'omega_ratio': omega
         }
     
