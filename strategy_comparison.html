@@ -144,11 +144,11 @@
                         
                         <div style="margin-top: 15px; font-size: 12px; opacity: 0.7;">
                             Score Breakdown:<br>
-                            Expectancy: ${strat.scores.expectancy.toFixed(0)} | 
-                            Win Rate: ${strat.scores.win_rate.toFixed(0)} | 
-                            PF: ${strat.scores.profit_factor.toFixed(0)} | 
-                            Drawdown: ${strat.scores.drawdown.toFixed(0)} | 
-                            Omega: ${strat.scores.omega.toFixed(0)}
+                            Expectancy: ${(strat.scores.expectancy || 0).toFixed(0)} | 
+                            Win Rate: ${(strat.scores.win_rate || 0).toFixed(0)} | 
+                            Avg R: ${(strat.scores.avg_r || 0).toFixed(0)} | 
+                            Sharpe: ${(strat.scores.sharpe || 0).toFixed(0)} | 
+                            Sample: ${(strat.scores.sample || 0).toFixed(0)}
                         </div>
                     </div>
                 `;
