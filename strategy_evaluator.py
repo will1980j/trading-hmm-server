@@ -50,7 +50,6 @@ class StrategyEvaluator:
         return {
             'composite_score': composite,
             'scores': scores,
-            'weights': weights,
             'metrics': self._calculate_metrics(strategy),
             'recommendation': self._get_recommendation(composite, scores)
         }
