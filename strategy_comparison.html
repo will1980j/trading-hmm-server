@@ -68,7 +68,13 @@
                     <input type="number" id="minWinRate" value="40" min="0" max="100" step="5" style="width: 100%; padding: 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; background: rgba(255,255,255,0.1); color: white; font-size: 14px;">
                 </div>
             </div>
-            <div style="text-align: center;">
+            <div style="margin-top: 15px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="onlyPropViable" checked style="width: 16px; height: 16px; accent-color: #00ff88;">
+                    <span style="color: #00ff88; font-weight: 600;">Only show prop firm viable strategies</span>
+                </label>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
                 <button class="btn" onclick="runComparison()">🔄 Run Comparison</button>
             </div>
         </div>
@@ -243,6 +249,14 @@
                     });
                 });
             });
+            
+            const onlyPropViable = document.getElementById('onlyPropViable').checked;
+            const maxDailyLoss = parseFloat(document.getElementById('maxDailyLoss').value);
+            const minWinRate = parseFloat(document.getElementById('minWinRate').value);
+            
+            if (onlyPropViable) {
+                strategies = strategies.filter(s => s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate);
+            }
             
             strategies.sort((a, b) => b.expectedReturnPercent - a.expectedReturnPercent);
             allStrategies = strategies.slice(0, 20);
