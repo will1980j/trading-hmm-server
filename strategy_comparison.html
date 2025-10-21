@@ -270,12 +270,14 @@
             
             let html = '<table><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th>Expectancy</th><th>Avg Trade</th><th>Win Rate</th><th>BE Rate</th><th>Trades</th><th>Expected R</th><th>Expected %</th><th>Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
             
+            const maxDailyLoss = parseFloat(document.getElementById('maxDailyLoss')?.value || 5);
+            const minWinRate = parseFloat(document.getElementById('minWinRate')?.value || 40);
+            const maxDrawdown = parseFloat(document.getElementById('maxDrawdown')?.value || 10);
+            
             strategies.forEach((s, i) => {
                 const rowClass = i === 0 ? 'style="background: rgba(0,255,136,0.1);"' : '';
                 const sessionsText = s.sessions.join('+');
                 const timeFilterText = {'none': 'None', 'optimal': 'Optimal', 'macro': 'Macro', 'both': 'Both'}[s.timeFilter];
-                const maxDailyLoss = parseFloat(document.getElementById('maxDailyLoss')?.value || 5);
-                const minWinRate = parseFloat(document.getElementById('minWinRate')?.value || 40);
                 const propViable = s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate;
                 const propIcon = propViable ? '✅' : '❌';
                 html += `<tr ${rowClass}>
@@ -678,7 +680,9 @@
             container.innerHTML = html;
         }
         
-        document.addEventListener('DOMContentLoaded', runComparison);
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('results').innerHTML = '<div style="text-align: center; padding: 60px; color: rgba(255,255,255,0.6);">Click "Run Comparison" to analyze strategies</div>';
+        });
     </script>
 </body>
 </html>
