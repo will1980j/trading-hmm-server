@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webhook Signal Monitor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0e27;
+            color: #f8fafc;
+            padding: 20px;
+        }
+        .header {
+            margin-bottom: 30px;
+        }
+        h1 {
+            font-size: 28px;
+            background: linear-gradient(135deg, #3b82f6, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #1a2142;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #2d3a5f;
+        }
+        .stat-label {
+            color: #94a3b8;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .bullish { color: #10b981; }
+        .bearish { color: #ef4444; }
+        .alert {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid #ef4444;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .success {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid #10b981;
+        }
+        .log-container {
+            background: #1a2142;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #2d3a5f;
+            margin-bottom: 20px;
+        }
+        .log-entry {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #141b3d;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .timestamp {
+            color: #94a3b8;
+            font-size: 11px;
+        }
+        .test-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        .test-button:hover {
+            background: #2563eb;
+        }
+        .test-button.bearish {
+            background: #ef4444;
+        }
+        .test-button.bearish:hover {
+            background: #dc2626;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 Webhook Signal Monitor</h1>
+        <p style="color: #94a3b8; font-size: 14px;">Real-time signal reception debugging</p>
+        <a href="/ml-dashboard" style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: #10b981; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">🤖 ML Dashboard</a>
+    </div>
+
+    <div id="healthStatus"></div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Bullish Received</div>
+            <div class="stat-value bullish" id="bullishCount">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Bearish Received</div>
+            <div class="stat-value bearish" id="bearishCount">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Last Bullish</div>
+            <div style="font-size: 14px; margin-top: 8px; color: #94a3b8;" id="lastBullish">Never</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Last Bearish</div>
+            <div style="font-size: 14px; margin-top: 8px; color: #94a3b8;" id="lastBearish">Never</div>
+        </div>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+        <button class="test-button" onclick="testBullishSignal()">🟢 Test Bullish Signal</button>
+        <button class="test-button bearish" onclick="testBearishSignal()">🔴 Test Bearish Signal</button>
+    </div>
+
+    <div class="log-container">
+        <h3 style="margin-bottom: 15px;">Recent Signals (Last 24h)</h3>
+        <div id="signalLog"></div>
+    </div>
+
+    <div class="log-container">
+        <h3 style="margin-bottom: 15px;">Failed Signals</h3>
+        <div id="failureLog"></div>
+    </div>
+
+    <script>
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/webhook-stats');
+                const data = await response.json();
+                
+                if (data.last_24h) {
+                    const bullish = data.last_24h.find(s => s.bias === 'Bullish');
+                    const bearish = data.last_24h.find(s => s.bias === 'Bearish');
+                    
+                    document.getElementById('bullishCount').textContent = bullish ? bullish.count : 0;
+                    document.getElementById('bearishCount').textContent = bearish ? bearish.count : 0;
+                    
+                    document.getElementById('lastBullish').textContent = 
+                        data.last_bullish ? new Date(data.last_bullish).toLocaleString() : 'Never';
+                    document.getElementById('lastBearish').textContent = 
+                        data.last_bearish ? new Date(data.last_bearish).toLocaleString() : 'Never';
+                }
+                
+                // Display recent signals
+                if (data.last_24h) {
+                    const logHtml = data.last_24h.map(signal => `
+                        <div class="log-entry">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span class="${signal.bias.toLowerCase()}">${signal.bias}</span>
+                                <span class="timestamp">${new Date(signal.last_received).toLocaleString()}</span>
+                            </div>
+                            <div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">
+                                Count: ${signal.count}
+                            </div>
+                        </div>
+                    `).join('');
+                    document.getElementById('signalLog').innerHTML = logHtml || '<p style="color: #94a3b8;">No signals in last 24h</p>';
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        async function loadHealth() {
+            try {
+                const response = await fetch('/api/webhook-health');
+                const data = await response.json();
+                
+                const statusDiv = document.getElementById('healthStatus');
+                
+                if (data.healthy) {
+                    statusDiv.innerHTML = '<div class="alert success">✅ Both signal types receiving normally</div>';
+                } else if (data.alerts && data.alerts.length > 0) {
+                    const alertsHtml = data.alerts.map(alert => `
+                        <div class="alert">
+                            <strong>⚠️ ${alert.type.replace(/_/g, ' ').toUpperCase()}</strong>
+                            <p style="margin-top: 5px;">${alert.message}</p>
+                        </div>
+                    `).join('');
+                    statusDiv.innerHTML = alertsHtml;
+                }
+            } catch (error) {
+                console.error('Error loading health:', error);
+            }
+        }
+
+        async function loadFailures() {
+            try {
+                const response = await fetch('/api/webhook-failures');
+                const data = await response.json();
+                
+                if (data.failures && data.failures.length > 0) {
+                    const failureHtml = data.failures.map(failure => `
+                        <div class="log-entry">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>${failure.bias} - ${failure.symbol}</span>
+                                <span class="timestamp">${new Date(failure.processed_at).toLocaleString()}</span>
+                            </div>
+                            <div style="color: #ef4444; font-size: 12px; margin-top: 4px;">
+                                ${failure.error_message}
+                            </div>
+                        </div>
+                    `).join('');
+                    document.getElementById('failureLog').innerHTML = failureHtml;
+                } else {
+                    document.getElementById('failureLog').innerHTML = '<p style="color: #10b981;">No failures</p>';
+                }
+            } catch (error) {
+                console.error('Error loading failures:', error);
+            }
+        }
+
+        async function testBullishSignal() {
+            try {
+                const response = await fetch('/api/test-webhook-signal', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        bias: 'Bullish',
+                        symbol: 'NQ1!',
+                        price: 20500.00,
+                        test: true
+                    })
+                });
+                const result = await response.json();
+                alert('Bullish test signal sent: ' + result.message);
+                loadStats();
+                loadHealth();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function testBearishSignal() {
+            try {
+                const response = await fetch('/api/test-webhook-signal', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        bias: 'Bearish',
+                        symbol: 'NQ1!',
+                        price: 20500.00,
+                        test: true
+                    })
+                });
+                const result = await response.json();
+                alert('Bearish test signal sent: ' + result.message);
+                loadStats();
+                loadHealth();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Load data on page load
+        loadStats();
+        loadHealth();
+        loadFailures();
+
+        // Auto-refresh every 10 seconds
+        setInterval(() => {
+            loadStats();
+            loadHealth();
+            loadFailures();
+        }, 10000);
+    </script>
+</body>
+</html>

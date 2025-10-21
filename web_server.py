@@ -155,6 +155,32 @@ def reset_db_transaction():
 # Initialize SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
+# Initialize webhook debugger
+webhook_debugger = None
+if db_enabled and db:
+    try:
+        from webhook_debugger import WebhookDebugger
+        webhook_debugger = WebhookDebugger(db)
+        logger.info("✅ Webhook debugger initialized")
+    except Exception as e:
+        logger.error(f"Webhook debugger init failed: {str(e)}")
+
+# Initialize real-time signal handler
+from realtime_signal_handler import RealtimeSignalHandler
+realtime_handler = RealtimeSignalHandler(socketio, db) if db_enabled else None
+
+# WebSocket connection handlers
+@socketio.on('connect')
+def handle_connect():
+    if realtime_handler:
+        realtime_handler.active_connections += 1
+    emit('connection_status', {'status': 'connected', 'timestamp': datetime.now().isoformat()})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    if realtime_handler:
+        realtime_handler.active_connections -= 1
+
 # Register AI Business Advisor
 if db_enabled and db:
     from ai_business_advisor_endpoint import register_advisor_routes
@@ -399,6 +425,166 @@ def nasdaq_backtest():
 def ml_dashboard():
     """ML Feature Dashboard - Comprehensive ML Intelligence"""
     return read_html_file('ml_feature_dashboard.html')
+
+@app.route('/webhook-monitor')
+@login_required
+def webhook_monitor():
+    """Webhook Signal Monitoring Dashboard"""
+    return read_html_file('webhook_monitor.html')
+
+@app.route('/api/webhook-stats', methods=['GET'])
+@login_required
+def get_webhook_stats():
+    """Get webhook signal statistics"""
+    try:
+        if not webhook_debugger:
+            return jsonify({'error': 'Webhook debugger not available'}), 500
+        
+        stats = webhook_debugger.get_signal_stats()
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Webhook stats error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/webhook-health', methods=['GET'])
+@login_required
+def get_webhook_health():
+    """Check webhook signal health"""
+    try:
+        if not webhook_debugger:
+            return jsonify({'healthy': False, 'error': 'Debugger not available'}), 500
+        
+        health = webhook_debugger.check_signal_health()
+        return jsonify(health)
+    except Exception as e:
+        logger.error(f"Webhook health error: {str(e)}")
+        return jsonify({'healthy': False, 'error': str(e)}), 500
+
+@app.route('/api/webhook-failures', methods=['GET'])
+@login_required
+def get_webhook_failures():
+    """Get recent webhook failures"""
+    try:
+        if not webhook_debugger:
+            return jsonify({'failures': []}), 200
+        
+        failures = webhook_debugger.get_webhook_failures()
+        return jsonify({'failures': failures})
+    except Exception as e:
+        logger.error(f"Webhook failures error: {str(e)}")
+        return jsonify({'failures': []}), 200
+
+@app.route('/api/test-webhook-signal', methods=['POST'])
+@login_required
+def test_webhook_signal():
+    """Test webhook with manual signal"""
+    try:
+        data = request.get_json()
+        bias = data.get('bias', 'Bullish')
+        symbol = data.get('symbol', 'NQ1!')
+        price = data.get('price', 20500.00)
+        
+        # Create test signal
+        test_signal = f"SIGNAL:{bias}:{price}:75:ALIGNED:ALIGNED:{datetime.now().isoformat()}"
+        
+        logger.info(f"🧪 TEST SIGNAL: {bias} at {price}")
+        
+        # Process through webhook endpoint
+        with app.test_client() as client:
+            response = client.post('/api/live-signals', 
+                                  data=test_signal,
+                                  content_type='text/plain')
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'{bias} test signal processed',
+            'bias': bias,
+            'price': price
+        })
+    except Exception as e:
+        logger.error(f"Test signal error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/webhook-diagnostic', methods=['GET'])
+@login_required
+def webhook_diagnostic():
+    """Comprehensive webhook diagnostic"""
+    try:
+        diagnostic = {
+            'timestamp': datetime.now().isoformat(),
+            'database': 'connected' if db_enabled else 'offline',
+            'webhook_debugger': 'active' if webhook_debugger else 'inactive',
+            'signal_pipeline': {}
+        }
+        
+        if db_enabled and db:
+            cursor = db.conn.cursor()
+            
+            # Check live_signals table
+            cursor.execute("""
+                SELECT 
+                    bias,
+                    COUNT(*) as count,
+                    MAX(timestamp) as last_signal
+                FROM live_signals
+                WHERE timestamp > NOW() - INTERVAL '24 hours'
+                GROUP BY bias
+            """)
+            diagnostic['signal_pipeline']['live_signals_24h'] = [dict(row) for row in cursor.fetchall()]
+            
+            # Check signal_lab_trades
+            cursor.execute("""
+                SELECT 
+                    bias,
+                    COUNT(*) as count,
+                    MAX(created_at) as last_trade
+                FROM signal_lab_trades
+                WHERE created_at > NOW() - INTERVAL '24 hours'
+                GROUP BY bias
+            """)
+            diagnostic['signal_pipeline']['signal_lab_24h'] = [dict(row) for row in cursor.fetchall()]
+            
+            # Check for bias filtering issues
+            cursor.execute("""
+                SELECT COUNT(*) as total FROM live_signals
+                WHERE timestamp > NOW() - INTERVAL '1 hour'
+            """)
+            total_1h = cursor.fetchone()['total']
+            
+            cursor.execute("""
+                SELECT bias, COUNT(*) as count
+                FROM live_signals
+                WHERE timestamp > NOW() - INTERVAL '1 hour'
+                GROUP BY bias
+            """)
+            bias_breakdown = {row['bias']: row['count'] for row in cursor.fetchall()}
+            
+            diagnostic['signal_pipeline']['last_hour'] = {
+                'total': total_1h,
+                'bullish': bias_breakdown.get('Bullish', 0),
+                'bearish': bias_breakdown.get('Bearish', 0),
+                'ratio': f"{bias_breakdown.get('Bullish', 0)}:{bias_breakdown.get('Bearish', 0)}"
+            }
+            
+            # Check for potential filtering
+            diagnostic['potential_issues'] = []
+            if bias_breakdown.get('Bullish', 0) > 0 and bias_breakdown.get('Bearish', 0) == 0:
+                diagnostic['potential_issues'].append({
+                    'type': 'missing_bearish',
+                    'severity': 'high',
+                    'message': 'No bearish signals in last hour - check TradingView alert conditions'
+                })
+            elif bias_breakdown.get('Bearish', 0) > 0 and bias_breakdown.get('Bullish', 0) == 0:
+                diagnostic['potential_issues'].append({
+                    'type': 'missing_bullish',
+                    'severity': 'high',
+                    'message': 'No bullish signals in last hour - check TradingView alert conditions'
+                })
+        
+        return jsonify(diagnostic)
+    except Exception as e:
+        logger.error(f"Diagnostic error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/strategy-optimizer')
 @login_required
@@ -2450,6 +2636,10 @@ def capture_live_signal():
         logger.info(f"🔥 WEBHOOK RECEIVED: {raw_data[:500]}")
         print(f"🔥 WEBHOOK RECEIVED: {raw_data[:500]}")  # Console output
         
+        # Log webhook request for debugging
+        if webhook_debugger:
+            webhook_debugger.log_webhook_request(raw_data, None, 'TradingView')
+        
         # Initialize contract manager for automatic rollover handling
         from contract_manager import ContractManager
         contract_manager = ContractManager(db)
@@ -2584,6 +2774,10 @@ def capture_live_signal():
         htf_aligned = data.get('htf_aligned', False)
         htf_status = data.get('htf_status', 'N/A')
         
+        # CRITICAL: Log parsed signal data for debugging
+        logger.info(f"📊 PARSED SIGNAL: bias={triangle_bias}, symbol={clean_symbol}, price={price}, htf={htf_status}")
+        print(f"📊 PARSED SIGNAL: bias={triangle_bias}, symbol={clean_symbol}, price={price}, htf={htf_status}")
+        
         # Ensure price is valid - handle string and numeric prices with commas
         raw_price = data.get('price', 0)
         try:
@@ -2677,6 +2871,10 @@ def capture_live_signal():
         result = cursor.fetchone()
         signal_id = result['id']
         db.conn.commit()
+        
+        # Log successful signal processing
+        if webhook_debugger:
+            webhook_debugger.log_signal_processing(signal, 'success')
         
         # Trigger AI analysis for pattern recognition
         # Enhance with Level 2 data if available
@@ -2830,6 +3028,7 @@ def capture_live_signal():
         return jsonify({
             "status": "success",
             "signal_id": signal_id,
+            "bias": signal['bias'],
             "market_context": signal.get('market_context', {}),
             "context_quality_score": context_quality,
             "context_recommendations": signal.get('context_recommendations', []),
@@ -2838,8 +3037,20 @@ def capture_live_signal():
         })
         
     except Exception as e:
-        logger.error(f"Error capturing live signal: {str(e)} - Content-Type: {request.content_type}")
+        logger.error(f"❌ ERROR capturing live signal: {str(e)} - Content-Type: {request.content_type}")
         logger.error(f"Raw request data: {request.get_data(as_text=True)[:500]}")
+        
+        # Log failed signal processing
+        if webhook_debugger:
+            try:
+                webhook_debugger.log_signal_processing(
+                    {'bias': 'Unknown', 'symbol': 'Unknown', 'price': 0},
+                    'failed',
+                    str(e)
+                )
+            except:
+                pass
+        
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ai-signal-analysis-live', methods=['POST'])
