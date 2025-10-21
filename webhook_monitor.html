@@ -127,6 +127,38 @@
     <div style="margin-bottom: 20px;">
         <button class="test-button" onclick="testBullishSignal()">🟢 Test Bullish Signal</button>
         <button class="test-button bearish" onclick="testBearishSignal()">🔴 Test Bearish Signal</button>
+        <button class="test-button" style="background: #8b5cf6;" onclick="showAlertGuide()">📝 Alert Setup Guide</button>
+    </div>
+
+    <div id="alertGuide" style="display: none; background: #1a2142; padding: 20px; border-radius: 12px; border: 1px solid #2d3a5f; margin-bottom: 20px;">
+        <h3 style="margin-bottom: 15px;">📝 TradingView Alert Configuration</h3>
+        <div style="background: #141b3d; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <strong>Problem: Only bullish signals?</strong>
+            <p style="color: #94a3b8; margin-top: 8px;">You need TWO separate alerts in TradingView:</p>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <div style="background: rgba(16, 185, 129, 0.1); padding: 15px; border-radius: 8px; border-left: 4px solid #10b981;">
+                <strong>🟢 Alert 1: Bullish</strong>
+                <div style="font-size: 13px; color: #94a3b8; margin-top: 8px;">
+                    <div>Condition: bias crosses over 0.5</div>
+                    <div>Message: SIGNAL:Bullish:{{close}}:75:ALIGNED:ALIGNED:{{time}}</div>
+                </div>
+            </div>
+            <div style="background: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 8px; border-left: 4px solid #ef4444;">
+                <strong>🔴 Alert 2: Bearish</strong>
+                <div style="font-size: 13px; color: #94a3b8; margin-top: 8px;">
+                    <div>Condition: bias crosses under 0.5</div>
+                    <div>Message: SIGNAL:Bearish:{{close}}:75:ALIGNED:ALIGNED:{{time}}</div>
+                </div>
+            </div>
+        </div>
+        <div style="background: #141b3d; padding: 15px; border-radius: 8px;">
+            <strong>Webhook URL (same for both):</strong>
+            <code style="display: block; margin-top: 8px; padding: 8px; background: #0a0e27; border-radius: 4px; color: #3b82f6;">
+                https://your-app.railway.app/api/live-signals
+            </code>
+        </div>
+        <button onclick="document.getElementById('alertGuide').style.display='none'" style="margin-top: 15px; padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer;">Close</button>
     </div>
 
     <div class="log-container">
@@ -246,6 +278,10 @@
             } catch (error) {
                 alert('Error: ' + error.message);
             }
+        }
+
+        function showAlertGuide() {
+            document.getElementById('alertGuide').style.display = 'block';
         }
 
         async function testBearishSignal() {
