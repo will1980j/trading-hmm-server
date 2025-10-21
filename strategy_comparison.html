@@ -633,50 +633,76 @@
             const beText = strategy.beStrategy === 'none' ? 'No BE' : 'BE=1R';
             
             content.innerHTML = `
-                <button onclick="this.closest('div[style*=fixed]').remove()" style="position: absolute; top: 20px; right: 20px; background: rgba(255,71,87,0.2); border: 1px solid rgba(255,71,87,0.3); padding: 10px 20px; border-radius: 10px; color: #ff4757; cursor: pointer; font-weight: 600;">✕ Close</button>
-                <h2 style="color: #00ff88; margin-bottom: 20px;">${sessionsText} | ${timeFilterText} | ${beText} | ${strategy.rTarget}R</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px;">
-                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; text-align: center;">
-                        <div style="font-size: 12px; opacity: 0.8;">Expectancy</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #00ff88;">${strategy.stats.expectancy.toFixed(3)}R</div>
+                <button onclick="this.closest('div[style*=fixed]').remove()" style="position: absolute; top: 20px; right: 20px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--radius-sm); color: #ef4444; cursor: pointer; font-weight: 600;">✕ Close</button>
+                <h2 style="color: var(--accent-primary); margin-bottom: var(--spacing-lg); font-size: 1.5rem; font-weight: 700;">${sessionsText} | ${timeFilterText} | ${beText} | ${strategy.rTarget}R</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--spacing-md); margin-bottom: var(--spacing-xl);">
+                    <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Expectancy</div>
+                        <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-secondary); margin-top: var(--spacing-xs);">${strategy.stats.expectancy.toFixed(3)}R</div>
                     </div>
-                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; text-align: center;">
-                        <div style="font-size: 12px; opacity: 0.8;">Win Rate</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #00ff88;">${strategy.stats.winRate.toFixed(1)}%</div>
+                    <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Win Rate</div>
+                        <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-secondary); margin-top: var(--spacing-xs);">${strategy.stats.winRate.toFixed(1)}%</div>
                     </div>
-                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; text-align: center;">
-                        <div style="font-size: 12px; opacity: 0.8;">Expected Return</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #00ff88;">${strategy.expectedReturnPercent > 0 ? '+' : ''}${strategy.expectedReturnPercent.toFixed(2)}%</div>
+                    <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Expected Return</div>
+                        <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-secondary); margin-top: var(--spacing-xs);">${strategy.expectedReturnPercent > 0 ? '+' : ''}${strategy.expectedReturnPercent.toFixed(2)}%</div>
                     </div>
-                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; text-align: center;">
-                        <div style="font-size: 12px; opacity: 0.8;">Max DD</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #ff4757;">${strategy.maxDrawdownPercent.toFixed(1)}%</div>
+                    <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Max DD</div>
+                        <div style="font-size: 1.75rem; font-weight: 700; color: #ef4444; margin-top: var(--spacing-xs);">${strategy.maxDrawdownPercent.toFixed(1)}%</div>
                     </div>
-                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; text-align: center;">
-                        <div style="font-size: 12px; opacity: 0.8;">Trades</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #00ff88;">${strategy.stats.total}</div>
+                    <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Trades</div>
+                        <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-primary); margin-top: var(--spacing-xs);">${strategy.stats.total}</div>
                     </div>
                 </div>
-                <div style="margin-bottom: 30px;">
-                    <h3 style="color: #00ff88; margin-bottom: 15px;">📈 Equity Curve</h3>
-                    <div id="modalEquity" style="width: 100%; height: 400px; background: rgba(0,0,0,0.3); border-radius: 12px;"></div>
+                <div style="display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); border-bottom: 2px solid var(--border-color);">
+                    <button class="modal-tab active" data-tab="equity" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">📈 Equity</button>
+                    <button class="modal-tab" data-tab="calendar" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">📅 Calendar</button>
+                    <button class="modal-tab" data-tab="trades" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">📋 Trades</button>
+                    <button class="modal-tab" data-tab="risk" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">⚠️ Risk</button>
+                    <button class="modal-tab" data-tab="performance" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">📊 Performance</button>
                 </div>
-                <div style="margin-bottom: 30px;">
-                    <h3 style="color: #00ff88; margin-bottom: 15px;">📅 Calendar</h3>
+                <div class="tab-content" data-content="equity" style="display: block;">
+                    <div id="modalEquity" style="width: 100%; height: 450px; background: var(--bg-tertiary); border-radius: var(--radius-md); border: 1px solid var(--border-color);"></div>
+                </div>
+                <div class="tab-content" data-content="calendar" style="display: none;">
                     <div id="modalCalendar" style="width: 100%;"></div>
                 </div>
-                <div>
-                    <h3 style="color: #00ff88; margin-bottom: 15px;">📋 Trades</h3>
-                    <div id="modalTrades" style="max-height: 500px; overflow-y: auto;"></div>
+                <div class="tab-content" data-content="trades" style="display: none;">
+                    <div id="modalTrades" style="max-height: 600px; overflow-y: auto;"></div>
+                </div>
+                <div class="tab-content" data-content="risk" style="display: none;">
+                    <div id="modalRisk" style="width: 100%;"></div>
+                </div>
+                <div class="tab-content" data-content="performance" style="display: none;">
+                    <div id="modalPerformance" style="width: 100%;"></div>
                 </div>
             `;
             
             modal.appendChild(content);
             document.body.appendChild(modal);
             
+            const tabs = modal.querySelectorAll('.modal-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => { t.classList.remove('active'); t.style.color = 'var(--text-secondary)'; t.style.borderBottom = '2px solid transparent'; });
+                    tab.classList.add('active');
+                    tab.style.color = 'var(--accent-primary)';
+                    tab.style.borderBottom = '2px solid var(--accent-primary)';
+                    modal.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+                    modal.querySelector(`[data-content="${tab.dataset.tab}"]`).style.display = 'block';
+                });
+            });
+            tabs[0].style.color = 'var(--accent-primary)';
+            tabs[0].style.borderBottom = '2px solid var(--accent-primary)';
+            
             renderModalEquity(signals, strategy);
             renderModalCalendar(signals, strategy);
             renderModalTrades(signals, strategy);
+            renderModalRisk(signals, strategy);
+            renderModalPerformance(signals, strategy);
         }
         
         function renderModalEquity(signals, strategy) {
@@ -807,6 +833,92 @@
             });
             
             html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        function renderModalRisk(signals, strategy) {
+            const container = document.getElementById('modalRisk');
+            const feeR = parseFloat(document.getElementById('brokerFee').value);
+            const results = signals.map(s => calculateTradeResult(s, strategy.beStrategy, strategy.rTarget, feeR));
+            
+            let runningTotal = 0, peak = 0;
+            const drawdowns = results.map(r => {
+                runningTotal += r;
+                if (runningTotal > peak) peak = runningTotal;
+                return peak - runningTotal;
+            });
+            
+            const ddBuckets = [0, 1, 2, 3, 5, 10];
+            const ddDist = ddBuckets.map((bucket, i) => {
+                const nextBucket = ddBuckets[i + 1] || 999;
+                const count = drawdowns.filter(dd => dd >= bucket && dd < nextBucket).length;
+                return { range: `${bucket}-${nextBucket === 999 ? '+' : nextBucket}R`, count };
+            });
+            
+            let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg);">';
+            html += '<div><h4 style="color: var(--accent-primary); margin-bottom: var(--spacing-md);">Drawdown Distribution</h4>';
+            html += '<div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">';
+            ddDist.forEach(d => {
+                const pct = (d.count / drawdowns.length * 100).toFixed(1);
+                html += `<div style="margin-bottom: var(--spacing-sm);"><div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>${d.range}</span><span>${d.count} (${pct}%)</span></div><div style="background: rgba(239,68,68,0.2); height: 8px; border-radius: 4px;"><div style="background: #ef4444; height: 100%; width: ${pct}%; border-radius: 4px;"></div></div></div>`;
+            });
+            html += '</div></div>';
+            
+            const sessionBreakdown = {};
+            signals.forEach((s, i) => {
+                if (!sessionBreakdown[s.session]) sessionBreakdown[s.session] = [];
+                sessionBreakdown[s.session].push(results[i]);
+            });
+            
+            html += '<div><h4 style="color: var(--accent-primary); margin-bottom: var(--spacing-md);">Expectancy by Session</h4>';
+            html += '<div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">';
+            Object.entries(sessionBreakdown).forEach(([session, res]) => {
+                const stats = calculateStats(res);
+                html += `<div style="padding: var(--spacing-sm); margin-bottom: var(--spacing-sm); background: rgba(59,130,246,0.05); border-radius: var(--radius-sm);"><div style="font-weight: 600; margin-bottom: 4px;">${session}</div><div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--spacing-sm); font-size: 0.875rem;"><div>Exp: <span style="color: var(--accent-secondary);">${stats.expectancy.toFixed(3)}R</span></div><div>WR: ${stats.winRate.toFixed(1)}%</div><div>Trades: ${res.length}</div></div></div>`;
+            });
+            html += '</div></div></div>';
+            
+            html += `<div style="margin-top: var(--spacing-lg); padding: var(--spacing-md); background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2); border-radius: var(--radius-sm);"><h4 style="color: #ef4444; margin-bottom: var(--spacing-sm);">Risk Metrics</h4><div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-md); font-size: 0.875rem;"><div><strong>Max Drawdown:</strong> ${strategy.maxDrawdownPercent.toFixed(1)}%</div><div><strong>Max Daily Loss:</strong> ${strategy.maxDailyLossPercent.toFixed(1)}%</div><div><strong>Max Consec Losses:</strong> ${strategy.stats.maxConsecLosses}</div></div></div>`;
+            
+            container.innerHTML = html;
+        }
+        
+        function renderModalPerformance(signals, strategy) {
+            const container = document.getElementById('modalPerformance');
+            const feeR = parseFloat(document.getElementById('brokerFee').value);
+            const results = signals.map(s => calculateTradeResult(s, strategy.beStrategy, strategy.rTarget, feeR));
+            
+            const chunkSize = Math.ceil(results.length / 5);
+            const chunks = [];
+            for (let i = 0; i < results.length; i += chunkSize) {
+                chunks.push(results.slice(i, i + chunkSize));
+            }
+            
+            const winResults = results.filter(r => r > 0);
+            const lossResults = results.filter(r => r < 0);
+            const avgWin = winResults.length > 0 ? winResults.reduce((a,b) => a + b, 0) / winResults.length : 0;
+            const avgLoss = lossResults.length > 0 ? Math.abs(lossResults.reduce((a,b) => a + b, 0) / lossResults.length) : 1;
+            const profitFactor = lossResults.length > 0 ? (winResults.reduce((a,b) => a + b, 0) / Math.abs(lossResults.reduce((a,b) => a + b, 0))) : 0;
+            
+            let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg);">';
+            html += '<div><h4 style="color: var(--accent-primary); margin-bottom: var(--spacing-md);">Win Rate Trend</h4>';
+            html += '<div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">';
+            chunks.forEach((chunk, i) => {
+                const stats = calculateStats(chunk);
+                const barWidth = stats.winRate;
+                html += `<div style="margin-bottom: var(--spacing-sm);"><div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.875rem;"><span>Period ${i + 1}</span><span>${stats.winRate.toFixed(1)}%</span></div><div style="background: rgba(16,185,129,0.2); height: 8px; border-radius: 4px;"><div style="background: var(--accent-secondary); height: 100%; width: ${barWidth}%; border-radius: 4px;"></div></div></div>`;
+            });
+            html += '</div></div>';
+            
+            html += '<div><h4 style="color: var(--accent-primary); margin-bottom: var(--spacing-md);">Key Metrics</h4>';
+            html += '<div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">';
+            html += `<div style="padding: var(--spacing-sm); margin-bottom: var(--spacing-sm); background: rgba(16,185,129,0.05); border-radius: var(--radius-sm);"><div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Profit Factor</div><div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-secondary); margin-top: 4px;">${profitFactor.toFixed(2)}</div></div>`;
+            html += `<div style="padding: var(--spacing-sm); margin-bottom: var(--spacing-sm); background: rgba(59,130,246,0.05); border-radius: var(--radius-sm);"><div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Avg Win</div><div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-primary); margin-top: 4px;">${avgWin.toFixed(2)}R</div></div>`;
+            html += `<div style="padding: var(--spacing-sm); background: rgba(239,68,68,0.05); border-radius: var(--radius-sm);"><div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Avg Loss</div><div style="font-size: 1.5rem; font-weight: 700; color: #ef4444; margin-top: 4px;">${avgLoss.toFixed(2)}R</div></div>`;
+            html += '</div></div></div>';
+            
+            html += `<div style="margin-top: var(--spacing-lg); padding: var(--spacing-md); background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.2); border-radius: var(--radius-sm);"><h4 style="color: var(--accent-primary); margin-bottom: var(--spacing-sm);">Performance Summary</h4><div style="font-size: 0.875rem; line-height: 1.8;"><div>Total Trades: <strong>${results.length}</strong></div><div>Wins: <strong style="color: var(--accent-secondary);">${winResults.length}</strong> | Losses: <strong style="color: #ef4444;">${lossResults.length}</strong> | BE: <strong>${results.filter(r => r === 0).length}</strong></div><div>Win/Loss Ratio: <strong>${(avgWin / avgLoss).toFixed(2)}</strong></div></div></div>`;
+            
             container.innerHTML = html;
         }
         
