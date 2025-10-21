@@ -868,18 +868,27 @@
                 if (tradeDate >= weekStart) acc.weekTrades++;
                 if (tradeDate >= monthStart) acc.monthTrades++;
                 
-                if (trade.rScore > 0 || trade.breakeven) acc.wins++;
+                if (trade.rScore > 0) acc.wins++;
+                if (trade.rScore < 0) acc.losses++;
+                if (trade.rScore === 0 || trade.breakeven) acc.breakevens++;
                 acc.totalR += trade.rScore || 0;
+                
+                if (trade.rScore > 0) acc.winR.push(trade.rScore);
+                if (trade.rScore < 0) acc.lossR.push(trade.rScore);
                 
                 if (!acc.sessions[trade.session]) acc.sessions[trade.session] = { total: 0, count: 0 };
                 acc.sessions[trade.session].total += trade.rScore || 0;
                 acc.sessions[trade.session].count++;
                 
                 return acc;
-            }, { weekTrades: 0, monthTrades: 0, wins: 0, totalR: 0, sessions: {} });
+            }, { weekTrades: 0, monthTrades: 0, wins: 0, losses: 0, breakevens: 0, totalR: 0, winR: [], lossR: [], sessions: {} });
             
             const winRate = trades.length > 0 ? ((stats.wins / trades.length) * 100).toFixed(1) : 0;
-            const expectancy = trades.length > 0 ? (stats.totalR / trades.length).toFixed(2) : 0;
+            const avgWinR = stats.winR.length > 0 ? stats.winR.reduce((a,b) => a + b, 0) / stats.winR.length : 0;
+            const avgLossR = stats.lossR.length > 0 ? Math.abs(stats.lossR.reduce((a,b) => a + b, 0) / stats.lossR.length) : 1;
+            const winPercent = trades.length > 0 ? stats.wins / trades.length : 0;
+            const lossPercent = trades.length > 0 ? stats.losses / trades.length : 0;
+            const expectancy = ((avgWinR * winPercent) - (avgLossR * lossPercent)) / 1.0;
             
             let bestSession = '-';
             let bestAvg = -999;

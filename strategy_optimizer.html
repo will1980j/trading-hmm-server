@@ -87,6 +87,10 @@
                     <label>Min Win Rate (%)</label>
                     <input type="number" id="minWinRate" value="40" min="0" max="100" step="5">
                 </div>
+                <div class="control-group">
+                    <label>Broker Fee (R per trade)</label>
+                    <input type="number" id="brokerFee" value="0.125" min="0" max="1" step="0.025">
+                </div>
             </div>
             
             <h3 style="color: #00ff88; margin: 20px 0;">⏰ Session Selection</h3>
@@ -140,14 +144,14 @@
                 .filter(id => document.getElementById(id).checked).map(id => document.getElementById(id).value);
         }
         
-        function calculateTradeResult(signal, beStrategy, rTarget) {
+        function calculateTradeResult(signal, beStrategy, rTarget, feeR = 0) {
             const mfe = beStrategy === 'be1' ? signal.mfe1 : signal.mfeNone;
-            if (!mfe || mfe === 0) return -1;
-            if (beStrategy === 'none') return mfe < 0 ? -1 : (mfe >= rTarget ? rTarget : -1);
-            if (mfe < 1) return -1;
-            if (mfe >= 1 && mfe < rTarget) return 0;
-            if (mfe >= rTarget) return rTarget;
-            return -1;
+            if (!mfe || mfe === 0) return -1 - feeR;
+            if (beStrategy === 'none') return mfe < 0 ? (-1 - feeR) : (mfe >= rTarget ? (rTarget - feeR) : (-1 - feeR));
+            if (mfe < 1) return -1 - feeR;
+            if (mfe >= 1 && mfe < rTarget) return 0 - feeR;
+            if (mfe >= rTarget) return rTarget - feeR;
+            return -1 - feeR;
         }
         
         function calculateStats(results) {
@@ -155,11 +159,18 @@
             const losses = results.filter(r => r < 0).length;
             const breakevens = results.filter(r => r === 0).length;
             const total = results.length;
-            const winRate = total > 0 ? ((wins + breakevens) / total) * 100 : 0;
+            const winRate = total > 0 ? (wins / total) * 100 : 0;
+            const breakevenRate = total > 0 ? (breakevens / total) * 100 : 0;
             const totalR = results.reduce((sum, r) => sum + r, 0);
             const winResults = results.filter(r => r > 0);
             const lossResults = results.filter(r => r < 0);
-            const expectancy = total > 0 ? totalR / total : 0;
+            const avgTrade = total > 0 ? totalR / total : 0;
+            const avgWinR = winResults.length > 0 ? winResults.reduce((a,b) => a + b, 0) / winResults.length : 0;
+            const avgLossR = lossResults.length > 0 ? Math.abs(lossResults.reduce((a,b) => a + b, 0) / lossResults.length) : 1;
+            const winPercent = total > 0 ? wins / total : 0;
+            const lossPercent = total > 0 ? losses / total : 0;
+            const expectancy = ((avgWinR * winPercent) - (avgLossR * lossPercent)) / 1.0;
+            const expectedTotalReturn = expectancy * total;
             let maxConsecLosses = 0, currentConsecLosses = 0, maxDrawdown = 0, currentDrawdown = 0, peak = 0, runningTotal = 0;
             results.forEach(result => {
                 runningTotal += result;
@@ -168,7 +179,7 @@
                 if (result < 0) { currentConsecLosses++; maxConsecLosses = Math.max(maxConsecLosses, currentConsecLosses); }
                 else if (result > 0) currentConsecLosses = 0;
             });
-            return { expectancy, winRate, totalR, maxConsecLosses, maxDrawdown, total };
+            return { expectancy, avgTrade, winRate, breakevenRate, totalR, maxConsecLosses, maxDrawdown, total, expectedTotalReturn };
         }
         
         async function loadTimeAnalysis() {
@@ -224,6 +235,7 @@
                 maxDrawdown: parseFloat(document.getElementById('maxDrawdown').value),
                 minWinRate: parseFloat(document.getElementById('minWinRate').value)
             };
+            const feeR = parseFloat(document.getElementById('brokerFee').value) || 0;
             
             const riskLevels = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0];
             const resultsByRisk = {};
@@ -273,7 +285,7 @@
                                 const hourlyStats = Object.entries(hourlyPerf)
                                     .map(([hour, sigs]) => {
                                         if (sigs.length < 3) return null;
-                                        const results = sigs.map(s => calculateTradeResult(s, beStrategy, r));
+                                        const results = sigs.map(s => calculateTradeResult(s, beStrategy, r, feeR));
                                         const stats = calculateStats(results);
                                         return { hour: parseInt(hour), expectancy: stats.expectancy };
                                     })
@@ -323,7 +335,7 @@
                                 });
                             }
                             if (sessionSignals.length < 30) return;
-                            const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
+                            const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget, feeR));
                             const stats = calculateStats(results);
                             const maxDailyLossPercent = stats.maxConsecLosses * riskPerTrade;
                             const maxDrawdownPercent = stats.maxDrawdown * riskPerTrade;
@@ -365,7 +377,7 @@
                                     });
                                 }
                                 if (combinedSignals.length < 50) continue;
-                                const results = combinedSignals.map(s => calculateTradeResult(s, beStrategy, rTarget));
+                                const results = combinedSignals.map(s => calculateTradeResult(s, beStrategy, rTarget, feeR));
                                 const stats = calculateStats(results);
                                 const maxDailyLossPercent = stats.maxConsecLosses * riskPerTrade;
                                 const maxDrawdownPercent = stats.maxDrawdown * riskPerTrade;
@@ -457,8 +469,10 @@
                             <div class="metric-card"><div class="metric-label">Sessions</div><div class="metric-value" style="font-size: 18px;">${sessionsText}</div></div>
                             <div class="metric-card"><div class="metric-label">Strategy</div><div class="metric-value" style="font-size: 18px;">${beText[best.beStrategy]}</div></div>
                             <div class="metric-card"><div class="metric-label">R-Target</div><div class="metric-value">${best.rTarget}R</div></div>
-                            <div class="metric-card"><div class="metric-label">Expectancy</div><div class="metric-value">${best.stats.expectancy.toFixed(3)}R</div></div>
+                            <div class="metric-card"><div class="metric-label">Expectancy (R Multiplier)</div><div class="metric-value">${best.stats.expectancy.toFixed(3)}</div></div>
+                            <div class="metric-card"><div class="metric-label">Avg Trade</div><div class="metric-value">${best.stats.avgTrade.toFixed(3)}R</div></div>
                             <div class="metric-card"><div class="metric-label">Win Rate</div><div class="metric-value">${best.stats.winRate.toFixed(1)}%</div></div>
+                            <div class="metric-card"><div class="metric-label">BE Rate</div><div class="metric-value">${best.stats.breakevenRate.toFixed(1)}%</div></div>
                             <div class="metric-card"><div class="metric-label">Total Return</div><div class="metric-value">${totalPercent > 0 ? '+' : ''}${totalPercent.toFixed(1)}%</div></div>
                         </div>
                         <div style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
@@ -487,10 +501,10 @@
             
             html += timeHtml + mlHtml;
             
-            html += '<table class="comparison-table" style="margin-top: 30px;"><thead><tr><th>Risk %</th><th>Sessions</th><th>BE</th><th>R-Target</th><th>Expectancy</th><th>Win Rate</th><th>Total Return</th><th>Max DD</th></tr></thead><tbody>';
+            html += '<table class="comparison-table" style="margin-top: 30px;"><thead><tr><th>Risk %</th><th>Sessions</th><th>BE</th><th>R-Target</th><th>Expectancy</th><th>Avg Trade</th><th>Win Rate</th><th>BE Rate</th><th>Total Return</th><th>Max DD</th></tr></thead><tbody>';
             Object.entries(resultsByRisk).forEach(([risk, data]) => {
                 const b = data.best;
-                html += `<tr><td>${risk}%</td><td>${b.sessions.join('+')}</td><td>${beText[b.beStrategy]}</td><td>${b.rTarget}R</td><td>${b.stats.expectancy.toFixed(3)}R</td><td>${b.stats.winRate.toFixed(1)}%</td><td>${(b.stats.totalR * b.riskPerTrade).toFixed(1)}%</td><td>${b.maxDrawdownPercent.toFixed(1)}%</td></tr>`;
+                html += `<tr><td>${risk}%</td><td>${b.sessions.join('+')}</td><td>${beText[b.beStrategy]}</td><td>${b.rTarget}R</td><td>${b.stats.expectancy.toFixed(3)}</td><td>${b.stats.avgTrade.toFixed(3)}R</td><td>${b.stats.winRate.toFixed(1)}%</td><td>${b.stats.breakevenRate.toFixed(1)}%</td><td>${(b.stats.totalR * b.riskPerTrade).toFixed(1)}%</td><td>${b.maxDrawdownPercent.toFixed(1)}%</td></tr>`;
             });
             html += '</tbody></table></div>';
             
@@ -523,7 +537,8 @@
             const container = document.getElementById(`equity_chart_${riskId}`);
             container.innerHTML = '';
             
-            const results = data.signals.map(s => calculateTradeResult(s, data.beStrategy, data.rTarget));
+            const feeR = parseFloat(document.getElementById('brokerFee').value) || 0;
+            const results = data.signals.map(s => calculateTradeResult(s, data.beStrategy, data.rTarget, feeR));
             let cumulative = 0;
             const equityData = results.map((r, i) => {
                 cumulative += r;
@@ -613,9 +628,10 @@
             const container = document.getElementById(`calendar_content_${riskId}`);
             const dailyResults = {};
             
+            const feeR = parseFloat(document.getElementById('brokerFee').value) || 0;
             data.signals.forEach(s => {
                 if (!dailyResults[s.date]) dailyResults[s.date] = [];
-                dailyResults[s.date].push(calculateTradeResult(s, data.beStrategy, data.rTarget));
+                dailyResults[s.date].push(calculateTradeResult(s, data.beStrategy, data.rTarget, feeR));
             });
             
             const dailyTotals = {};
@@ -694,8 +710,9 @@
         
         function renderTrades(riskId, data) {
             const container = document.getElementById(`trades_content_${riskId}`);
+            const feeR = parseFloat(document.getElementById('brokerFee').value) || 0;
             const tradesWithResults = data.signals.map(s => {
-                const result = calculateTradeResult(s, data.beStrategy, data.rTarget);
+                const result = calculateTradeResult(s, data.beStrategy, data.rTarget, feeR);
                 return { ...s, result };
             });
             

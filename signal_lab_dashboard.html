@@ -1008,21 +1008,23 @@
             const breakevens = results.filter(r => r === 0).length;
             const total = results.length;
             
-            const winRate = total > 0 ? ((wins + breakevens) / total) * 100 : 0;
+            const winRate = total > 0 ? (wins / total) * 100 : 0;
+            const breakevenRate = total > 0 ? (breakevens / total) * 100 : 0;
             const lossRate = total > 0 ? (losses / total) * 100 : 0;
             
-            // Calculate expectancy: E = (Win% × AvgWin) - (Loss% × AvgLoss)
             const winResults = results.filter(r => r > 0);
             const lossResults = results.filter(r => r < 0);
             
-            const avgWin = winResults.length > 0 ? winResults.reduce((a, b) => a + b, 0) / winResults.length : 0;
-            const avgLoss = lossResults.length > 0 ? Math.abs(lossResults.reduce((a, b) => a + b, 0) / lossResults.length) : 0;
+            const avgWinR = winResults.length > 0 ? winResults.reduce((a, b) => a + b, 0) / winResults.length : 0;
+            const avgLossR = lossResults.length > 0 ? Math.abs(lossResults.reduce((a, b) => a + b, 0) / lossResults.length) : 1;
+            const winPercent = total > 0 ? wins / total : 0;
+            const lossPercent = total > 0 ? losses / total : 0;
             
-            const expectancy = total > 0 ? (((wins + breakevens) / total) * avgWin) - ((losses / total) * avgLoss) : 0;
+            const expectancy = ((avgWinR * winPercent) - (avgLossR * lossPercent)) / 1.0;
             
-            // Calculate total R and trade extremes
             const totalR = results.reduce((sum, r) => sum + r, 0);
-            const avgRPerTrade = total > 0 ? totalR / total : 0;
+            const avgTrade = total > 0 ? totalR / total : 0;
+            const expectedTotalReturn = expectancy * total;
             const bestTrade = results.length > 0 ? Math.max(...results) : 0;
             const worstTrade = results.length > 0 ? Math.min(...results) : 0;
             
@@ -1062,16 +1064,18 @@
             
             return {
                 expectancy,
+                avgTrade,
                 winRate,
+                breakevenRate,
                 lossRate,
                 maxConsecutiveLosses,
                 maxConsecutiveWins,
                 maxDrawdown,
                 totalR,
-                avgRPerTrade,
                 bestTrade,
                 worstTrade,
-                total
+                total,
+                expectedTotalReturn
             };
         }
         
@@ -1114,7 +1118,7 @@
             const maxDrawdownEl = document.getElementById('maxDrawdown');
             
             if (totalREl) totalREl.textContent = (stats.totalR >= 0 ? '+' : '') + stats.totalR.toFixed(2) + 'R';
-            if (avgREl) avgREl.textContent = stats.avgRPerTrade.toFixed(3) + 'R';
+            if (avgREl) avgREl.textContent = stats.avgTrade.toFixed(3) + 'R';
             if (bestTradeEl) bestTradeEl.textContent = '+' + stats.bestTrade.toFixed(2) + 'R';
             if (totalPercentEl) totalPercentEl.textContent = (propMetrics.totalPercent >= 0 ? '+' : '') + propMetrics.totalPercent.toFixed(2) + '%';
             if (maxDrawdownEl) maxDrawdownEl.textContent = propMetrics.maxDrawdownPercent.toFixed(2) + '%';
@@ -2023,7 +2027,7 @@
                 totalPercentAnalysis: `${propMetrics.totalPercent > 0 ? 'Positive' : 'Negative'} ${Math.abs(propMetrics.totalPercent).toFixed(1)}% account impact`,
                 maxDrawdownAnalysis: `${propMetrics.exceedsDrawdownLimit ? 'EXCEEDS' : 'Within'} prop firm limits (${propMetrics.maxDrawdownPercent.toFixed(1)}%)`,
                 propFirmViableAnalysis: propMetrics.propFirmViable ? 'Strategy complies with prop firm rules' : 'Strategy violates prop firm risk limits',
-                avgRPerTradeAnalysis: `${stats.avgRPerTrade > 0 ? 'Positive' : 'Negative'} ${Math.abs(stats.avgRPerTrade).toFixed(3)}R per trade expectancy`,
+                avgRPerTradeAnalysis: `${stats.avgTrade > 0 ? 'Positive' : 'Negative'} ${Math.abs(stats.avgTrade).toFixed(3)}R average per trade`,
                 bestTradeAnalysis: `Peak single trade performance: +${stats.bestTrade.toFixed(2)}R`,
                 expectancyAnalysis: `${stats.expectancy > 0 ? 'Profitable' : 'Losing'} system with ${Math.abs(stats.expectancy).toFixed(3)}R expectancy`,
                 winRateAnalysis: `${stats.winRate > 50 ? 'High' : 'Low'} win rate at ${stats.winRate.toFixed(1)}%`,
