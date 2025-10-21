@@ -4621,7 +4621,11 @@ def get_ml_optimization():
     """Get ML-driven optimization recommendations"""
     try:
         if not db_enabled or not db:
-            return jsonify({'error': 'Database not available'}), 500
+            return jsonify({
+                'recommendations': [],
+                'performance_status': {'status': 'insufficient_data'},
+                'signal_filters': {'filters': []}
+            }), 200
         
         from ml_optimizer import MLOptimizer
         optimizer = MLOptimizer(db)
@@ -4630,7 +4634,11 @@ def get_ml_optimization():
         return jsonify(recommendations)
     except Exception as e:
         logger.error(f"ML optimization error: {str(e)}")
-        return jsonify({'error': str(e), 'recommendations': []}), 500
+        return jsonify({
+            'recommendations': [],
+            'performance_status': {'status': 'error', 'message': str(e)},
+            'signal_filters': {'filters': []}
+        }), 200
 
 @app.route('/api/live-prediction', methods=['GET'])
 @login_required
