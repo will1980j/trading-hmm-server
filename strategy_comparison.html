@@ -391,162 +391,126 @@
             renderScatterPlot(strategies);
         }
         
+        let activeSessionFilters = new Set();
+        
         function renderScatterPlot(strategies) {
             const container = d3.select('#scatterPlot');
             container.selectAll('*').remove();
             
             const width = container.node().offsetWidth;
             const height = 600;
-            const margin = {top: 40, right: 150, bottom: 60, left: 80};
+            const margin = {top: 40, right: 180, bottom: 80, left: 80};
             const innerWidth = width - margin.left - margin.right;
             const innerHeight = height - margin.top - margin.bottom;
             
-            const svg = container.append('svg')
-                .attr('width', width)
-                .attr('height', height);
+            const svg = container.append('svg').attr('width', width).attr('height', height);
+            const defs = svg.append('defs');
+            const filter = defs.append('filter').attr('id', 'glow');
+            filter.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'coloredBlur');
+            const feMerge = filter.append('feMerge');
+            feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+            feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
             
-            const g = svg.append('g')
-                .attr('transform', `translate(${margin.left},${margin.top})`);
+            const sessionColors = {'Asia': '#3742fa', 'London': '#26de81', 'NY Pre Market': '#ffa502', 'NY AM': '#ffa502', 'NY Lunch': '#ffa502', 'NY PM': '#ffa502'};
             
-            const sessionColors = {
-                'Asia': '#ffa502',
-                'London': '#3742fa',
-                'NY Pre Market': '#26de81',
-                'NY AM': '#00ff88',
-                'NY Lunch': '#ffffff',
-                'NY PM': '#a55eea'
-            };
+            const xExtent = d3.extent(strategies, d => d.stats.expectancy);
+            const yExtent = d3.extent(strategies, d => d.stats.total);
+            const xScale = d3.scaleLinear().domain([xExtent[0] - 0.1, xExtent[1] + 0.1]).range([0, innerWidth]);
+            const yScale = d3.scaleLinear().domain([0, yExtent[1] + 50]).range([innerHeight, 0]);
+            const sizeScale = d3.scaleSqrt().domain([0, d3.max(strategies, d => Math.abs(d.expectedReturnPercent))]).range([6, 35]);
             
-            const xScale = d3.scaleLinear()
-                .domain([d3.min(strategies, d => d.stats.expectancy) - 0.05, d3.max(strategies, d => d.stats.expectancy) + 0.05])
-                .range([0, innerWidth]);
+            const zoom = d3.zoom().scaleExtent([0.5, 5]).on('zoom', (event) => {
+                mainG.attr('transform', event.transform);
+                miniContext.select('.mini-viewport').attr('transform', `translate(${-event.transform.x / 10},${-event.transform.y / 10}) scale(${1 / event.transform.k})`);
+            });
             
-            const yScale = d3.scaleLinear()
-                .domain([0, d3.max(strategies, d => d.stats.total) + 50])
-                .range([innerHeight, 0]);
+            svg.call(zoom);
             
-            const sizeScale = d3.scaleSqrt()
-                .domain([0, d3.max(strategies, d => Math.abs(d.expectedReturnPercent))])
-                .range([5, 40]);
+            const clipPath = defs.append('clipPath').attr('id', 'clip');
+            clipPath.append('rect').attr('width', innerWidth).attr('height', innerHeight);
             
-            g.append('line')
-                .attr('x1', xScale(0)).attr('x2', xScale(0))
-                .attr('y1', 0).attr('y2', innerHeight)
-                .attr('stroke', '#ff4757').attr('stroke-width', 2).attr('stroke-dasharray', '5,5').attr('opacity', 0.5);
+            const mainG = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`).attr('clip-path', 'url(#clip)');
             
-            g.append('g')
-                .attr('transform', `translate(0,${innerHeight})`)
-                .call(d3.axisBottom(xScale).tickFormat(d => d.toFixed(2) + 'R'))
-                .style('color', '#fff');
+            const medianExp = d3.median(strategies, d => d.stats.expectancy);
+            const medianTrades = d3.median(strategies, d => d.stats.total);
             
-            g.append('g')
-                .call(d3.axisLeft(yScale))
-                .style('color', '#fff');
+            mainG.append('rect').attr('x', 0).attr('y', 0).attr('width', xScale(medianExp)).attr('height', yScale(medianTrades)).attr('fill', 'rgba(255,71,87,0.05)');
+            mainG.append('rect').attr('x', xScale(medianExp)).attr('y', 0).attr('width', innerWidth - xScale(medianExp)).attr('height', yScale(medianTrades)).attr('fill', 'rgba(0,255,136,0.05)');
+            mainG.append('rect').attr('x', 0).attr('y', yScale(medianTrades)).attr('width', xScale(medianExp)).attr('height', innerHeight - yScale(medianTrades)).attr('fill', 'rgba(255,71,87,0.1)');
+            mainG.append('rect').attr('x', xScale(medianExp)).attr('y', yScale(medianTrades)).attr('width', innerWidth - xScale(medianExp)).attr('height', innerHeight - yScale(medianTrades)).attr('fill', 'rgba(0,255,136,0.1)');
             
-            g.append('text')
-                .attr('x', innerWidth / 2).attr('y', innerHeight + 50)
-                .attr('text-anchor', 'middle').style('fill', '#fff').style('font-size', '14px')
-                .text('Expectancy (R Multiplier)');
+            mainG.append('line').attr('x1', xScale(0)).attr('x2', xScale(0)).attr('y1', 0).attr('y2', innerHeight).attr('stroke', '#ff4757').attr('stroke-width', 2).attr('stroke-dasharray', '5,5').attr('opacity', 0.5);
+            mainG.append('line').attr('x1', 0).attr('x2', innerWidth).attr('y1', yScale(medianTrades)).attr('y2', yScale(medianTrades)).attr('stroke', '#fff').attr('stroke-width', 1).attr('stroke-dasharray', '3,3').attr('opacity', 0.3);
+            mainG.append('line').attr('x1', xScale(medianExp)).attr('x2', xScale(medianExp)).attr('y1', 0).attr('y2', innerHeight).attr('stroke', '#fff').attr('stroke-width', 1).attr('stroke-dasharray', '3,3').attr('opacity', 0.3);
             
-            g.append('text')
-                .attr('transform', 'rotate(-90)')
-                .attr('x', -innerHeight / 2).attr('y', -60)
-                .attr('text-anchor', 'middle').style('fill', '#fff').style('font-size', '14px')
-                .text('Trade Count');
+            const xAxis = mainG.append('g').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(xScale).tickFormat(d => d.toFixed(2) + 'R')).style('color', '#fff');
+            const yAxis = mainG.append('g').call(d3.axisLeft(yScale)).style('color', '#fff');
             
-            const tooltip = d3.select('body').append('div')
-                .style('position', 'absolute')
-                .style('background', 'linear-gradient(135deg, rgba(0,0,0,0.95), rgba(30,60,114,0.95))')
-                .style('color', '#fff').style('padding', '15px').style('border-radius', '12px')
-                .style('border', '2px solid #00ff88').style('pointer-events', 'none')
-                .style('opacity', 0).style('z-index', '10000')
-                .style('backdrop-filter', 'blur(10px)')
-                .style('box-shadow', '0 20px 40px rgba(0,0,0,0.5)');
+            mainG.append('text').attr('x', innerWidth / 2).attr('y', innerHeight + 50).attr('text-anchor', 'middle').style('fill', '#fff').style('font-size', '14px').style('font-weight', '600').text('Expectancy (R Multiplier)');
+            mainG.append('text').attr('transform', 'rotate(-90)').attr('x', -innerHeight / 2).attr('y', -60).attr('text-anchor', 'middle').style('fill', '#fff').style('font-size', '14px').style('font-weight', '600').text('Trade Count');
             
-            const bubbles = g.selectAll('.bubble')
-                .data(strategies)
-                .enter().append('g')
-                .attr('class', 'bubble')
-                .attr('transform', d => `translate(${xScale(d.stats.expectancy)}, ${yScale(d.stats.total)})`);
+            const tooltip = d3.select('body').append('div').style('position', 'absolute').style('background', 'linear-gradient(135deg, rgba(0,0,0,0.95), rgba(30,60,114,0.95))').style('color', '#fff').style('padding', '15px').style('border-radius', '12px').style('border', '2px solid #00ff88').style('pointer-events', 'none').style('opacity', 0).style('z-index', '10000').style('backdrop-filter', 'blur(10px)').style('box-shadow', '0 20px 40px rgba(0,0,0,0.5)').style('max-width', '300px');
             
-            bubbles.append('circle')
-                .attr('r', 0)
-                .attr('fill', d => sessionColors[d.sessions[0]] || '#666')
-                .attr('opacity', 0.7)
-                .attr('stroke', '#fff')
-                .attr('stroke-width', 2)
-                .style('cursor', 'pointer')
-                .style('filter', 'url(#glow)')
-                .transition().duration(1000).ease(d3.easeElasticOut)
-                .attr('r', d => sizeScale(Math.abs(d.expectedReturnPercent)));
+            const bubbles = mainG.selectAll('.bubble').data(strategies).enter().append('g').attr('class', 'bubble').attr('transform', d => `translate(${xScale(d.stats.expectancy)}, ${yScale(d.stats.total)})`);
             
-            bubbles.append('text')
-                .attr('text-anchor', 'middle').attr('dy', 4)
-                .style('fill', '#000').style('font-size', '10px').style('font-weight', '700')
-                .style('pointer-events', 'none')
-                .text(d => d.expectedReturnPercent > 5 ? d.expectedReturnPercent.toFixed(0) + '%' : '');
+            bubbles.append('circle').attr('r', 0).attr('fill', d => sessionColors[d.sessions[0]] || '#666').attr('opacity', 0.7).attr('stroke', '#fff').attr('stroke-width', 2).style('cursor', 'pointer').style('filter', 'url(#glow)').transition().duration(800).ease(d3.easeCubicOut).attr('r', d => sizeScale(Math.abs(d.expectedReturnPercent)));
             
             bubbles.on('mouseover', function(event, d) {
-                d3.select(this).select('circle')
-                    .transition().duration(200)
-                    .attr('r', sizeScale(Math.abs(d.expectedReturnPercent)) * 1.3)
-                    .attr('opacity', 1);
-                
+                d3.select(this).select('circle').transition().duration(200).attr('r', sizeScale(Math.abs(d.expectedReturnPercent)) * 1.4).attr('opacity', 1).attr('stroke-width', 3);
                 const beText = d.beStrategy === 'none' ? 'No BE' : 'BE=1R';
                 const sessionsText = d.sessions.join(' + ');
                 const timeFilterText = {'none': 'None', 'optimal': 'Optimal', 'macro': 'Macro', 'both': 'Both'}[d.timeFilter];
                 tooltip.transition().duration(200).style('opacity', 1);
-                tooltip.html(`
-                    <div style="font-weight: 700; font-size: 14px; margin-bottom: 8px; color: #00ff88;">${sessionsText} | ${timeFilterText} | ${beText} | ${d.rTarget}R</div>
-                    <div style="margin-bottom: 4px;"><strong>Expectancy:</strong> ${d.stats.expectancy.toFixed(3)}R</div>
-                    <div style="margin-bottom: 4px;"><strong>Trade Count:</strong> ${d.stats.total}</div>
-                    <div style="margin-bottom: 4px;"><strong>Expected R:</strong> ${d.stats.expectedTotalReturn.toFixed(1)}R</div>
-                    <div style="margin-bottom: 4px;"><strong>Expected Return:</strong> <span style="color: #00ff88; font-weight: 700;">${d.expectedReturnPercent.toFixed(2)}%</span></div>
-                    <div style="margin-bottom: 4px;"><strong>Win Rate:</strong> ${d.stats.winRate.toFixed(1)}%</div>
-                    <div style="margin-bottom: 4px;"><strong>Max DD:</strong> ${d.maxDrawdownPercent.toFixed(1)}%</div>
-                `)
-                .style('left', (event.pageX + 15) + 'px')
-                .style('top', (event.pageY - 10) + 'px');
-            })
-            .on('mouseout', function() {
-                d3.select(this).select('circle')
-                    .transition().duration(300)
-                    .attr('r', d => sizeScale(Math.abs(d.expectedReturnPercent)))
-                    .attr('opacity', 0.7);
+                tooltip.html(`<div style="font-weight: 700; font-size: 14px; margin-bottom: 10px; color: #00ff88; border-bottom: 1px solid rgba(0,255,136,0.3); padding-bottom: 8px;">${sessionsText}</div><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;"><div><strong>Time:</strong> ${timeFilterText}</div><div><strong>BE:</strong> ${beText}</div><div><strong>R-Target:</strong> ${d.rTarget}R</div><div><strong>Risk:</strong> ${d.riskPerTrade}%</div><div><strong>Expectancy:</strong> ${d.stats.expectancy.toFixed(3)}R</div><div><strong>Trades:</strong> ${d.stats.total}</div><div><strong>Win Rate:</strong> ${d.stats.winRate.toFixed(1)}%</div><div><strong>BE Rate:</strong> ${d.stats.breakevenRate.toFixed(1)}%</div><div><strong>Expected R:</strong> ${d.stats.expectedTotalReturn.toFixed(1)}R</div><div><strong>Expected %:</strong> <span style="color: #00ff88; font-weight: 700;">${d.expectedReturnPercent.toFixed(2)}%</span></div><div><strong>Max DD:</strong> <span style="color: #ff4757;">${d.maxDrawdownPercent.toFixed(1)}%</span></div><div><strong>Max Daily:</strong> ${d.maxDailyLossPercent.toFixed(1)}%</div></div>`).style('left', (event.pageX + 15) + 'px').style('top', (event.pageY - 10) + 'px');
+            }).on('mouseout', function() {
+                d3.select(this).select('circle').transition().duration(300).attr('r', d => sizeScale(Math.abs(d.expectedReturnPercent))).attr('opacity', 0.7).attr('stroke-width', 2);
                 tooltip.transition().duration(200).style('opacity', 0);
+            }).on('click', function(event, d) {
+                const index = strategies.indexOf(d);
+                showStrategyDetails(index);
             });
             
-            const legend = svg.append('g')
-                .attr('transform', `translate(${width - 130}, ${margin.top})`);
-            
-            legend.append('text')
-                .attr('x', 0).attr('y', 0)
-                .style('fill', '#00ff88').style('font-size', '12px').style('font-weight', '700')
-                .text('Sessions');
-            
-            Object.entries(sessionColors).forEach(([session, color], i) => {
-                const legendItem = legend.append('g')
-                    .attr('transform', `translate(0, ${20 + i * 25})`);
-                
-                legendItem.append('circle')
-                    .attr('cx', 8).attr('cy', 0).attr('r', 6)
-                    .attr('fill', color).attr('opacity', 0.7);
-                
-                legendItem.append('text')
-                    .attr('x', 20).attr('y', 4)
-                    .style('fill', '#fff').style('font-size', '11px')
-                    .text(session);
+            const brush = d3.brush().extent([[0, 0], [innerWidth, innerHeight]]).on('end', (event) => {
+                if (!event.selection) { bubbles.style('opacity', 0.7); return; }
+                const [[x0, y0], [x1, y1]] = event.selection;
+                bubbles.style('opacity', d => {
+                    const x = xScale(d.stats.expectancy);
+                    const y = yScale(d.stats.total);
+                    return x >= x0 && x <= x1 && y >= y0 && y <= y1 ? 1 : 0.2;
+                });
             });
+            mainG.append('g').attr('class', 'brush').call(brush);
             
-            legend.append('text')
-                .attr('x', 0).attr('y', 180)
-                .style('fill', '#00ff88').style('font-size', '12px').style('font-weight', '700')
-                .text('Bubble Size');
+            const miniWidth = 150, miniHeight = 100;
+            const miniContext = svg.append('g').attr('transform', `translate(${width - miniWidth - 20}, ${height - miniHeight - 20})`);
+            miniContext.append('rect').attr('width', miniWidth).attr('height', miniHeight).attr('fill', 'rgba(0,0,0,0.7)').attr('stroke', '#00ff88').attr('stroke-width', 2).attr('rx', 5);
+            const miniXScale = d3.scaleLinear().domain(xScale.domain()).range([0, miniWidth]);
+            const miniYScale = d3.scaleLinear().domain(yScale.domain()).range([miniHeight, 0]);
+            miniContext.selectAll('.mini-bubble').data(strategies).enter().append('circle').attr('class', 'mini-bubble').attr('cx', d => miniXScale(d.stats.expectancy)).attr('cy', d => miniYScale(d.stats.total)).attr('r', 2).attr('fill', d => sessionColors[d.sessions[0]] || '#666').attr('opacity', 0.6);
+            miniContext.append('rect').attr('class', 'mini-viewport').attr('width', miniWidth).attr('height', miniHeight).attr('fill', 'none').attr('stroke', '#ffa502').attr('stroke-width', 2);
             
-            legend.append('text')
-                .attr('x', 0).attr('y', 200)
-                .style('fill', '#fff').style('font-size', '10px')
-                .text('= Expected Return %');
+            const legend = svg.append('g').attr('transform', `translate(${width - 160}, ${margin.top})`);
+            legend.append('text').attr('x', 0).attr('y', 0).style('fill', '#00ff88').style('font-size', '13px').style('font-weight', '700').text('Session Filter');
+            
+            const uniqueSessions = [...new Set(strategies.flatMap(s => s.sessions))];
+            uniqueSessions.forEach((session, i) => {
+                const legendItem = legend.append('g').attr('transform', `translate(0, ${25 + i * 28})`).style('cursor', 'pointer').attr('class', 'legend-item');
+                legendItem.append('circle').attr('cx', 10).attr('cy', 0).attr('r', 7).attr('fill', sessionColors[session] || '#666').attr('opacity', 0.8).attr('stroke', '#fff').attr('stroke-width', 2);
+                legendItem.append('text').attr('x', 25).attr('y', 4).style('fill', '#fff').style('font-size', '12px').text(session);
+                legendItem.on('click', function() {
+                    if (activeSessionFilters.has(session)) {
+                        activeSessionFilters.delete(session);
+                        d3.select(this).select('circle').attr('opacity', 0.8);
+                    } else {
+                        activeSessionFilters.add(session);
+                        d3.select(this).select('circle').attr('opacity', 0.3);
+                    }
+                    bubbles.transition().duration(300).style('opacity', d => {
+                        if (activeSessionFilters.size === 0) return 0.7;
+                        return d.sessions.some(s => activeSessionFilters.has(s)) ? 0.2 : 0.7;
+                    });
+                });
+            });
         }
         
         let allStrategies = [];
