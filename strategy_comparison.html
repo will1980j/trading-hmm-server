@@ -95,49 +95,139 @@
             if (signals.length === 0) await loadSignals();
             document.getElementById('results').innerHTML = '<div style="text-align: center; padding: 60px;">🔄 Analyzing strategies...</div>';
             
-            const riskPerTrade = 0.5;
+            const riskLevels = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0];
             const feeR = 0.125;
             const sessions = ['Asia', 'London', 'NY Pre Market', 'NY AM', 'NY Lunch', 'NY PM'];
             const beStrategies = ['none', 'be1'];
-            const rTargets = [1, 1.5, 2, 2.5, 3, 3.5, 4];
+            const rTargets = [];
+            for (let r = 1; r <= 20; r += 0.5) rTargets.push(r);
+            const timeFilters = ['none', 'optimal', 'macro', 'both'];
             
-            const totalPossible = 62 * 2 * 15 * 6 * 4;
+            const totalPossible = 62 * 2 * rTargets.length * riskLevels.length * timeFilters.length;
             const strategies = [];
             
-            beStrategies.forEach(beStrategy => {
-                rTargets.forEach(rTarget => {
-                    sessions.forEach(session => {
-                        const sessionSignals = signals.filter(s => s.session === session);
-                        if (sessionSignals.length < 30) return;
-                        const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget, feeR));
-                        const stats = calculateStats(results);
-                        const expectedReturnPercent = stats.expectedTotalReturn * riskPerTrade;
-                        if (stats.expectancy > 0) {
-                            strategies.push({
-                                session, beStrategy, rTarget, stats, expectedReturnPercent,
-                                maxDailyLossPercent: stats.maxConsecLosses * riskPerTrade,
-                                maxDrawdownPercent: stats.maxDrawdown * riskPerTrade
+            riskLevels.forEach(riskPerTrade => {
+                timeFilters.forEach(timeFilter => {
+                    beStrategies.forEach(beStrategy => {
+                        rTargets.forEach(rTarget => {
+                            const optimalHours = {};
+                            if (timeFilter === 'optimal' || timeFilter === 'both') {
+                                sessions.forEach(session => {
+                                    const sessionSignals = signals.filter(s => s.session === session);
+                                    const hourlyPerf = {};
+                                    sessionSignals.forEach(s => {
+                                        if (!s.time) return;
+                                        const hour = parseInt(s.time.split(':')[0]);
+                                        if (!hourlyPerf[hour]) hourlyPerf[hour] = [];
+                                        hourlyPerf[hour].push(s);
+                                    });
+                                    const hourlyStats = Object.entries(hourlyPerf)
+                                        .map(([hour, sigs]) => {
+                                            if (sigs.length < 3) return null;
+                                            const results = sigs.map(s => calculateTradeResult(s, beStrategy, rTarget, feeR));
+                                            const stats = calculateStats(results);
+                                            return { hour: parseInt(hour), expectancy: stats.expectancy };
+                                        })
+                                        .filter(h => h !== null)
+                                        .sort((a, b) => b.expectancy - a.expectancy);
+                                    if (hourlyStats.length > 0) optimalHours[session] = hourlyStats[0].hour;
+                                });
+                            }
+                            
+                            sessions.forEach(session => {
+                                let sessionSignals = signals.filter(s => s.session === session);
+                                if (timeFilter === 'optimal' && optimalHours[session] !== undefined) {
+                                    sessionSignals = sessionSignals.filter(s => s.time && parseInt(s.time.split(':')[0]) === optimalHours[session]);
+                                } else if (timeFilter === 'macro') {
+                                    sessionSignals = sessionSignals.filter(s => {
+                                        if (!s.time) return false;
+                                        const [hour, minute] = s.time.split(':').map(Number);
+                                        return (minute >= 45) || (minute <= 15);
+                                    });
+                                } else if (timeFilter === 'both' && optimalHours[session] !== undefined) {
+                                    sessionSignals = sessionSignals.filter(s => {
+                                        if (!s.time) return false;
+                                        const [hour, minute] = s.time.split(':').map(Number);
+                                        return (hour === optimalHours[session] && minute >= 45) || (hour === (optimalHours[session] + 1) % 24 && minute <= 15);
+                                    });
+                                }
+                                if (sessionSignals.length < 30) return;
+                                const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget, feeR));
+                                const stats = calculateStats(results);
+                                const expectedReturnPercent = stats.expectedTotalReturn * riskPerTrade;
+                                if (stats.expectancy > 0) {
+                                    strategies.push({
+                                        sessions: [session], beStrategy, rTarget, riskPerTrade, timeFilter, stats, expectedReturnPercent,
+                                        maxDailyLossPercent: stats.maxConsecLosses * riskPerTrade,
+                                        maxDrawdownPercent: stats.maxDrawdown * riskPerTrade
+                                    });
+                                }
                             });
-                        }
+                            
+                            const n = sessions.length;
+                            for (let mask = 2; mask < (1 << n); mask++) {
+                                const sessionCombo = [];
+                                for (let i = 0; i < n; i++) {
+                                    if (mask & (1 << i)) sessionCombo.push(sessions[i]);
+                                }
+                                if (sessionCombo.length === 1) continue;
+                                
+                                let combinedSignals = signals.filter(s => sessionCombo.includes(s.session));
+                                if (timeFilter === 'optimal') {
+                                    combinedSignals = combinedSignals.filter(s => {
+                                        const optHour = optimalHours[s.session];
+                                        return optHour !== undefined && s.time && parseInt(s.time.split(':')[0]) === optHour;
+                                    });
+                                } else if (timeFilter === 'macro') {
+                                    combinedSignals = combinedSignals.filter(s => {
+                                        if (!s.time) return false;
+                                        const [hour, minute] = s.time.split(':').map(Number);
+                                        return (minute >= 45) || (minute <= 15);
+                                    });
+                                } else if (timeFilter === 'both') {
+                                    combinedSignals = combinedSignals.filter(s => {
+                                        const optHour = optimalHours[s.session];
+                                        if (optHour === undefined || !s.time) return false;
+                                        const [hour, minute] = s.time.split(':').map(Number);
+                                        return (hour === optHour && minute >= 45) || (hour === (optHour + 1) % 24 && minute <= 15);
+                                    });
+                                }
+                                if (combinedSignals.length < 50) continue;
+                                const results = combinedSignals.map(s => calculateTradeResult(s, beStrategy, rTarget, feeR));
+                                const stats = calculateStats(results);
+                                const expectedReturnPercent = stats.expectedTotalReturn * riskPerTrade;
+                                if (stats.expectancy > 0) {
+                                    strategies.push({
+                                        sessions: sessionCombo, beStrategy, rTarget, riskPerTrade, timeFilter, stats, expectedReturnPercent,
+                                        maxDailyLossPercent: stats.maxConsecLosses * riskPerTrade,
+                                        maxDrawdownPercent: stats.maxDrawdown * riskPerTrade
+                                    });
+                                }
+                            }
+                        });
                     });
                 });
             });
             
             strategies.sort((a, b) => b.expectedReturnPercent - a.expectedReturnPercent);
             
-            displayComparison(strategies.slice(0, 10), totalPossible, strategies.length);
+            displayComparison(strategies.slice(0, 20), totalPossible, strategies.length);
         }
         
         function displayComparison(strategies, totalPossible, profitableCount) {
             const beText = { 'none': 'No BE', 'be1': 'BE=1R' };
             
-            let html = '<table><thead><tr><th>Rank</th><th>Session</th><th>BE</th><th>R-Target</th><th>Expectancy</th><th>Avg Trade</th><th>Win Rate</th><th>BE Rate</th><th>Trades</th><th>Expected R</th><th>Expected %</th><th>Max DD</th></tr></thead><tbody>';
+            let html = '<table><thead><tr><th>Rank</th><th>Sessions</th><th>Risk %</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th>Expectancy</th><th>Avg Trade</th><th>Win Rate</th><th>BE Rate</th><th>Trades</th><th>Expected R</th><th>Expected %</th><th>Max DD</th></tr></thead><tbody>';
             
             strategies.forEach((s, i) => {
                 const rowClass = i === 0 ? 'style="background: rgba(0,255,136,0.1);"' : '';
+                const sessionsText = s.sessions.join('+');
+                const timeFilterText = {'none': 'None', 'optimal': 'Optimal', 'macro': 'Macro', 'both': 'Both'}[s.timeFilter];
                 html += `<tr ${rowClass}>
                     <td>${i === 0 ? '🏆' : i + 1}</td>
-                    <td>${s.session}</td>
+                    <td>${sessionsText}</td>
+                    <td>${s.riskPerTrade}%</td>
+                    <td>${timeFilterText}</td>
                     <td>${beText[s.beStrategy]}</td>
                     <td>${s.rTarget}R</td>
                     <td>${s.stats.expectancy.toFixed(3)}</td>
@@ -161,9 +251,11 @@
             html += '<div style="margin-top: 20px; padding: 20px; background: rgba(0,255,136,0.1); border-radius: 15px; border: 1px solid rgba(0,255,136,0.3);">';
             html += '<h3 style="color: #00ff88; margin-bottom: 15px;">🏆 Winner Analysis</h3>';
             const winner = strategies[0];
-            html += `<p><strong>Best Strategy:</strong> ${winner.session} | ${beText[winner.beStrategy]} | ${winner.rTarget}R</p>`;
+            const winnerSessions = winner.sessions.join(' + ');
+            const timeFilterText = {'none': 'None', 'optimal': 'Optimal', 'macro': 'Macro', 'both': 'Both'}[winner.timeFilter];
+            html += `<p><strong>Best Strategy:</strong> ${winnerSessions} | ${winner.riskPerTrade}% risk | ${timeFilterText} | ${beText[winner.beStrategy]} | ${winner.rTarget}R</p>`;
             html += `<p><strong>Expected Total Return:</strong> ${winner.stats.expectedTotalReturn.toFixed(1)}R (${winner.expectedReturnPercent.toFixed(2)}%)</p>`;
-            html += `<p><strong>Why it wins:</strong> Expectancy (${winner.stats.expectancy.toFixed(3)}R) × Trade Count (${winner.stats.total}) = Highest expected account growth</p>`;
+            html += `<p><strong>Why it wins:</strong> Expectancy (${winner.stats.expectancy.toFixed(3)}R) × Trade Count (${winner.stats.total}) × Risk (${winner.riskPerTrade}%) = Highest expected account growth</p>`;
             html += '</div>';
             
             html += '<div style="margin-top: 30px; padding: 25px; background: rgba(255,255,255,0.08); border-radius: 20px;">';
@@ -256,7 +348,7 @@
             
             bubbles.append('circle')
                 .attr('r', 0)
-                .attr('fill', d => sessionColors[d.session] || '#666')
+                .attr('fill', d => sessionColors[d.sessions[0]] || '#666')
                 .attr('opacity', 0.7)
                 .attr('stroke', '#fff')
                 .attr('stroke-width', 2)
@@ -278,9 +370,11 @@
                     .attr('opacity', 1);
                 
                 const beText = d.beStrategy === 'none' ? 'No BE' : 'BE=1R';
+                const sessionsText = d.sessions.join(' + ');
+                const timeFilterText = {'none': 'None', 'optimal': 'Optimal', 'macro': 'Macro', 'both': 'Both'}[d.timeFilter];
                 tooltip.transition().duration(200).style('opacity', 1);
                 tooltip.html(`
-                    <div style="font-weight: 700; font-size: 14px; margin-bottom: 8px; color: #00ff88;">${d.session} | ${beText} | ${d.rTarget}R</div>
+                    <div style="font-weight: 700; font-size: 14px; margin-bottom: 8px; color: #00ff88;">${sessionsText} | ${d.riskPerTrade}% | ${timeFilterText} | ${beText} | ${d.rTarget}R</div>
                     <div style="margin-bottom: 4px;"><strong>Expectancy:</strong> ${d.stats.expectancy.toFixed(3)}R</div>
                     <div style="margin-bottom: 4px;"><strong>Trade Count:</strong> ${d.stats.total}</div>
                     <div style="margin-bottom: 4px;"><strong>Expected R:</strong> ${d.stats.expectedTotalReturn.toFixed(1)}R</div>
