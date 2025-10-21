@@ -261,7 +261,55 @@
             
             filteredStrategies.sort((a, b) => b.expectedReturnPercent - a.expectedReturnPercent);
             allStrategies = filteredStrategies.slice(0, 20);
-            allStrategySignals = allStrategies.map(s => signals.filter(sig => s.sessions.includes(sig.session)));
+            allStrategySignals = allStrategies.map(s => {
+                let filteredSignals = signals.filter(sig => s.sessions.includes(sig.session));
+                
+                if (s.timeFilter === 'optimal' || s.timeFilter === 'both') {
+                    const optimalHours = {};
+                    s.sessions.forEach(session => {
+                        const sessionSignals = signals.filter(sig => sig.session === session);
+                        const hourlyPerf = {};
+                        sessionSignals.forEach(sig => {
+                            if (!sig.time) return;
+                            const hour = parseInt(sig.time.split(':')[0]);
+                            if (!hourlyPerf[hour]) hourlyPerf[hour] = [];
+                            hourlyPerf[hour].push(sig);
+                        });
+                        const hourlyStats = Object.entries(hourlyPerf)
+                            .map(([hour, sigs]) => {
+                                if (sigs.length < 3) return null;
+                                const results = sigs.map(sig => calculateTradeResult(sig, s.beStrategy, s.rTarget, feeR));
+                                const stats = calculateStats(results);
+                                return { hour: parseInt(hour), expectancy: stats.expectancy };
+                            })
+                            .filter(h => h !== null)
+                            .sort((a, b) => b.expectancy - a.expectancy);
+                        if (hourlyStats.length > 0) optimalHours[session] = hourlyStats[0].hour;
+                    });
+                    
+                    if (s.timeFilter === 'optimal') {
+                        filteredSignals = filteredSignals.filter(sig => {
+                            const optHour = optimalHours[sig.session];
+                            return optHour !== undefined && sig.time && parseInt(sig.time.split(':')[0]) === optHour;
+                        });
+                    } else if (s.timeFilter === 'both') {
+                        filteredSignals = filteredSignals.filter(sig => {
+                            const optHour = optimalHours[sig.session];
+                            if (optHour === undefined || !sig.time) return false;
+                            const [hour, minute] = sig.time.split(':').map(Number);
+                            return (hour === optHour && minute >= 45) || (hour === (optHour + 1) % 24 && minute <= 15);
+                        });
+                    }
+                } else if (s.timeFilter === 'macro') {
+                    filteredSignals = filteredSignals.filter(sig => {
+                        if (!sig.time) return false;
+                        const [hour, minute] = sig.time.split(':').map(Number);
+                        return (minute >= 45) || (minute <= 15);
+                    });
+                }
+                
+                return filteredSignals;
+            });
             displayComparison(allStrategies, totalPossible, filteredStrategies.length);
         }
         
