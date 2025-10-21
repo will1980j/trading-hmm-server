@@ -215,7 +215,7 @@ class IntelligentPredictor:
         """Get prediction for most recent signal"""
         cursor = self.db.conn.cursor()
         cursor.execute("""
-            SELECT session, bias, created_at
+            SELECT session, bias, created_at, time, entry_price
             FROM signal_lab_trades
             WHERE active_trade = true
             ORDER BY created_at DESC
@@ -242,7 +242,9 @@ class IntelligentPredictor:
             'signal': {
                 'session': signal['session'],
                 'bias': signal['bias'],
-                'timestamp': signal['created_at'].isoformat()
+                'timestamp': signal['created_at'].isoformat(),
+                'time': str(signal['time']) if signal['time'] else None,
+                'price': float(signal['entry_price']) if signal['entry_price'] else None
             },
             'prediction': prediction,
             'multi_target': multi_target,

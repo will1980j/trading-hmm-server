@@ -740,10 +740,18 @@
                                           pred.confidence >= 60 ? 'var(--accent-warning)' : 'var(--accent-danger)';
                     
                     container.innerHTML = `
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px;">
                             <div class="stat-card">
                                 <div class="stat-label">Signal</div>
                                 <div style="font-size: 16px; margin-top: 8px;">${signal.session} ${signal.bias}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Time</div>
+                                <div style="font-size: 16px; margin-top: 8px; color: var(--text-secondary);">${signal.time || 'N/A'}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Price</div>
+                                <div style="font-size: 16px; margin-top: 8px; color: var(--accent-primary);">${signal.price ? signal.price.toFixed(2) : 'N/A'}</div>
                             </div>
                             <div class="stat-card">
                                 <div class="stat-label">Prediction</div>
@@ -927,6 +935,8 @@
 
         function displayFeatureRecommendations(recommendations) {
             const container = document.getElementById('featureRecommendations');
+            if (!container) return; // Skip if element doesn't exist
+            
             if (!recommendations || recommendations.length === 0) {
                 container.innerHTML = '<p style="color: #10b981;">✓ No recommendations - features are optimized</p>';
                 return;
