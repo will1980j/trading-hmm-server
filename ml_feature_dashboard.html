@@ -320,6 +320,48 @@
         </div>
 
         <div class="chart-container">
+            <div class="chart-title">🧠 Advanced Feature Analysis</div>
+            <div class="chart-wrapper">
+                <canvas id="permutationChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">🔗 Feature Interactions (Best Combinations)</div>
+            <div id="interactionsList"></div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">🎯 Target-Specific Feature Importance</div>
+            <div class="stats-grid" style="margin-bottom: 0;">
+                <div class="stat-card">
+                    <div class="stat-label">Best for 1R</div>
+                    <div id="best1R" style="font-size: 14px; margin-top: 8px; color: var(--text-secondary);">Loading...</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Best for 2R</div>
+                    <div id="best2R" style="font-size: 14px; margin-top: 8px; color: var(--text-secondary);">Loading...</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Best for 3R</div>
+                    <div id="best3R" style="font-size: 14px; margin-top: 8px; color: var(--text-secondary);">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">📊 Feature Stability Scores</div>
+            <div class="chart-wrapper">
+                <canvas id="stabilityScoreChart"></canvas>
+            </div>
+        </div>
+
+        <div class="recommendations">
+            <div class="chart-title">💡 Automated Feature Recommendations</div>
+            <div id="featureRecommendations"></div>
+        </div>
+
+        <div class="chart-container">
             <div class="chart-title">🔗 Feature Correlation Matrix</div>
             <div class="correlation-matrix" id="correlationMatrix"></div>
         </div>
@@ -553,11 +595,163 @@
             }).join('');
         }
 
+        async function loadAdvancedAnalysis() {
+            try {
+                const response = await fetch('/api/advanced-feature-analysis');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    createPermutationChart(data.permutation_importance);
+                    displayInteractions(data.feature_interactions);
+                    displayTargetSpecific(data.target_specific);
+                    createStabilityChart(data.feature_stability);
+                    displayFeatureRecommendations(data.recommendations);
+                }
+            } catch (error) {
+                console.error('Error loading advanced analysis:', error);
+            }
+        }
+
+        function createPermutationChart(importance) {
+            const ctx = document.getElementById('permutationChart').getContext('2d');
+            if (charts.permutation) charts.permutation.destroy();
+            
+            if (!importance || importance.length === 0) return;
+            
+            charts.permutation = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: importance.map(f => f.feature),
+                    datasets: [{
+                        label: 'Permutation Importance',
+                        data: importance.map(f => f.importance),
+                        backgroundColor: importance.map(f => 
+                            f.significance === 'High' ? 'rgba(16, 185, 129, 0.6)' : 'rgba(59, 130, 246, 0.6)'
+                        ),
+                        borderColor: importance.map(f => 
+                            f.significance === 'High' ? '#10b981' : '#3b82f6'
+                        ),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#f8fafc' } } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: '#2d3a5f' } },
+                        y: { ticks: { color: '#94a3b8' }, grid: { color: '#2d3a5f' } }
+                    }
+                }
+            });
+        }
+
+        function displayInteractions(interactions) {
+            const container = document.getElementById('interactionsList');
+            if (!interactions || interactions.length === 0) {
+                container.innerHTML = '<p style="color: #94a3b8;">No interaction data</p>';
+                return;
+            }
+            
+            container.innerHTML = interactions.slice(0, 5).map(int => `
+                <div class="recommendation-item ${int.effectiveness.toLowerCase()}">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div class="recommendation-type">${int.combination}</div>
+                            <div class="recommendation-message">
+                                Success Rate: ${(int.success_rate * 100).toFixed(1)}% | 
+                                Avg MFE: ${int.avg_mfe.toFixed(2)}R | 
+                                Samples: ${int.sample_size}
+                            </div>
+                        </div>
+                        <span class="feature-badge" style="background: ${int.effectiveness === 'High' ? '#10b981' : '#3b82f6'};">
+                            ${int.effectiveness}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function displayTargetSpecific(targetData) {
+            if (!targetData) return;
+            
+            ['1R', '2R', '3R'].forEach(target => {
+                const data = targetData[target];
+                const container = document.getElementById(`best${target}`);
+                if (data && data.length > 0) {
+                    const top = data[0];
+                    container.innerHTML = `
+                        <div>${top.session} + ${top.bias}</div>
+                        <div style="color: #10b981; font-weight: 600;">${(top.hit_rate * 100).toFixed(1)}% hit rate</div>
+                        <div style="font-size: 11px;">${top.sample_size} samples</div>
+                    `;
+                }
+            });
+        }
+
+        function createStabilityChart(stability) {
+            const ctx = document.getElementById('stabilityScoreChart').getContext('2d');
+            if (charts.stabilityScore) charts.stabilityScore.destroy();
+            
+            if (!stability || stability.length === 0) return;
+            
+            charts.stabilityScore = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: stability.map(s => s.feature),
+                    datasets: [{
+                        label: 'Stability Score',
+                        data: stability.map(s => s.stability_score),
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                        borderColor: '#3b82f6',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#f8fafc' } } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: '#2d3a5f' } },
+                        y: { 
+                            ticks: { color: '#94a3b8' }, 
+                            grid: { color: '#2d3a5f' },
+                            min: 0,
+                            max: 1
+                        }
+                    }
+                }
+            });
+        }
+
+        function displayFeatureRecommendations(recommendations) {
+            const container = document.getElementById('featureRecommendations');
+            if (!recommendations || recommendations.length === 0) {
+                container.innerHTML = '<p style="color: #10b981;">✓ No recommendations - features are optimized</p>';
+                return;
+            }
+            
+            container.innerHTML = recommendations.map(rec => `
+                <div class="recommendation-item ${rec.priority.toLowerCase()}">
+                    <div class="recommendation-type">${rec.type.replace(/_/g, ' ').toUpperCase()}</div>
+                    <div class="recommendation-message">${rec.message}</div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #3b82f6;">
+                        → ${rec.action}
+                    </div>
+                </div>
+            `).join('');
+        }
+
         // Load data on page load
         loadData();
+        loadAdvancedAnalysis();
 
         // Auto-refresh every 60 seconds
-        setInterval(loadData, 60000);
+        setInterval(() => {
+            loadData();
+            loadAdvancedAnalysis();
+        }, 60000);
     </script>
 </body>
 </html>

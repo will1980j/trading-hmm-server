@@ -4343,6 +4343,23 @@ def get_ml_analytics():
         logger.error(f"ML analytics error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/advanced-feature-analysis', methods=['GET'])
+@login_required
+def get_advanced_feature_analysis():
+    """Get advanced feature engineering analysis"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from advanced_feature_analyzer import AdvancedFeatureAnalyzer
+        analyzer = AdvancedFeatureAnalyzer(db)
+        analysis = analyzer.get_comprehensive_analysis()
+        
+        return jsonify(analysis)
+    except Exception as e:
+        logger.error(f"Advanced feature analysis error: {str(e)}")
+        return jsonify({'error': str(e), 'status': 'error'}), 500
+
 @app.route('/api/ml-feature-importance', methods=['GET'])
 @login_required
 def get_ml_feature_importance():
