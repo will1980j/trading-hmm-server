@@ -4,818 +4,266 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Strategy Comparison</title>
-    </head>
-<body>
-    <nav class="navbar">
-        <a href="/ml-dashboard">🤖 ML</a>
-        <a href="/live-signals-dashboard">📶 Live</a>
-        <a href="/signal-lab-dashboard">🏠 Dashboard</a>
-        <a href="/signal-analysis-lab">🧪 Signal Lab</a>
-        <a href="/time-analysis">⏰ Time</a>
-        <a href="/strategy-optimizer">🎯 Optimizer</a>
-        <a href="/strategy-comparison" class="active">🏆 Compare</a>
-        <a href="/ai-business-advisor">🧠 AI Advisor</a>
-        <a href="/prop-portfolio">💼 Prop</a>
-        <a href="/trade-manager">📋 Trades</a>
-        <a href="/financial-summary">💰 Finance</a>
-        <a href="/reporting-hub">📊 Reports</a>
-    </nav>
-    
-    <div class="container">
-        <div class="header">
-            <h1>🏆 Strategy Comparison</h1>
-            <p>Compare strategies by Expected Total Return</p>
-        </div>
-        
-        <div class="settings-card">
-            <div class="settings-header">
-                <span style="font-size: 1.5rem;">⚙️</span>
-                <h3>Comparison Settings</h3>
-            </div>
-            <div class="settings-grid">
-                <div class="input-group">
-                    <label>Risk Per Trade (%)</label>
-                    <input type="number" id="riskPerTrade" value="0.5" min="0.1" max="5" step="0.25">
-                </div>
-                <div class="input-group">
-                    <label>Max Drawdown (%)</label>
-                    <input type="number" id="maxDrawdown" value="10" min="5" max="20" step="1">
-                </div>
-                <div class="input-group">
-                    <label>Broker Fee (R)</label>
-                    <input type="number" id="brokerFee" value="0.125" min="0" max="1" step="0.025">
-                </div>
-                <div class="input-group">
-                    <label>Max Daily Loss (%)</label>
-                    <input type="number" id="maxDailyLoss" value="5" min="1" max="10" step="0.5">
-                </div>
-                <div class="input-group">
-                    <label>Min Win Rate (%)</label>
-                    <input type="number" id="minWinRate" value="40" min="0" max="100" step="5">
-                </div>
-            </div>
-            <label class="checkbox-group">
-                <input type="checkbox" id="onlyPropViable" checked>
-                <span>Only show prop firm viable strategies</span>
-            </label>
-            <div style="text-align: center; margin-top: var(--spacing-lg);">
-                <button class="btn-primary" onclick="runComparison()">🔄 Run Comparison</button>
-            </div>
-        </div>
-        
-        <button class="fab" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Scroll to top">↑</button>
-        
-        <div id="results"></div>
-    </div>
-
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script>
-        let signals = [];
-        
-        async function loadSignals() {
-            const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-trades?analysis_only=true');
-            const data = await response.json();
-            const trades = Array.isArray(data) ? data : data.trades || [];
-            signals = trades.filter(t => { const d = new Date(t.date); return d.getDay() !== 0 && d.getDay() !== 6; })
-                .map(t => ({ date: t.date, time: t.time, session: t.session, mfeNone: parseFloat(t.mfe_none || t.mfe) || 0, mfe1: parseFloat(t.mfe1) || 0 }));
+    <style>
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #141b2d;
+            --bg-tertiary: #1e2a47;
+            --accent-primary: #3b82f6;
+            --accent-secondary: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: rgba(148, 163, 184, 0.1);
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.16);
+            --shadow-lg: 0 10px 25px rgba(0,0,0,0.25);
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
         
-        function calculateTradeResult(signal, beStrategy, rTarget, feeR = 0) {
-            const mfe = beStrategy === 'be1' ? signal.mfe1 : signal.mfeNone;
-            if (!mfe || mfe === 0) return -1 - feeR;
-            if (beStrategy === 'none') return mfe < 0 ? (-1 - feeR) : (mfe >= rTarget ? (rTarget - feeR) : (-1 - feeR));
-            if (mfe < 1) return -1 - feeR;
-            if (mfe >= 1 && mfe < rTarget) return 0 - feeR;
-            if (mfe >= rTarget) return rTarget - feeR;
-            return -1 - feeR;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            padding: var(--spacing-lg);
+            line-height: 1.6;
         }
         
-        function calculateStats(results) {
-            const wins = results.filter(r => r > 0).length;
-            const losses = results.filter(r => r < 0).length;
-            const breakevens = results.filter(r => r === 0).length;
-            const total = results.length;
-            const winRate = total > 0 ? (wins / total) * 100 : 0;
-            const breakevenRate = total > 0 ? (breakevens / total) * 100 : 0;
-            const totalR = results.reduce((sum, r) => sum + r, 0);
-            const winResults = results.filter(r => r > 0);
-            const lossResults = results.filter(r => r < 0);
-            const avgTrade = total > 0 ? totalR / total : 0;
-            const avgWinR = winResults.length > 0 ? winResults.reduce((a,b) => a + b, 0) / winResults.length : 0;
-            const avgLossR = lossResults.length > 0 ? Math.abs(lossResults.reduce((a,b) => a + b, 0) / lossResults.length) : 1;
-            const winPercent = total > 0 ? wins / total : 0;
-            const lossPercent = total > 0 ? losses / total : 0;
-            const expectancy = ((avgWinR * winPercent) - (avgLossR * lossPercent)) / 1.0;
-            const expectedTotalReturn = expectancy * total;
-            let maxConsecLosses = 0, currentConsecLosses = 0, maxDrawdown = 0, currentDrawdown = 0, peak = 0, runningTotal = 0;
-            results.forEach(result => {
-                runningTotal += result;
-                if (runningTotal > peak) { peak = runningTotal; currentDrawdown = 0; }
-                else { currentDrawdown = peak - runningTotal; maxDrawdown = Math.max(maxDrawdown, currentDrawdown); }
-                if (result < 0) { currentConsecLosses++; maxConsecLosses = Math.max(maxConsecLosses, currentConsecLosses); }
-                else if (result > 0) currentConsecLosses = 0;
-            });
-            return { expectancy, avgTrade, winRate, breakevenRate, totalR, maxConsecLosses, maxDrawdown, total, expectedTotalReturn };
+        .container { max-width: 1600px; margin: 0 auto; }
+        
+        nav {
+            background: var(--bg-secondary);
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-xl);
+            border-radius: var(--radius-lg);
+            text-align: center;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
         }
         
-        async function runComparison() {
-            if (signals.length === 0) await loadSignals();
-            document.getElementById('results').innerHTML = '<div style="text-align: center; padding: 60px;">🔄 Analyzing strategies...</div>';
-            
-            const riskPerTrade = parseFloat(document.getElementById('riskPerTrade').value);
-            const maxDrawdown = parseFloat(document.getElementById('maxDrawdown').value);
-            const feeR = parseFloat(document.getElementById('brokerFee').value);
-            const sessions = ['Asia', 'London', 'NY Pre Market', 'NY AM', 'NY Lunch', 'NY PM'];
-            const beStrategies = ['none', 'be1'];
-            const rTargets = [];
-            for (let r = 1; r <= 20; r += 0.5) rTargets.push(r);
-            const timeFilters = ['none', 'optimal', 'macro', 'both'];
-            
-            const totalPossible = 62 * 2 * rTargets.length * timeFilters.length;
-            const strategies = [];
-            timeFilters.forEach(timeFilter => {
-                    beStrategies.forEach(beStrategy => {
-                        rTargets.forEach(rTarget => {
-                            const optimalHours = {};
-                            if (timeFilter === 'optimal' || timeFilter === 'both') {
-                                sessions.forEach(session => {
-                                    const sessionSignals = signals.filter(s => s.session === session);
-                                    const hourlyPerf = {};
-                                    sessionSignals.forEach(s => {
-                                        if (!s.time) return;
-                                        const hour = parseInt(s.time.split(':')[0]);
-                                        if (!hourlyPerf[hour]) hourlyPerf[hour] = [];
-                                        hourlyPerf[hour].push(s);
-                                    });
-                                    const hourlyStats = Object.entries(hourlyPerf)
-                                        .map(([hour, sigs]) => {
-                                            if (sigs.length < 3) return null;
-                                            const results = sigs.map(s => calculateTradeResult(s, beStrategy, rTarget, feeR));
-                                            const stats = calculateStats(results);
-                                            return { hour: parseInt(hour), expectancy: stats.expectancy };
-                                        })
-                                        .filter(h => h !== null)
-                                        .sort((a, b) => b.expectancy - a.expectancy);
-                                    if (hourlyStats.length > 0) optimalHours[session] = hourlyStats[0].hour;
-                                });
-                            }
-                            
-                            sessions.forEach(session => {
-                                let sessionSignals = signals.filter(s => s.session === session);
-                                if (timeFilter === 'optimal' && optimalHours[session] !== undefined) {
-                                    sessionSignals = sessionSignals.filter(s => s.time && parseInt(s.time.split(':')[0]) === optimalHours[session]);
-                                } else if (timeFilter === 'macro') {
-                                    sessionSignals = sessionSignals.filter(s => {
-                                        if (!s.time) return false;
-                                        const [hour, minute] = s.time.split(':').map(Number);
-                                        return (minute >= 45) || (minute <= 15);
-                                    });
-                                } else if (timeFilter === 'both' && optimalHours[session] !== undefined) {
-                                    sessionSignals = sessionSignals.filter(s => {
-                                        if (!s.time) return false;
-                                        const [hour, minute] = s.time.split(':').map(Number);
-                                        return (hour === optimalHours[session] && minute >= 45) || (hour === (optimalHours[session] + 1) % 24 && minute <= 15);
-                                    });
-                                }
-                                if (sessionSignals.length < 30) return;
-                                const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget, feeR));
-                                const stats = calculateStats(results);
-                                const expectedReturnPercent = stats.expectedTotalReturn * riskPerTrade;
-                                const maxDrawdownPercent = stats.maxDrawdown * riskPerTrade;
-                                if (stats.expectancy > 0 && maxDrawdownPercent <= maxDrawdown) {
-                                    strategies.push({
-                                        sessions: [session], beStrategy, rTarget, riskPerTrade, timeFilter, stats, expectedReturnPercent,
-                                        maxDailyLossPercent: stats.maxConsecLosses * riskPerTrade,
-                                        maxDrawdownPercent
-                                    });
-                                }
-                            });
-                            
-                            const n = sessions.length;
-                            for (let mask = 2; mask < (1 << n); mask++) {
-                                const sessionCombo = [];
-                                for (let i = 0; i < n; i++) {
-                                    if (mask & (1 << i)) sessionCombo.push(sessions[i]);
-                                }
-                                if (sessionCombo.length === 1) continue;
-                                
-                                let combinedSignals = signals.filter(s => sessionCombo.includes(s.session));
-                                if (timeFilter === 'optimal') {
-                                    combinedSignals = combinedSignals.filter(s => {
-                                        const optHour = optimalHours[s.session];
-                                        return optHour !== undefined && s.time && parseInt(s.time.split(':')[0]) === optHour;
-                                    });
-                                } else if (timeFilter === 'macro') {
-                                    combinedSignals = combinedSignals.filter(s => {
-                                        if (!s.time) return false;
-                                        const [hour, minute] = s.time.split(':').map(Number);
-                                        return (minute >= 45) || (minute <= 15);
-                                    });
-                                } else if (timeFilter === 'both') {
-                                    combinedSignals = combinedSignals.filter(s => {
-                                        const optHour = optimalHours[s.session];
-                                        if (optHour === undefined || !s.time) return false;
-                                        const [hour, minute] = s.time.split(':').map(Number);
-                                        return (hour === optHour && minute >= 45) || (hour === (optHour + 1) % 24 && minute <= 15);
-                                    });
-                                }
-                                if (combinedSignals.length < 50) continue;
-                                const results = combinedSignals.map(s => calculateTradeResult(s, beStrategy, rTarget, feeR));
-                                const stats = calculateStats(results);
-                                const expectedReturnPercent = stats.expectedTotalReturn * riskPerTrade;
-                                const maxDrawdownPercent = stats.maxDrawdown * riskPerTrade;
-                                if (stats.expectancy > 0 && maxDrawdownPercent <= maxDrawdown) {
-                                    strategies.push({
-                                        sessions: sessionCombo, beStrategy, rTarget, riskPerTrade, timeFilter, stats, expectedReturnPercent,
-                                        maxDailyLossPercent: stats.maxConsecLosses * riskPerTrade,
-                                        maxDrawdownPercent
-                                    });
-                                }
-                            }
-                    });
-                });
-            });
-            
-            const onlyPropViable = document.getElementById('onlyPropViable').checked;
-            const maxDailyLoss = parseFloat(document.getElementById('maxDailyLoss').value);
-            const minWinRate = parseFloat(document.getElementById('minWinRate').value);
-            
-            let filteredStrategies = strategies;
-            if (onlyPropViable) {
-                filteredStrategies = strategies.filter(s => s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate);
-            }
-            
-            filteredStrategies.sort((a, b) => b.expectedReturnPercent - a.expectedReturnPercent);
-            allStrategies = filteredStrategies.slice(0, 20);
-            allStrategySignals = allStrategies.map(s => {
-                let filteredSignals = signals.filter(sig => s.sessions.includes(sig.session));
-                
-                if (s.timeFilter === 'optimal' || s.timeFilter === 'both') {
-                    const optimalHours = {};
-                    s.sessions.forEach(session => {
-                        const sessionSignals = signals.filter(sig => sig.session === session);
-                        const hourlyPerf = {};
-                        sessionSignals.forEach(sig => {
-                            if (!sig.time) return;
-                            const hour = parseInt(sig.time.split(':')[0]);
-                            if (!hourlyPerf[hour]) hourlyPerf[hour] = [];
-                            hourlyPerf[hour].push(sig);
-                        });
-                        const hourlyStats = Object.entries(hourlyPerf)
-                            .map(([hour, sigs]) => {
-                                if (sigs.length < 3) return null;
-                                const results = sigs.map(sig => calculateTradeResult(sig, s.beStrategy, s.rTarget, feeR));
-                                const stats = calculateStats(results);
-                                return { hour: parseInt(hour), expectancy: stats.expectancy };
-                            })
-                            .filter(h => h !== null)
-                            .sort((a, b) => b.expectancy - a.expectancy);
-                        if (hourlyStats.length > 0) optimalHours[session] = hourlyStats[0].hour;
-                    });
-                    
-                    if (s.timeFilter === 'optimal') {
-                        filteredSignals = filteredSignals.filter(sig => {
-                            const optHour = optimalHours[sig.session];
-                            return optHour !== undefined && sig.time && parseInt(sig.time.split(':')[0]) === optHour;
-                        });
-                    } else if (s.timeFilter === 'both') {
-                        filteredSignals = filteredSignals.filter(sig => {
-                            const optHour = optimalHours[sig.session];
-                            if (optHour === undefined || !sig.time) return false;
-                            const [hour, minute] = sig.time.split(':').map(Number);
-                            return (hour === optHour && minute >= 45) || (hour === (optHour + 1) % 24 && minute <= 15);
-                        });
-                    }
-                } else if (s.timeFilter === 'macro') {
-                    filteredSignals = filteredSignals.filter(sig => {
-                        if (!sig.time) return false;
-                        const [hour, minute] = sig.time.split(':').map(Number);
-                        return (minute >= 45) || (minute <= 15);
-                    });
-                }
-                
-                return filteredSignals;
-            });
-            displayComparison(allStrategies, totalPossible, filteredStrategies.length);
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
+            margin: 0 var(--spacing-xs);
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+            font-size: 0.875rem;
         }
         
-        function displayComparison(strategies, totalPossible, profitableCount) {
-            if (!strategies || strategies.length === 0) {
-                document.getElementById('results').innerHTML = '<div class="results-card" style="text-align: center; padding: 60px; color: var(--accent-warning);">No strategies found matching criteria</div>';
-                return;
-            }
-            
-            const beText = { 'none': 'No BE', 'be1': 'BE=1R' };
-            
-            let html = '<table id="strategyTable"><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th class="sortable" data-sort="expectancy">Expectancy</th><th class="sortable" data-sort="avgTrade">Avg Trade</th><th class="sortable" data-sort="winRate">Win Rate</th><th class="sortable" data-sort="breakevenRate">BE Rate</th><th class="sortable" data-sort="trades">Trades</th><th class="sortable" data-sort="expectedR">Expected R</th><th class="sortable" data-sort="expectedPercent">Expected %</th><th class="sortable" data-sort="maxDD">Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
-            
-            const maxDailyLoss = parseFloat(document.getElementById('maxDailyLoss')?.value || 5);
-            const minWinRate = parseFloat(document.getElementById('minWinRate')?.value || 40);
-            const maxDrawdown = parseFloat(document.getElementById('maxDrawdown')?.value || 10);
-            
-            strategies.forEach((s, i) => {
-                const rowClass = i === 0 ? 'style="background: rgba(0,255,136,0.1);"' : '';
-                const sessionsText = s.sessions.join('+');
-                const timeFilterText = {'none': 'None', 'optimal': 'Optimal', 'macro': 'Macro', 'both': 'Both'}[s.timeFilter];
-                const propViable = s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate;
-                const propIcon = propViable ? '✅' : '❌';
-                const expectancyColor = s.stats.expectancy > 0.2 ? `rgba(0,255,136,${Math.min(s.stats.expectancy * 2, 1) * 0.3})` : 'transparent';
-                const winRateColor = s.stats.winRate > 50 ? `rgba(0,255,136,${(s.stats.winRate - 50) / 50 * 0.3})` : 'transparent';
-                const ddColor = `rgba(255,71,87,${Math.min(s.maxDrawdownPercent / 10, 1) * 0.3})`;
-                html += `<tr ${rowClass} data-index="${i}">
-                    <td>${i === 0 ? '🏆' : i + 1}</td>
-                    <td>${sessionsText}</td>
-                    <td>${timeFilterText}</td>
-                    <td>${beText[s.beStrategy]}</td>
-                    <td>${s.rTarget}R</td>
-                    <td style="background: ${expectancyColor}; font-weight: 600;">${s.stats.expectancy.toFixed(3)}</td>
-                    <td>${s.stats.avgTrade.toFixed(3)}R</td>
-                    <td style="background: ${winRateColor}; font-weight: 600;">${s.stats.winRate.toFixed(1)}%</td>
-                    <td>${s.stats.breakevenRate.toFixed(1)}%</td>
-                    <td>${s.stats.total}</td>
-                    <td style="color: #00ff88; font-weight: 700;">${s.stats.expectedTotalReturn > 0 ? '+' : ''}${s.stats.expectedTotalReturn.toFixed(1)}R</td>
-                    <td style="color: #00ff88; font-weight: 700;">${s.expectedReturnPercent > 0 ? '+' : ''}${s.expectedReturnPercent.toFixed(2)}%</td>
-                    <td style="background: ${ddColor}; font-weight: 600;">${s.maxDrawdownPercent.toFixed(1)}%</td>
-                    <td style="text-align: center; font-size: 18px;">${propIcon}</td>
-                    <td><button onclick="showStrategyDetails(${i})" class="view-btn">📊 View</button></td>
-                </tr>`;
-            });
-            
-            html += '</tbody></table>';
-            
-            html += '<div class="info-card">';
-            html += '<h3>📊 Strategy Universe</h3>';
-            html += `<p><strong>Total Possible:</strong> ${totalPossible.toLocaleString()}</p>`;
-            html += `<p><strong>Profitable:</strong> ${profitableCount} (${((profitableCount/totalPossible)*100).toFixed(2)}%)</p>`;
-            html += '</div>';
-            html += '<div class="info-card" style="background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2);">';
-            html += '<h3 style="color: var(--accent-secondary);">🏆 Winner Analysis</h3>';
-            const winner = strategies[0];
-            const winnerSessions = winner.sessions.join(' + ');
-            const timeFilterText = {'none': 'None', 'optimal': 'Optimal', 'macro': 'Macro', 'both': 'Both'}[winner.timeFilter];
-            html += `<p><strong>Best Strategy:</strong> ${winnerSessions} | ${timeFilterText} | ${beText[winner.beStrategy]} | ${winner.rTarget}R</p>`;
-            html += `<p><strong>Expected Total Return:</strong> ${winner.stats.expectedTotalReturn.toFixed(1)}R (${winner.expectedReturnPercent.toFixed(2)}%)</p>`;
-            html += `<p><strong>Why it wins:</strong> Expectancy (${winner.stats.expectancy.toFixed(3)}R) × Trade Count (${winner.stats.total}) × Risk (${winner.riskPerTrade}%) = Highest expected account growth</p>`;
-            html += '</div>';
-            
-            html += '<div class="chart-container">';
-            html += '<div class="chart-header"><h3>📊 Strategy Performance Map</h3></div>';
-            html += '<div id="scatterPlot" style="width: 100%; height: 600px;"></div>';
-            html += '</div>';
-            
-            document.getElementById('results').innerHTML = `<div class="results-card">${html}</div>`;
-            
-            initTableSort();
-            renderScatterPlot(strategies);
+        nav a:hover { background: rgba(59, 130, 246, 0.1); color: var(--accent-primary); }
+        nav a.active { color: var(--accent-primary); background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); font-weight: 600; }
+        
+        .header {
+            text-align: center;
+            padding: var(--spacing-xl);
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--spacing-xl);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-md);
         }
         
-        function renderScatterPlot(strategies) {
-            const container = d3.select('#scatterPlot');
-            container.selectAll('*').remove();
-            
-            const width = container.node().offsetWidth;
-            const height = 600;
-            const margin = {top: 60, right: 120, bottom: 80, left: 80};
-            const innerWidth = width - margin.left - margin.right;
-            const innerHeight = height - margin.top - margin.bottom;
-            
-            const svg = container.append('svg').attr('width', width).attr('height', height);
-            
-            const xExtent = d3.extent(strategies, d => d.stats.expectancy);
-            const yExtent = d3.extent(strategies, d => d.maxDrawdownPercent);
-            const xScale = d3.scaleLinear().domain([Math.min(xExtent[0] - 0.05, -0.1), xExtent[1] + 0.05]).range([0, innerWidth]);
-            const yScale = d3.scaleLinear().domain([0, yExtent[1] + 1]).range([innerHeight, 0]);
-            const sizeScale = d3.scaleSqrt().domain([0, d3.max(strategies, d => Math.abs(d.expectedReturnPercent))]).range([8, 40]);
-            
-            const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
-            
-            svg.append('text').attr('x', width / 2).attr('y', 30).attr('text-anchor', 'middle').style('fill', 'var(--text-primary)').style('font-size', '18px').style('font-weight', '700').text('Risk-Reward Analysis: Expectancy vs Maximum Drawdown');
-            
-            const medianExp = d3.median(strategies, d => d.stats.expectancy);
-            const medianDD = d3.median(strategies, d => d.maxDrawdownPercent);
-            
-            g.append('rect').attr('x', 0).attr('y', 0).attr('width', xScale(medianExp)).attr('height', yScale(medianDD)).attr('fill', 'rgba(239,68,68,0.03)');
-            g.append('rect').attr('x', xScale(medianExp)).attr('y', 0).attr('width', innerWidth - xScale(medianExp)).attr('height', yScale(medianDD)).attr('fill', 'rgba(16,185,129,0.08)');
-            g.append('rect').attr('x', 0).attr('y', yScale(medianDD)).attr('width', xScale(medianExp)).attr('height', innerHeight - yScale(medianDD)).attr('fill', 'rgba(239,68,68,0.06)');
-            g.append('rect').attr('x', xScale(medianExp)).attr('y', yScale(medianDD)).attr('width', innerWidth - xScale(medianExp)).attr('height', innerHeight - yScale(medianDD)).attr('fill', 'rgba(16,185,129,0.03)');
-            
-            g.append('text').attr('x', xScale(medianExp) + (innerWidth - xScale(medianExp)) / 2).attr('y', yScale(medianDD) / 2 - 10).attr('text-anchor', 'middle').style('fill', 'var(--accent-secondary)').style('font-size', '13px').style('font-weight', '700').style('opacity', 0.6).text('High Reward');
-            g.append('text').attr('x', xScale(medianExp) + (innerWidth - xScale(medianExp)) / 2).attr('y', yScale(medianDD) / 2 + 10).attr('text-anchor', 'middle').style('fill', 'var(--accent-secondary)').style('font-size', '13px').style('font-weight', '700').style('opacity', 0.6).text('Low Risk');
-            g.append('text').attr('x', xScale(medianExp) / 2).attr('y', yScale(medianDD) / 2).attr('text-anchor', 'middle').style('fill', '#ef4444').style('font-size', '12px').style('font-weight', '600').style('opacity', 0.5).text('Low Reward / Low Risk');
-            g.append('text').attr('x', xScale(medianExp) / 2).attr('y', innerHeight - (innerHeight - yScale(medianDD)) / 2).attr('text-anchor', 'middle').style('fill', '#ef4444').style('font-size', '12px').style('font-weight', '600').style('opacity', 0.5).text('Low Reward / High Risk');
-            g.append('text').attr('x', xScale(medianExp) + (innerWidth - xScale(medianExp)) / 2).attr('y', innerHeight - (innerHeight - yScale(medianDD)) / 2).attr('text-anchor', 'middle').style('fill', 'var(--text-secondary)').style('font-size', '12px').style('font-weight', '600').style('opacity', 0.5).text('High Reward / High Risk');
-            
-            g.append('line').attr('x1', xScale(0)).attr('x2', xScale(0)).attr('y1', 0).attr('y2', innerHeight).attr('stroke', '#ef4444').attr('stroke-width', 2).attr('stroke-dasharray', '5,5').attr('opacity', 0.4);
-            
-            const xAxisGrid = d3.axisBottom(xScale).tickSize(-innerHeight).tickFormat('');
-            const yAxisGrid = d3.axisLeft(yScale).tickSize(-innerWidth).tickFormat('');
-            g.append('g').attr('class', 'grid').attr('transform', `translate(0,${innerHeight})`).call(xAxisGrid).style('stroke', 'var(--border-color)').style('stroke-opacity', 0.3);
-            g.append('g').attr('class', 'grid').call(yAxisGrid).style('stroke', 'var(--border-color)').style('stroke-opacity', 0.3);
-            
-            g.append('g').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(xScale).tickFormat(d => d.toFixed(2))).style('color', 'var(--text-primary)').style('font-size', '12px');
-            g.append('g').call(d3.axisLeft(yScale).tickFormat(d => d.toFixed(1) + '%')).style('color', 'var(--text-primary)').style('font-size', '12px');
-            
-            g.append('text').attr('x', innerWidth / 2).attr('y', innerHeight + 55).attr('text-anchor', 'middle').style('fill', 'var(--text-primary)').style('font-size', '14px').style('font-weight', '600').text('Expectancy (R Multiplier)');
-            g.append('text').attr('transform', 'rotate(-90)').attr('x', -innerHeight / 2).attr('y', -55).attr('text-anchor', 'middle').style('fill', 'var(--text-primary)').style('font-size', '14px').style('font-weight', '600').text('Maximum Drawdown (%)');
-            
-            const tooltip = d3.select('body').append('div').style('position', 'absolute').style('background', 'var(--bg-secondary)').style('color', 'var(--text-primary)').style('padding', '12px').style('border-radius', 'var(--radius-sm)').style('border', '1px solid var(--border-color)').style('pointer-events', 'none').style('opacity', 0).style('z-index', '10000').style('box-shadow', 'var(--shadow-md)').style('font-size', '12px');
-            
-            const bubbles = g.selectAll('.bubble').data(strategies).enter().append('circle').attr('class', 'bubble').attr('data-index', (d, i) => i).attr('cx', d => xScale(d.stats.expectancy)).attr('cy', d => yScale(d.maxDrawdownPercent)).attr('r', d => sizeScale(Math.abs(d.expectedReturnPercent))).attr('fill', 'var(--accent-primary)').attr('opacity', 0.6).attr('stroke', 'var(--text-primary)').attr('stroke-width', 1.5).style('cursor', 'pointer').transition().duration(600).ease(d3.easeCubicOut).attr('opacity', 0.7);
-            
-            g.selectAll('.bubble').on('mouseover', function(event, d) {
-                d3.select(this).transition().duration(150).attr('opacity', 1).attr('stroke-width', 3).attr('r', sizeScale(Math.abs(d.expectedReturnPercent)) * 1.2);
-                const sessionsText = d.sessions.join(' + ');
-                tooltip.transition().duration(150).style('opacity', 1);
-                tooltip.html(`<div style="font-weight: 600; margin-bottom: 6px; color: var(--accent-primary);">${sessionsText}</div><div><strong>Expectancy:</strong> ${d.stats.expectancy.toFixed(3)}</div><div><strong>Max DD:</strong> ${d.maxDrawdownPercent.toFixed(1)}%</div><div><strong>Expected Return:</strong> <span style="color: var(--accent-secondary);">${d.expectedReturnPercent.toFixed(2)}%</span></div><div style="margin-top: 4px; font-size: 11px; color: var(--text-secondary);">Click to view details</div>`).style('left', (event.pageX + 15) + 'px').style('top', (event.pageY - 10) + 'px');
-            }).on('mouseout', function(event, d) {
-                d3.select(this).transition().duration(200).attr('opacity', 0.7).attr('stroke-width', 1.5).attr('r', sizeScale(Math.abs(d.expectedReturnPercent)));
-                tooltip.transition().duration(150).style('opacity', 0);
-            }).on('click', function(event, d) {
-                const index = strategies.indexOf(d);
-                const tableRow = document.querySelector(`#strategyTable tbody tr[data-index="${index}"]`);
-                if (tableRow) {
-                    tableRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    tableRow.style.background = 'rgba(59, 130, 246, 0.2)';
-                    setTimeout(() => { tableRow.style.background = ''; }, 2000);
-                }
-            });
-            
-            const legend = svg.append('g').attr('transform', `translate(${width - 100}, ${margin.top + 20})`);
-            legend.append('text').attr('x', 0).attr('y', 0).style('fill', 'var(--text-primary)').style('font-size', '13px').style('font-weight', '700').text('Bubble Size');
-            const sizes = [5, 15, 30];
-            sizes.forEach((size, i) => {
-                const r = sizeScale(size);
-                legend.append('circle').attr('cx', 30).attr('cy', 30 + i * 35).attr('r', r).attr('fill', 'var(--accent-primary)').attr('opacity', 0.7).attr('stroke', 'var(--text-primary)').attr('stroke-width', 1);
-                legend.append('text').attr('x', 55).attr('y', 35 + i * 35).style('fill', 'var(--text-secondary)').style('font-size', '11px').text(`${size}%`);
-            });
-            legend.append('text').attr('x', 0).attr('y', 140).style('fill', 'var(--text-secondary)').style('font-size', '10px').text('Expected');
-            legend.append('text').attr('x', 0).attr('y', 152).style('fill', 'var(--text-secondary)').style('font-size', '10px').text('Return %');
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: var(--spacing-sm);
+            letter-spacing: -0.02em;
         }
         
-        let allStrategies = [];
-        let allStrategySignals = [];
-        let currentSort = { column: null, direction: 'asc' };
+        .header p { color: var(--text-secondary); font-size: 1rem; font-weight: 500; }
         
-        function initTableSort() {
-            const headers = document.querySelectorAll('#strategyTable th.sortable');
-            headers.forEach(header => {
-                header.addEventListener('click', () => {
-                    const sortKey = header.dataset.sort;
-                    if (currentSort.column === sortKey) {
-                        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-                    } else {
-                        currentSort.column = sortKey;
-                        currentSort.direction = 'desc';
-                    }
-                    sortTable(sortKey, currentSort.direction);
-                    updateSortIndicators(header);
-                });
-            });
+        .settings-card, .results-card, .info-card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            margin-bottom: var(--spacing-xl);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-md);
         }
         
-        function sortTable(key, direction) {
-            const tbody = document.querySelector('#strategyTable tbody');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            
-            rows.sort((a, b) => {
-                const indexA = parseInt(a.dataset.index);
-                const indexB = parseInt(b.dataset.index);
-                const stratA = allStrategies[indexA];
-                const stratB = allStrategies[indexB];
-                
-                let valA, valB;
-                switch(key) {
-                    case 'expectancy': valA = stratA.stats.expectancy; valB = stratB.stats.expectancy; break;
-                    case 'avgTrade': valA = stratA.stats.avgTrade; valB = stratB.stats.avgTrade; break;
-                    case 'winRate': valA = stratA.stats.winRate; valB = stratB.stats.winRate; break;
-                    case 'breakevenRate': valA = stratA.stats.breakevenRate; valB = stratB.stats.breakevenRate; break;
-                    case 'trades': valA = stratA.stats.total; valB = stratB.stats.total; break;
-                    case 'expectedR': valA = stratA.stats.expectedTotalReturn; valB = stratB.stats.expectedTotalReturn; break;
-                    case 'expectedPercent': valA = stratA.expectedReturnPercent; valB = stratB.expectedReturnPercent; break;
-                    case 'maxDD': valA = stratA.maxDrawdownPercent; valB = stratB.maxDrawdownPercent; break;
-                }
-                
-                return direction === 'asc' ? valA - valB : valB - valA;
-            });
-            
-            rows.forEach(row => tbody.appendChild(row));
+        .settings-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
         }
         
-        function updateSortIndicators(activeHeader) {
-            document.querySelectorAll('#strategyTable th.sortable').forEach(h => {
-                h.classList.remove('sort-asc', 'sort-desc');
-            });
-            activeHeader.classList.add(currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+        .settings-header h3 { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }
+        
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
         }
         
-        function showStrategyDetails(index) {
-            const strategy = allStrategies[index];
-            const signals = allStrategySignals[index];
-            
-            const modal = document.createElement('div');
-            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; overflow-y: auto; padding: 40px;';
-            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-            
-            const content = document.createElement('div');
-            content.style.cssText = 'max-width: 1400px; margin: 0 auto; background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); border-radius: 20px; padding: 40px; position: relative;';
-            
-            const sessionsText = strategy.sessions.join(' + ');
-            const timeFilterText = {'none': 'None', 'optimal': 'Optimal', 'macro': 'Macro', 'both': 'Both'}[strategy.timeFilter];
-            const beText = strategy.beStrategy === 'none' ? 'No BE' : 'BE=1R';
-            
-            content.innerHTML = `
-                <button onclick="this.closest('div[style*=fixed]').remove()" style="position: absolute; top: 20px; right: 20px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--radius-sm); color: #ef4444; cursor: pointer; font-weight: 600;">✕ Close</button>
-                <h2 style="color: var(--accent-primary); margin-bottom: var(--spacing-lg); font-size: 1.5rem; font-weight: 700;">${sessionsText} | ${timeFilterText} | ${beText} | ${strategy.rTarget}R</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--spacing-md); margin-bottom: var(--spacing-xl);">
-                    <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Expectancy</div>
-                        <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-secondary); margin-top: var(--spacing-xs);">${strategy.stats.expectancy.toFixed(3)}R</div>
-                    </div>
-                    <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Win Rate</div>
-                        <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-secondary); margin-top: var(--spacing-xs);">${strategy.stats.winRate.toFixed(1)}%</div>
-                    </div>
-                    <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Expected Return</div>
-                        <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-secondary); margin-top: var(--spacing-xs);">${strategy.expectedReturnPercent > 0 ? '+' : ''}${strategy.expectedReturnPercent.toFixed(2)}%</div>
-                    </div>
-                    <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Max DD</div>
-                        <div style="font-size: 1.75rem; font-weight: 700; color: #ef4444; margin-top: var(--spacing-xs);">${strategy.maxDrawdownPercent.toFixed(1)}%</div>
-                    </div>
-                    <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Trades</div>
-                        <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-primary); margin-top: var(--spacing-xs);">${strategy.stats.total}</div>
-                    </div>
-                </div>
-                <div style="display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); border-bottom: 2px solid var(--border-color);">
-                    <button class="modal-tab active" data-tab="equity" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">📈 Equity</button>
-                    <button class="modal-tab" data-tab="calendar" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">📅 Calendar</button>
-                    <button class="modal-tab" data-tab="trades" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">📋 Trades</button>
-                    <button class="modal-tab" data-tab="risk" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">⚠️ Risk</button>
-                    <button class="modal-tab" data-tab="performance" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">📊 Performance</button>
-                </div>
-                <div class="tab-content" data-content="equity" style="display: block;">
-                    <div id="modalEquity" style="width: 100%; height: 450px; background: var(--bg-tertiary); border-radius: var(--radius-md); border: 1px solid var(--border-color);"></div>
-                </div>
-                <div class="tab-content" data-content="calendar" style="display: none;">
-                    <div id="modalCalendar" style="width: 100%;"></div>
-                </div>
-                <div class="tab-content" data-content="trades" style="display: none;">
-                    <div id="modalTrades" style="max-height: 600px; overflow-y: auto;"></div>
-                </div>
-                <div class="tab-content" data-content="risk" style="display: none;">
-                    <div id="modalRisk" style="width: 100%;"></div>
-                </div>
-                <div class="tab-content" data-content="performance" style="display: none;">
-                    <div id="modalPerformance" style="width: 100%;"></div>
-                </div>
-            `;
-            
-            modal.appendChild(content);
-            document.body.appendChild(modal);
-            
-            const tabs = modal.querySelectorAll('.modal-tab');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    tabs.forEach(t => { t.classList.remove('active'); t.style.color = 'var(--text-secondary)'; t.style.borderBottom = '2px solid transparent'; });
-                    tab.classList.add('active');
-                    tab.style.color = 'var(--accent-primary)';
-                    tab.style.borderBottom = '2px solid var(--accent-primary)';
-                    modal.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-                    modal.querySelector(`[data-content="${tab.dataset.tab}"]`).style.display = 'block';
-                });
-            });
-            tabs[0].style.color = 'var(--accent-primary)';
-            tabs[0].style.borderBottom = '2px solid var(--accent-primary)';
-            
-            renderModalEquity(signals, strategy);
-            renderModalCalendar(signals, strategy);
-            renderModalTrades(signals, strategy);
-            renderModalRisk(signals, strategy);
-            renderModalPerformance(signals, strategy);
+        .input-group { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+        
+        .input-group label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
         
-        function renderModalEquity(signals, strategy) {
-            const container = document.getElementById('modalEquity');
-            const feeR = parseFloat(document.getElementById('brokerFee').value);
-            const results = signals.map(s => calculateTradeResult(s, strategy.beStrategy, strategy.rTarget, feeR));
-            let cumulative = 0;
-            const equityData = results.map((r, i) => ({ index: i + 1, equity: cumulative += r }));
-            
-            const width = container.offsetWidth;
-            const height = 400;
-            const margin = {top: 20, right: 30, bottom: 40, left: 60};
-            const innerWidth = width - margin.left - margin.right;
-            const innerHeight = height - margin.top - margin.bottom;
-            
-            const svg = d3.select(container).append('svg').attr('width', width).attr('height', height);
-            const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
-            
-            const xScale = d3.scaleLinear().domain([0, equityData.length]).range([0, innerWidth]);
-            const yScale = d3.scaleLinear().domain([d3.min(equityData, d => d.equity) - 2, d3.max(equityData, d => d.equity) + 2]).range([innerHeight, 0]);
-            
-            const line = d3.line().x(d => xScale(d.index)).y(d => yScale(d.equity)).curve(d3.curveMonotoneX);
-            const area = d3.area().x(d => xScale(d.index)).y0(innerHeight).y1(d => yScale(d.equity)).curve(d3.curveMonotoneX);
-            
-            const gradient = svg.append('defs').append('linearGradient').attr('id', 'modalGradient').attr('x1', '0%').attr('y1', '0%').attr('x2', '0%').attr('y2', '100%');
-            gradient.append('stop').attr('offset', '0%').attr('stop-color', '#00ff88').attr('stop-opacity', 0.8);
-            gradient.append('stop').attr('offset', '100%').attr('stop-color', '#00ff88').attr('stop-opacity', 0.1);
-            
-            g.append('path').datum(equityData).attr('fill', 'url(#modalGradient)').attr('d', area).style('opacity', 0.3);
-            g.append('path').datum(equityData).attr('fill', 'none').attr('stroke', '#00ff88').attr('stroke-width', 3).attr('d', line);
-            g.append('g').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(xScale).ticks(10)).style('color', '#fff');
-            g.append('g').call(d3.axisLeft(yScale).tickFormat(d => d + 'R')).style('color', '#fff');
+        .input-group input {
+            padding: var(--spacing-md);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.2s;
         }
         
-        function renderModalCalendar(signals, strategy) {
-            const container = document.getElementById('modalCalendar');
-            const feeR = parseFloat(document.getElementById('brokerFee').value);
-            const dailyResults = {};
-            
-            signals.forEach(s => {
-                if (!dailyResults[s.date]) dailyResults[s.date] = [];
-                dailyResults[s.date].push(calculateTradeResult(s, strategy.beStrategy, strategy.rTarget, feeR));
-            });
-            
-            const dailyTotals = {};
-            Object.entries(dailyResults).forEach(([date, results]) => {
-                dailyTotals[date] = { total: results.reduce((sum, r) => sum + r, 0), count: results.length };
-            });
-            
-            const dates = Object.keys(dailyTotals).sort();
-            if (dates.length === 0) return;
-            
-            const startDate = new Date(dates[0]);
-            const endDate = new Date(dates[dates.length - 1]);
-            const startMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-            const endMonth = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
-            
-            let html = '';
-            let currentDate = new Date(startMonth);
-            
-            while (currentDate <= endMonth) {
-                const year = currentDate.getFullYear();
-                const month = currentDate.getMonth();
-                const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-                
-                html += `<div style="margin-bottom: 30px;"><h4 style="color: #00ff88; margin-bottom: 15px;">${monthName}</h4>`;
-                html += '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 10px;">';
-                ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(day => {
-                    html += `<div style="text-align: center; font-weight: 600; font-size: 12px; color: rgba(255,255,255,0.6);">${day}</div>`;
-                });
-                html += '</div><div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;">';
-                
-                const firstDay = new Date(year, month, 1).getDay();
-                for (let i = 0; i < firstDay; i++) html += '<div></div>';
-                
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const dayData = dailyTotals[dateStr];
-                    const dayOfWeek = new Date(year, month, day).getDay();
-                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                    
-                    if (dayData) {
-                        const intensity = Math.min(Math.abs(dayData.total) / 5, 1);
-                        const bgColor = dayData.total > 0 ? `rgba(0, 255, 136, ${0.3 + intensity * 0.7})` : `rgba(255, 71, 87, ${0.3 + intensity * 0.7})`;
-                        html += `<div style="background: ${bgColor}; padding: 12px; border-radius: 10px; text-align: center; border: 2px solid rgba(255,255,255,0.1);">`;
-                        html += `<div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">${day}</div>`;
-                        html += `<div style="font-weight: 700; font-size: 16px; margin-bottom: 2px;">${dayData.total > 0 ? '+' : ''}${dayData.total.toFixed(1)}R</div>`;
-                        html += `<div style="font-size: 10px; opacity: 0.7;">${dayData.count} trades</div></div>`;
-                    } else {
-                        const bgColor = isWeekend ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)';
-                        html += `<div style="background: ${bgColor}; padding: 12px; border-radius: 10px; text-align: center; border: 1px solid rgba(255,255,255,0.05);">`;
-                        html += `<div style="font-size: 11px; opacity: 0.4;">${day}</div></div>`;
-                    }
-                }
-                
-                html += '</div></div>';
-                currentDate.setMonth(currentDate.getMonth() + 1);
-            }
-            
-            container.innerHTML = html;
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
         
-        function renderModalTrades(signals, strategy) {
-            const container = document.getElementById('modalTrades');
-            const feeR = parseFloat(document.getElementById('brokerFee').value);
-            const tradesWithResults = signals.map(s => ({ ...s, result: calculateTradeResult(s, strategy.beStrategy, strategy.rTarget, feeR) }));
-            
-            let html = '<table style="width: 100%; border-collapse: collapse;"><thead><tr style="background: rgba(0,255,136,0.1);">';
-            html += '<th style="padding: 12px; text-align: left; color: #00ff88;">Date</th>';
-            html += '<th style="padding: 12px; text-align: left; color: #00ff88;">Time</th>';
-            html += '<th style="padding: 12px; text-align: left; color: #00ff88;">Session</th>';
-            html += '<th style="padding: 12px; text-align: left; color: #00ff88;">MFE</th>';
-            html += '<th style="padding: 12px; text-align: left; color: #00ff88;">Result</th>';
-            html += '<th style="padding: 12px; text-align: left; color: #00ff88;">Status</th></tr></thead><tbody>';
-            
-            tradesWithResults.forEach(trade => {
-                const mfe = strategy.beStrategy === 'be1' ? trade.mfe1 : trade.mfeNone;
-                const statusColor = trade.result > 0 ? '#00ff88' : (trade.result === 0 ? '#ffa502' : '#ff4757');
-                const statusText = trade.result > 0 ? 'WIN' : (trade.result === 0 ? 'BE' : 'LOSS');
-                html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">`;
-                html += `<td style="padding: 12px;">${trade.date}</td>`;
-                html += `<td style="padding: 12px;">${trade.time || 'N/A'}</td>`;
-                html += `<td style="padding: 12px;">${trade.session}</td>`;
-                html += `<td style="padding: 12px;">${mfe.toFixed(2)}R</td>`;
-                html += `<td style="padding: 12px; color: ${statusColor}; font-weight: 700;">${trade.result > 0 ? '+' : ''}${trade.result.toFixed(2)}R</td>`;
-                html += `<td style="padding: 12px; color: ${statusColor}; font-weight: 600;">${statusText}</td></tr>`;
-            });
-            
-            html += '</tbody></table>';
-            container.innerHTML = html;
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md);
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
         }
         
-        function renderModalRisk(signals, strategy) {
-            const container = document.getElementById('modalRisk');
-            const feeR = parseFloat(document.getElementById('brokerFee').value);
-            const results = signals.map(s => calculateTradeResult(s, strategy.beStrategy, strategy.rTarget, feeR));
-            
-            let runningTotal = 0, peak = 0;
-            const drawdowns = results.map(r => {
-                runningTotal += r;
-                if (runningTotal > peak) peak = runningTotal;
-                return peak - runningTotal;
-            });
-            
-            const ddBuckets = [0, 1, 2, 3, 5, 10];
-            const ddDist = ddBuckets.map((bucket, i) => {
-                const nextBucket = ddBuckets[i + 1] || 999;
-                const count = drawdowns.filter(dd => dd >= bucket && dd < nextBucket).length;
-                return { range: `${bucket}-${nextBucket === 999 ? '+' : nextBucket}R`, count };
-            });
-            
-            let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg);">';
-            html += '<div><h4 style="color: var(--accent-primary); margin-bottom: var(--spacing-md);">Drawdown Distribution</h4>';
-            html += '<div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">';
-            ddDist.forEach(d => {
-                const pct = (d.count / drawdowns.length * 100).toFixed(1);
-                html += `<div style="margin-bottom: var(--spacing-sm);"><div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>${d.range}</span><span>${d.count} (${pct}%)</span></div><div style="background: rgba(239,68,68,0.2); height: 8px; border-radius: 4px;"><div style="background: #ef4444; height: 100%; width: ${pct}%; border-radius: 4px;"></div></div></div>`;
-            });
-            html += '</div></div>';
-            
-            const sessionBreakdown = {};
-            signals.forEach((s, i) => {
-                if (!sessionBreakdown[s.session]) sessionBreakdown[s.session] = [];
-                sessionBreakdown[s.session].push(results[i]);
-            });
-            
-            html += '<div><h4 style="color: var(--accent-primary); margin-bottom: var(--spacing-md);">Expectancy by Session</h4>';
-            html += '<div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">';
-            Object.entries(sessionBreakdown).forEach(([session, res]) => {
-                const stats = calculateStats(res);
-                html += `<div style="padding: var(--spacing-sm); margin-bottom: var(--spacing-sm); background: rgba(59,130,246,0.05); border-radius: var(--radius-sm);"><div style="font-weight: 600; margin-bottom: 4px;">${session}</div><div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--spacing-sm); font-size: 0.875rem;"><div>Exp: <span style="color: var(--accent-secondary);">${stats.expectancy.toFixed(3)}R</span></div><div>WR: ${stats.winRate.toFixed(1)}%</div><div>Trades: ${res.length}</div></div></div>`;
-            });
-            html += '</div></div></div>';
-            
-            html += `<div style="margin-top: var(--spacing-lg); padding: var(--spacing-md); background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2); border-radius: var(--radius-sm);"><h4 style="color: #ef4444; margin-bottom: var(--spacing-sm);">Risk Metrics</h4><div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-md); font-size: 0.875rem;"><div><strong>Max Drawdown:</strong> ${strategy.maxDrawdownPercent.toFixed(1)}%</div><div><strong>Max Daily Loss:</strong> ${strategy.maxDailyLossPercent.toFixed(1)}%</div><div><strong>Max Consec Losses:</strong> ${strategy.stats.maxConsecLosses}</div></div></div>`;
-            
-            container.innerHTML = html;
+        .checkbox-group:hover { background: rgba(59, 130, 246, 0.1); }
+        .checkbox-group input { width: 18px; height: 18px; accent-color: var(--accent-primary); cursor: pointer; }
+        .checkbox-group span { font-weight: 600; color: var(--text-primary); }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), #2563eb);
+            border: none;
+            padding: var(--spacing-md) var(--spacing-xl);
+            border-radius: var(--radius-md);
+            color: white;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: var(--shadow-md);
         }
         
-        function renderModalPerformance(signals, strategy) {
-            const container = document.getElementById('modalPerformance');
-            const feeR = parseFloat(document.getElementById('brokerFee').value);
-            const results = signals.map(s => calculateTradeResult(s, strategy.beStrategy, strategy.rTarget, feeR));
-            
-            const chunkSize = Math.ceil(results.length / 5);
-            const chunks = [];
-            for (let i = 0; i < results.length; i += chunkSize) {
-                chunks.push(results.slice(i, i + chunkSize));
-            }
-            
-            const winResults = results.filter(r => r > 0);
-            const lossResults = results.filter(r => r < 0);
-            const avgWin = winResults.length > 0 ? winResults.reduce((a,b) => a + b, 0) / winResults.length : 0;
-            const avgLoss = lossResults.length > 0 ? Math.abs(lossResults.reduce((a,b) => a + b, 0) / lossResults.length) : 1;
-            const profitFactor = lossResults.length > 0 ? (winResults.reduce((a,b) => a + b, 0) / Math.abs(lossResults.reduce((a,b) => a + b, 0))) : 0;
-            
-            let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg);">';
-            html += '<div><h4 style="color: var(--accent-primary); margin-bottom: var(--spacing-md);">Win Rate Trend</h4>';
-            html += '<div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">';
-            chunks.forEach((chunk, i) => {
-                const stats = calculateStats(chunk);
-                const barWidth = stats.winRate;
-                html += `<div style="margin-bottom: var(--spacing-sm);"><div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.875rem;"><span>Period ${i + 1}</span><span>${stats.winRate.toFixed(1)}%</span></div><div style="background: rgba(16,185,129,0.2); height: 8px; border-radius: 4px;"><div style="background: var(--accent-secondary); height: 100%; width: ${barWidth}%; border-radius: 4px;"></div></div></div>`;
-            });
-            html += '</div></div>';
-            
-            html += '<div><h4 style="color: var(--accent-primary); margin-bottom: var(--spacing-md);">Key Metrics</h4>';
-            html += '<div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">';
-            html += `<div style="padding: var(--spacing-sm); margin-bottom: var(--spacing-sm); background: rgba(16,185,129,0.05); border-radius: var(--radius-sm);"><div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Profit Factor</div><div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-secondary); margin-top: 4px;">${profitFactor.toFixed(2)}</div></div>`;
-            html += `<div style="padding: var(--spacing-sm); margin-bottom: var(--spacing-sm); background: rgba(59,130,246,0.05); border-radius: var(--radius-sm);"><div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Avg Win</div><div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-primary); margin-top: 4px;">${avgWin.toFixed(2)}R</div></div>`;
-            html += `<div style="padding: var(--spacing-sm); background: rgba(239,68,68,0.05); border-radius: var(--radius-sm);"><div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Avg Loss</div><div style="font-size: 1.5rem; font-weight: 700; color: #ef4444; margin-top: 4px;">${avgLoss.toFixed(2)}R</div></div>`;
-            html += '</div></div></div>';
-            
-            html += `<div style="margin-top: var(--spacing-lg); padding: var(--spacing-md); background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.2); border-radius: var(--radius-sm);"><h4 style="color: var(--accent-primary); margin-bottom: var(--spacing-sm);">Performance Summary</h4><div style="font-size: 0.875rem; line-height: 1.8;"><div>Total Trades: <strong>${results.length}</strong></div><div>Wins: <strong style="color: var(--accent-secondary);">${winResults.length}</strong> | Losses: <strong style="color: #ef4444;">${lossResults.length}</strong> | BE: <strong>${results.filter(r => r === 0).length}</strong></div><div>Win/Loss Ratio: <strong>${(avgWin / avgLoss).toFixed(2)}</strong></div></div></div>`;
-            
-            container.innerHTML = html;
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .btn-primary:active { transform: translateY(0); }
+        
+        .fab {
+            position: fixed;
+            bottom: var(--spacing-xl);
+            right: var(--spacing-xl);
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, var(--accent-primary), #2563eb);
+            border-radius: 50%;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            transition: all 0.3s;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('results').innerHTML = '<div class="results-card" style="text-align: center; padding: 60px; color: var(--text-secondary);">Click "Run Comparison" to analyze strategies</div>';
-        });
-    </script>
-</body>
-</html>
+        .fab:hover { transform: scale(1.1) rotate(90deg); box-shadow: 0 12px 30px rgba(59, 130, 246, 0.4); }
+        
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        
+        th, td { padding: var(--spacing-md); text-align: left; border-bottom: 1px solid var(--border-color); }
+        
+        th {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            transition: all 0.2s;
+        }
+        
+        th:first-child { border-top-left-radius: var(--radius-sm); }
+        th:last-child { border-top-right-radius: var(--radius-sm); }
+        th:hover { background: rgba(59, 130, 246, 0.1); color: var(--accent-primary); }
+        th.sortable::after { content: ' ⇅'; opacity: 0.3; font-size: 12px; }
+        th.sort-asc::after { content: ' ↑'; opacity: 1; color: var(--accent-primary); }
+        th.sort-desc::after { content: ' ↓'; opacity: 1; color: var(--accent-primary); }
+        
+        tbody tr { transition: all 0.2s; }
+        tbody tr:hover { background: rgba(59, 130, 246, 0.05); }
+        td { color: var(--text-primary); font-size: 0.875rem; }
+        
+        .view-btn {
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: var(--radius-sm);
+            color: var(--accent-primary);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        
+        .view-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+        }
+        
+        .info-card {
+            background: rgba(59, 130, 246, 0.05);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        
+        .info-card h3 { color: var(--accent-primary); font-size: 1rem; font-weight: 700; margin-bottom: var(--spacing-sm); }
+        .info-card p { color: var(--text-secondary); font-size: 0.875rem; margin-bottom: var(--spacing-xs); }
+        
+        .chart-container {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            margin-top: var(--spacing-xl);
+            border: 1px solid var(--border-color);
+        }
+        
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .chart-header h3 { font-size: 1.125rem; font-weight: 700; color: var(--text-primary); }
+    </style>
