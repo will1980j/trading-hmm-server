@@ -4343,6 +4343,23 @@ def get_ml_analytics():
         logger.error(f"ML analytics error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/ml-optimization', methods=['GET'])
+@login_required
+def get_ml_optimization():
+    """Get ML-driven optimization recommendations"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from ml_optimizer import MLOptimizer
+        optimizer = MLOptimizer(db)
+        recommendations = optimizer.get_optimization_recommendations()
+        
+        return jsonify(recommendations)
+    except Exception as e:
+        logger.error(f"ML optimization error: {str(e)}")
+        return jsonify({'error': str(e), 'recommendations': []}), 500
+
 @app.route('/api/live-prediction', methods=['GET'])
 @login_required
 def get_live_prediction():

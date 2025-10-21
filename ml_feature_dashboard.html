@@ -365,8 +365,18 @@
         </div>
 
         <div class="recommendations">
-            <div class="chart-title">💡 Automated Feature Recommendations</div>
-            <div id="featureRecommendations"></div>
+            <div class="chart-title">🚀 ML-Driven Optimization Recommendations</div>
+            <div id="mlOptimizationRecommendations"></div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">📊 Performance Status</div>
+            <div id="performanceStatus"></div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">🎯 Signal Filtering Recommendations</div>
+            <div id="signalFilters"></div>
         </div>
 
         <div class="chart-container">
@@ -603,6 +613,112 @@
             }).join('');
         }
 
+        async function loadMLOptimization() {
+            try {
+                const response = await fetch('/api/ml-optimization');
+                const data = await response.json();
+                
+                if (data.recommendations) {
+                    displayMLOptimization(data.recommendations);
+                    displayPerformanceStatus(data.performance_status);
+                    displaySignalFilters(data.signal_filters);
+                }
+            } catch (error) {
+                console.error('Error loading ML optimization:', error);
+            }
+        }
+
+        function displayMLOptimization(recommendations) {
+            const container = document.getElementById('mlOptimizationRecommendations');
+            if (!recommendations || recommendations.length === 0) {
+                container.innerHTML = '<p style="color: #10b981;">✓ All systems optimized</p>';
+                return;
+            }
+            
+            container.innerHTML = recommendations.map(rec => `
+                <div class="recommendation-item ${rec.priority.toLowerCase()}">
+                    <div style="display: flex; justify-content: between; align-items: start; margin-bottom: 8px;">
+                        <div style="flex: 1;">
+                            <div class="recommendation-type">${rec.title}</div>
+                            <div class="recommendation-message">${rec.message}</div>
+                        </div>
+                        <span class="feature-badge" style="background: ${
+                            rec.priority === 'Critical' ? '#ef4444' : 
+                            rec.priority === 'High' ? '#f59e0b' : '#3b82f6'
+                        }; margin-left: 10px;">${rec.priority}</span>
+                    </div>
+                    <div style="font-size: 12px; color: #3b82f6; margin-top: 8px;">
+                        → ${rec.action}
+                    </div>
+                    <div style="font-size: 12px; color: #10b981; margin-top: 4px;">
+                        Expected Impact: ${rec.impact}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function displayPerformanceStatus(status) {
+            const container = document.getElementById('performanceStatus');
+            if (!status || status.status === 'insufficient_data') {
+                container.innerHTML = '<p style="color: #94a3b8;">Collecting performance data...</p>';
+                return;
+            }
+            
+            const degradationColor = status.needs_retraining ? '#ef4444' : '#10b981';
+            
+            container.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div class="stat-card">
+                        <div class="stat-label">Recent Accuracy</div>
+                        <div class="stat-value" style="font-size: 20px;">${(status.recent_accuracy * 100).toFixed(1)}%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Historical Accuracy</div>
+                        <div class="stat-value" style="font-size: 20px;">${(status.historical_accuracy * 100).toFixed(1)}%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Degradation</div>
+                        <div class="stat-value" style="font-size: 20px; color: ${degradationColor};">
+                            ${status.degradation >= 0 ? '+' : ''}${(status.degradation * 100).toFixed(1)}%
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Status</div>
+                        <div style="margin-top: 8px;">
+                            <span class="feature-badge" style="background: ${degradationColor};">
+                                ${status.needs_retraining ? 'Needs Retraining' : 'Healthy'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function displaySignalFilters(filterData) {
+            const container = document.getElementById('signalFilters');
+            if (!filterData || !filterData.filters || filterData.filters.length === 0) {
+                container.innerHTML = '<p style="color: #94a3b8;">No filter recommendations</p>';
+                return;
+            }
+            
+            container.innerHTML = filterData.filters.map(filter => `
+                <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="font-weight: 600; font-size: 14px;">${filter.session}</div>
+                        <span class="feature-badge" style="background: ${
+                            filter.confidence === 'High' ? '#10b981' : 
+                            filter.confidence === 'Medium' ? '#f59e0b' : '#ef4444'
+                        };">${filter.recommendation}</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">
+                        Success Rate: ${(filter.success_rate * 100).toFixed(1)}% | 
+                        Avg MFE: ${filter.avg_mfe.toFixed(2)}R | 
+                        Samples: ${filter.sample_size}
+                    </div>
+                </div>
+            `).join('');
+        }
+
         async function loadLivePrediction() {
             try {
                 const response = await fetch('/api/live-prediction');
@@ -831,12 +947,14 @@
         loadData();
         loadLivePrediction();
         loadAdvancedAnalysis();
+        loadMLOptimization();
 
         // Auto-refresh every 60 seconds
         setInterval(() => {
             loadData();
             loadLivePrediction();
             loadAdvancedAnalysis();
+            loadMLOptimization();
         }, 60000);
     </script>
 </body>
