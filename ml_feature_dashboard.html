@@ -255,8 +255,12 @@
 
         async function loadData() {
             try {
-                const response = await fetch('ml_feature_importance.json');
+                const response = await fetch('/api/ml-feature-importance');
                 const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
                 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('content').style.display = 'block';
@@ -269,7 +273,7 @@
                 displayCorrelations(data.correlations);
             } catch (error) {
                 document.getElementById('loading').innerHTML = 
-                    '<p style="color: #ef4444;">Error loading data. Please run ml_feature_importance.py first.</p>';
+                    '<p style="color: #ef4444;">Error loading ML feature data: ' + error.message + '</p>';
             }
         }
 

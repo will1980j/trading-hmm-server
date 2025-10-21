@@ -4343,6 +4343,26 @@ def get_ml_analytics():
         logger.error(f"ML analytics error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/ml-feature-importance', methods=['GET'])
+@login_required
+def get_ml_feature_importance():
+    """Get ML feature importance data"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from unified_ml_intelligence import get_unified_ml
+        ml_engine = get_unified_ml(db)
+        
+        if not ml_engine.is_trained:
+            ml_engine.train_on_all_data()
+        
+        feature_importance = ml_engine.get_feature_importance()
+        return jsonify(feature_importance)
+    except Exception as e:
+        logger.error(f"Feature importance error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/ml-train', methods=['POST'])
 @login_required
 def train_ml_models():
