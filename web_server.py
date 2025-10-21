@@ -397,8 +397,8 @@ def nasdaq_backtest():
 @app.route('/ml-dashboard')
 @login_required
 def ml_dashboard():
-    """Unified ML Intelligence Dashboard - Auto-Training Version"""
-    return read_html_file('ml_dashboard.html')
+    """ML Feature Dashboard - Comprehensive ML Intelligence"""
+    return read_html_file('ml_feature_dashboard.html')
 
 @app.route('/strategy-optimizer')
 @login_required
