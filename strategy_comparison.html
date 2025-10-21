@@ -19,7 +19,15 @@
         .btn { background: linear-gradient(45deg, #00ff88, #00d4aa); border: none; padding: 15px 30px; border-radius: 12px; color: white; font-weight: 700; cursor: pointer; margin: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        th { background: rgba(0,255,136,0.1); color: #00ff88; font-weight: 600; }
+        th { background: rgba(0,255,136,0.1); color: #00ff88; font-weight: 600; cursor: pointer; user-select: none; position: relative; }
+        th:hover { background: rgba(0,255,136,0.2); }
+        th.sortable::after { content: ' ⇅'; opacity: 0.3; font-size: 12px; }
+        th.sort-asc::after { content: ' ↑'; opacity: 1; }
+        th.sort-desc::after { content: ' ↓'; opacity: 1; }
+        tbody tr { transition: all 0.2s; }
+        tbody tr:hover { background: rgba(255,255,255,0.05); transform: scale(1.01); box-shadow: 0 4px 12px rgba(0,255,136,0.1); }
+        .view-btn { padding: 8px 16px; background: rgba(0,255,136,0.2); border: 1px solid rgba(0,255,136,0.3); border-radius: 8px; color: #00ff88; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+        .view-btn:hover { background: rgba(0,255,136,0.4); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,255,136,0.3); }
     </style>
 </head>
 <body>
@@ -196,13 +204,11 @@
                                 const stats = calculateStats(results);
                                 const expectedReturnPercent = stats.expectedTotalReturn * riskPerTrade;
                                 const maxDrawdownPercent = stats.maxDrawdown * riskPerTrade;
-                                const tradesPerYear = (stats.total / 365) * 252;
-                                const annualReturnPercent = stats.expectancy * tradesPerYear * riskPerTrade;
                                 if (stats.expectancy > 0 && maxDrawdownPercent <= maxDrawdown) {
                                     strategies.push({
                                         sessions: [session], beStrategy, rTarget, riskPerTrade, timeFilter, stats, expectedReturnPercent,
                                         maxDailyLossPercent: stats.maxConsecLosses * riskPerTrade,
-                                        maxDrawdownPercent, annualReturnPercent, tradesPerYear
+                                        maxDrawdownPercent
                                     });
                                 }
                             });
@@ -240,13 +246,11 @@
                                 const stats = calculateStats(results);
                                 const expectedReturnPercent = stats.expectedTotalReturn * riskPerTrade;
                                 const maxDrawdownPercent = stats.maxDrawdown * riskPerTrade;
-                                const tradesPerYear = (stats.total / 365) * 252;
-                                const annualReturnPercent = stats.expectancy * tradesPerYear * riskPerTrade;
                                 if (stats.expectancy > 0 && maxDrawdownPercent <= maxDrawdown) {
                                     strategies.push({
                                         sessions: sessionCombo, beStrategy, rTarget, riskPerTrade, timeFilter, stats, expectedReturnPercent,
                                         maxDailyLossPercent: stats.maxConsecLosses * riskPerTrade,
-                                        maxDrawdownPercent, annualReturnPercent, tradesPerYear
+                                        maxDrawdownPercent
                                     });
                                 }
                             }
@@ -325,7 +329,7 @@
             
             const beText = { 'none': 'No BE', 'be1': 'BE=1R' };
             
-            let html = '<table><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th>Expectancy</th><th>Avg Trade</th><th>Win Rate</th><th>BE Rate</th><th>Trades</th><th>Expected R</th><th>Expected %</th><th>Annual %</th><th>Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
+            let html = '<table id="strategyTable"><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th class="sortable" data-sort="expectancy">Expectancy</th><th class="sortable" data-sort="avgTrade">Avg Trade</th><th class="sortable" data-sort="winRate">Win Rate</th><th class="sortable" data-sort="breakevenRate">BE Rate</th><th class="sortable" data-sort="trades">Trades</th><th class="sortable" data-sort="expectedR">Expected R</th><th class="sortable" data-sort="expectedPercent">Expected %</th><th class="sortable" data-sort="maxDD">Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
             
             const maxDailyLoss = parseFloat(document.getElementById('maxDailyLoss')?.value || 5);
             const minWinRate = parseFloat(document.getElementById('minWinRate')?.value || 40);
@@ -337,23 +341,25 @@
                 const timeFilterText = {'none': 'None', 'optimal': 'Optimal', 'macro': 'Macro', 'both': 'Both'}[s.timeFilter];
                 const propViable = s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate;
                 const propIcon = propViable ? '✅' : '❌';
-                html += `<tr ${rowClass}>
+                const expectancyColor = s.stats.expectancy > 0.2 ? `rgba(0,255,136,${Math.min(s.stats.expectancy * 2, 1) * 0.3})` : 'transparent';
+                const winRateColor = s.stats.winRate > 50 ? `rgba(0,255,136,${(s.stats.winRate - 50) / 50 * 0.3})` : 'transparent';
+                const ddColor = `rgba(255,71,87,${Math.min(s.maxDrawdownPercent / 10, 1) * 0.3})`;
+                html += `<tr ${rowClass} data-index="${i}">
                     <td>${i === 0 ? '🏆' : i + 1}</td>
                     <td>${sessionsText}</td>
                     <td>${timeFilterText}</td>
                     <td>${beText[s.beStrategy]}</td>
                     <td>${s.rTarget}R</td>
-                    <td>${s.stats.expectancy.toFixed(3)}</td>
+                    <td style="background: ${expectancyColor}; font-weight: 600;">${s.stats.expectancy.toFixed(3)}</td>
                     <td>${s.stats.avgTrade.toFixed(3)}R</td>
-                    <td>${s.stats.winRate.toFixed(1)}%</td>
+                    <td style="background: ${winRateColor}; font-weight: 600;">${s.stats.winRate.toFixed(1)}%</td>
                     <td>${s.stats.breakevenRate.toFixed(1)}%</td>
                     <td>${s.stats.total}</td>
                     <td style="color: #00ff88; font-weight: 700;">${s.stats.expectedTotalReturn > 0 ? '+' : ''}${s.stats.expectedTotalReturn.toFixed(1)}R</td>
                     <td style="color: #00ff88; font-weight: 700;">${s.expectedReturnPercent > 0 ? '+' : ''}${s.expectedReturnPercent.toFixed(2)}%</td>
-                    <td style="color: #ffa502; font-weight: 700;">${s.annualReturnPercent > 0 ? '+' : ''}${s.annualReturnPercent.toFixed(1)}%</td>
-                    <td>${s.maxDrawdownPercent.toFixed(1)}%</td>
+                    <td style="background: ${ddColor}; font-weight: 600;">${s.maxDrawdownPercent.toFixed(1)}%</td>
                     <td style="text-align: center; font-size: 18px;">${propIcon}</td>
-                    <td><button onclick="showStrategyDetails(${i})" style="padding: 8px 16px; background: rgba(0,255,136,0.2); border: 1px solid rgba(0,255,136,0.3); border-radius: 8px; color: #00ff88; cursor: pointer; font-weight: 600;">📊 View</button></td>
+                    <td><button onclick="showStrategyDetails(${i})" class="view-btn">📊 View</button></td>
                 </tr>`;
             });
             
@@ -381,6 +387,7 @@
             
             document.getElementById('results').innerHTML = html;
             
+            initTableSort();
             renderScatterPlot(strategies);
         }
         
@@ -544,6 +551,59 @@
         
         let allStrategies = [];
         let allStrategySignals = [];
+        let currentSort = { column: null, direction: 'asc' };
+        
+        function initTableSort() {
+            const headers = document.querySelectorAll('#strategyTable th.sortable');
+            headers.forEach(header => {
+                header.addEventListener('click', () => {
+                    const sortKey = header.dataset.sort;
+                    if (currentSort.column === sortKey) {
+                        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort.column = sortKey;
+                        currentSort.direction = 'desc';
+                    }
+                    sortTable(sortKey, currentSort.direction);
+                    updateSortIndicators(header);
+                });
+            });
+        }
+        
+        function sortTable(key, direction) {
+            const tbody = document.querySelector('#strategyTable tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            rows.sort((a, b) => {
+                const indexA = parseInt(a.dataset.index);
+                const indexB = parseInt(b.dataset.index);
+                const stratA = allStrategies[indexA];
+                const stratB = allStrategies[indexB];
+                
+                let valA, valB;
+                switch(key) {
+                    case 'expectancy': valA = stratA.stats.expectancy; valB = stratB.stats.expectancy; break;
+                    case 'avgTrade': valA = stratA.stats.avgTrade; valB = stratB.stats.avgTrade; break;
+                    case 'winRate': valA = stratA.stats.winRate; valB = stratB.stats.winRate; break;
+                    case 'breakevenRate': valA = stratA.stats.breakevenRate; valB = stratB.stats.breakevenRate; break;
+                    case 'trades': valA = stratA.stats.total; valB = stratB.stats.total; break;
+                    case 'expectedR': valA = stratA.stats.expectedTotalReturn; valB = stratB.stats.expectedTotalReturn; break;
+                    case 'expectedPercent': valA = stratA.expectedReturnPercent; valB = stratB.expectedReturnPercent; break;
+                    case 'maxDD': valA = stratA.maxDrawdownPercent; valB = stratB.maxDrawdownPercent; break;
+                }
+                
+                return direction === 'asc' ? valA - valB : valB - valA;
+            });
+            
+            rows.forEach(row => tbody.appendChild(row));
+        }
+        
+        function updateSortIndicators(activeHeader) {
+            document.querySelectorAll('#strategyTable th.sortable').forEach(h => {
+                h.classList.remove('sort-asc', 'sort-desc');
+            });
+            activeHeader.classList.add(currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+        }
         
         function showStrategyDetails(index) {
             const strategy = allStrategies[index];
@@ -584,22 +644,10 @@
                         <div style="font-size: 12px; opacity: 0.8;">Trades</div>
                         <div style="font-size: 24px; font-weight: 700; color: #00ff88;">${strategy.stats.total}</div>
                     </div>
-                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; text-align: center;">
-                        <div style="font-size: 12px; opacity: 0.8;">Annual Return</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #ffa502;">${strategy.annualReturnPercent > 0 ? '+' : ''}${strategy.annualReturnPercent.toFixed(1)}%</div>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; text-align: center;">
-                        <div style="font-size: 12px; opacity: 0.8;">Trades/Year</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #00ff88;">${strategy.tradesPerYear.toFixed(0)}</div>
-                    </div>
                 </div>
                 <div style="margin-bottom: 30px;">
-                    <h3 style="color: #00ff88; margin-bottom: 15px;">📈 Historical Equity Curve</h3>
+                    <h3 style="color: #00ff88; margin-bottom: 15px;">📈 Equity Curve</h3>
                     <div id="modalEquity" style="width: 100%; height: 400px; background: rgba(0,0,0,0.3); border-radius: 12px;"></div>
-                </div>
-                <div style="margin-bottom: 30px;">
-                    <h3 style="color: #ffa502; margin-bottom: 15px;">📊 Projected Annual Equity Curve</h3>
-                    <div id="modalProjected" style="width: 100%; height: 400px; background: rgba(0,0,0,0.3); border-radius: 12px;"></div>
                 </div>
                 <div style="margin-bottom: 30px;">
                     <h3 style="color: #00ff88; margin-bottom: 15px;">📅 Calendar</h3>
@@ -615,7 +663,6 @@
             document.body.appendChild(modal);
             
             renderModalEquity(signals, strategy);
-            renderModalProjected(strategy);
             renderModalCalendar(signals, strategy);
             renderModalTrades(signals, strategy);
         }
@@ -650,57 +697,6 @@
             g.append('path').datum(equityData).attr('fill', 'none').attr('stroke', '#00ff88').attr('stroke-width', 3).attr('d', line);
             g.append('g').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(xScale).ticks(10)).style('color', '#fff');
             g.append('g').call(d3.axisLeft(yScale).tickFormat(d => d + 'R')).style('color', '#fff');
-        }
-        
-        function renderModalProjected(strategy) {
-            const container = document.getElementById('modalProjected');
-            const riskPerTrade = strategy.riskPerTrade;
-            const expectancy = strategy.stats.expectancy;
-            const tradesPerYear = strategy.tradesPerYear;
-            
-            const projectedData = [];
-            let equity = 100;
-            const tradingDays = 252;
-            const tradesPerDay = tradesPerYear / tradingDays;
-            
-            for (let day = 0; day <= tradingDays; day++) {
-                projectedData.push({ day, equity });
-                const dailyReturn = expectancy * tradesPerDay * riskPerTrade;
-                equity = equity * (1 + dailyReturn / 100);
-            }
-            
-            const width = container.offsetWidth;
-            const height = 400;
-            const margin = {top: 20, right: 30, bottom: 40, left: 60};
-            const innerWidth = width - margin.left - margin.right;
-            const innerHeight = height - margin.top - margin.bottom;
-            
-            const svg = d3.select(container).append('svg').attr('width', width).attr('height', height);
-            const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
-            
-            const xScale = d3.scaleLinear().domain([0, tradingDays]).range([0, innerWidth]);
-            const yScale = d3.scaleLinear().domain([100, d3.max(projectedData, d => d.equity) * 1.05]).range([innerHeight, 0]);
-            
-            const line = d3.line().x(d => xScale(d.day)).y(d => yScale(d.equity)).curve(d3.curveMonotoneX);
-            const area = d3.area().x(d => xScale(d.day)).y0(innerHeight).y1(d => yScale(d.equity)).curve(d3.curveMonotoneX);
-            
-            const gradient = svg.append('defs').append('linearGradient').attr('id', 'projectedGradient').attr('x1', '0%').attr('y1', '0%').attr('x2', '0%').attr('y2', '100%');
-            gradient.append('stop').attr('offset', '0%').attr('stop-color', '#ffa502').attr('stop-opacity', 0.8);
-            gradient.append('stop').attr('offset', '100%').attr('stop-color', '#ffa502').attr('stop-opacity', 0.1);
-            
-            g.append('path').datum(projectedData).attr('fill', 'url(#projectedGradient)').attr('d', area).style('opacity', 0.3);
-            g.append('path').datum(projectedData).attr('fill', 'none').attr('stroke', '#ffa502').attr('stroke-width', 3).attr('d', line);
-            
-            g.append('line').attr('x1', 0).attr('x2', innerWidth).attr('y1', yScale(100)).attr('y2', yScale(100)).attr('stroke', '#fff').attr('stroke-width', 1).attr('stroke-dasharray', '5,5').attr('opacity', 0.3);
-            
-            g.append('g').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(xScale).ticks(10)).style('color', '#fff');
-            g.append('g').call(d3.axisLeft(yScale).tickFormat(d => '$' + d.toFixed(0))).style('color', '#fff');
-            
-            g.append('text').attr('x', innerWidth / 2).attr('y', innerHeight + 35).attr('text-anchor', 'middle').style('fill', '#fff').text('Trading Days');
-            g.append('text').attr('transform', 'rotate(-90)').attr('x', -innerHeight / 2).attr('y', -45).attr('text-anchor', 'middle').style('fill', '#fff').text('Account Value ($)');
-            
-            const finalEquity = projectedData[projectedData.length - 1].equity;
-            g.append('text').attr('x', innerWidth - 10).attr('y', 20).attr('text-anchor', 'end').style('fill', '#ffa502').style('font-size', '14px').style('font-weight', '700').text(`Year End: $${finalEquity.toFixed(0)} (+${(finalEquity - 100).toFixed(1)}%)`);
         }
         
         function renderModalCalendar(signals, strategy) {
