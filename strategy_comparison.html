@@ -314,6 +314,11 @@
         }
         
         function displayComparison(strategies, totalPossible, profitableCount) {
+            if (!strategies || strategies.length === 0) {
+                document.getElementById('results').innerHTML = '<div style="text-align: center; padding: 60px; color: #ff4757;">No strategies found matching criteria</div>';
+                return;
+            }
+            
             const beText = { 'none': 'No BE', 'be1': 'BE=1R' };
             
             let html = '<table><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th>Expectancy</th><th>Avg Trade</th><th>Win Rate</th><th>BE Rate</th><th>Trades</th><th>Expected R</th><th>Expected %</th><th>Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
