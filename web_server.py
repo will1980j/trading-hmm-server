@@ -4343,6 +4343,23 @@ def get_ml_analytics():
         logger.error(f"ML analytics error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/live-prediction', methods=['GET'])
+@login_required
+def get_live_prediction():
+    """Get intelligent live prediction with confidence"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from intelligent_predictor import IntelligentPredictor
+        predictor = IntelligentPredictor(db)
+        prediction = predictor.get_live_prediction()
+        
+        return jsonify(prediction)
+    except Exception as e:
+        logger.error(f"Live prediction error: {str(e)}")
+        return jsonify({'error': str(e), 'status': 'error'}), 500
+
 @app.route('/api/advanced-feature-analysis', methods=['GET'])
 @login_required
 def get_advanced_feature_analysis():

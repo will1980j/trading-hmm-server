@@ -199,6 +199,14 @@
     <div id="loading" class="loading">Loading feature importance data...</div>
 
     <div id="content" style="display: none;">
+        <!-- Live Predictions Section -->
+        <div class="chart-container">
+            <div class="chart-title">🔮 Live Predictions</div>
+            <div id="livePredictionContent">
+                <p style="color: var(--text-secondary); text-align: center; padding: 20px;">Loading live prediction...</p>
+            </div>
+        </div>
+
         <!-- ML Model Status Section -->
         <div class="chart-container">
             <div class="chart-title">🤖 ML Model Status</div>
@@ -595,6 +603,82 @@
             }).join('');
         }
 
+        async function loadLivePrediction() {
+            try {
+                const response = await fetch('/api/live-prediction');
+                const data = await response.json();
+                
+                const container = document.getElementById('livePredictionContent');
+                
+                if (data.status === 'no_active_signal') {
+                    container.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No active signals</p>';
+                    return;
+                }
+                
+                if (data.status === 'success') {
+                    const pred = data.prediction;
+                    const signal = data.signal;
+                    const multiTarget = data.multi_target;
+                    
+                    const confidenceColor = pred.confidence >= 80 ? 'var(--accent-success)' : 
+                                          pred.confidence >= 60 ? 'var(--accent-warning)' : 'var(--accent-danger)';
+                    
+                    container.innerHTML = `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                            <div class="stat-card">
+                                <div class="stat-label">Signal</div>
+                                <div style="font-size: 16px; margin-top: 8px;">${signal.session} ${signal.bias}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Prediction</div>
+                                <div class="stat-value" style="font-size: 20px; color: ${pred.prediction === 'Success' ? 'var(--accent-success)' : 'var(--accent-danger)'};">                                    ${pred.prediction}
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Confidence</div>
+                                <div class="stat-value" style="font-size: 20px; color: ${confidenceColor};">${pred.confidence}%</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Position Size</div>
+                                <div style="font-size: 16px; margin-top: 8px; color: var(--text-secondary);">${pred.position_size_recommendation}</div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+                            <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px;">
+                                <div style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">Model Voting</div>
+                                <div style="font-size: 13px; color: var(--text-secondary);">
+                                    <div style="margin: 5px 0;">Random Forest: ${pred.ensemble_vote.random_forest} (${(pred.rf_probability * 100).toFixed(1)}%)</div>
+                                    <div style="margin: 5px 0;">Gradient Boosting: ${pred.ensemble_vote.gradient_boosting} (${(pred.gb_probability * 100).toFixed(1)}%)</div>
+                                    <div style="margin: 5px 0; color: var(--accent-primary);">Agreement: ${(pred.model_agreement * 100).toFixed(1)}%</div>
+                                </div>
+                            </div>
+                            <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px;">
+                                <div style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">Target Probabilities</div>
+                                <div style="font-size: 13px; color: var(--text-secondary);">
+                                    <div style="margin: 5px 0;">1R Target: ${(multiTarget['1R'].probability * 100).toFixed(1)}%</div>
+                                    <div style="margin: 5px 0;">2R Target: ${(multiTarget['2R'].probability * 100).toFixed(1)}%</div>
+                                    <div style="margin: 5px 0;">3R Target: ${(multiTarget['3R'].probability * 100).toFixed(1)}%</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: ${pred.risk_level === 'Low' ? 'rgba(16, 185, 129, 0.1)' : pred.risk_level === 'Medium' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; padding: 15px; border-radius: 8px; border-left: 4px solid ${pred.risk_level === 'Low' ? 'var(--accent-success)' : pred.risk_level === 'Medium' ? 'var(--accent-warning)' : 'var(--accent-danger)'};">
+                            <div style="font-weight: 600; margin-bottom: 5px;">Risk Level: ${pred.risk_level}</div>
+                            <div style="font-size: 14px; color: var(--text-secondary);">
+                                Uncertainty: ${(pred.uncertainty * 100).toFixed(2)}% | 
+                                Success Probability: ${(pred.success_probability * 100).toFixed(1)}%
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading live prediction:', error);
+                document.getElementById('livePredictionContent').innerHTML = 
+                    '<p style="color: var(--accent-danger);">Error loading prediction</p>';
+            }
+        }
+
         async function loadAdvancedAnalysis() {
             try {
                 const response = await fetch('/api/advanced-feature-analysis');
@@ -745,11 +829,13 @@
 
         // Load data on page load
         loadData();
+        loadLivePrediction();
         loadAdvancedAnalysis();
 
         // Auto-refresh every 60 seconds
         setInterval(() => {
             loadData();
+            loadLivePrediction();
             loadAdvancedAnalysis();
         }, 60000);
     </script>
