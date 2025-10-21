@@ -506,6 +506,49 @@ def test_webhook_signal():
         logger.error(f"Test signal error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/signal-gap-check', methods=['GET'])
+@login_required
+def signal_gap_check():
+    """Check for signal gaps (missing bearish signals)"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'gaps': []}), 200
+        
+        cursor = db.conn.cursor()
+        
+        # Get last 10 signals
+        cursor.execute("""
+            SELECT bias, timestamp
+            FROM live_signals
+            ORDER BY timestamp DESC
+            LIMIT 10
+        """)
+        
+        signals = cursor.fetchall()
+        
+        # Check for consecutive same-bias signals (indicates missing opposite)
+        gaps = []
+        consecutive_count = 1
+        last_bias = None
+        
+        for signal in signals:
+            if signal['bias'] == last_bias:
+                consecutive_count += 1
+                if consecutive_count >= 3:
+                    gaps.append({
+                        'type': 'consecutive_same_bias',
+                        'bias': signal['bias'],
+                        'count': consecutive_count,
+                        'message': f'{consecutive_count} consecutive {signal["bias"]} signals - missing {"Bearish" if signal["bias"] == "Bullish" else "Bullish"}?'
+                    })
+            else:
+                consecutive_count = 1
+            last_bias = signal['bias']
+        
+        return jsonify({'gaps': gaps, 'recent_signals': [dict(s) for s in signals]})
+    except Exception as e:
+        return jsonify({'gaps': [], 'error': str(e)}), 200
+
 @app.route('/api/webhook-diagnostic', methods=['GET'])
 @login_required
 def webhook_diagnostic():
@@ -2982,6 +3025,17 @@ def capture_live_signal():
         quality_info = f"Quality={context_quality:.2f}"
         
         logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | {vix_info} | {quality_info} | ID: {signal_id} | Lab: {lab_status}")
+        
+        # Broadcast signal to connected clients
+        try:
+            socketio.emit('signal_received', {
+                'bias': signal['bias'],
+                'symbol': signal['symbol'],
+                'price': signal['price'],
+                'timestamp': datetime.now().isoformat()
+            }, namespace='/')
+        except:
+            pass
         
         if should_populate:
             logger.info(f"✅ {active_nq_contract} signal: {signal['bias']} - Auto-populating Signal Lab")

@@ -194,12 +194,40 @@
     <div class="header">
         <h1>🎯 Feature Importance Analysis</h1>
         <p class="subtitle">Real-time ML feature rankings and SHAP analysis</p>
-        <a href="/webhook-monitor" style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">🔍 Webhook Monitor</a>
     </div>
 
     <div id="loading" class="loading">Loading feature importance data...</div>
 
     <div id="content" style="display: none;">
+        <!-- Webhook Signal Monitor -->
+        <div class="chart-container">
+            <div class="chart-title">🔍 Signal Reception Monitor</div>
+            <div id="signalGapAlert" style="display: none; background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <strong>⚠️ Signal Gap Detected</strong>
+                <div id="signalGapDetails" style="margin-top: 8px; color: #94a3b8; font-size: 13px;"></div>
+            </div>
+            <div class="stats-grid" style="margin-bottom: 0;">
+                <div class="stat-card">
+                    <div class="stat-label">Bullish Received</div>
+                    <div class="stat-value" style="color: var(--accent-success);" id="webhookBullishCount">0</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;" id="webhookLastBullish">Never</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Bearish Received</div>
+                    <div class="stat-value" style="color: var(--accent-danger);" id="webhookBearishCount">0</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;" id="webhookLastBearish">Never</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Signal Health</div>
+                    <div class="stat-value" style="font-size: 20px;" id="webhookHealth">✅</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Both types active</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Last Signal</div>
+                    <div style="font-size: 14px; margin-top: 8px; color: var(--text-secondary);" id="webhookLastSignal">Waiting...</div>
+                </div>
+            </div>
+        </div>
         <!-- Live Predictions Section -->
         <div class="chart-container">
             <div class="chart-title">🔮 Live Predictions</div>
@@ -954,11 +982,67 @@
             `).join('');
         }
 
+        // Webhook monitoring functions
+        async function loadWebhookStats() {
+            try {
+                const response = await fetch('/api/webhook-stats');
+                const data = await response.json();
+                
+                if (data.last_24h) {
+                    const bullish = data.last_24h.find(s => s.bias === 'Bullish');
+                    const bearish = data.last_24h.find(s => s.bias === 'Bearish');
+                    
+                    document.getElementById('webhookBullishCount').textContent = bullish ? bullish.count : 0;
+                    document.getElementById('webhookBearishCount').textContent = bearish ? bearish.count : 0;
+                    
+                    const lastBullish = data.last_bullish ? new Date(data.last_bullish).toLocaleTimeString() : 'Never';
+                    const lastBearish = data.last_bearish ? new Date(data.last_bearish).toLocaleTimeString() : 'Never';
+                    
+                    document.getElementById('webhookLastBullish').textContent = lastBullish;
+                    document.getElementById('webhookLastBearish').textContent = lastBearish;
+                    
+                    // Update last signal
+                    const lastSignalTime = data.last_bullish || data.last_bearish;
+                    if (lastSignalTime) {
+                        const timeDiff = Math.floor((Date.now() - new Date(lastSignalTime)) / 1000);
+                        document.getElementById('webhookLastSignal').textContent = 
+                            timeDiff < 60 ? `${timeDiff}s ago` : `${Math.floor(timeDiff/60)}m ago`;
+                    }
+                }
+                
+                // Check health
+                const healthResponse = await fetch('/api/webhook-health');
+                const healthData = await healthResponse.json();
+                
+                if (healthData.alerts && healthData.alerts.length > 0) {
+                    document.getElementById('webhookHealth').textContent = '⚠️';
+                } else {
+                    document.getElementById('webhookHealth').textContent = '✅';
+                }
+                
+                // Check gaps
+                const gapResponse = await fetch('/api/signal-gap-check');
+                const gapData = await gapResponse.json();
+                
+                const gapAlert = document.getElementById('signalGapAlert');
+                if (gapData.gaps && gapData.gaps.length > 0) {
+                    gapAlert.style.display = 'block';
+                    document.getElementById('signalGapDetails').innerHTML = 
+                        gapData.gaps.map(g => `<div>${g.message}</div>`).join('');
+                } else {
+                    gapAlert.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Webhook stats error:', error);
+            }
+        }
+
         // Load data on page load
         loadData();
         loadLivePrediction();
         loadAdvancedAnalysis();
         loadMLOptimization();
+        loadWebhookStats();
 
         // Auto-refresh every 60 seconds
         setInterval(() => {
@@ -966,7 +1050,11 @@
             loadLivePrediction();
             loadAdvancedAnalysis();
             loadMLOptimization();
+            loadWebhookStats();
         }, 60000);
+        
+        // Refresh webhook stats more frequently (every 10 seconds)
+        setInterval(loadWebhookStats, 10000);
     </script>
 </body>
 </html>

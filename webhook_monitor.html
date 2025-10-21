@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Webhook Signal Monitor</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -104,6 +105,11 @@
     </div>
 
     <div id="healthStatus"></div>
+    
+    <div id="gapAlert" style="display: none; background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <strong>⚠️ Signal Gap Detected</strong>
+        <div id="gapDetails" style="margin-top: 8px; color: #94a3b8;"></div>
+    </div>
 
     <div class="stats-grid">
         <div class="stat-card">
@@ -210,6 +216,27 @@
             }
         }
 
+        async function checkGaps() {
+            try {
+                const response = await fetch('/api/signal-gap-check');
+                const data = await response.json();
+                
+                const gapAlert = document.getElementById('gapAlert');
+                const gapDetails = document.getElementById('gapDetails');
+                
+                if (data.gaps && data.gaps.length > 0) {
+                    gapAlert.style.display = 'block';
+                    gapDetails.innerHTML = data.gaps.map(gap => `
+                        <div style="margin: 5px 0;">${gap.message}</div>
+                    `).join('');
+                } else {
+                    gapAlert.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error checking gaps:', error);
+            }
+        }
+
         async function loadHealth() {
             try {
                 const response = await fetch('/api/webhook-health');
@@ -309,13 +336,63 @@
         loadStats();
         loadHealth();
         loadFailures();
+        checkGaps();
 
+        // WebSocket for real-time updates
+        const socket = io();
+        
+        socket.on('signal_received', function(data) {
+            console.log('Real-time signal:', data);
+            // Immediately refresh stats
+            loadStats();
+            loadHealth();
+            
+            // Show notification
+            const color = data.bias === 'Bullish' ? '#10b981' : '#ef4444';
+            const icon = data.bias === 'Bullish' ? '🟢' : '🔴';
+            showNotification(`${icon} ${data.bias} signal received at ${data.price}`, color);
+        });
+        
+        function showNotification(message, color) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${color};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 9999;
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+        
         // Auto-refresh every 10 seconds
         setInterval(() => {
             loadStats();
             loadHealth();
             loadFailures();
+            checkGaps();
         }, 10000);
     </script>
+    <style>
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(400px); opacity: 0; }
+        }
+    </style>
 </body>
 </html>
