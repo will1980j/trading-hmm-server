@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Financial Summary - Trading Analytics</title>
     <link rel="stylesheet" href="/style_preload.css">
+    <link rel="stylesheet" href="/trading-platform-theme.css">
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://d3js.org/d3-selection.v3.min.js"></script>
     <script src="https://d3js.org/d3-scale.v4.min.js"></script>
@@ -15,14 +16,6 @@
     <script src="https://d3js.org/d3-transition.v3.min.js"></script>
     <script src="d3_charts.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
-        :root {
-            --accent-color: #00ff88;
-            --glass-bg: rgba(255,255,255,0.08);
-            --glass-border: rgba(255,255,255,0.1);
-            --shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -247,7 +240,7 @@
     </style>
 </head>
 <body>
-    <nav class="navbar">
+    <nav nav>
         <div style="display: flex; justify-content: space-between; align-items: center;">
 
             <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex: 1;">
@@ -264,17 +257,17 @@
                     <option value="platinum">Platinum</option>
                     <option value="arctic">Arctic</option>
                 </select>
-                <a href="/ml-dashboard" class="nav-link">🤖 ML</a>
-                <a href="/live-signals-dashboard" class="nav-link">📶 Live</a>
-                <a href="/signal-lab-dashboard" class="nav-link">🏠 Dashboard</a>
-                <a href="/signal-analysis-lab" class="nav-link">🧪 Signal Lab</a>
-                <a href="/time-analysis" class="nav-link">⏰ Time</a>
-                <a href="/strategy-optimizer" class="nav-link">🎯 Optimizer</a>
-                <a href="/ai-business-advisor" class="nav-link">🧠 AI Advisor</a>
-                <a href="/prop-portfolio" class="nav-link">💼 Prop</a>
-                <a href="/trade-manager" class="nav-link">📋 Trades</a>
-                <a href="/financial-summary" class="nav-link active">💰 Finance</a>
-                <a href="/reporting-hub" class="nav-link">📊 Reports</a>
+                <a href="/ml-dashboard" >🤖 ML</a>
+                <a href="/live-signals-dashboard" >📶 Live</a>
+                <a href="/signal-lab-dashboard" >🏠 Dashboard</a>
+                <a href="/signal-analysis-lab" >🧪 Signal Lab</a>
+                <a href="/time-analysis" >⏰ Time</a>
+                <a href="/strategy-optimizer" >🎯 Optimizer</a>
+                <a href="/ai-business-advisor" >🧠 AI Advisor</a>
+                <a href="/prop-portfolio" >💼 Prop</a>
+                <a href="/trade-manager" >📋 Trades</a>
+                <a href="/financial-summary" class="active">💰 Finance</a>
+                <a href="/reporting-hub" >📊 Reports</a>
             </div>
         </div>
     </nav>
@@ -654,4 +647,5 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 </body>
 </html>
+
 

@@ -4,86 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Signal Dashboard - FVG/IFVG Real-time Analytics</title>
+    <link rel="stylesheet" href="/trading-platform-theme.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
-            color: #fff;
-            overflow-x: hidden;
-        }
+        .dashboard-container { display: grid; grid-template-columns: 250px 1fr; grid-template-rows: auto 1fr; height: 100vh; gap: 10px; padding: 10px; }
+        .sidebar { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 20px; backdrop-filter: blur(10px); overflow-y: auto; }
         
-        .dashboard-container {
-            display: grid;
-            grid-template-columns: 250px 1fr;
-            grid-template-rows: 60px 1fr;
-            height: 100vh;
-            gap: 10px;
-            padding: 10px;
-        }
+        .main-content { display: grid; grid-template-rows: 200px 300px 1fr; gap: 10px; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
         
-        .header {
-            grid-column: 1 / -1;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            backdrop-filter: blur(10px);
-        }
-        
-        .sidebar {
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            padding: 20px;
-            backdrop-filter: blur(10px);
-            overflow-y: auto;
-        }
-        
-        .main-content {
-            display: grid;
-            grid-template-rows: 200px 300px 1fr;
-            gap: 10px;
-        }
-        
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-        }
-        
-        .metric-card {
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            padding: 15px;
-            text-align: center;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .metric-value {
-            font-size: 24px;
-            font-weight: bold;
-            margin: 5px 0;
-        }
-        
-        .metric-label {
-            font-size: 12px;
-            opacity: 0.7;
-            text-transform: uppercase;
-        }
-        
-        .signals-timeline {
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            padding: 20px;
-            backdrop-filter: blur(10px);
-            overflow-y: auto;
-            max-height: 300px;
-        }
+        .signals-timeline { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 20px; backdrop-filter: blur(10px); overflow-y: auto; max-height: 300px; }
         
         .timeline-container {
             display: flex;
@@ -138,21 +69,7 @@
             to { opacity: 1; transform: translateX(0); }
         }
         
-        .signals-container {
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            padding: 20px;
-            backdrop-filter: blur(10px);
-            overflow-y: auto;
-        }
-        
-        .analysis-panel {
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            padding: 20px;
-            backdrop-filter: blur(10px);
-            overflow-y: auto;
-        }
+        .signals-container { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 20px; backdrop-filter: blur(10px); overflow-y: auto; }
         
         .signals-table-container {
             overflow-y: auto;
@@ -190,34 +107,11 @@
         
 
         
-        .no-signals {
-            text-align: center;
-            padding: 40px 20px;
-            opacity: 0.7;
-            font-style: italic;
-        }
+        .no-signals { text-align: center; padding: 40px 20px; opacity: 0.7; font-style: italic; }
         
-        .timeframe-tabs {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 15px;
-        }
-        
-        .timeframe-tab {
-            padding: 8px 12px;
-            background: rgba(255,255,255,0.1);
-            border: none;
-            border-radius: 5px;
-            color: white;
-            cursor: pointer;
-            font-size: 12px;
-            transition: all 0.3s ease;
-        }
-        
-        .timeframe-tab.active {
-            background: #00ff88;
-            color: #000;
-        }
+        .timeframe-tabs { display: flex; gap: 5px; margin-bottom: 15px; }
+        .timeframe-tab { padding: 8px 12px; background: rgba(255,255,255,0.1); border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 12px; transition: all 0.3s ease; }
+        .timeframe-tab.active { background: #00ff88; color: #000; }
         
 
         
@@ -243,29 +137,24 @@
 </head>
 <body>
     <div class="dashboard-container">
-        <div class="header">
-            <div>
-                <h1>Live Signal Dashboard</h1>
-                <div style="margin-top: 5px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
-                    <a href="/ml-dashboard" style="color: #00ff88; text-decoration: none; padding: 8px 12px; background: rgba(0,255,136,0.1); border-radius: 6px;">🤖 ML</a>
-                    <a href="/live-signals-dashboard" style="color: #00ff88; text-decoration: none; padding: 8px 12px; background: rgba(0,255,136,0.1); border-radius: 6px;">📶 Live</a>
-                    <a href="/signal-lab-dashboard" style="color: #00ff88; text-decoration: none; padding: 8px 12px; background: rgba(0,255,136,0.1); border-radius: 6px;">🏠 Dashboard</a>
-                    <a href="/signal-analysis-lab" style="color: #00ff88; text-decoration: none; padding: 8px 12px; background: rgba(0,255,136,0.1); border-radius: 6px;">🧪 Signal Lab</a>
-                    <a href="/time-analysis" style="color: #00ff88; text-decoration: none; padding: 8px 12px; background: rgba(0,255,136,0.1); border-radius: 6px;">⏰ Time</a>
-                    <a href="/strategy-optimizer" style="color: #00ff88; text-decoration: none; padding: 8px 12px; background: rgba(0,255,136,0.1); border-radius: 6px;">🎯 Optimizer</a>
-                    <a href="/ai-business-advisor" style="color: #00ff88; text-decoration: none; padding: 8px 12px; background: rgba(0,255,136,0.1); border-radius: 6px;">🧠 AI Advisor</a>
-                    <a href="/prop-portfolio" style="color: #00ff88; text-decoration: none; padding: 8px 12px; background: rgba(0,255,136,0.1); border-radius: 6px;">💼 Prop</a>
-                    <a href="/trade-manager" style="color: #00ff88; text-decoration: none; padding: 8px 12px; background: rgba(0,255,136,0.1); border-radius: 6px;">📋 Trades</a>
-                    <a href="/financial-summary" style="color: #00ff88; text-decoration: none; padding: 8px 12px; background: rgba(0,255,136,0.1); border-radius: 6px;">💰 Finance</a>
-                    <a href="/reporting-hub" style="color: #00ff88; text-decoration: none; padding: 8px 12px; background: rgba(0,255,136,0.1); border-radius: 6px;">📊 Reports</a>
-                </div>
-            </div>
-            <div>
+        <nav style="grid-column: 1 / -1;">
+            <a href="/ml-dashboard">🤖 ML</a>
+            <a href="/live-signals-dashboard" class="active">📶 Live</a>
+            <a href="/signal-lab-dashboard">🏠 Dashboard</a>
+            <a href="/signal-analysis-lab">🧪 Signal Lab</a>
+            <a href="/time-analysis">⏰ Time</a>
+            <a href="/strategy-optimizer">🎯 Optimizer</a>
+            <a href="/ai-business-advisor">🧠 AI Advisor</a>
+            <a href="/prop-portfolio">💼 Prop</a>
+            <a href="/trade-manager">📋 Trades</a>
+            <a href="/financial-summary">💰 Finance</a>
+            <a href="/reporting-hub">📊 Reports</a>
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
                 <span class="status-indicator status-live"></span>
-                <span>Live Feed Active</span>
-                <span style="margin-left: 20px; font-size: 14px;" id="lastUpdate">Last: --:--</span>
+                <span>Live Feed</span>
+                <span id="lastUpdate">--:--</span>
             </div>
-        </div>
+        </nav>
         
         <div class="sidebar">
             <h3>Timeframes</h3>
@@ -297,21 +186,21 @@
         
         <div class="main-content">
             <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-value" id="totalSignals">0</div>
-                    <div class="metric-label">Total Signals</div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalSignals">0</div>
+                    <div class="stat-label">Total Signals</div>
                 </div>
-                <div class="metric-card">
-                    <div class="metric-value" id="bullishSignals">0</div>
-                    <div class="metric-label">Bullish</div>
+                <div class="stat-card">
+                    <div class="stat-value" id="bullishSignals">0</div>
+                    <div class="stat-label">Bullish</div>
                 </div>
-                <div class="metric-card">
-                    <div class="metric-value" id="bearishSignals">0</div>
-                    <div class="metric-label">Bearish</div>
+                <div class="stat-card">
+                    <div class="stat-value" id="bearishSignals">0</div>
+                    <div class="stat-label">Bearish</div>
                 </div>
-                <div class="metric-card">
-                    <div class="metric-value" id="avgStrength">--</div>
-                    <div class="metric-label">Avg Strength</div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgStrength">--</div>
+                    <div class="stat-label">Avg Strength</div>
                 </div>
             </div>
             

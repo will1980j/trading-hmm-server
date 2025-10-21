@@ -3,141 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto-Training ML Dashboard</title>
+    <title>🤖 ML Dashboard</title>
+    <link rel="stylesheet" href="/trading-platform-theme.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
-            color: #fff;
-            padding: 20px;
-        }
-        
-        .container { max-width: 1400px; margin: 0 auto; }
-        
-        .header {
-            background: rgba(0,255,136,0.1);
-            border: 2px solid rgba(0,255,136,0.3);
-            padding: 25px;
-            border-radius: 15px;
-            margin-bottom: 25px;
-            text-align: center;
-        }
-        
         .auto-badge {
-            background: #00ff88;
-            color: #000;
-            padding: 8px 16px;
+            background: var(--accent-secondary);
+            color: var(--bg-primary);
+            padding: var(--spacing-sm) var(--spacing-md);
             border-radius: 20px;
-            font-weight: bold;
-            font-size: 14px;
+            font-weight: 700;
+            font-size: 0.875rem;
             display: inline-block;
-            margin-bottom: 15px;
+            margin-bottom: var(--spacing-md);
         }
-        
         .ml-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
         }
-        
         .ml-card {
-            background: rgba(255,255,255,0.05);
-            border-radius: 15px;
-            padding: 25px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-md);
         }
-        
+        .ml-card h3 {
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-md);
+            font-size: 1.125rem;
+        }
         .metric-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding: var(--spacing-md) 0;
+            border-bottom: 1px solid var(--border-color);
         }
-        
         .metric-row:last-child { border-bottom: none; }
-        
         .metric-value {
-            font-size: 18px;
-            font-weight: bold;
-            color: #00ff88;
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: var(--accent-secondary);
         }
-        
         .status-indicator {
             width: 10px;
             height: 10px;
             border-radius: 50%;
             display: inline-block;
-            margin-right: 8px;
-            background: #00ff88;
+            margin-right: var(--spacing-sm);
+            background: var(--accent-secondary);
             animation: pulse 2s infinite;
         }
-        
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
-        
         .insights-list {
             list-style: none;
             padding: 0;
         }
-        
         .insights-list li {
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            font-size: 14px;
-            line-height: 1.5;
+            padding: var(--spacing-sm) 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.875rem;
+            line-height: 1.6;
         }
-        
         .insights-list li:last-child { border-bottom: none; }
-        
-        .nav {
-            background: rgba(255,255,255,0.05);
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .nav-link {
-            color: #fff;
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            transition: all 0.3s;
-            margin: 0 5px;
-        }
-        
-        .nav-link:hover { background: rgba(0,255,136,0.2); }
-        .nav-link.active { background: #00ff88; color: #000; font-weight: 600; }
     </style>
 </head>
 <body>
-    <nav class="nav">
-        <a href="/ml-dashboard" class="nav-link active">🤖 ML</a>
-        <a href="/live-signals-dashboard" class="nav-link">📶 Live</a>
-        <a href="/signal-lab-dashboard" class="nav-link">🏠 Dashboard</a>
-        <a href="/signal-analysis-lab" class="nav-link">🧪 Signal Lab</a>
-        <a href="/time-analysis" class="nav-link">⏰ Time</a>
-        <a href="/strategy-optimizer" class="nav-link">🎯 Optimizer</a>
-        <a href="/ai-business-advisor" class="nav-link">🧠 AI Advisor</a>
-        <a href="/prop-portfolio" class="nav-link">💼 Prop</a>
-        <a href="/trade-manager" class="nav-link">📋 Trades</a>
-        <a href="/financial-summary" class="nav-link">💰 Finance</a>
-        <a href="/reporting-hub" class="nav-link">📊 Reports</a>
+    <nav>
+        <a href="/ml-dashboard" class="active">🤖 ML</a>
+        <a href="/live-signals-dashboard">📶 Live</a>
+        <a href="/signal-lab-dashboard">🏠 Dashboard</a>
+        <a href="/signal-analysis-lab">🧪 Signal Lab</a>
+        <a href="/time-analysis">⏰ Time</a>
+        <a href="/strategy-optimizer">🎯 Optimizer</a>
+        <a href="/strategy-comparison">🏆 Compare</a>
+        <a href="/ai-business-advisor">🧠 AI Advisor</a>
+        <a href="/prop-portfolio">💼 Prop</a>
+        <a href="/trade-manager">📋 Trades</a>
+        <a href="/financial-summary">💰 Finance</a>
+        <a href="/reporting-hub">📊 Reports</a>
     </nav>
     
     <div class="container">
         <div class="header">
             <div class="auto-badge">🤖 FULLY AUTOMATED</div>
-            <h1>Auto-Training ML Intelligence</h1>
-            <p>Real insights from your <span id="totalSignals">loading...</span> signals - no buttons, no manual training</p>
+            <h1>🤖 ML Dashboard</h1>
+            <p>Auto-Training ML Intelligence - Real insights from your <span id="totalSignals">loading...</span> signals</p>
         </div>
         
         <div class="ml-grid">
