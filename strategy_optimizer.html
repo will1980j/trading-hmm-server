@@ -353,41 +353,45 @@
                 
                 beStrategies.forEach(beStrategy => {
                     rTargets.forEach(rTarget => {
-                        for (let i = 0; i < selectedSessions.length; i++) {
-                            for (let j = i + 1; j < selectedSessions.length; j++) {
-                                const sessionPair = [selectedSessions[i], selectedSessions[j]];
-                                const key = `${beStrategy}_${rTarget}`;
-                                const windowsForCombo = optimalTimeWindows[key] || {};
-                                
-                                let combinedSignals = baseSignals.filter(s => sessionPair.includes(s.session));
-                                if (useOptimalHours) {
-                                    combinedSignals = combinedSignals.filter(s => {
-                                        const sessionWindows = windowsForCombo[s.session];
-                                        if (!sessionWindows) return false;
-                                        if (!s.time) return false;
-                                        const [hour, minute] = s.time.split(':').map(Number);
-                                        const optimalHour = sessionWindows[0].hour;
-                                        if (useMacroWindows) {
-                                            return (hour === optimalHour && minute >= 45) || (hour === (optimalHour + 1) % 24 && minute <= 15);
-                                        } else {
-                                            return hour === optimalHour;
-                                        }
-                                    });
-                                }
-                                if (combinedSignals.length < 50) continue;
-                                const results = combinedSignals.map(s => calculateTradeResult(s, beStrategy, rTarget, feeR));
-                                const stats = calculateStats(results);
-                                const maxDailyLossPercent = stats.maxConsecLosses * riskPerTrade;
-                                const maxDrawdownPercent = stats.maxDrawdown * riskPerTrade;
-                                const propViable = maxDailyLossPercent <= constraints.maxDailyLoss && 
-                                                 maxDrawdownPercent <= constraints.maxDrawdown && 
-                                                 stats.winRate >= constraints.minWinRate;
-                                if (!propViable) continue;
-                                const score = stats.expectedTotalReturn * riskPerTrade;
-                                const combo = { sessions: sessionPair, beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, riskPerTrade, optimalWindows: useOptimalHours ? optimalTimeWindows : {}, signals: combinedSignals };
-                                allCombinations.push(combo);
-                                if (score > bestScore) { bestScore = score; bestOverall = combo; }
+                        const n = selectedSessions.length;
+                        for (let mask = 2; mask < (1 << n); mask++) {
+                            const sessionCombo = [];
+                            for (let i = 0; i < n; i++) {
+                                if (mask & (1 << i)) sessionCombo.push(selectedSessions[i]);
                             }
+                            if (sessionCombo.length === 1) continue;
+                            
+                            const key = `${beStrategy}_${rTarget}`;
+                            const windowsForCombo = optimalTimeWindows[key] || {};
+                            
+                            let combinedSignals = baseSignals.filter(s => sessionCombo.includes(s.session));
+                            if (useOptimalHours) {
+                                combinedSignals = combinedSignals.filter(s => {
+                                    const sessionWindows = windowsForCombo[s.session];
+                                    if (!sessionWindows) return false;
+                                    if (!s.time) return false;
+                                    const [hour, minute] = s.time.split(':').map(Number);
+                                    const optimalHour = sessionWindows[0].hour;
+                                    if (useMacroWindows) {
+                                        return (hour === optimalHour && minute >= 45) || (hour === (optimalHour + 1) % 24 && minute <= 15);
+                                    } else {
+                                        return hour === optimalHour;
+                                    }
+                                });
+                            }
+                            if (combinedSignals.length < 50) continue;
+                            const results = combinedSignals.map(s => calculateTradeResult(s, beStrategy, rTarget, feeR));
+                            const stats = calculateStats(results);
+                            const maxDailyLossPercent = stats.maxConsecLosses * riskPerTrade;
+                            const maxDrawdownPercent = stats.maxDrawdown * riskPerTrade;
+                            const propViable = maxDailyLossPercent <= constraints.maxDailyLoss && 
+                                             maxDrawdownPercent <= constraints.maxDrawdown && 
+                                             stats.winRate >= constraints.minWinRate;
+                            if (!propViable) continue;
+                            const score = stats.expectedTotalReturn * riskPerTrade;
+                            const combo = { sessions: sessionCombo, beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, riskPerTrade, optimalWindows: useOptimalHours ? optimalTimeWindows : {}, signals: combinedSignals };
+                            allCombinations.push(combo);
+                            if (score > bestScore) { bestScore = score; bestOverall = combo; }
                         }
                     });
                 });
