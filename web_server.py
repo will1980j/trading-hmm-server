@@ -4383,6 +4383,49 @@ def get_ml_feature_importance():
         ]
     })
 
+@app.route('/model-drift')
+@login_required
+def model_drift_dashboard():
+    """Model drift detection dashboard"""
+    return read_html_file('model_drift_dashboard.html')
+
+@app.route('/api/model-drift', methods=['GET'])
+@login_required
+def get_model_drift():
+    """Get model drift detection data"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from model_drift_detector import ModelDriftDetector
+        detector = ModelDriftDetector(db)
+        
+        health = detector.get_model_health_score()
+        alerts = detector.get_drift_alerts()
+        
+        return jsonify({
+            'health_score': health.get('health_score', 75),
+            'status': health.get('status', 'Unknown'),
+            'recommendation': health.get('recommendation', 'Monitor model'),
+            'feature_drift': health.get('feature_drift', {}),
+            'performance_drift': health.get('performance_drift', {}),
+            'alerts': alerts,
+            'performance_history': [],
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Model drift error: {str(e)}")
+        return jsonify({
+            'health_score': 75,
+            'status': 'Error',
+            'recommendation': f'Error: {str(e)}',
+            'feature_drift': {},
+            'performance_drift': {},
+            'alerts': [],
+            'performance_history': [],
+            'timestamp': datetime.now().isoformat()
+        }), 200
+
 @app.route('/api/ml-train', methods=['POST'])
 @login_required
 def train_ml_models():
