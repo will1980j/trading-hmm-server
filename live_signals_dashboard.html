@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Signal Dashboard - FVG/IFVG Real-time Analytics</title>
-    <link rel="stylesheet" href="/trading-platform-theme.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
     <style>
         
         .dashboard-container { display: grid; grid-template-columns: 250px 1fr; grid-template-rows: auto 1fr; height: 100vh; gap: 10px; padding: 10px; }
@@ -137,7 +136,7 @@
 </head>
 <body>
     <div class="dashboard-container">
-        <nav style="grid-column: 1 / -1;">
+        <div class="header">
             <a href="/ml-dashboard">🤖 ML</a>
             <a href="/live-signals-dashboard" class="active">📶 Live</a>
             <a href="/signal-lab-dashboard">🏠 Dashboard</a>
