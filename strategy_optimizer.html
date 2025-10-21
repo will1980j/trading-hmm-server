@@ -343,9 +343,7 @@
                                              maxDrawdownPercent <= constraints.maxDrawdown && 
                                              stats.winRate >= constraints.minWinRate;
                             if (!propViable) return;
-                            const avgRPerTrade = stats.totalR / stats.total;
-                            const sharpe = stats.expectancy / (stats.maxDrawdown > 0 ? stats.maxDrawdown : 1);
-                            const score = (stats.expectancy * 40) + (stats.winRate / 100 * 20) + (avgRPerTrade * 15) + (sharpe * 10) + (Math.log(stats.total) * 5);
+                            const score = stats.expectedTotalReturn * riskPerTrade;
                             const combo = { sessions: [session], beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade, riskPerTrade, optimalWindows: useOptimalHours ? optimalTimeWindows : {}, signals: sessionSignals };
                             allCombinations.push(combo);
                             if (score > bestScore) { bestScore = score; bestOverall = combo; }
@@ -385,9 +383,7 @@
                                                  maxDrawdownPercent <= constraints.maxDrawdown && 
                                                  stats.winRate >= constraints.minWinRate;
                                 if (!propViable) continue;
-                                const avgRPerTrade = stats.totalR / stats.total;
-                                const sharpe = stats.expectancy / (stats.maxDrawdown > 0 ? stats.maxDrawdown : 1);
-                                const score = (stats.expectancy * 40) + (stats.winRate / 100 * 20) + (avgRPerTrade * 15) + (sharpe * 10) + (Math.log(stats.total) * 5);
+                                const score = stats.expectedTotalReturn * riskPerTrade;
                                 const combo = { sessions: sessionPair, beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade, riskPerTrade, optimalWindows: useOptimalHours ? optimalTimeWindows : {}, signals: combinedSignals };
                                 allCombinations.push(combo);
                                 if (score > bestScore) { bestScore = score; bestOverall = combo; }
@@ -473,7 +469,8 @@
                             <div class="metric-card"><div class="metric-label">Avg Trade</div><div class="metric-value">${best.stats.avgTrade.toFixed(3)}R</div></div>
                             <div class="metric-card"><div class="metric-label">Win Rate</div><div class="metric-value">${best.stats.winRate.toFixed(1)}%</div></div>
                             <div class="metric-card"><div class="metric-label">BE Rate</div><div class="metric-value">${best.stats.breakevenRate.toFixed(1)}%</div></div>
-                            <div class="metric-card"><div class="metric-label">Total Return</div><div class="metric-value">${totalPercent > 0 ? '+' : ''}${totalPercent.toFixed(1)}%</div></div>
+                            <div class="metric-card"><div class="metric-label">Expected Total R</div><div class="metric-value">${best.stats.expectedTotalReturn > 0 ? '+' : ''}${best.stats.expectedTotalReturn.toFixed(1)}R</div></div>
+                            <div class="metric-card"><div class="metric-label">Expected Return %</div><div class="metric-value">${(best.stats.expectedTotalReturn * best.riskPerTrade) > 0 ? '+' : ''}${(best.stats.expectedTotalReturn * best.riskPerTrade).toFixed(2)}%</div></div>
                         </div>
                         <div style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
                             <strong>Risk Metrics:</strong> Max Daily Loss: ${best.maxDailyLossPercent.toFixed(1)}% | Max Drawdown: ${best.maxDrawdownPercent.toFixed(1)}% | Trades: ${best.stats.total}
@@ -501,10 +498,10 @@
             
             html += timeHtml + mlHtml;
             
-            html += '<table class="comparison-table" style="margin-top: 30px;"><thead><tr><th>Risk %</th><th>Sessions</th><th>BE</th><th>R-Target</th><th>Expectancy</th><th>Avg Trade</th><th>Win Rate</th><th>BE Rate</th><th>Total Return</th><th>Max DD</th></tr></thead><tbody>';
+            html += '<table class="comparison-table" style="margin-top: 30px;"><thead><tr><th>Risk %</th><th>Sessions</th><th>BE</th><th>R-Target</th><th>Expectancy</th><th>Avg Trade</th><th>Win Rate</th><th>BE Rate</th><th>Expected R</th><th>Expected %</th><th>Max DD</th></tr></thead><tbody>';
             Object.entries(resultsByRisk).forEach(([risk, data]) => {
                 const b = data.best;
-                html += `<tr><td>${risk}%</td><td>${b.sessions.join('+')}</td><td>${beText[b.beStrategy]}</td><td>${b.rTarget}R</td><td>${b.stats.expectancy.toFixed(3)}</td><td>${b.stats.avgTrade.toFixed(3)}R</td><td>${b.stats.winRate.toFixed(1)}%</td><td>${b.stats.breakevenRate.toFixed(1)}%</td><td>${(b.stats.totalR * b.riskPerTrade).toFixed(1)}%</td><td>${b.maxDrawdownPercent.toFixed(1)}%</td></tr>`;
+                html += `<tr><td>${risk}%</td><td>${b.sessions.join('+')}</td><td>${beText[b.beStrategy]}</td><td>${b.rTarget}R</td><td>${b.stats.expectancy.toFixed(3)}</td><td>${b.stats.avgTrade.toFixed(3)}R</td><td>${b.stats.winRate.toFixed(1)}%</td><td>${b.stats.breakevenRate.toFixed(1)}%</td><td>${b.stats.expectedTotalReturn > 0 ? '+' : ''}${b.stats.expectedTotalReturn.toFixed(1)}R</td><td>${(b.stats.expectedTotalReturn * b.riskPerTrade) > 0 ? '+' : ''}${(b.stats.expectedTotalReturn * b.riskPerTrade).toFixed(1)}%</td><td>${b.maxDrawdownPercent.toFixed(1)}%</td></tr>`;
             });
             html += '</tbody></table></div>';
             
