@@ -254,14 +254,15 @@
             const maxDailyLoss = parseFloat(document.getElementById('maxDailyLoss').value);
             const minWinRate = parseFloat(document.getElementById('minWinRate').value);
             
+            let filteredStrategies = strategies;
             if (onlyPropViable) {
-                strategies = strategies.filter(s => s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate);
+                filteredStrategies = strategies.filter(s => s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate);
             }
             
-            strategies.sort((a, b) => b.expectedReturnPercent - a.expectedReturnPercent);
-            allStrategies = strategies.slice(0, 20);
+            filteredStrategies.sort((a, b) => b.expectedReturnPercent - a.expectedReturnPercent);
+            allStrategies = filteredStrategies.slice(0, 20);
             allStrategySignals = allStrategies.map(s => signals.filter(sig => s.sessions.includes(sig.session)));
-            displayComparison(allStrategies, totalPossible, strategies.length);
+            displayComparison(allStrategies, totalPossible, filteredStrategies.length);
         }
         
         function displayComparison(strategies, totalPossible, profitableCount) {
@@ -484,11 +485,6 @@
         let allStrategies = [];
         let allStrategySignals = [];
         
-        document.addEventListener('DOMContentLoaded', runComparison);
-    </script>
-</body>
-</html>
-
         function showStrategyDetails(index) {
             const strategy = allStrategies[index];
             const signals = allStrategySignals[index];
@@ -681,3 +677,8 @@
             html += '</tbody></table>';
             container.innerHTML = html;
         }
+        
+        document.addEventListener('DOMContentLoaded', runComparison);
+    </script>
+</body>
+</html>
