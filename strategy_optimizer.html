@@ -344,7 +344,7 @@
                                              stats.winRate >= constraints.minWinRate;
                             if (!propViable) return;
                             const score = stats.expectedTotalReturn * riskPerTrade;
-                            const combo = { sessions: [session], beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade, riskPerTrade, optimalWindows: useOptimalHours ? optimalTimeWindows : {}, signals: sessionSignals };
+                            const combo = { sessions: [session], beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, riskPerTrade, optimalWindows: useOptimalHours ? optimalTimeWindows : {}, signals: sessionSignals };
                             allCombinations.push(combo);
                             if (score > bestScore) { bestScore = score; bestOverall = combo; }
                         });
@@ -384,7 +384,7 @@
                                                  stats.winRate >= constraints.minWinRate;
                                 if (!propViable) continue;
                                 const score = stats.expectedTotalReturn * riskPerTrade;
-                                const combo = { sessions: sessionPair, beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, avgRPerTrade, riskPerTrade, optimalWindows: useOptimalHours ? optimalTimeWindows : {}, signals: combinedSignals };
+                                const combo = { sessions: sessionPair, beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, riskPerTrade, optimalWindows: useOptimalHours ? optimalTimeWindows : {}, signals: combinedSignals };
                                 allCombinations.push(combo);
                                 if (score > bestScore) { bestScore = score; bestOverall = combo; }
                             }
