@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feature Importance Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #141b3d;
+            --bg-card: #1a2142;
+            --accent-primary: #3b82f6;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: #2d3a5f;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        .chart-container {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+        }
+
+        .recommendations {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .recommendation-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+
+        .recommendation-item.high {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--accent-success);
+        }
+
+        .recommendation-item.medium {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: var(--accent-warning);
+        }
+
+        .recommendation-type {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .recommendation-message {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .feature-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .feature-badge {
+            background: var(--bg-secondary);
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--text-primary);
+        }
+
+        .correlation-matrix {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .correlation-cell {
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .correlation-label {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .correlation-value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-wrapper {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 Feature Importance Analysis</h1>
+        <p class="subtitle">Real-time ML feature rankings and SHAP analysis</p>
+    </div>
+
+    <div id="loading" class="loading">Loading feature importance data...</div>
+
+    <div id="content" style="display: none;">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Features</div>
+                <div class="stat-value" id="totalFeatures">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Top Feature</div>
+                <div class="stat-value" id="topFeature" style="font-size: 20px;">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Top Importance</div>
+                <div class="stat-value" id="topImportance">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Correlation</div>
+                <div class="stat-value" id="avgCorrelation">-</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">📊 Feature Importance Rankings (Ensemble)</div>
+            <div class="chart-wrapper">
+                <canvas id="importanceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">🔍 SHAP vs Permutation Importance</div>
+            <div class="chart-wrapper">
+                <canvas id="shapChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">📈 Feature Stability Over Time</div>
+            <div class="chart-wrapper">
+                <canvas id="stabilityChart"></canvas>
+            </div>
+        </div>
+
+        <div class="recommendations">
+            <div class="chart-title">💡 Feature Selection Recommendations</div>
+            <div id="recommendationsList"></div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">🔗 Feature Correlation Matrix</div>
+            <div class="correlation-matrix" id="correlationMatrix"></div>
+        </div>
+    </div>
+
+    <script>
+        let charts = {};
+
+        async function loadData() {
+            try {
+                const response = await fetch('ml_feature_importance.json');
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+                
+                updateStats(data.summary);
+                createImportanceChart(data.feature_importance);
+                createShapChart(data.feature_importance);
+                createStabilityChart(data.stability_over_time);
+                displayRecommendations(data.recommendations);
+                displayCorrelations(data.correlations);
+            } catch (error) {
+                document.getElementById('loading').innerHTML = 
+                    '<p style="color: #ef4444;">Error loading data. Please run ml_feature_importance.py first.</p>';
+            }
+        }
+
+        function updateStats(summary) {
+            document.getElementById('totalFeatures').textContent = summary.total_features;
+            document.getElementById('topFeature').textContent = summary.top_feature;
+            document.getElementById('topImportance').textContent = summary.top_importance.toFixed(1) + '%';
+            document.getElementById('avgCorrelation').textContent = summary.avg_correlation.toFixed(3);
+        }
+
+        function createImportanceChart(features) {
+            const ctx = document.getElementById('importanceChart').getContext('2d');
+            
+            if (charts.importance) charts.importance.destroy();
+            
+            charts.importance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: features.map(f => f.feature),
+                    datasets: [
+                        {
+                            label: 'Random Forest',
+                            data: features.map(f => f.rf_importance),
+                            backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Gradient Boosting',
+                            data: features.map(f => f.gb_importance),
+                            backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                            borderColor: 'rgba(16, 185, 129, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Ensemble',
+                            data: features.map(f => f.ensemble_importance),
+                            backgroundColor: 'rgba(245, 158, 11, 0.6)',
+                            borderColor: 'rgba(245, 158, 11, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#f8fafc' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: '#2d3a5f' }
+                        },
+                        y: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: '#2d3a5f' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createShapChart(features) {
+            const ctx = document.getElementById('shapChart').getContext('2d');
+            
+            if (charts.shap) charts.shap.destroy();
+            
+            charts.shap = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'SHAP vs Permutation',
+                        data: features.map(f => ({
+                            x: f.shap_importance,
+                            y: f.permutation_importance,
+                            label: f.feature
+                        })),
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        pointRadius: 8,
+                        pointHoverRadius: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#f8fafc' }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.raw.label + 
+                                           ': SHAP=' + context.raw.x.toFixed(2) + 
+                                           '%, Perm=' + context.raw.y.toFixed(2) + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'SHAP Importance (%)', color: '#f8fafc' },
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: '#2d3a5f' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Permutation Importance (%)', color: '#f8fafc' },
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: '#2d3a5f' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createStabilityChart(stability) {
+            const ctx = document.getElementById('stabilityChart').getContext('2d');
+            
+            if (charts.stability) charts.stability.destroy();
+            
+            const features = Object.keys(stability[0]).filter(k => k !== 'window');
+            const datasets = features.map((feature, idx) => {
+                const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                return {
+                    label: feature,
+                    data: stability.map(s => s[feature]),
+                    borderColor: colors[idx % colors.length],
+                    backgroundColor: colors[idx % colors.length] + '33',
+                    tension: 0.4,
+                    fill: false
+                };
+            });
+            
+            charts.stability = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: stability.map(s => 'Window ' + s.window),
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#f8fafc' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: '#2d3a5f' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Importance (%)', color: '#f8fafc' },
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: '#2d3a5f' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function displayRecommendations(recommendations) {
+            const container = document.getElementById('recommendationsList');
+            container.innerHTML = recommendations.map(rec => `
+                <div class="recommendation-item ${rec.priority}">
+                    <div class="recommendation-type">${rec.type.replace(/_/g, ' ').toUpperCase()}</div>
+                    <div class="recommendation-message">${rec.message}</div>
+                    <div class="feature-list">
+                        ${rec.features.map(f => `<span class="feature-badge">${f}</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function displayCorrelations(correlations) {
+            const container = document.getElementById('correlationMatrix');
+            
+            // Show top 10 correlations
+            const topCorr = correlations
+                .sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation))
+                .slice(0, 10);
+            
+            container.innerHTML = topCorr.map(corr => {
+                const absCorr = Math.abs(corr.correlation);
+                let bgColor;
+                if (absCorr > 0.7) bgColor = 'rgba(239, 68, 68, 0.2)';
+                else if (absCorr > 0.4) bgColor = 'rgba(245, 158, 11, 0.2)';
+                else bgColor = 'rgba(16, 185, 129, 0.2)';
+                
+                return `
+                    <div class="correlation-cell" style="background: ${bgColor};">
+                        <div class="correlation-label">${corr.feature1} × ${corr.feature2}</div>
+                        <div class="correlation-value">${corr.correlation.toFixed(3)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Load data on page load
+        loadData();
+
+        // Auto-refresh every 60 seconds
+        setInterval(loadData, 60000);
+    </script>
+</body>
+</html>
