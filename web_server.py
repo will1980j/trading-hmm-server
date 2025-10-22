@@ -212,6 +212,22 @@ if ml_available and db_enabled and db:
 else:
     logger.warning(f"⚠️ ML auto-train skipped: ml_available={ml_available}, db_enabled={db_enabled}")
 
+# Start database health monitor
+if db_enabled and db:
+    def run_db_monitor():
+        try:
+            from database_health_monitor import DatabaseHealthMonitor
+            monitor = DatabaseHealthMonitor(check_interval=60)  # Check every minute
+            monitor.run()
+        except Exception as e:
+            logger.error(f"Database monitor error: {e}")
+    
+    import threading
+    threading.Thread(target=run_db_monitor, daemon=True).start()
+    logger.info("✅ Database health monitor started")
+else:
+    logger.warning("⚠️ Database health monitor skipped: database not available")
+
 # Read HTML files and serve them
 def read_html_file(filename):
     try:
@@ -3356,6 +3372,69 @@ def reset_database_connection():
     except Exception as e:
         logger.error(f"DB reset error: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/db-health', methods=['GET'])
+@login_required
+def get_database_health():
+    """Get database health status"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'status': 'offline', 'error': 'Database not available'}), 500
+        
+        from psycopg2 import extensions
+        
+        # Check transaction status
+        status = db.conn.get_transaction_status()
+        status_names = {
+            extensions.TRANSACTION_STATUS_IDLE: "idle",
+            extensions.TRANSACTION_STATUS_ACTIVE: "active",
+            extensions.TRANSACTION_STATUS_INTRANS: "in_transaction",
+            extensions.TRANSACTION_STATUS_INERROR: "aborted",
+            extensions.TRANSACTION_STATUS_UNKNOWN: "unknown"
+        }
+        
+        transaction_status = status_names.get(status, 'unknown')
+        is_healthy = status in [extensions.TRANSACTION_STATUS_IDLE, extensions.TRANSACTION_STATUS_ACTIVE]
+        
+        # Test query
+        try:
+            cursor = db.conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            query_test = True
+        except:
+            query_test = False
+        
+        # Check recent signals
+        try:
+            cursor = db.conn.cursor()
+            cursor.execute("""
+                SELECT COUNT(*) as count, MAX(timestamp) as last_signal
+                FROM live_signals
+                WHERE timestamp > NOW() - INTERVAL '1 hour'
+            """)
+            result = cursor.fetchone()
+            signals_info = {
+                'last_hour_count': result['count'],
+                'last_signal': result['last_signal'].isoformat() if result['last_signal'] else None
+            }
+        except:
+            signals_info = None
+        
+        return jsonify({
+            'status': 'healthy' if is_healthy and query_test else 'degraded',
+            'transaction_status': transaction_status,
+            'query_test': query_test,
+            'signals': signals_info,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 @app.route('/api/signal-correlations', methods=['GET'])
 @login_required
