@@ -3291,6 +3291,48 @@ def clear_all_live_signals():
         logger.error(f"Error clearing live signals: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/db-reset', methods=['POST'])
+def reset_database_connection():
+    """Emergency endpoint to reset database connection and clear aborted transactions"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        # Force rollback any aborted transactions
+        try:
+            db.conn.rollback()
+            logger.info("✅ Database transaction rolled back")
+        except Exception as e:
+            logger.error(f"Rollback error: {e}")
+        
+        # Try to reconnect if needed
+        try:
+            cursor = db.conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            logger.info("✅ Database connection verified")
+        except Exception as e:
+            logger.error(f"Connection test failed: {e}")
+            # Try to reconnect
+            try:
+                from database.railway_db import RailwayDB
+                global db
+                db = RailwayDB()
+                logger.info("✅ Database reconnected")
+            except Exception as reconnect_error:
+                logger.error(f"Reconnection failed: {reconnect_error}")
+                return jsonify({'error': 'Failed to reconnect database'}), 500
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Database connection reset',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"DB reset error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/signal-correlations', methods=['GET'])
 @login_required
 def get_signal_correlations():
