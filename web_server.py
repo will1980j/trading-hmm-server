@@ -2669,13 +2669,18 @@ def capture_live_signal():
     """Webhook endpoint for TradingView to send live signals with market context enrichment"""
     global db
     
-    # CRITICAL: Always rollback first to clear any aborted transactions
+    # CRITICAL: Ensure clean transaction state before processing
     if db_enabled and db:
         try:
-            db.conn.rollback()
-            logger.info("🔄 Transaction rolled back before processing")
+            # Use the new ensure_clean_transaction method
+            if hasattr(db, 'ensure_clean_transaction'):
+                db.ensure_clean_transaction()
+            else:
+                # Fallback to simple rollback
+                db.conn.rollback()
+            logger.info("🔄 Transaction state verified clean")
         except Exception as rollback_error:
-            logger.error(f"Rollback failed: {rollback_error}")
+            logger.error(f"Transaction cleanup failed: {rollback_error}")
             # Try to reconnect
             try:
                 from database.railway_db import RailwayDB
