@@ -210,6 +210,69 @@
         <p class="subtitle">Real-time signal monitoring, predictions & feature analysis</p>
     </div>
 
+    <!-- Connection Status Banner -->
+    <div id="connectionBanner" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(16, 185, 129, 0.1)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 15px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div id="connectionPulse" style="width: 12px; height: 12px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); animation: pulse 2s infinite;"></div>
+            <div>
+                <div style="font-weight: 600; font-size: 14px;">TradingView Connection</div>
+                <div id="connectionStatus" style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Checking status...</div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+            <div style="text-align: center;">
+                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Last Signal</div>
+                <div id="bannerLastSignal" style="font-size: 14px; font-weight: 600; margin-top: 2px;">--</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">24h Signals</div>
+                <div id="bannerTotalSignals" style="font-size: 14px; font-weight: 600; margin-top: 2px;">--</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Status</div>
+                <div id="bannerHealthStatus" style="font-size: 20px; margin-top: 2px;">⏳</div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+        
+        @keyframes pulse-warning {
+            0% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+            }
+        }
+        
+        @keyframes pulse-danger {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+    </style>
+
     <div id="loading" class="loading">Loading feature importance data...</div>
 
     <div id="content" style="display: none;">
@@ -1015,24 +1078,109 @@
                     document.getElementById('webhookLastBullish').textContent = lastBullish;
                     document.getElementById('webhookLastBearish').textContent = lastBearish;
                     
-                    // Update last signal
+                    // Update last signal with enhanced time display and health status
                     const lastSignalTime = data.last_bullish || data.last_bearish;
+                    const lastSignalElement = document.getElementById('webhookLastSignal');
+                    
                     if (lastSignalTime) {
                         const timeDiff = Math.floor((Date.now() - new Date(lastSignalTime)) / 1000);
-                        document.getElementById('webhookLastSignal').textContent = 
-                            timeDiff < 60 ? `${timeDiff}s ago` : `${Math.floor(timeDiff/60)}m ago`;
+                        const minutes = Math.floor(timeDiff / 60);
+                        const hours = Math.floor(minutes / 60);
+                        
+                        let timeText = '';
+                        let statusColor = '';
+                        
+                        if (timeDiff < 60) {
+                            timeText = `${timeDiff}s ago`;
+                            statusColor = '#10b981'; // Green - very recent
+                        } else if (minutes < 5) {
+                            timeText = `${minutes}m ago`;
+                            statusColor = '#10b981'; // Green - recent
+                        } else if (minutes < 15) {
+                            timeText = `${minutes}m ago`;
+                            statusColor = '#f59e0b'; // Yellow - getting old
+                        } else if (hours < 1) {
+                            timeText = `${minutes}m ago`;
+                            statusColor = '#ef4444'; // Red - stale
+                        } else {
+                            timeText = `${hours}h ago`;
+                            statusColor = '#ef4444'; // Red - very stale
+                        }
+                        
+                        lastSignalElement.innerHTML = `
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor};"></div>
+                                <span>${timeText}</span>
+                            </div>
+                            <div style="font-size: 10px; margin-top: 4px; opacity: 0.7;">
+                                ${new Date(lastSignalTime).toLocaleString()}
+                            </div>
+                        `;
+                        
+                        // Update health indicator based on time
+                        const healthElement = document.getElementById('webhookHealth');
+                        const pulseElement = document.getElementById('connectionPulse');
+                        const statusElement = document.getElementById('connectionStatus');
+                        const bannerHealthElement = document.getElementById('bannerHealthStatus');
+                        
+                        if (minutes < 5) {
+                            healthElement.textContent = '✅';
+                            healthElement.style.color = '#10b981';
+                            pulseElement.style.background = '#10b981';
+                            pulseElement.style.animation = 'pulse 2s infinite';
+                            statusElement.textContent = 'Connected - Signals flowing';
+                            statusElement.style.color = '#10b981';
+                            bannerHealthElement.textContent = '✅';
+                        } else if (minutes < 15) {
+                            healthElement.textContent = '⚠️';
+                            healthElement.style.color = '#f59e0b';
+                            pulseElement.style.background = '#f59e0b';
+                            pulseElement.style.animation = 'pulse-warning 2s infinite';
+                            statusElement.textContent = `Warning - Last signal ${minutes}m ago`;
+                            statusElement.style.color = '#f59e0b';
+                            bannerHealthElement.textContent = '⚠️';
+                        } else {
+                            healthElement.textContent = '❌';
+                            healthElement.style.color = '#ef4444';
+                            pulseElement.style.background = '#ef4444';
+                            pulseElement.style.animation = 'pulse-danger 2s infinite';
+                            statusElement.textContent = hours < 1 ? `Disconnected - ${minutes}m ago` : `Disconnected - ${hours}h ago`;
+                            statusElement.style.color = '#ef4444';
+                            bannerHealthElement.textContent = '❌';
+                        }
+                        
+                        // Update banner stats
+                        document.getElementById('bannerLastSignal').textContent = timeText;
+                        const totalSignals = (bullish?.count || 0) + (bearish?.count || 0);
+                        document.getElementById('bannerTotalSignals').textContent = totalSignals;
+                    } else {
+                        lastSignalElement.innerHTML = `
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></div>
+                                <span>No signals yet</span>
+                            </div>
+                            <div style="font-size: 10px; margin-top: 4px; opacity: 0.7;">
+                                Waiting for TradingView...
+                            </div>
+                        `;
+                        document.getElementById('webhookHealth').textContent = '⏳';
+                        
+                        // Update banner for no signals
+                        const pulseElement = document.getElementById('connectionPulse');
+                        const statusElement = document.getElementById('connectionStatus');
+                        pulseElement.style.background = '#6b7280';
+                        pulseElement.style.animation = 'none';
+                        statusElement.textContent = 'Waiting for first signal...';
+                        statusElement.style.color = '#94a3b8';
+                        document.getElementById('bannerLastSignal').textContent = 'Never';
+                        document.getElementById('bannerTotalSignals').textContent = '0';
+                        document.getElementById('bannerHealthStatus').textContent = '⏳';
                     }
                 }
                 
-                // Check health
+                // Check health alerts
                 const healthResponse = await fetch('/api/webhook-health');
                 const healthData = await healthResponse.json();
-                
-                if (healthData.alerts && healthData.alerts.length > 0) {
-                    document.getElementById('webhookHealth').textContent = '⚠️';
-                } else {
-                    document.getElementById('webhookHealth').textContent = '✅';
-                }
                 
                 // Check gaps
                 const gapResponse = await fetch('/api/signal-gap-check');
@@ -1042,12 +1190,19 @@
                 if (gapData.gaps && gapData.gaps.length > 0) {
                     gapAlert.style.display = 'block';
                     document.getElementById('signalGapDetails').innerHTML = 
-                        gapData.gaps.map(g => `<div>${g.message}</div>`).join('');
+                        gapData.gaps.map(g => `<div>⚠️ ${g.message}</div>`).join('');
+                } else if (healthData.alerts && healthData.alerts.length > 0) {
+                    gapAlert.style.display = 'block';
+                    document.getElementById('signalGapDetails').innerHTML = 
+                        healthData.alerts.map(a => `<div>⚠️ ${a}</div>`).join('');
                 } else {
                     gapAlert.style.display = 'none';
                 }
             } catch (error) {
                 console.error('Webhook stats error:', error);
+                document.getElementById('webhookLastSignal').innerHTML = `
+                    <div style="color: #ef4444;">Error loading stats</div>
+                `;
             }
         }
 
@@ -1068,7 +1223,36 @@
         }, 60000);
         
         // Refresh webhook stats more frequently (every 10 seconds)
-        setInterval(loadWebhookStats, 10000);
+        let lastAlertState = 'healthy';
+        setInterval(() => {
+            loadWebhookStats();
+            
+            // Check if we need to alert user about connection issues
+            const statusElement = document.getElementById('connectionStatus');
+            if (statusElement) {
+                const statusText = statusElement.textContent;
+                const currentState = statusText.includes('Warning') ? 'warning' : 
+                                   statusText.includes('Disconnected') ? 'disconnected' : 'healthy';
+                
+                // Alert on state change to warning or disconnected
+                if (currentState !== lastAlertState && (currentState === 'warning' || currentState === 'disconnected')) {
+                    // Show browser notification if permitted
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                        new Notification('TradingView Signal Alert', {
+                            body: statusText,
+                            icon: '🔔',
+                            tag: 'webhook-alert'
+                        });
+                    }
+                }
+                lastAlertState = currentState;
+            }
+        }, 10000);
+        
+        // Request notification permission on load
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
     </script>
 </body>
 </html>
