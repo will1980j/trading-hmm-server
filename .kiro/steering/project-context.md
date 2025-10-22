@@ -193,8 +193,8 @@ I have a comprehensive cloud-based NASDAQ day trading analytics platform built w
 ### 12 Tool Dashboard Links
 - 🤖 **ML Intelligence Hub:** `https://web-production-cd33.up.railway.app/ml-dashboard`
 - 📶 **Live Signals Dashboard:** `https://web-production-cd33.up.railway.app/live-signals-dashboard`
-- 🏠 **Main Dashboard:** `https://web-production-cd33.up.railway.app/ml-dashboard`
-- 🧪 **Signal Lab:** `https://web-production-cd33.up.railway.app/signal-lab-dashboard`
+- 🏠 **Main Dashboard:** `https://web-production-cd33.up.railway.app/signal-lab-dashboard`
+- 🧪 **Signal Lab:** `https://web-production-cd33.up.railway.app/signal-analysis-lab`
 - ⏰ **Time Analysis:** `https://web-production-cd33.up.railway.app/time-analysis`
 - 🎯 **Strategy Optimizer:** `https://web-production-cd33.up.railway.app/strategy-optimizer`
 - 🏆 **Compare (Strategy Comparison):** `https://web-production-cd33.up.railway.app/strategy-comparison`
