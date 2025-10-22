@@ -114,6 +114,43 @@
                 <span style="font-size: 1.5rem;">⚙️</span>
                 <h3>Comparison Settings</h3>
             </div>
+            
+            <!-- Time Filter Section -->
+            <div style="background: var(--bg-tertiary); border-radius: var(--radius-md); padding: var(--spacing-lg); margin-bottom: var(--spacing-lg); border: 1px solid rgba(59, 130, 246, 0.2);">
+                <div style="display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-md);">
+                    <span style="font-size: 1.25rem;">📅</span>
+                    <h4 style="font-size: 1rem; font-weight: 700; color: var(--accent-primary);">Time Period Filter</h4>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
+                    <div class="input-group">
+                        <label>Time Period</label>
+                        <select id="timePeriodType" onchange="toggleDateInputs()" style="padding: var(--spacing-md); border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
+                            <option value="all">All Time</option>
+                            <option value="single">Single Date</option>
+                            <option value="range">Date Range</option>
+                            <option value="last7">Last 7 Days</option>
+                            <option value="last30">Last 30 Days</option>
+                            <option value="last90">Last 90 Days</option>
+                        </select>
+                    </div>
+                    <div class="input-group" id="singleDateGroup" style="display: none;">
+                        <label>Select Date</label>
+                        <input type="date" id="singleDate" style="padding: var(--spacing-md); border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
+                    </div>
+                    <div class="input-group" id="startDateGroup" style="display: none;">
+                        <label>Start Date</label>
+                        <input type="date" id="startDate" style="padding: var(--spacing-md); border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
+                    </div>
+                    <div class="input-group" id="endDateGroup" style="display: none;">
+                        <label>End Date</label>
+                        <input type="date" id="endDate" style="padding: var(--spacing-md); border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
+                    </div>
+                </div>
+                <div id="dateRangeInfo" style="font-size: 0.875rem; color: var(--text-secondary); padding: var(--spacing-sm); background: rgba(59, 130, 246, 0.05); border-radius: var(--radius-sm); display: none;">
+                    <span id="dateRangeText"></span>
+                </div>
+            </div>
+            
             <div class="settings-grid">
                 <div class="input-group">
                     <label>Risk Per Trade (%)</label>
@@ -153,13 +190,126 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script>
         let signals = [];
+        let allSignals = [];
+        
+        function toggleDateInputs() {
+            const timePeriodType = document.getElementById('timePeriodType').value;
+            const singleDateGroup = document.getElementById('singleDateGroup');
+            const startDateGroup = document.getElementById('startDateGroup');
+            const endDateGroup = document.getElementById('endDateGroup');
+            const dateRangeInfo = document.getElementById('dateRangeInfo');
+            
+            singleDateGroup.style.display = 'none';
+            startDateGroup.style.display = 'none';
+            endDateGroup.style.display = 'none';
+            dateRangeInfo.style.display = 'none';
+            
+            if (timePeriodType === 'single') {
+                singleDateGroup.style.display = 'block';
+            } else if (timePeriodType === 'range') {
+                startDateGroup.style.display = 'block';
+                endDateGroup.style.display = 'block';
+            }
+            
+            updateDateRangeInfo();
+        }
+        
+        function updateDateRangeInfo() {
+            const timePeriodType = document.getElementById('timePeriodType').value;
+            const dateRangeInfo = document.getElementById('dateRangeInfo');
+            const dateRangeText = document.getElementById('dateRangeText');
+            
+            if (timePeriodType === 'all') {
+                dateRangeInfo.style.display = 'block';
+                dateRangeText.textContent = `📊 Analyzing all ${allSignals.length} historical signals`;
+            } else if (timePeriodType === 'last7') {
+                const date = new Date();
+                date.setDate(date.getDate() - 7);
+                dateRangeInfo.style.display = 'block';
+                dateRangeText.textContent = `📊 Analyzing signals from last 7 days (since ${date.toLocaleDateString()})`;
+            } else if (timePeriodType === 'last30') {
+                const date = new Date();
+                date.setDate(date.getDate() - 30);
+                dateRangeInfo.style.display = 'block';
+                dateRangeText.textContent = `📊 Analyzing signals from last 30 days (since ${date.toLocaleDateString()})`;
+            } else if (timePeriodType === 'last90') {
+                const date = new Date();
+                date.setDate(date.getDate() - 90);
+                dateRangeInfo.style.display = 'block';
+                dateRangeText.textContent = `📊 Analyzing signals from last 90 days (since ${date.toLocaleDateString()})`;
+            }
+        }
+        
+        function filterSignalsByDate() {
+            const timePeriodType = document.getElementById('timePeriodType').value;
+            
+            if (timePeriodType === 'all') {
+                signals = [...allSignals];
+                return;
+            }
+            
+            const now = new Date();
+            let startDate, endDate;
+            
+            if (timePeriodType === 'single') {
+                const singleDateValue = document.getElementById('singleDate').value;
+                if (!singleDateValue) {
+                    alert('Please select a date');
+                    return false;
+                }
+                startDate = new Date(singleDateValue);
+                endDate = new Date(singleDateValue);
+                endDate.setHours(23, 59, 59, 999);
+            } else if (timePeriodType === 'range') {
+                const startDateValue = document.getElementById('startDate').value;
+                const endDateValue = document.getElementById('endDate').value;
+                if (!startDateValue || !endDateValue) {
+                    alert('Please select both start and end dates');
+                    return false;
+                }
+                startDate = new Date(startDateValue);
+                endDate = new Date(endDateValue);
+                endDate.setHours(23, 59, 59, 999);
+                
+                if (startDate > endDate) {
+                    alert('Start date must be before end date');
+                    return false;
+                }
+            } else if (timePeriodType === 'last7') {
+                startDate = new Date();
+                startDate.setDate(startDate.getDate() - 7);
+                endDate = now;
+            } else if (timePeriodType === 'last30') {
+                startDate = new Date();
+                startDate.setDate(startDate.getDate() - 30);
+                endDate = now;
+            } else if (timePeriodType === 'last90') {
+                startDate = new Date();
+                startDate.setDate(startDate.getDate() - 90);
+                endDate = now;
+            }
+            
+            signals = allSignals.filter(s => {
+                const signalDate = new Date(s.date);
+                return signalDate >= startDate && signalDate <= endDate;
+            });
+            
+            const dateRangeInfo = document.getElementById('dateRangeInfo');
+            const dateRangeText = document.getElementById('dateRangeText');
+            dateRangeInfo.style.display = 'block';
+            dateRangeText.textContent = `📊 Analyzing ${signals.length} signals from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`;
+            
+            return true;
+        }
         
         async function loadSignals() {
             const response = await fetch('https://web-production-cd33.up.railway.app/api/signal-lab-trades?analysis_only=true');
             const data = await response.json();
             const trades = Array.isArray(data) ? data : data.trades || [];
-            signals = trades.filter(t => { const d = new Date(t.date); return d.getDay() !== 0 && d.getDay() !== 6; })
+            allSignals = trades.filter(t => { const d = new Date(t.date); return d.getDay() !== 0 && d.getDay() !== 6; })
                 .map(t => ({ date: t.date, time: t.time, session: t.session, mfeNone: parseFloat(t.mfe_none || t.mfe) || 0, mfe1: parseFloat(t.mfe1) || 0 }));
+            signals = [...allSignals];
+            updateDateRangeInfo();
         }
         
         function calculateTradeResult(signal, beStrategy, rTarget, feeR = 0) {
@@ -201,7 +351,18 @@
         }
         
         async function runComparison() {
-            if (signals.length === 0) await loadSignals();
+            if (allSignals.length === 0) await loadSignals();
+            
+            // Apply date filter
+            if (!filterSignalsByDate()) {
+                return;
+            }
+            
+            if (signals.length === 0) {
+                document.getElementById('results').innerHTML = '<div style="text-align: center; padding: 60px; color: var(--accent-warning);">⚠️ No signals found for the selected time period</div>';
+                return;
+            }
+            
             document.getElementById('results').innerHTML = '<div style="text-align: center; padding: 60px;">🔄 Analyzing strategies...</div>';
             
             const riskPerTrade = parseFloat(document.getElementById('riskPerTrade').value);
