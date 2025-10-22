@@ -2668,13 +2668,23 @@ def chart_display_signal():
 def capture_live_signal():
     """Webhook endpoint for TradingView to send live signals with market context enrichment"""
     global db
-    try:
-        # Reset any aborted transaction first
-        if db_enabled and db:
+    
+    # CRITICAL: Always rollback first to clear any aborted transactions
+    if db_enabled and db:
+        try:
+            db.conn.rollback()
+            logger.info("🔄 Transaction rolled back before processing")
+        except Exception as rollback_error:
+            logger.error(f"Rollback failed: {rollback_error}")
+            # Try to reconnect
             try:
-                db.conn.rollback()
+                from database.railway_db import RailwayDB
+                db = RailwayDB()
+                logger.info("✅ Database reconnected")
             except:
-                pass
+                return jsonify({"error": "Database connection failed"}), 500
+    
+    try:
         # Handle TradingView webhook - they send the alert message as raw text
         raw_data = request.get_data(as_text=True)
         logger.info(f"🔥 WEBHOOK RECEIVED: {raw_data[:500]}")
@@ -3098,6 +3108,14 @@ def capture_live_signal():
         })
         
     except Exception as e:
+        # CRITICAL: Rollback on error to prevent stuck transactions
+        if db_enabled and db:
+            try:
+                db.conn.rollback()
+                logger.info("🔄 Transaction rolled back after error")
+            except:
+                pass
+        
         logger.error(f"❌ ERROR capturing live signal: {str(e)} - Content-Type: {request.content_type}")
         logger.error(f"Raw request data: {request.get_data(as_text=True)[:500]}")
         
