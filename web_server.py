@@ -2695,27 +2695,21 @@ def chart_display_signal():
 @app.route('/api/live-signals', methods=['POST'])
 def capture_live_signal():
     """Webhook endpoint for TradingView to send live signals with market context enrichment"""
-    global db
+    # Get fresh connection from pool for this request
+    webhook_db = None
     
-    # CRITICAL: Ensure clean transaction state before processing
-    if db_enabled and db:
+    if db_enabled:
         try:
-            # Use the new ensure_clean_transaction method
-            if hasattr(db, 'ensure_clean_transaction'):
-                db.ensure_clean_transaction()
-            else:
-                # Fallback to simple rollback
-                db.conn.rollback()
-            logger.info("🔄 Transaction state verified clean")
-        except Exception as rollback_error:
-            logger.error(f"Transaction cleanup failed: {rollback_error}")
-            # Try to reconnect
-            try:
-                from database.railway_db import RailwayDB
-                db = RailwayDB()
-                logger.info("✅ Database reconnected")
-            except:
+            from database.railway_db import RailwayDB
+            webhook_db = RailwayDB(use_pool=True)  # Use connection pooling
+            
+            if not webhook_db or not webhook_db.conn:
                 return jsonify({"error": "Database connection failed"}), 500
+                
+            logger.info("🔄 Got database connection from pool")
+        except Exception as conn_error:
+            logger.error(f"❌ Failed to get connection: {conn_error}")
+            return jsonify({"error": "Database connection failed"}), 500
     
     try:
         # Handle TradingView webhook - they send the alert message as raw text
