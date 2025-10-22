@@ -21,7 +21,8 @@ def get_connection_pool():
                 _connection_pool = pool.ThreadedConnectionPool(
                     minconn=1,
                     maxconn=10,  # Max 10 connections
-                    dsn=database_url
+                    dsn=database_url,
+                    cursor_factory=RealDictCursor  # CRITICAL: Return dicts not tuples
                 )
                 logger.info("✅ Connection pool created (1-10 connections)")
             except Exception as e:
