@@ -2695,18 +2695,18 @@ def chart_display_signal():
 @app.route('/api/live-signals', methods=['POST'])
 def capture_live_signal():
     """Webhook endpoint for TradingView to send live signals with market context enrichment"""
-    # Get fresh connection from pool for this request
-    webhook_db = None
+    global db
     
+    # Get fresh connection from pool for this request
     if db_enabled:
         try:
             from database.railway_db import RailwayDB
-            webhook_db = RailwayDB(use_pool=True)  # Use connection pooling
+            db = RailwayDB(use_pool=True)  # Use connection pooling - replaces global db for this request
             
-            if not webhook_db or not webhook_db.conn:
+            if not db or not db.conn:
                 return jsonify({"error": "Database connection failed"}), 500
                 
-            logger.info("🔄 Got database connection from pool")
+            logger.info("🔄 Got fresh database connection from pool")
         except Exception as conn_error:
             logger.error(f"❌ Failed to get connection: {conn_error}")
             return jsonify({"error": "Database connection failed"}), 500
