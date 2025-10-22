@@ -2821,10 +2821,6 @@ def capture_live_signal():
         htf_aligned = data.get('htf_aligned', False)
         htf_status = data.get('htf_status', 'N/A')
         
-        # CRITICAL: Log parsed signal data for debugging
-        logger.info(f"📊 PARSED SIGNAL: bias={triangle_bias}, symbol={clean_symbol}, price={price}, htf={htf_status}")
-        print(f"📊 PARSED SIGNAL: bias={triangle_bias}, symbol={clean_symbol}, price={price}, htf={htf_status}")
-        
         # Ensure price is valid - handle string and numeric prices with commas
         raw_price = data.get('price', 0)
         try:
@@ -2839,6 +2835,10 @@ def capture_live_signal():
         
         if price == 0:
             logger.warning(f"Invalid price in signal: {data}")
+        
+        # CRITICAL: Log parsed signal data for debugging (AFTER price is extracted)
+        logger.info(f"📊 PARSED SIGNAL: bias={triangle_bias}, symbol={clean_symbol}, price={price}, htf={htf_status}")
+        print(f"📊 PARSED SIGNAL: bias={triangle_bias}, symbol={clean_symbol}, price={price}, htf={htf_status}")
         
         # Strength will be set by ML confidence after prediction
         base_strength = 0
