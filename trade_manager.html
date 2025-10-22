@@ -177,23 +177,34 @@
     </style>
 </head>
 <body>
-    <nav nav>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div style="display: flex; gap: 12px; align-items: center; justify-content: center; flex: 1; flex-wrap: wrap;">
-                <a href="/ml-dashboard" >🤖 ML</a>
-                <a href="/live-signals-dashboard" >📶 Live</a>
-                <a href="/signal-lab-dashboard" >🏠 Dashboard</a>
-                <a href="/signal-analysis-lab" >🧪 Signal Lab</a>
-                <a href="/time-analysis" >⏰ Time</a>
-                <a href="/strategy-optimizer" >🎯 Optimizer</a>
-                <a href="/ai-business-advisor" >🧠 AI Advisor</a>
-                <a href="/prop-portfolio" >💼 Prop</a>
-                <a href="/trade-manager" class="active">📋 Trades</a>
-                <a href="/financial-summary" >💰 Finance</a>
-                <a href="/reporting-hub" >📊 Reports</a>
-            </div>
-        </div>
+    <nav style="background: #141b3d; padding: 12px 20px; margin-bottom: 20px; border-bottom: 1px solid #2d3a5f; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+        <a href="/ml-dashboard" data-page="ml" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🤖 ML</a>
+        <a href="/live-signals-dashboard" data-page="live" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">📶 Live</a>
+        <a href="/signal-lab-dashboard" data-page="dashboard" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🏠 Dashboard</a>
+        <a href="/signal-analysis-lab" data-page="lab" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🧪 Signal Lab</a>
+        <a href="/time-analysis" data-page="time" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">⏰ Time</a>
+        <a href="/strategy-optimizer" data-page="optimizer" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🎯 Optimizer</a>
+        <a href="/strategy-comparison" data-page="compare" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🏆 Compare</a>
+        <a href="/ai-business-advisor" data-page="advisor" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🧠 AI Advisor</a>
+        <a href="/prop-portfolio" data-page="prop" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">💼 Prop</a>
+        <a href="/trade-manager" data-page="trades" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">📋 Trades</a>
+        <a href="/financial-summary" data-page="finance" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">💰 Finance</a>
+        <a href="/reporting-hub" data-page="reports" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">📊 Reports</a>
     </nav>
+    <script>
+    (function() {
+        const currentPath = window.location.pathname;
+        const navLinks = document.querySelectorAll('nav a[data-page]');
+        navLinks.forEach(link => {
+            if (link.getAttribute('href') === currentPath) {
+                link.style.background = '#3b82f6';
+                link.style.color = 'white';
+            }
+        });
+    })();
+    </script>
+    
+    
     
     <div class="container">
         <div class="header">

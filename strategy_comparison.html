@@ -76,20 +76,32 @@
     </style>
 </head>
 <body>
-    <nav style="background: var(--bg-secondary); padding: var(--spacing-md); margin-bottom: var(--spacing-xl); border-radius: var(--radius-lg); text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-        <a href="/ml-dashboard" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-tertiary); border-radius: var(--radius-sm); margin: 0 var(--spacing-xs); transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; font-size: 0.875rem;">🤖 ML</a>
-        <a href="/live-signals-dashboard" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-tertiary); border-radius: var(--radius-sm); margin: 0 var(--spacing-xs); transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; font-size: 0.875rem;">📶 Live</a>
-        <a href="/signal-lab-dashboard" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-tertiary); border-radius: var(--radius-sm); margin: 0 var(--spacing-xs); transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; font-size: 0.875rem;">🏠 Dashboard</a>
-        <a href="/signal-analysis-lab" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-tertiary); border-radius: var(--radius-sm); margin: 0 var(--spacing-xs); transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; font-size: 0.875rem;">🧪 Signal Lab</a>
-        <a href="/time-analysis" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-tertiary); border-radius: var(--radius-sm); margin: 0 var(--spacing-xs); transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; font-size: 0.875rem;">⏰ Time</a>
-        <a href="/strategy-optimizer" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-tertiary); border-radius: var(--radius-sm); margin: 0 var(--spacing-xs); transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; font-size: 0.875rem;">🎯 Optimizer</a>
-        <a href="/strategy-comparison" style="color: var(--accent-primary); text-decoration: none; padding: var(--spacing-sm) var(--spacing-md); background: rgba(59, 130, 246, 0.15); border-radius: var(--radius-sm); margin: 0 var(--spacing-xs); transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.875rem; border: 1px solid rgba(59, 130, 246, 0.3);">🏆 Compare</a>
-        <a href="/ai-business-advisor" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-tertiary); border-radius: var(--radius-sm); margin: 0 var(--spacing-xs); transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; font-size: 0.875rem;">🧠 AI Advisor</a>
-        <a href="/prop-portfolio" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-tertiary); border-radius: var(--radius-sm); margin: 0 var(--spacing-xs); transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; font-size: 0.875rem;">💼 Prop</a>
-        <a href="/trade-manager" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-tertiary); border-radius: var(--radius-sm); margin: 0 var(--spacing-xs); transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; font-size: 0.875rem;">📋 Trades</a>
-        <a href="/financial-summary" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-tertiary); border-radius: var(--radius-sm); margin: 0 var(--spacing-xs); transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; font-size: 0.875rem;">💰 Finance</a>
-        <a href="/reporting-hub" style="color: var(--text-secondary); text-decoration: none; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-tertiary); border-radius: var(--radius-sm); margin: 0 var(--spacing-xs); transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; font-size: 0.875rem;">📊 Reports</a>
+    <nav style="background: #141b3d; padding: 12px 20px; margin-bottom: 20px; border-bottom: 1px solid #2d3a5f; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+        <a href="/ml-dashboard" data-page="ml" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🤖 ML</a>
+        <a href="/live-signals-dashboard" data-page="live" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">📶 Live</a>
+        <a href="/signal-lab-dashboard" data-page="dashboard" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🏠 Dashboard</a>
+        <a href="/signal-analysis-lab" data-page="lab" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🧪 Signal Lab</a>
+        <a href="/time-analysis" data-page="time" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">⏰ Time</a>
+        <a href="/strategy-optimizer" data-page="optimizer" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🎯 Optimizer</a>
+        <a href="/strategy-comparison" data-page="compare" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🏆 Compare</a>
+        <a href="/ai-business-advisor" data-page="advisor" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🧠 AI Advisor</a>
+        <a href="/prop-portfolio" data-page="prop" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">💼 Prop</a>
+        <a href="/trade-manager" data-page="trades" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">📋 Trades</a>
+        <a href="/financial-summary" data-page="finance" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">💰 Finance</a>
+        <a href="/reporting-hub" data-page="reports" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">📊 Reports</a>
     </nav>
+    <script>
+    (function() {
+        const currentPath = window.location.pathname;
+        const navLinks = document.querySelectorAll('nav a[data-page]');
+        navLinks.forEach(link => {
+            if (link.getAttribute('href') === currentPath) {
+                link.style.background = '#3b82f6';
+                link.style.color = 'white';
+            }
+        });
+    })();
+    </script>
     
     <div class="container">
         <div class="header">
