@@ -2933,6 +2933,9 @@ def capture_live_signal():
         # Update signal strength with ML confidence before storing
         signal['strength'] = base_strength
         
+        # CRITICAL: Truncate htf_status to fit database column (VARCHAR(50))
+        htf_status_truncated = str(signal.get('htf_status', 'N/A'))[:50]
+        
         cursor.execute("""
             INSERT INTO live_signals 
             (symbol, timeframe, signal_type, bias, price, strength, htf_aligned, htf_status, session, timestamp,
@@ -2942,7 +2945,7 @@ def capture_live_signal():
         """, (
             signal['symbol'], signal['timeframe'], signal['signal_type'],
             signal['bias'], signal['price'], base_strength, 
-            signal['htf_aligned'], signal['htf_status'], signal['session'], get_ny_time(),
+            signal['htf_aligned'], htf_status_truncated, signal['session'], get_ny_time(),
             market_context_json, context_quality, context_recommendations_json
         ))
         

@@ -20,7 +20,7 @@ def test_webhook():
         "price": 21000.50,
         "strength": 85,
         "htf_aligned": True,
-        "htf_status": "D:Bullish 4H:Bullish 1H:Bullish 15M:Bullish 5M:Bullish"
+        "htf_status": "ALIGNED"  # Shortened to fit database column
     }
     
     print("🧪 Testing Railway webhook endpoint...")
