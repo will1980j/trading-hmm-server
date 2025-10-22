@@ -146,11 +146,23 @@ csrf.init_app(app)
 @app.before_request
 def reset_db_transaction():
     """Reset any aborted database transactions before each request"""
+    global db
+    
     if db_enabled and db and hasattr(db, 'conn') and db.conn:
         try:
+            # Try to rollback
             db.conn.rollback()
-        except:
-            pass
+        except Exception as e:
+            # If rollback fails, the connection is dead - reconnect
+            logger.warning(f"⚠️ Rollback failed in before_request: {e} - reconnecting...")
+            try:
+                from database.railway_db import RailwayDB
+                db = RailwayDB()
+                logger.info("✅ Database reconnected in before_request")
+            except Exception as reconnect_error:
+                logger.error(f"❌ Reconnection failed: {reconnect_error}")
+                # Don't block the request, let it try anyway
+                pass
 
 # Initialize SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
