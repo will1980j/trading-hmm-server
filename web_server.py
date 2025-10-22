@@ -467,14 +467,14 @@ def get_webhook_stats():
     """Get webhook signal statistics"""
     try:
         if not db_enabled:
-            return jsonify({'last_24h': [], 'last_bullish': None, 'last_bearish': None}), 200
+            return jsonify({'last_24h': [], 'last_bullish': None, 'last_bearish': None, 'total_signals': 0}), 200
         
         # Get fresh connection for this query
         from database.railway_db import RailwayDB
         query_db = RailwayDB(use_pool=True)
         
         if not query_db or not query_db.conn:
-            return jsonify({'last_24h': [], 'last_bullish': None, 'last_bearish': None}), 200
+            return jsonify({'last_24h': [], 'last_bullish': None, 'last_bearish': None, 'total_signals': 0}), 200
         
         cursor = query_db.conn.cursor()
         
@@ -486,6 +486,14 @@ def get_webhook_stats():
             GROUP BY bias
         """)
         last_24h = [dict(row) for row in cursor.fetchall()]
+        
+        # Get TOTAL signal count (all time) for ML training samples
+        cursor.execute("""
+            SELECT COUNT(*) as total
+            FROM live_signals
+        """)
+        total_row = cursor.fetchone()
+        total_signals = total_row['total'] if total_row else 0
         
         # Get last bullish signal
         cursor.execute("""
@@ -514,12 +522,13 @@ def get_webhook_stats():
         return jsonify({
             'last_24h': last_24h,
             'last_bullish': last_bullish,
-            'last_bearish': last_bearish
+            'last_bearish': last_bearish,
+            'total_signals': total_signals
         })
         
     except Exception as e:
         logger.error(f"Webhook stats error: {str(e)}")
-        return jsonify({'last_24h': [], 'last_bullish': None, 'last_bearish': None, 'error': str(e)}), 200
+        return jsonify({'last_24h': [], 'last_bullish': None, 'last_bearish': None, 'total_signals': 0, 'error': str(e)}), 200
 
 @app.route('/api/webhook-health', methods=['GET'])
 @login_required

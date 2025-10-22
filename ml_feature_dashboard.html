@@ -1072,11 +1072,10 @@
                     document.getElementById('webhookBullishCount').textContent = bullish ? bullish.count : 0;
                     document.getElementById('webhookBearishCount').textContent = bearish ? bearish.count : 0;
                     
-                    // Update training samples count (total signals in last 24h)
-                    const totalSignals = data.last_24h.reduce((sum, item) => sum + (item.count || 0), 0);
+                    // Update training samples count (ALL TIME total for ML training)
                     const trainingSamplesElement = document.getElementById('trainingSamples');
-                    if (trainingSamplesElement && totalSignals > 0) {
-                        trainingSamplesElement.textContent = totalSignals;
+                    if (trainingSamplesElement && data.total_signals) {
+                        trainingSamplesElement.textContent = data.total_signals.toLocaleString();
                     }
                     
                     const lastBullish = data.last_bullish ? new Date(data.last_bullish).toLocaleTimeString() : 'Never';
