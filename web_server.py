@@ -3294,6 +3294,8 @@ def clear_all_live_signals():
 @app.route('/api/db-reset', methods=['POST'])
 def reset_database_connection():
     """Emergency endpoint to reset database connection and clear aborted transactions"""
+    global db  # Must be at the top of the function
+    
     try:
         if not db_enabled or not db:
             return jsonify({'error': 'Database not available'}), 500
@@ -3316,7 +3318,6 @@ def reset_database_connection():
             # Try to reconnect
             try:
                 from database.railway_db import RailwayDB
-                global db
                 db = RailwayDB()
                 logger.info("✅ Database reconnected")
             except Exception as reconnect_error:
