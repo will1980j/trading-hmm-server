@@ -466,14 +466,60 @@ def webhook_monitor():
 def get_webhook_stats():
     """Get webhook signal statistics"""
     try:
-        if not webhook_debugger:
+        if not db_enabled:
             return jsonify({'last_24h': [], 'last_bullish': None, 'last_bearish': None}), 200
         
-        stats = webhook_debugger.get_signal_stats()
-        return jsonify(stats)
+        # Get fresh connection for this query
+        from database.railway_db import RailwayDB
+        query_db = RailwayDB(use_pool=True)
+        
+        if not query_db or not query_db.conn:
+            return jsonify({'last_24h': [], 'last_bullish': None, 'last_bearish': None}), 200
+        
+        cursor = query_db.conn.cursor()
+        
+        # Get signal counts by bias in last 24 hours
+        cursor.execute("""
+            SELECT bias, COUNT(*) as count
+            FROM live_signals
+            WHERE timestamp > NOW() - INTERVAL '24 hours'
+            GROUP BY bias
+        """)
+        last_24h = [dict(row) for row in cursor.fetchall()]
+        
+        # Get last bullish signal
+        cursor.execute("""
+            SELECT timestamp
+            FROM live_signals
+            WHERE bias = 'Bullish'
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """)
+        bullish_row = cursor.fetchone()
+        last_bullish = bullish_row['timestamp'].isoformat() if bullish_row else None
+        
+        # Get last bearish signal
+        cursor.execute("""
+            SELECT timestamp
+            FROM live_signals
+            WHERE bias = 'Bearish'
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """)
+        bearish_row = cursor.fetchone()
+        last_bearish = bearish_row['timestamp'].isoformat() if bearish_row else None
+        
+        query_db.close()
+        
+        return jsonify({
+            'last_24h': last_24h,
+            'last_bullish': last_bullish,
+            'last_bearish': last_bearish
+        })
+        
     except Exception as e:
         logger.error(f"Webhook stats error: {str(e)}")
-        return jsonify({'last_24h': [], 'error': str(e)}), 200
+        return jsonify({'last_24h': [], 'last_bullish': None, 'last_bearish': None, 'error': str(e)}), 200
 
 @app.route('/api/webhook-health', methods=['GET'])
 @login_required
