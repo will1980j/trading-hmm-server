@@ -11,13 +11,24 @@ except ImportError:
     PSUTIL_AVAILABLE = False
 
 def get_db_connection():
-    """Get database connection"""
-    try:
-        from database.railway_db import RailwayDB
-        db = RailwayDB()
-        return db.conn if db else None
-    except:
-        return None
+    """Get database connection with retry"""
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            from database.railway_db import RailwayDB
+            db = RailwayDB()
+            if db and db.conn:
+                # Test connection
+                cur = db.conn.cursor()
+                cur.execute("SELECT 1")
+                cur.fetchone()
+                cur.close()
+                return db.conn
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(0.5)
+            continue
+    return None
 
 def get_system_health():
     health = {
@@ -61,10 +72,11 @@ def get_system_health():
     return health
 
 def get_webhook_health():
+    conn = None
     try:
         conn = get_db_connection()
         if not conn:
-            return {'status': 'critical', 'score': 0, 'signal_rate': 'DB Error', 'signals_24h': 0, 'last_signal': 'Error'}
+            return {'status': 'critical', 'score': 0, 'signal_rate': '0/24h', 'signal_rate_status': 'critical', 'signals_24h': 0, 'last_signal': 'DB Offline'}
         cur = conn.cursor()
         
         cur.execute("SELECT COUNT(*) FROM live_signals WHERE timestamp > NOW() - INTERVAL '24 hours'")
@@ -98,11 +110,12 @@ def get_webhook_health():
         return {'status': 'critical', 'score': 0, 'signal_rate': '0/24h', 'signal_rate_status': 'critical', 'signals_24h': 0, 'last_signal': 'DB Error'}
 
 def get_database_health():
+    conn = None
     try:
         start = time.time()
         conn = get_db_connection()
         if not conn:
-            return {'status': 'critical', 'score': 0, 'pool_status': 'Offline', 'query_time': 'Error', 'active_connections': 0}
+            return {'status': 'critical', 'score': 0, 'pool_status': 'Offline', 'query_time': 'N/A', 'query_time_status': 'critical', 'active_connections': 0}
         cur = conn.cursor()
         
         cur.execute("SELECT 1")
@@ -178,10 +191,11 @@ def get_resource_health():
         return {'status': 'healthy', 'score': 95, 'memory_usage': 'N/A', 'cpu_usage': 'N/A', 'memory_percent': 0, 'cpu_percent': 0, 'memory_status': 'healthy', 'cpu_status': 'healthy'}
 
 def get_ml_health():
+    conn = None
     try:
         conn = get_db_connection()
         if not conn:
-            return {'status': 'critical', 'score': 0, 'accuracy': 'Error', 'health_score': 'Error', 'training_samples': 0}
+            return {'status': 'warning', 'score': 50, 'accuracy': 'N/A', 'accuracy_status': 'warning', 'health_score': 'N/A', 'health_score_status': 'warning', 'training_samples': '0'}
         cur = conn.cursor()
         
         cur.execute("SELECT COUNT(*) FROM signal_lab_trades WHERE mfe IS NOT NULL")
@@ -211,10 +225,11 @@ def get_ml_health():
         return {'status': 'warning', 'score': 50, 'accuracy': 'N/A', 'accuracy_status': 'warning', 'health_score': 'N/A', 'health_score_status': 'warning', 'training_samples': '0'}
 
 def get_prediction_health():
+    conn = None
     try:
         conn = get_db_connection()
         if not conn:
-            return {'status': 'critical', 'score': 0, 'avg_confidence': 'Error', 'predictions_today': 0, 'last_training': 'Error'}
+            return {'status': 'warning', 'score': 50, 'avg_confidence': 'N/A', 'confidence_status': 'warning', 'predictions_today': 0, 'last_training': 'N/A'}
         cur = conn.cursor()
         
         cur.execute("SELECT COUNT(*) FROM live_signals WHERE timestamp::date = CURRENT_DATE")
