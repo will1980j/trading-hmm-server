@@ -104,7 +104,7 @@
                 <div class="session-item"><input type="checkbox" id="sessNYLunch" value="NY Lunch" checked><label for="sessNYLunch">NY Lunch</label></div>
                 <div class="session-item"><input type="checkbox" id="sessNYPM" value="NY PM" checked><label for="sessNYPM">NY PM</label></div>
             </div>
-            <div style="margin-top: 15px; display: flex; gap: 20px; flex-wrap: wrap;">
+            <div style="margin-top: 15px; display: flex; gap: 20px;">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                     <input type="checkbox" id="useOptimalHours" style="width: 16px; height: 16px; accent-color: #00ff88;">
                     <span style="color: #00ff88; font-weight: 600;">Use optimal time windows only</span>
@@ -112,14 +112,6 @@
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                     <input type="checkbox" id="useMacroWindows" style="width: 16px; height: 16px; accent-color: #8a2be2;">
                     <span style="color: #8a2be2; font-weight: 600;">Use macro windows only (xx:45-xx:15)</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="filterByProfitFactor" style="width: 16px; height: 16px; accent-color: #ffa502;">
-                    <span style="color: #ffa502; font-weight: 600;">Min Profit Factor 1.5+</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="filterByExpectancy" style="width: 16px; height: 16px; accent-color: #3a7bd5;">
-                    <span style="color: #3a7bd5; font-weight: 600;">Min Expectancy 0.2R+</span>
                 </label>
             </div>
             
@@ -253,8 +245,6 @@
             const selectedSessions = getSelectedSessions();
             const useOptimalHours = document.getElementById('useOptimalHours').checked;
             const useMacroWindows = document.getElementById('useMacroWindows').checked;
-            const filterByProfitFactor = document.getElementById('filterByProfitFactor').checked;
-            const filterByExpectancy = document.getElementById('filterByExpectancy').checked;
             
             // Base signals - no filtering yet if both options selected
             let baseSignals = signals;
@@ -351,19 +341,10 @@
                             const stats = calculateStats(results);
                             const maxDailyLossPercent = stats.maxConsecLosses * riskPerTrade;
                             const maxDrawdownPercent = stats.maxDrawdown * riskPerTrade;
-                            const winResults = results.filter(r => r > 0);
-                            const lossResults = results.filter(r => r < 0);
-                            const totalWins = winResults.reduce((sum, r) => sum + r, 0);
-                            const totalLosses = Math.abs(lossResults.reduce((sum, r) => sum + r, 0));
-                            const profitFactor = totalLosses > 0 ? (totalWins / totalLosses) : (totalWins > 0 ? 999 : 0);
-                            
                             const propViable = maxDailyLossPercent <= constraints.maxDailyLoss && 
                                              maxDrawdownPercent <= constraints.maxDrawdown && 
                                              stats.winRate >= constraints.minWinRate;
                             if (!propViable) return;
-                            
-                            if (filterByProfitFactor && profitFactor < 1.5) return;
-                            if (filterByExpectancy && stats.expectancy < 0.2) return;
                             const score = stats.expectedTotalReturn * riskPerTrade;
                             const combo = { sessions: [session], beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, riskPerTrade, optimalWindows: useOptimalHours ? optimalTimeWindows : {}, signals: sessionSignals };
                             allCombinations.push(combo);
@@ -405,19 +386,10 @@
                             const stats = calculateStats(results);
                             const maxDailyLossPercent = stats.maxConsecLosses * riskPerTrade;
                             const maxDrawdownPercent = stats.maxDrawdown * riskPerTrade;
-                            const winResults = results.filter(r => r > 0);
-                            const lossResults = results.filter(r => r < 0);
-                            const totalWins = winResults.reduce((sum, r) => sum + r, 0);
-                            const totalLosses = Math.abs(lossResults.reduce((sum, r) => sum + r, 0));
-                            const profitFactor = totalLosses > 0 ? (totalWins / totalLosses) : (totalWins > 0 ? 999 : 0);
-                            
                             const propViable = maxDailyLossPercent <= constraints.maxDailyLoss && 
                                              maxDrawdownPercent <= constraints.maxDrawdown && 
                                              stats.winRate >= constraints.minWinRate;
                             if (!propViable) continue;
-                            
-                            if (filterByProfitFactor && profitFactor < 1.5) continue;
-                            if (filterByExpectancy && stats.expectancy < 0.2) continue;
                             const score = stats.expectedTotalReturn * riskPerTrade;
                             const combo = { sessions: sessionCombo, beStrategy, rTarget, stats, score, maxDailyLossPercent, maxDrawdownPercent, riskPerTrade, optimalWindows: useOptimalHours ? optimalTimeWindows : {}, signals: combinedSignals };
                             allCombinations.push(combo);

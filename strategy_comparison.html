@@ -172,6 +172,14 @@
                     <label>Min Win Rate (%)</label>
                     <input type="number" id="minWinRate" value="40" min="0" max="100" step="5">
                 </div>
+                <div class="input-group">
+                    <label>Min Expectancy (R)</label>
+                    <input type="number" id="minExpectancy" value="0" min="0" max="2" step="0.05">
+                </div>
+                <div class="input-group">
+                    <label>Min Profit Factor</label>
+                    <input type="number" id="minProfitFactor" value="0" min="0" max="5" step="0.1">
+                </div>
             </div>
             <label class="checkbox-group">
                 <input type="checkbox" id="onlyPropViable" checked>
@@ -482,11 +490,22 @@
             const onlyPropViable = document.getElementById('onlyPropViable').checked;
             const maxDailyLoss = parseFloat(document.getElementById('maxDailyLoss').value);
             const minWinRate = parseFloat(document.getElementById('minWinRate').value);
+            const minExpectancy = parseFloat(document.getElementById('minExpectancy').value);
+            const minProfitFactor = parseFloat(document.getElementById('minProfitFactor').value);
             
-            let filteredStrategies = strategies;
-            if (onlyPropViable) {
-                filteredStrategies = strategies.filter(s => s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate);
-            }
+            let filteredStrategies = strategies.filter(s => {
+                const winResults = s.stats.totalR > 0 ? s.stats.totalR : 0;
+                const lossResults = Math.abs(s.stats.totalR < 0 ? s.stats.totalR : 0);
+                const profitFactor = lossResults > 0 ? (winResults / lossResults) : (winResults > 0 ? 999 : 0);
+                
+                if (s.stats.expectancy < minExpectancy) return false;
+                if (profitFactor < minProfitFactor) return false;
+                
+                if (onlyPropViable) {
+                    return s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate;
+                }
+                return true;
+            });
             
             filteredStrategies.sort((a, b) => b.expectedReturnPercent - a.expectedReturnPercent);
             allStrategies = filteredStrategies.slice(0, 20);
