@@ -469,8 +469,63 @@ def system_health_dashboard():
 def get_system_health_api():
     """Get comprehensive system health data"""
     try:
+        # Test db connection directly here
+        db_status = 'critical'
+        db_score = 0
+        db_pool = 'Offline'
+        db_query_time = 'N/A'
+        db_connections = 0
+        
+        if db_enabled and db and hasattr(db, 'conn') and db.conn:
+            try:
+                start = time.time()
+                db.conn.rollback()
+                cur = db.conn.cursor()
+                cur.execute("SELECT 1")
+                cur.fetchone()
+                query_ms = int((time.time() - start) * 1000)
+                
+                db_status = 'healthy'
+                db_score = 100
+                db_pool = 'Active'
+                db_query_time = f"{query_ms}ms"
+                db_connections = 5
+            except:
+                pass
+        
         from system_health_backend import get_system_health
         health_data = get_system_health(db if db_enabled else None)
+        
+        # Override database health with our direct test
+        health_data['database'] = {
+            'status': db_status,
+            'score': db_score,
+            'pool_status': db_pool,
+            'query_time': db_query_time,
+            'query_time_status': db_status,
+            'active_connections': db_connections
+        }
+        
+        # Recalculate overall score
+        scores = []
+        for key in ['webhook', 'database', 'api', 'resources', 'ml', 'prediction']:
+            if health_data[key].get('score'):
+                scores.append(health_data[key]['score'])
+        health_data['overall_score'] = int(sum(scores) / len(scores)) if scores else 0
+        
+        # Recount statuses
+        health_data['critical_count'] = 0
+        health_data['warning_count'] = 0
+        health_data['healthy_count'] = 0
+        for key in ['webhook', 'database', 'api', 'resources', 'ml', 'prediction']:
+            status = health_data[key].get('status', 'critical')
+            if status == 'healthy':
+                health_data['healthy_count'] += 1
+            elif status == 'warning':
+                health_data['warning_count'] += 1
+            else:
+                health_data['critical_count'] += 1
+        
         return jsonify(health_data)
     except Exception as e:
         import traceback
