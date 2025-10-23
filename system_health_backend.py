@@ -1,9 +1,18 @@
 import psycopg2
+import psycopg2.extras
 import time
 from datetime import datetime, timedelta
-from db_connection import get_db_connection
 import psutil
 import os
+
+def get_db_connection():
+    """Get database connection"""
+    try:
+        from database.railway_db import RailwayDB
+        db = RailwayDB()
+        return db.conn if db else None
+    except:
+        return None
 
 def get_system_health():
     health = {
@@ -49,6 +58,8 @@ def get_system_health():
 def get_webhook_health():
     try:
         conn = get_db_connection()
+        if not conn:
+            return {'status': 'critical', 'score': 0, 'signal_rate': 'DB Error', 'signals_24h': 0, 'last_signal': 'Error'}
         cur = conn.cursor()
         
         cur.execute("SELECT COUNT(*) FROM live_signals WHERE timestamp > NOW() - INTERVAL '24 hours'")
@@ -82,6 +93,8 @@ def get_database_health():
     try:
         start = time.time()
         conn = get_db_connection()
+        if not conn:
+            return {'status': 'critical', 'score': 0, 'pool_status': 'Offline', 'query_time': 'Error', 'active_connections': 0}
         cur = conn.cursor()
         
         cur.execute("SELECT 1")
@@ -149,6 +162,8 @@ def get_resource_health():
 def get_ml_health():
     try:
         conn = get_db_connection()
+        if not conn:
+            return {'status': 'critical', 'score': 0, 'accuracy': 'Error', 'health_score': 'Error', 'training_samples': 0}
         cur = conn.cursor()
         
         cur.execute("SELECT COUNT(*) FROM signal_lab_trades WHERE mfe IS NOT NULL")
@@ -182,6 +197,8 @@ def get_ml_health():
 def get_prediction_health():
     try:
         conn = get_db_connection()
+        if not conn:
+            return {'status': 'critical', 'score': 0, 'avg_confidence': 'Error', 'predictions_today': 0, 'last_training': 'Error'}
         cur = conn.cursor()
         
         cur.execute("SELECT COUNT(*) FROM live_signals WHERE timestamp::date = CURRENT_DATE")
