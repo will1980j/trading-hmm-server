@@ -11,24 +11,23 @@ except ImportError:
     PSUTIL_AVAILABLE = False
 
 def get_db_connection():
-    """Get database connection with retry"""
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            from database.railway_db import RailwayDB
-            db = RailwayDB()
-            if db and db.conn:
-                # Test connection
-                cur = db.conn.cursor()
-                cur.execute("SELECT 1")
-                cur.fetchone()
-                cur.close()
-                return db.conn
-        except Exception as e:
-            if attempt < max_retries - 1:
-                time.sleep(0.5)
-            continue
-    return None
+    """Get database connection using global db instance from web_server"""
+    try:
+        # Import the global db from web_server
+        import web_server
+        if hasattr(web_server, 'db') and web_server.db and web_server.db.conn:
+            # Use the same connection that web_server uses (with auto-recovery)
+            return web_server.db.conn
+    except:
+        pass
+    
+    # Fallback: create new connection
+    try:
+        from database.railway_db import RailwayDB
+        db = RailwayDB()
+        return db.conn if db else None
+    except:
+        return None
 
 def get_system_health():
     health = {
