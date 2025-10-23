@@ -458,92 +458,34 @@ def ml_dashboard():
     """ML Feature Dashboard - Comprehensive ML Intelligence"""
     return read_html_file('ml_feature_dashboard.html')
 
-@app.route('/system-health-dashboard')
-@login_required
-def system_health_dashboard():
-    """System Health Dashboard - Real-time platform monitoring"""
-    return read_html_file('system_health_dashboard.html')
-
-@app.route('/api/system-health', methods=['GET'])
-@login_required
-def get_system_health_api():
-    """Get comprehensive system health data"""
+@app.route('/api/db-status', methods=['GET'])
+def get_db_status():
+    """Simple DB status check - shows if resilient system is working"""
     try:
-        # Test db connection directly here
-        db_status = 'critical'
-        db_score = 0
-        db_pool = 'Offline'
-        db_query_time = 'N/A'
-        db_connections = 0
+        if not db_enabled or not db:
+            return jsonify({'status': 'offline', 'message': 'Database not enabled'})
         
-        if db_enabled and db and hasattr(db, 'conn') and db.conn:
-            try:
-                start = time.time()
-                db.conn.rollback()
-                cur = db.conn.cursor()
-                cur.execute("SELECT 1")
-                cur.fetchone()
-                query_ms = int((time.time() - start) * 1000)
-                
-                db_status = 'healthy'
-                db_score = 100
-                db_pool = 'Active'
-                db_query_time = f"{query_ms}ms"
-                db_connections = 5
-            except:
-                pass
+        start = time.time()
+        db.conn.rollback()
+        cur = db.conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM live_signals WHERE timestamp > NOW() - INTERVAL '1 hour'")
+        signal_count = cur.fetchone()[0]
+        query_time = int((time.time() - start) * 1000)
         
-        from system_health_backend import get_system_health
-        health_data = get_system_health(db if db_enabled else None)
-        
-        # Override database health with our direct test
-        health_data['database'] = {
-            'status': db_status,
-            'score': db_score,
-            'pool_status': db_pool,
-            'query_time': db_query_time,
-            'query_time_status': db_status,
-            'active_connections': db_connections
-        }
-        
-        # Recalculate overall score
-        scores = []
-        for key in ['webhook', 'database', 'api', 'resources', 'ml', 'prediction']:
-            if health_data[key].get('score'):
-                scores.append(health_data[key]['score'])
-        health_data['overall_score'] = int(sum(scores) / len(scores)) if scores else 0
-        
-        # Recount statuses
-        health_data['critical_count'] = 0
-        health_data['warning_count'] = 0
-        health_data['healthy_count'] = 0
-        for key in ['webhook', 'database', 'api', 'resources', 'ml', 'prediction']:
-            status = health_data[key].get('status', 'critical')
-            if status == 'healthy':
-                health_data['healthy_count'] += 1
-            elif status == 'warning':
-                health_data['warning_count'] += 1
-            else:
-                health_data['critical_count'] += 1
-        
-        return jsonify(health_data)
-    except Exception as e:
-        import traceback
-        logger.error(f"System health error: {str(e)}")
-        logger.error(traceback.format_exc())
         return jsonify({
-            'overall_score': 0,
-            'critical_count': 0,
-            'warning_count': 0,
-            'healthy_count': 0,
-            'webhook': {'status': 'unknown'},
-            'database': {'status': 'unknown'},
-            'api': {'status': 'unknown'},
-            'resources': {'status': 'unknown'},
-            'ml': {'status': 'unknown'},
-            'prediction': {'status': 'unknown'},
-            'modules': [],
-            'alerts': [{'severity': 'critical', 'title': 'Health Check Error', 'message': str(e), 'time': datetime.now().strftime('%H:%M:%S')}]
+            'status': 'healthy',
+            'query_time_ms': query_time,
+            'signals_last_hour': signal_count,
+            'resilient_system': 'active',
+            'message': 'Database connection healthy'
+        })
+    except Exception as e:
+        logger.error(f"DB status check failed: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'resilient_system': 'attempting_recovery',
+            'message': 'Resilient system will auto-recover'
         }), 200
 
 @app.route('/webhook-monitor')
