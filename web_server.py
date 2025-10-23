@@ -475,7 +475,7 @@ def get_system_health_api():
     """Get comprehensive system health data"""
     try:
         from system_health_backend import get_system_health
-        health_data = get_system_health()
+        health_data = get_system_health(db if db_enabled else None)
         return jsonify(health_data)
     except Exception as e:
         import traceback

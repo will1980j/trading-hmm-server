@@ -10,26 +10,29 @@ try:
 except ImportError:
     PSUTIL_AVAILABLE = False
 
+_db_instance = None
+
+def _set_db_instance(db):
+    """Set the db instance for health checks"""
+    global _db_instance
+    _db_instance = db
+
 def get_db_connection():
-    """Get database connection using global db instance from web_server"""
-    try:
-        # Import the global db from web_server
-        import web_server
-        if hasattr(web_server, 'db') and web_server.db and web_server.db.conn:
-            # Use the same connection that web_server uses (with auto-recovery)
-            return web_server.db.conn
-    except:
-        pass
+    """Get database connection"""
+    global _db_instance
+    if _db_instance and hasattr(_db_instance, 'conn') and _db_instance.conn:
+        return _db_instance.conn
     
-    # Fallback: create new connection
     try:
         from database.railway_db import RailwayDB
-        db = RailwayDB()
-        return db.conn if db else None
+        _db_instance = RailwayDB()
+        return _db_instance.conn if _db_instance else None
     except:
         return None
 
-def get_system_health():
+def get_system_health(db=None):
+    if db:
+        _set_db_instance(db)
     health = {
         'overall_score': 0,
         'critical_count': 0,
