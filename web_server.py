@@ -463,6 +463,24 @@ def ml_dashboard():
     """ML Feature Dashboard - Comprehensive ML Intelligence"""
     return read_html_file('ml_feature_dashboard.html')
 
+@app.route('/system-health-dashboard')
+@login_required
+def system_health_dashboard():
+    """System Health Dashboard - Real-time platform monitoring"""
+    return read_html_file('system_health_dashboard.html')
+
+@app.route('/api/system-health', methods=['GET'])
+@login_required
+def get_system_health_api():
+    """Get comprehensive system health data"""
+    try:
+        from system_health_backend import get_system_health
+        health_data = get_system_health()
+        return jsonify(health_data)
+    except Exception as e:
+        logger.error(f"System health error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/webhook-monitor')
 @login_required
 def webhook_monitor():
