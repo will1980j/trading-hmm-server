@@ -493,23 +493,9 @@
             const minExpectancy = parseFloat(document.getElementById('minExpectancy').value);
             const minProfitFactor = parseFloat(document.getElementById('minProfitFactor').value);
             
-            let filteredStrategies = strategies.filter(s => {
-                const winResults = s.stats.totalR > 0 ? s.stats.totalR : 0;
-                const lossResults = Math.abs(s.stats.totalR < 0 ? s.stats.totalR : 0);
-                const profitFactor = lossResults > 0 ? (winResults / lossResults) : (winResults > 0 ? 999 : 0);
-                
-                if (s.stats.expectancy < minExpectancy) return false;
-                if (profitFactor < minProfitFactor) return false;
-                
-                if (onlyPropViable) {
-                    return s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate;
-                }
-                return true;
-            });
-            
-            filteredStrategies.sort((a, b) => b.expectedReturnPercent - a.expectedReturnPercent);
-            allStrategies = filteredStrategies.slice(0, 20);
-            allStrategySignals = allStrategies.map(s => {
+            // Store signals for each strategy for profit factor calculation
+            const strategySignalsMap = new Map();
+            strategies.forEach((s, idx) => {
                 let filteredSignals = signals.filter(sig => s.sessions.includes(sig.session));
                 
                 if (s.timeFilter === 'optimal' || s.timeFilter === 'both') {
@@ -556,7 +542,40 @@
                     });
                 }
                 
-                return filteredSignals;
+                strategySignalsMap.set(idx, filteredSignals);
+            });
+            
+            let filteredStrategies = strategies.filter((s, idx) => {
+                const stratSignals = strategySignalsMap.get(idx);
+                const results = stratSignals.map(sig => calculateTradeResult(sig, s.beStrategy, s.rTarget, feeR));
+                const winResults = results.filter(r => r > 0);
+                const lossResults = results.filter(r => r < 0);
+                const totalWinR = winResults.reduce((a,b) => a + b, 0);
+                const totalLossR = Math.abs(lossResults.reduce((a,b) => a + b, 0));
+                const profitFactor = totalLossR > 0 ? (totalWinR / totalLossR) : (totalWinR > 0 ? 999 : 0);
+                
+                if (s.stats.expectancy < minExpectancy) return false;
+                if (profitFactor < minProfitFactor) return false;
+                
+                if (onlyPropViable) {
+                    return s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate;
+                }
+                return true;
+            });
+            
+            // Map filtered strategies to their original indices
+            const filteredIndices = [];
+            strategies.forEach((s, idx) => {
+                if (filteredStrategies.includes(s)) {
+                    filteredIndices.push(idx);
+                }
+            });
+            
+            filteredStrategies.sort((a, b) => b.expectedReturnPercent - a.expectedReturnPercent);
+            allStrategies = filteredStrategies.slice(0, 20);
+            allStrategySignals = allStrategies.map(s => {
+                const originalIdx = strategies.indexOf(s);
+                return strategySignalsMap.get(originalIdx);
             });
             displayComparison(allStrategies, totalPossible, filteredStrategies.length);
         }
@@ -569,7 +588,7 @@
             
             const beText = { 'none': 'No BE', 'be1': 'BE=1R' };
             
-            let html = '<table id="strategyTable"><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th class="sortable" data-sort="expectancy">Expectancy</th><th class="sortable" data-sort="avgTrade">Avg Trade</th><th class="sortable" data-sort="winRate">Win Rate</th><th class="sortable" data-sort="breakevenRate">BE Rate</th><th class="sortable" data-sort="trades">Trades</th><th class="sortable" data-sort="expectedR">Expected R</th><th class="sortable" data-sort="expectedPercent">Expected %</th><th class="sortable" data-sort="maxDD">Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
+            let html = '<table id="strategyTable"><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th class="sortable" data-sort="expectancy">Expectancy</th><th class="sortable" data-sort="profitFactor">Profit Factor</th><th class="sortable" data-sort="avgTrade">Avg Trade</th><th class="sortable" data-sort="winRate">Win Rate</th><th class="sortable" data-sort="breakevenRate">BE Rate</th><th class="sortable" data-sort="trades">Trades</th><th class="sortable" data-sort="expectedR">Expected R</th><th class="sortable" data-sort="expectedPercent">Expected %</th><th class="sortable" data-sort="maxDD">Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
             
             const maxDailyLoss = parseFloat(document.getElementById('maxDailyLoss')?.value || 5);
             const minWinRate = parseFloat(document.getElementById('minWinRate')?.value || 40);
@@ -584,6 +603,16 @@
                 const expectancyColor = s.stats.expectancy > 0.2 ? `rgba(0,255,136,${Math.min(s.stats.expectancy * 2, 1) * 0.3})` : 'transparent';
                 const winRateColor = s.stats.winRate > 50 ? `rgba(0,255,136,${(s.stats.winRate - 50) / 50 * 0.3})` : 'transparent';
                 const ddColor = `rgba(255,71,87,${Math.min(s.maxDrawdownPercent / 10, 1) * 0.3})`;
+                
+                const feeR = parseFloat(document.getElementById('brokerFee').value);
+                const results = allStrategySignals[i].map(sig => calculateTradeResult(sig, s.beStrategy, s.rTarget, feeR));
+                const winResults = results.filter(r => r > 0);
+                const lossResults = results.filter(r => r < 0);
+                const totalWinR = winResults.reduce((a,b) => a + b, 0);
+                const totalLossR = Math.abs(lossResults.reduce((a,b) => a + b, 0));
+                const profitFactor = totalLossR > 0 ? (totalWinR / totalLossR) : (totalWinR > 0 ? 999 : 0);
+                const pfColor = profitFactor >= 2 ? `rgba(0,255,136,${Math.min((profitFactor - 1) / 3, 1) * 0.3})` : 'transparent';
+                
                 html += `<tr ${rowClass} data-index="${i}">
                     <td>${i === 0 ? '🏆' : i + 1}</td>
                     <td>${sessionsText}</td>
@@ -591,6 +620,7 @@
                     <td>${beText[s.beStrategy]}</td>
                     <td>${s.rTarget}R</td>
                     <td style="background: ${expectancyColor}; font-weight: 600;">${s.stats.expectancy.toFixed(3)}</td>
+                    <td style="background: ${pfColor}; font-weight: 600;">${profitFactor === 999 ? '∞' : profitFactor.toFixed(2)}</td>
                     <td>${s.stats.avgTrade.toFixed(3)}R</td>
                     <td style="background: ${winRateColor}; font-weight: 600;">${s.stats.winRate.toFixed(1)}%</td>
                     <td>${s.stats.breakevenRate.toFixed(1)}%</td>
@@ -748,6 +778,18 @@
                 let valA, valB;
                 switch(key) {
                     case 'expectancy': valA = stratA.stats.expectancy; valB = stratB.stats.expectancy; break;
+                    case 'profitFactor': {
+                        const feeR = parseFloat(document.getElementById('brokerFee').value);
+                        const resultsA = allStrategySignals[indexA].map(s => calculateTradeResult(s, stratA.beStrategy, stratA.rTarget, feeR));
+                        const resultsB = allStrategySignals[indexB].map(s => calculateTradeResult(s, stratB.beStrategy, stratB.rTarget, feeR));
+                        const winA = resultsA.filter(r => r > 0).reduce((a,b) => a + b, 0);
+                        const lossA = Math.abs(resultsA.filter(r => r < 0).reduce((a,b) => a + b, 0));
+                        const winB = resultsB.filter(r => r > 0).reduce((a,b) => a + b, 0);
+                        const lossB = Math.abs(resultsB.filter(r => r < 0).reduce((a,b) => a + b, 0));
+                        valA = lossA > 0 ? (winA / lossA) : (winA > 0 ? 999 : 0);
+                        valB = lossB > 0 ? (winB / lossB) : (winB > 0 ? 999 : 0);
+                        break;
+                    }
                     case 'avgTrade': valA = stratA.stats.avgTrade; valB = stratB.stats.avgTrade; break;
                     case 'winRate': valA = stratA.stats.winRate; valB = stratB.stats.winRate; break;
                     case 'breakevenRate': valA = stratA.stats.breakevenRate; valB = stratB.stats.breakevenRate; break;
