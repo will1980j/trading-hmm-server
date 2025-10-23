@@ -118,6 +118,13 @@ def get_database_health():
         conn = get_db_connection()
         if not conn:
             return {'status': 'critical', 'score': 0, 'pool_status': 'Offline', 'query_time': 'N/A', 'query_time_status': 'critical', 'active_connections': 0}
+        
+        # Test connection with rollback first
+        try:
+            conn.rollback()
+        except:
+            pass
+            
         cur = conn.cursor()
         
         cur.execute("SELECT 1")
