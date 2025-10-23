@@ -17,10 +17,11 @@ class HyperparameterStatus:
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
                     WHERE table_name = 'hyperparameter_optimization_results'
-                )
+                ) as exists
             """)
             
-            table_exists = cursor.fetchone()[0]
+            result = cursor.fetchone()
+            table_exists = result['exists'] if result else False
             
             if not table_exists:
                 return {

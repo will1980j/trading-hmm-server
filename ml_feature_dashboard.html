@@ -787,14 +787,28 @@
         async function loadHyperparameterStatus() {
             try {
                 const response = await fetch('/api/hyperparameter-status');
-                const data = await response.json();
                 
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
                 displayHyperparameterStatus(data);
             } catch (error) {
                 console.error('Error loading hyperparameter status:', error);
                 document.getElementById('hyperparameterStatus').innerHTML = `
-                    <div style="text-align: center; padding: 20px; color: var(--accent-warning);">
-                        ⚠️ Hyperparameter optimization endpoint not available yet
+                    <div style="background: rgba(245, 158, 11, 0.1); padding: 20px; border-radius: 8px; border-left: 4px solid var(--accent-warning);">
+                        <div style="font-weight: 600; margin-bottom: 10px;">🔄 Server Restart Required</div>
+                        <div style="color: var(--text-secondary); font-size: 14px;">
+                            Hyperparameter optimization integration is complete but requires a server restart to activate.
+                            <br><br>
+                            After restart, this section will display:
+                            <ul style="margin-top: 10px; padding-left: 20px;">
+                                <li>Current optimized parameters</li>
+                                <li>Performance improvements</li>
+                                <li>Optimization history</li>
+                            </ul>
+                        </div>
                     </div>
                 `;
             }
