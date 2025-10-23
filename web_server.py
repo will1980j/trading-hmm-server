@@ -145,24 +145,19 @@ csrf.init_app(app)
 # Global error handler for database transaction errors
 @app.before_request
 def reset_db_transaction():
-    """Reset any aborted database transactions before each request"""
     global db
+    if not db_enabled:
+        return
     
-    if db_enabled and db and hasattr(db, 'conn') and db.conn:
+    # Resilient connection system handles all errors automatically
+    if db and hasattr(db, '_resilient_db'):
+        db._resilient_db._check_and_fix_transaction_state()
+    elif not db:
         try:
-            # Try to rollback
-            db.conn.rollback()
-        except Exception as e:
-            # If rollback fails, the connection is dead - reconnect
-            logger.warning(f"⚠️ Rollback failed in before_request: {e} - reconnecting...")
-            try:
-                from database.railway_db import RailwayDB
-                db = RailwayDB()
-                logger.info("✅ Database reconnected in before_request")
-            except Exception as reconnect_error:
-                logger.error(f"❌ Reconnection failed: {reconnect_error}")
-                # Don't block the request, let it try anyway
-                pass
+            from database.railway_db import RailwayDB
+            db = RailwayDB()
+        except:
+            pass
 
 # Initialize SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')

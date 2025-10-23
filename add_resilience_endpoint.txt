@@ -1,0 +1,18 @@
+@app.route('/api/database-resilience', methods=['GET'])
+@login_required
+def get_database_resilience():
+    """Get database resilience system status and metrics"""
+    try:
+        from database_resilience_monitor import get_resilience_status, get_recovery_recommendations
+        
+        status = get_resilience_status()
+        recommendations = get_recovery_recommendations()
+        
+        return jsonify({
+            'resilience': status,
+            'recommendations': recommendations,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Resilience status error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
