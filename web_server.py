@@ -488,8 +488,11 @@ def get_webhook_stats():
         last_24h = [dict(row) for row in cursor.fetchall()]
         
         # Get TOTAL signal count (all time) for ML training samples
+        # Include both live_signals AND signal_lab_trades (historical data)
         cursor.execute("""
-            SELECT COUNT(*) as total FROM live_signals
+            SELECT 
+                (SELECT COUNT(*) FROM live_signals) +
+                (SELECT COUNT(*) FROM signal_lab_trades WHERE COALESCE(mfe_none, mfe, 0) != 0) as total
         """)
         total_row = cursor.fetchone()
         total_signals = total_row['total'] if total_row else 0
