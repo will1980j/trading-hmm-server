@@ -2,6 +2,7 @@
 from datetime import datetime
 from collections import defaultdict
 import json
+from db_error_handler import auto_fix_db_errors
 
 class WebhookDebugger:
     def __init__(self, db):
@@ -9,10 +10,10 @@ class WebhookDebugger:
         self.signal_counters = defaultdict(int)
         self.last_signals = {'Bullish': None, 'Bearish': None}
         
+    @auto_fix_db_errors
     def log_webhook_request(self, raw_data, parsed_data, source='TradingView'):
         """Log all incoming webhook requests"""
         try:
-            self.db.conn.rollback()  # Clear any aborted transaction
             cursor = self.db.conn.cursor()
             cursor.execute("""
                 INSERT INTO webhook_debug_log 
@@ -25,10 +26,10 @@ class WebhookDebugger:
             print(f"Webhook log error: {e}")
             return False
     
+    @auto_fix_db_errors
     def log_signal_processing(self, signal_data, status, error_msg=None):
         """Log signal processing results"""
         try:
-            self.db.conn.rollback()  # Clear any aborted transaction
             bias = signal_data.get('bias', 'Unknown')
             self.signal_counters[f'{bias}_received'] += 1
             
@@ -56,6 +57,7 @@ class WebhookDebugger:
             print(f"Signal processing log error: {e}")
             return False
     
+    @auto_fix_db_errors
     def get_signal_stats(self):
         """Get signal reception statistics"""
         try:
@@ -84,6 +86,7 @@ class WebhookDebugger:
             print(f"Stats error: {e}")
             return {'error': str(e)}
     
+    @auto_fix_db_errors
     def check_signal_health(self):
         """Check if both signal types are being received"""
         try:

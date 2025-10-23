@@ -9,6 +9,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from json import dumps, loads
+from db_error_handler import auto_fix_db_errors
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class ContractManager:
         
         self.active_contracts = self._load_active_contracts()
     
+    @auto_fix_db_errors
     def _load_active_contracts(self) -> Dict[str, str]:
         """Load current active contracts from database or initialize defaults"""
         try:
@@ -60,6 +62,7 @@ class ContractManager:
             # Fallback to defaults
             return {'NQ': 'NQ1!', 'ES': 'ES1!', 'YM': 'YM1!', 'RTY': 'RTY1!'}
     
+    @auto_fix_db_errors
     def _save_active_contracts(self, contracts: Dict[str, str]):
         """Save active contracts to database"""
         try:
@@ -252,6 +255,7 @@ class ContractManager:
             logger.error(f"Error handling rollover: {e}")
             return False
     
+    @auto_fix_db_errors
     def _log_rollover_event(self, rollover_info: Dict):
         """Log rollover event to database"""
         try:
@@ -285,6 +289,7 @@ class ContractManager:
         except Exception as e:
             logger.error(f"Error logging rollover: {e}")
     
+    @auto_fix_db_errors
     def _update_historical_data(self, old_contract: str, new_contract: str):
         """Update historical data with new contract symbol"""
         try:
