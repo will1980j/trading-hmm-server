@@ -68,16 +68,19 @@ def get_webhook_health():
         cur = conn.cursor()
         
         cur.execute("SELECT COUNT(*) FROM live_signals WHERE timestamp > NOW() - INTERVAL '24 hours'")
-        signals_24h = cur.fetchone()[0]
+        result = cur.fetchone()
+        signals_24h = result[0] if result else 0
         
         cur.execute("SELECT MAX(timestamp) FROM live_signals")
-        last_signal = cur.fetchone()[0]
+        result = cur.fetchone()
+        last_signal = result[0] if result else None
         
-        cur.close()
-        conn.close()
-        
-        last_signal_str = last_signal.strftime('%H:%M:%S') if last_signal else 'Never'
-        minutes_ago = int((datetime.now() - last_signal).total_seconds() / 60) if last_signal else 999
+        if last_signal:
+            minutes_ago = int((datetime.now() - last_signal.replace(tzinfo=None)).total_seconds() / 60)
+            last_signal_str = f"{minutes_ago}m ago"
+        else:
+            minutes_ago = 999
+            last_signal_str = 'Never'
         
         signal_rate = f"{signals_24h}/24h"
         status = 'healthy' if minutes_ago < 60 else 'warning' if minutes_ago < 180 else 'critical'
@@ -87,12 +90,12 @@ def get_webhook_health():
             'status': status,
             'score': score,
             'signal_rate': signal_rate,
-            'signal_rate_status': 'healthy' if signals_24h > 50 else 'warning',
+            'signal_rate_status': 'healthy' if signals_24h > 50 else 'warning' if signals_24h > 10 else 'critical',
             'signals_24h': signals_24h,
             'last_signal': last_signal_str
         }
-    except:
-        return {'status': 'critical', 'score': 0, 'signal_rate': 'Error', 'signals_24h': 0, 'last_signal': 'Error'}
+    except Exception as e:
+        return {'status': 'critical', 'score': 0, 'signal_rate': '0/24h', 'signal_rate_status': 'critical', 'signals_24h': 0, 'last_signal': 'DB Error'}
 
 def get_database_health():
     try:
@@ -108,10 +111,8 @@ def get_database_health():
         query_time_ms = int((time.time() - start) * 1000)
         
         cur.execute("SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active'")
-        active_conn = cur.fetchone()[0]
-        
-        cur.close()
-        conn.close()
+        result = cur.fetchone()
+        active_conn = result[0] if result else 0
         
         status = 'healthy' if query_time_ms < 500 else 'warning' if query_time_ms < 1000 else 'critical'
         score = 100 if status == 'healthy' else 85 if status == 'warning' else 50
@@ -124,8 +125,8 @@ def get_database_health():
             'query_time_status': status,
             'active_connections': active_conn
         }
-    except:
-        return {'status': 'critical', 'score': 0, 'pool_status': 'Error', 'query_time': 'Error', 'active_connections': 0}
+    except Exception as e:
+        return {'status': 'critical', 'score': 0, 'pool_status': 'Offline', 'query_time': 'Error', 'query_time_status': 'critical', 'active_connections': 0}
 
 def get_api_health():
     # Placeholder - would track actual API metrics
@@ -184,10 +185,8 @@ def get_ml_health():
         cur = conn.cursor()
         
         cur.execute("SELECT COUNT(*) FROM signal_lab_trades WHERE mfe IS NOT NULL")
-        samples = cur.fetchone()[0]
-        
-        cur.close()
-        conn.close()
+        result = cur.fetchone()
+        samples = result[0] if result else 0
         
         # Placeholder values - would read from ML model metadata
         accuracy = 89.1
@@ -208,8 +207,8 @@ def get_ml_health():
             'health_score_status': health_status,
             'training_samples': f"{samples:,}"
         }
-    except:
-        return {'status': 'critical', 'score': 0, 'accuracy': 'Error', 'health_score': 'Error', 'training_samples': 0}
+    except Exception as e:
+        return {'status': 'warning', 'score': 50, 'accuracy': 'N/A', 'accuracy_status': 'warning', 'health_score': 'N/A', 'health_score_status': 'warning', 'training_samples': '0'}
 
 def get_prediction_health():
     try:
@@ -219,10 +218,8 @@ def get_prediction_health():
         cur = conn.cursor()
         
         cur.execute("SELECT COUNT(*) FROM live_signals WHERE timestamp::date = CURRENT_DATE")
-        predictions_today = cur.fetchone()[0]
-        
-        cur.close()
-        conn.close()
+        result = cur.fetchone()
+        predictions_today = result[0] if result else 0
         
         # Placeholder values
         avg_confidence = 76.5
@@ -240,8 +237,8 @@ def get_prediction_health():
             'predictions_today': predictions_today,
             'last_training': last_training
         }
-    except:
-        return {'status': 'critical', 'score': 0, 'avg_confidence': 'Error', 'predictions_today': 0, 'last_training': 'Error'}
+    except Exception as e:
+        return {'status': 'warning', 'score': 50, 'avg_confidence': 'N/A', 'confidence_status': 'warning', 'predictions_today': 0, 'last_training': 'N/A'}
 
 def get_module_health():
     modules = [
