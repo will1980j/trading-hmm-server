@@ -3045,7 +3045,15 @@ def capture_live_signal():
             from advanced_ml_engine import AdvancedMLEngine
             
             ml_engine = AdvancedMLEngine(db)
-            ml_prediction = ml_engine.predict_signal_quality(signal)
+            ml_prediction = ml_engine.predict_signal_quality(
+                signal.get('market_context', {}),
+                {
+                    'bias': signal['bias'],
+                    'session': signal['session'],
+                    'price': signal['price'],
+                    'signal_type': signal['signal_type']
+                }
+            )
             
             if 'error' not in ml_prediction:
                 # Store ML analysis in database

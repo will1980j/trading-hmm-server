@@ -41,7 +41,9 @@ class ContractManager:
             result = cursor.fetchone()
             
             if result:
-                return loads(result['contract_data'])
+                data = result['contract_data']
+                # psycopg2 already parses JSONB to dict
+                return data if isinstance(data, dict) else loads(data)
             else:
                 # Initialize with defaults
                 defaults = {

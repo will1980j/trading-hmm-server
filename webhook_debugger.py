@@ -12,6 +12,7 @@ class WebhookDebugger:
     def log_webhook_request(self, raw_data, parsed_data, source='TradingView'):
         """Log all incoming webhook requests"""
         try:
+            self.db.conn.rollback()  # Clear any aborted transaction
             cursor = self.db.conn.cursor()
             cursor.execute("""
                 INSERT INTO webhook_debug_log 
@@ -27,6 +28,7 @@ class WebhookDebugger:
     def log_signal_processing(self, signal_data, status, error_msg=None):
         """Log signal processing results"""
         try:
+            self.db.conn.rollback()  # Clear any aborted transaction
             bias = signal_data.get('bias', 'Unknown')
             self.signal_counters[f'{bias}_received'] += 1
             
