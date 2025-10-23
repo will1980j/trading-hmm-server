@@ -262,15 +262,7 @@ class MLOptimizer:
                 'impact': f"Expected +{degradation['degradation']*100:.1f}% accuracy recovery"
             })
         
-        if hyperparams:
-            recommendations.append({
-                'type': 'hyperparameter',
-                'priority': 'Medium',
-                'title': 'Hyperparameter Optimization',
-                'message': hyperparams['reason'],
-                'action': f"Update to n_estimators={hyperparams['n_estimators']}, max_depth={hyperparams['max_depth']}",
-                'impact': '+2-4% accuracy improvement'
-            })
+        # Hyperparameter optimization is automated - no manual recommendations needed
         
         for feature in features[:2]:  # Top 2 features
             recommendations.append({

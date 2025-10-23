@@ -46,17 +46,36 @@ class AutoMLOptimizer:
         """Run hyperparameter optimization"""
         try:
             from ml_hyperparameter_optimizer import optimize_trading_models
+            import json
             
             logger.info("🚀 Starting automatic hyperparameter optimization...")
+            start_time = time.time()
             results = optimize_trading_models(self.db)
+            duration = time.time() - start_time
             
             if 'error' not in results:
                 rf_imp = results['comparison']['rf_improvement']['accuracy']
                 gb_imp = results['comparison']['gb_improvement']['accuracy']
                 logger.info(f"✅ Optimization complete: RF +{rf_imp:.2f}%, GB +{gb_imp:.2f}%")
                 
-                self.last_optimization_time = datetime.now()
+                # Store results in database
                 cursor = self.db.conn.cursor()
+                cursor.execute("""
+                    INSERT INTO hyperparameter_optimization_results 
+                    (rf_params, gb_params, baseline_accuracy, optimized_accuracy, 
+                     improvement_pct, optimization_duration_seconds)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    json.dumps(results['rf_optimization']['best_params']),
+                    json.dumps(results['gb_optimization']['best_params']),
+                    results['comparison']['baseline_rf']['accuracy'],
+                    results['comparison']['optimized_rf']['accuracy'],
+                    rf_imp,
+                    duration
+                ))
+                self.db.conn.commit()
+                
+                self.last_optimization_time = datetime.now()
                 cursor.execute("SELECT COUNT(*) as count FROM signal_lab_trades WHERE COALESCE(mfe_none, mfe, 0) != 0")
                 self.last_sample_count = cursor.fetchone()['count']
             else:
@@ -64,6 +83,8 @@ class AutoMLOptimizer:
                 
         except Exception as e:
             logger.error(f"❌ Optimization error: {str(e)}")
+            if hasattr(self.db, 'conn'):
+                self.db.conn.rollback()
     
     def monitor_loop(self):
         """Background monitoring loop"""

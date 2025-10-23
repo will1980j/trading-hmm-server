@@ -103,6 +103,13 @@ try:
         except Exception as e:
             db.conn.rollback()
             logger.warning(f"Column check/creation failed: {str(e)}")
+        
+        # Initialize hyperparameter optimization table
+        try:
+            from init_hyperparameter_table import init_hyperparameter_table
+            init_hyperparameter_table(db)
+        except Exception as e:
+            logger.warning(f"Hyperparameter table initialization failed: {str(e)}")
             
 except (ImportError, ConnectionError) as e:
     safe_error = sanitize_log_input(str(e))
@@ -4890,6 +4897,39 @@ def get_ml_optimization():
             'recommendations': [],
             'performance_status': {'status': 'error', 'message': str(e)},
             'signal_filters': {'filters': []}
+        }), 200
+
+@app.route('/api/hyperparameter-status', methods=['GET'])
+@login_required
+def get_hyperparameter_status():
+    """Get hyperparameter optimization status and history"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({
+                'status': {'status': 'not_available', 'message': 'Database not available'},
+                'history': {'history': [], 'total_runs': 0},
+                'auto_optimizer_active': True
+            }), 200
+        
+        from hyperparameter_status import HyperparameterStatus
+        status_tracker = HyperparameterStatus(db)
+        
+        status = status_tracker.get_optimization_status()
+        history = status_tracker.get_optimization_history(limit=5)
+        
+        return jsonify({
+            'status': status,
+            'history': history,
+            'auto_optimizer_active': True,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f'Hyperparameter status error: {str(e)}')
+        return jsonify({
+            'status': {'status': 'error', 'message': str(e)},
+            'history': {'history': [], 'total_runs': 0},
+            'auto_optimizer_active': True
         }), 200
 
 @app.route('/api/live-prediction', methods=['GET'])
