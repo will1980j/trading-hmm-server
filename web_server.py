@@ -221,6 +221,14 @@ if ml_available and db_enabled and db:
     import threading
     threading.Thread(target=auto_train_ml, daemon=True).start()
     logger.info("✅ ML auto-train thread started")
+    
+    # Start automatic hyperparameter optimizer
+    try:
+        from ml_auto_optimizer import start_auto_optimizer
+        start_auto_optimizer(db)
+        logger.info("✅ Auto-optimizer started (checks hourly)")
+    except Exception as e:
+        logger.warning(f"⚠️ Auto-optimizer failed: {str(e)}")
 else:
     logger.warning(f"⚠️ ML auto-train skipped: ml_available={ml_available}, db_enabled={db_enabled}")
 
@@ -5038,6 +5046,24 @@ def train_ml_models():
             'status': 'error',
             'message': f'Training failed: {str(e)}'
         }), 200
+
+@app.route('/api/ml-optimize', methods=['POST'])
+@login_required
+def optimize_ml_hyperparameters():
+    """Optimize ML model hyperparameters"""
+    if not ml_available:
+        return jsonify({'error': 'ML dependencies not installed'}), 500
+    
+    if not db_enabled or not db:
+        return jsonify({'error': 'Database required'}), 500
+    
+    try:
+        from ml_hyperparameter_optimizer import optimize_trading_models
+        results = optimize_trading_models(db)
+        return jsonify(results)
+    except Exception as e:
+        logger.error(f"Optimization error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/ml-predict', methods=['POST'])
 @login_required
