@@ -1,8 +1,5 @@
-import psycopg2
-import psycopg2.extras
 import time
-from datetime import datetime, timedelta
-import os
+from datetime import datetime
 
 try:
     import psutil
@@ -10,22 +7,18 @@ try:
 except ImportError:
     PSUTIL_AVAILABLE = False
 
-_db_instance = None
-
-def get_system_health(db=None):
-    global _db_instance
-    _db_instance = db
+def get_system_health(db=None)
     health = {
         'overall_score': 0,
         'critical_count': 0,
         'warning_count': 0,
         'healthy_count': 0,
-        'webhook': get_webhook_health(),
-        'database': get_database_health(),
+        'webhook': get_webhook_health(db),
+        'database': get_database_health(db),
         'api': get_api_health(),
         'resources': get_resource_health(),
-        'ml': get_ml_health(),
-        'prediction': get_prediction_health(),
+        'ml': get_ml_health(db),
+        'prediction': get_prediction_health(db),
         'modules': get_module_health(),
         'alerts': [],
         'error_handling': get_error_handling_status(),
@@ -55,13 +48,12 @@ def get_system_health(db=None):
     
     return health
 
-def get_webhook_health():
-    global _db_instance
+def get_webhook_health(db=None):
     try:
-        if not _db_instance or not hasattr(_db_instance, 'conn') or not _db_instance.conn:
+        if not db or not hasattr(db, 'conn') or not db.conn:
             return {'status': 'critical', 'score': 0, 'signal_rate': '0/24h', 'signal_rate_status': 'critical', 'signals_24h': 0, 'last_signal': 'DB Offline'}
-        _db_instance.conn.rollback()
-        cur = _db_instance.conn.cursor()
+        db.conn.rollback()
+        cur = db.conn.cursor()
         
         cur.execute("SELECT COUNT(*) FROM live_signals WHERE timestamp > NOW() - INTERVAL '24 hours'")
         signals_24h = cur.fetchone()[0]
@@ -91,15 +83,14 @@ def get_webhook_health():
     except:
         return {'status': 'critical', 'score': 0, 'signal_rate': '0/24h', 'signal_rate_status': 'critical', 'signals_24h': 0, 'last_signal': 'DB Error'}
 
-def get_database_health():
-    global _db_instance
+def get_database_health(db=None):
     try:
-        if not _db_instance or not hasattr(_db_instance, 'conn') or not _db_instance.conn:
+        if not db or not hasattr(db, 'conn') or not db.conn:
             return {'status': 'critical', 'score': 0, 'pool_status': 'Offline', 'query_time': 'N/A', 'query_time_status': 'critical', 'active_connections': 0}
         
         start = time.time()
-        _db_instance.conn.rollback()
-        cur = _db_instance.conn.cursor()
+        db.conn.rollback()
+        cur = db.conn.cursor()
         cur.execute("SELECT 1")
         cur.fetchone()
         query_time_ms = int((time.time() - start) * 1000)
@@ -164,13 +155,12 @@ def get_resource_health():
     except:
         return {'status': 'healthy', 'score': 95, 'memory_usage': 'N/A', 'cpu_usage': 'N/A', 'memory_percent': 0, 'cpu_percent': 0, 'memory_status': 'healthy', 'cpu_status': 'healthy'}
 
-def get_ml_health():
-    global _db_instance
+def get_ml_health(db=None):
     try:
-        if not _db_instance or not hasattr(_db_instance, 'conn') or not _db_instance.conn:
+        if not db or not hasattr(db, 'conn') or not db.conn:
             return {'status': 'warning', 'score': 50, 'accuracy': 'N/A', 'accuracy_status': 'warning', 'health_score': 'N/A', 'health_score_status': 'warning', 'training_samples': '0'}
-        _db_instance.conn.rollback()
-        cur = _db_instance.conn.cursor()
+        db.conn.rollback()
+        cur = db.conn.cursor()
         
         cur.execute("SELECT COUNT(*) FROM signal_lab_trades WHERE mfe IS NOT NULL")
         samples = cur.fetchone()[0]
@@ -197,13 +187,12 @@ def get_ml_health():
     except:
         return {'status': 'warning', 'score': 50, 'accuracy': 'N/A', 'accuracy_status': 'warning', 'health_score': 'N/A', 'health_score_status': 'warning', 'training_samples': '0'}
 
-def get_prediction_health():
-    global _db_instance
+def get_prediction_health(db=None):
     try:
-        if not _db_instance or not hasattr(_db_instance, 'conn') or not _db_instance.conn:
+        if not db or not hasattr(db, 'conn') or not db.conn:
             return {'status': 'warning', 'score': 50, 'avg_confidence': 'N/A', 'confidence_status': 'warning', 'predictions_today': 0, 'last_training': 'N/A'}
-        _db_instance.conn.rollback()
-        cur = _db_instance.conn.cursor()
+        db.conn.rollback()
+        cur = db.conn.cursor()
         
         cur.execute("SELECT COUNT(*) FROM live_signals WHERE timestamp::date = CURRENT_DATE")
         predictions_today = cur.fetchone()[0]
