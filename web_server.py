@@ -478,8 +478,23 @@ def get_system_health_api():
         health_data = get_system_health()
         return jsonify(health_data)
     except Exception as e:
+        import traceback
         logger.error(f"System health error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'overall_score': 0,
+            'critical_count': 0,
+            'warning_count': 0,
+            'healthy_count': 0,
+            'webhook': {'status': 'unknown'},
+            'database': {'status': 'unknown'},
+            'api': {'status': 'unknown'},
+            'resources': {'status': 'unknown'},
+            'ml': {'status': 'unknown'},
+            'prediction': {'status': 'unknown'},
+            'modules': [],
+            'alerts': [{'severity': 'critical', 'title': 'Health Check Error', 'message': str(e), 'time': datetime.now().strftime('%H:%M:%S')}]
+        }), 200
 
 @app.route('/webhook-monitor')
 @login_required
