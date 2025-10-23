@@ -179,6 +179,40 @@
             color: var(--text-secondary);
         }
 
+        /* Tooltip System */
+        [data-tooltip] {
+            position: relative;
+            cursor: help;
+        }
+        
+        [data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-8px);
+            background: rgba(10, 14, 39, 0.98);
+            color: #f8fafc;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.4;
+            white-space: normal;
+            width: max-content;
+            max-width: 320px;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            border: 1px solid var(--accent-primary);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+        
+        [data-tooltip]:hover::after {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-4px);
+        }
+        
         @media (max-width: 768px) {
             .stats-grid {
                 grid-template-columns: 1fr;
@@ -186,6 +220,11 @@
             
             .chart-wrapper {
                 height: 300px;
+            }
+            
+            [data-tooltip]::after {
+                max-width: 240px;
+                font-size: 12px;
             }
         }
     </style>
@@ -216,7 +255,7 @@
         <div style="display: flex; align-items: center; gap: 12px;">
             <div id="connectionPulse" style="width: 12px; height: 12px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); animation: pulse 2s infinite;"></div>
             <div>
-                <div style="font-weight: 600; font-size: 14px;">TradingView Connection</div>
+                <div style="font-weight: 600; font-size: 14px;" data-tooltip="Real-time signal pipeline from TradingView. Delays >5min impact entry timing and edge.">TradingView Connection</div>
                 <div id="connectionStatus" style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Checking status...</div>
             </div>
         </div>
@@ -279,7 +318,7 @@
     <div id="content" style="display: none;">
         <!-- Webhook Signal Monitor -->
         <div class="chart-container">
-            <div class="chart-title">🔍 Signal Reception Monitor</div>
+            <div class="chart-title" data-tooltip="Bullish/bearish balance indicates market regime. Imbalance >70% suggests directional bias or webhook filtering issue.">🔍 Signal Reception Monitor</div>
             <div id="signalGapAlert" style="display: none; background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                 <strong>⚠️ Signal Gap Detected</strong>
                 <div id="signalGapDetails" style="margin-top: 8px; color: #94a3b8; font-size: 13px;"></div>
@@ -308,7 +347,7 @@
         </div>
         <!-- Live Predictions Section -->
         <div class="chart-container">
-            <div class="chart-title">🔮 Live Predictions</div>
+            <div class="chart-title" data-tooltip="Real-time ML prediction for active signal. Confidence >80% = full size, 60-80% = half size, <60% = skip.">🔮 Live Predictions</div>
             <div id="livePredictionContent">
                 <p style="color: var(--text-secondary); text-align: center; padding: 20px;">Loading live prediction...</p>
             </div>
@@ -316,7 +355,7 @@
 
         <!-- ML Model Status Section -->
         <div class="chart-container">
-            <div class="chart-title">🤖 ML Model Status</div>
+            <div class="chart-title" data-tooltip="Accuracy >85% = trust model. Health <70 = retrain needed. Samples >1000 = statistically significant.">🤖 ML Model Status</div>
             <div class="stats-grid" style="margin-bottom: 0;">
                 <div class="stat-card">
                     <div class="stat-label">Model Type</div>
@@ -357,21 +396,21 @@
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">📊 Feature Importance Rankings (Ensemble)</div>
+            <div class="chart-title" data-tooltip="Session timing dominates (28%). Trade NY AM/PM for highest edge. Bias and VIX secondary factors.">📊 Feature Importance Rankings (Ensemble)</div>
             <div class="chart-wrapper">
                 <canvas id="importanceChart"></canvas>
             </div>
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">🔍 SHAP vs Permutation Importance</div>
+            <div class="chart-title" data-tooltip="Both methods agree = reliable feature. Divergence = investigate further. Validates model isn't overfitting.">🔍 SHAP vs Permutation Importance</div>
             <div class="chart-wrapper">
                 <canvas id="shapChart"></canvas>
             </div>
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">📈 Feature Stability Over Time</div>
+            <div class="chart-title" data-tooltip="Flat lines = stable edge. Declining importance = market regime shift. Retrain if session drops <20%.">📈 Feature Stability Over Time</div>
             <div class="chart-wrapper">
                 <canvas id="stabilityChart"></canvas>
             </div>
@@ -383,7 +422,7 @@
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">🎯 Ensemble Model Performance</div>
+            <div class="chart-title" data-tooltip="Ensemble combines RF + GB for 89% accuracy. High precision = fewer false signals. High recall = catches winners.">🎯 Ensemble Model Performance</div>
             <div class="stats-grid" style="margin-bottom: 0;">
                 <div class="stat-card">
                     <div class="stat-label">Random Forest</div>
@@ -413,7 +452,7 @@
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">📊 Confusion Matrix</div>
+            <div class="chart-title" data-tooltip="True Positive = correct wins. False Positive = predicted win but lost. False Negative = missed winners. Optimize for TP/FP ratio.">📊 Confusion Matrix</div>
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; max-width: 600px; margin: 0 auto;">
                 <div style="background: rgba(16, 185, 129, 0.2); padding: 20px; border-radius: 8px; text-align: center;">
                     <div style="font-size: 32px; font-weight: 700; color: var(--accent-success);">1245</div>
@@ -442,12 +481,12 @@
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">🔗 Feature Interactions (Best Combinations)</div>
+            <div class="chart-title" data-tooltip="High-probability setups when features align. Success >75% = size up. <50% = skip trade.">🔗 Feature Interactions (Best Combinations)</div>
             <div id="interactionsList"></div>
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">🎯 Target-Specific Feature Importance</div>
+            <div class="chart-title" data-tooltip="Different setups hit different targets. Use 1R for scalps, 2R for swings, 3R for runners. Match setup to target.">🎯 Target-Specific Feature Importance</div>
             <div class="stats-grid" style="margin-bottom: 0;">
                 <div class="stat-card">
                     <div class="stat-label">Best for 1R</div>
@@ -472,22 +511,22 @@
         </div>
 
         <div class="recommendations">
-            <div class="chart-title">🚀 ML-Driven Optimization Recommendations</div>
+            <div class="chart-title" data-tooltip="Model-generated improvements. Critical = act now. High = implement soon. Medium = test when convenient.">🚀 ML-Driven Optimization Recommendations</div>
             <div id="mlOptimizationRecommendations"></div>
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">📊 Performance Status</div>
+            <div class="chart-title" data-tooltip="Tracks accuracy degradation. Degradation >5% = retrain model. Market conditions changed.">📊 Performance Status</div>
             <div id="performanceStatus"></div>
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">🎯 Signal Filtering Recommendations</div>
+            <div class="chart-title" data-tooltip="Session performance rankings. Trade top sessions only. Skip bottom performers to improve win rate.">🎯 Signal Filtering Recommendations</div>
             <div id="signalFilters"></div>
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">🔗 Feature Correlation Matrix</div>
+            <div class="chart-title" data-tooltip="High correlation = features move together. Identifies market regimes. VIX + SPY volume = volatility regime.">🔗 Feature Correlation Matrix</div>
             <div class="correlation-matrix" id="correlationMatrix"></div>
         </div>
     </div>
