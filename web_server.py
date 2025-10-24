@@ -226,11 +226,27 @@ if ml_available and db_enabled and db:
     
     # Start automatic hyperparameter optimizer
     try:
-        from ml_auto_optimizer import start_auto_optimizer
-        start_auto_optimizer(db)
-        logger.info("✅ Auto-optimizer started (checks hourly)")
+        from ml_auto_optimizer import start_auto_optimizer, AutoMLOptimizer
+        
+        # Check if we should run immediately
+        optimizer = AutoMLOptimizer(db, check_interval=3600)
+        if optimizer.should_optimize():
+            logger.info("🚀 CONDITIONS MET - Running optimization immediately on startup")
+            try:
+                optimizer.run_optimization()
+                logger.info("✅ Startup optimization complete")
+            except Exception as opt_error:
+                logger.error(f"❌ Startup optimization failed: {str(opt_error)}")
+                import traceback
+                logger.error(traceback.format_exc())
+        
+        # Start background thread for future checks
+        auto_optimizer = start_auto_optimizer(db)
+        logger.info("✅ Auto-optimizer background thread started (checks hourly)")
     except Exception as e:
-        logger.warning(f"⚠️ Auto-optimizer failed: {str(e)}")
+        logger.error(f"❌ Auto-optimizer failed to start: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
 else:
     logger.warning(f"⚠️ ML auto-train skipped: ml_available={ml_available}, db_enabled={db_enabled}")
 
@@ -4908,11 +4924,11 @@ def get_hyperparameter_status():
             return jsonify({
                 'status': {'status': 'not_available', 'message': 'Database not available'},
                 'history': {'history': [], 'total_runs': 0},
-                'auto_optimizer_active': True,
-                'sample_count': 0
+                'auto_optimizer_active': False,
+                'sample_count': 0,
+                'debug': 'Database not enabled'
             }), 200
         
-        # Get sample count
         cursor = db.conn.cursor()
         cursor.execute("SELECT COUNT(*) as count FROM signal_lab_trades WHERE COALESCE(mfe_none, mfe, 0) != 0")
         sample_count = cursor.fetchone()['count']
@@ -4923,26 +4939,29 @@ def get_hyperparameter_status():
         status = status_tracker.get_optimization_status()
         history = status_tracker.get_optimization_history(limit=5)
         
-        # Add readiness check
         ready_to_optimize = sample_count >= 500
         
         return jsonify({
             'status': status,
             'history': history,
-            'auto_optimizer_active': True,
+            'auto_optimizer_active': ml_available and db_enabled,
             'sample_count': sample_count,
             'ready_to_optimize': ready_to_optimize,
+            'ml_available': ml_available,
+            'db_enabled': db_enabled,
             'next_trigger': '500 samples' if sample_count < 500 else '200 new samples or 30 days',
             'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
         logger.error(f'Hyperparameter status error: {str(e)}')
+        import traceback
         return jsonify({
             'status': {'status': 'error', 'message': str(e)},
             'history': {'history': [], 'total_runs': 0},
-            'auto_optimizer_active': True,
-            'sample_count': 0
+            'auto_optimizer_active': False,
+            'sample_count': 0,
+            'error_trace': traceback.format_exc()
         }), 200
 
 @app.route('/api/trigger-hyperparameter-optimization', methods=['POST'])
