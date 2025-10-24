@@ -13,6 +13,11 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+# Standalone function for parallel processing (must be picklable)
+def profit_score(y_true, y_pred):
+    """Custom scoring: profit-based metric for trading"""
+    return np.sum(np.where(y_true == y_pred, 2, -1))
+
 class MLHyperparameterOptimizer:
     def __init__(self, db):
         self.db = db
@@ -20,11 +25,6 @@ class MLHyperparameterOptimizer:
         self.best_gb_model = None
         self.optimization_results = {}
         
-    def profit_score(self, y_true, y_pred):
-        """Custom scoring: profit-based metric for trading"""
-        # Assume 2R profit on correct prediction, -1R on wrong
-        return np.sum(np.where(y_true == y_pred, 2, -1))
-    
     def optimize_random_forest(self, X_train, y_train):
         """Optimize Random Forest hyperparameters"""
         param_grid = {
@@ -36,24 +36,21 @@ class MLHyperparameterOptimizer:
         }
         
         rf = RandomForestClassifier(random_state=42)
-        
-        # Time series cross-validation (5 splits)
         tscv = TimeSeriesSplit(n_splits=5)
         
-        # Custom scoring with profit metric
         scoring = {
             'accuracy': 'accuracy',
             'precision': make_scorer(precision_score, zero_division=0),
             'recall': make_scorer(recall_score, zero_division=0),
             'f1': make_scorer(f1_score, zero_division=0),
-            'profit': make_scorer(self.profit_score)
+            'profit': make_scorer(profit_score)
         }
         
         grid_search = GridSearchCV(
             rf, param_grid, 
             cv=tscv,
             scoring=scoring,
-            refit='profit',  # Optimize for profit
+            refit='profit',
             n_jobs=-1,
             verbose=1
         )
@@ -80,7 +77,6 @@ class MLHyperparameterOptimizer:
         }
         
         gb = GradientBoostingClassifier(random_state=42, validation_fraction=0.1, n_iter_no_change=10)
-        
         tscv = TimeSeriesSplit(n_splits=5)
         
         scoring = {
@@ -88,7 +84,7 @@ class MLHyperparameterOptimizer:
             'precision': make_scorer(precision_score, zero_division=0),
             'recall': make_scorer(recall_score, zero_division=0),
             'f1': make_scorer(f1_score, zero_division=0),
-            'profit': make_scorer(self.profit_score)
+            'profit': make_scorer(profit_score)
         }
         
         grid_search = GridSearchCV(
@@ -113,21 +109,17 @@ class MLHyperparameterOptimizer:
     
     def compare_with_baseline(self, X_test, y_test):
         """Compare optimized models with baseline"""
-        # Baseline models
         baseline_rf = RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42)
         baseline_gb = GradientBoostingClassifier(n_estimators=100, max_depth=5, random_state=42)
         
-        # Train baseline
         baseline_rf.fit(X_test, y_test)
         baseline_gb.fit(X_test, y_test)
         
-        # Predictions
         baseline_rf_pred = baseline_rf.predict(X_test)
         baseline_gb_pred = baseline_gb.predict(X_test)
         optimized_rf_pred = self.best_rf_model.predict(X_test)
         optimized_gb_pred = self.best_gb_model.predict(X_test)
         
-        # Metrics
         from sklearn.metrics import accuracy_score
         
         results = {
@@ -136,32 +128,31 @@ class MLHyperparameterOptimizer:
                 'precision': precision_score(y_test, baseline_rf_pred, zero_division=0),
                 'recall': recall_score(y_test, baseline_rf_pred, zero_division=0),
                 'f1': f1_score(y_test, baseline_rf_pred, zero_division=0),
-                'profit': self.profit_score(y_test, baseline_rf_pred)
+                'profit': profit_score(y_test, baseline_rf_pred)
             },
             'optimized_rf': {
                 'accuracy': accuracy_score(y_test, optimized_rf_pred),
                 'precision': precision_score(y_test, optimized_rf_pred, zero_division=0),
                 'recall': recall_score(y_test, optimized_rf_pred, zero_division=0),
                 'f1': f1_score(y_test, optimized_rf_pred, zero_division=0),
-                'profit': self.profit_score(y_test, optimized_rf_pred)
+                'profit': profit_score(y_test, optimized_rf_pred)
             },
             'baseline_gb': {
                 'accuracy': accuracy_score(y_test, baseline_gb_pred),
                 'precision': precision_score(y_test, baseline_gb_pred, zero_division=0),
                 'recall': recall_score(y_test, baseline_gb_pred, zero_division=0),
                 'f1': f1_score(y_test, baseline_gb_pred, zero_division=0),
-                'profit': self.profit_score(y_test, baseline_gb_pred)
+                'profit': profit_score(y_test, baseline_gb_pred)
             },
             'optimized_gb': {
                 'accuracy': accuracy_score(y_test, optimized_gb_pred),
                 'precision': precision_score(y_test, optimized_gb_pred, zero_division=0),
                 'recall': recall_score(y_test, optimized_gb_pred, zero_division=0),
                 'f1': f1_score(y_test, optimized_gb_pred, zero_division=0),
-                'profit': self.profit_score(y_test, optimized_gb_pred)
+                'profit': profit_score(y_test, optimized_gb_pred)
             }
         }
         
-        # Calculate improvements
         results['rf_improvement'] = {
             'accuracy': (results['optimized_rf']['accuracy'] - results['baseline_rf']['accuracy']) * 100,
             'profit': results['optimized_rf']['profit'] - results['baseline_rf']['profit']
@@ -191,14 +182,11 @@ class MLHyperparameterOptimizer:
         """Run complete optimization pipeline"""
         logger.info("🚀 Starting hyperparameter optimization...")
         
-        # Optimize both models
         rf_results = self.optimize_random_forest(X_train, y_train)
         gb_results = self.optimize_gradient_boosting(X_train, y_train)
         
-        # Compare with baseline
         comparison = self.compare_with_baseline(X_test, y_test)
         
-        # Save models
         model_paths = self.save_models()
         
         results = {
@@ -222,30 +210,29 @@ def optimize_trading_models(db):
     from unified_ml_intelligence import get_unified_ml
     
     try:
-        # Get ML engine and data
         ml_engine = get_unified_ml(db)
-        
-        # Get training data
         trades = ml_engine._get_all_trades()
+        
         if len(trades) < 100:
             return {'error': 'Insufficient training data', 'samples': len(trades)}
         
-        # Prepare data - handle variable return values
+        MAX_SAMPLES = 3000
+        if len(trades) > MAX_SAMPLES:
+            logger.info(f"📊 Sampling {MAX_SAMPLES} from {len(trades)} trades for optimization")
+            trades = trades[-MAX_SAMPLES:]
+        
         prep_result = ml_engine._prepare_training_data(trades)
         if len(prep_result) == 2:
             X, y = prep_result
         elif len(prep_result) == 3:
-            X, y, _ = prep_result  # Ignore third value
+            X, y, _ = prep_result
         else:
-            X = prep_result[0]
-            y = prep_result[1]
+            X, y = prep_result[0], prep_result[1]
         
-        # Split: 80% train, 20% test (time-based)
         split_idx = int(len(X) * 0.8)
         X_train, X_test = X[:split_idx], X[split_idx:]
         y_train, y_test = y[:split_idx], y[split_idx:]
         
-        # Run optimization
         optimizer = MLHyperparameterOptimizer(db)
         results = optimizer.run_full_optimization(X_train, y_train, X_test, y_test)
         
