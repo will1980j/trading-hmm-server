@@ -229,6 +229,9 @@ def optimize_trading_models(db):
         else:
             X, y = prep_result[0], prep_result[1]
         
+        # Convert continuous MFE to binary classification (success = MFE > 1R)
+        y = (y > 1.0).astype(int)
+        
         split_idx = int(len(X) * 0.8)
         X_train, X_test = X[:split_idx], X[split_idx:]
         y_train, y_test = y[:split_idx], y[split_idx:]
