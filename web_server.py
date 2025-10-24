@@ -184,6 +184,24 @@ if db_enabled and db:
 from realtime_signal_handler import RealtimeSignalHandler
 realtime_handler = RealtimeSignalHandler(socketio, db) if db_enabled else None
 
+# Initialize prediction accuracy tracker
+prediction_tracker = None
+auto_outcome_updater = None
+if db_enabled and db:
+    try:
+        from prediction_accuracy_tracker import PredictionAccuracyTracker
+        prediction_tracker = PredictionAccuracyTracker(db, socketio)
+        logger.info("✅ Prediction accuracy tracker initialized")
+        
+        # Initialize auto outcome updater
+        from auto_prediction_outcome_updater import AutoPredictionOutcomeUpdater
+        auto_outcome_updater = AutoPredictionOutcomeUpdater(db, prediction_tracker)
+        auto_outcome_updater.start_monitoring()
+        logger.info("✅ Auto prediction outcome updater started")
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize prediction tracker: {e}")
+
 # Start real-time health monitoring
 if realtime_handler:
     realtime_handler.start_health_monitor()
@@ -710,6 +728,89 @@ def test_webhook_signal():
         })
     except Exception as e:
         logger.error(f"Test signal error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/prediction-accuracy', methods=['GET'])
+@login_required
+def get_prediction_accuracy():
+    """Get prediction accuracy statistics and reports"""
+    try:
+        if not prediction_tracker:
+            return jsonify({'error': 'Prediction tracker not available'}), 500
+        
+        report = prediction_tracker.get_accuracy_report()
+        return jsonify(report)
+        
+    except Exception as e:
+        logger.error(f"Prediction accuracy error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/update-prediction-outcome', methods=['POST'])
+@login_required
+def update_prediction_outcome():
+    """Update prediction with actual trade outcome"""
+    try:
+        if not prediction_tracker:
+            return jsonify({'error': 'Prediction tracker not available'}), 500
+        
+        data = request.get_json()
+        signal_id = data.get('signal_id')
+        actual_data = {
+            'outcome': data.get('outcome'),  # 'Success' or 'Failure'
+            'mfe': data.get('mfe', 0.0),
+            'targets_hit': data.get('targets_hit', {})  # {'1R': True, '2R': False, '3R': False}
+        }
+        
+        prediction_tracker.update_actual_outcome(signal_id, actual_data)
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Prediction outcome updated',
+            'signal_id': signal_id
+        })
+        
+    except Exception as e:
+        logger.error(f"Update prediction outcome error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pending-predictions', methods=['GET'])
+@login_required
+def get_pending_predictions():
+    """Get predictions awaiting outcome updates"""
+    try:
+        if not auto_outcome_updater:
+            return jsonify({'error': 'Auto updater not available'}), 500
+        
+        pending = auto_outcome_updater.get_pending_predictions()
+        
+        return jsonify({
+            'pending_predictions': pending,
+            'count': len(pending),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Get pending predictions error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/force-update-stale-predictions', methods=['POST'])
+@login_required
+def force_update_stale_predictions():
+    """Force update stale predictions as timeout"""
+    try:
+        if not auto_outcome_updater:
+            return jsonify({'error': 'Auto updater not available'}), 500
+        
+        updated_count = auto_outcome_updater.force_update_stale_predictions()
+        
+        return jsonify({
+            'status': 'success',
+            'updated_count': updated_count,
+            'message': f'Updated {updated_count} stale predictions'
+        })
+        
+    except Exception as e:
+        logger.error(f"Force update stale predictions error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/signal-gap-check', methods=['GET'])
@@ -3257,6 +3358,24 @@ def capture_live_signal():
         
         logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | {vix_info} | {quality_info} | ID: {signal_id} | Lab: {lab_status}")
         
+        # 📊 PREDICTION ACCURACY TRACKING
+        prediction_id = None
+        if prediction_tracker and ml_prediction and 'error' not in ml_prediction:
+            try:
+                prediction_id = prediction_tracker.record_prediction(
+                    signal_id=signal_id,
+                    signal_data={
+                        'symbol': signal['symbol'],
+                        'bias': signal['bias'],
+                        'session': signal['session'],
+                        'price': signal['price']
+                    },
+                    ml_prediction=ml_prediction
+                )
+                logger.info(f"📊 Prediction tracking started: {prediction_id}")
+            except Exception as track_error:
+                logger.error(f"Prediction tracking error: {track_error}")
+
         # 🚀 REAL-TIME WEBSOCKET BROADCASTING
         try:
             if realtime_handler:
@@ -3272,6 +3391,7 @@ def capture_live_signal():
                     'htf_status': signal['htf_status'],
                     'market_context': signal.get('market_context', {}),
                     'ml_prediction': ml_prediction,
+                    'prediction_id': prediction_id,
                     'timestamp': datetime.now().isoformat()
                 })
                 logger.info(f"🚀 Real-time broadcast sent to {realtime_handler.active_connections} clients")

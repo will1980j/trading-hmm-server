@@ -541,6 +541,36 @@
             <div class="chart-title" data-tooltip="High correlation = features move together. Identifies market regimes. VIX + SPY volume = volatility regime.">🔗 Feature Correlation Matrix</div>
             <div class="correlation-matrix" id="correlationMatrix"></div>
         </div>
+
+        <!-- Prediction Accuracy Tracking Section -->
+        <div class="chart-container">
+            <div class="chart-title" data-tooltip="Real-time tracking of ML predictions vs actual outcomes. Accuracy >85% = trust model. Declining accuracy = retrain needed.">📊 Real-Time Prediction Accuracy</div>
+            <div id="predictionAccuracyContent">
+                <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                    Loading prediction accuracy data...
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Predictions Monitor -->
+        <div class="chart-container">
+            <div class="chart-title" data-tooltip="Currently active predictions awaiting outcomes. Monitor for stale predictions >4 hours old.">⏳ Active Predictions Monitor</div>
+            <div id="activePredictionsContent">
+                <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                    Loading active predictions...
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Prediction Outcomes -->
+        <div class="chart-container">
+            <div class="chart-title" data-tooltip="Latest prediction outcomes with accuracy metrics. Green = correct prediction, Red = incorrect.">✅ Recent Prediction Outcomes</div>
+            <div id="recentOutcomesContent">
+                <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                    Loading recent outcomes...
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1559,6 +1589,233 @@
             const diffDays = Math.floor(diffHours / 24);
             return `${diffDays}d`;
         }
+
+        // 📊 PREDICTION ACCURACY TRACKING FUNCTIONS
+        async function loadPredictionAccuracy() {
+            try {
+                const response = await fetch('/api/prediction-accuracy');
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                displayPredictionAccuracy(data);
+                displayActivePredictions(data.active_predictions, data.recent_predictions);
+                displayRecentOutcomes(data.completed_predictions);
+                
+            } catch (error) {
+                console.error('Error loading prediction accuracy:', error);
+                document.getElementById('predictionAccuracyContent').innerHTML = 
+                    '<p style="color: #ef4444;">Error loading prediction accuracy data</p>';
+            }
+        }
+
+        function displayPredictionAccuracy(data) {
+            const container = document.getElementById('predictionAccuracyContent');
+            const stats = data.summary;
+            
+            const overallAccuracy = stats.overall_accuracy || 0;
+            const accuracyColor = overallAccuracy >= 85 ? 'var(--accent-success)' : 
+                                 overallAccuracy >= 70 ? 'var(--accent-warning)' : 'var(--accent-danger)';
+            
+            container.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div class="stat-card">
+                        <div class="stat-label">Overall Accuracy</div>
+                        <div class="stat-value" style="color: ${accuracyColor};">${overallAccuracy.toFixed(1)}%</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                            ${stats.correct_predictions}/${stats.completed_predictions} correct
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">High Confidence (>80%)</div>
+                        <div class="stat-value" style="color: var(--accent-primary);">${(stats.confidence_brackets?.high?.accuracy || 0).toFixed(1)}%</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                            ${stats.confidence_brackets?.high?.total || 0} predictions
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Medium Confidence (60-80%)</div>
+                        <div class="stat-value" style="color: var(--accent-warning);">${(stats.confidence_brackets?.medium?.accuracy || 0).toFixed(1)}%</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                            ${stats.confidence_brackets?.medium?.total || 0} predictions
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Low Confidence (<60%)</div>
+                        <div class="stat-value" style="color: var(--accent-danger);">${(stats.confidence_brackets?.low?.accuracy || 0).toFixed(1)}%</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                            ${stats.confidence_brackets?.low?.total || 0} predictions
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 15px;">
+                    <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px;">
+                        <div style="font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--accent-primary);">📈 Target Accuracy</div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                            ${Object.entries(stats.target_accuracy || {}).map(([target, accuracy]) => `
+                                <div style="text-align: center; padding: 8px; background: var(--bg-card); border-radius: 6px;">
+                                    <div style="font-size: 11px; color: var(--text-secondary);">${target}</div>
+                                    <div style="font-size: 14px; font-weight: 600; margin-top: 2px;">${accuracy.toFixed(1)}%</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px;">
+                        <div style="font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--accent-success);">🎯 MFE Accuracy</div>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                            <div style="text-align: center; padding: 8px; background: var(--bg-card); border-radius: 6px;">
+                                <div style="font-size: 11px; color: var(--text-secondary);">Mean Error</div>
+                                <div style="font-size: 14px; font-weight: 600; margin-top: 2px;">${(stats.mfe_accuracy?.mean_error || 0).toFixed(3)}R</div>
+                            </div>
+                            <div style="text-align: center; padding: 8px; background: var(--bg-card); border-radius: 6px;">
+                                <div style="font-size: 11px; color: var(--text-secondary);">RMSE</div>
+                                <div style="font-size: 14px; font-weight: 600; margin-top: 2px;">${(stats.mfe_accuracy?.rmse || 0).toFixed(3)}R</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                ${Object.keys(stats.session_accuracy || {}).length > 0 ? `
+                    <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px;">
+                        <div style="font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--accent-warning);">⏰ Session Accuracy</div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px;">
+                            ${Object.entries(stats.session_accuracy).map(([session, accuracy]) => `
+                                <div style="text-align: center; padding: 8px; background: var(--bg-card); border-radius: 6px;">
+                                    <div style="font-size: 11px; color: var(--text-secondary);">${session}</div>
+                                    <div style="font-size: 14px; font-weight: 600; margin-top: 2px;">${accuracy.toFixed(1)}%</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        function displayActivePredictions(activeCount, recentPredictions) {
+            const container = document.getElementById('activePredictionsContent');
+            
+            if (!recentPredictions || recentPredictions.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No active predictions</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div style="font-size: 16px; font-weight: 600;">Active Predictions: ${activeCount}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Awaiting outcomes</div>
+                </div>
+                
+                <div style="max-height: 300px; overflow-y: auto;">
+                    ${recentPredictions.map(pred => {
+                        const confidenceColor = pred.confidence >= 80 ? 'var(--accent-success)' : 
+                                              pred.confidence >= 60 ? 'var(--accent-warning)' : 'var(--accent-danger)';
+                        const timeAgo = getTimeAgo(pred.timestamp);
+                        
+                        return `
+                            <div style="background: var(--bg-secondary); padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid ${confidenceColor};">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <div style="font-weight: 600; font-size: 14px;">${pred.symbol} ${pred.bias}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">${timeAgo}</div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div style="font-size: 12px; color: var(--text-secondary);">
+                                        Predicted: <span style="color: var(--text-primary);">${pred.predicted}</span>
+                                    </div>
+                                    <div style="font-size: 12px; font-weight: 600; color: ${confidenceColor};">
+                                        ${pred.confidence}% confidence
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function displayRecentOutcomes(completedPredictions) {
+            const container = document.getElementById('recentOutcomesContent');
+            
+            if (!completedPredictions || completedPredictions.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No completed predictions yet</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div style="max-height: 400px; overflow-y: auto;">
+                    ${completedPredictions.map(pred => {
+                        const isCorrect = pred.correct;
+                        const resultColor = isCorrect ? 'var(--accent-success)' : 'var(--accent-danger)';
+                        const resultIcon = isCorrect ? '✅' : '❌';
+                        const timeAgo = getTimeAgo(pred.timestamp);
+                        
+                        return `
+                            <div style="background: var(--bg-secondary); padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid ${resultColor};">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <div style="font-weight: 600; font-size: 14px;">${pred.symbol} ${pred.bias}</div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="font-size: 16px;">${resultIcon}</div>
+                                        <div style="font-size: 12px; color: var(--text-secondary);">${timeAgo}</div>
+                                    </div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 12px;">
+                                    <div>
+                                        <span style="color: var(--text-secondary);">Predicted:</span>
+                                        <span style="color: var(--text-primary); margin-left: 4px;">${pred.predicted}</span>
+                                    </div>
+                                    <div>
+                                        <span style="color: var(--text-secondary);">Actual:</span>
+                                        <span style="color: var(--text-primary); margin-left: 4px;">${pred.actual}</span>
+                                    </div>
+                                    <div>
+                                        <span style="color: var(--text-secondary);">Confidence:</span>
+                                        <span style="color: var(--text-primary); margin-left: 4px;">${pred.confidence}%</span>
+                                    </div>
+                                </div>
+                                ${pred.mfe_error !== null ? `
+                                    <div style="margin-top: 6px; font-size: 11px; color: var(--text-secondary);">
+                                        MFE Error: ${pred.mfe_error.toFixed(3)}R
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        // Add prediction accuracy to initial load and WebSocket listeners
+        setTimeout(() => {
+            loadPredictionAccuracy();
+            
+            // Set up WebSocket listeners for prediction updates
+            if (window.wsClient) {
+                wsClient.on('prediction_recorded', (data) => {
+                    console.log('📊 New prediction recorded:', data);
+                    loadPredictionAccuracy(); // Refresh display
+                });
+                
+                wsClient.on('prediction_outcome_updated', (data) => {
+                    console.log('✅ Prediction outcome updated:', data);
+                    loadPredictionAccuracy(); // Refresh display
+                    
+                    // Show notification for prediction results
+                    const resultIcon = data.correct ? '✅' : '❌';
+                    const message = `${resultIcon} Prediction ${data.correct ? 'Correct' : 'Incorrect'}: ${data.predicted} vs ${data.actual} (${data.confidence}%)`;
+                    
+                    if (window.wsClient) {
+                        wsClient.showInAppAlert(message, data.correct ? 'success' : 'error');
+                    }
+                });
+                
+                wsClient.on('accuracy_stats_updated', (data) => {
+                    console.log('📈 Accuracy stats updated:', data);
+                    displayPredictionAccuracy(data);
+                });
+            }
+        }, 3000);
     </script>
 </body>
 </html>
