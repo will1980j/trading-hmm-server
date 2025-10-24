@@ -1926,12 +1926,12 @@
                         <label class="session-checkbox">
                             <input type="checkbox" id="sessionNYPre" value="NY Pre Market" checked>
                             <span class="checkbox-custom"></span>
-                            <span>NY Pre (06:00-09:30)</span>
+                            <span>NY Pre (06:00-08:29)</span>
                         </label>
                         <label class="session-checkbox">
                             <input type="checkbox" id="sessionNYAM" value="NY AM" checked>
                             <span class="checkbox-custom"></span>
-                            <span>NY AM (09:30-12:00)</span>
+                            <span>NY AM (08:30-12:00)</span>
                         </label>
                         <label class="session-checkbox">
                             <input type="checkbox" id="sessionNYLunch" value="NY Lunch" checked>
@@ -2006,6 +2006,9 @@
         
         <div class="card">
             <h3 style="margin-bottom: 20px; color: #38ef7d;">Time Analysis for Selected Sessions</h3>
+            <div style="background: rgba(255, 165, 2, 0.1); border: 1px solid rgba(255, 165, 2, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 14px; color: #ffa502;">
+                <strong>📝 Note:</strong> NY AM session should start at 8:30 AM, but historical data may show trades from 8:00 AM. This is being reviewed for accuracy.
+            </div>
             <div id="timeAnalysis" class="loading">Analyzing optimal entry times...</div>
         </div>
         
@@ -2515,10 +2518,10 @@
                     
                     connectionGroup.append('line')
                         .attr('class', 'neural-connection')
-                        .attr('x1', point.x || 0)
-                        .attr('y1', point.y || 0)
-                        .attr('x2', nextPoint.x || 0)
-                        .attr('y2', nextPoint.y || 0)
+                        .attr('x1', parseFloat(point.x) || 0)
+                        .attr('y1', parseFloat(point.y) || 0)
+                        .attr('x2', parseFloat(nextPoint.x) || 0)
+                        .attr('y2', parseFloat(nextPoint.y) || 0)
                         .style('stroke', 'rgba(102, 126, 234, 0.3)')
                         .style('stroke-width', 1)
                         .style('opacity', 0)
@@ -3995,11 +3998,11 @@
                 const data = await response.json();
                 console.log('ML Insights Response:', data);
                 
-                const insightsDiv = document.getElementById('mlInsights');
-                const statusDiv = document.getElementById('mlStatus');
-                const statusDetailsDiv = document.getElementById('mlStatusDetails');
-                const performanceDiv = document.getElementById('modelPerformance');
-                const performanceDetailsDiv = document.getElementById('performanceDetails');
+                // Check if ML elements exist (they were moved to specialized tools)
+                if (!safeElementExists('mlInsights')) {
+                    console.log('ML elements not found - content moved to specialized ML dashboard');
+                    return;
+                }
                 
                 if (data.performance && data.performance.is_trained) {
                     const perf = data.performance;

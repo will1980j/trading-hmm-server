@@ -144,6 +144,22 @@ I have a comprehensive cloud-based NASDAQ day trading analytics platform built w
 - **Deployment:** Railway cloud platform with scalable architecture
 - **Integration:** TradingView webhooks, real-time WebSocket connections
 
+## Trading Session Times (EST/EDT)
+
+**Official NASDAQ Trading Session Schedule:**
+- **ASIA:** 20:00-23:59 (Asian market overlap)
+- **LONDON:** 00:00-05:59 (London market hours)
+- **NY PRE:** 06:00-08:29 (Pre-market trading)
+- **NY AM:** 08:30-11:59 (Morning session - market open to lunch)
+- **NY LUNCH:** 12:00-12:59 (Lunch hour - reduced activity)
+- **NY PM:** 13:00-15:59 (Afternoon session - lunch to close)
+
+**Important Notes:**
+- All times are in Eastern Time (EST/EDT)
+- NY AM starts precisely at 8:30 AM (market open), not 8:00 AM
+- Session classification must be consistent across all platform modules
+- These times are used for signal classification, analysis, and optimization
+
 ## Platform Focus Areas
 
 ### Primary Trading Features:

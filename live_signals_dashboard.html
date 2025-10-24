@@ -273,19 +273,19 @@
             const offset = dst ? 0 : 1;
             const container = document.getElementById('sessionTimesDisplay');
             
+            // Official NASDAQ session times (EST/EDT)
             const sessions = [
-                { name: 'ASIA', start: 20 + offset, end: 23 + offset },
-                { name: 'LONDON', start: 0 + offset, end: 5 + offset },
-                { name: 'NY PRE', start: 6 + offset, end: 8 + offset },
-                { name: 'NY AM', start: 8 + offset, end: 11 + offset },
-                { name: 'NY LUNCH', start: 12 + offset, end: 12 + offset },
-                { name: 'NY PM', start: 13 + offset, end: 15 + offset }
+                { name: 'ASIA', time: '20:00-23:59' },
+                { name: 'LONDON', time: '00:00-05:59' },
+                { name: 'NY PRE', time: '06:00-08:29' },
+                { name: 'NY AM', time: '08:30-11:59' },
+                { name: 'NY LUNCH', time: '12:00-12:59' },
+                { name: 'NY PM', time: '13:00-15:59' }
             ];
             
-            let html = `<div style="font-size: 10px; opacity: 0.7; margin-bottom: 5px;">${dst ? 'DST Active' : 'Standard Time'}</div>`;
+            let html = `<div style="font-size: 10px; opacity: 0.7; margin-bottom: 5px;">Official NASDAQ Session Times (EST/EDT)</div>`;
             sessions.forEach(s => {
-                const endTime = s.name === 'ASIA' && s.end >= 24 ? '23:59' : `${String(s.end).padStart(2, '0')}:59`;
-                html += `<div><strong>${s.name}:</strong> ${String(s.start).padStart(2, '0')}:00-${endTime}</div>`;
+                html += `<div><strong>${s.name}:</strong> ${s.time}</div>`;
             });
             container.innerHTML = html;
         }

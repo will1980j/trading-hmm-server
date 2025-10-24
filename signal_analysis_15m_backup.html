@@ -2475,11 +2475,13 @@
                 session = 'Asia';
             } else if (totalMinutes >= 13 * 60) { // 13:00-16:59
                 session = 'NY PM';
-            } else if (totalMinutes >= 12 * 60) { // 12:00-12:59
+            } else if (totalMinutes >= 13 * 60) { // 13:00-15:59
+                session = 'NY PM';
+            } else if (totalMinutes >= 12 * 60 && totalMinutes < 13 * 60) { // 12:00-12:59
                 session = 'NY Lunch';
-            } else if (totalMinutes >= 9.5 * 60) { // 09:30-11:59
+            } else if (totalMinutes >= 8.5 * 60 && totalMinutes < 12 * 60) { // 08:30-11:59
                 session = 'NY AM';
-            } else if (totalMinutes >= 6 * 60) { // 06:00-09:29
+            } else if (totalMinutes >= 6 * 60 && totalMinutes < 8.5 * 60) { // 06:00-08:29
                 session = 'NY Pre Market';
             } else { // 00:00-05:59
                 session = 'London';
