@@ -113,34 +113,112 @@ class TradingWebSocketClient {
     
     // Event handlers
     handleSignalUpdate(data) {
-        console.log('📊 Signal update received:', data);
-        
-        // Update signal displays across all dashboards
-        this.updateSignalDisplays(data);
-        
-        // Show notification for high-confidence signals
-        if (data.prediction && data.prediction.confidence > 80) {
-            this.showHighConfidenceAlert(data);
+        try {
+            console.log('📊 Signal update received:', data);
+            
+            // Update signal displays across all dashboards
+            this.updateSignalDisplays(data);
+            
+            // Show notification for high-confidence signals
+            if (data.prediction && data.prediction.confidence > 80) {
+                this.showHighConfidenceAlert(data);
+            }
+            
+            // Trigger custom event handlers
+            this.triggerEvent('signal_update', data);
+        } catch (error) {
+            console.error('Error handling signal update:', error);
         }
-        
-        // Trigger custom event handlers
-        this.triggerEvent('signal_update', data);
     }
     
     handleMLPredictionUpdate(data) {
-        console.log('🤖 ML prediction update:', data);
-        this.updateMLPredictionDisplay(data);
-        this.triggerEvent('ml_prediction_update', data);
+        try {
+            console.log('🤖 ML prediction update:', data);
+            this.updateMLPredictionDisplay(data);
+            this.triggerEvent('ml_prediction_update', data);
+        } catch (error) {
+            console.error('Error handling ML prediction update:', error);
+        }
     }
     
     handleWebhookHealthUpdate(data) {
-        this.updateWebhookHealthDisplay(data);
-        this.triggerEvent('webhook_health_update', data);
+        try {
+            this.updateWebhookHealthDisplay(data);
+            this.triggerEvent('webhook_health_update', data);
+        } catch (error) {
+            console.error('Error handling webhook health update:', error);
+        }
     }
     
     handleWebhookStatsUpdate(data) {
-        this.updateWebhookStatsDisplay(data);
-        this.triggerEvent('webhook_stats_update', data);
+        try {
+            this.updateWebhookStatsDisplay(data);
+            this.triggerEvent('webhook_stats_update', data);
+        } catch (error) {
+            console.error('Error handling webhook stats update:', error);
+        }
+    }
+    
+    updateWebhookStatsDisplay(data) {
+        // Update webhook statistics display
+        if (data.stats) {
+            const bullishStats = data.stats.bullish || {};
+            const bearishStats = data.stats.bearish || {};
+            
+            // Update counts
+            const bullishElement = document.getElementById('webhookBullishCount');
+            const bearishElement = document.getElementById('webhookBearishCount');
+            
+            if (bullishElement) bullishElement.textContent = bullishStats.count || 0;
+            if (bearishElement) bearishElement.textContent = bearishStats.count || 0;
+            
+            // Update last signal times
+            if (bullishStats.last_signal) {
+                const lastBullishElement = document.getElementById('webhookLastBullish');
+                if (lastBullishElement) lastBullishElement.textContent = this.getTimeAgo(bullishStats.last_signal);
+            }
+            if (bearishStats.last_signal) {
+                const lastBearishElement = document.getElementById('webhookLastBearish');
+                if (lastBearishElement) lastBearishElement.textContent = this.getTimeAgo(bearishStats.last_signal);
+            }
+            
+            // Update health status
+            const hasRecent = (bullishStats.count > 0 || bearishStats.count > 0);
+            const healthElement = document.getElementById('webhookHealth');
+            if (healthElement) healthElement.textContent = hasRecent ? '✅' : '⚠️';
+            
+            // Update last signal display
+            const lastSignalElement = document.getElementById('webhookLastSignal');
+            if (lastSignalElement && (bullishStats.last_signal || bearishStats.last_signal)) {
+                const mostRecent = bullishStats.last_signal > bearishStats.last_signal ? 
+                    { bias: 'Bullish', time: bullishStats.last_signal } :
+                    { bias: 'Bearish', time: bearishStats.last_signal };
+                
+                lastSignalElement.textContent = `${mostRecent.bias} (${this.getTimeAgo(mostRecent.time)})`;
+            }
+        }
+    }
+    
+    updateWebhookHealthDisplay(data) {
+        // Update webhook health indicators
+        console.log('Webhook health update:', data);
+        
+        if (data.status) {
+            const statusElement = document.getElementById('connectionStatus');
+            if (statusElement) {
+                if (data.status === 'healthy') {
+                    statusElement.textContent = 'Connected - Signals flowing normally';
+                } else {
+                    statusElement.textContent = `Warning - ${data.status}`;
+                }
+            }
+            
+            // Update health status emoji
+            const healthElement = document.getElementById('bannerHealthStatus');
+            if (healthElement) {
+                healthElement.textContent = data.status === 'healthy' ? '✅' : '⚠️';
+            }
+        }
     }
     
     handleLivePredictionUpdate(data) {
@@ -304,6 +382,38 @@ class TradingWebSocketClient {
         }
     }
     
+    updateSystemHealthDisplay(data) {
+        // Update system health indicators
+        console.log('System health update:', data);
+        
+        // Update any system health displays if they exist
+        const healthElements = document.querySelectorAll('[data-health-indicator]');
+        healthElements.forEach(element => {
+            if (data.data && data.data.status) {
+                element.textContent = data.data.status === 'healthy' ? '✅' : '⚠️';
+            }
+        });
+    }
+    
+    updateMLModelDisplay(data) {
+        // Update ML model status displays
+        console.log('ML model update:', data);
+        
+        // Show notification for model updates
+        if (data.data) {
+            let message = '';
+            if (data.data.type === 'hyperparameter_optimization') {
+                message = `🤖 ML Model Optimized - New accuracy: ${data.data.accuracy || 'N/A'}%`;
+            } else if (data.data.type === 'model_retrain') {
+                message = `🧠 ML Model Retrained - ${data.data.samples || 'N/A'} samples`;
+            } else {
+                message = '🔄 ML Model Updated';
+            }
+            
+            this.showInAppAlert(message, 'info');
+        }
+    }
+    
     showHighConfidenceAlert(data) {
         // Show browser notification if permitted
         if ('Notification' in window && Notification.permission === 'granted') {
@@ -460,12 +570,24 @@ document.head.appendChild(style);
 // Initialize WebSocket client
 let wsClient;
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 Initializing WebSocket client...');
     wsClient = new TradingWebSocketClient();
     
     // Request notification permission
     if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
     }
+    
+    // Debug: Log WebSocket client status
+    setTimeout(() => {
+        if (wsClient) {
+            console.log('✅ WebSocket client initialized:', {
+                connected: wsClient.isConnected,
+                socket: !!wsClient.socket,
+                eventHandlers: Object.keys(wsClient.eventHandlers)
+            });
+        }
+    }, 1000);
 });
 
 // Export for use in other scripts
