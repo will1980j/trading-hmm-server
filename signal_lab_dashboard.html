@@ -1447,6 +1447,9 @@
     </style>
 </head>
 <body>
+    <!-- Error Message Display -->
+    <div id="errorMessage" style="display: none; background: rgba(255, 107, 122, 0.2); border: 1px solid #ff6b7a; color: #ff6b7a; padding: 10px; margin: 10px 20px; border-radius: 8px; font-weight: 500;"></div>
+
     <nav style="background: #141b3d; padding: 12px 20px; margin-bottom: 20px; border-bottom: 1px solid #2d3a5f; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
         <a href="/ml-dashboard" data-page="ml" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🤖 ML</a>
         <a href="/live-signals-dashboard" data-page="live" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">📶 Live</a>
@@ -2706,11 +2709,33 @@
             }
         }
         
+        function getCurrentViewType() {
+            const activeToggle = document.querySelector('.view-toggle.active');
+            return activeToggle ? activeToggle.getAttribute('data-value') : 'daily';
+        }
+        
         function getSelectedSessions() {
             const sessions = [];
-            document.querySelectorAll('.session-checkboxes input[type="checkbox"]:checked').forEach(cb => {
-                sessions.push(cb.value);
-            });
+            
+            // Try new session toggles first
+            const activeToggles = document.querySelectorAll('.session-toggle.active');
+            if (activeToggles.length > 0) {
+                activeToggles.forEach(toggle => {
+                    const session = toggle.getAttribute('data-session');
+                    if (session) sessions.push(session);
+                });
+            } else {
+                // Fallback to checkboxes if they exist
+                document.querySelectorAll('.session-checkboxes input[type="checkbox"]:checked, .session-checkbox input[type="checkbox"]:checked').forEach(cb => {
+                    sessions.push(cb.value);
+                });
+            }
+            
+            // Default to all sessions if none selected
+            if (sessions.length === 0) {
+                return ['Asia', 'London', 'NY Pre Market', 'NY AM', 'NY Lunch', 'NY PM'];
+            }
+            
             return sessions;
         }
         
@@ -2747,11 +2772,12 @@
         }
         
         function updateAnalysis() {
-            const beStrategy = document.getElementById('beStrategy').value;
-            const rTarget = parseFloat(document.getElementById('rTarget').value) || 2;
-            const selectedSessions = getSelectedSessions();
-            const viewType = document.getElementById('viewType').value;
-            const useOptimalHours = document.getElementById('useOptimalHours')?.checked || false;
+            try {
+                const beStrategy = document.getElementById('beStrategy')?.value || 'none';
+                const rTarget = parseFloat(document.getElementById('rTarget')?.value) || 2;
+                const selectedSessions = getSelectedSessions();
+                const viewType = getCurrentViewType();
+                const useOptimalHours = document.getElementById('useOptimalHours')?.checked || false;
             
             // Filter signals by selected sessions
             let filteredSignals = signals.filter(signal => 
@@ -2815,6 +2841,15 @@
                 // Trigger Analysis Lab calendar refresh via localStorage
                 localStorage.setItem('dashboardCalendarRefreshed', Date.now().toString());
             });
+            } catch (error) {
+                console.error('Error in updateAnalysis:', error);
+                // Show error message to user
+                const errorDiv = document.getElementById('errorMessage');
+                if (errorDiv) {
+                    errorDiv.textContent = 'Analysis update failed: ' + error.message;
+                    errorDiv.style.display = 'block';
+                }
+            }
         }
         
         function calculateStatistics(results, rTarget) {
@@ -3901,16 +3936,25 @@
         
         // Auto-update when filters change
         function setupAutoUpdate() {
-            document.getElementById('beStrategy').addEventListener('change', updateAnalysis);
-            document.getElementById('rTarget').addEventListener('input', updateAnalysis);
-            document.getElementById('viewType').addEventListener('change', updateAnalysis);
-            document.getElementById('sessionOverlay').addEventListener('change', updateAnalysis);
-            document.getElementById('useOptimalHours')?.addEventListener('change', async () => {
-                await runTimeAnalysis();
-                updateAnalysis();
-            });
+            // Safe event listener setup
+            const beStrategy = document.getElementById('beStrategy');
+            if (beStrategy) beStrategy.addEventListener('change', updateAnalysis);
             
-            // Prop firm risk controls
+            const rTarget = document.getElementById('rTarget');
+            if (rTarget) rTarget.addEventListener('input', updateAnalysis);
+            
+            const sessionOverlay = document.getElementById('sessionOverlay');
+            if (sessionOverlay) sessionOverlay.addEventListener('change', updateAnalysis);
+            
+            const useOptimalHours = document.getElementById('useOptimalHours');
+            if (useOptimalHours) {
+                useOptimalHours.addEventListener('change', async () => {
+                    await runTimeAnalysis();
+                    updateAnalysis();
+                });
+            }
+            
+            // Prop firm risk controls (safe access)
             ['riskPerTrade', 'maxDailyLoss', 'maxTotalDrawdown', 'accountSize'].forEach(id => {
                 const element = document.getElementById(id);
                 if (element) {
@@ -3918,7 +3962,7 @@
                 }
             });
             
-            // Chart visualization toggles
+            // Chart visualization toggles (safe access)
             ['heatmapOverlay', 'volatilityBands', 'milestoneMarkers', 'riskRewardViz', 'showLegend'].forEach(id => {
                 const element = document.getElementById(id);
                 if (element) {
@@ -3926,13 +3970,15 @@
                 }
             });
             
-            // Session checkboxes
-            document.querySelectorAll('.session-checkboxes input[type="checkbox"]').forEach(cb => {
+            // Session checkboxes (safe access for both old and new structure)
+            document.querySelectorAll('.session-checkboxes input[type="checkbox"], .session-checkbox input[type="checkbox"]').forEach(cb => {
                 cb.addEventListener('change', async () => {
                     await runTimeAnalysis();
                     updateAnalysis();
                 });
             });
+            
+            console.log('✅ Auto-update event listeners configured');
         }
         
 
