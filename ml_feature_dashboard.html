@@ -1438,7 +1438,6 @@
                     if ('Notification' in window && Notification.permission === 'granted') {
                         new Notification('TradingView Signal Alert', {
                             body: statusText,
-                            icon: '🔔',
                             tag: 'webhook-alert'
                         });
                     }
