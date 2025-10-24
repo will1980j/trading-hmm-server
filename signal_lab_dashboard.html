@@ -45,6 +45,193 @@
             overflow: hidden;
         }
 
+        /* Advanced Chart Effects */
+        .chart-particle-system {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .chart-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            animation: particleFloat 3s ease-out forwards;
+            opacity: 0.8;
+        }
+
+        @keyframes particleFloat {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 0.8;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) scale(0.3);
+                opacity: 0;
+            }
+        }
+
+        .performance-zone-glow {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            border-radius: 20px;
+            transition: opacity 0.5s ease;
+        }
+
+        .profit-zone-glow {
+            background: radial-gradient(ellipse at center, rgba(0, 255, 136, 0.15) 0%, transparent 70%);
+            animation: profitPulse 4s ease-in-out infinite;
+        }
+
+        .loss-zone-glow {
+            background: radial-gradient(ellipse at center, rgba(255, 71, 87, 0.15) 0%, transparent 70%);
+            animation: lossPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes profitPulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.05); }
+        }
+
+        @keyframes lossPulse {
+            0%, 100% { opacity: 0.2; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.03); }
+        }
+
+        .chart-overlay-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(15px);
+            padding: 15px;
+            border-radius: 12px;
+            color: white;
+            font-size: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            opacity: 0;
+            transform: translateX(20px);
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .chart-overlay-info.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .chart-enter {
+            animation: chartEnter 1s ease-out;
+        }
+
+        @keyframes chartEnter {
+            0% {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Enhanced Equity Line Effects */
+        .equity-line {
+            filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.4));
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: all 0.3s ease;
+        }
+
+        .equity-line:hover {
+            filter: drop-shadow(0 0 15px rgba(0, 255, 136, 0.8));
+            stroke-width: 4px;
+        }
+
+        /* Interactive Chart Dots */
+        .chart-dot {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .chart-dot:hover {
+            r: 8;
+            filter: drop-shadow(0 0 10px currentColor);
+        }
+
+        /* 3D Session Chart Enhancements */
+        .session-chart-3d {
+            perspective: 1000px;
+            transform-style: preserve-3d;
+        }
+
+        .session-segment {
+            transition: all 0.3s ease;
+            transform-origin: center;
+        }
+
+        .session-segment:hover {
+            transform: translateZ(10px) scale(1.05);
+            filter: brightness(1.2);
+        }
+
+        /* Neural Network Style Connections */
+        .neural-connection {
+            stroke-dasharray: 2, 2;
+            animation: neuralPulse 2s ease-in-out infinite;
+            opacity: 0.4;
+        }
+
+        @keyframes neuralPulse {
+            0%, 100% { stroke-dashoffset: 0; opacity: 0.4; }
+            50% { stroke-dashoffset: 4; opacity: 0.8; }
+        }
+
+        /* Holographic Calendar Effects */
+        .calendar-day {
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .calendar-day:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.3);
+        }
+
+        .calendar-day::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .calendar-day:hover::before {
+            opacity: 1;
+            animation: shimmer 1.5s ease-in-out;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
         .enhanced-header::before {
             content: '';
             position: absolute;
@@ -204,6 +391,95 @@
             bottom: 0;
             background: radial-gradient(circle at 50% 50%, rgba(102, 126, 234, 0.05) 0%, transparent 70%);
             pointer-events: none;
+        }
+
+        /* Stunning Chart Enhancements */
+        .chart-particle-system {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .chart-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: radial-gradient(circle, #00ff88 0%, transparent 70%);
+            border-radius: 50%;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.7; }
+            50% { transform: translateY(-20px) rotate(180deg); opacity: 1; }
+        }
+
+        .performance-zone-glow {
+            position: absolute;
+            width: 100%;
+            height: 30%;
+            border-radius: 15px;
+            filter: blur(20px);
+            opacity: 0.3;
+            transition: all 0.5s ease;
+        }
+
+        .profit-zone-glow {
+            background: linear-gradient(90deg, transparent 0%, #00ff88 50%, transparent 100%);
+            top: 0;
+        }
+
+        .loss-zone-glow {
+            background: linear-gradient(90deg, transparent 0%, #ff4757 50%, transparent 100%);
+            bottom: 0;
+        }
+
+        /* Neon Glow Effects */
+        .neon-glow {
+            filter: drop-shadow(0 0 10px currentColor) drop-shadow(0 0 20px currentColor);
+        }
+
+        /* Chart Animation Classes */
+        .chart-enter {
+            animation: chartSlideIn 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes chartSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Interactive Chart Elements */
+        .chart-overlay-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            color: white;
+            font-size: 12px;
+            min-width: 200px;
+            opacity: 0;
+            transform: translateX(20px);
+            transition: all 0.3s ease;
+        }
+
+        .chart-overlay-info.visible {
+            opacity: 1;
+            transform: translateX(0);
         }
 
         .chart-header {
@@ -480,6 +756,40 @@
                     <div id="economicNews" style="max-height: 200px; overflow-y: auto;">
                         Loading economic events...
                     </div>
+                </div>
+            </div>
+            
+            <!-- Live Market Data -->
+            <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px; margin-top: 20px;">
+                <h4 style="color: #4facfe; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                    📊 Live Market Data
+                    <span style="font-size: 10px; background: rgba(75,192,254,0.3); padding: 2px 6px; border-radius: 4px;">Real-Time</span>
+                </h4>
+                <div id="marketContext" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 15px;">
+                    <div style="text-align: center; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 10px; border: 1px solid rgba(255,107,122,0.3);">
+                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">VIX</div>
+                        <div id="vixValue" style="font-weight: 700; color: #ff6b7a; font-size: 1.1rem;">-</div>
+                    </div>
+                    <div style="text-align: center; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 10px; border: 1px solid rgba(0,255,136,0.3);">
+                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">Session</div>
+                        <div id="sessionValue" style="font-weight: 700; color: #00ff88; font-size: 1.1rem;">-</div>
+                    </div>
+                    <div style="text-align: center; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 10px; border: 1px solid rgba(58,123,213,0.3);">
+                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">QQQ Volume</div>
+                        <div id="volumeValue" style="font-weight: 700; color: #3a7bd5; font-size: 1.1rem;">-</div>
+                    </div>
+                    <div style="text-align: center; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 10px; border: 1px solid rgba(255,165,2,0.3);">
+                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">DXY</div>
+                        <div id="dxyValue" style="font-weight: 700; color: #ffa502; font-size: 1.1rem;">-</div>
+                    </div>
+                    <div style="text-align: center; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 10px; border: 1px solid rgba(0,212,170,0.3);">
+                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">Data Source</div>
+                        <div id="marketDataSource" style="font-weight: 700; color: #00d4aa; font-size: 1.1rem;">-</div>
+                    </div>
+                </div>
+                <div style="margin-top: 12px; font-size: 11px; color: rgba(255,255,255,0.6); text-align: center; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                    <div id="marketDataLastUpdate">Last updated: Loading...</div>
+                    <div id="marketDataStatus" style="margin-top: 4px;">Auto-refresh: Active</div>
                 </div>
             </div>
             
@@ -784,84 +1094,69 @@
             <div id="rTargetAnalysis"></div>
         </div>
         
-        <!-- ML Intelligence Dashboard -->
-        <div class="card" style="background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,212,170,0.1)); border: 2px solid rgba(0,255,136,0.3);">
-            <h3 style="color: #00ff88; margin-bottom: 20px;">🤖 ML Intelligence Dashboard</h3>
+        <!-- Tool Integration Panel -->
+        <div class="premium-chart-container">
+            <div class="chart-header">
+                <h3 class="chart-title">🔗 Advanced Analytics & Tools</h3>
+                <div class="chart-controls">
+                    <button class="chart-btn" onclick="window.open('/ml-dashboard', '_blank')">🤖 ML Hub</button>
+                    <button class="chart-btn" onclick="window.open('/strategy-optimizer', '_blank')">🎯 Optimizer</button>
+                    <button class="chart-btn" onclick="window.open('/ai-business-advisor', '_blank')">🧠 AI Advisor</button>
+                </div>
+            </div>
             
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                <!-- ML Status Card -->
-                <div class="stat-card" style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3);">
-                    <div class="stat-label">ML Engine Status</div>
-                    <div class="stat-value" id="mlStatus" style="font-size: 1.2em;">Loading...</div>
-                    <div id="mlStatusDetails" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3;">Checking model status...</div>
+            <!-- Quick Analytics Overview -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px;">
+                <!-- Risk Metrics Card -->
+                <div class="modern-stat-card">
+                    <div class="stat-icon">⚖️</div>
+                    <div style="margin-bottom: 15px;">
+                        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">Risk Analytics</div>
+                        <div style="font-size: 0.9rem; color: rgba(255,255,255,0.7);">Advanced risk metrics and analysis</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.8rem;">
+                        <div>Sharpe Ratio: <span id="sharpeRatio" style="color: #4facfe;">-</span></div>
+                        <div>Sortino Ratio: <span id="sortinoRatio" style="color: #00f2fe;">-</span></div>
+                        <div>Max Adverse: <span id="maxAdverse" style="color: #fa709a;">-</span></div>
+                        <div>Recovery Factor: <span id="recoveryFactor" style="color: #fee140;">-</span></div>
+                    </div>
                 </div>
                 
-                <!-- Current Prediction Card -->
-                <div class="stat-card" style="background: rgba(58,123,213,0.1); border: 1px solid rgba(58,123,213,0.3);">
-                    <div class="stat-label">Current Market Prediction</div>
-                    <div class="stat-value" id="currentPrediction" style="font-size: 1.2em;">Loading...</div>
-                    <div id="predictionDetails" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3;">Analyzing market conditions...</div>
+                <!-- Performance Attribution -->
+                <div class="modern-stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div style="margin-bottom: 15px;">
+                        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">Performance Attribution</div>
+                        <div style="font-size: 0.9rem; color: rgba(255,255,255,0.7);">What drives your trading edge</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.8rem;">
+                        <div>Best Session: <span id="bestSession" style="color: #4facfe;">-</span></div>
+                        <div>Best Time: <span id="bestTime" style="color: #00f2fe;">-</span></div>
+                        <div>Edge Factor: <span id="edgeFactor" style="color: #fa709a;">-</span></div>
+                        <div>Consistency: <span id="consistency" style="color: #fee140;">-</span></div>
+                    </div>
                 </div>
                 
-                <!-- Model Performance Card -->
-                <div class="stat-card" style="background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.3);">
-                    <div class="stat-label">Best Model Performance</div>
-                    <div class="stat-value" id="modelPerformance" style="font-size: 1.2em;">Loading...</div>
-                    <div id="performanceDetails" style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.3;">Evaluating model accuracy...</div>
+                <!-- Tool Navigation -->
+                <div class="modern-stat-card">
+                    <div class="stat-icon">🚀</div>
+                    <div style="margin-bottom: 15px;">
+                        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">Specialized Tools</div>
+                        <div style="font-size: 0.9rem; color: rgba(255,255,255,0.7);">Access advanced analytics</div>
+                    </div>
+                    <div style="display: grid; gap: 8px;">
+                        <a href="/ml-dashboard" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(102,126,234,0.2); border-radius: 8px; text-decoration: none; color: white; font-size: 0.8rem;">
+                            🤖 <span>ML Intelligence & Predictions</span>
+                        </a>
+                        <a href="/strategy-optimizer" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(75,192,254,0.2); border-radius: 8px; text-decoration: none; color: white; font-size: 0.8rem;">
+                            🎯 <span>Strategy Optimization</span>
+                        </a>
+                        <a href="/ai-business-advisor" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(250,112,154,0.2); border-radius: 8px; text-decoration: none; color: white; font-size: 0.8rem;">
+                            🧠 <span>AI Business Insights</span>
+                        </a>
+                    </div>
                 </div>
             </div>
-            
-            <!-- ML Insights Panel -->
-            <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px; margin-bottom: 15px;">
-                <h4 style="color: #00d4aa; margin-bottom: 15px;">🧠 ML Insights & Feature Importance</h4>
-                <div id="mlInsights" style="min-height: 100px; color: rgba(255,255,255,0.8); font-size: 14px; line-height: 1.6;">
-                    Loading ML insights...
-                </div>
-                <div id="featureImportanceDisplay" style="margin-top: 15px; background: rgba(255,255,255,0.03); border-radius: 10px; padding: 15px;">
-                    <h5 style="color: #3742fa; margin: 0 0 10px 0; font-size: 14px;">🎯 Top Features</h5>
-                    <div id="topFeatures" style="font-size: 12px; color: rgba(255,255,255,0.8);">Loading feature analysis...</div>
-                </div>
-                <div id="mlRecommendationsDisplay" style="margin-top: 15px; background: rgba(255,255,255,0.03); border-radius: 10px; padding: 15px;">
-                    <h5 style="color: #2ed573; margin: 0 0 10px 0; font-size: 14px;">💡 AI Recommendations</h5>
-                    <div id="aiRecommendations" style="font-size: 12px; color: rgba(255,255,255,0.8);">Loading recommendations...</div>
-                </div>
-            </div>
-            
-            <!-- Real-time Market Context -->
-            <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
-                <h4 style="color: #ffa502; margin-bottom: 15px;">📊 Live Market Context (TradingView)</h4>
-                <div id="marketContext" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 15px;">
-                    <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                        <div style="font-size: 11px; opacity: 0.8;">VIX</div>
-                        <div id="vixValue" style="font-weight: 600; color: #ff6b7a;">-</div>
-                    </div>
-                    <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                        <div style="font-size: 11px; opacity: 0.8;">Session</div>
-                        <div id="sessionValue" style="font-weight: 600; color: #00ff88;">-</div>
-                    </div>
-                    <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                        <div style="font-size: 11px; opacity: 0.8;">QQQ Volume</div>
-                        <div id="volumeValue" style="font-weight: 600; color: #3a7bd5;">-</div>
-                    </div>
-                    <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                        <div style="font-size: 11px; opacity: 0.8;">DXY</div>
-                        <div id="dxyValue" style="font-weight: 600; color: #ffa502;">-</div>
-                    </div>
-                    <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                        <div style="font-size: 11px; opacity: 0.8;">Data Source</div>
-                        <div id="marketDataSource" style="font-weight: 600; color: #00d4aa;">-</div>
-                    </div>
-                </div>
-                <div style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.6); text-align: center;">
-                    <div id="marketDataLastUpdate">Last updated: Loading...</div>
-                    <div id="marketDataStatus" style="margin-top: 5px;">Auto-refresh: Active</div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="card">
-            <h3 style="margin-bottom: 20px; color: #00ff88;">AI Strategy Optimization</h3>
-            <div id="aiAnalysis" class="loading">Analyzing all strategy combinations...</div>
         </div>
     </div>
 
@@ -934,6 +1229,238 @@
         
         function updateLastUpdateTime() {
             document.getElementById('lastUpdateTime').textContent = new Date().toLocaleTimeString();
+        }
+        
+        // Stunning Chart Enhancement Functions
+        function createParticleSystem(container, performance) {
+            const particleContainer = document.createElement('div');
+            particleContainer.className = 'chart-particle-system';
+            container.appendChild(particleContainer);
+            
+            // Create particles based on performance
+            const particleCount = Math.min(20, Math.abs(performance) * 2);
+            const color = performance > 0 ? '#00ff88' : performance < 0 ? '#ff4757' : '#ffa502';
+            
+            for (let i = 0; i < particleCount; i++) {
+                setTimeout(() => {
+                    const particle = document.createElement('div');
+                    particle.className = 'chart-particle';
+                    particle.style.left = Math.random() * 100 + '%';
+                    particle.style.background = `radial-gradient(circle, ${color} 0%, transparent 70%)`;
+                    particle.style.animationDelay = Math.random() * 2 + 's';
+                    particle.style.animationDuration = (2 + Math.random() * 2) + 's';
+                    
+                    particleContainer.appendChild(particle);
+                    
+                    // Remove particle after animation
+                    setTimeout(() => {
+                        if (particle.parentNode) {
+                            particle.parentNode.removeChild(particle);
+                        }
+                    }, 5000);
+                }, i * 100);
+            }
+        }
+        
+        function addPerformanceZoneGlows(container, data) {
+            // Add profit zone glow
+            const profitGlow = document.createElement('div');
+            profitGlow.className = 'performance-zone-glow profit-zone-glow';
+            container.appendChild(profitGlow);
+            
+            // Add loss zone glow
+            const lossGlow = document.createElement('div');
+            lossGlow.className = 'performance-zone-glow loss-zone-glow';
+            container.appendChild(lossGlow);
+            
+            // Animate based on current performance
+            const currentPerformance = data[data.length - 1]?.y || 0;
+            if (currentPerformance > 0) {
+                profitGlow.style.opacity = Math.min(0.6, currentPerformance / 50);
+                lossGlow.style.opacity = 0.1;
+            } else {
+                lossGlow.style.opacity = Math.min(0.6, Math.abs(currentPerformance) / 50);
+                profitGlow.style.opacity = 0.1;
+            }
+        }
+        
+        function createChartOverlay(container, data) {
+            const overlay = document.createElement('div');
+            overlay.className = 'chart-overlay-info';
+            overlay.id = 'chartOverlay';
+            
+            const currentPerformance = data[data.length - 1]?.y || 0;
+            const totalTrades = data.length;
+            const winRate = data.filter(d => d.result > 0).length / totalTrades * 100;
+            
+            overlay.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 8px; color: #667eea;">Performance Summary</div>
+                <div style="margin-bottom: 4px;">Current: <span style="color: ${currentPerformance >= 0 ? '#00ff88' : '#ff4757'};">${currentPerformance.toFixed(2)}R</span></div>
+                <div style="margin-bottom: 4px;">Total Trades: <span style="color: #4facfe;">${totalTrades}</span></div>
+                <div style="margin-bottom: 4px;">Win Rate: <span style="color: #00f2fe;">${winRate.toFixed(1)}%</span></div>
+                <div style="font-size: 10px; opacity: 0.7; margin-top: 8px;">Click chart for details</div>
+            `;
+            
+            container.appendChild(overlay);
+            
+            // Show overlay after a delay
+            setTimeout(() => {
+                overlay.classList.add('visible');
+            }, 1000);
+        }
+        
+        // Enhanced Chart Effects Function
+        function enhanceChartWithStunningEffects(svg, data) {
+            // Add particle systems
+            createParticleSystem(svg.node().parentNode, data[data.length - 1]?.y || 0);
+            
+            // Add performance zone glows
+            addPerformanceZoneGlows(svg.node().parentNode, data);
+            
+            // Add interactive overlay
+            createChartOverlay(svg.node().parentNode, data);
+            
+            // Add entrance animations
+            addChartAnimations(svg.node());
+            
+            // Calculate and display advanced metrics
+            const metrics = calculateAdvancedMetrics(data);
+            updateAdvancedMetrics(metrics);
+            
+            // Add neural network style connections for significant trades
+            addNeuralConnections(svg, data);
+            
+            // Add holographic shimmer effects
+            addHolographicEffects(svg);
+        }
+        
+        function addNeuralConnections(svg, data) {
+            const significantPoints = data.filter(d => Math.abs(d.result) > 2);
+            
+            if (significantPoints.length < 2) return;
+            
+            const connectionGroup = svg.append('g').attr('class', 'neural-connections');
+            
+            significantPoints.forEach((point, i) => {
+                if (i < significantPoints.length - 1) {
+                    const nextPoint = significantPoints[i + 1];
+                    
+                    connectionGroup.append('line')
+                        .attr('class', 'neural-connection')
+                        .attr('x1', point.x || 0)
+                        .attr('y1', point.y || 0)
+                        .attr('x2', nextPoint.x || 0)
+                        .attr('y2', nextPoint.y || 0)
+                        .style('stroke', 'rgba(102, 126, 234, 0.3)')
+                        .style('stroke-width', 1)
+                        .style('opacity', 0)
+                        .transition()
+                        .delay(i * 200)
+                        .duration(1000)
+                        .style('opacity', 0.6);
+                }
+            });
+        }
+        
+        function addHolographicEffects(svg) {
+            // Add subtle holographic shimmer to the entire chart
+            const shimmerRect = svg.append('rect')
+                .attr('width', '100%')
+                .attr('height', '100%')
+                .attr('fill', 'url(#shimmer-effect)')
+                .style('opacity', 0.05)
+                .style('mix-blend-mode', 'overlay')
+                .style('pointer-events', 'none');
+            
+            // Animate the shimmer effect
+            shimmerRect
+                .style('transform', 'translateX(-100%)')
+                .transition()
+                .duration(3000)
+                .ease(d3.easeLinear)
+                .style('transform', 'translateX(100%)')
+                .on('end', function() {
+                    // Repeat the shimmer effect
+                    d3.select(this)
+                        .style('transform', 'translateX(-100%)')
+                        .transition()
+                        .delay(5000)
+                        .duration(3000)
+                        .ease(d3.easeLinear)
+                        .style('transform', 'translateX(100%)');
+                });
+        }
+        
+        function updateAdvancedMetrics(metrics) {
+            // Update the advanced metrics in the tool integration panel
+            const elements = {
+                sharpeRatio: document.getElementById('sharpeRatio'),
+                sortinoRatio: document.getElementById('sortinoRatio'),
+                maxAdverse: document.getElementById('maxAdverse'),
+                recoveryFactor: document.getElementById('recoveryFactor')
+            };
+            
+            Object.keys(elements).forEach(key => {
+                if (elements[key] && metrics[key]) {
+                    elements[key].textContent = metrics[key];
+                    
+                    // Add color coding based on performance
+                    const value = parseFloat(metrics[key]);
+                    if (key === 'sharpeRatio' || key === 'sortinoRatio') {
+                        if (value > 1) {
+                            elements[key].style.color = '#00ff88';
+                        } else if (value > 0.5) {
+                            elements[key].style.color = '#ffa502';
+                        } else {
+                            elements[key].style.color = '#ff4757';
+                        }
+                    }
+                }
+            });
+        }
+        
+        function addChartAnimations(svgElement) {
+            // Add entrance animation
+            svgElement.classList.add('chart-enter');
+            
+            // Add hover effects for interactive elements
+            svgElement.addEventListener('mouseover', (e) => {
+                if (e.target.classList.contains('dot')) {
+                    createParticleSystem(svgElement.parentNode, Math.random() * 10 - 5);
+                }
+            });
+        }
+        
+        function calculateAdvancedMetrics(data) {
+            if (!data || data.length === 0) return {};
+            
+            const returns = data.map(d => d.result).filter(r => r !== undefined);
+            const positiveReturns = returns.filter(r => r > 0);
+            const negativeReturns = returns.filter(r => r < 0);
+            
+            // Sharpe Ratio (simplified)
+            const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
+            const stdDev = Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length);
+            const sharpeRatio = stdDev > 0 ? (avgReturn / stdDev).toFixed(2) : '0.00';
+            
+            // Sortino Ratio (downside deviation)
+            const downsideDev = Math.sqrt(negativeReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / negativeReturns.length);
+            const sortinoRatio = downsideDev > 0 ? (avgReturn / downsideDev).toFixed(2) : '0.00';
+            
+            // Max Adverse Excursion
+            const maxAdverse = Math.min(...returns).toFixed(2);
+            
+            // Recovery Factor
+            const maxDrawdown = Math.abs(Math.min(...data.map(d => d.y)));
+            const totalReturn = data[data.length - 1]?.y || 0;
+            const recoveryFactor = maxDrawdown > 0 ? (totalReturn / maxDrawdown).toFixed(2) : '∞';
+            
+            return {
+                sharpeRatio,
+                sortinoRatio,
+                maxAdverse,
+                recoveryFactor
+            };
         }
         
         // Load signals from database
@@ -2033,6 +2560,11 @@
                     .style('filter', 'url(#premium-glow)');
             }
             
+            // 🚀 ADD STUNNING VISUAL EFFECTS
+            setTimeout(() => {
+                enhanceChartWithStunningEffects(svg, data);
+            }, 500);
+            
             // Premium legend display
             if (document.getElementById('showLegend')?.checked) {
                 const legend = g.append('g').attr('class', 'premium-legend')
@@ -2963,67 +3495,194 @@
             
             const svg = container.append('svg')
                 .attr('width', width)
-                .attr('height', height);
+                .attr('height', height)
+                .style('filter', 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))')
+                .attr('class', 'session-chart-3d');
+            
+            // Add defs for 3D effects
+            const defs = svg.append('defs');
+            
+            // 3D gradient for each session
+            data.forEach((d, i) => {
+                const gradient = defs.append('radialGradient')
+                    .attr('id', `session-gradient-${i}`)
+                    .attr('cx', '30%').attr('cy', '30%');
+                
+                gradient.append('stop')
+                    .attr('offset', '0%')
+                    .attr('stop-color', d3.color(d.color).brighter(0.8))
+                    .attr('stop-opacity', 1);
+                
+                gradient.append('stop')
+                    .attr('offset', '70%')
+                    .attr('stop-color', d.color)
+                    .attr('stop-opacity', 0.9);
+                
+                gradient.append('stop')
+                    .attr('offset', '100%')
+                    .attr('stop-color', d3.color(d.color).darker(0.5))
+                    .attr('stop-opacity', 0.8);
+            });
+            
+            // Glow filter
+            const glowFilter = defs.append('filter')
+                .attr('id', 'session-glow')
+                .attr('x', '-50%').attr('y', '-50%')
+                .attr('width', '200%').attr('height', '200%');
+            
+            glowFilter.append('feGaussianBlur')
+                .attr('stdDeviation', '3')
+                .attr('result', 'coloredBlur');
+            
+            const feMerge = glowFilter.append('feMerge');
+            feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+            feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
             
             const g = svg.append('g')
                 .attr('transform', `translate(${width/2}, ${height/2})`);
             
             const pie = d3.pie()
                 .value(d => d.winRate)
-                .sort(null);
+                .sort(null)
+                .padAngle(0.02);
             
             const arc = d3.arc()
-                .innerRadius(radius * 0.4)
-                .outerRadius(radius * 0.8);
+                .innerRadius(radius * 0.35)
+                .outerRadius(radius * 0.75)
+                .cornerRadius(3);
+            
+            const hoverArc = d3.arc()
+                .innerRadius(radius * 0.35)
+                .outerRadius(radius * 0.85)
+                .cornerRadius(3);
             
             const arcs = g.selectAll('.arc')
                 .data(pie(data))
                 .enter().append('g')
-                .attr('class', 'arc');
+                .attr('class', 'arc session-segment');
             
+            // Add shadow paths first
             arcs.append('path')
                 .attr('d', arc)
-                .attr('fill', d => d.data.color)
-                .attr('stroke', '#fff')
+                .attr('fill', 'rgba(0,0,0,0.3)')
+                .attr('transform', 'translate(2, 4)')
+                .style('opacity', 0);
+            
+            // Main arc paths with 3D gradients
+            const mainPaths = arcs.append('path')
+                .attr('d', arc)
+                .attr('fill', (d, i) => `url(#session-gradient-${i})`)
+                .attr('stroke', '#ffffff')
                 .attr('stroke-width', 2)
-                .style('opacity', 0.8)
-                .on('mouseover', function(event, d) {
-                    d3.select(this).style('opacity', 1);
-                })
-                .on('mouseout', function(event, d) {
-                    d3.select(this).style('opacity', 0.8);
+                .style('opacity', 0)
+                .style('filter', 'url(#session-glow)')
+                .style('cursor', 'pointer');
+            
+            // Animate entrance
+            mainPaths.transition()
+                .delay((d, i) => i * 200)
+                .duration(800)
+                .ease(d3.easeBackOut)
+                .style('opacity', 0.9)
+                .attrTween('d', function(d) {
+                    const interpolate = d3.interpolate({startAngle: 0, endAngle: 0}, d);
+                    return function(t) {
+                        return arc(interpolate(t));
+                    };
                 });
             
-            // Add labels
+            // Shadow animation
+            arcs.select('path:first-child')
+                .transition()
+                .delay((d, i) => i * 200 + 400)
+                .duration(600)
+                .style('opacity', 0.4);
+            
+            // Enhanced interactions with particle effects
+            mainPaths
+                .on('mouseover', function(event, d) {
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .ease(d3.easeBackOut)
+                        .attr('d', hoverArc)
+                        .style('filter', 'url(#session-glow) brightness(1.2)');
+                    
+                    // Create particle burst effect
+                    const centroid = arc.centroid(d);
+                    for (let i = 0; i < 8; i++) {
+                        g.append('circle')
+                            .attr('cx', centroid[0])
+                            .attr('cy', centroid[1])
+                            .attr('r', 2)
+                            .attr('fill', d.data.color)
+                            .style('opacity', 0.8)
+                            .transition()
+                            .duration(1000)
+                            .ease(d3.easeQuadOut)
+                            .attr('cx', centroid[0] + (Math.random() - 0.5) * 60)
+                            .attr('cy', centroid[1] + (Math.random() - 0.5) * 60)
+                            .attr('r', 0)
+                            .style('opacity', 0)
+                            .remove();
+                    }
+                })
+                .on('mouseout', function(event, d) {
+                    d3.select(this)
+                        .transition()
+                        .duration(300)
+                        .attr('d', arc)
+                        .style('filter', 'url(#session-glow)');
+                });
+            
+            // Enhanced labels with glow
             arcs.append('text')
                 .attr('transform', d => `translate(${arc.centroid(d)})`)
                 .attr('text-anchor', 'middle')
                 .style('font-size', '11px')
-                .style('font-weight', '600')
-                .style('fill', '#fff')
-                .text(d => `${d.data.winRate.toFixed(0)}%`);
+                .style('font-weight', '700')
+                .style('fill', '#ffffff')
+                .style('text-shadow', '0 0 6px rgba(0,0,0,0.8)')
+                .style('opacity', 0)
+                .text(d => `${d.data.winRate.toFixed(0)}%`)
+                .transition()
+                .delay((d, i) => i * 200 + 800)
+                .duration(400)
+                .style('opacity', 1);
             
-            // Create legend
+            // Create enhanced legend with animations
             const legend = d3.select('#sessionWinRateLegend');
             legend.selectAll('*').remove();
             
-            data.forEach(d => {
+            data.forEach((d, i) => {
                 const legendItem = legend.append('div')
                     .style('display', 'inline-flex')
                     .style('align-items', 'center')
                     .style('margin', '2px 4px')
-                    .style('font-size', '11px');
+                    .style('font-size', '11px')
+                    .style('opacity', 0)
+                    .style('transform', 'translateY(10px)');
                 
                 legendItem.append('div')
                     .style('width', '12px')
                     .style('height', '12px')
-                    .style('background', d.color)
+                    .style('background', `linear-gradient(135deg, ${d3.color(d.color).brighter(0.3)}, ${d.color})`)
                     .style('margin-right', '4px')
-                    .style('border-radius', '2px');
+                    .style('border-radius', '3px')
+                    .style('box-shadow', `0 2px 4px ${d.color}40`);
                 
                 legendItem.append('span')
                     .style('color', 'rgba(255,255,255,0.9)')
+                    .style('font-weight', '500')
                     .text(`${d.session}: ${d.winRate.toFixed(1)}%`);
+                
+                // Animate legend items
+                legendItem.transition()
+                    .delay(i * 100 + 1000)
+                    .duration(400)
+                    .ease(d3.easeBackOut)
+                    .style('opacity', 1)
+                    .style('transform', 'translateY(0)');
             });
         }
         
@@ -3045,27 +3704,204 @@
             
             const svg = container.append('svg')
                 .attr('width', width)
-                .attr('height', height);
+                .attr('height', height)
+                .style('filter', 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))')
+                .attr('class', 'session-chart-3d');
+            
+            // Add defs for 3D effects
+            const defs = svg.append('defs');
+            
+            // 3D gradient for each session
+            data.forEach((d, i) => {
+                const gradient = defs.append('radialGradient')
+                    .attr('id', `dist-gradient-${i}`)
+                    .attr('cx', '25%').attr('cy', '25%');
+                
+                gradient.append('stop')
+                    .attr('offset', '0%')
+                    .attr('stop-color', '#ffffff')
+                    .attr('stop-opacity', 0.4);
+                
+                gradient.append('stop')
+                    .attr('offset', '30%')
+                    .attr('stop-color', d3.color(d.color).brighter(0.6))
+                    .attr('stop-opacity', 0.8);
+                
+                gradient.append('stop')
+                    .attr('offset', '100%')
+                    .attr('stop-color', d3.color(d.color).darker(0.3))
+                    .attr('stop-opacity', 1);
+            });
+            
+            // Enhanced glow filter
+            const glowFilter = defs.append('filter')
+                .attr('id', 'dist-glow')
+                .attr('x', '-50%').attr('y', '-50%')
+                .attr('width', '200%').attr('height', '200%');
+            
+            glowFilter.append('feGaussianBlur')
+                .attr('stdDeviation', '4')
+                .attr('result', 'coloredBlur');
+            
+            const feMerge = glowFilter.append('feMerge');
+            feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+            feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
             
             const g = svg.append('g')
                 .attr('transform', `translate(${width/2}, ${height/2})`);
             
             const pie = d3.pie()
                 .value(d => d.count)
-                .sort(null);
+                .sort(null)
+                .padAngle(0.03);
             
             const arc = d3.arc()
-                .innerRadius(radius * 0.4)
-                .outerRadius(radius * 0.8);
+                .innerRadius(radius * 0.3)
+                .outerRadius(radius * 0.75)
+                .cornerRadius(4);
+            
+            const hoverArc = d3.arc()
+                .innerRadius(radius * 0.25)
+                .outerRadius(radius * 0.85)
+                .cornerRadius(4);
             
             const arcs = g.selectAll('.arc')
                 .data(pie(data))
                 .enter().append('g')
-                .attr('class', 'arc');
+                .attr('class', 'arc session-segment');
             
+            // Add 3D shadow effect
             arcs.append('path')
                 .attr('d', arc)
-                .attr('fill', d => d.data.color)
+                .attr('fill', 'rgba(0,0,0,0.4)')
+                .attr('transform', 'translate(3, 5)')
+                .style('opacity', 0);
+            
+            // Main arc paths with enhanced 3D gradients
+            const mainPaths = arcs.append('path')
+                .attr('d', arc)
+                .attr('fill', (d, i) => `url(#dist-gradient-${i})`)
+                .attr('stroke', '#ffffff')
+                .attr('stroke-width', 3)
+                .style('opacity', 0)
+                .style('filter', 'url(#dist-glow)')
+                .style('cursor', 'pointer');
+            
+            // Spectacular entrance animation with rotation
+            mainPaths.transition()
+                .delay((d, i) => i * 150)
+                .duration(1000)
+                .ease(d3.easeElasticOut)
+                .style('opacity', 0.95)
+                .attrTween('d', function(d) {
+                    const interpolate = d3.interpolate({startAngle: 0, endAngle: 0}, d);
+                    return function(t) {
+                        return arc(interpolate(t));
+                    };
+                })
+                .styleTween('transform', function() {
+                    return d3.interpolateString('rotate(0deg)', 'rotate(360deg)');
+                });
+            
+            // Shadow animation
+            arcs.select('path:first-child')
+                .transition()
+                .delay((d, i) => i * 150 + 500)
+                .duration(800)
+                .style('opacity', 0.5);
+            
+            // Enhanced interactions with 3D effects
+            mainPaths
+                .on('mouseover', function(event, d) {
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .ease(d3.easeBackOut)
+                        .attr('d', hoverArc)
+                        .style('filter', 'url(#dist-glow) brightness(1.3) saturate(1.2)');
+                    
+                    // Create ripple effect
+                    const centroid = arc.centroid(d);
+                    const ripple = g.append('circle')
+                        .attr('cx', centroid[0])
+                        .attr('cy', centroid[1])
+                        .attr('r', 5)
+                        .attr('fill', 'none')
+                        .attr('stroke', d.data.color)
+                        .attr('stroke-width', 2)
+                        .style('opacity', 0.8);
+                    
+                    ripple.transition()
+                        .duration(600)
+                        .ease(d3.easeQuadOut)
+                        .attr('r', 40)
+                        .attr('stroke-width', 0.5)
+                        .style('opacity', 0)
+                        .remove();
+                })
+                .on('mouseout', function(event, d) {
+                    d3.select(this)
+                        .transition()
+                        .duration(300)
+                        .attr('d', arc)
+                        .style('filter', 'url(#dist-glow)');
+                });
+            
+            // Enhanced labels with better positioning
+            arcs.append('text')
+                .attr('transform', d => {
+                    const centroid = arc.centroid(d);
+                    return `translate(${centroid[0] * 1.2}, ${centroid[1] * 1.2})`;
+                })
+                .attr('text-anchor', 'middle')
+                .style('font-size', '12px')
+                .style('font-weight', '700')
+                .style('fill', '#ffffff')
+                .style('text-shadow', '0 0 8px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.5)')
+                .style('opacity', 0)
+                .text(d => d.data.count)
+                .transition()
+                .delay((d, i) => i * 150 + 1000)
+                .duration(500)
+                .ease(d3.easeBackOut)
+                .style('opacity', 1);
+            
+            // Create enhanced legend with 3D effects
+            const legend = d3.select('#sessionDistributionLegend');
+            legend.selectAll('*').remove();
+            
+            data.forEach((d, i) => {
+                const legendItem = legend.append('div')
+                    .style('display', 'inline-flex')
+                    .style('align-items', 'center')
+                    .style('margin', '3px 6px')
+                    .style('font-size', '11px')
+                    .style('opacity', 0)
+                    .style('transform', 'translateX(-20px)');
+                
+                legendItem.append('div')
+                    .style('width', '14px')
+                    .style('height', '14px')
+                    .style('background', `linear-gradient(135deg, ${d3.color(d.color).brighter(0.4)}, ${d.color}, ${d3.color(d.color).darker(0.2)})`)
+                    .style('margin-right', '6px')
+                    .style('border-radius', '3px')
+                    .style('box-shadow', `0 3px 6px ${d.color}50, inset 0 1px 2px rgba(255,255,255,0.3)`)
+                    .style('border', '1px solid rgba(255,255,255,0.2)');
+                
+                legendItem.append('span')
+                    .style('color', 'rgba(255,255,255,0.95)')
+                    .style('font-weight', '600')
+                    .text(`${d.session}: ${d.count}`);
+                
+                // Staggered legend animation
+                legendItem.transition()
+                    .delay(i * 120 + 1200)
+                    .duration(500)
+                    .ease(d3.easeBackOut)
+                    .style('opacity', 1)
+                    .style('transform', 'translateX(0)');
+            });
+        }
                 .attr('stroke', '#fff')
                 .attr('stroke-width', 2)
                 .style('opacity', 0.8);
@@ -3084,22 +3920,90 @@
             container.selectAll('*').remove();
             
             const data = Object.entries(sessionStats).map(([session, stats]) => ({
-                session,
+                session: session.replace('NY ', '').replace(' Market', ''), // Shorten labels
                 expectancy: stats.expectancy,
-                color: stats.color
+                color: stats.color,
+                count: stats.count
             }));
             
             if (data.length === 0) return;
             
-            const width = 250;
+            const width = 280;
             const height = 250;
-            const margin = {top: 20, right: 20, bottom: 40, left: 40};
+            const margin = {top: 25, right: 25, bottom: 60, left: 50};
             const innerWidth = width - margin.left - margin.right;
             const innerHeight = height - margin.top - margin.bottom;
             
             const svg = container.append('svg')
                 .attr('width', width)
-                .attr('height', height);
+                .attr('height', height)
+                .style('filter', 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))')
+                .attr('class', 'session-chart-3d');
+            
+            // Enhanced defs for 3D bar effects
+            const defs = svg.append('defs');
+            
+            // Create 3D gradients for each bar
+            data.forEach((d, i) => {
+                const isPositive = d.expectancy >= 0;
+                const baseColor = isPositive ? '#00ff88' : '#ff4757';
+                
+                // Top face gradient
+                const topGradient = defs.append('linearGradient')
+                    .attr('id', `bar-top-${i}`)
+                    .attr('x1', '0%').attr('y1', '0%')
+                    .attr('x2', '100%').attr('y2', '100%');
+                
+                topGradient.append('stop')
+                    .attr('offset', '0%')
+                    .attr('stop-color', d3.color(baseColor).brighter(0.8));
+                
+                topGradient.append('stop')
+                    .attr('offset', '100%')
+                    .attr('stop-color', d3.color(baseColor).brighter(0.3));
+                
+                // Side face gradient
+                const sideGradient = defs.append('linearGradient')
+                    .attr('id', `bar-side-${i}`)
+                    .attr('x1', '0%').attr('y1', '0%')
+                    .attr('x2', '100%').attr('y2', '0%');
+                
+                sideGradient.append('stop')
+                    .attr('offset', '0%')
+                    .attr('stop-color', baseColor);
+                
+                sideGradient.append('stop')
+                    .attr('offset', '100%')
+                    .attr('stop-color', d3.color(baseColor).darker(0.4));
+                
+                // Front face gradient
+                const frontGradient = defs.append('linearGradient')
+                    .attr('id', `bar-front-${i}`)
+                    .attr('x1', '0%').attr('y1', '0%')
+                    .attr('x2', '0%').attr('y2', '100%');
+                
+                frontGradient.append('stop')
+                    .attr('offset', '0%')
+                    .attr('stop-color', d3.color(baseColor).brighter(0.2));
+                
+                frontGradient.append('stop')
+                    .attr('offset', '100%')
+                    .attr('stop-color', d3.color(baseColor).darker(0.2));
+            });
+            
+            // Glow filter for bars
+            const glowFilter = defs.append('filter')
+                .attr('id', 'bar-glow')
+                .attr('x', '-50%').attr('y', '-50%')
+                .attr('width', '200%').attr('height', '200%');
+            
+            glowFilter.append('feGaussianBlur')
+                .attr('stdDeviation', '3')
+                .attr('result', 'coloredBlur');
+            
+            const feMerge = glowFilter.append('feMerge');
+            feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+            feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
             
             const g = svg.append('g')
                 .attr('transform', `translate(${margin.left}, ${margin.top})`);
@@ -3107,23 +4011,208 @@
             const xScale = d3.scaleBand()
                 .domain(data.map(d => d.session))
                 .range([0, innerWidth])
-                .padding(0.1);
+                .padding(0.2);
             
+            const yExtent = d3.extent(data, d => d.expectancy);
             const yScale = d3.scaleLinear()
-                .domain(d3.extent(data, d => d.expectancy))
+                .domain([Math.min(yExtent[0] - 0.1, 0), Math.max(yExtent[1] + 0.1, 0)])
                 .nice()
                 .range([innerHeight, 0]);
             
-            g.selectAll('.bar')
-                .data(data)
-                .enter().append('rect')
-                .attr('class', 'bar')
-                .attr('x', d => xScale(d.session))
-                .attr('y', d => d.expectancy >= 0 ? yScale(d.expectancy) : yScale(0))
-                .attr('width', xScale.bandwidth())
-                .attr('height', d => Math.abs(yScale(d.expectancy) - yScale(0)))
-                .attr('fill', d => d.color)
-                .style('opacity', 0.8);
+            // 3D depth offset
+            const depth = 8;
+            
+            // Create 3D bars with multiple faces
+            data.forEach((d, i) => {
+                const barGroup = g.append('g').attr('class', 'bar-3d-group');
+                const x = xScale(d.session);
+                const barWidth = xScale.bandwidth();
+                const isPositive = d.expectancy >= 0;
+                const barHeight = Math.abs(yScale(d.expectancy) - yScale(0));
+                const y = isPositive ? yScale(d.expectancy) : yScale(0);
+                
+                // Back face (shadow)
+                barGroup.append('rect')
+                    .attr('class', 'bar-shadow')
+                    .attr('x', x + depth)
+                    .attr('y', y - depth)
+                    .attr('width', barWidth)
+                    .attr('height', barHeight)
+                    .attr('fill', 'rgba(0,0,0,0.3)')
+                    .style('opacity', 0);
+                
+                // Side face (right)
+                barGroup.append('polygon')
+                    .attr('class', 'bar-side')
+                    .attr('points', `${x + barWidth},${y} ${x + barWidth + depth},${y - depth} ${x + barWidth + depth},${y + barHeight - depth} ${x + barWidth},${y + barHeight}`)
+                    .attr('fill', `url(#bar-side-${i})`)
+                    .style('opacity', 0);
+                
+                // Top face (if positive expectancy)
+                if (isPositive) {
+                    barGroup.append('polygon')
+                        .attr('class', 'bar-top')
+                        .attr('points', `${x},${y} ${x + depth},${y - depth} ${x + barWidth + depth},${y - depth} ${x + barWidth},${y}`)
+                        .attr('fill', `url(#bar-top-${i})`)
+                        .style('opacity', 0);
+                }
+                
+                // Front face (main bar)
+                const mainBar = barGroup.append('rect')
+                    .attr('class', 'bar-front')
+                    .attr('x', x)
+                    .attr('y', y)
+                    .attr('width', barWidth)
+                    .attr('height', 0)
+                    .attr('fill', `url(#bar-front-${i})`)
+                    .attr('stroke', '#ffffff')
+                    .attr('stroke-width', 1)
+                    .style('filter', 'url(#bar-glow)')
+                    .style('cursor', 'pointer');
+                
+                // Animate all faces
+                barGroup.selectAll('.bar-shadow, .bar-side, .bar-top')
+                    .transition()
+                    .delay(i * 200)
+                    .duration(800)
+                    .ease(d3.easeBackOut)
+                    .style('opacity', 1);
+                
+                // Animate main bar height
+                mainBar.transition()
+                    .delay(i * 200 + 200)
+                    .duration(1000)
+                    .ease(d3.easeElasticOut)
+                    .attr('height', barHeight);
+                
+                // Enhanced interactions
+                barGroup
+                    .on('mouseover', function(event) {
+                        d3.select(this).selectAll('rect, polygon')
+                            .transition()
+                            .duration(200)
+                            .style('filter', 'url(#bar-glow) brightness(1.3)')
+                            .attr('transform', 'scale(1.05)');
+                        
+                        // Create floating label
+                        const tooltip = g.append('g').attr('class', 'bar-tooltip');
+                        
+                        const rect = tooltip.append('rect')
+                            .attr('x', x + barWidth/2 - 30)
+                            .attr('y', y - 35)
+                            .attr('width', 60)
+                            .attr('height', 25)
+                            .attr('fill', 'rgba(0,0,0,0.9)')
+                            .attr('stroke', d.expectancy >= 0 ? '#00ff88' : '#ff4757')
+                            .attr('stroke-width', 2)
+                            .attr('rx', 5)
+                            .style('opacity', 0);
+                        
+                        const text = tooltip.append('text')
+                            .attr('x', x + barWidth/2)
+                            .attr('y', y - 18)
+                            .attr('text-anchor', 'middle')
+                            .style('font-size', '11px')
+                            .style('font-weight', '700')
+                            .style('fill', '#ffffff')
+                            .text(`${d.expectancy.toFixed(2)}R`)
+                            .style('opacity', 0);
+                        
+                        rect.transition().duration(200).style('opacity', 1);
+                        text.transition().duration(200).style('opacity', 1);
+                    })
+                    .on('mouseout', function(event) {
+                        d3.select(this).selectAll('rect, polygon')
+                            .transition()
+                            .duration(300)
+                            .style('filter', 'url(#bar-glow)')
+                            .attr('transform', 'scale(1)');
+                        
+                        g.select('.bar-tooltip').remove();
+                    });
+                
+                // Add value labels
+                barGroup.append('text')
+                    .attr('x', x + barWidth/2)
+                    .attr('y', isPositive ? y - 5 : y + barHeight + 15)
+                    .attr('text-anchor', 'middle')
+                    .style('font-size', '10px')
+                    .style('font-weight', '600')
+                    .style('fill', d.expectancy >= 0 ? '#00ff88' : '#ff4757')
+                    .style('text-shadow', '0 0 4px rgba(0,0,0,0.8)')
+                    .style('opacity', 0)
+                    .text(`${d.expectancy.toFixed(2)}R`)
+                    .transition()
+                    .delay(i * 200 + 1200)
+                    .duration(400)
+                    .style('opacity', 1);
+            });
+            
+            // Enhanced axes
+            const xAxis = d3.axisBottom(xScale)
+                .tickSize(0)
+                .tickPadding(10);
+            
+            const yAxis = d3.axisLeft(yScale)
+                .tickFormat(d => `${d.toFixed(1)}R`)
+                .tickSize(-innerWidth)
+                .tickPadding(8);
+            
+            // Zero line
+            if (yExtent[0] < 0 && yExtent[1] > 0) {
+                g.append('line')
+                    .attr('x1', 0).attr('x2', innerWidth)
+                    .attr('y1', yScale(0)).attr('y2', yScale(0))
+                    .attr('stroke', '#ffffff')
+                    .attr('stroke-width', 2)
+                    .attr('stroke-dasharray', '4,4')
+                    .style('opacity', 0.6);
+            }
+            
+            const xAxisGroup = g.append('g')
+                .attr('class', 'x-axis')
+                .attr('transform', `translate(0, ${innerHeight})`)
+                .call(xAxis);
+            
+            const yAxisGroup = g.append('g')
+                .attr('class', 'y-axis')
+                .call(yAxis);
+            
+            // Style axes
+            [xAxisGroup, yAxisGroup].forEach(axis => {
+                axis.selectAll('text')
+                    .style('fill', 'rgba(255,255,255,0.9)')
+                    .style('font-family', 'Inter, sans-serif')
+                    .style('font-weight', '500')
+                    .style('font-size', '10px');
+                
+                axis.selectAll('.tick line')
+                    .style('stroke', 'rgba(255,255,255,0.1)')
+                    .style('stroke-dasharray', '2,2');
+                
+                axis.select('.domain')
+                    .style('stroke', 'rgba(255,255,255,0.3)');
+            });
+            
+            // Rotate x-axis labels for better fit
+            xAxisGroup.selectAll('text')
+                .attr('transform', 'rotate(-25)')
+                .style('text-anchor', 'end');
+            
+            // Add chart title
+            g.append('text')
+                .attr('x', innerWidth / 2)
+                .attr('y', -10)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '12px')
+                .style('font-weight', '600')
+                .style('fill', 'rgba(255,255,255,0.8)')
+                .text('Expectancy by Session')
+                .style('opacity', 0)
+                .transition()
+                .delay(1500)
+                .duration(500)
+                .style('opacity', 1);
         }
         
         function clearSessionCharts() {
