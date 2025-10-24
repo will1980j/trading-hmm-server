@@ -16,31 +16,39 @@ class AutoMLOptimizer:
         self.last_optimization_time = None
         self.last_sample_count = 0
         self.running = False
+        self.first_run = True
         
     def should_optimize(self):
         """Check if optimization should run"""
-        cursor = self.db.conn.cursor()
-        cursor.execute("SELECT COUNT(*) as count FROM signal_lab_trades WHERE COALESCE(mfe_none, mfe, 0) != 0")
-        current_count = cursor.fetchone()['count']
-        
-        # First optimization: 500+ samples
-        if self.last_optimization_time is None and current_count >= 500:
-            logger.info(f"🔧 First optimization: {current_count} samples")
-            return True
-        
-        # 200+ new samples since last optimization
-        if current_count - self.last_sample_count >= 200:
-            logger.info(f"🔧 200+ new samples: {current_count - self.last_sample_count}")
-            return True
-        
-        # Monthly optimization
-        if self.last_optimization_time:
-            days_since = (datetime.now() - self.last_optimization_time).days
-            if days_since >= 30:
-                logger.info(f"🔧 Monthly optimization: {days_since} days")
+        try:
+            cursor = self.db.conn.cursor()
+            cursor.execute("SELECT COUNT(*) as count FROM signal_lab_trades WHERE COALESCE(mfe_none, mfe, 0) != 0")
+            current_count = cursor.fetchone()['count']
+            
+            logger.info(f"📊 Sample check: {current_count} samples available")
+            
+            # First optimization: 500+ samples (run immediately)
+            if self.last_optimization_time is None and current_count >= 500:
+                logger.info(f"🔧 TRIGGER: First optimization with {current_count} samples (threshold: 500)")
                 return True
-        
-        return False
+            
+            # 200+ new samples since last optimization
+            if self.last_sample_count > 0 and current_count - self.last_sample_count >= 200:
+                logger.info(f"🔧 TRIGGER: {current_count - self.last_sample_count} new samples (threshold: 200)")
+                return True
+            
+            # Monthly optimization
+            if self.last_optimization_time:
+                days_since = (datetime.now() - self.last_optimization_time).days
+                if days_since >= 30:
+                    logger.info(f"🔧 TRIGGER: Monthly optimization ({days_since} days since last run)")
+                    return True
+            
+            logger.info(f"⏸️ No optimization needed: {current_count} samples, last_count={self.last_sample_count}, last_run={self.last_optimization_time}")
+            return False
+        except Exception as e:
+            logger.error(f"Error checking optimization conditions: {str(e)}")
+            return False
     
     def run_optimization(self):
         """Run hyperparameter optimization"""
@@ -88,13 +96,23 @@ class AutoMLOptimizer:
     
     def monitor_loop(self):
         """Background monitoring loop"""
-        logger.info("🔍 Auto-optimizer started")
+        logger.info("🔍 Auto-optimizer started - checking immediately...")
         
         while self.running:
             try:
-                if self.should_optimize():
-                    self.run_optimization()
+                # Check immediately on first run, then hourly
+                if self.first_run:
+                    logger.info("🚀 First run - checking optimization conditions immediately")
+                    self.first_run = False
+                    if self.should_optimize():
+                        self.run_optimization()
+                    else:
+                        logger.info("⏸️ Conditions not met for first optimization")
+                else:
+                    if self.should_optimize():
+                        self.run_optimization()
                 
+                logger.info(f"⏰ Next check in {self.check_interval} seconds")
                 time.sleep(self.check_interval)
                 
             except Exception as e:

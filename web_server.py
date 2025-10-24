@@ -4908,8 +4908,14 @@ def get_hyperparameter_status():
             return jsonify({
                 'status': {'status': 'not_available', 'message': 'Database not available'},
                 'history': {'history': [], 'total_runs': 0},
-                'auto_optimizer_active': True
+                'auto_optimizer_active': True,
+                'sample_count': 0
             }), 200
+        
+        # Get sample count
+        cursor = db.conn.cursor()
+        cursor.execute("SELECT COUNT(*) as count FROM signal_lab_trades WHERE COALESCE(mfe_none, mfe, 0) != 0")
+        sample_count = cursor.fetchone()['count']
         
         from hyperparameter_status import HyperparameterStatus
         status_tracker = HyperparameterStatus(db)
@@ -4917,10 +4923,16 @@ def get_hyperparameter_status():
         status = status_tracker.get_optimization_status()
         history = status_tracker.get_optimization_history(limit=5)
         
+        # Add readiness check
+        ready_to_optimize = sample_count >= 500
+        
         return jsonify({
             'status': status,
             'history': history,
             'auto_optimizer_active': True,
+            'sample_count': sample_count,
+            'ready_to_optimize': ready_to_optimize,
+            'next_trigger': '500 samples' if sample_count < 500 else '200 new samples or 30 days',
             'timestamp': datetime.now().isoformat()
         })
         
@@ -4929,8 +4941,77 @@ def get_hyperparameter_status():
         return jsonify({
             'status': {'status': 'error', 'message': str(e)},
             'history': {'history': [], 'total_runs': 0},
-            'auto_optimizer_active': True
+            'auto_optimizer_active': True,
+            'sample_count': 0
         }), 200
+
+@app.route('/api/trigger-hyperparameter-optimization', methods=['POST'])
+@login_required
+def trigger_hyperparameter_optimization():
+    """Manually trigger hyperparameter optimization"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        from ml_hyperparameter_optimizer import optimize_trading_models
+        import json
+        import time
+        
+        # Check sample count first
+        cursor = db.conn.cursor()
+        cursor.execute("SELECT COUNT(*) as count FROM signal_lab_trades WHERE COALESCE(mfe_none, mfe, 0) != 0")
+        sample_count = cursor.fetchone()['count']
+        
+        logger.info(f"🚀 Manual hyperparameter optimization triggered - {sample_count} samples available")
+        
+        if sample_count < 100:
+            return jsonify({
+                'error': f'Insufficient samples: {sample_count} (need at least 100)',
+                'sample_count': sample_count
+            }), 400
+        
+        start_time = time.time()
+        
+        results = optimize_trading_models(db)
+        duration = time.time() - start_time
+        
+        if 'error' in results:
+            logger.error(f"❌ Optimization failed: {results['error']}")
+            return jsonify({'error': results['error'], 'sample_count': sample_count}), 500
+        
+        # Store results
+        cursor.execute("""
+            INSERT INTO hyperparameter_optimization_results 
+            (rf_params, gb_params, baseline_accuracy, optimized_accuracy, 
+             improvement_pct, optimization_duration_seconds)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            json.dumps(results['rf_optimization']['best_params']),
+            json.dumps(results['gb_optimization']['best_params']),
+            results['comparison']['baseline_rf']['accuracy'],
+            results['comparison']['optimized_rf']['accuracy'],
+            results['comparison']['rf_improvement']['accuracy'],
+            duration
+        ))
+        db.conn.commit()
+        
+        logger.info(f"✅ Optimization complete: RF +{results['comparison']['rf_improvement']['accuracy']:.2f}%, GB +{results['comparison']['gb_improvement']['accuracy']:.2f}%")
+        
+        return jsonify({
+            'status': 'success',
+            'rf_improvement': results['comparison']['rf_improvement']['accuracy'],
+            'gb_improvement': results['comparison']['gb_improvement']['accuracy'],
+            'duration_seconds': duration,
+            'sample_count': sample_count,
+            'rf_params': results['rf_optimization']['best_params'],
+            'gb_params': results['gb_optimization']['best_params']
+        })
+        
+    except Exception as e:
+        logger.error(f"Manual optimization error: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 
 @app.route('/api/live-prediction', methods=['GET'])
 @login_required
