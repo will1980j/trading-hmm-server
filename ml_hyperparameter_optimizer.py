@@ -221,24 +221,37 @@ def optimize_trading_models(db):
     """Main function to optimize trading ML models"""
     from unified_ml_intelligence import get_unified_ml
     
-    # Get ML engine and data
-    ml_engine = get_unified_ml(db)
-    
-    # Get training data
-    trades = ml_engine._get_all_trades()
-    if len(trades) < 100:
-        return {'error': 'Insufficient training data', 'samples': len(trades)}
-    
-    # Prepare data
-    X, y = ml_engine._prepare_training_data(trades)
-    
-    # Split: 80% train, 20% test (time-based)
-    split_idx = int(len(X) * 0.8)
-    X_train, X_test = X[:split_idx], X[split_idx:]
-    y_train, y_test = y[:split_idx], y[split_idx:]
-    
-    # Run optimization
-    optimizer = MLHyperparameterOptimizer(db)
-    results = optimizer.run_full_optimization(X_train, y_train, X_test, y_test)
-    
-    return results
+    try:
+        # Get ML engine and data
+        ml_engine = get_unified_ml(db)
+        
+        # Get training data
+        trades = ml_engine._get_all_trades()
+        if len(trades) < 100:
+            return {'error': 'Insufficient training data', 'samples': len(trades)}
+        
+        # Prepare data - handle variable return values
+        prep_result = ml_engine._prepare_training_data(trades)
+        if len(prep_result) == 2:
+            X, y = prep_result
+        elif len(prep_result) == 3:
+            X, y, _ = prep_result  # Ignore third value
+        else:
+            X = prep_result[0]
+            y = prep_result[1]
+        
+        # Split: 80% train, 20% test (time-based)
+        split_idx = int(len(X) * 0.8)
+        X_train, X_test = X[:split_idx], X[split_idx:]
+        y_train, y_test = y[:split_idx], y[split_idx:]
+        
+        # Run optimization
+        optimizer = MLHyperparameterOptimizer(db)
+        results = optimizer.run_full_optimization(X_train, y_train, X_test, y_test)
+        
+        return results
+    except Exception as e:
+        logger.error(f"Optimization failed: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {'error': str(e), 'traceback': traceback.format_exc()}
