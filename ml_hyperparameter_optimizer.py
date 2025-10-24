@@ -166,17 +166,22 @@ class MLHyperparameterOptimizer:
     
     def save_models(self, filepath_prefix='models/optimized'):
         """Save optimized models"""
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        
-        rf_path = f"{filepath_prefix}_rf_{timestamp}.joblib"
-        gb_path = f"{filepath_prefix}_gb_{timestamp}.joblib"
-        
-        joblib.dump(self.best_rf_model, rf_path)
-        joblib.dump(self.best_gb_model, gb_path)
-        
-        logger.info(f"✅ Saved optimized models: {rf_path}, {gb_path}")
-        
-        return {'rf_path': rf_path, 'gb_path': gb_path}
+        import os
+        try:
+            os.makedirs('models', exist_ok=True)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            
+            rf_path = f"{filepath_prefix}_rf_{timestamp}.joblib"
+            gb_path = f"{filepath_prefix}_gb_{timestamp}.joblib"
+            
+            joblib.dump(self.best_rf_model, rf_path)
+            joblib.dump(self.best_gb_model, gb_path)
+            
+            logger.info(f"✅ Saved optimized models: {rf_path}, {gb_path}")
+            return {'rf_path': rf_path, 'gb_path': gb_path}
+        except Exception as e:
+            logger.warning(f"Could not save models to disk: {e}")
+            return {'rf_path': 'not_saved', 'gb_path': 'not_saved'}
     
     def run_full_optimization(self, X_train, y_train, X_test, y_test):
         """Run complete optimization pipeline"""
@@ -187,7 +192,10 @@ class MLHyperparameterOptimizer:
         
         comparison = self.compare_with_baseline(X_test, y_test)
         
-        model_paths = self.save_models()
+        try:
+            model_paths = self.save_models()
+        except:
+            model_paths = {'rf_path': 'not_saved', 'gb_path': 'not_saved'}
         
         results = {
             'rf_optimization': rf_results,
