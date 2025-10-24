@@ -215,6 +215,38 @@
             transform: translateX(-50%) translateY(-4px);
         }
         
+        /* Tab System Styles */
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        
+        .tab-button:hover {
+            background: var(--accent-primary) !important;
+            color: white !important;
+            transform: translateY(-1px);
+        }
+        
+        .tab-button.active {
+            background: var(--accent-primary) !important;
+            color: white !important;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .tab-content {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
         @media (max-width: 768px) {
             .stats-grid {
                 grid-template-columns: 1fr;
@@ -227,6 +259,16 @@
             [data-tooltip]::after {
                 max-width: 240px;
                 font-size: 12px;
+            }
+            
+            .tab-navigation {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .tab-button {
+                width: 100%;
+                text-align: center;
             }
         }
     </style>
@@ -250,6 +292,25 @@
     <div class="header">
         <h1>🧠 ML Intelligence Hub</h1>
         <p class="subtitle">Real-time signal monitoring, predictions & feature analysis</p>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-navigation" style="background: var(--bg-card); border-radius: 12px; padding: 8px; margin-bottom: 20px; display: flex; gap: 4px; flex-wrap: wrap;">
+        <button class="tab-button active" data-tab="live" style="padding: 12px 20px; background: var(--accent-primary); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+            📡 Live Monitoring
+        </button>
+        <button class="tab-button" data-tab="accuracy" style="padding: 12px 20px; background: var(--bg-secondary); color: var(--text-primary); border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+            🎯 Prediction Accuracy
+        </button>
+        <button class="tab-button" data-tab="features" style="padding: 12px 20px; background: var(--bg-secondary); color: var(--text-primary); border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+            📊 Feature Analysis
+        </button>
+        <button class="tab-button" data-tab="model" style="padding: 12px 20px; background: var(--bg-secondary); color: var(--text-primary); border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+            🤖 Model Performance
+        </button>
+        <button class="tab-button" data-tab="optimization" style="padding: 12px 20px; background: var(--bg-secondary); color: var(--text-primary); border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+            ⚙️ Optimization
+        </button>
     </div>
 
     <!-- Connection Status Banner -->
@@ -318,257 +379,319 @@
     <div id="loading" class="loading">Loading feature importance data...</div>
 
     <div id="content" style="display: none;">
-        <!-- Webhook Signal Monitor -->
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="Bullish/bearish balance indicates market regime. Imbalance >70% suggests directional bias or webhook filtering issue.">🔍 Signal Reception Monitor</div>
-            <div id="signalGapAlert" style="display: none; background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                <strong>⚠️ Signal Gap Detected</strong>
-                <div id="signalGapDetails" style="margin-top: 8px; color: #94a3b8; font-size: 13px;"></div>
+        
+        <!-- TAB 1: LIVE MONITORING -->
+        <div class="tab-content" id="tab-live" style="display: block;">
+            <!-- Tab Summary -->
+            <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(16, 185, 129, 0.1)); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 8px 0; color: var(--accent-primary); font-size: 18px;">📡 Live Monitoring</h3>
+                <p style="margin: 0; color: var(--text-secondary); font-size: 14px;">Real-time signal reception, live ML predictions, and model status monitoring for active trading.</p>
             </div>
-            <div class="stats-grid" style="margin-bottom: 0;">
-                <div class="stat-card">
-                    <div class="stat-label">Bullish Received</div>
-                    <div class="stat-value" style="color: var(--accent-success);" id="webhookBullishCount">0</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;" id="webhookLastBullish">Never</div>
+            
+            <!-- Webhook Signal Monitor -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="Bullish/bearish balance indicates market regime. Imbalance >70% suggests directional bias or webhook filtering issue.">🔍 Signal Reception Monitor</div>
+                <div id="signalGapAlert" style="display: none; background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <strong>⚠️ Signal Gap Detected</strong>
+                    <div id="signalGapDetails" style="margin-top: 8px; color: #94a3b8; font-size: 13px;"></div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">Bearish Received</div>
-                    <div class="stat-value" style="color: var(--accent-danger);" id="webhookBearishCount">0</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;" id="webhookLastBearish">Never</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Signal Health</div>
-                    <div class="stat-value" style="font-size: 20px;" id="webhookHealth">✅</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Both types active</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Last Signal</div>
-                    <div style="font-size: 14px; margin-top: 8px; color: var(--text-secondary);" id="webhookLastSignal">Waiting...</div>
-                </div>
-            </div>
-        </div>
-        <!-- Live Predictions Section -->
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="Real-time ML prediction for active signal. Confidence >80% = full size, 60-80% = half size, <60% = skip.">🔮 Live Predictions</div>
-            <div id="livePredictionContent">
-                <p style="color: var(--text-secondary); text-align: center; padding: 20px;">Loading live prediction...</p>
-            </div>
-        </div>
-
-        <!-- ML Model Status Section -->
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="Accuracy >85% = trust model. Health <70 = retrain needed. Samples >1000 = statistically significant.">🤖 ML Model Status</div>
-            <div class="stats-grid" style="margin-bottom: 0;">
-                <div class="stat-card">
-                    <div class="stat-label">Model Type</div>
-                    <div class="stat-value" style="font-size: 16px;">RF + GB</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Training Samples</div>
-                    <div class="stat-value" id="trainingSamples">1898</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Accuracy</div>
-                    <div class="stat-value" id="modelAccuracy">89.1%</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Health Score</div>
-                    <div class="stat-value" id="modelHealth" style="color: var(--accent-success);">85</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Total Features</div>
-                <div class="stat-value" id="totalFeatures">-</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Top Feature</div>
-                <div class="stat-value" id="topFeature" style="font-size: 20px;">-</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Top Importance</div>
-                <div class="stat-value" id="topImportance">-</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Avg Correlation</div>
-                <div class="stat-value" id="avgCorrelation">-</div>
-            </div>
-        </div>
-
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="Session timing dominates (28%). Trade NY AM/PM for highest edge. Bias and VIX secondary factors.">📊 Feature Importance Rankings (Ensemble)</div>
-            <div class="chart-wrapper">
-                <canvas id="importanceChart"></canvas>
-            </div>
-        </div>
-
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="Both methods agree = reliable feature. Divergence = investigate further. Validates model isn't overfitting.">🔍 SHAP vs Permutation Importance</div>
-            <div class="chart-wrapper">
-                <canvas id="shapChart"></canvas>
-            </div>
-        </div>
-
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="Flat lines = stable edge. Declining importance = market regime shift. Retrain if session drops <20%.">📈 Feature Stability Over Time</div>
-            <div class="chart-wrapper">
-                <canvas id="stabilityChart"></canvas>
-            </div>
-        </div>
-
-        <div class="recommendations">
-            <div class="chart-title">💡 Feature Selection Recommendations</div>
-            <div id="recommendationsList"></div>
-        </div>
-
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="Ensemble combines RF + GB for 89% accuracy. High precision = fewer false signals. High recall = catches winners.">🎯 Ensemble Model Performance</div>
-            <div class="stats-grid" style="margin-bottom: 0;">
-                <div class="stat-card">
-                    <div class="stat-label">Random Forest</div>
-                    <div class="stat-value" style="font-size: 20px;">87.2%</div>
-                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
-                        <div>Precision: 0.85 | Recall: 0.89</div>
-                        <div>F1-Score: 0.87</div>
+                <div class="stats-grid" style="margin-bottom: 0;">
+                    <div class="stat-card">
+                        <div class="stat-label">Bullish Received</div>
+                        <div class="stat-value" style="color: var(--accent-success);" id="webhookBullishCount">0</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;" id="webhookLastBullish">Never</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Bearish Received</div>
+                        <div class="stat-value" style="color: var(--accent-danger);" id="webhookBearishCount">0</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;" id="webhookLastBearish">Never</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Signal Health</div>
+                        <div class="stat-value" style="font-size: 20px;" id="webhookHealth">✅</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Both types active</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Last Signal</div>
+                        <div style="font-size: 14px; margin-top: 8px; color: var(--text-secondary);" id="webhookLastSignal">Waiting...</div>
                     </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">Gradient Boosting</div>
-                    <div class="stat-value" style="font-size: 20px;">84.5%</div>
-                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
-                        <div>Precision: 0.83 | Recall: 0.86</div>
-                        <div>F1-Score: 0.84</div>
-                    </div>
+            </div>
+
+            <!-- Live Predictions Section -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="Real-time ML prediction for active signal. Confidence >80% = full size, 60-80% = half size, <60% = skip.">🔮 Live Predictions</div>
+                <div id="livePredictionContent">
+                    <p style="color: var(--text-secondary); text-align: center; padding: 20px;">Loading live prediction...</p>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">Ensemble</div>
-                    <div class="stat-value" style="font-size: 20px; color: var(--accent-success);">89.1%</div>
-                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
-                        <div>Precision: 0.88 | Recall: 0.90</div>
-                        <div>F1-Score: 0.89</div>
+            </div>
+
+            <!-- ML Model Status Section -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="Accuracy >85% = trust model. Health <70 = retrain needed. Samples >1000 = statistically significant.">🤖 ML Model Status</div>
+                <div class="stats-grid" style="margin-bottom: 0;">
+                    <div class="stat-card">
+                        <div class="stat-label">Model Type</div>
+                        <div class="stat-value" style="font-size: 16px;">RF + GB</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Training Samples</div>
+                        <div class="stat-value" id="trainingSamples">1898</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Accuracy</div>
+                        <div class="stat-value" id="modelAccuracy">89.1%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Health Score</div>
+                        <div class="stat-value" id="modelHealth" style="color: var(--accent-success);">85</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="True Positive = correct wins. False Positive = predicted win but lost. False Negative = missed winners. Optimize for TP/FP ratio.">📊 Confusion Matrix</div>
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; max-width: 600px; margin: 0 auto;">
-                <div style="background: rgba(16, 185, 129, 0.2); padding: 20px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 32px; font-weight: 700; color: var(--accent-success);">1245</div>
-                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">True Positive</div>
+        <!-- TAB 2: PREDICTION ACCURACY -->
+        <div class="tab-content" id="tab-accuracy" style="display: none;">
+            <!-- Tab Summary -->
+            <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(245, 158, 11, 0.1)); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 8px 0; color: var(--accent-success); font-size: 18px;">🎯 Prediction Accuracy</h3>
+                <p style="margin: 0; color: var(--text-secondary); font-size: 14px;">Real-time tracking of ML predictions vs actual outcomes with comprehensive accuracy metrics and performance analysis.</p>
+            </div>
+            
+            <!-- Real-Time Prediction Accuracy -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="Real-time tracking of ML predictions vs actual outcomes. Accuracy >85% = trust model. Declining accuracy = retrain needed.">📊 Real-Time Prediction Accuracy</div>
+                <div id="predictionAccuracyContent">
+                    <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                        Loading prediction accuracy data...
+                    </div>
                 </div>
-                <div style="background: rgba(239, 68, 68, 0.2); padding: 20px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 32px; font-weight: 700; color: var(--accent-danger);">156</div>
-                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">False Positive</div>
+            </div>
+
+            <!-- Active Predictions Monitor -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="Currently active predictions awaiting outcomes. Monitor for stale predictions >4 hours old.">⏳ Active Predictions Monitor</div>
+                <div id="activePredictionsContent">
+                    <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                        Loading active predictions...
+                    </div>
                 </div>
-                <div style="background: rgba(239, 68, 68, 0.2); padding: 20px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 32px; font-weight: 700; color: var(--accent-danger);">189</div>
-                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">False Negative</div>
-                </div>
-                <div style="background: rgba(16, 185, 129, 0.2); padding: 20px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 32px; font-weight: 700; color: var(--accent-success);">308</div>
-                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">True Negative</div>
+            </div>
+
+            <!-- Recent Prediction Outcomes -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="Latest prediction outcomes with accuracy metrics. Green = correct prediction, Red = incorrect.">✅ Recent Prediction Outcomes</div>
+                <div id="recentOutcomesContent">
+                    <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                        Loading recent outcomes...
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="chart-container">
-            <div class="chart-title">🧠 Advanced Feature Analysis</div>
-            <div class="chart-wrapper">
-                <canvas id="permutationChart"></canvas>
+        <!-- TAB 3: FEATURE ANALYSIS -->
+        <div class="tab-content" id="tab-features" style="display: none;">
+            <!-- Tab Summary -->
+            <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(239, 68, 68, 0.1)); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 8px 0; color: var(--accent-warning); font-size: 18px;">📊 Feature Analysis</h3>
+                <p style="margin: 0; color: var(--text-secondary); font-size: 14px;">Deep dive into feature importance, correlations, stability, and interactions to understand what drives trading edge.</p>
             </div>
-        </div>
 
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="High-probability setups when features align. Success >75% = size up. <50% = skip trade.">🔗 Feature Interactions (Best Combinations)</div>
-            <div id="interactionsList"></div>
-        </div>
-
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="Different setups hit different targets. Use 1R for scalps, 2R for swings, 3R for runners. Match setup to target.">🎯 Target-Specific Feature Importance</div>
-            <div class="stats-grid" style="margin-bottom: 0;">
+            <!-- Feature Overview Stats -->
+            <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-label">Best for 1R</div>
-                    <div id="best1R" style="font-size: 14px; margin-top: 8px; color: var(--text-secondary);">Loading...</div>
+                    <div class="stat-label">Total Features</div>
+                    <div class="stat-value" id="totalFeatures">-</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Best for 2R</div>
-                    <div id="best2R" style="font-size: 14px; margin-top: 8px; color: var(--text-secondary);">Loading...</div>
+                    <div class="stat-label">Top Feature</div>
+                    <div class="stat-value" id="topFeature" style="font-size: 20px;">-</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Best for 3R</div>
-                    <div id="best3R" style="font-size: 14px; margin-top: 8px; color: var(--text-secondary);">Loading...</div>
+                    <div class="stat-label">Top Importance</div>
+                    <div class="stat-value" id="topImportance">-</div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-label">Avg Correlation</div>
+                    <div class="stat-value" id="avgCorrelation">-</div>
+                </div>
+            </div>
+
+            <!-- Feature Importance Rankings -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="Session timing dominates (28%). Trade NY AM/PM for highest edge. Bias and VIX secondary factors.">📊 Feature Importance Rankings (Ensemble)</div>
+                <div class="chart-wrapper">
+                    <canvas id="importanceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- SHAP vs Permutation Analysis -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="Both methods agree = reliable feature. Divergence = investigate further. Validates model isn't overfitting.">🔍 SHAP vs Permutation Importance</div>
+                <div class="chart-wrapper">
+                    <canvas id="shapChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Feature Stability Over Time -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="Flat lines = stable edge. Declining importance = market regime shift. Retrain if session drops <20%.">📈 Feature Stability Over Time</div>
+                <div class="chart-wrapper">
+                    <canvas id="stabilityChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Feature Interactions -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="High-probability setups when features align. Success >75% = size up. <50% = skip trade.">🔗 Feature Interactions (Best Combinations)</div>
+                <div id="interactionsList"></div>
+            </div>
+
+            <!-- Target-Specific Feature Importance -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="Different setups hit different targets. Use 1R for scalps, 2R for swings, 3R for runners. Match setup to target.">🎯 Target-Specific Feature Importance</div>
+                <div class="stats-grid" style="margin-bottom: 0;">
+                    <div class="stat-card">
+                        <div class="stat-label">Best for 1R</div>
+                        <div id="best1R" style="font-size: 14px; margin-top: 8px; color: var(--text-secondary);">Loading...</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Best for 2R</div>
+                        <div id="best2R" style="font-size: 14px; margin-top: 8px; color: var(--text-secondary);">Loading...</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Best for 3R</div>
+                        <div id="best3R" style="font-size: 14px; margin-top: 8px; color: var(--text-secondary);">Loading...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature Correlation Matrix -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="High correlation = features move together. Identifies market regimes. VIX + SPY volume = volatility regime.">🔗 Feature Correlation Matrix</div>
+                <div class="correlation-matrix" id="correlationMatrix"></div>
+            </div>
+
+            <!-- Feature Selection Recommendations -->
+            <div class="recommendations">
+                <div class="chart-title">💡 Feature Selection Recommendations</div>
+                <div id="recommendationsList"></div>
             </div>
         </div>
 
-        <div class="chart-container">
-            <div class="chart-title">📊 Feature Stability Scores</div>
-            <div class="chart-wrapper">
-                <canvas id="stabilityScoreChart"></canvas>
+        <!-- TAB 4: MODEL PERFORMANCE -->
+        <div class="tab-content" id="tab-model" style="display: none;">
+            <!-- Tab Summary -->
+            <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1)); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 8px 0; color: #8b5cf6; font-size: 18px;">🤖 Model Performance</h3>
+                <p style="margin: 0; color: var(--text-secondary); font-size: 14px;">Comprehensive model evaluation including ensemble performance, confusion matrix, and advanced analytics.</p>
+            </div>
+
+            <!-- Ensemble Model Performance -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="Ensemble combines RF + GB for 89% accuracy. High precision = fewer false signals. High recall = catches winners.">🎯 Ensemble Model Performance</div>
+                <div class="stats-grid" style="margin-bottom: 0;">
+                    <div class="stat-card">
+                        <div class="stat-label">Random Forest</div>
+                        <div class="stat-value" style="font-size: 20px;">87.2%</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                            <div>Precision: 0.85 | Recall: 0.89</div>
+                            <div>F1-Score: 0.87</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Gradient Boosting</div>
+                        <div class="stat-value" style="font-size: 20px;">84.5%</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                            <div>Precision: 0.83 | Recall: 0.86</div>
+                            <div>F1-Score: 0.84</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Ensemble</div>
+                        <div class="stat-value" style="font-size: 20px; color: var(--accent-success);">89.1%</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                            <div>Precision: 0.88 | Recall: 0.90</div>
+                            <div>F1-Score: 0.89</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Confusion Matrix -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="True Positive = correct wins. False Positive = predicted win but lost. False Negative = missed winners. Optimize for TP/FP ratio.">📊 Confusion Matrix</div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; max-width: 600px; margin: 0 auto;">
+                    <div style="background: rgba(16, 185, 129, 0.2); padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 32px; font-weight: 700; color: var(--accent-success);">1245</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">True Positive</div>
+                    </div>
+                    <div style="background: rgba(239, 68, 68, 0.2); padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 32px; font-weight: 700; color: var(--accent-danger);">156</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">False Positive</div>
+                    </div>
+                    <div style="background: rgba(239, 68, 68, 0.2); padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 32px; font-weight: 700; color: var(--accent-danger);">189</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">False Negative</div>
+                    </div>
+                    <div style="background: rgba(16, 185, 129, 0.2); padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 32px; font-weight: 700; color: var(--accent-success);">308</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">True Negative</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Feature Analysis -->
+            <div class="chart-container">
+                <div class="chart-title">🧠 Advanced Feature Analysis</div>
+                <div class="chart-wrapper">
+                    <canvas id="permutationChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Feature Stability Scores -->
+            <div class="chart-container">
+                <div class="chart-title">📊 Feature Stability Scores</div>
+                <div class="chart-wrapper">
+                    <canvas id="stabilityScoreChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Performance Status -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="Tracks accuracy degradation. Degradation >5% = retrain model. Market conditions changed.">📊 Performance Status</div>
+                <div id="performanceStatus"></div>
+            </div>
+
+            <!-- Signal Filtering Recommendations -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="Session performance rankings. Trade top sessions only. Skip bottom performers to improve win rate.">🎯 Signal Filtering Recommendations</div>
+                <div id="signalFilters"></div>
             </div>
         </div>
 
-        <!-- Hyperparameter Optimization Status -->
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="Automated hyperparameter optimization runs hourly. Shows current optimized parameters and performance improvements.">⚙️ Hyperparameter Optimization Status</div>
-            <div id="hyperparameterStatus">
-                <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
-                    Loading optimization status...
+        <!-- TAB 5: OPTIMIZATION -->
+        <div class="tab-content" id="tab-optimization" style="display: none;">
+            <!-- Tab Summary -->
+            <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(245, 158, 11, 0.1)); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 8px 0; color: var(--accent-danger); font-size: 18px;">⚙️ Optimization</h3>
+                <p style="margin: 0; color: var(--text-secondary); font-size: 14px;">Automated hyperparameter optimization and ML-driven recommendations for continuous model improvement.</p>
+            </div>
+
+            <!-- Hyperparameter Optimization Status -->
+            <div class="chart-container">
+                <div class="chart-title" data-tooltip="Automated hyperparameter optimization runs hourly. Shows current optimized parameters and performance improvements.">⚙️ Hyperparameter Optimization Status</div>
+                <div id="hyperparameterStatus">
+                    <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                        Loading optimization status...
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="recommendations">
-            <div class="chart-title" data-tooltip="Model-generated improvements. Critical = act now. High = implement soon. Medium = test when convenient.">🚀 ML-Driven Optimization Recommendations</div>
-            <div id="mlOptimizationRecommendations"></div>
-        </div>
-
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="Tracks accuracy degradation. Degradation >5% = retrain model. Market conditions changed.">📊 Performance Status</div>
-            <div id="performanceStatus"></div>
-        </div>
-
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="Session performance rankings. Trade top sessions only. Skip bottom performers to improve win rate.">🎯 Signal Filtering Recommendations</div>
-            <div id="signalFilters"></div>
-        </div>
-
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="High correlation = features move together. Identifies market regimes. VIX + SPY volume = volatility regime.">🔗 Feature Correlation Matrix</div>
-            <div class="correlation-matrix" id="correlationMatrix"></div>
-        </div>
-
-        <!-- Prediction Accuracy Tracking Section -->
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="Real-time tracking of ML predictions vs actual outcomes. Accuracy >85% = trust model. Declining accuracy = retrain needed.">📊 Real-Time Prediction Accuracy</div>
-            <div id="predictionAccuracyContent">
-                <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
-                    Loading prediction accuracy data...
-                </div>
-            </div>
-        </div>
-
-        <!-- Active Predictions Monitor -->
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="Currently active predictions awaiting outcomes. Monitor for stale predictions >4 hours old.">⏳ Active Predictions Monitor</div>
-            <div id="activePredictionsContent">
-                <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
-                    Loading active predictions...
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Prediction Outcomes -->
-        <div class="chart-container">
-            <div class="chart-title" data-tooltip="Latest prediction outcomes with accuracy metrics. Green = correct prediction, Red = incorrect.">✅ Recent Prediction Outcomes</div>
-            <div id="recentOutcomesContent">
-                <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
-                    Loading recent outcomes...
-                </div>
+            <!-- ML-Driven Optimization Recommendations -->
+            <div class="recommendations">
+                <div class="chart-title" data-tooltip="Model-generated improvements. Critical = act now. High = implement soon. Medium = test when convenient.">🚀 ML-Driven Optimization Recommendations</div>
+                <div id="mlOptimizationRecommendations"></div>
             </div>
         </div>
     </div>
@@ -1590,6 +1713,67 @@
             return `${diffDays}d`;
         }
 
+        // 📑 TAB SYSTEM FUNCTIONALITY
+        function initTabSystem() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            // Add click handlers to tab buttons
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetTab = button.getAttribute('data-tab');
+                    
+                    // Remove active class from all buttons
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove('active');
+                        btn.style.background = 'var(--bg-secondary)';
+                        btn.style.color = 'var(--text-primary)';
+                    });
+                    
+                    // Add active class to clicked button
+                    button.classList.add('active');
+                    button.style.background = 'var(--accent-primary)';
+                    button.style.color = 'white';
+                    
+                    // Hide all tab contents
+                    tabContents.forEach(content => {
+                        content.style.display = 'none';
+                    });
+                    
+                    // Show target tab content
+                    const targetContent = document.getElementById(`tab-${targetTab}`);
+                    if (targetContent) {
+                        targetContent.style.display = 'block';
+                    }
+                    
+                    // Load tab-specific data if needed
+                    loadTabData(targetTab);
+                });
+            });
+        }
+
+        function loadTabData(tabName) {
+            // Load data specific to each tab when it's activated
+            switch(tabName) {
+                case 'live':
+                    // Live monitoring data is loaded continuously via WebSocket
+                    break;
+                case 'accuracy':
+                    loadPredictionAccuracy();
+                    break;
+                case 'features':
+                    loadData(); // Feature importance data
+                    break;
+                case 'model':
+                    loadAdvancedAnalysis();
+                    break;
+                case 'optimization':
+                    loadMLOptimization();
+                    loadHyperparameterStatus();
+                    break;
+            }
+        }
+
         // 📊 PREDICTION ACCURACY TRACKING FUNCTIONS
         async function loadPredictionAccuracy() {
             try {
@@ -1786,9 +1970,13 @@
             `;
         }
 
-        // Add prediction accuracy to initial load and WebSocket listeners
+        // 🚀 INITIALIZE DASHBOARD
+        // Initialize tab system first
+        initTabSystem();
+        
+        // Load initial data for the active tab (Live Monitoring)
         setTimeout(() => {
-            loadPredictionAccuracy();
+            loadTabData('live'); // Load live monitoring data
             
             // Set up WebSocket listeners for prediction updates
             if (window.wsClient) {
