@@ -213,6 +213,7 @@ class IntelligentPredictor:
     
     def get_live_prediction(self) -> Dict:
         """Get prediction for most recent signal"""
+        import pytz
         cursor = self.db.conn.cursor()
         cursor.execute("""
             SELECT session, bias, timestamp, price
@@ -225,6 +226,13 @@ class IntelligentPredictor:
         signal = cursor.fetchone()
         if not signal:
             return {'status': 'no_active_signal'}
+        
+        # Convert UTC to NY time
+        ny_tz = pytz.timezone('America/New_York')
+        timestamp_utc = signal['timestamp']
+        if timestamp_utc.tzinfo is None:
+            timestamp_utc = pytz.UTC.localize(timestamp_utc)
+        timestamp_ny = timestamp_utc.astimezone(ny_tz)
         
         prediction = self.predict_with_confidence({
             'session': signal['session'],
@@ -240,8 +248,8 @@ class IntelligentPredictor:
             'signal': {
                 'session': signal['session'],
                 'bias': signal['bias'],
-                'timestamp': signal['timestamp'].isoformat(),
-                'time': signal['timestamp'].strftime('%H:%M:%S'),
+                'timestamp': timestamp_ny.isoformat(),
+                'time': timestamp_ny.strftime('%H:%M:%S'),
                 'price': float(signal['price']) if signal['price'] else None
             },
             'prediction': prediction,
