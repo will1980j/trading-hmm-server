@@ -303,6 +303,664 @@
             }
         }
 
+        /* 🚀 MISSION CONTROL CENTER STYLING */
+        .mission-control-center {
+            background: linear-gradient(135deg, 
+                rgba(0, 255, 136, 0.15) 0%, 
+                rgba(0, 212, 170, 0.08) 25%,
+                rgba(58, 123, 213, 0.08) 75%,
+                rgba(102, 126, 234, 0.15) 100%);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 25px;
+            padding: 30px;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 20px 60px rgba(0, 255, 136, 0.1);
+        }
+
+        .mission-control-center::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="mission-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(0,255,136,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23mission-grid)"/></svg>');
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .mission-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .mission-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #00ff88, #00d4aa, #26de81);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+            text-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+        }
+
+        .mission-subtitle {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+            margin-top: 5px;
+        }
+
+        .mission-date {
+            font-size: 0.9rem;
+            color: #4facfe;
+            font-weight: 600;
+            margin-top: 8px;
+            padding: 6px 12px;
+            background: rgba(75, 192, 254, 0.2);
+            border-radius: 15px;
+            display: inline-block;
+        }
+
+        .mission-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 20px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4757;
+            animation: statusPulse 2s ease-in-out infinite;
+        }
+
+        .status-indicator.active {
+            background: #00ff88;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+        }
+
+        .status-text {
+            font-weight: 600;
+            color: #00ff88;
+            font-size: 0.9rem;
+        }
+
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        /* Mission Control Cards */
+        .mission-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 18px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mission-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0, 255, 136, 0.2);
+            border-color: rgba(0, 255, 136, 0.4);
+        }
+
+        .mission-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.8), transparent);
+            transform: translateX(-100%);
+            animation: cardScan 3s ease-in-out infinite;
+        }
+
+        @keyframes cardScan {
+            0%, 100% { transform: translateX(-100%); }
+            50% { transform: translateX(100%); }
+        }
+
+        .mission-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .mission-card-icon {
+            font-size: 1.5rem;
+            filter: drop-shadow(0 0 8px currentColor);
+        }
+
+        .mission-card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin: 0;
+        }
+
+        .mission-card-badge {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Performance Overview Cards */
+        .performance-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .perf-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .perf-card:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 12px 35px rgba(0, 255, 136, 0.25);
+        }
+
+        .perf-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #00ff88, #26de81);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .perf-label {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Market Intelligence Grid */
+        .market-intelligence {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        @media (max-width: 768px) {
+            .market-intelligence {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 🎛️ INTEGRATED CHART CONTROL CENTER */
+        .chart-control-center {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.08) 100%);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.1);
+        }
+
+        .control-center-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .control-tabs {
+            display: flex;
+            gap: 8px;
+        }
+
+        .control-tab {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .control-tab.active {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.2));
+            border-color: rgba(102, 126, 234, 0.5);
+            color: #667eea;
+        }
+
+        .control-tab:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+
+        /* Quick Controls */
+        .quick-chart-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .quick-control-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .quick-control-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.4);
+        }
+
+        .control-label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .premium-select {
+            width: 100%;
+            padding: 10px 15px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .premium-select:focus {
+            outline: none;
+            border-color: rgba(102, 126, 234, 0.6);
+            box-shadow: 0 0 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .slider-control {
+            position: relative;
+        }
+
+        .premium-slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #ff4757, #ffa502, #00ff88);
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        .premium-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ffffff, #f1f2f6);
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .premium-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .slider-value {
+            position: absolute;
+            top: -30px;
+            right: 0;
+            background: rgba(102, 126, 234, 0.9);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .view-toggle-group {
+            display: flex;
+            gap: 4px;
+        }
+
+        .view-toggle {
+            flex: 1;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .view-toggle.active {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.4), rgba(118, 75, 162, 0.3));
+            border-color: rgba(102, 126, 234, 0.6);
+            color: #667eea;
+        }
+
+        .view-toggle:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .session-toggle-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .session-toggle {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            text-align: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .session-toggle.active {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.3), rgba(0, 212, 170, 0.2));
+            border-color: rgba(0, 255, 136, 0.5);
+            color: #00ff88;
+        }
+
+        .session-toggle:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
+        }
+
+        /* Advanced Controls */
+        .advanced-chart-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 25px;
+        }
+
+        .advanced-section {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.9);
+            margin: 0 0 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .risk-controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .risk-control {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .risk-control label {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 600;
+        }
+
+        .premium-input {
+            padding: 8px 12px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .premium-input:focus {
+            outline: none;
+            border-color: rgba(255, 71, 87, 0.6);
+            box-shadow: 0 0 10px rgba(255, 71, 87, 0.3);
+        }
+
+        /* Custom Toggle Switches */
+        .option-toggle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .option-toggle input[type="checkbox"] {
+            display: none;
+        }
+
+        .toggle-slider {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-slider::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .option-toggle input[type="checkbox"]:checked + .toggle-slider {
+            background: linear-gradient(135deg, #00ff88, #26de81);
+        }
+
+        .option-toggle input[type="checkbox"]:checked + .toggle-slider::after {
+            transform: translateX(26px);
+        }
+
+        .toggle-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Session Checkboxes */
+        .session-details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .session-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .session-checkbox:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .session-checkbox input[type="checkbox"] {
+            display: none;
+        }
+
+        .checkbox-custom {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .session-checkbox input[type="checkbox"]:checked + .checkbox-custom {
+            background: linear-gradient(135deg, #00ff88, #26de81);
+            border-color: #00ff88;
+        }
+
+        .session-checkbox input[type="checkbox"]:checked + .checkbox-custom::after {
+            content: '✓';
+            position: absolute;
+            top: -2px;
+            left: 2px;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* Smart Presets */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .preset-btn {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+        }
+
+        .preset-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .preset-btn.conservative:hover {
+            border-color: rgba(0, 255, 136, 0.5);
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.2);
+        }
+
+        .preset-btn.balanced:hover {
+            border-color: rgba(75, 192, 254, 0.5);
+            box-shadow: 0 10px 30px rgba(75, 192, 254, 0.2);
+        }
+
+        .preset-btn.aggressive:hover {
+            border-color: rgba(255, 107, 122, 0.5);
+            box-shadow: 0 10px 30px rgba(255, 107, 122, 0.2);
+        }
+
+        .preset-btn.scalping:hover {
+            border-color: rgba(255, 165, 2, 0.5);
+            box-shadow: 0 10px 30px rgba(255, 165, 2, 0.2);
+        }
+
+        .preset-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .preset-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .preset-desc {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Notification Animations */
+        @keyframes slideIn {
+            0% {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            100% {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            0% {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
         .enhanced-header::before {
             content: '';
             position: absolute;
@@ -857,239 +1515,149 @@
             </div>
         </div>
         
-        <!-- Trading Day Preparation Section -->
-        <div class="card" style="background: linear-gradient(135deg, rgba(0,255,136,0.08) 0%, rgba(0,212,170,0.04) 100%); border: 2px solid rgba(0,255,136,0.2); margin-bottom: 30px;">
-            <h3 style="color: #00ff88; margin-bottom: 25px; display: flex; align-items: center; gap: 10px;">
-                📊 Trading Day Preparation
-                <span style="font-size: 12px; background: rgba(0,255,136,0.2); padding: 4px 8px; border-radius: 6px; font-weight: 500;" id="tradingDate">Loading...</span>
-            </h3>
-            
-            <!-- Portfolio & Performance Overview -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px;">
-                <div class="stat-card" style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3);">
-                    <div class="stat-value" id="portfolioWorth">Loading...</div>
-                    <div class="stat-label">Portfolio Worth</div>
+        <!-- 🚀 TRADING MISSION CONTROL CENTER -->
+        <div class="mission-control-center">
+            <div class="mission-header">
+                <div class="mission-title-section">
+                    <h2 class="mission-title">🚀 Trading Mission Control</h2>
+                    <div class="mission-subtitle">Prepare for market domination</div>
+                    <div class="mission-date" id="tradingDate">Loading...</div>
                 </div>
-                <div class="stat-card" style="background: rgba(58,123,213,0.1); border: 1px solid rgba(58,123,213,0.3);">
-                    <div class="stat-value" id="weeklyProfit">Loading...</div>
-                    <div class="stat-label">Weekly Profit</div>
-                </div>
-                <div class="stat-card" style="background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.3);">
-                    <div class="stat-value" id="monthlyProfit">Loading...</div>
-                    <div class="stat-label">Monthly Profit</div>
-                </div>
-                <div class="stat-card" style="background: rgba(255,165,2,0.1); border: 1px solid rgba(255,165,2,0.3);">
-                    <div class="stat-value" id="highestDayProfit">Loading...</div>
-                    <div class="stat-label">Highest Day Profit</div>
+                <div class="mission-status">
+                    <div class="status-indicator active"></div>
+                    <div class="status-text">Systems Online</div>
                 </div>
             </div>
             
-            <!-- Contract Specifications & Economic News -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
-                <!-- Contract Specs -->
-                <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
-                    <h4 style="color: #00d4aa; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                        📈 NQ Contract Specifications
-                    </h4>
-                    <div style="display: grid; gap: 12px;">
-                        <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px;">
-                            <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 4px;">E-Mini Nasdaq-100 (NQ)</div>
-                            <div style="font-weight: 600; color: #00ff88;" id="nqContract">Loading...</div>
-                            <div style="font-size: 11px; color: rgba(255,255,255,0.8);" id="nqMinTick">Loading...</div>
+            <!-- 💰 PERFORMANCE COMMAND CENTER -->
+            <div class="performance-overview">
+                <div class="perf-card" style="border-left: 4px solid #00ff88;">
+                    <div class="perf-value" id="portfolioWorth">Loading...</div>
+                    <div class="perf-label">💰 Portfolio Power</div>
+                    <div style="font-size: 0.7rem; color: rgba(0,255,136,0.8); margin-top: 5px;">Total Capital</div>
+                </div>
+                <div class="perf-card" style="border-left: 4px solid #4facfe;">
+                    <div class="perf-value" id="weeklyProfit" style="background: linear-gradient(135deg, #4facfe, #00f2fe); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Loading...</div>
+                    <div class="perf-label">📈 Weekly Domination</div>
+                    <div style="font-size: 0.7rem; color: rgba(75,192,254,0.8); margin-top: 5px;">7-Day Performance</div>
+                </div>
+                <div class="perf-card" style="border-left: 4px solid #ffa502;">
+                    <div class="perf-value" id="monthlyProfit" style="background: linear-gradient(135deg, #ffa502, #ff6348); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Loading...</div>
+                    <div class="perf-label">🚀 Monthly Conquest</div>
+                    <div style="font-size: 0.7rem; color: rgba(255,165,2,0.8); margin-top: 5px;">30-Day Campaign</div>
+                </div>
+                <div class="perf-card" style="border-left: 4px solid #ff6b7a;">
+                    <div class="perf-value" id="highestDayProfit" style="background: linear-gradient(135deg, #ff6b7a, #ee5a6f); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Loading...</div>
+                    <div class="perf-label">🏆 Peak Victory</div>
+                    <div style="font-size: 0.7rem; color: rgba(255,107,122,0.8); margin-top: 5px;">Best Single Day</div>
+                </div>
+            </div>
+            
+            <!-- 🎯 MARKET INTELLIGENCE GRID -->
+            <div class="market-intelligence">
+                <!-- Weapon Specifications -->
+                <div class="mission-card" style="border-left: 4px solid #00d4aa;">
+                    <div class="mission-card-header">
+                        <div class="mission-card-icon" style="color: #00d4aa;">⚔️</div>
+                        <h4 class="mission-card-title">Weapon Specifications</h4>
+                        <div class="mission-card-badge" style="background: rgba(0,212,170,0.3); color: #00d4aa;">NASDAQ</div>
+                    </div>
+                    <div style="display: grid; gap: 15px;">
+                        <div style="background: linear-gradient(135deg, rgba(0,212,170,0.15), rgba(0,212,170,0.05)); padding: 15px; border-radius: 12px; border: 1px solid rgba(0,212,170,0.3);">
+                            <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">🎯 Primary Weapon</div>
+                            <div style="font-weight: 700; color: #00ff88; font-size: 1.1rem;" id="nqContract">Loading...</div>
+                            <div style="font-size: 0.85rem; color: rgba(255,255,255,0.9); margin-top: 4px;" id="nqMinTick">Loading...</div>
                         </div>
-                        <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px;">
-                            <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 4px;">Micro E-Mini Nasdaq-100 (MNQ)</div>
-                            <div style="font-weight: 600; color: #26de81;" id="mnqContract">Loading...</div>
-                            <div style="font-size: 11px; color: rgba(255,255,255,0.8);" id="mnqMinTick">Loading...</div>
+                        <div style="background: linear-gradient(135deg, rgba(38,222,129,0.15), rgba(38,222,129,0.05)); padding: 15px; border-radius: 12px; border: 1px solid rgba(38,222,129,0.3);">
+                            <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">🔫 Secondary Weapon</div>
+                            <div style="font-weight: 700; color: #26de81; font-size: 1.1rem;" id="mnqContract">Loading...</div>
+                            <div style="font-size: 0.85rem; color: rgba(255,255,255,0.9); margin-top: 4px;" id="mnqMinTick">Loading...</div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Economic News -->
-                <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
-                    <h4 style="color: #ffa502; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                        📰 Economic Calendar
-                    </h4>
-                    <div id="economicNews" style="max-height: 200px; overflow-y: auto;">
-                        Loading economic events...
+                <!-- Battle Intelligence -->
+                <div class="mission-card" style="border-left: 4px solid #ffa502;">
+                    <div class="mission-card-header">
+                        <div class="mission-card-icon" style="color: #ffa502;">🎖️</div>
+                        <h4 class="mission-card-title">Battle Intelligence</h4>
+                        <div class="mission-card-badge" style="background: rgba(255,165,2,0.3); color: #ffa502;">LIVE</div>
+                    </div>
+                    <div id="economicNews" style="max-height: 200px; overflow-y: auto; background: linear-gradient(135deg, rgba(255,165,2,0.08), rgba(255,165,2,0.02)); border-radius: 12px; padding: 15px; border: 1px solid rgba(255,165,2,0.2);">
+                        <div style="text-align: center; color: rgba(255,165,2,0.8); padding: 20px;">
+                            🔍 Scanning for market-moving events...
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Live Market Data -->
-            <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px; margin-top: 20px;">
-                <h4 style="color: #4facfe; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                    📊 Live Market Data
-                    <span style="font-size: 10px; background: rgba(75,192,254,0.3); padding: 2px 6px; border-radius: 4px;">Real-Time</span>
-                </h4>
-                <div id="marketContext" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 15px;">
-                    <div style="text-align: center; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 10px; border: 1px solid rgba(255,107,122,0.3);">
-                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">VIX</div>
-                        <div id="vixValue" style="font-weight: 700; color: #ff6b7a; font-size: 1.1rem;">-</div>
+            <!-- 📡 REAL-TIME BATTLEFIELD RADAR -->
+            <div class="mission-card" style="border-left: 4px solid #4facfe; margin-top: 25px;">
+                <div class="mission-card-header">
+                    <div class="mission-card-icon" style="color: #4facfe;">📡</div>
+                    <h4 class="mission-card-title">Battlefield Radar</h4>
+                    <div class="mission-card-badge" style="background: rgba(75,192,254,0.3); color: #4facfe; animation: statusPulse 1.5s ease-in-out infinite;">LIVE</div>
+                </div>
+                
+                <div id="marketContext" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div class="radar-indicator" style="background: linear-gradient(135deg, rgba(255,107,122,0.2), rgba(255,107,122,0.05)); border: 1px solid rgba(255,107,122,0.4); border-radius: 12px; padding: 15px; text-align: center; position: relative;">
+                        <div style="font-size: 0.75rem; color: rgba(255,107,122,0.8); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">⚠️ Fear Index</div>
+                        <div id="vixValue" style="font-weight: 800; color: #ff6b7a; font-size: 1.4rem;">-</div>
+                        <div style="position: absolute; top: 5px; right: 8px; width: 8px; height: 8px; background: #ff6b7a; border-radius: 50%; animation: statusPulse 2s ease-in-out infinite;"></div>
                     </div>
-                    <div style="text-align: center; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 10px; border: 1px solid rgba(0,255,136,0.3);">
-                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">Session</div>
-                        <div id="sessionValue" style="font-weight: 700; color: #00ff88; font-size: 1.1rem;">-</div>
+                    
+                    <div class="radar-indicator" style="background: linear-gradient(135deg, rgba(0,255,136,0.2), rgba(0,255,136,0.05)); border: 1px solid rgba(0,255,136,0.4); border-radius: 12px; padding: 15px; text-align: center; position: relative;">
+                        <div style="font-size: 0.75rem; color: rgba(0,255,136,0.8); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">🌍 Active Zone</div>
+                        <div id="sessionValue" style="font-weight: 800; color: #00ff88; font-size: 1.4rem;">-</div>
+                        <div style="position: absolute; top: 5px; right: 8px; width: 8px; height: 8px; background: #00ff88; border-radius: 50%; animation: statusPulse 2s ease-in-out infinite;"></div>
                     </div>
-                    <div style="text-align: center; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 10px; border: 1px solid rgba(58,123,213,0.3);">
-                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">QQQ Volume</div>
-                        <div id="volumeValue" style="font-weight: 700; color: #3a7bd5; font-size: 1.1rem;">-</div>
+                    
+                    <div class="radar-indicator" style="background: linear-gradient(135deg, rgba(58,123,213,0.2), rgba(58,123,213,0.05)); border: 1px solid rgba(58,123,213,0.4); border-radius: 12px; padding: 15px; text-align: center; position: relative;">
+                        <div style="font-size: 0.75rem; color: rgba(58,123,213,0.8); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">📊 Volume Flow</div>
+                        <div id="volumeValue" style="font-weight: 800; color: #3a7bd5; font-size: 1.4rem;">-</div>
+                        <div style="position: absolute; top: 5px; right: 8px; width: 8px; height: 8px; background: #3a7bd5; border-radius: 50%; animation: statusPulse 2s ease-in-out infinite;"></div>
                     </div>
-                    <div style="text-align: center; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 10px; border: 1px solid rgba(255,165,2,0.3);">
-                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">DXY</div>
-                        <div id="dxyValue" style="font-weight: 700; color: #ffa502; font-size: 1.1rem;">-</div>
-                    </div>
-                    <div style="text-align: center; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 10px; border: 1px solid rgba(0,212,170,0.3);">
-                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">Data Source</div>
-                        <div id="marketDataSource" style="font-weight: 700; color: #00d4aa; font-size: 1.1rem;">-</div>
+                    
+                    <div class="radar-indicator" style="background: linear-gradient(135deg, rgba(255,165,2,0.2), rgba(255,165,2,0.05)); border: 1px solid rgba(255,165,2,0.4); border-radius: 12px; padding: 15px; text-align: center; position: relative;">
+                        <div style="font-size: 0.75rem; color: rgba(255,165,2,0.8); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">💵 Dollar Power</div>
+                        <div id="dxyValue" style="font-weight: 800; color: #ffa502; font-size: 1.4rem;">-</div>
+                        <div style="position: absolute; top: 5px; right: 8px; width: 8px; height: 8px; background: #ffa502; border-radius: 50%; animation: statusPulse 2s ease-in-out infinite;"></div>
                     </div>
                 </div>
-                <div style="margin-top: 12px; font-size: 11px; color: rgba(255,255,255,0.6); text-align: center; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                    <div id="marketDataLastUpdate">Last updated: Loading...</div>
-                    <div id="marketDataStatus" style="margin-top: 4px;">Auto-refresh: Active</div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: linear-gradient(135deg, rgba(0,0,0,0.3), rgba(0,0,0,0.1)); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 8px; height: 8px; background: #00ff88; border-radius: 50%; animation: statusPulse 1s ease-in-out infinite;"></div>
+                        <span style="font-size: 0.8rem; color: #00ff88; font-weight: 600;">SYSTEMS ONLINE</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">
+                        <span id="marketDataLastUpdate">Scanning...</span> • 
+                        <span id="marketDataSource" style="color: #00d4aa; font-weight: 600;">Railway DB</span>
+                    </div>
                 </div>
             </div>
             
-            <!-- Options & Key Levels -->
-            <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px;">
-                <h4 style="color: #3742fa; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                    🎯 Options Expiry & Key Levels
-                    <span style="font-size: 10px; background: rgba(255,165,2,0.3); padding: 2px 6px; border-radius: 4px;">CME API Pending</span>
-                </h4>
-                <div id="optionsData" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                    <div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.7);">
-                        CME Group API integration in progress...<br>
-                        <small>Will display options expiry, strike prices, and open interest levels</small>
+            <!-- 🎯 STRATEGIC INTELLIGENCE -->
+            <div class="mission-card" style="border-left: 4px solid #3742fa; margin-top: 25px;">
+                <div class="mission-card-header">
+                    <div class="mission-card-icon" style="color: #3742fa;">🎯</div>
+                    <h4 class="mission-card-title">Strategic Intelligence</h4>
+                    <div class="mission-card-badge" style="background: rgba(255,165,2,0.3); color: #ffa502;">INCOMING</div>
+                </div>
+                <div id="optionsData" style="background: linear-gradient(135deg, rgba(55,66,250,0.08), rgba(55,66,250,0.02)); border-radius: 12px; padding: 20px; border: 1px solid rgba(55,66,250,0.2);">
+                    <div style="text-align: center; color: rgba(55,66,250,0.8); padding: 15px;">
+                        🛰️ <strong>Advanced Intel Systems Initializing...</strong><br><br>
+                        <div style="font-size: 0.9rem; margin-top: 10px; color: rgba(255,255,255,0.7);">
+                            • Options Flow Analysis<br>
+                            • Key Strike Levels<br>
+                            • Institutional Positioning<br>
+                            • Gamma Exposure Mapping
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <div class="card">
-            <h3 style="margin-bottom: 20px; color: #00ff88;">Analysis Controls</h3>
-            
-            <!-- Prop Firm Risk Management -->
-            <div style="background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.3); border-radius: 15px; padding: 20px; margin-bottom: 25px;">
-                <h4 style="color: #ff4757; margin: 0 0 15px 0; font-size: 16px;">🚨 Prop Firm Risk Management</h4>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                    <div class="control-group">
-                        <label>Risk Per Trade (%)</label>
-                        <input type="number" id="riskPerTrade" min="0.1" max="2" step="0.1" value="0.5" placeholder="0.5" style="flex: 1;">
-                    </div>
-                    <div class="control-group">
-                        <label>Max Daily Loss (%)</label>
-                        <input type="number" id="maxDailyLoss" min="1" max="10" step="0.5" value="5" placeholder="5" style="flex: 1;">
-                    </div>
-                    <div class="control-group">
-                        <label>Max Total Drawdown (%)</label>
-                        <input type="number" id="maxTotalDrawdown" min="5" max="20" step="1" value="10" placeholder="10" style="flex: 1;">
-                    </div>
-                    <div class="control-group">
-                        <label>Account Size ($)</label>
-                        <input type="number" id="accountSize" min="10000" max="1000000" step="10000" value="100000" placeholder="100000" style="flex: 1;">
-                    </div>
-                </div>
-                <div id="riskWarning" style="margin-top: 15px; padding: 10px; background: rgba(255,71,87,0.2); border-radius: 8px; font-size: 12px; color: #ff4757; display: none;"></div>
-            </div>
-            
-            <div class="controls-grid">
 
-                
-                <div class="control-group">
-                    <label>BE Strategy</label>
-                    <select id="beStrategy">
-                        <option value="none">No BE</option>
-                        <option value="be1">BE = 1R</option>
-                    </select>
-                </div>
-                
-                <div class="control-group">
-                    <label>R-Target</label>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="number" id="rTarget" min="0" max="500" step="0.5" value="2" placeholder="2.0" style="flex: 1;">
-                        <button onclick="analyzeOptimalRTarget()" style="background: linear-gradient(45deg, #ff6b7a, #ee5a6f); border: none; padding: 8px 12px; border-radius: 8px; color: white; font-size: 12px; cursor: pointer; white-space: nowrap;">Find Optimal</button>
-                    </div>
-                </div>
-                
-                <div class="control-group">
-                    <label>View Type</label>
-                    <select id="viewType">
-                        <option value="trade">Trade by Trade</option>
-                        <option value="daily" selected>Daily View</option>
-                        <option value="weekly">Weekly View</option>
-                        <option value="monthly">Monthly View</option>
-                    </select>
-                </div>
-                
-                <div class="control-group">
-                    <label>Chart Options</label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="sessionOverlay" checked>
-                            <label for="sessionOverlay">Session Zones</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="heatmapOverlay">
-                            <label for="heatmapOverlay">Heat Map</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="volatilityBands">
-                            <label for="volatilityBands">Volatility Bands</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="milestoneMarkers" checked>
-                            <label for="milestoneMarkers">Milestones</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="riskRewardViz">
-                            <label for="riskRewardViz">Risk/Reward</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="showLegend" checked>
-                            <label for="showLegend">Legend</label>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="control-group">
-                    <label>Sessions</label>
-                    <div class="session-checkboxes">
-                        <div class="checkbox-item" data-session="Asia">
-                            <input type="checkbox" id="sessionAsia" value="Asia" checked>
-                            <label for="sessionAsia">Asia</label>
-                        </div>
-                        <div class="checkbox-item" data-session="London">
-                            <input type="checkbox" id="sessionLondon" value="London" checked>
-                            <label for="sessionLondon">London</label>
-                        </div>
-                        <div class="checkbox-item" data-session="NY Pre Market">
-                            <input type="checkbox" id="sessionNYPre" value="NY Pre Market" checked>
-                            <label for="sessionNYPre">NY Pre</label>
-                        </div>
-                        <div class="checkbox-item" data-session="NY AM">
-                            <input type="checkbox" id="sessionNYAM" value="NY AM" checked>
-                            <label for="sessionNYAM">NY AM</label>
-                        </div>
-                        <div class="checkbox-item" data-session="NY Lunch">
-                            <input type="checkbox" id="sessionNYLunch" value="NY Lunch" checked>
-                            <label for="sessionNYLunch">NY Lunch</label>
-                        </div>
-                        <div class="checkbox-item" data-session="NY PM">
-                            <input type="checkbox" id="sessionNYPM" value="NY PM" checked>
-                            <label for="sessionNYPM">NY PM</label>
-                        </div>
-                    </div>
-                    <div style="margin-top: 10px;">
-                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
-                            <input type="checkbox" id="useOptimalHours" style="width: 16px; height: 16px; accent-color: #00ff88;">
-                            <span>Use optimal time windows only</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-            
-
-        </div>
         
         <!-- 📊 UNIFIED TRADING METRICS DASHBOARD -->
         <div class="premium-chart-container" id="metricsSection">
@@ -1239,6 +1807,175 @@
             </div>
         </div>
         
+        <!-- 🎛️ INTEGRATED CHART CONTROL CENTER -->
+        <div class="chart-control-center">
+            <div class="control-center-header">
+                <h3 style="color: #00ff88; margin: 0; font-size: 1.3rem; font-weight: 700;">🎛️ Chart Control Center</h3>
+                <div class="control-tabs">
+                    <button class="control-tab active" onclick="switchControlTab('quick')">Quick Setup</button>
+                    <button class="control-tab" onclick="switchControlTab('advanced')">Advanced</button>
+                    <button class="control-tab" onclick="switchControlTab('presets')">Presets</button>
+                </div>
+            </div>
+            
+            <!-- Quick Controls (Always Visible) -->
+            <div class="quick-chart-controls" id="quickControls">
+                <div class="quick-control-card">
+                    <label class="control-label">BE Strategy</label>
+                    <select id="beStrategy" class="premium-select">
+                        <option value="none">No BE</option>
+                        <option value="be1">BE = 1R</option>
+                    </select>
+                </div>
+                
+                <div class="quick-control-card">
+                    <label class="control-label">R-Target</label>
+                    <div class="slider-control">
+                        <input type="range" id="rTarget" class="premium-slider" min="0.5" max="5" step="0.1" value="2" oninput="updateSliderValue(this, 'rTargetValue')">
+                        <div class="slider-value" id="rTargetValue">2.0R</div>
+                    </div>
+                </div>
+                
+                <div class="quick-control-card">
+                    <label class="control-label">View Type</label>
+                    <div class="view-toggle-group">
+                        <button class="view-toggle" data-value="trade" onclick="setViewType('trade')">Trade</button>
+                        <button class="view-toggle active" data-value="daily" onclick="setViewType('daily')">Daily</button>
+                        <button class="view-toggle" data-value="weekly" onclick="setViewType('weekly')">Weekly</button>
+                        <button class="view-toggle" data-value="monthly" onclick="setViewType('monthly')">Monthly</button>
+                    </div>
+                </div>
+                
+                <div class="quick-control-card">
+                    <label class="control-label">Active Sessions</label>
+                    <div class="session-toggle-grid">
+                        <div class="session-toggle active" data-session="Asia" onclick="toggleSession(this, 'Asia')">ASIA</div>
+                        <div class="session-toggle active" data-session="London" onclick="toggleSession(this, 'London')">LON</div>
+                        <div class="session-toggle active" data-session="NY AM" onclick="toggleSession(this, 'NY AM')">AM</div>
+                        <div class="session-toggle active" data-session="NY PM" onclick="toggleSession(this, 'NY PM')">PM</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Advanced Controls (Collapsible) -->
+            <div class="advanced-chart-controls" id="advancedControls" style="display: none;">
+                <div class="advanced-section">
+                    <h4 class="section-title">🚨 Risk Management</h4>
+                    <div class="risk-controls-grid">
+                        <div class="risk-control">
+                            <label>Risk Per Trade (%)</label>
+                            <input type="number" id="riskPerTrade" min="0.1" max="2" step="0.1" value="0.5" class="premium-input">
+                        </div>
+                        <div class="risk-control">
+                            <label>Max Daily Loss (%)</label>
+                            <input type="number" id="maxDailyLoss" min="1" max="10" step="0.5" value="5" class="premium-input">
+                        </div>
+                        <div class="risk-control">
+                            <label>Max Drawdown (%)</label>
+                            <input type="number" id="maxTotalDrawdown" min="5" max="20" step="1" value="10" class="premium-input">
+                        </div>
+                        <div class="risk-control">
+                            <label>Account Size ($)</label>
+                            <input type="number" id="accountSize" min="10000" max="1000000" step="10000" value="100000" class="premium-input">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="advanced-section">
+                    <h4 class="section-title">📊 Chart Options</h4>
+                    <div class="chart-options-grid">
+                        <label class="option-toggle">
+                            <input type="checkbox" id="sessionOverlay" checked>
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label">Session Zones</span>
+                        </label>
+                        <label class="option-toggle">
+                            <input type="checkbox" id="heatmapOverlay">
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label">Heat Map</span>
+                        </label>
+                        <label class="option-toggle">
+                            <input type="checkbox" id="volatilityBands">
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label">Volatility Bands</span>
+                        </label>
+                        <label class="option-toggle">
+                            <input type="checkbox" id="milestoneMarkers" checked>
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label">Milestones</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="advanced-section">
+                    <h4 class="section-title">⏰ Session Details</h4>
+                    <div class="session-details-grid">
+                        <label class="session-checkbox">
+                            <input type="checkbox" id="sessionAsia" value="Asia" checked>
+                            <span class="checkbox-custom"></span>
+                            <span>Asia (20:00-00:00)</span>
+                        </label>
+                        <label class="session-checkbox">
+                            <input type="checkbox" id="sessionLondon" value="London" checked>
+                            <span class="checkbox-custom"></span>
+                            <span>London (02:00-06:00)</span>
+                        </label>
+                        <label class="session-checkbox">
+                            <input type="checkbox" id="sessionNYPre" value="NY Pre Market" checked>
+                            <span class="checkbox-custom"></span>
+                            <span>NY Pre (06:00-09:30)</span>
+                        </label>
+                        <label class="session-checkbox">
+                            <input type="checkbox" id="sessionNYAM" value="NY AM" checked>
+                            <span class="checkbox-custom"></span>
+                            <span>NY AM (09:30-12:00)</span>
+                        </label>
+                        <label class="session-checkbox">
+                            <input type="checkbox" id="sessionNYLunch" value="NY Lunch" checked>
+                            <span class="checkbox-custom"></span>
+                            <span>NY Lunch (12:00-13:00)</span>
+                        </label>
+                        <label class="session-checkbox">
+                            <input type="checkbox" id="sessionNYPM" value="NY PM" checked>
+                            <span class="checkbox-custom"></span>
+                            <span>NY PM (13:00-16:00)</span>
+                        </label>
+                    </div>
+                    <label class="option-toggle" style="margin-top: 15px;">
+                        <input type="checkbox" id="useOptimalHours">
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Use optimal time windows only</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Smart Presets -->
+            <div class="preset-controls" id="presetControls" style="display: none;">
+                <div class="preset-grid">
+                    <button class="preset-btn conservative" onclick="applyPreset('conservative')">
+                        <div class="preset-icon">🛡️</div>
+                        <div class="preset-name">Conservative</div>
+                        <div class="preset-desc">BE=1R, R=1.5, Risk=0.3%</div>
+                    </button>
+                    <button class="preset-btn balanced" onclick="applyPreset('balanced')">
+                        <div class="preset-icon">⚖️</div>
+                        <div class="preset-name">Balanced</div>
+                        <div class="preset-desc">No BE, R=2.0, Risk=0.5%</div>
+                    </button>
+                    <button class="preset-btn aggressive" onclick="applyPreset('aggressive')">
+                        <div class="preset-icon">🚀</div>
+                        <div class="preset-name">Aggressive</div>
+                        <div class="preset-desc">No BE, R=3.0, Risk=1.0%</div>
+                    </button>
+                    <button class="preset-btn scalping" onclick="applyPreset('scalping')">
+                        <div class="preset-icon">⚡</div>
+                        <div class="preset-name">Scalping</div>
+                        <div class="preset-desc">BE=1R, R=1.0, Risk=0.2%</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="premium-chart-container" id="chartSection">
             <div class="chart-header">
                 <h3 class="chart-title">📈 Performance Analytics</h3>
@@ -1372,6 +2109,27 @@
             }
         }
         
+        // 🛡️ SAFE DOM HELPER FUNCTION
+        function safeSetInnerHTML(elementId, content) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = content;
+                return true;
+            }
+            console.log(`Element '${elementId}' not found - content moved to specialized tools`);
+            return false;
+        }
+        
+        function safeSetTextContent(elementId, content) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = content;
+                return true;
+            }
+            console.log(`Element '${elementId}' not found - content moved to specialized tools`);
+            return false;
+        }
+        
         // 🚀 FLOATING NAVIGATION FUNCTIONS
         function scrollToSection(sectionId) {
             const sectionMap = {
@@ -1424,6 +2182,163 @@
         
         // Add scroll listener
         window.addEventListener('scroll', handleScroll);
+        
+        // 🎛️ INTEGRATED CHART CONTROL FUNCTIONS
+        function switchControlTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.control-tab').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Show/hide control sections
+            document.getElementById('quickControls').style.display = tab === 'quick' ? 'grid' : 'none';
+            document.getElementById('advancedControls').style.display = tab === 'advanced' ? 'grid' : 'none';
+            document.getElementById('presetControls').style.display = tab === 'presets' ? 'block' : 'none';
+        }
+        
+        function updateSliderValue(slider, valueId) {
+            const value = parseFloat(slider.value);
+            document.getElementById(valueId).textContent = value.toFixed(1) + 'R';
+            
+            // Update the actual R-Target for analysis
+            updateAnalysis();
+        }
+        
+        function setViewType(type) {
+            // Update view toggle buttons
+            document.querySelectorAll('.view-toggle').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[data-value="${type}"]`).classList.add('active');
+            
+            // Update the select element for compatibility
+            document.getElementById('viewType').value = type;
+            
+            // Update analysis
+            updateAnalysis();
+        }
+        
+        function toggleSession(element, session) {
+            element.classList.toggle('active');
+            
+            // Update the corresponding checkbox
+            const checkbox = document.querySelector(`input[value="${session}"]`);
+            if (checkbox) {
+                checkbox.checked = element.classList.contains('active');
+            }
+            
+            // Update analysis
+            updateAnalysis();
+        }
+        
+        function applyPreset(presetType) {
+            const presets = {
+                conservative: {
+                    beStrategy: 'be1',
+                    rTarget: 1.5,
+                    riskPerTrade: 0.3,
+                    sessions: ['NY AM', 'NY PM'],
+                    chartOptions: ['sessionOverlay', 'milestoneMarkers']
+                },
+                balanced: {
+                    beStrategy: 'none',
+                    rTarget: 2.0,
+                    riskPerTrade: 0.5,
+                    sessions: ['Asia', 'London', 'NY AM', 'NY PM'],
+                    chartOptions: ['sessionOverlay', 'milestoneMarkers']
+                },
+                aggressive: {
+                    beStrategy: 'none',
+                    rTarget: 3.0,
+                    riskPerTrade: 1.0,
+                    sessions: ['Asia', 'London', 'NY Pre Market', 'NY AM', 'NY Lunch', 'NY PM'],
+                    chartOptions: ['sessionOverlay', 'heatmapOverlay', 'volatilityBands']
+                },
+                scalping: {
+                    beStrategy: 'be1',
+                    rTarget: 1.0,
+                    riskPerTrade: 0.2,
+                    sessions: ['NY AM', 'NY PM'],
+                    chartOptions: ['sessionOverlay', 'heatmapOverlay'],
+                    useOptimalHours: true
+                }
+            };
+            
+            const preset = presets[presetType];
+            if (!preset) return;
+            
+            // Apply BE Strategy
+            document.getElementById('beStrategy').value = preset.beStrategy;
+            
+            // Apply R-Target
+            document.getElementById('rTarget').value = preset.rTarget;
+            document.getElementById('rTargetValue').textContent = preset.rTarget.toFixed(1) + 'R';
+            
+            // Apply Risk Settings
+            document.getElementById('riskPerTrade').value = preset.riskPerTrade;
+            
+            // Apply Sessions
+            document.querySelectorAll('.session-toggle').forEach(toggle => {
+                const session = toggle.getAttribute('data-session');
+                if (preset.sessions.includes(session)) {
+                    toggle.classList.add('active');
+                } else {
+                    toggle.classList.remove('active');
+                }
+            });
+            
+            // Update session checkboxes
+            document.querySelectorAll('.session-checkbox input').forEach(checkbox => {
+                checkbox.checked = preset.sessions.includes(checkbox.value);
+            });
+            
+            // Apply Chart Options
+            document.querySelectorAll('.option-toggle input').forEach(checkbox => {
+                checkbox.checked = preset.chartOptions.includes(checkbox.id);
+            });
+            
+            // Apply Optimal Hours if specified
+            if (preset.useOptimalHours !== undefined) {
+                document.getElementById('useOptimalHours').checked = preset.useOptimalHours;
+            }
+            
+            // Show success feedback
+            showPresetApplied(presetType);
+            
+            // Update analysis with new settings
+            updateAnalysis();
+        }
+        
+        function showPresetApplied(presetType) {
+            const presetNames = {
+                conservative: '🛡️ Conservative',
+                balanced: '⚖️ Balanced', 
+                aggressive: '🚀 Aggressive',
+                scalping: '⚡ Scalping'
+            };
+            
+            // Create temporary notification
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, rgba(0,255,136,0.9), rgba(0,212,170,0.8));
+                color: white;
+                padding: 15px 20px;
+                border-radius: 12px;
+                font-weight: 600;
+                z-index: 10000;
+                box-shadow: 0 8px 25px rgba(0,255,136,0.3);
+                animation: slideIn 0.3s ease-out;
+            `;
+            notification.textContent = `${presetNames[presetType]} preset applied!`;
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => document.body.removeChild(notification), 300);
+            }, 3000);
+        }
         
         function setChartType(type) {
             currentChartType = type;
@@ -1778,29 +2693,15 @@
                     const errorText = await response.text();
                     console.error('Failed to load signals:', response.status, errorText);
                     
-                    // Show user-friendly error message
-                    document.getElementById('aiAnalysis').innerHTML = `
-                        <div style="text-align: center; padding: 40px; color: #ff4757;">
-                            <div style="font-size: 18px; margin-bottom: 10px;">❌ Database Connection Error</div>
-                            <div style="font-size: 14px; margin-bottom: 15px;">HTTP ${response.status}: Unable to load trading data</div>
-                            <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 15px;">${errorText.substring(0, 200)}...</div>
-                            <button onclick="loadSignals()" style="background: #00ff88; border: none; padding: 10px 20px; border-radius: 8px; color: white; cursor: pointer;">Retry Connection</button>
-                        </div>
-                    `;
+                    // Show user-friendly error message in console (AI Analysis section removed)
+                    console.error('Database Connection Error:', response.status, errorText);
                     showNoData();
                 }
             } catch (error) {
                 console.error('Error loading signals:', error);
                 
-                // Show user-friendly error message
-                document.getElementById('aiAnalysis').innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #ff4757;">
-                        <div style="font-size: 18px; margin-bottom: 10px;">❌ Connection Failed</div>
-                        <div style="font-size: 14px; margin-bottom: 15px;">Unable to connect to trading database</div>
-                        <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 15px;">${error.message}</div>
-                        <button onclick="loadSignals()" style="background: #00ff88; border: none; padding: 10px 20px; border-radius: 8px; color: white; cursor: pointer;">Retry Connection</button>
-                    </div>
-                `;
+                // Show user-friendly error message in console (AI Analysis section removed)
+                console.error('Connection Failed:', error.message);
                 showNoData();
             }
         }
@@ -3059,18 +3960,18 @@
                     const bestModel = perf.best_model || 'Unknown';
                     const modelMetrics = perf.performance_metrics?.[bestModel];
                     
-                    statusDiv.innerHTML = `<span style="color: #00ff88;">✓ Active</span>`;
-                    statusDetailsDiv.innerHTML = `Models trained on ${perf.training_samples || 'N/A'} trades`;
+                    safeSetInnerHTML('mlStatus', `<span style="color: #00ff88;">✓ Active</span>`);
+                    safeSetInnerHTML('mlStatusDetails', `Models trained on ${perf.training_samples || 'N/A'} trades`);
                     
                     if (modelMetrics) {
                         const r2 = (modelMetrics.test_r2 * 100).toFixed(1);
                         const mae = modelMetrics.test_mae.toFixed(3);
                         const quality = modelMetrics.test_r2 > 0.5 ? 'Good' : modelMetrics.test_r2 > 0 ? 'Fair' : 'Poor';
-                        performanceDiv.innerHTML = `${quality}: ${r2}% R²`;
-                        performanceDetailsDiv.innerHTML = `${bestModel} • MAE: ${mae}R`;
+                        safeSetInnerHTML('modelPerformance', `${quality}: ${r2}% R²`);
+                        safeSetInnerHTML('modelPerformanceDetails', `${bestModel} • MAE: ${mae}R`);
                     } else {
-                        performanceDiv.innerHTML = `${bestModel} Active`;
-                        performanceDetailsDiv.innerHTML = 'Performance metrics loading...';
+                        safeSetInnerHTML('modelPerformance', `${bestModel} Active`);
+                        safeSetInnerHTML('modelPerformanceDetails', 'Performance metrics loading...');
                     }
                     
                     let insightsHtml = `<strong>🎯 Best Model:</strong> ${bestModel}<br><br>`;
@@ -3102,13 +4003,13 @@
                         insightsHtml += '• 🎯 Market context influences predictions<br>';
                     }
                     
-                    insightsDiv.innerHTML = insightsHtml;
+                    safeSetInnerHTML('mlInsights', insightsHtml);
                 } else {
-                    statusDiv.innerHTML = `<span style="color: #ffa502;">⚠ Not Trained</span>`;
-                    statusDetailsDiv.innerHTML = 'Auto-training will start when sufficient data available';
-                    performanceDiv.innerHTML = 'Pending Training';
-                    performanceDetailsDiv.innerHTML = 'Need 30+ trades with MFE data';
-                    insightsDiv.innerHTML = '📊 <strong>ML Training Required</strong><br><br>System will automatically train models when sufficient trade data is available (30+ trades with MFE data).';
+                    safeSetInnerHTML('mlStatus', `<span style="color: #ffa502;">⚠ Not Trained</span>`);
+                    safeSetInnerHTML('mlStatusDetails', 'Auto-training will start when sufficient data available');
+                    safeSetInnerHTML('modelPerformance', 'Pending Training');
+                    safeSetInnerHTML('modelPerformanceDetails', 'Need 30+ trades with MFE data');
+                    safeSetInnerHTML('mlInsights', '📊 <strong>ML Training Required</strong><br><br>System will automatically train models when sufficient trade data is available (30+ trades with MFE data).');
                 }
             } catch (error) {
                 console.error('Error loading ML insights:', error);
@@ -3118,11 +4019,11 @@
                 const performanceDetailsDiv = document.getElementById('performanceDetails');
                 const insightsDiv = document.getElementById('mlInsights');
                 
-                statusDiv.innerHTML = `<span style="color: #ff4757;">❌ Offline</span>`;
-                statusDetailsDiv.innerHTML = 'Connection failed - retrying automatically';
-                performanceDiv.innerHTML = 'Connection Error';
-                performanceDetailsDiv.innerHTML = 'Auto-retry in progress';
-                insightsDiv.innerHTML = `❌ <strong>Connection Error</strong><br><br>Unable to load ML insights: ${error.message}<br><br>System will retry automatically.`;
+                safeSetInnerHTML('mlStatus', `<span style="color: #ff4757;">❌ Offline</span>`);
+                safeSetInnerHTML('mlStatusDetails', 'Connection failed - retrying automatically');
+                safeSetInnerHTML('modelPerformance', 'Connection Error');
+                safeSetInnerHTML('modelPerformanceDetails', 'Auto-retry in progress');
+                safeSetInnerHTML('mlInsights', `❌ <strong>Connection Error</strong><br><br>Unable to load ML insights: ${error.message}<br><br>System will retry automatically.`);
             }
         }
         
@@ -3234,7 +4135,7 @@
                     const predMFE = pred.predicted_mfe || 0;
                     const confidence = pred.confidence || 0;
                     
-                    document.getElementById('currentPrediction').innerHTML = `${predMFE.toFixed(2)}R (${(confidence*100).toFixed(0)}%)`;
+                    safeSetInnerHTML('currentPrediction', `${predMFE.toFixed(2)}R (${(confidence*100).toFixed(0)}%)`);
                 } else if (data.error) {
                     alert('❌ Prediction Error: ' + data.error);
                 } else {
@@ -3649,20 +4550,20 @@
                         const predMFE = pred.predicted_mfe || 0;
                         const confidence = pred.confidence || 0;
                         
-                        document.getElementById('currentPrediction').innerHTML = `${predMFE.toFixed(2)}R`;
-                        document.getElementById('predictionDetails').innerHTML = `Confidence: ${(confidence*100).toFixed(0)}% • Auto-updated`;
+                        safeSetInnerHTML('currentPrediction', `${predMFE.toFixed(2)}R`);
+                        safeSetInnerHTML('predictionDetails', `Confidence: ${(confidence*100).toFixed(0)}% • Auto-updated`);
                     } else {
-                        document.getElementById('currentPrediction').innerHTML = 'No Prediction';
-                        document.getElementById('predictionDetails').innerHTML = 'Models not ready or insufficient data';
+                        safeSetInnerHTML('currentPrediction', 'No Prediction');
+                        safeSetInnerHTML('predictionDetails', 'Models not ready or insufficient data');
                     }
                 } else {
-                    document.getElementById('currentPrediction').innerHTML = 'Error';
-                    document.getElementById('predictionDetails').innerHTML = 'Prediction service unavailable';
+                    safeSetInnerHTML('currentPrediction', 'Error');
+                    safeSetInnerHTML('predictionDetails', 'Prediction service unavailable');
                 }
             } catch (error) {
                 console.error('Auto ML Prediction Error:', error);
-                document.getElementById('currentPrediction').innerHTML = 'Offline';
-                document.getElementById('predictionDetails').innerHTML = 'Connection error - retrying automatically';
+                safeSetInnerHTML('currentPrediction', 'Offline');
+                safeSetInnerHTML('predictionDetails', 'Connection error - retrying automatically');
             }
         }
         
@@ -3673,7 +4574,7 @@
                 const data = await response.json();
                 
                 if (data.error) {
-                    document.getElementById('topFeatures').innerHTML = 'Feature analysis unavailable';
+                    safeSetInnerHTML('topFeatures', 'Feature analysis unavailable');
                     return;
                 }
                 
@@ -3694,11 +4595,11 @@
                     }
                 }
                 
-                document.getElementById('topFeatures').innerHTML = featuresHtml || 'No feature data available';
+                safeSetInnerHTML('topFeatures', featuresHtml || 'No feature data available');
                 
             } catch (error) {
                 console.error('Error loading feature importance:', error);
-                document.getElementById('topFeatures').innerHTML = 'Feature analysis offline';
+                safeSetInnerHTML('topFeatures', 'Feature analysis offline');
             }
         }
         
@@ -3724,11 +4625,11 @@
                     recommendationsHtml = '• Add at least 30 trades with MFE data<br>• System will auto-train when ready<br>• Focus on data quality';
                 }
                 
-                document.getElementById('aiRecommendations').innerHTML = recommendationsHtml;
+                safeSetInnerHTML('aiRecommendations', recommendationsHtml);
                 
             } catch (error) {
                 console.error('Error loading ML recommendations:', error);
-                document.getElementById('aiRecommendations').innerHTML = 'Recommendations offline';
+                safeSetInnerHTML('aiRecommendations', 'Recommendations offline');
             }
         }
         
@@ -4747,10 +5648,10 @@
             startAutomaticRefresh();
             loadTradingDayPrep();
             
-            // Show loading states initially
-            document.getElementById('mlStatus').innerHTML = 'Loading...';
-            document.getElementById('currentPrediction').innerHTML = 'Loading...';
-            document.getElementById('modelPerformance').innerHTML = 'Loading...';
+            // Show loading states initially (safe checks for removed ML elements)
+            safeSetInnerHTML('mlStatus', 'Loading...');
+            safeSetInnerHTML('currentPrediction', 'Loading...');
+            safeSetInnerHTML('modelPerformance', 'Loading...');
         });
         
         function startAutomaticRefresh() {
@@ -4804,50 +5705,10 @@
         
         // AI Strategy Optimization using OpenAI GPT-4
         async function runAIOptimization() {
-            if (signals.length < 10) {
-                document.getElementById('aiAnalysis').innerHTML = 'Need at least 10 trades for meaningful AI analysis';
-                return;
-            }
-            
-            document.getElementById('aiAnalysis').innerHTML = '<div style="text-align: center; padding: 40px;"><div style="color: #00ff88; font-size: 18px; margin-bottom: 10px;">🤖 GPT-4 Analyzing Strategy...</div><div style="color: rgba(255,255,255,0.7);">Deep learning analysis in progress...</div></div>';
-            
-            try {
-                // Prepare comprehensive dataset for GPT-4
-                const analysisData = prepareDatasetForGPT4();
-                
-                // Call secure backend endpoint for GPT-4 analysis
-                const response = await fetch('https://web-production-cd33.up.railway.app/api/gpt4-strategy-analysis', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        analysisData: analysisData
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`OpenAI API error: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                const aiAnalysis = data.analysis || data.error || 'Analysis failed';
-                
-                // Find best combination from local analysis for UI
-                const bestCombination = findOptimalCombination();
-                
-                displayAIRecommendation(aiAnalysis, bestCombination);
-                
-            } catch (error) {
-                console.error('GPT-4 Analysis Error:', error);
-                document.getElementById('aiAnalysis').innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #ff4757;">
-                        <div style="font-size: 18px; margin-bottom: 10px;">❌ GPT-4 Analysis Failed</div>
-                        <div style="font-size: 14px; margin-bottom: 15px;">${error.message}</div>
-                        <button onclick="runAIOptimization()" style="background: #00ff88; border: none; padding: 10px 20px; border-radius: 8px; color: white; cursor: pointer;">Retry Analysis</button>
-                    </div>
-                `;
-            }
+            // AI Analysis functionality moved to dedicated AI Business Advisor tool
+            // This prevents errors during dashboard load since aiAnalysis element was removed
+            console.log('AI Analysis available in dedicated AI Business Advisor tool at /ai-business-advisor');
+            return;
         }
         
 
@@ -4957,10 +5818,9 @@
         }
         
         function displayAIRecommendation(aiAnalysis, bestCombination) {
-            if (!bestCombination) {
-                document.getElementById('aiAnalysis').innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.7);">Insufficient data for optimization (need 10+ trades per strategy)</div>';
-                return;
-            }
+            // AI Analysis functionality moved to dedicated AI Business Advisor tool
+            console.log('AI Analysis available in dedicated AI Business Advisor tool');
+            return;
             
             const beStrategyText = {
                 'none': 'No Breakeven',
