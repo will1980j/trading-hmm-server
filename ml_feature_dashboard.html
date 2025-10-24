@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ML Intelligence Hub</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="/websocket_client.js"></script>
     <style>
         :root {
             --bg-primary: #0a0e27;
@@ -1465,6 +1467,98 @@
                 return true;
             }
         });
+        
+        // 🚀 WEBSOCKET INTEGRATION FOR REAL-TIME UPDATES
+        // Set up WebSocket event listeners for real-time updates
+        setTimeout(() => {
+            if (window.wsClient) {
+                console.log('🚀 Setting up WebSocket listeners for ML dashboard');
+                
+                // Listen for live prediction updates - handled by WebSocket client
+                wsClient.on('live_prediction_update', (data) => {
+                    console.log('Live prediction updated via WebSocket');
+                });
+                
+                // Listen for webhook stats updates
+                wsClient.on('webhook_stats_update', (data) => {
+                    updateWebhookStatsFromWebSocket(data);
+                });
+                
+                // Listen for ML model updates
+                wsClient.on('ml_model_update', (data) => {
+                    if (data.data && data.data.type === 'hyperparameter_optimization') {
+                        loadHyperparameterStatus();
+                    } else if (data.data && data.data.type === 'model_retrain') {
+                        loadData(); // Reload feature importance data
+                    }
+                });
+                
+                // Listen for signal updates to update banner
+                wsClient.on('signal_update', (data) => {
+                    updateBannerFromWebSocket(data);
+                });
+            }
+        }, 2000);
+
+        // Helper function to update webhook stats from WebSocket
+        function updateWebhookStatsFromWebSocket(data) {
+            if (data.stats) {
+                const bullishStats = data.stats.bullish || {};
+                const bearishStats = data.stats.bearish || {};
+                
+                const bullishElement = document.getElementById('webhookBullishCount');
+                const bearishElement = document.getElementById('webhookBearishCount');
+                
+                if (bullishElement) bullishElement.textContent = bullishStats.count || 0;
+                if (bearishElement) bearishElement.textContent = bearishStats.count || 0;
+                
+                if (bullishStats.last_signal) {
+                    const lastBullishElement = document.getElementById('webhookLastBullish');
+                    if (lastBullishElement) lastBullishElement.textContent = getTimeAgo(bullishStats.last_signal);
+                }
+                if (bearishStats.last_signal) {
+                    const lastBearishElement = document.getElementById('webhookLastBearish');
+                    if (lastBearishElement) lastBearishElement.textContent = getTimeAgo(bearishStats.last_signal);
+                }
+                
+                // Update health status
+                const hasRecent = (bullishStats.count > 0 || bearishStats.count > 0);
+                const healthElement = document.getElementById('webhookHealth');
+                if (healthElement) healthElement.textContent = hasRecent ? '✅' : '⚠️';
+            }
+        }
+
+        // Helper function to update banner from WebSocket
+        function updateBannerFromWebSocket(data) {
+            if (data.signal) {
+                const lastSignalElement = document.getElementById('bannerLastSignal');
+                const healthStatusElement = document.getElementById('bannerHealthStatus');
+                
+                if (lastSignalElement) {
+                    lastSignalElement.textContent = `${data.signal.bias} ${getTimeAgo(data.timestamp)}`;
+                }
+                if (healthStatusElement) {
+                    healthStatusElement.textContent = '✅';
+                }
+            }
+        }
+
+        // Helper function to calculate time ago
+        function getTimeAgo(timestamp) {
+            const now = new Date();
+            const time = new Date(timestamp);
+            const diffMs = now - time;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            if (diffMins < 1) return 'now';
+            if (diffMins < 60) return `${diffMins}m`;
+            
+            const diffHours = Math.floor(diffMins / 60);
+            if (diffHours < 24) return `${diffHours}h`;
+            
+            const diffDays = Math.floor(diffHours / 24);
+            return `${diffDays}d`;
+        }
     </script>
 </body>
 </html>

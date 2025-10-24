@@ -184,17 +184,82 @@ if db_enabled and db:
 from realtime_signal_handler import RealtimeSignalHandler
 realtime_handler = RealtimeSignalHandler(socketio, db) if db_enabled else None
 
+# Start real-time health monitoring
+if realtime_handler:
+    realtime_handler.start_health_monitor()
+    logger.info("✅ Real-time signal handler and health monitor started")
+
 # WebSocket connection handlers
 @socketio.on('connect')
 def handle_connect():
     if realtime_handler:
         realtime_handler.active_connections += 1
+        
+        # Send cached signal to new connection
+        cached_signal = realtime_handler.get_cached_signal()
+        if cached_signal:
+            emit('signal_update', cached_signal)
+    
     emit('connection_status', {'status': 'connected', 'timestamp': datetime.now().isoformat()})
+    logger.info(f"🔌 WebSocket connected. Active connections: {realtime_handler.active_connections if realtime_handler else 'N/A'}")
 
 @socketio.on('disconnect')
 def handle_disconnect():
     if realtime_handler:
         realtime_handler.active_connections -= 1
+    logger.info(f"🔌 WebSocket disconnected. Active connections: {realtime_handler.active_connections if realtime_handler else 'N/A'}")
+
+@socketio.on('request_live_prediction')
+def handle_live_prediction_request():
+    """Handle request for live ML prediction"""
+    try:
+        if realtime_handler and realtime_handler.last_signal:
+            prediction = realtime_handler._generate_ml_prediction(realtime_handler.last_signal)
+            emit('live_prediction_update', {
+                'prediction': prediction,
+                'signal': realtime_handler.last_signal,
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            emit('live_prediction_update', {
+                'status': 'no_active_signal',
+                'message': 'No active signals available'
+            })
+    except Exception as e:
+        logger.error(f"Live prediction request error: {e}")
+        emit('live_prediction_update', {'error': str(e)})
+
+@socketio.on('request_webhook_stats')
+def handle_webhook_stats_request():
+    """Handle request for webhook statistics"""
+    try:
+        if db_enabled and db:
+            cursor = db.conn.cursor()
+            
+            # Get recent signal counts
+            cursor.execute("""
+                SELECT bias, COUNT(*) as count, MAX(timestamp) as last_signal
+                FROM live_signals
+                WHERE timestamp > NOW() - INTERVAL '24 hours'
+                GROUP BY bias
+            """)
+            
+            stats = {}
+            for row in cursor.fetchall():
+                stats[row['bias'].lower()] = {
+                    'count': row['count'],
+                    'last_signal': row['last_signal'].isoformat() if row['last_signal'] else None
+                }
+            
+            emit('webhook_stats_update', {
+                'stats': stats,
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            emit('webhook_stats_update', {'error': 'Database not available'})
+    except Exception as e:
+        logger.error(f"Webhook stats request error: {e}")
+        emit('webhook_stats_update', {'error': str(e)})
 
 # Register AI Business Advisor
 if db_enabled and db:
@@ -1028,6 +1093,11 @@ def d3_charts_js():
 @login_required
 def ai_chat_js():
     return send_from_directory('.', 'ai_chat.js', mimetype='application/javascript')
+
+@app.route('/websocket_client.js')
+@login_required
+def websocket_client_js():
+    return send_from_directory('.', 'websocket_client.js', mimetype='application/javascript')
 
 # Serve images from root
 @app.route('/style_preview.html')
@@ -3187,15 +3257,34 @@ def capture_live_signal():
         
         logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | {vix_info} | {quality_info} | ID: {signal_id} | Lab: {lab_status}")
         
-        # Broadcast signal to connected clients
+        # 🚀 REAL-TIME WEBSOCKET BROADCASTING
         try:
-            socketio.emit('signal_received', {
-                'bias': signal['bias'],
-                'symbol': signal['symbol'],
-                'price': signal['price'],
-                'timestamp': datetime.now().isoformat()
-            }, namespace='/')
-        except:
+            if realtime_handler:
+                # Process signal through real-time handler for instant broadcasting
+                broadcast_data = realtime_handler.process_signal({
+                    'id': signal_id,
+                    'bias': signal['bias'],
+                    'symbol': signal['symbol'],
+                    'price': signal['price'],
+                    'strength': base_strength,
+                    'session': signal['session'],
+                    'htf_aligned': signal['htf_aligned'],
+                    'htf_status': signal['htf_status'],
+                    'market_context': signal.get('market_context', {}),
+                    'ml_prediction': ml_prediction,
+                    'timestamp': datetime.now().isoformat()
+                })
+                logger.info(f"🚀 Real-time broadcast sent to {realtime_handler.active_connections} clients")
+            else:
+                # Fallback to basic WebSocket emit
+                socketio.emit('signal_received', {
+                    'bias': signal['bias'],
+                    'symbol': signal['symbol'],
+                    'price': signal['price'],
+                    'timestamp': datetime.now().isoformat()
+                }, namespace='/')
+        except Exception as ws_error:
+            logger.error(f"WebSocket broadcast error: {ws_error}")
             pass
         
         if should_populate:
@@ -3241,11 +3330,8 @@ def capture_live_signal():
         else:
             logger.info(f"⚠️ Skipped: {signal['symbol']} is not active NQ contract {active_nq_contract}")
         
-        # Broadcast enriched signal to all connected clients
-        enhanced_signal = dict(signal)
-        enhanced_signal['id'] = signal_id
-        enhanced_signal['ml_prediction'] = ml_prediction
-        socketio.emit('new_signal', enhanced_signal, namespace='/')
+        # Enhanced signal already broadcasted through real-time handler above
+        # This ensures no duplicate broadcasts
         
         return jsonify({
             "status": "success",
