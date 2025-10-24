@@ -215,10 +215,10 @@ class IntelligentPredictor:
         """Get prediction for most recent signal"""
         cursor = self.db.conn.cursor()
         cursor.execute("""
-            SELECT session, bias, created_at, time, entry_price
-            FROM signal_lab_trades
-            WHERE active_trade = true
-            ORDER BY created_at DESC
+            SELECT session, bias, timestamp, price
+            FROM live_signals
+            WHERE symbol = 'NQ1!'
+            ORDER BY timestamp DESC
             LIMIT 1
         """)
         
@@ -226,13 +226,11 @@ class IntelligentPredictor:
         if not signal:
             return {'status': 'no_active_signal'}
         
-        # Get prediction
         prediction = self.predict_with_confidence({
             'session': signal['session'],
             'bias': signal['bias']
         })
         
-        # Get multi-target predictions
         multi_target = self.predict_multi_target({
             'session': signal['session'],
             'bias': signal['bias']
@@ -242,9 +240,9 @@ class IntelligentPredictor:
             'signal': {
                 'session': signal['session'],
                 'bias': signal['bias'],
-                'timestamp': signal['created_at'].isoformat(),
-                'time': str(signal['time']) if signal['time'] else None,
-                'price': float(signal['entry_price']) if signal['entry_price'] else None
+                'timestamp': signal['timestamp'].isoformat(),
+                'time': signal['timestamp'].strftime('%H:%M:%S'),
+                'price': float(signal['price']) if signal['price'] else None
             },
             'prediction': prediction,
             'multi_target': multi_target,
