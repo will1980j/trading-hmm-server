@@ -43,9 +43,16 @@ I have a comprehensive cloud-based NASDAQ day trading analytics platform built w
 
 ### **DEVELOPMENT WORKFLOW:**
 1. **Develop locally** for speed and iteration
-2. **Deploy to Railway** for validation and testing
-3. **Validate on production** - if it fails there, it's broken
-4. **Never rely on local-only functionality**
+2. **Commit via GitHub Desktop** - stage changes and commit with descriptive messages
+3. **Push to main branch** - triggers automatic Railway deployment
+4. **Validate on production** - if it fails there, it's broken
+5. **Never rely on local-only functionality**
+
+### **DEPLOYMENT PROCESS:**
+- **Tool:** GitHub Desktop (GUI-based Git client)
+- **Method:** Commit → Push → Auto-deploy to Railway
+- **Timeline:** Deployment typically completes within 2-3 minutes
+- **Monitoring:** Railway dashboard shows build status and logs
 
 ### **TESTING PRIORITY:**
 - **Primary:** Production Railway testing (`web-production-cd33.up.railway.app`)
@@ -694,6 +701,7 @@ break_even_trigger = target_1R
 - **Backend:** Python/Flask with comprehensive analytics libraries
 - **Database:** PostgreSQL (Railway) for real-time data storage and historical analysis
 - **Deployment:** Railway cloud platform with scalable architecture
+- **Version Control & Deployment:** GitHub Desktop for version control with automatic Railway deployment via GitHub integration
 - **Integration:** TradingView webhooks, real-time WebSocket connections
 
 ## Trading Session Times (EST/EDT)

@@ -616,15 +616,15 @@ def login():
         
         if not username or not password:
             error_msg = markup_escape('Username and password are required')
-            return render_template_string(read_html_file('login_professional.html'), error=error_msg)
+            return render_template_string(read_html_file('login_interactive_js.html'), error=error_msg)
             
         if authenticate(username, password):
             session['authenticated'] = True
             return redirect('/homepage')
             
         error_msg = markup_escape('Invalid credentials')
-        return render_template_string(read_html_file('login_professional.html'), error=error_msg)
-    return render_template_string(read_html_file('login_professional.html'))
+        return render_template_string(read_html_file('login_interactive_js.html'), error=error_msg)
+    return render_template_string(read_html_file('login_interactive_js.html'))
 
 @app.route('/logout')
 def logout():
@@ -636,6 +636,39 @@ def logout():
 def homepage():
     """Professional homepage - main landing page after login"""
     return read_html_file('homepage.html')
+
+# Video Background Versions - For Testing
+@app.route('/login-video')
+def login_video():
+    """Login with video background"""
+    return read_html_file('login_video_background.html')
+
+@app.route('/login-css')
+def login_css():
+    """Login with CSS animations"""
+    return read_html_file('login_css_animated.html')
+
+@app.route('/login-interactive')
+def login_interactive():
+    """Login with interactive JavaScript"""
+    return read_html_file('login_interactive_js.html')
+
+@app.route('/homepage-video')
+@login_required
+def homepage_video():
+    """Homepage with video background"""
+    return read_html_file('homepage_video_background.html')
+
+@app.route('/homepage-css')
+@login_required
+def homepage_css():
+    """Homepage with CSS animations"""
+    return read_html_file('homepage_css_animated.html')
+
+@app.route('/video-demo')
+def video_demo():
+    """Demo page to test all video background versions"""
+    return read_html_file('video_background_demo.html')
 
 # Main routes - now protected
 @app.route('/')

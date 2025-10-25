@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Background Demo - Choose Your Style</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0e27, #1a1f3a);
+            color: white;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .demo-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .demo-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #3b82f6;
+        }
+
+        .demo-description {
+            color: #94a3b8;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .demo-links {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .demo-link {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .demo-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+        }
+
+        .features-list {
+            text-align: left;
+            margin: 1rem 0;
+        }
+
+        .features-list li {
+            color: #94a3b8;
+            margin-bottom: 0.5rem;
+        }
+
+        .current-status {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid #22c55e;
+            color: #22c55e;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-top: 2rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Video Background Demo - Choose Your Style</h1>
+
+        <div class="demo-grid">
+            <!-- Version A: Video Files -->
+            <div class="demo-card">
+                <h2 class="demo-title">📹 Version A: Video Backgrounds</h2>
+                <p class="demo-description">Real video backgrounds with cinematic effects</p>
+                <ul class="features-list">
+                    <li>✨ Real video footage backgrounds</li>
+                    <li>🎬 Cinematic overlay effects</li>
+                    <li>📱 Mobile-optimized playback</li>
+                    <li>🔄 Automatic fallback to gradients</li>
+                </ul>
+                <div class="demo-links">
+                    <a href="/login-video" class="demo-link" target="_blank">🔐 Login - Video Version</a>
+                    <a href="/homepage-video" class="demo-link" target="_blank">🏠 Homepage - Video Version</a>
+                </div>
+            </div>
+
+            <!-- Version B: CSS Animations -->
+            <div class="demo-card">
+                <h2 class="demo-title">🎨 Version B: CSS Animations</h2>
+                <p class="demo-description">Pure CSS animations with matrix effects</p>
+                <ul class="features-list">
+                    <li>⚡ Lightning fast loading</li>
+                    <li>🔢 Matrix-style data streams</li>
+                    <li>🔮 Floating geometric shapes</li>
+                    <li>🌈 Animated gradient backgrounds</li>
+                </ul>
+                <div class="demo-links">
+                    <a href="/login-css" class="demo-link" target="_blank">🔐 Login - CSS Version</a>
+                    <a href="/homepage-css" class="demo-link" target="_blank">🏠 Homepage - CSS Version</a>
+                </div>
+            </div>
+
+            <!-- Version C: Interactive JavaScript -->
+            <div class="demo-card">
+                <h2 class="demo-title">⚡ Version C: Interactive JS</h2>
+                <p class="demo-description">Interactive particle systems that respond to mouse</p>
+                <ul class="features-list">
+                    <li>🖱️ Mouse-responsive particles</li>
+                    <li>🔗 Dynamic connection networks</li>
+                    <li>🎯 Interactive elements</li>
+                    <li>✨ Real-time visual effects</li>
+                </ul>
+                <div class="demo-links">
+                    <a href="/login-interactive" class="demo-link" target="_blank">🔐 Login - Interactive Version</a>
+                    <span style="color: #94a3b8; font-size: 0.9rem;">Homepage version coming soon</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="current-status">
+            <h3>🎯 Current Status</h3>
+            <p>All video background versions are created and ready to test!</p>
+            <p><strong>Current Login:</strong> Interactive JavaScript version is active</p>
+            <p><strong>To Switch:</strong> Update web_server.py login route to use your preferred version</p>
+        </div>
+    </div>
+</body>
+</html>
