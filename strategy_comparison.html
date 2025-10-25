@@ -75,13 +75,33 @@
         .chart-header h3 { font-size: 1.125rem; font-weight: 700; color: var(--text-primary); }
         
         /* Enhanced Risk Analysis Styles */
-        .risk-analysis-container { padding: var(--spacing-md); }
-        .section-header { margin-bottom: var(--spacing-md); }
-        .heatmap-cell:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-        .scenario-card { transition: all 0.3s ease; }
-        .scenario-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .risk-analysis-container { 
+            padding: 16px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 16px; 
+            max-height: 70vh; 
+            overflow-y: auto; 
+            position: relative;
+        }
+        .section-header { margin-bottom: 12px; }
+        .heatmap-cell:hover { transform: scale(1.02); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .scenario-card { transition: all 0.2s ease; }
+        .scenario-card:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         .metric-card { transition: all 0.2s ease; }
-        .metric-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2); }
+        .metric-card:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15); }
+        
+        /* Prevent overlapping */
+        .probability-heatmap-section,
+        .risk-scenarios-section,
+        .psychological-prep-section,
+        .position-sizing-section,
+        .monte-carlo-section,
+        .enhanced-metrics-section {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 16px;
+        }
         
         /* Tooltip Styles */
         #heatmapTooltip { 
@@ -1076,22 +1096,22 @@
             const total = results.length;
             const winRate = total > 0 ? wins / total : 0;
             
-            // Create enhanced risk analysis HTML
+            // Create enhanced risk analysis HTML with proper layout
             let html = `
-                <div class="risk-analysis-container">
+                <div class="risk-analysis-container" style="display: flex; flex-direction: column; gap: 16px; padding: 16px; max-height: 70vh; overflow-y: auto;">
                     <!-- Consecutive Loss Probability Heatmap -->
-                    <div class="probability-heatmap-section">
-                        <div class="section-header">
-                            <h4 style="color: var(--accent-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <div class="probability-heatmap-section" style="position: relative; z-index: 1;">
+                        <div class="section-header" style="margin-bottom: 12px;">
+                            <h4 style="color: var(--accent-primary); margin: 0; display: flex; align-items: center; gap: 8px; font-size: 16px;">
                                 🔥 Consecutive Loss Probability Matrix
-                                <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal;">Mathematical Certainty</span>
+                                <span style="font-size: 11px; color: var(--text-secondary); font-weight: normal;">Mathematical Certainty</span>
                             </h4>
                         </div>
-                        <div class="heatmap-container" style="background: var(--bg-tertiary); border-radius: var(--radius-md); padding: var(--spacing-lg); margin: var(--spacing-md) 0; border: 1px solid var(--border-color);">
-                            <div id="lossHeatmap" style="width: 100%; height: 300px; position: relative;"></div>
-                            <div class="strategy-indicator" style="margin-top: var(--spacing-md); padding: var(--spacing-sm); background: rgba(0,255,136,0.1); border-radius: var(--radius-sm); border: 1px solid rgba(0,255,136,0.3);">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <div style="width: 12px; height: 12px; background: #00ff88; border-radius: 50%; box-shadow: 0 0 8px rgba(0,255,136,0.5);"></div>
+                        <div class="heatmap-container" style="background: var(--bg-tertiary); border-radius: 8px; padding: 12px; border: 1px solid var(--border-color); position: relative; z-index: 1;">
+                            <div id="lossHeatmap" style="width: 100%; position: relative; z-index: 1;"></div>
+                            <div class="strategy-indicator" style="margin-top: 8px; padding: 6px; background: rgba(0,255,136,0.1); border-radius: 4px; border: 1px solid rgba(0,255,136,0.3);">
+                                <div style="display: flex; align-items: center; gap: 6px; font-size: 11px;">
+                                    <div style="width: 6px; height: 6px; background: #00ff88; border-radius: 50%; box-shadow: 0 0 4px rgba(0,255,136,0.5);"></div>
                                     <span style="font-weight: 600;">Your Strategy: ${(winRate * 100).toFixed(1)}% Win Rate</span>
                                 </div>
                             </div>
@@ -1099,14 +1119,14 @@
                     </div>
 
                     <!-- Risk Scenario Analysis -->
-                    <div class="risk-scenarios-section">
-                        <div class="section-header">
-                            <h4 style="color: var(--accent-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <div class="risk-scenarios-section" style="position: relative; z-index: 1;">
+                        <div class="section-header" style="margin-bottom: 12px;">
+                            <h4 style="color: var(--accent-primary); margin: 0; display: flex; align-items: center; gap: 8px; font-size: 16px;">
                                 🎲 Risk Scenario Analysis
-                                <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal;">What to Expect</span>
+                                <span style="font-size: 11px; color: var(--text-secondary); font-weight: normal;">What to Expect</span>
                             </h4>
                         </div>
-                        <div class="scenario-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--spacing-md); margin: var(--spacing-md) 0;">
+                        <div class="scenario-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
                             <div id="conservativeScenario" class="scenario-card"></div>
                             <div id="realisticScenario" class="scenario-card"></div>
                             <div id="stressScenario" class="scenario-card"></div>
@@ -1114,79 +1134,79 @@
                     </div>
 
                     <!-- Psychological Preparation Dashboard -->
-                    <div class="psychological-prep-section">
-                        <div class="section-header">
-                            <h4 style="color: var(--accent-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <div class="psychological-prep-section" style="position: relative; z-index: 1;">
+                        <div class="section-header" style="margin-bottom: 12px;">
+                            <h4 style="color: var(--accent-primary); margin: 0; display: flex; align-items: center; gap: 8px; font-size: 16px;">
                                 🧠 Psychological Preparation
-                                <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal;">Mental Readiness</span>
+                                <span style="font-size: 11px; color: var(--text-secondary); font-weight: normal;">Mental Readiness</span>
                             </h4>
                         </div>
-                        <div id="psychologicalGauge" style="background: var(--bg-tertiary); border-radius: var(--radius-md); padding: var(--spacing-lg); margin: var(--spacing-md) 0; border: 1px solid var(--border-color);">
+                        <div id="psychologicalGauge" style="background: var(--bg-tertiary); border-radius: 8px; padding: 12px; border: 1px solid var(--border-color);">
                             <div class="readiness-indicators" id="readinessIndicators"></div>
                         </div>
                     </div>
 
                     <!-- Position Sizing Intelligence -->
-                    <div class="position-sizing-section">
-                        <div class="section-header">
-                            <h4 style="color: var(--accent-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <div class="position-sizing-section" style="position: relative; z-index: 1;">
+                        <div class="section-header" style="margin-bottom: 12px;">
+                            <h4 style="color: var(--accent-primary); margin: 0; display: flex; align-items: center; gap: 8px; font-size: 16px;">
                                 💰 Intelligent Position Sizing
-                                <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal;">Optimal Risk Management</span>
+                                <span style="font-size: 11px; color: var(--text-secondary); font-weight: normal;">Optimal Risk Management</span>
                             </h4>
                         </div>
-                        <div class="sizing-container" style="background: var(--bg-tertiary); border-radius: var(--radius-md); padding: var(--spacing-lg); margin: var(--spacing-md) 0; border: 1px solid var(--border-color);">
+                        <div class="sizing-container" style="background: var(--bg-tertiary); border-radius: 8px; padding: 12px; border: 1px solid var(--border-color);">
                             <div class="sizing-calculator" id="positionSizingCalculator"></div>
                         </div>
                     </div>
 
                     <!-- Monte Carlo Simulation -->
-                    <div class="monte-carlo-section">
-                        <div class="section-header">
-                            <h4 style="color: var(--accent-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <div class="monte-carlo-section" style="position: relative; z-index: 1;">
+                        <div class="section-header" style="margin-bottom: 12px;">
+                            <h4 style="color: var(--accent-primary); margin: 0; display: flex; align-items: center; gap: 8px; font-size: 16px;">
                                 🎲 Monte Carlo Simulation
-                                <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal;">1,000 Possible Futures</span>
+                                <span style="font-size: 11px; color: var(--text-secondary); font-weight: normal;">1,000 Possible Futures</span>
                             </h4>
                         </div>
-                        <div class="monte-carlo-container" style="background: var(--bg-tertiary); border-radius: var(--radius-md); padding: var(--spacing-lg); margin: var(--spacing-md) 0; border: 1px solid var(--border-color);">
-                            <div style="display: flex; align-items: center; gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
-                                <button id="runMonteCarloBtn" class="btn-primary" style="padding: 12px 24px; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                        <div class="monte-carlo-container" style="background: var(--bg-tertiary); border-radius: 8px; padding: 12px; border: 1px solid var(--border-color);">
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                <button id="runMonteCarloBtn" class="btn-primary" style="padding: 10px 20px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                                     <span>🚀</span>
                                     <span>Run 1,000 Simulations</span>
                                 </button>
-                                <div id="simulationProgress" style="flex: 1; height: 8px; background: var(--bg-primary); border-radius: 4px; overflow: hidden; display: none;">
+                                <div id="simulationProgress" style="flex: 1; height: 6px; background: var(--bg-primary); border-radius: 3px; overflow: hidden; display: none;">
                                     <div id="progressBar" style="height: 100%; background: linear-gradient(90deg, #00ff88, #00d4aa); width: 0%; transition: width 0.1s;"></div>
                                 </div>
-                                <div id="progressText" style="font-size: 12px; color: var(--text-secondary); display: none;">Ready to simulate</div>
+                                <div id="progressText" style="font-size: 11px; color: var(--text-secondary); display: none;">Ready to simulate</div>
                             </div>
                             <div id="monteCarloResults" style="display: none;">
-                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
-                                    <div id="finalEquityChart" style="background: var(--bg-primary); border-radius: var(--radius-sm); padding: var(--spacing-md); border: 1px solid var(--border-color);">
-                                        <h6 style="color: var(--text-primary); margin: 0 0 var(--spacing-sm) 0;">Final Equity Distribution</h6>
-                                        <canvas id="equityHistogram" width="200" height="120"></canvas>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                                    <div id="finalEquityChart" style="background: var(--bg-primary); border-radius: 6px; padding: 10px; border: 1px solid var(--border-color);">
+                                        <h6 style="color: var(--text-primary); margin: 0 0 8px 0; font-size: 12px;">Final Equity Distribution</h6>
+                                        <canvas id="equityHistogram" width="180" height="100"></canvas>
                                     </div>
-                                    <div id="maxDrawdownChart" style="background: var(--bg-primary); border-radius: var(--radius-sm); padding: var(--spacing-md); border: 1px solid var(--border-color);">
-                                        <h6 style="color: var(--text-primary); margin: 0 0 var(--spacing-sm) 0;">Max Drawdown Distribution</h6>
-                                        <canvas id="drawdownHistogram" width="200" height="120"></canvas>
+                                    <div id="maxDrawdownChart" style="background: var(--bg-primary); border-radius: 6px; padding: 10px; border: 1px solid var(--border-color);">
+                                        <h6 style="color: var(--text-primary); margin: 0 0 8px 0; font-size: 12px;">Max Drawdown Distribution</h6>
+                                        <canvas id="drawdownHistogram" width="180" height="100"></canvas>
                                     </div>
-                                    <div id="lossStreakChart" style="background: var(--bg-primary); border-radius: var(--radius-sm); padding: var(--spacing-md); border: 1px solid var(--border-color);">
-                                        <h6 style="color: var(--text-primary); margin: 0 0 var(--spacing-sm) 0;">Loss Streak Distribution</h6>
-                                        <canvas id="lossStreakHistogram" width="200" height="120"></canvas>
+                                    <div id="lossStreakChart" style="background: var(--bg-primary); border-radius: 6px; padding: 10px; border: 1px solid var(--border-color);">
+                                        <h6 style="color: var(--text-primary); margin: 0 0 8px 0; font-size: 12px;">Loss Streak Distribution</h6>
+                                        <canvas id="lossStreakHistogram" width="180" height="100"></canvas>
                                     </div>
                                 </div>
-                                <div id="simulationSummary" style="padding: var(--spacing-md); background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: var(--radius-sm);"></div>
+                                <div id="simulationSummary" style="padding: 10px; background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: 6px;"></div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Enhanced Risk Metrics -->
-                    <div class="enhanced-metrics-section">
-                        <div class="section-header">
-                            <h4 style="color: var(--accent-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <div class="enhanced-metrics-section" style="position: relative; z-index: 1;">
+                        <div class="section-header" style="margin-bottom: 12px;">
+                            <h4 style="color: var(--accent-primary); margin: 0; display: flex; align-items: center; gap: 8px; font-size: 16px;">
                                 📊 Advanced Risk Metrics
-                                <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal;">Scalping Analysis</span>
+                                <span style="font-size: 11px; color: var(--text-secondary); font-weight: normal;">Scalping Analysis</span>
                             </h4>
                         </div>
-                        <div id="enhancedMetrics" style="background: var(--bg-tertiary); border-radius: var(--radius-md); padding: var(--spacing-lg); margin: var(--spacing-md) 0; border: 1px solid var(--border-color);"></div>
+                        <div id="enhancedMetrics" style="background: var(--bg-tertiary); border-radius: 8px; padding: 12px; border: 1px solid var(--border-color);"></div>
                     </div>
                 </div>
             `;
@@ -1210,91 +1230,78 @@
             const container = document.getElementById('lossHeatmap');
             if (!container) return;
             
-            // Create heatmap data
-            const winRates = [0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80];
-            const lossStreaks = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+            // Compact data - fewer rows and columns for better fit
+            const winRates = [0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80];
+            const lossStreaks = [2, 3, 4, 5, 6, 7, 8];
             
             let html = `
-                <div style="overflow-x: auto; border-radius: 12px; border: 1px solid var(--border-color);">
-                    <table class="heatmap-table" style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; background: var(--bg-primary);">
+                <div style="overflow-x: auto; border-radius: 8px; border: 1px solid var(--border-color); max-width: 100%;">
+                    <table style="width: 100%; border-collapse: separate; border-spacing: 1px; font-size: 11px; background: var(--bg-primary);">
                         <thead>
-                            <tr style="background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));">
-                                <th style="padding: 12px 8px; text-align: center; color: var(--text-primary); font-weight: 700; border-bottom: 2px solid var(--border-color); position: sticky; left: 0; background: var(--bg-secondary); z-index: 10;">WIN RATE</th>
-                                ${lossStreaks.map(streak => `<th style="padding: 12px 8px; text-align: center; color: var(--text-primary); font-weight: 700; border-bottom: 2px solid var(--border-color); min-width: 80px;">${streak} LOSSES</th>`).join('')}
+                            <tr style="background: var(--bg-secondary);">
+                                <th style="padding: 6px 4px; text-align: center; color: var(--text-secondary); font-weight: 600; font-size: 10px; min-width: 45px;">WIN%</th>
+                                ${lossStreaks.map(streak => `<th style="padding: 6px 4px; text-align: center; color: var(--text-secondary); font-weight: 600; font-size: 10px; min-width: 50px;">${streak}L</th>`).join('')}
                             </tr>
                         </thead>
                         <tbody>
             `;
             
-            winRates.forEach((wr, rowIndex) => {
+            winRates.forEach((wr) => {
                 const isStrategyRow = Math.abs(wr - winRate) < 0.03;
                 
-                html += `<tr style="transition: all 0.2s ease;">`;
+                html += `<tr>`;
                 
-                // Win rate column (sticky)
+                // Win rate column
                 html += `<td style="
-                    padding: 12px 8px; 
+                    padding: 6px 4px; 
                     text-align: center; 
-                    font-weight: 700; 
+                    font-weight: 600; 
+                    font-size: 11px;
                     color: ${isStrategyRow ? '#00ff88' : 'var(--text-primary)'}; 
-                    background: ${isStrategyRow ? 'linear-gradient(135deg, rgba(0,255,136,0.2), rgba(0,212,170,0.1))' : 'var(--bg-secondary)'}; 
-                    border-right: 2px solid var(--border-color);
-                    position: sticky; 
-                    left: 0; 
-                    z-index: 5;
-                    ${isStrategyRow ? 'box-shadow: 0 0 20px rgba(0,255,136,0.3); border: 2px solid #00ff88;' : ''}
+                    background: ${isStrategyRow ? 'rgba(0,255,136,0.15)' : 'var(--bg-secondary)'}; 
+                    ${isStrategyRow ? 'border: 1px solid #00ff88;' : ''}
                 ">${(wr * 100).toFixed(0)}%</td>`;
                 
-                lossStreaks.forEach((streak, colIndex) => {
+                lossStreaks.forEach((streak) => {
                     const probability = Math.pow(1 - wr, streak);
                     const expectedFreq = Math.round(1 / probability);
                     
-                    // Enhanced color coding with better gradients
-                    let bgColor, textColor, borderColor;
-                    if (probability < 0.01) {
-                        bgColor = 'linear-gradient(135deg, #059669, #10b981)'; // Dark green
+                    // Simplified color coding
+                    let bgColor, textColor;
+                    if (probability < 0.02) {
+                        bgColor = '#10b981'; // Green
                         textColor = '#ffffff';
-                        borderColor = '#059669';
-                    } else if (probability < 0.05) {
-                        bgColor = 'linear-gradient(135deg, #10b981, #34d399)'; // Green
+                    } else if (probability < 0.10) {
+                        bgColor = '#f59e0b'; // Yellow
                         textColor = '#ffffff';
-                        borderColor = '#10b981';
-                    } else if (probability < 0.15) {
-                        bgColor = 'linear-gradient(135deg, #f59e0b, #fbbf24)'; // Yellow
+                    } else if (probability < 0.25) {
+                        bgColor = '#f97316'; // Orange
                         textColor = '#ffffff';
-                        borderColor = '#f59e0b';
-                    } else if (probability < 0.30) {
-                        bgColor = 'linear-gradient(135deg, #f97316, #fb923c)'; // Orange
-                        textColor = '#ffffff';
-                        borderColor = '#f97316';
                     } else {
-                        bgColor = 'linear-gradient(135deg, #dc2626, #ef4444)'; // Red
+                        bgColor = '#ef4444'; // Red
                         textColor = '#ffffff';
-                        borderColor = '#dc2626';
                     }
                     
                     const cellStyle = isStrategyRow ? 
-                        `box-shadow: 0 0 15px rgba(0,255,136,0.4); border: 2px solid #00ff88; transform: scale(1.02);` : 
-                        `border: 1px solid ${borderColor};`;
+                        `border: 1px solid #00ff88; box-shadow: 0 0 8px rgba(0,255,136,0.3);` : 
+                        '';
                     
                     html += `
                         <td class="heatmap-cell" 
                             style="
-                                padding: 12px 8px; 
+                                padding: 6px 4px; 
                                 text-align: center; 
                                 background: ${bgColor}; 
                                 color: ${textColor}; 
                                 cursor: pointer; 
                                 font-weight: 600; 
-                                transition: all 0.3s ease;
+                                font-size: 11px;
+                                transition: all 0.2s ease;
                                 ${cellStyle}
-                                position: relative;
                             "
                             onmouseover="showHeatmapTooltip(event, ${(probability * 100).toFixed(2)}, ${expectedFreq}, ${streak}, '${wr}')"
-                            onmouseout="hideHeatmapTooltip()"
-                            onclick="selectHeatmapCell(${wr}, ${streak})">
-                            <div style="font-size: 14px; font-weight: 700; margin-bottom: 2px;">${(probability * 100).toFixed(1)}%</div>
-                            <div style="font-size: 10px; opacity: 0.9;">1:${expectedFreq}</div>
+                            onmouseout="hideHeatmapTooltip()">
+                            ${(probability * 100).toFixed(1)}%
                         </td>
                     `;
                 });
@@ -1307,20 +1314,20 @@
                     </table>
                 </div>
                 <div id="heatmapTooltip" style="
-                    position: absolute; 
-                    background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(20,20,40,0.95)); 
+                    position: fixed; 
+                    background: rgba(0,0,0,0.95); 
                     color: white; 
-                    padding: 16px; 
-                    border-radius: 12px; 
-                    font-size: 14px; 
+                    padding: 10px; 
+                    border-radius: 6px; 
+                    font-size: 11px; 
                     pointer-events: none; 
                     opacity: 0; 
-                    transition: all 0.3s ease; 
-                    z-index: 1000; 
+                    transition: opacity 0.2s; 
+                    z-index: 10000; 
                     border: 1px solid rgba(255,255,255,0.2);
-                    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-                    backdrop-filter: blur(10px);
-                    max-width: 280px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+                    max-width: 180px;
+                    backdrop-filter: blur(5px);
                 "></div>
             `;
             
@@ -1331,52 +1338,42 @@
             const tooltip = document.getElementById('heatmapTooltip');
             if (!tooltip) return;
             
-            const riskLevel = probability < 1 ? 'Very Low' : 
-                             probability < 5 ? 'Low' : 
-                             probability < 15 ? 'Moderate' : 
-                             probability < 30 ? 'High' : 'Very High';
+            const riskLevel = probability < 2 ? 'Low' : 
+                             probability < 10 ? 'Moderate' : 'High';
             
-            const riskColor = probability < 1 ? '#10b981' : 
-                             probability < 5 ? '#34d399' : 
-                             probability < 15 ? '#fbbf24' : 
-                             probability < 30 ? '#fb923c' : '#ef4444';
+            const riskColor = probability < 2 ? '#10b981' : 
+                             probability < 10 ? '#f59e0b' : '#ef4444';
             
             tooltip.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                    <div style="width: 8px; height: 8px; background: ${riskColor}; border-radius: 50%; box-shadow: 0 0 8px ${riskColor};"></div>
-                    <div style="font-weight: 700; font-size: 16px; color: #ffffff;">${streak} Consecutive Losses</div>
-                </div>
-                
-                <div style="display: grid; gap: 8px; margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #94a3b8;">Win Rate:</span>
-                        <span style="color: #00ff88; font-weight: 600;">${(parseFloat(winRate) * 100).toFixed(0)}%</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #94a3b8;">Probability:</span>
-                        <span style="color: ${riskColor}; font-weight: 700; font-size: 16px;">${probability}%</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #94a3b8;">Expected Every:</span>
-                        <span style="color: #3b82f6; font-weight: 600;">${frequency} trades</span>
-                    </div>
-                </div>
-                
-                <div style="padding: 8px 12px; background: rgba(${riskColor === '#10b981' ? '16,185,129' : riskColor === '#34d399' ? '52,211,153' : riskColor === '#fbbf24' ? '251,191,36' : riskColor === '#fb923c' ? '251,146,60' : '239,68,68'}, 0.2); border-radius: 8px; border-left: 3px solid ${riskColor};">
-                    <div style="font-size: 12px; font-weight: 600; color: ${riskColor}; margin-bottom: 4px;">Risk Level: ${riskLevel}</div>
-                    <div style="font-size: 11px; color: #94a3b8; line-height: 1.4;">
-                        ${probability < 1 ? 'Extremely rare - may never occur in typical trading' : 
-                          probability < 5 ? 'Rare occurrence - prepare but don\'t worry' : 
-                          probability < 15 ? 'Moderate risk - mental preparation needed' : 
-                          probability < 30 ? 'High probability - requires strong discipline' : 
-                          'Very likely - strategy may not be viable'}
-                    </div>
+                <div style="font-weight: 600; margin-bottom: 8px; color: #ffffff;">${streak} Consecutive Losses</div>
+                <div style="display: grid; gap: 4px; font-size: 11px;">
+                    <div>Win Rate: <span style="color: #00ff88;">${(parseFloat(winRate) * 100).toFixed(0)}%</span></div>
+                    <div>Probability: <span style="color: ${riskColor}; font-weight: 600;">${probability}%</span></div>
+                    <div>Every: <span style="color: #3b82f6;">${frequency} trades</span></div>
+                    <div style="margin-top: 4px; color: ${riskColor}; font-weight: 600;">${riskLevel} Risk</div>
                 </div>
             `;
             
             tooltip.style.opacity = '1';
-            tooltip.style.left = Math.min(event.pageX + 15, window.innerWidth - 300) + 'px';
-            tooltip.style.top = Math.max(event.pageY - 10, 10) + 'px';
+            
+            // Better positioning to avoid overlaps
+            const tooltipWidth = 180;
+            const tooltipHeight = 100;
+            let left = event.clientX + 15;
+            let top = event.clientY - 10;
+            
+            // Adjust if tooltip would go off screen
+            if (left + tooltipWidth > window.innerWidth) {
+                left = event.clientX - tooltipWidth - 15;
+            }
+            if (top + tooltipHeight > window.innerHeight) {
+                top = event.clientY - tooltipHeight - 10;
+            }
+            if (left < 0) left = 10;
+            if (top < 0) top = 10;
+            
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
         }
         
         function selectHeatmapCell(winRate, streak) {
@@ -1427,36 +1424,36 @@
                 const recoveryTrades = Math.ceil(maxDrawdown / (strategy.stats?.expectancy || 0.1));
                 
                 container.innerHTML = `
-                    <div style="background: ${scenario.color}; border: 1px solid ${scenario.borderColor}; border-radius: var(--radius-md); padding: var(--spacing-lg); height: 100%;">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: var(--spacing-md);">
-                            <span style="font-size: 24px;">${scenario.icon}</span>
+                    <div style="background: ${scenario.color}; border: 1px solid ${scenario.borderColor}; border-radius: var(--radius-sm); padding: var(--spacing-md); height: 100%;">
+                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: var(--spacing-sm);">
+                            <span style="font-size: 18px;">${scenario.icon}</span>
                             <div>
-                                <div style="font-weight: 700; color: var(--text-primary);">${scenario.title}</div>
-                                <div style="font-size: 12px; color: var(--text-secondary);">${(scenario.confidence * 100)}% Confidence Level</div>
+                                <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">${scenario.title}</div>
+                                <div style="font-size: 10px; color: var(--text-secondary);">${(scenario.confidence * 100)}% Confidence</div>
                             </div>
                         </div>
                         
-                        <div style="display: grid; gap: var(--spacing-md);">
+                        <div style="display: grid; gap: var(--spacing-sm);">
                             <div class="scenario-metric">
-                                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Max Consecutive Losses</div>
-                                <div style="font-size: 24px; font-weight: 700; color: ${scenario.borderColor};">${maxConsecLosses}</div>
+                                <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 2px;">Max Consecutive Losses</div>
+                                <div style="font-size: 18px; font-weight: 700; color: ${scenario.borderColor};">${maxConsecLosses}</div>
                             </div>
                             
                             <div class="scenario-metric">
-                                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Max Drawdown</div>
-                                <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);">-${maxDrawdown.toFixed(1)}R</div>
+                                <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 2px;">Max Drawdown</div>
+                                <div style="font-size: 16px; font-weight: 700; color: var(--text-primary);">-${maxDrawdown.toFixed(1)}R</div>
                             </div>
                             
                             <div class="scenario-metric">
-                                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Recovery Time</div>
-                                <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);">${recoveryTrades} trades</div>
+                                <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 2px;">Recovery Time</div>
+                                <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${recoveryTrades} trades</div>
                             </div>
                         </div>
                         
-                        <div style="margin-top: var(--spacing-md); padding: var(--spacing-sm); background: rgba(0,0,0,0.2); border-radius: var(--radius-sm); font-size: 12px; color: var(--text-secondary);">
-                            ${scenario.confidence === 0.90 ? 'Most likely scenario - plan for this' :
-                              scenario.confidence === 0.70 ? 'Expected outcome - normal trading' :
-                              'Worst case scenario - emergency planning'}
+                        <div style="margin-top: var(--spacing-sm); padding: 6px; background: rgba(0,0,0,0.2); border-radius: 4px; font-size: 10px; color: var(--text-secondary);">
+                            ${scenario.confidence === 0.90 ? 'Most likely scenario' :
+                              scenario.confidence === 0.70 ? 'Expected outcome' :
+                              'Worst case scenario'}
                         </div>
                     </div>
                 `;
@@ -1523,18 +1520,18 @@
             
             indicators.forEach(indicator => {
                 html += `
-                    <div style="display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-md); background: rgba(${indicator.color === '#10b981' ? '16, 185, 129' : indicator.color === '#f59e0b' ? '245, 158, 11' : '239, 68, 68'}, 0.1); border-radius: var(--radius-sm); border-left: 4px solid ${indicator.color};">
-                        <div style="font-size: 32px;">${indicator.icon}</div>
+                    <div style="display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm); background: rgba(${indicator.color === '#10b981' ? '16, 185, 129' : indicator.color === '#f59e0b' ? '245, 158, 11' : '239, 68, 68'}, 0.1); border-radius: 4px; border-left: 3px solid ${indicator.color};">
+                        <div style="font-size: 20px;">${indicator.icon}</div>
                         <div style="flex: 1;">
-                            <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">${indicator.title}</div>
-                            <div style="font-size: 14px; color: ${indicator.color}; font-weight: 600; margin-bottom: 4px;">
-                                ${(indicator.probability * 100).toFixed(1)}% chance • Every ${indicator.frequency} trades
+                            <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 2px; font-size: 12px;">${indicator.title}</div>
+                            <div style="font-size: 11px; color: ${indicator.color}; font-weight: 600; margin-bottom: 2px;">
+                                ${(indicator.probability * 100).toFixed(1)}% • Every ${indicator.frequency} trades
                             </div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">${indicator.advice}</div>
+                            <div style="font-size: 10px; color: var(--text-secondary);">${indicator.advice}</div>
                         </div>
-                        <div style="text-align: center; padding: var(--spacing-sm);">
-                            <div style="font-size: 18px; font-weight: 700; color: ${indicator.color};">${indicator.frequency}</div>
-                            <div style="font-size: 10px; color: var(--text-secondary);">trades</div>
+                        <div style="text-align: center; padding: 4px;">
+                            <div style="font-size: 14px; font-weight: 700; color: ${indicator.color};">${indicator.frequency}</div>
+                            <div style="font-size: 8px; color: var(--text-secondary);">trades</div>
                         </div>
                     </div>
                 `;
@@ -1688,53 +1685,47 @@
             const recoveryFactor = maxDD > 0 ? runningTotal / maxDD : 0;
             
             container.innerHTML = `
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md);">
-                    <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Profit Factor</div>
-                        <div style="font-size: 24px; font-weight: 700; color: ${profitFactor > 1.5 ? '#10b981' : profitFactor > 1.2 ? '#f59e0b' : '#ef4444'};">${profitFactor.toFixed(2)}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">${profitFactor > 1.5 ? 'Excellent' : profitFactor > 1.2 ? 'Good' : profitFactor > 1 ? 'Marginal' : 'Poor'}</div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--spacing-sm);">
+                    <div class="metric-card" style="padding: var(--spacing-sm); background: var(--bg-primary); border-radius: 4px; border: 1px solid var(--border-color); text-align: center;">
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 2px;">Profit Factor</div>
+                        <div style="font-size: 18px; font-weight: 700; color: ${profitFactor > 1.5 ? '#10b981' : profitFactor > 1.2 ? '#f59e0b' : '#ef4444'};">${profitFactor.toFixed(2)}</div>
+                        <div style="font-size: 8px; color: var(--text-secondary);">${profitFactor > 1.5 ? 'Excellent' : profitFactor > 1.2 ? 'Good' : profitFactor > 1 ? 'Marginal' : 'Poor'}</div>
                     </div>
                     
-                    <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Win Rate</div>
-                        <div style="font-size: 24px; font-weight: 700; color: ${winRate > 60 ? '#10b981' : winRate > 45 ? '#f59e0b' : '#ef4444'};">${winRate.toFixed(1)}%</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">${wins.length}W / ${losses.length}L / ${breakevens.length}BE</div>
+                    <div class="metric-card" style="padding: var(--spacing-sm); background: var(--bg-primary); border-radius: 4px; border: 1px solid var(--border-color); text-align: center;">
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 2px;">Win Rate</div>
+                        <div style="font-size: 18px; font-weight: 700; color: ${winRate > 60 ? '#10b981' : winRate > 45 ? '#f59e0b' : '#ef4444'};">${winRate.toFixed(1)}%</div>
+                        <div style="font-size: 8px; color: var(--text-secondary);">${wins.length}W/${losses.length}L</div>
                     </div>
                     
-                    <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Risk:Reward Ratio</div>
-                        <div style="font-size: 24px; font-weight: 700; color: var(--accent-primary);">1:${(avgWin / avgLoss).toFixed(1)}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">${avgWin.toFixed(2)}R avg win</div>
+                    <div class="metric-card" style="padding: var(--spacing-sm); background: var(--bg-primary); border-radius: 4px; border: 1px solid var(--border-color); text-align: center;">
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 2px;">Risk:Reward</div>
+                        <div style="font-size: 18px; font-weight: 700; color: var(--accent-primary);">1:${(avgWin / avgLoss).toFixed(1)}</div>
+                        <div style="font-size: 8px; color: var(--text-secondary);">${avgWin.toFixed(2)}R avg</div>
                     </div>
                     
-                    <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Max Loss Streak</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #ef4444;">${maxLossStreak}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">Historical Maximum</div>
+                    <div class="metric-card" style="padding: var(--spacing-sm); background: var(--bg-primary); border-radius: 4px; border: 1px solid var(--border-color); text-align: center;">
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 2px;">Max Loss Streak</div>
+                        <div style="font-size: 18px; font-weight: 700; color: #ef4444;">${maxLossStreak}</div>
+                        <div style="font-size: 8px; color: var(--text-secondary);">Historical</div>
                     </div>
                     
-                    <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Max Win Streak</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #10b981;">${maxWinStreak}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">Best Run</div>
+                    <div class="metric-card" style="padding: var(--spacing-sm); background: var(--bg-primary); border-radius: 4px; border: 1px solid var(--border-color); text-align: center;">
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 2px;">Max Win Streak</div>
+                        <div style="font-size: 18px; font-weight: 700; color: #10b981;">${maxWinStreak}</div>
+                        <div style="font-size: 8px; color: var(--text-secondary);">Best Run</div>
                     </div>
                     
-                    <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Expectancy</div>
-                        <div style="font-size: 24px; font-weight: 700; color: ${avgReturn > 0.1 ? '#10b981' : avgReturn > 0 ? '#f59e0b' : '#ef4444'};">${avgReturn.toFixed(3)}R</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">Per Trade Average</div>
+                    <div class="metric-card" style="padding: var(--spacing-sm); background: var(--bg-primary); border-radius: 4px; border: 1px solid var(--border-color); text-align: center;">
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 2px;">Expectancy</div>
+                        <div style="font-size: 18px; font-weight: 700; color: ${avgReturn > 0.1 ? '#10b981' : avgReturn > 0 ? '#f59e0b' : '#ef4444'};">${avgReturn.toFixed(3)}R</div>
+                        <div style="font-size: 8px; color: var(--text-secondary);">Per Trade</div>
                     </div>
                     
-                    <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Recovery Factor</div>
-                        <div style="font-size: 24px; font-weight: 700; color: ${recoveryFactor > 3 ? '#10b981' : recoveryFactor > 1.5 ? '#f59e0b' : '#ef4444'};">${recoveryFactor.toFixed(1)}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">Return / Max DD</div>
-                    </div>
-                    
-                    <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Total Trades</div>
-                        <div style="font-size: 24px; font-weight: 700; color: var(--text-primary);">${results.length}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">Sample Size</div>
+                    <div class="metric-card" style="padding: var(--spacing-sm); background: var(--bg-primary); border-radius: 4px; border: 1px solid var(--border-color); text-align: center;">
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 2px;">Recovery Factor</div>
+                        <div style="font-size: 18px; font-weight: 700; color: ${recoveryFactor > 3 ? '#10b981' : recoveryFactor > 1.5 ? '#f59e0b' : '#ef4444'};">${recoveryFactor.toFixed(1)}</div>
+                        <div style="font-size: 8px; color: var(--text-secondary);">Return/MaxDD</div>
                     </div>
                 </div>
                 
