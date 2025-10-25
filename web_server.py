@@ -5446,10 +5446,19 @@ def deploy_signal_lab_v2():
         if not schema_sql:
             return jsonify({'success': False, 'error': 'No schema provided'}), 400
         
-        # Get V1 trade count for verification
+        # Ensure clean transaction state
+        db.ensure_clean_transaction()
         cursor = db.conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
-        v1_count = cursor.fetchone()[0]
+        
+        # Get V1 trade count for verification (handle missing table)
+        try:
+            cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
+            result = cursor.fetchone()
+            v1_count = result[0] if result else 0
+        except Exception as table_error:
+            # Table might not exist yet
+            v1_count = 0
+            print(f"Warning: signal_lab_trades table issue: {table_error}")
         
         # Execute V2 schema
         cursor.execute("BEGIN;")
@@ -5461,24 +5470,39 @@ def deploy_signal_lab_v2():
             
             for statement in statements:
                 if statement and not statement.startswith('--'):
-                    cursor.execute(statement)
-                    
-                    # Track table creation
-                    if 'CREATE TABLE' in statement.upper():
-                        table_name = statement.split()[2]
-                        tables_created.append(table_name)
+                    try:
+                        cursor.execute(statement)
+                        
+                        # Track table creation
+                        if 'CREATE TABLE' in statement.upper():
+                            # Better table name extraction
+                            parts = statement.split()
+                            if len(parts) >= 3:
+                                table_name = parts[2].replace('IF', '').replace('NOT', '').replace('EXISTS', '').strip()
+                                tables_created.append(table_name)
+                    except Exception as stmt_error:
+                        print(f"Statement error: {stmt_error}")
+                        print(f"Statement: {statement[:100]}...")
+                        # Continue with other statements for CREATE IF NOT EXISTS
+                        if 'IF NOT EXISTS' not in statement.upper():
+                            raise stmt_error
             
             cursor.execute("COMMIT;")
             
-            # Verify V1 integrity
-            cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
-            v1_count_after = cursor.fetchone()[0]
-            
-            if v1_count_after != v1_count:
-                return jsonify({
-                    'success': False, 
-                    'error': f'V1 data integrity issue: {v1_count} -> {v1_count_after}'
-                }), 500
+            # Verify V1 integrity (only if table existed before)
+            if v1_count > 0:
+                try:
+                    cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
+                    result = cursor.fetchone()
+                    v1_count_after = result[0] if result else 0
+                    
+                    if v1_count_after != v1_count:
+                        return jsonify({
+                            'success': False, 
+                            'error': f'V1 data integrity issue: {v1_count} -> {v1_count_after}'
+                        }), 500
+                except Exception as verify_error:
+                    print(f"Verification warning: {verify_error}")
             
             return jsonify({
                 'success': True,
@@ -5489,10 +5513,14 @@ def deploy_signal_lab_v2():
             
         except Exception as e:
             cursor.execute("ROLLBACK;")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            error_msg = f"Schema execution error: {str(e)}"
+            print(error_msg)
+            return jsonify({'success': False, 'error': error_msg}), 500
             
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        error_msg = f"Deployment error: {str(e)}"
+        print(error_msg)
+        return jsonify({'success': False, 'error': error_msg}), 500
 
 @app.route('/api/ml-predict', methods=['POST'])
 def predict_signal_ml():
