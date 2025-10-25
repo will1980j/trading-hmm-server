@@ -335,7 +335,7 @@
         // Load historical signals
         async function loadHistoricalSignals() {
             try {
-                const response = await fetch('/api/live-signals?timeframe=' + currentTimeframe, {
+                const response = await fetch('/api/live-signals-v2?timeframe=' + currentTimeframe, {
                     timeout: 5000
                 });
                 if (!response.ok) throw new Error('Network response not ok');

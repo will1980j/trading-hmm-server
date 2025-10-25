@@ -58,6 +58,51 @@ I have a comprehensive cloud-based NASDAQ day trading analytics platform built w
 
 **⚠️ NEVER USE FALLBACK, SAMPLE, OR SIMULATION DATA ⚠️**
 
+## 🚨 **CRITICAL TRADING METHODOLOGY RULE** 🚨
+
+**⚠️ NEVER SIMPLIFY OR MODIFY THE EXACT TRADING METHODOLOGY ⚠️**
+
+### **MANDATORY METHODOLOGY PRINCIPLES:**
+
+1. **🚫 NO SIMPLIFIED IMPLEMENTATIONS**
+   - Never use placeholder logic like "signal_price + 2.5"
+   - Never use arbitrary buffers like "signal_price - 25"
+   - Never skip confirmation requirements
+   - Never ignore pivot detection logic
+
+2. **🚫 NO SHORTCUTS OR APPROXIMATIONS**
+   - Must implement EXACT confirmation candle logic
+   - Must implement EXACT pivot point detection
+   - Must implement EXACT stop loss methodology
+   - Must implement EXACT session filtering
+
+3. **🚫 NO "SIMPLIFIED FOR NOW" BULLSHIT**
+   - If the full methodology can't be implemented, DON'T implement it
+   - Better to have no automation than wrong automation
+   - Never deploy incomplete methodology as "temporary"
+   - Never use "we'll enhance it later" as an excuse
+
+4. **✅ EXACT METHODOLOGY IMPLEMENTATION REQUIREMENTS:**
+   - Follow the EXACT bullish/bearish confirmation process
+   - Use the EXACT pivot detection algorithm (3-candle pivot rules)
+   - Implement the EXACT stop loss placement logic
+   - Use the EXACT session timing validation
+   - Implement the EXACT signal cancellation rules
+
+### **THE METHODOLOGY IS SACRED:**
+- **Every detail matters** - No exceptions
+- **Every rule must be followed** - No shortcuts  
+- **Every calculation must be exact** - No approximations
+- **Every condition must be checked** - No skipping
+
+### **CONSEQUENCES OF VIOLATING THIS RULE:**
+- **Destroys trading edge** - Wrong methodology = wrong results
+- **Wastes real money** - Traders rely on this for actual trades
+- **Breaks trust** - System becomes unreliable
+- **Corrupts data** - Wrong signals pollute analytics
+
+**RULE: If you can't implement the EXACT methodology, don't implement anything at all!**
+
 ### **MANDATORY REAL DATA PRINCIPLES:**
 
 1. **🚫 NO FALLBACK DATA**
@@ -729,7 +774,7 @@ break_even_trigger = target_1R
 
 ### Core Platform URLs
 - **Production:** `https://web-production-cd33.up.railway.app/`
-- **Webhook Endpoint:** `https://web-production-cd33.up.railway.app/api/live-signals`
+- **Webhook Endpoint:** `https://web-production-cd33.up.railway.app/api/live-signals-v2`
 
 ### 12 Tool Dashboard Links
 - 🤖 **ML Intelligence Hub:** `https://web-production-cd33.up.railway.app/ml-dashboard`

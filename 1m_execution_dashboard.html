@@ -195,7 +195,7 @@
         }
 
         async function loadLiveSignals() {
-            const response = await fetch('/api/live-signals?timeframe=1m&limit=50');
+            const response = await fetch('/api/live-signals-v2?timeframe=1m&limit=50');
             const data = await response.json();
             
             // Filter for NQ1! only with valid prices (10,000 - 25,000)

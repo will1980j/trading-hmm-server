@@ -8320,7 +8320,7 @@ def process_signal_v2():
     try:
         data = request.get_json()
         
-        signal_type = data.get('type', '').replace('ish', '')  # "Bullish" -> "Bullish"
+        signal_type = data.get('type', '')  # Keep original: "Bullish" or "Bearish"
         signal_price = float(data.get('price', 0))
         signal_timestamp = data.get('timestamp', datetime.now().isoformat())
         signal_session = data.get('session', 'NY AM')
@@ -8334,31 +8334,24 @@ def process_signal_v2():
         else:
             signal_dt = datetime.now()
         
-        # Calculate automated entry and stop loss
-        if signal_type == 'Bullish':
-            entry_price = signal_price + 2.5  # Next candle open simulation
-            stop_loss_price = signal_price - 25.0  # 25 point buffer
-        else:  # Bearish
-            entry_price = signal_price - 2.5
-            stop_loss_price = signal_price + 25.0
+        # EXACT METHODOLOGY IMPLEMENTATION - NO SHORTCUTS
+        # Signals must wait for confirmation - cannot calculate entry/stop immediately
+        # This requires real-time candle monitoring and confirmation logic
         
-        risk_distance = abs(entry_price - stop_loss_price)
+        # For now, store signal as PENDING until proper confirmation system is built
+        entry_price = None  # Will be calculated after confirmation
+        stop_loss_price = None  # Will be calculated after confirmation
+        trade_status = 'pending_confirmation'  # Not active until confirmed
         
-        # Calculate R-targets
-        if signal_type == 'Bullish':
-            target_1r = entry_price + risk_distance
-            target_2r = entry_price + (2 * risk_distance)
-            target_3r = entry_price + (3 * risk_distance)
-            target_5r = entry_price + (5 * risk_distance)
-            target_10r = entry_price + (10 * risk_distance)
-            target_20r = entry_price + (20 * risk_distance)
-        else:
-            target_1r = entry_price - risk_distance
-            target_2r = entry_price - (2 * risk_distance)
-            target_3r = entry_price - (3 * risk_distance)
-            target_5r = entry_price - (5 * risk_distance)
-            target_10r = entry_price - (10 * risk_distance)
-            target_20r = entry_price - (20 * risk_distance)
+        # Cannot calculate risk distance or R-targets without confirmation
+        # These will be calculated when confirmation occurs
+        risk_distance = None
+        target_1r = None
+        target_2r = None
+        target_3r = None
+        target_5r = None
+        target_10r = None
+        target_20r = None
         
         # Insert V2 trade
         cursor = db.conn.cursor()
@@ -8374,7 +8367,7 @@ def process_signal_v2():
             gen_random_uuid(), %s, %s, %s,
             %s, %s, %s, %s, %s,
             %s, %s, %s, %s, %s, %s,
-            0.00, 'active', true, true
+            0.00, %s, false, true
         ) RETURNING id, trade_uuid;
         """
         
@@ -8383,7 +8376,8 @@ def process_signal_v2():
             signal_dt.date(), signal_dt.time(), 
             entry_price, stop_loss_price, risk_distance,
             target_1r, target_2r, target_3r,
-            target_5r, target_10r, target_20r
+            target_5r, target_10r, target_20r,
+            trade_status
         ))
         
         result = cursor.fetchone()
@@ -8394,21 +8388,15 @@ def process_signal_v2():
         
         return jsonify({
             "success": True,
-            "message": "Signal processed through V2 automation",
+            "message": "Signal received - PENDING CONFIRMATION (EXACT METHODOLOGY)",
             "trade_id": trade_id,
             "trade_uuid": str(trade_uuid),
-            "entry_price": entry_price,
-            "stop_loss_price": stop_loss_price,
-            "risk_distance": risk_distance,
-            "r_targets": {
-                "1R": target_1r,
-                "2R": target_2r,
-                "3R": target_3r,
-                "5R": target_5r,
-                "10R": target_10r,
-                "20R": target_20r
-            },
-            "automation": "v2_enabled"
+            "status": "pending_confirmation",
+            "signal_price": signal_price,
+            "signal_type": signal_type,
+            "note": "Entry and targets will be calculated after confirmation candle",
+            "methodology": "EXACT - No shortcuts or approximations",
+            "automation": "v2_pending_confirmation"
         })
         
     except Exception as e:
@@ -8624,39 +8612,23 @@ def receive_signal_v2():
         # Call the V2 processing function
         try:
             # Use the same logic as process_signal_v2 but without login requirement
-            signal_type = signal_result["type"].replace('ish', '')
+            signal_type = signal_result["type"]  # Keep original: "Bullish" or "Bearish"
             signal_price = float(signal_result["price"])
             
             if signal_type in ['Bullish', 'Bearish'] and signal_price > 0:
-                # Calculate automated entry and stop loss
-                if signal_type == 'Bullish':
-                    entry_price = signal_price + 2.5
-                    stop_loss_price = signal_price - 25.0
-                else:
-                    entry_price = signal_price - 2.5
-                    stop_loss_price = signal_price + 25.0
-                
-                risk_distance = abs(entry_price - stop_loss_price)
-                
-                # Calculate R-targets
-                if signal_type == 'Bullish':
-                    targets = {
-                        "1R": entry_price + risk_distance,
-                        "2R": entry_price + (2 * risk_distance),
-                        "3R": entry_price + (3 * risk_distance),
-                        "5R": entry_price + (5 * risk_distance),
-                        "10R": entry_price + (10 * risk_distance),
-                        "20R": entry_price + (20 * risk_distance)
-                    }
-                else:
-                    targets = {
-                        "1R": entry_price - risk_distance,
-                        "2R": entry_price - (2 * risk_distance),
-                        "3R": entry_price - (3 * risk_distance),
-                        "5R": entry_price - (5 * risk_distance),
-                        "10R": entry_price - (10 * risk_distance),
-                        "20R": entry_price - (20 * risk_distance)
-                    }
+                # EXACT METHODOLOGY - NO SHORTCUTS
+                # Signal must wait for confirmation - cannot calculate entry/stop immediately
+                entry_price = None
+                stop_loss_price = None
+                risk_distance = None
+                targets = {
+                    "1R": None,
+                    "2R": None,
+                    "3R": None,
+                    "5R": None,
+                    "10R": None,
+                    "20R": None
+                }
                 
                 # Insert V2 trade
                 cursor = db.conn.cursor()
@@ -8672,7 +8644,7 @@ def receive_signal_v2():
                     gen_random_uuid(), 'NQ1!', %s, %s,
                     CURRENT_DATE, CURRENT_TIME, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s,
-                    0.00, 'active', true, true
+                    0.00, 'pending_confirmation', false, true
                 ) RETURNING id, trade_uuid;
                 """
                 

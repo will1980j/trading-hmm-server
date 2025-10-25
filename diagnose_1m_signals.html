@@ -15,7 +15,7 @@
     
     <script>
         async function diagnose() {
-            const response = await fetch('/api/live-signals?timeframe=1m&limit=20');
+            const response = await fetch('/api/live-signals-v2?timeframe=1m&limit=20');
             const data = await response.json();
             
             const now = new Date();

@@ -2,7 +2,7 @@
 indicator("Live FVG/IFVG Signal with HTF Bias + Engulfing", overlay=true)
 
 // Webhook settings
-webhook_url = input.string("https://web-production-cd33.up.railway.app/api/live-signals", "Webhook URL")
+webhook_url = input.string("https://web-production-cd33.up.railway.app/api/live-signals-v2", "Webhook URL")
 enable_webhooks = input.bool(true, "Enable Webhooks")
 
 // HTF Timeframe selection (same as scanner) - DISABLE DAILY AND 4H FOR TESTING
