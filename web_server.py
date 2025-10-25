@@ -8632,36 +8632,50 @@ def receive_signal_v2():
                     "20R": None
                 }
                 
-                # Insert V2 trade
-                cursor = db.conn.cursor()
-                
-                insert_sql = """
-                INSERT INTO signal_lab_v2_trades (
-                    trade_uuid, symbol, bias, session, 
-                    date, time, entry_price, stop_loss_price, risk_distance,
-                    target_1r_price, target_2r_price, target_3r_price,
-                    target_5r_price, target_10r_price, target_20r_price,
-                    current_mfe, trade_status, active_trade, auto_populated
-                ) VALUES (
-                    gen_random_uuid(), 'NQ1!', %s, %s,
-                    CURRENT_DATE, CURRENT_TIME, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s,
-                    0.00, 'pending_confirmation', false, true
-                ) RETURNING id, trade_uuid;
-                """
-                
-                cursor.execute(insert_sql, (
-                    signal_type, signal_result["session"],
-                    entry_price, stop_loss_price, risk_distance,
-                    targets["1R"], targets["2R"], targets["3R"],
-                    targets["5R"], targets["10R"], targets["20R"]
-                ))
-                
-                result = cursor.fetchone()
-                trade_id = result[0]
-                trade_uuid = result[1]
-                
-                db.conn.commit()
+                # Insert V2 trade with proper database connection handling
+                webhook_db = None
+                try:
+                    # Get fresh database connection for webhook
+                    from database.railway_db import RailwayDB
+                    webhook_db = RailwayDB(use_pool=True)
+                    
+                    if not webhook_db or not webhook_db.conn:
+                        raise Exception("Database connection failed")
+                    
+                    cursor = webhook_db.conn.cursor()
+                    
+                    insert_sql = """
+                    INSERT INTO signal_lab_v2_trades (
+                        trade_uuid, symbol, bias, session, 
+                        date, time, entry_price, stop_loss_price, risk_distance,
+                        target_1r_price, target_2r_price, target_3r_price,
+                        target_5r_price, target_10r_price, target_20r_price,
+                        current_mfe, trade_status, active_trade, auto_populated
+                    ) VALUES (
+                        gen_random_uuid(), 'NQ1!', %s, %s,
+                        CURRENT_DATE, CURRENT_TIME, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        0.00, 'pending_confirmation', false, true
+                    ) RETURNING id, trade_uuid;
+                    """
+                    
+                    cursor.execute(insert_sql, (
+                        signal_type, signal_result["session"],
+                        entry_price, stop_loss_price, risk_distance,
+                        targets["1R"], targets["2R"], targets["3R"],
+                        targets["5R"], targets["10R"], targets["20R"]
+                    ))
+                    
+                    result = cursor.fetchone()
+                    trade_id = result[0]
+                    trade_uuid = result[1]
+                    
+                    webhook_db.conn.commit()
+                    
+                except Exception as db_error:
+                    if webhook_db and webhook_db.conn:
+                        webhook_db.conn.rollback()
+                    raise db_error
                 
                 v2_automation = {
                     "success": True,
@@ -8679,9 +8693,11 @@ def receive_signal_v2():
                 }
                 
         except Exception as v2_error:
+            error_msg = str(v2_error) if str(v2_error) else "Database operation failed"
             v2_automation = {
                 "success": False,
-                "error": str(v2_error)
+                "error": error_msg,
+                "error_type": type(v2_error).__name__
             }
         
         # Also store in original live_signals table for compatibility
