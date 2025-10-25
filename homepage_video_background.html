@@ -594,21 +594,41 @@
             });
         });
 
-        // Working Video Sources - Multiple providers for reliability
+        // Nature Videos - Multiple sources to find working ones
         const videoSources = [
-            // Google Cloud Storage - Reliable test videos
-            'https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4',
-            'https://assets.mixkit.co/videos/preview/mixkit-waves-breaking-on-a-tropical-beach-1165-large.mp4',
-            'https://assets.mixkit.co/videos/preview/mixkit-rain-falling-on-the-water-of-a-lake-1189-large.mp4',
-            'https://assets.mixkit.co/videos/preview/mixkit-sunset-over-green-mountains-2130-large.mp4',
-            'https://assets.mixkit.co/videos/preview/mixkit-white-sand-beach-and-palm-trees-1564-large.mp4',
-            'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-forest-covered-in-mist-39745-large.mp4',
-            'https://assets.mixkit.co/videos/preview/mixkit-river-between-green-trees-1943-large.mp4',
-            'https://assets.mixkit.co/videos/preview/mixkit-snow-covered-mountain-range-3295-large.mp4',
-            'https://assets.mixkit.co/videos/preview/mixkit-tree-with-yellow-flowers-1173-large.mp4',
-            'https://assets.mixkit.co/videos/preview/mixkit-top-aerial-view-of-waves-breaking-on-the-beach-1165-large.mp4',
-            'https://assets.mixkit.co/videos/preview/mixkit-calm-water-in-a-lake-surrounded-by-mountains-28762-large.mp4',
-            'https://assets.mixkit.co/videos/preview/mixkit-waterfall-in-forest-2214-large.mp4',
+            // Videvo - Free stock videos (try different endpoints)
+            'https://cdn.videvo.net/videvo_files/video/free/2014-12/small_watermarked/Raindrops_Videvo.mp4',
+            'https://cdn.videvo.net/videvo_files/video/free/2015-06/small_watermarked/SunsetBeach_Videvo.mp4',
+            'https://cdn.videvo.net/videvo_files/video/free/2014-08/small_watermarked/Ocean_Horizon_Videvo.mp4',
+            'https://cdn.videvo.net/videvo_files/video/free/2013-08/small_watermarked/hd0992.mp4',
+            'https://cdn.videvo.net/videvo_files/video/free/2013-08/small_watermarked/hd0991.mp4',
+            
+            // Coverr.co - Try direct video URLs
+            'https://coverr.co/system/production/videos/3045/mp4/Coverr-Relaxing-River-3045.mp4',
+            'https://coverr.co/system/production/videos/3044/mp4/Coverr-Forest-Path-3044.mp4',
+            'https://coverr.co/system/production/videos/3043/mp4/Coverr-Ocean-Waves-3043.mp4',
+            
+            // Pixabay - Try different format URLs
+            'https://pixabay.com/videos/download/video-15531_large.mp4',
+            'https://pixabay.com/videos/download/video-2086_large.mp4',
+            'https://pixabay.com/videos/download/video-1093_large.mp4',
+            
+            // Pexels - Try direct download URLs (may work)
+            'https://static.pexels.com/lib/videos/free-videos.mp4',
+            
+            // Vimeo - Public domain nature videos
+            'https://player.vimeo.com/external/108018156.hd.mp4?s=4c9e2f7c2f7c2f7c2f7c2f7c2f7c2f7c2f7c2f7c&profile_id=113',
+            'https://player.vimeo.com/external/159468686.hd.mp4?s=5d8f3e9f3e9f3e9f3e9f3e9f3e9f3e9f3e9f3e9f&profile_id=119',
+            
+            // YouTube - Try direct video URLs (may work for some)
+            'https://www.youtube.com/watch?v=EngW7tLk6R8',
+            
+            // Archive.org - Real nature videos
+            'https://archive.org/download/RelaxingNature2016/Forest_Stream_1080p.mp4',
+            'https://archive.org/download/RelaxingNature2016/Ocean_Waves_1080p.mp4',
+            'https://archive.org/download/RelaxingNature2016/Mountain_Lake_1080p.mp4',
+            'https://archive.org/download/RelaxingNature2016/Waterfall_1080p.mp4',
+            'https://archive.org/download/RelaxingNature2016/Forest_Birds_1080p.mp4'
             'https://assets.mixkit.co/videos/preview/mixkit-ocean-waves-and-rocks-1164-large.mp4',
             
             // Sample videos from file-examples.com

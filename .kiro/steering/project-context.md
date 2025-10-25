@@ -110,6 +110,45 @@ I have a comprehensive cloud-based NASDAQ day trading analytics platform built w
 
 **RULE: If you can't implement the EXACT methodology, don't implement anything at all!**
 
+## 🚨 **CRITICAL USER CONSULTATION RULE** 🚨
+
+**⚠️ NEVER CHANGE USER REQUIREMENTS WITHOUT EXPLICIT CONSULTATION ⚠️**
+
+### **MANDATORY CONSULTATION PRINCIPLES:**
+
+1. **🚫 NO UNILATERAL DECISIONS**
+   - Never change the user's specific requirements
+   - Never substitute alternatives without asking first
+   - Never assume what the user "really wants"
+   - Never make compromises without explicit approval
+
+2. **🚫 NO TECHNICAL EXCUSES**
+   - If something doesn't work, find a solution - don't change the requirement
+   - If CORS blocks videos, find videos that work - don't switch to CSS
+   - If APIs fail, find working APIs - don't build fallbacks
+   - Technical limitations require solutions, not requirement changes
+
+3. **✅ REQUIRED CONSULTATION APPROACH:**
+   - **Ask first:** "The videos aren't working due to CORS. Should I find different video sources or would you prefer another approach?"
+   - **Present options:** Give multiple solutions that meet the original requirement
+   - **Wait for approval:** Don't implement until user confirms the approach
+   - **Stay true to intent:** Honor the user's original vision
+
+4. **✅ WHEN USER SAYS "VIDEOS" THEY MEAN VIDEOS:**
+   - Find working video sources
+   - Solve CORS issues
+   - Use different video providers
+   - Create video hosting solutions
+   - **NEVER substitute with CSS animations**
+
+### **VIOLATION CONSEQUENCES:**
+- **Breaks user trust** - User loses confidence in assistant
+- **Wastes time** - Forces rework and corrections
+- **Ignores expertise** - User knows their requirements best
+- **Creates frustration** - User has to constantly correct decisions
+
+**RULE: Always consult before changing ANY user requirement - no exceptions!**
+
 ### **MANDATORY REAL DATA PRINCIPLES:**
 
 1. **🚫 NO FALLBACK DATA**
