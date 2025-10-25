@@ -8632,7 +8632,7 @@ def receive_signal_v2():
                     "20R": None
                 }
                 
-                # Insert V2 trade with proper database connection handling
+                # Insert V2 trade with comprehensive error handling
                 webhook_db = None
                 try:
                     # Get fresh database connection for webhook
@@ -8640,7 +8640,7 @@ def receive_signal_v2():
                     webhook_db = RailwayDB(use_pool=True)
                     
                     if not webhook_db or not webhook_db.conn:
-                        raise Exception("Database connection failed")
+                        raise Exception("Webhook database connection failed")
                     
                     cursor = webhook_db.conn.cursor()
                     
@@ -8659,38 +8659,42 @@ def receive_signal_v2():
                     ) RETURNING id, trade_uuid;
                     """
                     
-                    # Prepare insert parameters with error checking
-                    try:
-                        insert_params = (
-                            signal_type, signal_result["session"],
-                            entry_price, stop_loss_price, risk_distance,
-                            targets["1R"], targets["2R"], targets["3R"],
-                            targets["5R"], targets["10R"], targets["20R"]
-                        )
-                        
-                        # Debug: Log the parameters being inserted
-                        logger.info(f"V2 Insert params: signal_type={signal_type}, session={signal_result['session']}")
-                        
-                        cursor.execute(insert_sql, insert_params)
-                        
-                    except KeyError as key_err:
-                        raise Exception(f"Missing key in data preparation: {str(key_err)}")
-                    except Exception as sql_err:
-                        raise Exception(f"Database insert execution failed: {str(sql_err)}")
+                    # Prepare insert parameters with comprehensive error checking
+                    insert_params = (
+                        signal_type, 
+                        signal_result.get("session", "NY AM"),  # Use .get() for safety
+                        entry_price, stop_loss_price, risk_distance,
+                        targets.get("1R"), targets.get("2R"), targets.get("3R"),
+                        targets.get("5R"), targets.get("10R"), targets.get("20R")
+                    )
                     
+                    # Execute insert with detailed error handling
+                    cursor.execute(insert_sql, insert_params)
+                    
+                    # Get result with comprehensive checking
                     result = cursor.fetchone()
                     if not result:
-                        raise Exception("Database insert failed - no result returned")
+                        raise Exception("Database insert returned no result")
+                    
+                    if len(result) < 2:
+                        raise Exception(f"Database insert returned incomplete result: {result}")
                     
                     trade_id = result[0]
                     trade_uuid = result[1]
                     
+                    # Commit transaction
                     webhook_db.conn.commit()
                     
                 except Exception as db_error:
-                    if webhook_db and webhook_db.conn:
-                        webhook_db.conn.rollback()
-                    raise db_error
+                    # Rollback on any error
+                    if webhook_db and hasattr(webhook_db, 'conn') and webhook_db.conn:
+                        try:
+                            webhook_db.conn.rollback()
+                        except:
+                            pass  # Ignore rollback errors
+                    
+                    # Re-raise with context
+                    raise Exception(f"V2 database operation failed: {str(db_error)}")
                 
                 v2_automation = {
                     "success": True,
