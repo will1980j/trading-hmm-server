@@ -8659,12 +8659,17 @@ def receive_signal_v2():
                     ) RETURNING id, trade_uuid;
                     """
                     
-                    cursor.execute(insert_sql, (
-                        signal_type, signal_result["session"],
-                        entry_price, stop_loss_price, risk_distance,
-                        targets["1R"], targets["2R"], targets["3R"],
-                        targets["5R"], targets["10R"], targets["20R"]
-                    ))
+                    # Prepare insert parameters with error checking
+                    try:
+                        insert_params = (
+                            signal_type, signal_result["session"],
+                            entry_price, stop_loss_price, risk_distance,
+                            targets["1R"], targets["2R"], targets["3R"],
+                            targets["5R"], targets["10R"], targets["20R"]
+                        )
+                        cursor.execute(insert_sql, insert_params)
+                    except KeyError as key_err:
+                        raise Exception(f"Missing key in data: {str(key_err)}")
                     
                     result = cursor.fetchone()
                     trade_id = result[0]
@@ -8693,11 +8698,21 @@ def receive_signal_v2():
                 }
                 
         except Exception as v2_error:
-            error_msg = str(v2_error) if str(v2_error) else "Database operation failed"
+            # Capture detailed error information
+            error_msg = str(v2_error) if str(v2_error) else f"Empty error message from {type(v2_error).__name__}"
+            
+            # Special handling for KeyError to get the missing key
+            if isinstance(v2_error, KeyError):
+                error_msg = f"Missing key: {v2_error.args[0] if v2_error.args else 'unknown key'}"
+            
             v2_automation = {
                 "success": False,
                 "error": error_msg,
-                "error_type": type(v2_error).__name__
+                "error_type": type(v2_error).__name__,
+                "debug_info": {
+                    "signal_type": signal_type if 'signal_type' in locals() else "undefined",
+                    "signal_price": signal_price if 'signal_price' in locals() else "undefined"
+                }
             }
         
         # Also store in original live_signals table for compatibility
