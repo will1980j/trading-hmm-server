@@ -635,8 +635,8 @@ def logout():
 @app.route('/homepage')
 @login_required
 def homepage():
-    """Professional homepage - main landing page after login"""
-    return read_html_file('homepage.html')
+    """Professional homepage - main landing page after login with nature videos"""
+    return read_html_file('homepage_video_background.html')
 
 # Video Background Versions - For Testing
 @app.route('/login-professional', methods=['GET', 'POST'])
