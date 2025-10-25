@@ -731,7 +731,6 @@ def test_webhook_signal():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/prediction-accuracy', methods=['GET'])
-@login_required
 def get_prediction_accuracy():
     """Get prediction accuracy statistics and reports"""
     try:
@@ -5437,7 +5436,6 @@ def optimize_ml_hyperparameters():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/ml-predict', methods=['POST'])
-@login_required
 def predict_signal_ml():
     """Get ML prediction for a signal"""
     try:

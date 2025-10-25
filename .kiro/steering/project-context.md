@@ -6,7 +6,110 @@ inclusion: always
 
 ## Project Overview
 
-I have a comprehensive cloud-based NASDAQ day trading analytics platform built with Amazon Q assistance, deployed at `web-production-cd33.up.railway.app/`. This is a multi-faceted trading platform designed to optimize scalping strategies on the NASDAQ using advanced analytics, real-time data processing, and machine learning as one of several key features. 
+I have a comprehensive cloud-based NASDAQ day trading analytics platform built with Amazon Q assistance, deployed at `web-production-cd33.up.railway.app/`. This is a multi-faceted trading platform designed to optimize scalping strategies on the NASDAQ using advanced analytics, real-time data processing, and machine learning as one of several key features.
+
+## 🚨 **CRITICAL CLOUD-FIRST DEVELOPMENT RULE** 🚨
+
+**⚠️ NEVER USE LOCAL RESOURCES - EVERYTHING MUST BE CLOUD-BASED ⚠️**
+
+### **MANDATORY CLOUD-FIRST PRINCIPLES:**
+
+1. **🚫 NO LOCAL DATABASE CONNECTIONS**
+   - Never connect to `localhost:5432` or local PostgreSQL
+   - Always use Railway's `DATABASE_URL` environment variable
+   - All database operations must work on Railway cloud infrastructure
+
+2. **🚫 NO LOCAL FILE STORAGE**
+   - No local file writes outside of temporary processing
+   - No local image/data storage that persists
+   - Use cloud storage solutions for any persistent data
+
+3. **🚫 NO LOCAL DEPENDENCIES**
+   - All features must work on Railway's cloud environment
+   - No local-only libraries or system dependencies
+   - Test all functionality on production Railway deployment
+
+4. **🚫 NO LOCAL TESTING ASSUMPTIONS**
+   - If it doesn't work on Railway, it doesn't work
+   - Local testing is for development only - not validation
+   - Production Railway environment is the source of truth
+
+5. **✅ CLOUD-FIRST IMPLEMENTATION REQUIREMENTS:**
+   - All API endpoints must be accessible from Railway
+   - All database queries must use Railway PostgreSQL
+   - All ML training must happen on Railway infrastructure
+   - All real-time features must work in cloud environment
+   - All authentication must work with Railway deployment
+
+### **DEVELOPMENT WORKFLOW:**
+1. **Develop locally** for speed and iteration
+2. **Deploy to Railway** for validation and testing
+3. **Validate on production** - if it fails there, it's broken
+4. **Never rely on local-only functionality**
+
+### **TESTING PRIORITY:**
+- **Primary:** Production Railway testing (`web-production-cd33.up.railway.app`)
+- **Secondary:** Local development (for iteration only)
+- **Rule:** If Railway fails, local success is irrelevant
+
+**This platform serves real traders with real money - cloud reliability is non-negotiable!**
+
+## 🚨 **CRITICAL NO FAKE DATA RULE** 🚨
+
+**⚠️ NEVER USE FALLBACK, SAMPLE, OR SIMULATION DATA ⚠️**
+
+### **MANDATORY REAL DATA PRINCIPLES:**
+
+1. **🚫 NO FALLBACK DATA**
+   - Never show placeholder data when real data fails to load
+   - Never use "sample" or "demo" data to fill empty states
+   - If data is missing, show an error - don't fake it
+
+2. **🚫 NO SIMULATION DATA**
+   - No mock trading signals or fake market data
+   - No simulated P&L or performance metrics
+   - No artificial trading history or backtests with fake results
+
+3. **🚫 NO SAMPLE DATA**
+   - No hardcoded example trades or signals
+   - No placeholder charts with fake price movements
+   - No dummy user data or synthetic performance stats
+
+4. **🚫 NO DEFAULT VALUES MASQUERADING AS REAL DATA**
+   - Don't show "0.00" as if it's a real profit/loss
+   - Don't display empty charts as if they contain data
+   - Don't show "loading..." indefinitely to hide missing data
+
+### **✅ PROPER ERROR HANDLING INSTEAD:**
+
+1. **Show Clear Error Messages:**
+   - "No trading data available - connect your data source"
+   - "ML models not trained - insufficient historical data"
+   - "Database connection failed - check system status"
+
+2. **Display Empty States Honestly:**
+   - "No signals received today"
+   - "No completed trades to analyze"
+   - "Prediction accuracy unavailable - no predictions made"
+
+3. **Provide Actionable Solutions:**
+   - "Add trading data to enable analysis"
+   - "Complete 30+ trades to train ML models"
+   - "Check TradingView webhook configuration"
+
+### **WHY THIS MATTERS:**
+- **Real Money:** Traders make decisions based on this data
+- **Trust:** Fake data destroys credibility and confidence
+- **Debugging:** Real errors lead to real solutions
+- **Accuracy:** Better to show nothing than show lies
+
+### **DEVELOPMENT APPROACH:**
+- **If data is missing:** Show error and fix the root cause
+- **If API fails:** Display failure message and investigate
+- **If calculation fails:** Show "calculation error" not fake results
+- **If no data exists:** Clearly state "no data available"
+
+**RULE: Better to have an honest empty dashboard than a lying full one!** 
 
 **The eventual goal is to build a system that helps grow a prop firm trading business and leverage cloud-based automation, AI and machine learning to collect data, analyze trading signals, and establish a trading edge like none that has ever existed before.**
 
