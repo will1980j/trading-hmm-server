@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, send_from_directory, send_file, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template_string, send_from_directory, send_file, request, jsonify, session, redirect, url_for, Response
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from os import environ, path
@@ -18,6 +18,8 @@ from ml_insights_endpoint import get_ml_insights_response
 import math
 import pytz
 import uuid
+import requests
+import re
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
@@ -717,6 +719,125 @@ def video_demo():
 def test_google_videos():
     """Test Google Drive video links"""
     return read_html_file('test_google_drive_videos.html')
+
+# Video Proxy Routes - Bypass CORS for Google Drive videos
+def extract_file_id(drive_url):
+    """Extract file ID from various Google Drive URL formats"""
+    patterns = [
+        r'/file/d/([a-zA-Z0-9-_]+)',
+        r'id=([a-zA-Z0-9-_]+)',
+        r'/d/([a-zA-Z0-9-_]+)'
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, drive_url)
+        if match:
+            return match.group(1)
+    return None
+
+def get_direct_download_url(file_id):
+    """Convert Google Drive file ID to direct download URL"""
+    return f"https://drive.google.com/uc?export=download&id={file_id}"
+
+@app.route('/proxy-video/<file_id>')
+def proxy_video(file_id):
+    """Proxy Google Drive video through our server to bypass CORS"""
+    try:
+        # Get the direct download URL
+        download_url = get_direct_download_url(file_id)
+        
+        # Make request to Google Drive with headers to mimic browser
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(download_url, stream=True, headers=headers)
+        
+        if response.status_code == 200:
+            # Create a streaming response
+            def generate():
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        yield chunk
+            
+            # Set appropriate headers for video streaming
+            response_headers = {
+                'Content-Type': response.headers.get('Content-Type', 'video/mp4'),
+                'Accept-Ranges': 'bytes',
+                'Cache-Control': 'public, max-age=3600',
+                'Access-Control-Allow-Origin': '*'
+            }
+            
+            return Response(generate(), headers=response_headers)
+        else:
+            return f"Error: Could not fetch video (Status: {response.status_code})", 404
+            
+    except Exception as e:
+        return f"Error: {str(e)}", 500
+
+@app.route('/test-proxy-video')
+def test_proxy_video():
+    """Test page for video proxy"""
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Test Video Proxy - Second Skies Trading</title>
+        <style>
+            body { margin: 0; padding: 20px; background: #000; color: #fff; font-family: Arial; }
+            video { width: 100%; max-width: 800px; height: auto; margin: 20px 0; }
+            .status { margin: 10px 0; padding: 10px; background: #333; border-radius: 5px; }
+            .test-section { margin: 30px 0; padding: 20px; border: 1px solid #444; border-radius: 10px; }
+            .success { background: #0f5132 !important; }
+            .loading { background: #1a5490 !important; }
+            .error { background: #721c24 !important; }
+        </style>
+    </head>
+    <body>
+        <h1>🎬 Video Proxy Test - Second Skies Trading</h1>
+        
+        <div class="test-section">
+            <h2>Test: Your Google Drive Video</h2>
+            <div id="status" class="status">Ready to test file ID: 1TCBk1S3hfbKmof04FsB__gBcznSydnij</div>
+            <video id="testVideo" controls autoplay muted>
+                <source src="/proxy-video/1TCBk1S3hfbKmof04FsB__gBcznSydnij" type="video/mp4">
+                Your browser does not support video.
+            </video>
+        </div>
+        
+        <div class="test-section">
+            <h2>Instructions:</h2>
+            <p>✅ <strong>If video loads:</strong> Proxy works! We can use all your Google Drive videos</p>
+            <p>🔄 <strong>If video fails:</strong> We'll try alternative video hosting solutions</p>
+            <p>🌿 <strong>Next step:</strong> Add all your nature video file IDs for beautiful backgrounds</p>
+        </div>
+        
+        <script>
+            const video = document.getElementById('testVideo');
+            const status = document.getElementById('status');
+            
+            video.addEventListener('loadstart', () => {
+                status.textContent = '🔄 Loading video through Railway proxy server...';
+                status.className = 'status loading';
+            });
+            
+            video.addEventListener('loadeddata', () => {
+                status.textContent = '✅ SUCCESS! Video proxy works perfectly!';
+                status.className = 'status success';
+            });
+            
+            video.addEventListener('error', (e) => {
+                status.textContent = '❌ Video proxy failed. We need to try a different approach.';
+                status.className = 'status error';
+                console.error('Video error:', e);
+            });
+            
+            video.addEventListener('canplay', () => {
+                console.log('Video can start playing');
+            });
+        </script>
+    </body>
+    </html>
+    '''
 
 # Main routes - now protected
 @app.route('/')
