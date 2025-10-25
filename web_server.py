@@ -616,26 +616,35 @@ def login():
         
         if not username or not password:
             error_msg = markup_escape('Username and password are required')
-            return render_template_string(read_html_file('login.html'), error=error_msg)
+            return render_template_string(read_html_file('login_professional.html'), error=error_msg)
             
         if authenticate(username, password):
             session['authenticated'] = True
-            return redirect('/')
+            return redirect('/homepage')
             
         error_msg = markup_escape('Invalid credentials')
-        return render_template_string(read_html_file('login.html'), error=error_msg)
-    return render_template_string(read_html_file('login.html'))
+        return render_template_string(read_html_file('login_professional.html'), error=error_msg)
+    return render_template_string(read_html_file('login_professional.html'))
 
 @app.route('/logout')
 def logout():
     session.pop('authenticated', None)
     return redirect('/login')
 
+@app.route('/homepage')
+@login_required
+def homepage():
+    """Professional homepage - main landing page after login"""
+    return read_html_file('homepage.html')
+
 # Main routes - now protected
 @app.route('/')
-@login_required
-def dashboard():
-    return read_html_file('dashboard_clean.html')
+def root():
+    """Root route - redirect to homepage if authenticated, otherwise login"""
+    if session.get('authenticated'):
+        return redirect('/homepage')
+    else:
+        return redirect('/login')
 
 @app.route('/dashboard')
 @login_required
