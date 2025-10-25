@@ -667,6 +667,12 @@ def signal_analysis_15m():
 def signal_lab_dashboard():
     return read_html_file('signal_lab_dashboard.html')
 
+@app.route('/signal-lab-v2')
+@login_required
+def signal_lab_v2_dashboard():
+    """Signal Lab V2 Dashboard - Automated trading interface"""
+    return read_html_file('signal_lab_v2_dashboard.html')
+
 @app.route('/1m-execution')
 @login_required
 def execution_dashboard():

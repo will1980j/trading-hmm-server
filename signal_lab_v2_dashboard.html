@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signal Lab V2 - Automated Trading Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .automation-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid #22c55e;
+            border-radius: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .trades-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: transform 0.2s;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .trades-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .trades-table th,
+        .trades-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .trades-table th {
+            background: rgba(255, 255, 255, 0.05);
+            font-weight: 600;
+            color: #94a3b8;
+        }
+
+        .trade-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-pending {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border: 1px solid #fbbf24;
+        }
+
+        .status-active {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            border: 1px solid #22c55e;
+        }
+
+        .status-completed {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border: 1px solid #3b82f6;
+        }
+
+        .bias-bullish {
+            color: #22c55e;
+            font-weight: 600;
+        }
+
+        .bias-bearish {
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        .r-targets {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .r-target {
+            background: rgba(139, 92, 246, 0.2);
+            color: #8b5cf6;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #94a3b8;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #94a3b8;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 1rem;
+            color: #ffffff;
+        }
+
+        .nav-link {
+            color: #94a3b8;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 Signal Lab V2 - Automated Trading</h1>
+        <div class="automation-status">
+            <div class="status-dot"></div>
+            <span>V2 Automation Active</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalTrades">-</div>
+                <div class="stat-label">Total Automated Trades</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="pendingTrades">-</div>
+                <div class="stat-label">Pending Confirmation</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="activeTrades">-</div>
+                <div class="stat-label">Active Trades</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="todayTrades">-</div>
+                <div class="stat-label">Today's Signals</div>
+            </div>
+        </div>
+
+        <!-- Automated Trades Table -->
+        <div class="trades-section">
+            <div class="section-header">
+                <h2 class="section-title">📊 Automated V2 Trades</h2>
+                <div>
+                    <a href="/signal-analysis-lab" class="nav-link">📋 Manual Signal Lab</a>
+                    <button class="refresh-btn" onclick="loadV2Trades()">🔄 Refresh</button>
+                </div>
+            </div>
+
+            <div id="tradesContainer">
+                <div class="loading">
+                    <p>Loading automated trades...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load V2 trades on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadV2Trades();
+            loadV2Stats();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(() => {
+                loadV2Trades();
+                loadV2Stats();
+            }, 30000);
+        });
+
+        async function loadV2Stats() {
+            try {
+                const response = await fetch('/api/v2/stats');
+                if (response.ok) {
+                    const stats = await response.json();
+                    
+                    document.getElementById('totalTrades').textContent = stats.total_signals || 0;
+                    document.getElementById('pendingTrades').textContent = stats.pending_trades || 0;
+                    document.getElementById('activeTrades').textContent = stats.active_trades || 0;
+                    document.getElementById('todayTrades').textContent = stats.today_signals || 0;
+                } else {
+                    console.log('Stats endpoint requires authentication');
+                }
+            } catch (error) {
+                console.error('Error loading V2 stats:', error);
+            }
+        }
+
+        async function loadV2Trades() {
+            try {
+                const response = await fetch('/api/v2/active-trades');
+                const container = document.getElementById('tradesContainer');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const trades = data.trades || [];
+                    
+                    if (trades.length === 0) {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <h3>🤖 V2 Automation Ready</h3>
+                                <p>Automated trades will appear here when TradingView signals are received.</p>
+                                <p><strong>Webhook URL:</strong> https://web-production-cd33.up.railway.app/api/live-signals-v2</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    let tableHTML = `
+                        <table class="trades-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Date/Time</th>
+                                    <th>Bias</th>
+                                    <th>Session</th>
+                                    <th>Status</th>
+                                    <th>Entry</th>
+                                    <th>Stop Loss</th>
+                                    <th>R-Targets</th>
+                                    <th>MFE</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    trades.forEach(trade => {
+                        const statusClass = getStatusClass(trade.trade_status);
+                        const biasClass = trade.bias === 'Bullish' ? 'bias-bullish' : 'bias-bearish';
+                        
+                        tableHTML += `
+                            <tr>
+                                <td>${trade.id}</td>
+                                <td>${formatDateTime(trade.date, trade.time)}</td>
+                                <td class="${biasClass}">${trade.bias}</td>
+                                <td>${trade.session}</td>
+                                <td><span class="trade-status ${statusClass}">${formatStatus(trade.trade_status)}</span></td>
+                                <td>${formatPrice(trade.entry_price)}</td>
+                                <td>${formatPrice(trade.stop_loss_price)}</td>
+                                <td>${formatRTargets(trade)}</td>
+                                <td>${formatMFE(trade.current_mfe)}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tableHTML += '</tbody></table>';
+                    container.innerHTML = tableHTML;
+                    
+                } else {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <h3>🔐 Authentication Required</h3>
+                            <p>Please log in to view automated V2 trades.</p>
+                            <p><a href="/login" class="nav-link">Login</a></p>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('Error loading V2 trades:', error);
+                document.getElementById('tradesContainer').innerHTML = `
+                    <div class="empty-state">
+                        <h3>⚠️ Connection Error</h3>
+                        <p>Unable to load automated trades. Please try again.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function getStatusClass(status) {
+            switch (status) {
+                case 'pending_confirmation': return 'status-pending';
+                case 'active': return 'status-active';
+                case 'completed': return 'status-completed';
+                default: return 'status-pending';
+            }
+        }
+
+        function formatStatus(status) {
+            switch (status) {
+                case 'pending_confirmation': return 'Pending';
+                case 'active': return 'Active';
+                case 'completed': return 'Completed';
+                default: return status;
+            }
+        }
+
+        function formatDateTime(date, time) {
+            if (!date || !time) return 'N/A';
+            return `${date} ${time}`;
+        }
+
+        function formatPrice(price) {
+            if (!price) return 'Pending';
+            return `$${parseFloat(price).toFixed(2)}`;
+        }
+
+        function formatRTargets(trade) {
+            const targets = [];
+            if (trade.target_1r_price) targets.push('1R');
+            if (trade.target_2r_price) targets.push('2R');
+            if (trade.target_3r_price) targets.push('3R');
+            if (trade.target_5r_price) targets.push('5R');
+            if (trade.target_10r_price) targets.push('10R');
+            if (trade.target_20r_price) targets.push('20R');
+            
+            if (targets.length === 0) return 'Pending';
+            
+            return targets.map(target => `<span class="r-target">${target}</span>`).join('');
+        }
+
+        function formatMFE(mfe) {
+            if (!mfe || mfe === 0) return '0.00R';
+            return `${parseFloat(mfe).toFixed(2)}R`;
+        }
+    </script>
+</body>
+</html>
