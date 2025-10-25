@@ -8641,12 +8641,30 @@ def process_signal_v2():
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/v2/active-trades', methods=['GET'])
-@login_required
 def get_v2_active_trades():
-    """Get all active V2 trades with real-time MFE"""
+    """Get all active V2 trades with real-time MFE - Public endpoint for dashboard"""
     try:
+        # Check if user is authenticated
+        if not session.get('authenticated'):
+            # Return limited public data for unauthenticated users
+            return jsonify({
+                "success": True,
+                "trades": [],
+                "message": "Authentication required for full trade data",
+                "public_access": True
+            })
+        
+        # Full data for authenticated users
         cursor = db.conn.cursor()
-        cursor.execute("SELECT * FROM v2_active_trades_monitor;")
+        cursor.execute("""
+            SELECT id, bias, session, trade_status, date, time, 
+                   entry_price, stop_loss_price, current_mfe,
+                   target_1r_price, target_2r_price, target_3r_price,
+                   target_5r_price, target_10r_price, target_20r_price
+            FROM signal_lab_v2_trades 
+            ORDER BY id DESC 
+            LIMIT 50;
+        """)
         
         trades = []
         columns = [desc[0] for desc in cursor.description]
@@ -8664,7 +8682,7 @@ def get_v2_active_trades():
         
         return jsonify({
             "success": True,
-            "active_trades": trades,
+            "trades": trades,
             "count": len(trades),
             "timestamp": datetime.now().isoformat()
         })
@@ -8790,10 +8808,51 @@ def close_v2_trade():
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/v2/stats', methods=['GET'])
-@login_required
 def get_v2_stats():
-    """Get comprehensive V2 automation statistics"""
+    """Get comprehensive V2 automation statistics - Public endpoint for dashboard"""
     try:
+        # Check if user is authenticated
+        if not session.get('authenticated'):
+            # Return basic public stats for unauthenticated users
+            try:
+                cursor = db.conn.cursor()
+                cursor.execute("""
+                    SELECT 
+                        COUNT(*) as total_signals,
+                        COUNT(CASE WHEN trade_status = 'pending_confirmation' THEN 1 END) as pending_trades,
+                        COUNT(CASE WHEN active_trade = true THEN 1 END) as active_trades,
+                        COUNT(CASE WHEN DATE(date) = CURRENT_DATE THEN 1 END) as today_signals
+                    FROM signal_lab_v2_trades;
+                """)
+                
+                result = cursor.fetchone()
+                if result:
+                    return jsonify({
+                        "total_signals": result[0] or 0,
+                        "pending_trades": result[1] or 0,
+                        "active_trades": result[2] or 0,
+                        "today_signals": result[3] or 0,
+                        "public_access": True
+                    })
+                else:
+                    return jsonify({
+                        "total_signals": 0,
+                        "pending_trades": 0,
+                        "active_trades": 0,
+                        "today_signals": 0,
+                        "public_access": True
+                    })
+            except:
+                return jsonify({
+                    "total_signals": 0,
+                    "pending_trades": 0,
+                    "active_trades": 0,
+                    "today_signals": 0,
+                    "public_access": True,
+                    "error": "Database connection issue"
+                })
+        
+        # Full stats for authenticated users
         cursor = db.conn.cursor()
         
         # Get comprehensive V2 stats
