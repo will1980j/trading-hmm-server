@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Google Drive Videos</title>
+    <style>
+        body { margin: 0; padding: 20px; background: #000; color: #fff; }
+        video { width: 100%; max-width: 800px; height: auto; }
+        .status { margin: 10px 0; padding: 10px; background: #333; }
+    </style>
+</head>
+<body>
+    <h1>Testing Google Drive Video Links</h1>
+    <div id="status" class="status">Loading first video...</div>
+    <video id="testVideo" controls autoplay muted>
+        Your browser does not support video.
+    </video>
+    
+    <script>
+        const videoSources = [
+            'https://drive.google.com/uc?export=download&id=855946',
+            'https://drive.google.com/uc?export=download&id=855947',
+            'https://drive.google.com/uc?export=download&id=856885',
+            'https://drive.google.com/uc?export=download&id=857195',
+            'https://drive.google.com/uc?export=download&id=1039099'
+        ];
+        
+        let currentIndex = 0;
+        const video = document.getElementById('testVideo');
+        const status = document.getElementById('status');
+        
+        function loadVideo(index) {
+            const url = videoSources[index];
+            status.textContent = `Testing video ${index + 1}/${videoSources.length}: ${url}`;
+            video.src = url;
+        }
+        
+        video.addEventListener('error', function() {
+            status.textContent = `❌ Video ${currentIndex + 1} failed to load. Trying next...`;
+            currentIndex++;
+            if (currentIndex < videoSources.length) {
+                setTimeout(() => loadVideo(currentIndex), 2000);
+            } else {
+                status.textContent = '❌ All test videos failed to load.';
+            }
+        });
+        
+        video.addEventListener('loadeddata', function() {
+            status.textContent = `✅ Video ${currentIndex + 1} loaded successfully!`;
+        });
+        
+        // Start testing
+        loadVideo(0);
+    </script>
+</body>
+</html>

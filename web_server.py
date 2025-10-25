@@ -713,6 +713,11 @@ def video_demo():
     """Demo page to test all video background versions"""
     return read_html_file('video_background_demo.html')
 
+@app.route('/test-google-videos')
+def test_google_videos():
+    """Test Google Drive video links"""
+    return read_html_file('test_google_drive_videos.html')
+
 # Main routes - now protected
 @app.route('/')
 def root():
@@ -1486,6 +1491,11 @@ def trading_dashboard():
 @app.route('/static/<path:filename>')
 def static_files(filename):
     return send_from_directory('static', filename)
+
+# Serve video files
+@app.route('/videos/<path:filename>')
+def video_files(filename):
+    return send_from_directory('videos', filename)
 
 # Serve JavaScript files from root
 @app.route('/api_integration.js')
