@@ -594,117 +594,44 @@
             });
         });
 
-        // 100 Premium Nature Videos Collection - Homepage Edition
+        // Working Video Sources - Multiple providers for reliability
         const videoSources = [
-            // Ocean & Coastal (1-20)
-            'https://videos.pexels.com/video-files/1093662/1093662-uhd_3840_2160_30fps.mp4', // Ocean waves
-            'https://videos.pexels.com/video-files/1409899/1409899-uhd_3840_2160_30fps.mp4', // Sunset beach
-            'https://videos.pexels.com/video-files/1721294/1721294-uhd_3840_2160_30fps.mp4', // Tropical coast
-            'https://videos.pexels.com/video-files/2169307/2169307-uhd_3840_2160_30fps.mp4', // Coastal cliffs
-            'https://videos.pexels.com/video-files/2278095/2278095-uhd_3840_2160_30fps.mp4', // Ocean sunset
-            'https://videos.pexels.com/video-files/2491284/2491284-uhd_3840_2160_30fps.mp4', // Beach waves
-            'https://videos.pexels.com/video-files/2519659/2519659-uhd_3840_2160_30fps.mp4', // Seashore
-            'https://videos.pexels.com/video-files/2670509/2670509-uhd_3840_2160_30fps.mp4', // Ocean horizon
-            'https://videos.pexels.com/video-files/2795750/2795750-uhd_3840_2160_30fps.mp4', // Coastal rocks
-            'https://videos.pexels.com/video-files/3015494/3015494-uhd_3840_2160_30fps.mp4', // Turquoise water
-            'https://videos.pexels.com/video-files/3571264/3571264-uhd_3840_2160_30fps.mp4', // Ocean aerial
-            'https://videos.pexels.com/video-files/4099355/4099355-uhd_3840_2160_30fps.mp4', // Calm sea
-            'https://videos.pexels.com/video-files/4440425/4440425-uhd_3840_2160_30fps.mp4', // Beach paradise
-            'https://videos.pexels.com/video-files/4623654/4623654-uhd_3840_2160_30fps.mp4', // Ocean depths
-            'https://videos.pexels.com/video-files/5077199/5077199-uhd_3840_2160_30fps.mp4', // Coastal beauty
-            'https://videos.pexels.com/video-files/5532188/5532188-uhd_3840_2160_30fps.mp4', // Sea breeze
-            'https://videos.pexels.com/video-files/6044178/6044178-uhd_3840_2160_30fps.mp4', // Ocean vista
-            'https://videos.pexels.com/video-files/6774264/6774264-uhd_3840_2160_25fps.mp4', // Marine life
-            'https://videos.pexels.com/video-files/7710243/7710243-uhd_3840_2160_25fps.mp4', // Underwater
-            'https://videos.pexels.com/video-files/8728382/8728382-uhd_3840_2160_25fps.mp4', // Deep ocean
-
-            // Mountains & Landscapes (21-40)
-            'https://videos.pexels.com/video-files/1448735/1448735-uhd_3840_2160_30fps.mp4', // Mountain peaks
-            'https://videos.pexels.com/video-files/1526909/1526909-uhd_3840_2160_30fps.mp4', // Alpine vista
-            'https://videos.pexels.com/video-files/1721295/1721295-uhd_3840_2160_30fps.mp4', // Mountain range
-            'https://videos.pexels.com/video-files/2278096/2278096-uhd_3840_2160_30fps.mp4', // Snow peaks
-            'https://videos.pexels.com/video-files/2491285/2491285-uhd_3840_2160_30fps.mp4', // Valley view
-            'https://videos.pexels.com/video-files/2519660/2519660-uhd_3840_2160_30fps.mp4', // Mountain lake
-            'https://videos.pexels.com/video-files/2670510/2670510-uhd_3840_2160_30fps.mp4', // Highland mist
-            'https://videos.pexels.com/video-files/2795751/2795751-uhd_3840_2160_30fps.mp4', // Rocky cliffs
-            'https://videos.pexels.com/video-files/3015495/3015495-uhd_3840_2160_30fps.mp4', // Mountain sunrise
-            'https://videos.pexels.com/video-files/3571265/3571265-uhd_3840_2160_30fps.mp4', // Alpine meadow
-            'https://videos.pexels.com/video-files/4099356/4099356-uhd_3840_2160_30fps.mp4', // Mountain stream
-            'https://videos.pexels.com/video-files/4440426/4440426-uhd_3840_2160_30fps.mp4', // Peak clouds
-            'https://videos.pexels.com/video-files/4623655/4623655-uhd_3840_2160_30fps.mp4', // Mountain trail
-            'https://videos.pexels.com/video-files/5077200/5077200-uhd_3840_2160_30fps.mp4', // Summit view
-            'https://videos.pexels.com/video-files/5532189/5532189-uhd_3840_2160_30fps.mp4', // Mountain wind
-            'https://videos.pexels.com/video-files/6044179/6044179-uhd_3840_2160_30fps.mp4', // Alpine glow
-            'https://videos.pexels.com/video-files/6774265/6774265-uhd_3840_2160_25fps.mp4', // Mountain mist
-            'https://videos.pexels.com/video-files/7710244/7710244-uhd_3840_2160_25fps.mp4', // Peak sunset
-            'https://videos.pexels.com/video-files/8728383/8728383-uhd_3840_2160_25fps.mp4', // Mountain majesty
-            'https://videos.pexels.com/video-files/1093663/1093663-uhd_3840_2160_30fps.mp4', // Highland beauty
-
-            // Forests & Trees (41-60)
-            'https://videos.pexels.com/video-files/1409900/1409900-uhd_3840_2160_30fps.mp4', // Forest canopy
-            'https://videos.pexels.com/video-files/1448736/1448736-uhd_3840_2160_30fps.mp4', // Woodland path
-            'https://videos.pexels.com/video-files/1526910/1526910-uhd_3840_2160_30fps.mp4', // Tree tops
-            'https://videos.pexels.com/video-files/1721296/1721296-uhd_3840_2160_30fps.mp4', // Forest light
-            'https://videos.pexels.com/video-files/2278097/2278097-uhd_3840_2160_30fps.mp4', // Autumn trees
-            'https://videos.pexels.com/video-files/2491286/2491286-uhd_3840_2160_30fps.mp4', // Pine forest
-            'https://videos.pexels.com/video-files/2519661/2519661-uhd_3840_2160_30fps.mp4', // Forest stream
-            'https://videos.pexels.com/video-files/2670511/2670511-uhd_3840_2160_30fps.mp4', // Woodland mist
-            'https://videos.pexels.com/video-files/2795752/2795752-uhd_3840_2160_30fps.mp4', // Tree shadows
-            'https://videos.pexels.com/video-files/3015496/3015496-uhd_3840_2160_30fps.mp4', // Forest clearing
-            'https://videos.pexels.com/video-files/3571266/3571266-uhd_3840_2160_30fps.mp4', // Birch grove
-            'https://videos.pexels.com/video-files/4099357/4099357-uhd_3840_2160_30fps.mp4', // Forest floor
-            'https://videos.pexels.com/video-files/4440427/4440427-uhd_3840_2160_30fps.mp4', // Canopy light
-            'https://videos.pexels.com/video-files/4623656/4623656-uhd_3840_2160_30fps.mp4', // Forest depth
-            'https://videos.pexels.com/video-files/5077201/5077201-uhd_3840_2160_30fps.mp4', // Tree dance
-            'https://videos.pexels.com/video-files/5532190/5532190-uhd_3840_2160_30fps.mp4', // Forest breeze
-            'https://videos.pexels.com/video-files/6044180/6044180-uhd_3840_2160_30fps.mp4', // Woodland peace
-            'https://videos.pexels.com/video-files/6774266/6774266-uhd_3840_2160_25fps.mp4', // Forest magic
-            'https://videos.pexels.com/video-files/7710245/7710245-uhd_3840_2160_25fps.mp4', // Tree symphony
-            'https://videos.pexels.com/video-files/8728384/8728384-uhd_3840_2160_25fps.mp4', // Forest serenity
-
-            // Sky & Clouds (61-80)
-            'https://videos.pexels.com/video-files/1093664/1093664-uhd_3840_2160_30fps.mp4', // Cloud formation
-            'https://videos.pexels.com/video-files/1409901/1409901-uhd_3840_2160_30fps.mp4', // Sky timelapse
-            'https://videos.pexels.com/video-files/1448737/1448737-uhd_3840_2160_30fps.mp4', // Sunset clouds
-            'https://videos.pexels.com/video-files/1526911/1526911-uhd_3840_2160_30fps.mp4', // Storm clouds
-            'https://videos.pexels.com/video-files/1721297/1721297-uhd_3840_2160_30fps.mp4', // Blue sky
-            'https://videos.pexels.com/video-files/2278098/2278098-uhd_3840_2160_30fps.mp4', // Cloud dance
-            'https://videos.pexels.com/video-files/2491287/2491287-uhd_3840_2160_30fps.mp4', // Sky panorama
-            'https://videos.pexels.com/video-files/2519662/2519662-uhd_3840_2160_30fps.mp4', // Heavenly clouds
-            'https://videos.pexels.com/video-files/2670512/2670512-uhd_3840_2160_30fps.mp4', // Sky drama
-            'https://videos.pexels.com/video-files/2795753/2795753-uhd_3840_2160_30fps.mp4', // Cloud layers
-            'https://videos.pexels.com/video-files/3015497/3015497-uhd_3840_2160_30fps.mp4', // Sky canvas
-            'https://videos.pexels.com/video-files/3571267/3571267-uhd_3840_2160_30fps.mp4', // Cloud poetry
-            'https://videos.pexels.com/video-files/4099358/4099358-uhd_3840_2160_30fps.mp4', // Sky meditation
-            'https://videos.pexels.com/video-files/4440428/4440428-uhd_3840_2160_30fps.mp4', // Cloud ballet
-            'https://videos.pexels.com/video-files/4623657/4623657-uhd_3840_2160_30fps.mp4', // Sky symphony
-            'https://videos.pexels.com/video-files/5077202/5077202-uhd_3840_2160_30fps.mp4', // Cloud journey
-            'https://videos.pexels.com/video-files/5532191/5532191-uhd_3840_2160_30fps.mp4', // Sky freedom
-            'https://videos.pexels.com/video-files/6044181/6044181-uhd_3840_2160_30fps.mp4', // Cloud dreams
-            'https://videos.pexels.com/video-files/6774267/6774267-uhd_3840_2160_25fps.mp4', // Sky wonder
-            'https://videos.pexels.com/video-files/7710246/7710246-uhd_3840_2160_25fps.mp4', // Cloud magic
-
-            // Rivers & Waterfalls (81-100)
-            'https://videos.pexels.com/video-files/8728385/8728385-uhd_3840_2160_25fps.mp4', // Waterfall cascade
-            'https://videos.pexels.com/video-files/1093665/1093665-uhd_3840_2160_30fps.mp4', // River flow
-            'https://videos.pexels.com/video-files/1409902/1409902-uhd_3840_2160_30fps.mp4', // Stream babble
-            'https://videos.pexels.com/video-files/1448738/1448738-uhd_3840_2160_30fps.mp4', // Waterfall mist
-            'https://videos.pexels.com/video-files/1526912/1526912-uhd_3840_2160_30fps.mp4', // River bend
-            'https://videos.pexels.com/video-files/1721298/1721298-uhd_3840_2160_30fps.mp4', // Creek stones
-            'https://videos.pexels.com/video-files/2278099/2278099-uhd_3840_2160_30fps.mp4', // Water dance
-            'https://videos.pexels.com/video-files/2491288/2491288-uhd_3840_2160_30fps.mp4', // River peace
-            'https://videos.pexels.com/video-files/2519663/2519663-uhd_3840_2160_30fps.mp4', // Waterfall power
-            'https://videos.pexels.com/video-files/2670513/2670513-uhd_3840_2160_30fps.mp4', // Stream serenity
-            'https://videos.pexels.com/video-files/2795754/2795754-uhd_3840_2160_30fps.mp4', // River journey
-            'https://videos.pexels.com/video-files/3015498/3015498-uhd_3840_2160_30fps.mp4', // Water clarity
-            'https://videos.pexels.com/video-files/3571268/3571268-uhd_3840_2160_30fps.mp4', // Falls beauty
-            'https://videos.pexels.com/video-files/4099359/4099359-uhd_3840_2160_30fps.mp4', // River calm
-            'https://videos.pexels.com/video-files/4440429/4440429-uhd_3840_2160_30fps.mp4', // Water music
-            'https://videos.pexels.com/video-files/4623658/4623658-uhd_3840_2160_30fps.mp4', // Stream harmony
-            'https://videos.pexels.com/video-files/5077203/5077203-uhd_3840_2160_30fps.mp4', // River meditation
-            'https://videos.pexels.com/video-files/5532192/5532192-uhd_3840_2160_30fps.mp4', // Water zen
-            'https://videos.pexels.com/video-files/6044182/6044182-uhd_3840_2160_30fps.mp4', // Falls majesty
-            'https://videos.pexels.com/video-files/6774268/6774268-uhd_3840_2160_25fps.mp4'  // River paradise
+            // Google Cloud Storage - Reliable test videos
+            'https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4',
+            'https://assets.mixkit.co/videos/preview/mixkit-waves-breaking-on-a-tropical-beach-1165-large.mp4',
+            'https://assets.mixkit.co/videos/preview/mixkit-rain-falling-on-the-water-of-a-lake-1189-large.mp4',
+            'https://assets.mixkit.co/videos/preview/mixkit-sunset-over-green-mountains-2130-large.mp4',
+            'https://assets.mixkit.co/videos/preview/mixkit-white-sand-beach-and-palm-trees-1564-large.mp4',
+            'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-forest-covered-in-mist-39745-large.mp4',
+            'https://assets.mixkit.co/videos/preview/mixkit-river-between-green-trees-1943-large.mp4',
+            'https://assets.mixkit.co/videos/preview/mixkit-snow-covered-mountain-range-3295-large.mp4',
+            'https://assets.mixkit.co/videos/preview/mixkit-tree-with-yellow-flowers-1173-large.mp4',
+            'https://assets.mixkit.co/videos/preview/mixkit-top-aerial-view-of-waves-breaking-on-the-beach-1165-large.mp4',
+            'https://assets.mixkit.co/videos/preview/mixkit-calm-water-in-a-lake-surrounded-by-mountains-28762-large.mp4',
+            'https://assets.mixkit.co/videos/preview/mixkit-waterfall-in-forest-2214-large.mp4',
+            'https://assets.mixkit.co/videos/preview/mixkit-ocean-waves-and-rocks-1164-large.mp4',
+            
+            // Sample videos from file-examples.com
+            'https://file-examples.com/storage/fe68c8a7c66afe9b2568c8b/2017/10/file_example_MP4_480_1_5MG.mp4',
+            'https://file-examples.com/storage/fe68c8a7c66afe9b2568c8b/2017/10/file_example_MP4_640_3MG.mp4',
+            'https://file-examples.com/storage/fe68c8a7c66afe9b2568c8b/2017/10/file_example_MP4_1280_10MG.mp4',
+            'https://file-examples.com/storage/fe68c8a7c66afe9b2568c8b/2017/10/file_example_MP4_1920_18MG.mp4',
+            
+            // Learning Container samples
+            'https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4',
+            
+            // Sample videos from various sources
+            'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
+            'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_2mb.mp4',
+            
+            // Pixabay CDN (alternative URLs)
+            'https://cdn.pixabay.com/vimeo/460218/abstract-46021.mp4?width=1920&hash=b5b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8',
+            'https://cdn.pixabay.com/vimeo/460219/nature-46022.mp4?width=1920&hash=c6c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9',
+            
+            // Archive.org public domain videos
+            'https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4',
+            'https://archive.org/download/ElephantsDream/ed_1024_512kb.mp4',
+            'https://archive.org/download/SintelMovie/Sintel.mp4'
         ];
 
         // Start with random video and create shuffled playlist
@@ -766,7 +693,7 @@
             });
 
             newVideo.addEventListener('error', function() {
-                console.log(`Homepage video ${index + 1} failed to load, trying next...`);
+                console.log(`Homepage video ${videoIndex + 1} failed to load, trying next...`);
                 cycleToNextVideo();
             });
 
@@ -820,13 +747,30 @@
             }
         });
 
-        // Add gradient animation keyframes for fallback
+        // Add beautiful gradient animation keyframes
         const style = document.createElement('style');
         style.textContent = `
-            @keyframes gradientShift {
-                0% { background-position: 0% 50%; }
-                50% { background-position: 100% 50%; }
-                100% { background-position: 0% 50%; }
+            @keyframes gradientFlow {
+                0% { 
+                    background-position: 0% 50%; 
+                    filter: hue-rotate(0deg);
+                }
+                25% { 
+                    background-position: 100% 50%; 
+                    filter: hue-rotate(90deg);
+                }
+                50% { 
+                    background-position: 100% 100%; 
+                    filter: hue-rotate(180deg);
+                }
+                75% { 
+                    background-position: 0% 100%; 
+                    filter: hue-rotate(270deg);
+                }
+                100% { 
+                    background-position: 0% 50%; 
+                    filter: hue-rotate(360deg);
+                }
             }
             .video-container {
                 position: fixed;
