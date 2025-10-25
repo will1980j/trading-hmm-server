@@ -610,6 +610,76 @@ def read_html_file(filename):
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    """Main login page - Beautiful nature video backgrounds"""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        
+        if not username or not password:
+            error_msg = markup_escape('Username and password are required')
+            return render_template_string(read_html_file('login_video_background.html'), error=error_msg)
+            
+        if authenticate(username, password):
+            session['authenticated'] = True
+            return redirect('/homepage')
+            
+        error_msg = markup_escape('Invalid credentials')
+        return render_template_string(read_html_file('login_video_background.html'), error=error_msg)
+    return render_template_string(read_html_file('login_video_background.html'))
+
+@app.route('/logout')
+def logout():
+    session.pop('authenticated', None)
+    return redirect('/login')
+
+@app.route('/homepage')
+@login_required
+def homepage():
+    """Professional homepage - main landing page after login"""
+    return read_html_file('homepage.html')
+
+# Video Background Versions - For Testing
+@app.route('/login-professional', methods=['GET', 'POST'])
+def login_professional():
+    """Professional login (original clean version)"""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        
+        if not username or not password:
+            error_msg = markup_escape('Username and password are required')
+            return render_template_string(read_html_file('login_professional.html'), error=error_msg)
+            
+        if authenticate(username, password):
+            session['authenticated'] = True
+            return redirect('/homepage')
+            
+        error_msg = markup_escape('Invalid credentials')
+        return render_template_string(read_html_file('login_professional.html'), error=error_msg)
+    return render_template_string(read_html_file('login_professional.html'))
+
+@app.route('/login-css', methods=['GET', 'POST'])
+def login_css():
+    """Login with CSS animations"""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        
+        if not username or not password:
+            error_msg = markup_escape('Username and password are required')
+            return render_template_string(read_html_file('login_css_animated.html'), error=error_msg)
+            
+        if authenticate(username, password):
+            session['authenticated'] = True
+            return redirect('/homepage')
+            
+        error_msg = markup_escape('Invalid credentials')
+        return render_template_string(read_html_file('login_css_animated.html'), error=error_msg)
+    return render_template_string(read_html_file('login_css_animated.html'))
+
+@app.route('/login-interactive', methods=['GET', 'POST'])
+def login_interactive():
+    """Login with interactive JavaScript"""
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
@@ -625,33 +695,6 @@ def login():
         error_msg = markup_escape('Invalid credentials')
         return render_template_string(read_html_file('login_interactive_js.html'), error=error_msg)
     return render_template_string(read_html_file('login_interactive_js.html'))
-
-@app.route('/logout')
-def logout():
-    session.pop('authenticated', None)
-    return redirect('/login')
-
-@app.route('/homepage')
-@login_required
-def homepage():
-    """Professional homepage - main landing page after login"""
-    return read_html_file('homepage.html')
-
-# Video Background Versions - For Testing
-@app.route('/login-video')
-def login_video():
-    """Login with video background"""
-    return read_html_file('login_video_background.html')
-
-@app.route('/login-css')
-def login_css():
-    """Login with CSS animations"""
-    return read_html_file('login_css_animated.html')
-
-@app.route('/login-interactive')
-def login_interactive():
-    """Login with interactive JavaScript"""
-    return read_html_file('login_interactive_js.html')
 
 @app.route('/homepage-video')
 @login_required
