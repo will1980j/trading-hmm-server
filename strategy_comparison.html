@@ -1139,12 +1139,51 @@
                         </div>
                     </div>
 
+                    <!-- Monte Carlo Simulation -->
+                    <div class="monte-carlo-section">
+                        <div class="section-header">
+                            <h4 style="color: var(--accent-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                                🎲 Monte Carlo Simulation
+                                <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal;">1,000 Possible Futures</span>
+                            </h4>
+                        </div>
+                        <div class="monte-carlo-container" style="background: var(--bg-tertiary); border-radius: var(--radius-md); padding: var(--spacing-lg); margin: var(--spacing-md) 0; border: 1px solid var(--border-color);">
+                            <div style="display: flex; align-items: center; gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
+                                <button id="runMonteCarloBtn" class="btn-primary" style="padding: 12px 24px; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                                    <span>🚀</span>
+                                    <span>Run 1,000 Simulations</span>
+                                </button>
+                                <div id="simulationProgress" style="flex: 1; height: 8px; background: var(--bg-primary); border-radius: 4px; overflow: hidden; display: none;">
+                                    <div id="progressBar" style="height: 100%; background: linear-gradient(90deg, #00ff88, #00d4aa); width: 0%; transition: width 0.1s;"></div>
+                                </div>
+                                <div id="progressText" style="font-size: 12px; color: var(--text-secondary); display: none;">Ready to simulate</div>
+                            </div>
+                            <div id="monteCarloResults" style="display: none;">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
+                                    <div id="finalEquityChart" style="background: var(--bg-primary); border-radius: var(--radius-sm); padding: var(--spacing-md); border: 1px solid var(--border-color);">
+                                        <h6 style="color: var(--text-primary); margin: 0 0 var(--spacing-sm) 0;">Final Equity Distribution</h6>
+                                        <canvas id="equityHistogram" width="200" height="120"></canvas>
+                                    </div>
+                                    <div id="maxDrawdownChart" style="background: var(--bg-primary); border-radius: var(--radius-sm); padding: var(--spacing-md); border: 1px solid var(--border-color);">
+                                        <h6 style="color: var(--text-primary); margin: 0 0 var(--spacing-sm) 0;">Max Drawdown Distribution</h6>
+                                        <canvas id="drawdownHistogram" width="200" height="120"></canvas>
+                                    </div>
+                                    <div id="lossStreakChart" style="background: var(--bg-primary); border-radius: var(--radius-sm); padding: var(--spacing-md); border: 1px solid var(--border-color);">
+                                        <h6 style="color: var(--text-primary); margin: 0 0 var(--spacing-sm) 0;">Loss Streak Distribution</h6>
+                                        <canvas id="lossStreakHistogram" width="200" height="120"></canvas>
+                                    </div>
+                                </div>
+                                <div id="simulationSummary" style="padding: var(--spacing-md); background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: var(--radius-sm);"></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Enhanced Risk Metrics -->
                     <div class="enhanced-metrics-section">
                         <div class="section-header">
                             <h4 style="color: var(--accent-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
                                 📊 Advanced Risk Metrics
-                                <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal;">Professional Analysis</span>
+                                <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal;">Scalping Analysis</span>
                             </h4>
                         </div>
                         <div id="enhancedMetrics" style="background: var(--bg-tertiary); border-radius: var(--radius-md); padding: var(--spacing-lg); margin: var(--spacing-md) 0; border: 1px solid var(--border-color);"></div>
@@ -1160,6 +1199,7 @@
                 createRiskScenarios(strategy, winRate, results);
                 createPsychologicalPrep(strategy, winRate);
                 createPositionSizingCalculator(strategy, winRate);
+                setupMonteCarloSimulation(strategy, winRate, results);
                 createEnhancedMetrics(strategy, results);
             }, 100);
         }
@@ -1175,49 +1215,86 @@
             const lossStreaks = [2, 3, 4, 5, 6, 7, 8, 9, 10];
             
             let html = `
-                <div style="overflow-x: auto;">
-                    <table class="heatmap-table" style="width: 100%; border-collapse: separate; border-spacing: 2px; font-size: 12px;">
+                <div style="overflow-x: auto; border-radius: 12px; border: 1px solid var(--border-color);">
+                    <table class="heatmap-table" style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; background: var(--bg-primary);">
                         <thead>
-                            <tr style="background: var(--bg-primary);">
-                                <th style="padding: 8px; text-align: center; color: var(--text-secondary); font-weight: 600;">Win Rate</th>
-                                ${lossStreaks.map(streak => `<th style="padding: 8px; text-align: center; color: var(--text-secondary); font-weight: 600;">${streak} Losses</th>`).join('')}
+                            <tr style="background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));">
+                                <th style="padding: 12px 8px; text-align: center; color: var(--text-primary); font-weight: 700; border-bottom: 2px solid var(--border-color); position: sticky; left: 0; background: var(--bg-secondary); z-index: 10;">WIN RATE</th>
+                                ${lossStreaks.map(streak => `<th style="padding: 12px 8px; text-align: center; color: var(--text-primary); font-weight: 700; border-bottom: 2px solid var(--border-color); min-width: 80px;">${streak} LOSSES</th>`).join('')}
                             </tr>
                         </thead>
                         <tbody>
             `;
             
-            winRates.forEach(wr => {
+            winRates.forEach((wr, rowIndex) => {
                 const isStrategyRow = Math.abs(wr - winRate) < 0.03;
-                const rowStyle = isStrategyRow ? 
-                    'background: rgba(0,255,136,0.1); border: 2px solid #00ff88; box-shadow: 0 0 10px rgba(0,255,136,0.3);' : 
-                    'background: var(--bg-secondary);';
                 
-                html += `<tr style="${rowStyle}">`;
-                html += `<td style="padding: 8px; text-align: center; font-weight: 600; color: ${isStrategyRow ? '#00ff88' : 'var(--text-primary)'};">${(wr * 100).toFixed(0)}%</td>`;
+                html += `<tr style="transition: all 0.2s ease;">`;
                 
-                lossStreaks.forEach(streak => {
+                // Win rate column (sticky)
+                html += `<td style="
+                    padding: 12px 8px; 
+                    text-align: center; 
+                    font-weight: 700; 
+                    color: ${isStrategyRow ? '#00ff88' : 'var(--text-primary)'}; 
+                    background: ${isStrategyRow ? 'linear-gradient(135deg, rgba(0,255,136,0.2), rgba(0,212,170,0.1))' : 'var(--bg-secondary)'}; 
+                    border-right: 2px solid var(--border-color);
+                    position: sticky; 
+                    left: 0; 
+                    z-index: 5;
+                    ${isStrategyRow ? 'box-shadow: 0 0 20px rgba(0,255,136,0.3); border: 2px solid #00ff88;' : ''}
+                ">${(wr * 100).toFixed(0)}%</td>`;
+                
+                lossStreaks.forEach((streak, colIndex) => {
                     const probability = Math.pow(1 - wr, streak);
                     const expectedFreq = Math.round(1 / probability);
                     
-                    // Color coding based on probability
-                    let bgColor, textColor;
-                    if (probability < 0.05) {
-                        bgColor = 'rgba(16, 185, 129, 0.8)'; // Green - low risk
+                    // Enhanced color coding with better gradients
+                    let bgColor, textColor, borderColor;
+                    if (probability < 0.01) {
+                        bgColor = 'linear-gradient(135deg, #059669, #10b981)'; // Dark green
                         textColor = '#ffffff';
+                        borderColor = '#059669';
+                    } else if (probability < 0.05) {
+                        bgColor = 'linear-gradient(135deg, #10b981, #34d399)'; // Green
+                        textColor = '#ffffff';
+                        borderColor = '#10b981';
                     } else if (probability < 0.15) {
-                        bgColor = 'rgba(245, 158, 11, 0.8)'; // Yellow - moderate risk
+                        bgColor = 'linear-gradient(135deg, #f59e0b, #fbbf24)'; // Yellow
                         textColor = '#ffffff';
+                        borderColor = '#f59e0b';
+                    } else if (probability < 0.30) {
+                        bgColor = 'linear-gradient(135deg, #f97316, #fb923c)'; // Orange
+                        textColor = '#ffffff';
+                        borderColor = '#f97316';
                     } else {
-                        bgColor = 'rgba(239, 68, 68, 0.8)'; // Red - high risk
+                        bgColor = 'linear-gradient(135deg, #dc2626, #ef4444)'; // Red
                         textColor = '#ffffff';
+                        borderColor = '#dc2626';
                     }
+                    
+                    const cellStyle = isStrategyRow ? 
+                        `box-shadow: 0 0 15px rgba(0,255,136,0.4); border: 2px solid #00ff88; transform: scale(1.02);` : 
+                        `border: 1px solid ${borderColor};`;
                     
                     html += `
                         <td class="heatmap-cell" 
-                            style="padding: 8px; text-align: center; background: ${bgColor}; color: ${textColor}; cursor: pointer; border-radius: 4px; font-weight: 600; transition: all 0.2s;"
-                            onmouseover="showHeatmapTooltip(event, ${(probability * 100).toFixed(2)}, ${expectedFreq}, ${streak})"
-                            onmouseout="hideHeatmapTooltip()">
-                            ${(probability * 100).toFixed(1)}%
+                            style="
+                                padding: 12px 8px; 
+                                text-align: center; 
+                                background: ${bgColor}; 
+                                color: ${textColor}; 
+                                cursor: pointer; 
+                                font-weight: 600; 
+                                transition: all 0.3s ease;
+                                ${cellStyle}
+                                position: relative;
+                            "
+                            onmouseover="showHeatmapTooltip(event, ${(probability * 100).toFixed(2)}, ${expectedFreq}, ${streak}, '${wr}')"
+                            onmouseout="hideHeatmapTooltip()"
+                            onclick="selectHeatmapCell(${wr}, ${streak})">
+                            <div style="font-size: 14px; font-weight: 700; margin-bottom: 2px;">${(probability * 100).toFixed(1)}%</div>
+                            <div style="font-size: 10px; opacity: 0.9;">1:${expectedFreq}</div>
                         </td>
                     `;
                 });
@@ -1229,30 +1306,82 @@
                         </tbody>
                     </table>
                 </div>
-                <div id="heatmapTooltip" style="position: absolute; background: rgba(0,0,0,0.9); color: white; padding: 12px; border-radius: 8px; font-size: 14px; pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 1000; border: 1px solid rgba(255,255,255,0.2);"></div>
+                <div id="heatmapTooltip" style="
+                    position: absolute; 
+                    background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(20,20,40,0.95)); 
+                    color: white; 
+                    padding: 16px; 
+                    border-radius: 12px; 
+                    font-size: 14px; 
+                    pointer-events: none; 
+                    opacity: 0; 
+                    transition: all 0.3s ease; 
+                    z-index: 1000; 
+                    border: 1px solid rgba(255,255,255,0.2);
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+                    backdrop-filter: blur(10px);
+                    max-width: 280px;
+                "></div>
             `;
             
             container.innerHTML = html;
         }
         
-        function showHeatmapTooltip(event, probability, frequency, streak) {
+        function showHeatmapTooltip(event, probability, frequency, streak, winRate) {
             const tooltip = document.getElementById('heatmapTooltip');
             if (!tooltip) return;
             
+            const riskLevel = probability < 1 ? 'Very Low' : 
+                             probability < 5 ? 'Low' : 
+                             probability < 15 ? 'Moderate' : 
+                             probability < 30 ? 'High' : 'Very High';
+            
+            const riskColor = probability < 1 ? '#10b981' : 
+                             probability < 5 ? '#34d399' : 
+                             probability < 15 ? '#fbbf24' : 
+                             probability < 30 ? '#fb923c' : '#ef4444';
+            
             tooltip.innerHTML = `
-                <div style="font-weight: 600; margin-bottom: 8px; color: #00ff88;">${streak} Consecutive Losses</div>
-                <div style="margin-bottom: 4px;">Probability: <span style="color: #ffa502; font-weight: 600;">${probability}%</span></div>
-                <div style="margin-bottom: 4px;">Expected Every: <span style="color: #3b82f6; font-weight: 600;">${frequency} trades</span></div>
-                <div style="font-size: 12px; color: #94a3b8; margin-top: 8px;">
-                    ${probability < 5 ? '🟢 Low Risk - Rare occurrence' : 
-                      probability < 15 ? '🟡 Moderate Risk - Prepare mentally' : 
-                      '🔴 High Risk - Requires strong discipline'}
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                    <div style="width: 8px; height: 8px; background: ${riskColor}; border-radius: 50%; box-shadow: 0 0 8px ${riskColor};"></div>
+                    <div style="font-weight: 700; font-size: 16px; color: #ffffff;">${streak} Consecutive Losses</div>
+                </div>
+                
+                <div style="display: grid; gap: 8px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #94a3b8;">Win Rate:</span>
+                        <span style="color: #00ff88; font-weight: 600;">${(parseFloat(winRate) * 100).toFixed(0)}%</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #94a3b8;">Probability:</span>
+                        <span style="color: ${riskColor}; font-weight: 700; font-size: 16px;">${probability}%</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #94a3b8;">Expected Every:</span>
+                        <span style="color: #3b82f6; font-weight: 600;">${frequency} trades</span>
+                    </div>
+                </div>
+                
+                <div style="padding: 8px 12px; background: rgba(${riskColor === '#10b981' ? '16,185,129' : riskColor === '#34d399' ? '52,211,153' : riskColor === '#fbbf24' ? '251,191,36' : riskColor === '#fb923c' ? '251,146,60' : '239,68,68'}, 0.2); border-radius: 8px; border-left: 3px solid ${riskColor};">
+                    <div style="font-size: 12px; font-weight: 600; color: ${riskColor}; margin-bottom: 4px;">Risk Level: ${riskLevel}</div>
+                    <div style="font-size: 11px; color: #94a3b8; line-height: 1.4;">
+                        ${probability < 1 ? 'Extremely rare - may never occur in typical trading' : 
+                          probability < 5 ? 'Rare occurrence - prepare but don\'t worry' : 
+                          probability < 15 ? 'Moderate risk - mental preparation needed' : 
+                          probability < 30 ? 'High probability - requires strong discipline' : 
+                          'Very likely - strategy may not be viable'}
+                    </div>
                 </div>
             `;
             
             tooltip.style.opacity = '1';
-            tooltip.style.left = (event.pageX + 15) + 'px';
-            tooltip.style.top = (event.pageY - 10) + 'px';
+            tooltip.style.left = Math.min(event.pageX + 15, window.innerWidth - 300) + 'px';
+            tooltip.style.top = Math.max(event.pageY - 10, 10) + 'px';
+        }
+        
+        function selectHeatmapCell(winRate, streak) {
+            // Optional: Add click functionality for cell selection
+            console.log(`Selected: ${(winRate * 100).toFixed(0)}% win rate, ${streak} consecutive losses`);
         }
         
         function hideHeatmapTooltip() {
@@ -1520,71 +1649,315 @@
             const container = document.getElementById('enhancedMetrics');
             if (!container) return;
             
-            // Calculate advanced metrics
+            // Calculate scalping-appropriate metrics
             const wins = results.filter(r => r > 0);
             const losses = results.filter(r => r < 0);
+            const breakevens = results.filter(r => r === 0);
             const avgWin = wins.length > 0 ? wins.reduce((a, b) => a + b, 0) / wins.length : 0;
             const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((a, b) => a + b, 0) / losses.length) : 1;
             const profitFactor = losses.length > 0 ? (wins.reduce((a, b) => a + b, 0) / Math.abs(losses.reduce((a, b) => a + b, 0))) : 0;
             
-            // Calculate Sharpe-like ratio
             const avgReturn = results.reduce((a, b) => a + b, 0) / results.length;
-            const variance = results.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / results.length;
-            const stdDev = Math.sqrt(variance);
-            const sharpeRatio = stdDev > 0 ? avgReturn / stdDev : 0;
+            const winRate = (wins.length / results.length) * 100;
+            
+            // Calculate consecutive streaks
+            let maxWinStreak = 0, maxLossStreak = 0, currentWinStreak = 0, currentLossStreak = 0;
+            results.forEach(r => {
+                if (r > 0) {
+                    currentWinStreak++;
+                    currentLossStreak = 0;
+                    maxWinStreak = Math.max(maxWinStreak, currentWinStreak);
+                } else if (r < 0) {
+                    currentLossStreak++;
+                    currentWinStreak = 0;
+                    maxLossStreak = Math.max(maxLossStreak, currentLossStreak);
+                } else {
+                    currentWinStreak = 0;
+                    currentLossStreak = 0;
+                }
+            });
+            
+            // Calculate recovery factor (total return / max drawdown)
+            let runningTotal = 0, peak = 0, maxDD = 0;
+            results.forEach(r => {
+                runningTotal += r;
+                if (runningTotal > peak) peak = runningTotal;
+                const dd = peak - runningTotal;
+                if (dd > maxDD) maxDD = dd;
+            });
+            const recoveryFactor = maxDD > 0 ? runningTotal / maxDD : 0;
             
             container.innerHTML = `
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md);">
                     <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
                         <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Profit Factor</div>
-                        <div style="font-size: 24px; font-weight: 700; color: ${profitFactor > 1.5 ? '#10b981' : profitFactor > 1 ? '#f59e0b' : '#ef4444'};">${profitFactor.toFixed(2)}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">${profitFactor > 1.5 ? 'Excellent' : profitFactor > 1 ? 'Good' : 'Poor'}</div>
+                        <div style="font-size: 24px; font-weight: 700; color: ${profitFactor > 1.5 ? '#10b981' : profitFactor > 1.2 ? '#f59e0b' : '#ef4444'};">${profitFactor.toFixed(2)}</div>
+                        <div style="font-size: 10px; color: var(--text-secondary);">${profitFactor > 1.5 ? 'Excellent' : profitFactor > 1.2 ? 'Good' : profitFactor > 1 ? 'Marginal' : 'Poor'}</div>
                     </div>
                     
                     <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Risk-Reward Ratio</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Win Rate</div>
+                        <div style="font-size: 24px; font-weight: 700; color: ${winRate > 60 ? '#10b981' : winRate > 45 ? '#f59e0b' : '#ef4444'};">${winRate.toFixed(1)}%</div>
+                        <div style="font-size: 10px; color: var(--text-secondary);">${wins.length}W / ${losses.length}L / ${breakevens.length}BE</div>
+                    </div>
+                    
+                    <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Risk:Reward Ratio</div>
                         <div style="font-size: 24px; font-weight: 700; color: var(--accent-primary);">1:${(avgWin / avgLoss).toFixed(1)}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">Avg Win vs Avg Loss</div>
+                        <div style="font-size: 10px; color: var(--text-secondary);">${avgWin.toFixed(2)}R avg win</div>
                     </div>
                     
                     <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Sharpe-like Ratio</div>
-                        <div style="font-size: 24px; font-weight: 700; color: ${sharpeRatio > 1 ? '#10b981' : sharpeRatio > 0.5 ? '#f59e0b' : '#ef4444'};">${sharpeRatio.toFixed(2)}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">Risk-Adjusted Return</div>
-                    </div>
-                    
-                    <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Max Consecutive Losses</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #ef4444;">${strategy.stats?.maxConsecLosses || 'N/A'}</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Max Loss Streak</div>
+                        <div style="font-size: 24px; font-weight: 700; color: #ef4444;">${maxLossStreak}</div>
                         <div style="font-size: 10px; color: var(--text-secondary);">Historical Maximum</div>
                     </div>
                     
                     <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Max Drawdown</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #ef4444;">${strategy.maxDrawdownPercent?.toFixed(1) || 'N/A'}%</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">Peak to Trough</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Max Win Streak</div>
+                        <div style="font-size: 24px; font-weight: 700; color: #10b981;">${maxWinStreak}</div>
+                        <div style="font-size: 10px; color: var(--text-secondary);">Best Run</div>
                     </div>
                     
                     <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
                         <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Expectancy</div>
-                        <div style="font-size: 24px; font-weight: 700; color: ${avgReturn > 0 ? '#10b981' : '#ef4444'};">${avgReturn.toFixed(3)}R</div>
+                        <div style="font-size: 24px; font-weight: 700; color: ${avgReturn > 0.1 ? '#10b981' : avgReturn > 0 ? '#f59e0b' : '#ef4444'};">${avgReturn.toFixed(3)}R</div>
                         <div style="font-size: 10px; color: var(--text-secondary);">Per Trade Average</div>
+                    </div>
+                    
+                    <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Recovery Factor</div>
+                        <div style="font-size: 24px; font-weight: 700; color: ${recoveryFactor > 3 ? '#10b981' : recoveryFactor > 1.5 ? '#f59e0b' : '#ef4444'};">${recoveryFactor.toFixed(1)}</div>
+                        <div style="font-size: 10px; color: var(--text-secondary);">Return / Max DD</div>
+                    </div>
+                    
+                    <div class="metric-card" style="padding: var(--spacing-md); background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); text-align: center;">
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Total Trades</div>
+                        <div style="font-size: 24px; font-weight: 700; color: var(--text-primary);">${results.length}</div>
+                        <div style="font-size: 10px; color: var(--text-secondary);">Sample Size</div>
                     </div>
                 </div>
                 
                 <div style="margin-top: var(--spacing-lg); padding: var(--spacing-md); background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-sm);">
-                    <h5 style="color: #3b82f6; margin: 0 0 var(--spacing-sm) 0;">📊 Strategy Assessment</h5>
+                    <h5 style="color: #3b82f6; margin: 0 0 var(--spacing-sm) 0;">📊 Scalping Strategy Assessment</h5>
                     <div style="font-size: 14px; color: var(--text-primary); line-height: 1.5;">
-                        ${profitFactor > 1.5 && sharpeRatio > 1 ? 
-                            '✅ <strong>Excellent Strategy:</strong> High profit factor and risk-adjusted returns. Suitable for aggressive position sizing.' :
-                          profitFactor > 1.2 && sharpeRatio > 0.5 ?
-                            '✅ <strong>Good Strategy:</strong> Solid performance metrics. Suitable for moderate position sizing.' :
-                          profitFactor > 1 ?
+                        ${profitFactor > 1.5 && avgReturn > 0.1 ? 
+                            '✅ <strong>Excellent Scalping Strategy:</strong> High profit factor and positive expectancy. Suitable for aggressive position sizing.' :
+                          profitFactor > 1.2 && avgReturn > 0.05 ?
+                            '✅ <strong>Good Scalping Strategy:</strong> Solid performance metrics. Suitable for moderate position sizing.' :
+                          profitFactor > 1 && avgReturn > 0 ?
                             '⚠️ <strong>Marginal Strategy:</strong> Barely profitable. Use conservative position sizing and monitor closely.' :
-                            '❌ <strong>Poor Strategy:</strong> Negative expectancy. Not recommended for live trading.'}
+                            '❌ <strong>Poor Strategy:</strong> Negative expectancy. Not suitable for scalping operations.'}
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+                        <strong>Key Insight:</strong> ${maxLossStreak > 7 ? 
+                            `High loss streak risk (${maxLossStreak}) - requires strong mental discipline` :
+                            maxLossStreak > 4 ?
+                            `Moderate loss streak risk (${maxLossStreak}) - manageable with proper position sizing` :
+                            `Low loss streak risk (${maxLossStreak}) - psychologically easier to trade`}
                     </div>
                 </div>
             `;
+        }
+        
+        function setupMonteCarloSimulation(strategy, winRate, results) {
+            const runBtn = document.getElementById('runMonteCarloBtn');
+            if (!runBtn) return;
+            
+            runBtn.addEventListener('click', () => {
+                runMonteCarloAnalysis(strategy, winRate, results);
+            });
+        }
+        
+        function runMonteCarloAnalysis(strategy, winRate, results) {
+            const runBtn = document.getElementById('runMonteCarloBtn');
+            const progressContainer = document.getElementById('simulationProgress');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const resultsContainer = document.getElementById('monteCarloResults');
+            
+            // Show progress elements
+            runBtn.disabled = true;
+            runBtn.innerHTML = '<span>⏳</span><span>Running...</span>';
+            progressContainer.style.display = 'block';
+            progressText.style.display = 'block';
+            resultsContainer.style.display = 'none';
+            
+            // Calculate strategy parameters
+            const wins = results.filter(r => r > 0);
+            const losses = results.filter(r => r < 0);
+            const avgWin = wins.length > 0 ? wins.reduce((a, b) => a + b, 0) / wins.length : 2.0;
+            const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((a, b) => a + b, 0) / losses.length) : 1.0;
+            
+            const numSimulations = 1000;
+            const numTrades = 100;
+            const simulationResults = [];
+            
+            let completed = 0;
+            
+            // Run simulations in batches to avoid blocking UI
+            function runBatch() {
+                const batchSize = 50;
+                const endIndex = Math.min(completed + batchSize, numSimulations);
+                
+                for (let sim = completed; sim < endIndex; sim++) {
+                    const result = runSingleSimulation(winRate, avgWin, avgLoss, numTrades);
+                    simulationResults.push(result);
+                }
+                
+                completed = endIndex;
+                const progress = (completed / numSimulations) * 100;
+                
+                progressBar.style.width = progress + '%';
+                progressText.textContent = `${completed}/${numSimulations} simulations complete`;
+                
+                if (completed < numSimulations) {
+                    setTimeout(runBatch, 10); // Small delay to keep UI responsive
+                } else {
+                    // Simulation complete
+                    displayMonteCarloResults(simulationResults);
+                    
+                    // Reset UI
+                    runBtn.disabled = false;
+                    runBtn.innerHTML = '<span>🚀</span><span>Run 1,000 Simulations</span>';
+                    progressContainer.style.display = 'none';
+                    progressText.style.display = 'none';
+                    resultsContainer.style.display = 'block';
+                }
+            }
+            
+            // Start simulation
+            setTimeout(runBatch, 100);
+        }
+        
+        function runSingleSimulation(winRate, avgWin, avgLoss, numTrades) {
+            let equity = 0;
+            let peak = 0;
+            let maxDrawdown = 0;
+            let consecutiveLosses = 0;
+            let maxConsecutiveLosses = 0;
+            
+            for (let trade = 0; trade < numTrades; trade++) {
+                const isWin = Math.random() < winRate;
+                const result = isWin ? avgWin : -avgLoss;
+                
+                equity += result;
+                
+                if (equity > peak) {
+                    peak = equity;
+                    consecutiveLosses = 0;
+                } else {
+                    if (!isWin) {
+                        consecutiveLosses++;
+                        maxConsecutiveLosses = Math.max(maxConsecutiveLosses, consecutiveLosses);
+                    }
+                }
+                
+                const drawdown = peak - equity;
+                maxDrawdown = Math.max(maxDrawdown, drawdown);
+            }
+            
+            return {
+                finalEquity: equity,
+                maxDrawdown: maxDrawdown,
+                maxConsecutiveLosses: maxConsecutiveLosses
+            };
+        }
+        
+        function displayMonteCarloResults(results) {
+            // Calculate statistics
+            const finalEquities = results.map(r => r.finalEquity);
+            const maxDrawdowns = results.map(r => r.maxDrawdown);
+            const lossStreaks = results.map(r => r.maxConsecutiveLosses);
+            
+            const profitableRuns = finalEquities.filter(e => e > 0).length;
+            const profitablePercent = (profitableRuns / results.length) * 100;
+            
+            const avgFinalEquity = finalEquities.reduce((a, b) => a + b, 0) / finalEquities.length;
+            const avgMaxDrawdown = maxDrawdowns.reduce((a, b) => a + b, 0) / maxDrawdowns.length;
+            const avgMaxLossStreak = lossStreaks.reduce((a, b) => a + b, 0) / lossStreaks.length;
+            
+            // Create histograms
+            createHistogram('equityHistogram', finalEquities, 'Final Equity (R)', '#00ff88');
+            createHistogram('drawdownHistogram', maxDrawdowns, 'Max Drawdown (R)', '#ef4444');
+            createHistogram('lossStreakHistogram', lossStreaks, 'Max Loss Streak', '#f59e0b');
+            
+            // Display summary
+            const summaryContainer = document.getElementById('simulationSummary');
+            summaryContainer.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
+                    <div style="text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #00ff88;">${profitablePercent.toFixed(1)}%</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">Profitable Runs</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: var(--text-primary);">${avgFinalEquity.toFixed(1)}R</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">Avg Final Equity</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #ef4444;">${avgMaxDrawdown.toFixed(1)}R</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">Avg Max Drawdown</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #f59e0b;">${avgMaxLossStreak.toFixed(1)}</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">Avg Max Loss Streak</div>
+                    </div>
+                </div>
+                <div style="font-size: 14px; color: var(--text-primary); text-align: center;">
+                    <strong>Monte Carlo Insight:</strong> 
+                    ${profitablePercent > 80 ? 
+                        `Excellent strategy - ${profitablePercent.toFixed(0)}% of simulations were profitable` :
+                      profitablePercent > 60 ?
+                        `Good strategy - ${profitablePercent.toFixed(0)}% success rate with manageable risk` :
+                      profitablePercent > 40 ?
+                        `Marginal strategy - Only ${profitablePercent.toFixed(0)}% success rate, use conservative sizing` :
+                        `Poor strategy - Only ${profitablePercent.toFixed(0)}% of simulations were profitable`}
+                </div>
+            `;
+        }
+        
+        function createHistogram(canvasId, data, title, color) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+            
+            // Calculate histogram bins
+            const min = Math.min(...data);
+            const max = Math.max(...data);
+            const numBins = 20;
+            const binSize = (max - min) / numBins;
+            const bins = new Array(numBins).fill(0);
+            
+            data.forEach(value => {
+                const binIndex = Math.min(Math.floor((value - min) / binSize), numBins - 1);
+                bins[binIndex]++;
+            });
+            
+            const maxBinCount = Math.max(...bins);
+            const barWidth = width / numBins;
+            
+            // Draw bars
+            ctx.fillStyle = color;
+            bins.forEach((count, i) => {
+                const barHeight = (count / maxBinCount) * (height - 20);
+                const x = i * barWidth;
+                const y = height - barHeight - 10;
+                
+                ctx.fillRect(x, y, barWidth - 1, barHeight);
+            });
+            
+            // Draw labels
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(min.toFixed(1), 10, height - 2);
+            ctx.fillText(max.toFixed(1), width - 10, height - 2);
         }
         
         function renderModalPerformance(signals, strategy) {
