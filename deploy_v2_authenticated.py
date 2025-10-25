@@ -48,12 +48,17 @@ class AuthenticatedAPIClient:
         payload = {"schema_sql": schema_sql}
         
         try:
+            print(f"📡 Sending request to {self.base_url}/api/deploy-signal-lab-v2...")
             response = self.session.post(
                 f"{self.base_url}/api/deploy-signal-lab-v2",
                 json=payload,
-                timeout=120
+                timeout=180  # Longer timeout for large schema
             )
+            print(f"📨 Response received: {response.status_code}")
             return response
+        except requests.exceptions.Timeout:
+            print(f"⏰ Request timed out after 180 seconds")
+            return None
         except Exception as e:
             print(f"❌ Request exception: {e}")
             return None

@@ -1,0 +1,441 @@
+
+# ============================================================================
+# V2 AUTOMATION API ENDPOINTS - Add these to your web_server.py
+# ============================================================================
+
+@app.route('/api/v2/process-signal', methods=['POST'])
+@login_required
+def process_signal_v2():
+    """Process TradingView signal through V2 automation"""
+    try:
+        data = request.get_json()
+        
+        signal_type = data.get('type', '').replace('ish', '')  # "Bullish" -> "Bullish"
+        signal_price = float(data.get('price', 0))
+        signal_timestamp = data.get('timestamp', datetime.now().isoformat())
+        signal_session = data.get('session', 'NY AM')
+        
+        # Parse timestamp
+        if isinstance(signal_timestamp, str):
+            try:
+                signal_dt = datetime.fromisoformat(signal_timestamp.replace('Z', '+00:00'))
+            except:
+                signal_dt = datetime.now()
+        else:
+            signal_dt = datetime.now()
+        
+        # Calculate automated entry and stop loss
+        if signal_type == 'Bullish':
+            entry_price = signal_price + 2.5  # Next candle open simulation
+            stop_loss_price = signal_price - 25.0  # 25 point buffer
+        else:  # Bearish
+            entry_price = signal_price - 2.5
+            stop_loss_price = signal_price + 25.0
+        
+        risk_distance = abs(entry_price - stop_loss_price)
+        
+        # Calculate R-targets
+        if signal_type == 'Bullish':
+            target_1r = entry_price + risk_distance
+            target_2r = entry_price + (2 * risk_distance)
+            target_3r = entry_price + (3 * risk_distance)
+            target_5r = entry_price + (5 * risk_distance)
+            target_10r = entry_price + (10 * risk_distance)
+            target_20r = entry_price + (20 * risk_distance)
+        else:
+            target_1r = entry_price - risk_distance
+            target_2r = entry_price - (2 * risk_distance)
+            target_3r = entry_price - (3 * risk_distance)
+            target_5r = entry_price - (5 * risk_distance)
+            target_10r = entry_price - (10 * risk_distance)
+            target_20r = entry_price - (20 * risk_distance)
+        
+        # Insert V2 trade
+        cursor = db.conn.cursor()
+        
+        insert_sql = """
+        INSERT INTO signal_lab_v2_trades (
+            trade_uuid, symbol, bias, session, 
+            date, time, entry_price, stop_loss_price, risk_distance,
+            target_1r_price, target_2r_price, target_3r_price,
+            target_5r_price, target_10r_price, target_20r_price,
+            current_mfe, trade_status, active_trade, auto_populated
+        ) VALUES (
+            gen_random_uuid(), %s, %s, %s,
+            %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s,
+            0.00, 'active', true, true
+        ) RETURNING id, trade_uuid;
+        """
+        
+        cursor.execute(insert_sql, (
+            'NQ1!', signal_type, signal_session,
+            signal_dt.date(), signal_dt.time(), 
+            entry_price, stop_loss_price, risk_distance,
+            target_1r, target_2r, target_3r,
+            target_5r, target_10r, target_20r
+        ))
+        
+        result = cursor.fetchone()
+        trade_id = result[0]
+        trade_uuid = result[1]
+        
+        db.conn.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Signal processed through V2 automation",
+            "trade_id": trade_id,
+            "trade_uuid": str(trade_uuid),
+            "entry_price": entry_price,
+            "stop_loss_price": stop_loss_price,
+            "risk_distance": risk_distance,
+            "r_targets": {
+                "1R": target_1r,
+                "2R": target_2r,
+                "3R": target_3r,
+                "5R": target_5r,
+                "10R": target_10r,
+                "20R": target_20r
+            },
+            "automation": "v2_enabled"
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/v2/active-trades', methods=['GET'])
+@login_required
+def get_v2_active_trades():
+    """Get all active V2 trades with real-time MFE"""
+    try:
+        cursor = db.conn.cursor()
+        cursor.execute("SELECT * FROM v2_active_trades_monitor;")
+        
+        trades = []
+        columns = [desc[0] for desc in cursor.description]
+        
+        for row in cursor.fetchall():
+            trade = {}
+            for i, col in enumerate(columns):
+                value = row[i]
+                if hasattr(value, 'isoformat'):  # datetime objects
+                    value = value.isoformat()
+                elif isinstance(value, uuid.UUID):  # UUID objects
+                    value = str(value)
+                trade[col] = value
+            trades.append(trade)
+        
+        return jsonify({
+            "success": True,
+            "active_trades": trades,
+            "count": len(trades),
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/v2/update-mfe', methods=['POST'])
+@login_required
+def update_v2_mfe():
+    """Update MFE for active trades"""
+    try:
+        data = request.get_json()
+        trade_id = data.get('trade_id')
+        new_mfe = float(data.get('mfe', 0))
+        current_price = float(data.get('current_price', 0))
+        
+        cursor = db.conn.cursor()
+        
+        # Only update if MFE is higher (new high)
+        cursor.execute("""
+            UPDATE signal_lab_v2_trades 
+            SET 
+                current_mfe = GREATEST(current_mfe, %s), 
+                updated_at = NOW()
+            WHERE id = %s AND active_trade = true
+            RETURNING current_mfe, bias, entry_price;
+        """, (new_mfe, trade_id))
+        
+        result = cursor.fetchone()
+        
+        if result:
+            updated_mfe = result[0]
+            bias = result[1]
+            entry_price = result[2]
+            
+            db.conn.commit()
+            
+            # Check for milestone achievements
+            milestone_message = ""
+            if updated_mfe >= 20:
+                milestone_message = "🚀 MEGA TREND! 20R+ achieved!"
+            elif updated_mfe >= 10:
+                milestone_message = "💎 BIG MOVE! 10R+ achieved!"
+            elif updated_mfe >= 5:
+                milestone_message = "📈 STRONG move! 5R+ achieved!"
+            elif updated_mfe >= 1:
+                milestone_message = "✅ In profit! 1R+ achieved!"
+            
+            return jsonify({
+                "success": True,
+                "message": f"MFE updated to {updated_mfe}R for trade {trade_id}",
+                "updated_mfe": float(updated_mfe),
+                "milestone": milestone_message,
+                "trade_info": {
+                    "bias": bias,
+                    "entry_price": float(entry_price),
+                    "current_price": current_price
+                }
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Trade not found or not active"
+            }), 404
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/v2/close-trade', methods=['POST'])
+@login_required
+def close_v2_trade():
+    """Close a V2 trade and finalize MFE"""
+    try:
+        data = request.get_json()
+        trade_id = data.get('trade_id')
+        reason = data.get('reason', 'manual_close')  # 'stop_loss', 'target_hit', 'manual_close'
+        exit_price = float(data.get('exit_price', 0))
+        
+        cursor = db.conn.cursor()
+        
+        # Get current trade info and close it
+        cursor.execute("""
+            UPDATE signal_lab_v2_trades 
+            SET 
+                active_trade = false,
+                trade_status = %s,
+                final_mfe = current_mfe,
+                updated_at = NOW()
+            WHERE id = %s AND active_trade = true
+            RETURNING current_mfe, bias, entry_price, trade_uuid;
+        """, (reason, trade_id))
+        
+        result = cursor.fetchone()
+        
+        if result:
+            final_mfe = result[0]
+            bias = result[1]
+            entry_price = result[2]
+            trade_uuid = result[3]
+            
+            db.conn.commit()
+            
+            return jsonify({
+                "success": True,
+                "message": f"Trade {trade_id} closed successfully",
+                "final_mfe": float(final_mfe),
+                "reason": reason,
+                "trade_info": {
+                    "trade_uuid": str(trade_uuid),
+                    "bias": bias,
+                    "entry_price": float(entry_price),
+                    "exit_price": exit_price
+                }
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Trade not found or already closed"
+            }), 404
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/v2/stats', methods=['GET'])
+@login_required
+def get_v2_stats():
+    """Get comprehensive V2 automation statistics"""
+    try:
+        cursor = db.conn.cursor()
+        
+        # Get comprehensive V2 stats
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_v2_trades,
+                COUNT(CASE WHEN active_trade = true THEN 1 END) as active_trades,
+                COUNT(CASE WHEN active_trade = false THEN 1 END) as closed_trades,
+                AVG(CASE WHEN active_trade = true THEN current_mfe END) as avg_active_mfe,
+                AVG(CASE WHEN active_trade = false THEN final_mfe END) as avg_final_mfe,
+                MAX(CASE WHEN active_trade = true THEN current_mfe ELSE final_mfe END) as max_mfe_achieved,
+                COUNT(CASE WHEN (CASE WHEN active_trade = true THEN current_mfe ELSE final_mfe END) >= 1 THEN 1 END) as trades_above_1r,
+                COUNT(CASE WHEN (CASE WHEN active_trade = true THEN current_mfe ELSE final_mfe END) >= 5 THEN 1 END) as trades_above_5r,
+                COUNT(CASE WHEN (CASE WHEN active_trade = true THEN current_mfe ELSE final_mfe END) >= 10 THEN 1 END) as trades_above_10r,
+                COUNT(CASE WHEN (CASE WHEN active_trade = true THEN current_mfe ELSE final_mfe END) >= 20 THEN 1 END) as trades_above_20r,
+                COUNT(CASE WHEN auto_populated = true THEN 1 END) as automated_trades
+            FROM signal_lab_v2_trades;
+        """)
+        
+        result = cursor.fetchone()
+        columns = [desc[0] for desc in cursor.description]
+        stats = dict(zip(columns, result)) if result else {}
+        
+        # Convert Decimal to float for JSON serialization
+        for key, value in stats.items():
+            if hasattr(value, '__float__'):
+                stats[key] = float(value)
+        
+        return jsonify({
+            "success": True,
+            "v2_stats": stats,
+            "automation_status": "active",
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# Enhanced webhook endpoint for V2 automation
+@app.route('/api/live-signals-v2', methods=['POST'])
+def receive_signal_v2():
+    """Enhanced webhook with V2 automation - no login required for TradingView"""
+    try:
+        data = request.get_json()
+        
+        # Process through V2 automation
+        signal_result = {
+            "type": data.get('type', ''),
+            "price": data.get('price', 0),
+            "timestamp": data.get('timestamp', datetime.now().isoformat()),
+            "session": data.get('session', 'NY AM')
+        }
+        
+        # Call the V2 processing function
+        try:
+            # Use the same logic as process_signal_v2 but without login requirement
+            signal_type = signal_result["type"].replace('ish', '')
+            signal_price = float(signal_result["price"])
+            
+            if signal_type in ['Bullish', 'Bearish'] and signal_price > 0:
+                # Calculate automated entry and stop loss
+                if signal_type == 'Bullish':
+                    entry_price = signal_price + 2.5
+                    stop_loss_price = signal_price - 25.0
+                else:
+                    entry_price = signal_price - 2.5
+                    stop_loss_price = signal_price + 25.0
+                
+                risk_distance = abs(entry_price - stop_loss_price)
+                
+                # Calculate R-targets
+                if signal_type == 'Bullish':
+                    targets = {
+                        "1R": entry_price + risk_distance,
+                        "2R": entry_price + (2 * risk_distance),
+                        "3R": entry_price + (3 * risk_distance),
+                        "5R": entry_price + (5 * risk_distance),
+                        "10R": entry_price + (10 * risk_distance),
+                        "20R": entry_price + (20 * risk_distance)
+                    }
+                else:
+                    targets = {
+                        "1R": entry_price - risk_distance,
+                        "2R": entry_price - (2 * risk_distance),
+                        "3R": entry_price - (3 * risk_distance),
+                        "5R": entry_price - (5 * risk_distance),
+                        "10R": entry_price - (10 * risk_distance),
+                        "20R": entry_price - (20 * risk_distance)
+                    }
+                
+                # Insert V2 trade
+                cursor = db.conn.cursor()
+                
+                insert_sql = """
+                INSERT INTO signal_lab_v2_trades (
+                    trade_uuid, symbol, bias, session, 
+                    date, time, entry_price, stop_loss_price, risk_distance,
+                    target_1r_price, target_2r_price, target_3r_price,
+                    target_5r_price, target_10r_price, target_20r_price,
+                    current_mfe, trade_status, active_trade, auto_populated
+                ) VALUES (
+                    gen_random_uuid(), 'NQ1!', %s, %s,
+                    CURRENT_DATE, CURRENT_TIME, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s,
+                    0.00, 'active', true, true
+                ) RETURNING id, trade_uuid;
+                """
+                
+                cursor.execute(insert_sql, (
+                    signal_type, signal_result["session"],
+                    entry_price, stop_loss_price, risk_distance,
+                    targets["1R"], targets["2R"], targets["3R"],
+                    targets["5R"], targets["10R"], targets["20R"]
+                ))
+                
+                result = cursor.fetchone()
+                trade_id = result[0]
+                trade_uuid = result[1]
+                
+                db.conn.commit()
+                
+                v2_automation = {
+                    "success": True,
+                    "trade_id": trade_id,
+                    "trade_uuid": str(trade_uuid),
+                    "entry_price": entry_price,
+                    "stop_loss_price": stop_loss_price,
+                    "r_targets": targets,
+                    "automation": "v2_enabled"
+                }
+            else:
+                v2_automation = {
+                    "success": False,
+                    "reason": "Invalid signal type or price"
+                }
+                
+        except Exception as v2_error:
+            v2_automation = {
+                "success": False,
+                "error": str(v2_error)
+            }
+        
+        # Also store in original live_signals table for compatibility
+        try:
+            cursor = db.conn.cursor()
+            cursor.execute("""
+                INSERT INTO live_signals (symbol, type, timestamp, price, session)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id;
+            """, (
+                data.get('symbol', 'NQ1!'),
+                data.get('type', ''),
+                datetime.now(),
+                data.get('price', 0),
+                data.get('session', 'NY AM')
+            ))
+            
+            original_id = cursor.fetchone()[0]
+            db.conn.commit()
+            
+        except Exception as original_error:
+            original_id = None
+        
+        return jsonify({
+            "success": True,
+            "message": "Signal received and processed through V2 automation",
+            "original_signal_id": original_id,
+            "v2_automation": v2_automation,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }), 500
+
+# ============================================================================
+# END V2 AUTOMATION API ENDPOINTS
+# ============================================================================
