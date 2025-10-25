@@ -707,15 +707,30 @@
             'https://videos.pexels.com/video-files/6774268/6774268-uhd_3840_2160_25fps.mp4'  // River paradise
         ];
 
-        let currentVideoIndex = 0;
+        // Start with random video and create shuffled playlist
+        let videoPlaylist = [...Array(videoSources.length).keys()]; // [0, 1, 2, 3, ...]
+        let currentPlaylistIndex = 0;
         const video = document.getElementById('backgroundVideo');
         let isTransitioning = false;
 
-        function loadVideo(index) {
+        // Shuffle the playlist for random order
+        function shufflePlaylist() {
+            for (let i = videoPlaylist.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [videoPlaylist[i], videoPlaylist[j]] = [videoPlaylist[j], videoPlaylist[i]];
+            }
+            currentPlaylistIndex = 0;
+        }
+
+        // Initialize with shuffled playlist
+        shufflePlaylist();
+
+        function loadVideo(playlistIndex) {
             if (isTransitioning) return;
             
-            const videoUrl = videoSources[index];
-            console.log(`Loading nature video ${index + 1}/${videoSources.length}: ${videoUrl}`);
+            const videoIndex = videoPlaylist[playlistIndex];
+            const videoUrl = videoSources[videoIndex];
+            console.log(`Loading nature video ${videoIndex + 1}/${videoSources.length} (playlist position ${playlistIndex + 1}): ${videoUrl}`);
             
             // Create new video element for smooth transition
             const newVideo = document.createElement('video');
@@ -763,12 +778,21 @@
         function cycleToNextVideo() {
             if (isTransitioning) return;
             
-            currentVideoIndex = (currentVideoIndex + 1) % videoSources.length;
-            loadVideo(currentVideoIndex);
+            currentPlaylistIndex = (currentPlaylistIndex + 1) % videoPlaylist.length;
+            
+            // If we've gone through all videos, reshuffle for next round
+            if (currentPlaylistIndex === 0) {
+                console.log('🔄 Reshuffling homepage video playlist for variety!');
+                shufflePlaylist();
+            }
+            
+            loadVideo(currentPlaylistIndex);
         }
 
-        // Initialize first video
-        video.src = videoSources[0];
+        // Initialize with first video from shuffled playlist
+        const firstVideoIndex = videoPlaylist[0];
+        video.src = videoSources[firstVideoIndex];
+        console.log(`🎬 Starting homepage with random video ${firstVideoIndex + 1}/${videoSources.length}`);
         
         // Handle video errors - try next video
         video.addEventListener('error', function() {
