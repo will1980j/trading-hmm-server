@@ -5435,6 +5435,65 @@ def optimize_ml_hyperparameters():
         logger.error(f"Optimization error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/deploy-signal-lab-v2', methods=['POST'])
+def deploy_signal_lab_v2():
+    """Deploy Signal Lab V2 schema to Railway database"""
+    
+    try:
+        data = request.get_json()
+        schema_sql = data.get('schema_sql')
+        
+        if not schema_sql:
+            return jsonify({'success': False, 'error': 'No schema provided'}), 400
+        
+        # Get V1 trade count for verification
+        cursor = db.conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
+        v1_count = cursor.fetchone()[0]
+        
+        # Execute V2 schema
+        cursor.execute("BEGIN;")
+        
+        try:
+            # Split and execute statements
+            statements = [stmt.strip() for stmt in schema_sql.split(';') if stmt.strip()]
+            tables_created = []
+            
+            for statement in statements:
+                if statement and not statement.startswith('--'):
+                    cursor.execute(statement)
+                    
+                    # Track table creation
+                    if 'CREATE TABLE' in statement.upper():
+                        table_name = statement.split()[2]
+                        tables_created.append(table_name)
+            
+            cursor.execute("COMMIT;")
+            
+            # Verify V1 integrity
+            cursor.execute("SELECT COUNT(*) FROM signal_lab_trades")
+            v1_count_after = cursor.fetchone()[0]
+            
+            if v1_count_after != v1_count:
+                return jsonify({
+                    'success': False, 
+                    'error': f'V1 data integrity issue: {v1_count} -> {v1_count_after}'
+                }), 500
+            
+            return jsonify({
+                'success': True,
+                'v1_trade_count': v1_count,
+                'tables_created': tables_created,
+                'message': 'Signal Lab V2 deployed successfully'
+            })
+            
+        except Exception as e:
+            cursor.execute("ROLLBACK;")
+            return jsonify({'success': False, 'error': str(e)}), 500
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/ml-predict', methods=['POST'])
 def predict_signal_ml():
     """Get ML prediction for a signal"""
