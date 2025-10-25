@@ -8603,7 +8603,7 @@ def receive_signal_v2():
         
         # Process through V2 automation
         signal_result = {
-            "type": data.get('type', ''),
+            "type": data.get('type', data.get('signal_type', '')),
             "price": data.get('price', 0),
             "timestamp": data.get('timestamp', datetime.now().isoformat()),
             "session": data.get('session', 'NY AM')
@@ -8615,7 +8615,9 @@ def receive_signal_v2():
             signal_type = signal_result["type"]  # Keep original: "Bullish" or "Bearish"
             signal_price = float(signal_result["price"])
             
-            if signal_type in ['Bullish', 'Bearish'] and signal_price > 0:
+            # Normalize signal type (handle both capitalized and lowercase)
+            if signal_type.lower() in ['bullish', 'bearish'] and signal_price > 0:
+                signal_type = signal_type.capitalize()  # Convert to "Bullish" or "Bearish"
                 # EXACT METHODOLOGY - NO SHORTCUTS
                 # Signal must wait for confirmation - cannot calculate entry/stop immediately
                 entry_price = None
