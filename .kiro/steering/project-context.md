@@ -192,6 +192,24 @@ I have a comprehensive cloud-based NASDAQ day trading analytics platform built w
 - Mobile-responsive for active trading scenarios
 - Seamless integration with existing TradingView workflows
 
+## Performance Metrics Guidelines
+
+**❌ AVOID These Metrics for Scalping Systems:**
+- **Sharpe Ratio** - Misleading for short-term trading due to volatility calculations
+- **Sortino Ratio** - Inappropriate for scalping timeframes and frequency
+- **Risk-Adjusted Returns** - Distorted by the high-frequency nature of scalping
+
+**✅ USE These Scalping-Appropriate Metrics:**
+- **Profit Factor** - Gross profit vs gross loss ratio
+- **Win Rate** - Critical for scalping success assessment
+- **Expectancy** - Average profit per trade
+- **Recovery Factor** - Total return divided by maximum drawdown
+- **Maximum Consecutive Losses** - Essential for position sizing
+- **Maximum Win/Loss Streaks** - Psychological preparation metrics
+- **Risk:Reward Ratio** - Average win vs average loss comparison
+
+**Rationale:** Sharpe and Sortino ratios assume normal return distributions and longer holding periods. Scalping strategies have unique characteristics (high frequency, short duration, different risk profiles) that make traditional risk-adjusted metrics misleading and potentially harmful for decision-making.
+
 ## Development Approach
 
 - Comprehensive trading analytics platform with ML as supporting feature
