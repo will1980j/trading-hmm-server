@@ -18,6 +18,10 @@ from ml_insights_endpoint import get_ml_insights_response
 import math
 import pytz
 import uuid
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import os
+import time
 
 # Set New York timezone for the entire system
 NY_TZ = pytz.timezone('America/New_York')
@@ -122,6 +126,234 @@ except Exception as e:
     logger.error(f"Unexpected database error: {safe_error}")
     db = None
     db_enabled = False
+
+# ============================================================================
+# ROBUST V2 WEBHOOK DATABASE SOLUTION
+# ============================================================================
+
+def execute_v2_database_operation_robust(signal_type, session, entry_price, stop_loss_price, risk_distance, targets):
+    """
+    Robust database operation for V2 webhook with comprehensive error handling
+    """
+    
+    # Multiple connection strategies for maximum reliability
+    connection_strategies = [
+        "resilient_system",
+        "direct_connection", 
+        "fresh_connection",
+        "basic_connection"
+    ]
+    
+    for strategy in connection_strategies:
+        try:
+            logger.info(f"Attempting V2 database operation with strategy: {strategy}")
+            
+            if strategy == "resilient_system":
+                result = _try_resilient_system(signal_type, session, entry_price, stop_loss_price, risk_distance, targets)
+            elif strategy == "direct_connection":
+                result = _try_direct_connection(signal_type, session, entry_price, stop_loss_price, risk_distance, targets)
+            elif strategy == "fresh_connection":
+                result = _try_fresh_connection(signal_type, session, entry_price, stop_loss_price, risk_distance, targets)
+            elif strategy == "basic_connection":
+                result = _try_basic_connection(signal_type, session, entry_price, stop_loss_price, risk_distance, targets)
+            
+            if result and result.get('success'):
+                logger.info(f"✅ V2 database operation successful with strategy: {strategy}")
+                return result
+                
+        except Exception as e:
+            error_msg = str(e) if str(e) else f"Empty error from {type(e).__name__}"
+            logger.warning(f"❌ Strategy {strategy} failed: {error_msg}")
+            continue
+    
+    # If all strategies fail, return detailed error
+    return {
+        "success": False,
+        "error": "All database connection strategies failed",
+        "strategies_attempted": connection_strategies
+    }
+
+def _try_resilient_system(signal_type, session, entry_price, stop_loss_price, risk_distance, targets):
+    """Try using the existing resilient database system"""
+    try:
+        from database.railway_db import RailwayDB
+        
+        db = RailwayDB(use_pool=True)
+        if not db or not db.conn:
+            raise Exception("Resilient system connection failed")
+        
+        # Ensure clean transaction state
+        db.ensure_clean_transaction()
+        
+        return _execute_insert(db.conn, signal_type, session, entry_price, stop_loss_price, risk_distance, targets)
+        
+    except Exception as e:
+        raise Exception(f"Resilient system error: {str(e) or 'Unknown resilient error'}")
+
+def _try_direct_connection(signal_type, session, entry_price, stop_loss_price, risk_distance, targets):
+    """Try direct database connection"""
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        raise Exception("DATABASE_URL not available")
+    
+    conn = None
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_READ_COMMITTED)
+        
+        return _execute_insert(conn, signal_type, session, entry_price, stop_loss_price, risk_distance, targets)
+        
+    except Exception as e:
+        raise Exception(f"Direct connection error: {str(e) or 'Unknown direct error'}")
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
+
+def _try_fresh_connection(signal_type, session, entry_price, stop_loss_price, risk_distance, targets):
+    """Try fresh connection with explicit configuration"""
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        raise Exception("DATABASE_URL not available")
+    
+    conn = None
+    try:
+        # Parse DATABASE_URL and create fresh connection
+        conn = psycopg2.connect(
+            database_url,
+            cursor_factory=RealDictCursor,
+            connect_timeout=10,
+            application_name="v2_webhook"
+        )
+        
+        # Set explicit transaction behavior
+        conn.autocommit = False
+        conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_READ_COMMITTED)
+        
+        return _execute_insert(conn, signal_type, session, entry_price, stop_loss_price, risk_distance, targets)
+        
+    except Exception as e:
+        raise Exception(f"Fresh connection error: {str(e) or 'Unknown fresh error'}")
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
+
+def _try_basic_connection(signal_type, session, entry_price, stop_loss_price, risk_distance, targets):
+    """Try basic connection as last resort"""
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        raise Exception("DATABASE_URL not available")
+    
+    conn = None
+    try:
+        conn = psycopg2.connect(database_url)
+        
+        return _execute_insert(conn, signal_type, session, entry_price, stop_loss_price, risk_distance, targets)
+        
+    except Exception as e:
+        raise Exception(f"Basic connection error: {str(e) or 'Unknown basic error'}")
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
+
+def _execute_insert(conn, signal_type, session, entry_price, stop_loss_price, risk_distance, targets):
+    """Execute the actual database insert with comprehensive error handling"""
+    
+    cursor = None
+    try:
+        cursor = conn.cursor()
+        
+        # Prepare SQL with parameter validation
+        insert_sql = """
+        INSERT INTO signal_lab_v2_trades (
+            trade_uuid, symbol, bias, session, 
+            date, time, entry_price, stop_loss_price, risk_distance,
+            target_1r_price, target_2r_price, target_3r_price,
+            target_5r_price, target_10r_price, target_20r_price,
+            current_mfe, trade_status, active_trade, auto_populated
+        ) VALUES (
+            gen_random_uuid(), 'NQ1!', %s, %s,
+            CURRENT_DATE, CURRENT_TIME, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s,
+            0.00, 'pending_confirmation', false, true
+        ) RETURNING id, trade_uuid;
+        """
+        
+        # Prepare parameters with safe defaults
+        insert_params = (
+            signal_type or 'Bullish',
+            session or 'NY AM',
+            entry_price,
+            stop_loss_price, 
+            risk_distance,
+            targets.get("1R") if targets else None,
+            targets.get("2R") if targets else None,
+            targets.get("3R") if targets else None,
+            targets.get("5R") if targets else None,
+            targets.get("10R") if targets else None,
+            targets.get("20R") if targets else None
+        )
+        
+        # Execute with detailed error capture
+        cursor.execute(insert_sql, insert_params)
+        
+        # Get result with validation
+        result = cursor.fetchone()
+        if not result:
+            raise Exception("Insert executed but returned no result")
+        
+        if len(result) < 2:
+            raise Exception(f"Insert returned incomplete result: {result}")
+        
+        trade_id = result[0]
+        trade_uuid = result[1]
+        
+        # Commit transaction
+        conn.commit()
+        
+        return {
+            "success": True,
+            "trade_id": trade_id,
+            "trade_uuid": str(trade_uuid),
+            "entry_price": entry_price,
+            "stop_loss_price": stop_loss_price,
+            "r_targets": targets or {},
+            "automation": "v2_robust"
+        }
+        
+    except psycopg2.Error as pg_error:
+        # PostgreSQL specific error handling
+        conn.rollback()
+        error_details = {
+            "pgcode": getattr(pg_error, 'pgcode', None),
+            "pgerror": getattr(pg_error, 'pgerror', None),
+            "diag": getattr(pg_error, 'diag', None)
+        }
+        raise Exception(f"PostgreSQL error: {str(pg_error) or 'Unknown PG error'} | Details: {error_details}")
+        
+    except Exception as e:
+        # General error handling
+        conn.rollback()
+        raise Exception(f"Insert execution error: {str(e) or f'Empty error from {type(e).__name__}'}")
+        
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+
+# ============================================================================
+# END ROBUST V2 WEBHOOK DATABASE SOLUTION
+# ============================================================================
 
 # ML Engine availability check
 ml_available = False
@@ -8632,69 +8864,21 @@ def receive_signal_v2():
                     "20R": None
                 }
                 
-                # Insert V2 trade with comprehensive error handling
-                webhook_db = None
-                try:
-                    # Get fresh database connection for webhook
-                    from database.railway_db import RailwayDB
-                    webhook_db = RailwayDB(use_pool=True)
-                    
-                    if not webhook_db or not webhook_db.conn:
-                        raise Exception("Webhook database connection failed")
-                    
-                    cursor = webhook_db.conn.cursor()
-                    
-                    insert_sql = """
-                    INSERT INTO signal_lab_v2_trades (
-                        trade_uuid, symbol, bias, session, 
-                        date, time, entry_price, stop_loss_price, risk_distance,
-                        target_1r_price, target_2r_price, target_3r_price,
-                        target_5r_price, target_10r_price, target_20r_price,
-                        current_mfe, trade_status, active_trade, auto_populated
-                    ) VALUES (
-                        gen_random_uuid(), 'NQ1!', %s, %s,
-                        CURRENT_DATE, CURRENT_TIME, %s, %s, %s,
-                        %s, %s, %s, %s, %s, %s,
-                        0.00, 'pending_confirmation', false, true
-                    ) RETURNING id, trade_uuid;
-                    """
-                    
-                    # Prepare insert parameters with comprehensive error checking
-                    insert_params = (
-                        signal_type, 
-                        signal_result.get("session", "NY AM"),  # Use .get() for safety
-                        entry_price, stop_loss_price, risk_distance,
-                        targets.get("1R"), targets.get("2R"), targets.get("3R"),
-                        targets.get("5R"), targets.get("10R"), targets.get("20R")
-                    )
-                    
-                    # Execute insert with detailed error handling
-                    cursor.execute(insert_sql, insert_params)
-                    
-                    # Get result with comprehensive checking
-                    result = cursor.fetchone()
-                    if not result:
-                        raise Exception("Database insert returned no result")
-                    
-                    if len(result) < 2:
-                        raise Exception(f"Database insert returned incomplete result: {result}")
-                    
-                    trade_id = result[0]
-                    trade_uuid = result[1]
-                    
-                    # Commit transaction
-                    webhook_db.conn.commit()
-                    
-                except Exception as db_error:
-                    # Rollback on any error
-                    if webhook_db and hasattr(webhook_db, 'conn') and webhook_db.conn:
-                        try:
-                            webhook_db.conn.rollback()
-                        except:
-                            pass  # Ignore rollback errors
-                    
-                    # Re-raise with context
-                    raise Exception(f"V2 database operation failed: {str(db_error)}")
+                # Execute V2 database operation with robust connection handling
+                db_result = execute_v2_database_operation_robust(
+                    signal_type, 
+                    signal_result.get("session", "NY AM"),
+                    entry_price, 
+                    stop_loss_price, 
+                    risk_distance, 
+                    targets
+                )
+                
+                if not db_result.get('success'):
+                    raise Exception(f"Robust database operation failed: {db_result.get('error', 'Unknown error')}")
+                
+                trade_id = db_result['trade_id']
+                trade_uuid = db_result['trade_uuid']
                 
                 v2_automation = {
                     "success": True,
