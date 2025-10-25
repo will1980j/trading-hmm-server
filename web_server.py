@@ -8667,11 +8667,21 @@ def receive_signal_v2():
                             targets["1R"], targets["2R"], targets["3R"],
                             targets["5R"], targets["10R"], targets["20R"]
                         )
+                        
+                        # Debug: Log the parameters being inserted
+                        logger.info(f"V2 Insert params: signal_type={signal_type}, session={signal_result['session']}")
+                        
                         cursor.execute(insert_sql, insert_params)
+                        
                     except KeyError as key_err:
-                        raise Exception(f"Missing key in data: {str(key_err)}")
+                        raise Exception(f"Missing key in data preparation: {str(key_err)}")
+                    except Exception as sql_err:
+                        raise Exception(f"Database insert execution failed: {str(sql_err)}")
                     
                     result = cursor.fetchone()
+                    if not result:
+                        raise Exception("Database insert failed - no result returned")
+                    
                     trade_id = result[0]
                     trade_uuid = result[1]
                     
