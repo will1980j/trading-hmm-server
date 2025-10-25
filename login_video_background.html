@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,8 +23,8 @@
             position: relative;
         }
 
-        /* Video Background */
-        .video-background {
+        /* CSS Video-like Background */
+        .css-video-background {
             position: fixed;
             top: 0;
             left: 0;
@@ -40,12 +41,10 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(
-                135deg,
-                rgba(10, 14, 39, 0.8) 0%,
-                rgba(26, 31, 58, 0.7) 50%,
-                rgba(45, 27, 105, 0.8) 100%
-            );
+            background: linear-gradient(135deg,
+                    rgba(10, 14, 39, 0.8) 0%,
+                    rgba(26, 31, 58, 0.7) 50%,
+                    rgba(45, 27, 105, 0.8) 100%);
             z-index: -1;
         }
 
@@ -74,20 +73,68 @@
             animation-duration: 10s;
         }
 
-        .particle:nth-child(1) { left: 10%; animation-delay: 0s; }
-        .particle:nth-child(2) { left: 20%; animation-delay: 2s; }
-        .particle:nth-child(3) { left: 30%; animation-delay: 4s; }
-        .particle:nth-child(4) { left: 40%; animation-delay: 1s; }
-        .particle:nth-child(5) { left: 50%; animation-delay: 3s; }
-        .particle:nth-child(6) { left: 60%; animation-delay: 5s; }
-        .particle:nth-child(7) { left: 70%; animation-delay: 1.5s; }
-        .particle:nth-child(8) { left: 80%; animation-delay: 3.5s; }
+        .particle:nth-child(1) {
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .particle:nth-child(2) {
+            left: 20%;
+            animation-delay: 2s;
+        }
+
+        .particle:nth-child(3) {
+            left: 30%;
+            animation-delay: 4s;
+        }
+
+        .particle:nth-child(4) {
+            left: 40%;
+            animation-delay: 1s;
+        }
+
+        .particle:nth-child(5) {
+            left: 50%;
+            animation-delay: 3s;
+        }
+
+        .particle:nth-child(6) {
+            left: 60%;
+            animation-delay: 5s;
+        }
+
+        .particle:nth-child(7) {
+            left: 70%;
+            animation-delay: 1.5s;
+        }
+
+        .particle:nth-child(8) {
+            left: 80%;
+            animation-delay: 3.5s;
+        }
 
         @keyframes float {
-            0%, 100% { transform: translateY(100vh) scale(0); opacity: 0; }
-            10% { transform: translateY(90vh) scale(1); opacity: 1; }
-            90% { transform: translateY(10vh) scale(1); opacity: 1; }
-            100% { transform: translateY(0vh) scale(0); opacity: 0; }
+
+            0%,
+            100% {
+                transform: translateY(100vh) scale(0);
+                opacity: 0;
+            }
+
+            10% {
+                transform: translateY(90vh) scale(1);
+                opacity: 1;
+            }
+
+            90% {
+                transform: translateY(10vh) scale(1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(0vh) scale(0);
+                opacity: 0;
+            }
         }
 
         /* Login Container */
@@ -101,7 +148,7 @@
             padding: 3rem;
             width: 100%;
             max-width: 450px;
-            box-shadow: 
+            box-shadow:
                 0 25px 50px -12px rgba(0, 0, 0, 0.4),
                 0 0 0 1px rgba(255, 255, 255, 0.05);
             animation: slideUp 1s ease-out;
@@ -112,6 +159,7 @@
                 opacity: 0;
                 transform: translateY(50px) scale(0.95);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0) scale(1);
@@ -135,8 +183,15 @@
         }
 
         @keyframes logoGlow {
-            0%, 100% { filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.3)); }
-            50% { filter: drop-shadow(0 0 30px rgba(139, 92, 246, 0.5)); }
+
+            0%,
+            100% {
+                filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.3));
+            }
+
+            50% {
+                filter: drop-shadow(0 0 30px rgba(139, 92, 246, 0.5));
+            }
         }
 
         .platform-title {
@@ -182,7 +237,7 @@
         .form-input:focus {
             background: rgba(255, 255, 255, 0.15);
             border-color: #3b82f6;
-            box-shadow: 
+            box-shadow:
                 0 0 0 3px rgba(59, 130, 246, 0.15),
                 0 0 20px rgba(59, 130, 246, 0.2);
             transform: translateY(-2px);
@@ -246,9 +301,19 @@
         }
 
         @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-8px); }
-            75% { transform: translateX(8px); }
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-8px);
+            }
+
+            75% {
+                transform: translateX(8px);
+            }
         }
 
         /* Features */
@@ -314,14 +379,14 @@
         }
     </style>
 </head>
+
 <body>
-    <!-- Video Background -->
-    <video autoplay muted loop class="video-background" playsinline>
-        <!-- Replace with your video files -->
-        <source src="/static/videos/trading-data-flow.mp4" type="video/mp4">
-        <source src="/static/videos/trading-data-flow.webm" type="video/webm">
-        <!-- Fallback for browsers that don't support video -->
-    </video>
+    <!-- Cycling Video Background -->
+    <div class="video-container">
+        <video id="backgroundVideo" autoplay muted loop class="video-background" playsinline>
+            <!-- Will be populated by JavaScript -->
+        </video>
+    </div>
 
     <!-- Video Overlay -->
     <div class="video-overlay"></div>
@@ -347,25 +412,13 @@
 
         <form class="login-form" method="POST" id="loginForm">
             <div class="form-group">
-                <input 
-                    type="text" 
-                    name="username" 
-                    class="form-input" 
-                    placeholder="Username" 
-                    required
-                    autocomplete="username"
-                >
+                <input type="text" name="username" class="form-input" placeholder="Username" required
+                    autocomplete="username">
             </div>
 
             <div class="form-group">
-                <input 
-                    type="password" 
-                    name="password" 
-                    class="form-input" 
-                    placeholder="Password" 
-                    required
-                    autocomplete="current-password"
-                >
+                <input type="password" name="password" class="form-input" placeholder="Password" required
+                    autocomplete="current-password">
             </div>
 
             <button type="submit" class="login-button">
@@ -403,33 +456,124 @@
 
     <script>
         // Form submission with loading state
-        document.getElementById('loginForm').addEventListener('submit', function() {
+        document.getElementById('loginForm').addEventListener('submit', function () {
             this.classList.add('loading');
         });
 
         // Enhanced interactive effects
         document.querySelectorAll('.form-input').forEach(input => {
-            input.addEventListener('focus', function() {
+            input.addEventListener('focus', function () {
                 this.parentElement.style.transform = 'scale(1.02)';
             });
-            
-            input.addEventListener('blur', function() {
+
+            input.addEventListener('blur', function () {
                 this.parentElement.style.transform = 'scale(1)';
             });
         });
 
-        // Video fallback handling
-        const video = document.querySelector('.video-background');
-        video.addEventListener('error', function() {
-            // If video fails to load, enhance the gradient background
-            document.body.style.background = `
-                linear-gradient(135deg, #0a0e27 0%, #1a1f3a 25%, #2d1b69 50%, #3b82f6 75%, #8b5cf6 100%)
-            `;
-            document.body.style.backgroundSize = '400% 400%';
-            document.body.style.animation = 'gradientShift 20s ease infinite';
+        // Cycling Video Background System
+        const videoSources = [
+            // Abstract/Tech Videos from Pexels
+            'https://videos.pexels.com/video-files/3129957/3129957-uhd_3840_2160_30fps.mp4', // Abstract particles
+            'https://videos.pexels.com/video-files/3130284/3130284-uhd_3840_2160_30fps.mp4', // Digital waves
+            'https://videos.pexels.com/video-files/3141207/3141207-uhd_3840_2160_30fps.mp4', // Tech grid
+            'https://videos.pexels.com/video-files/3195394/3195394-uhd_3840_2160_25fps.mp4', // Data flow
+            'https://videos.pexels.com/video-files/3209828/3209828-uhd_3840_2160_25fps.mp4', // Circuit board
+            'https://videos.pexels.com/video-files/6774264/6774264-uhd_3840_2160_25fps.mp4', // Matrix style
+            'https://videos.pexels.com/video-files/7710243/7710243-uhd_3840_2160_25fps.mp4', // Financial charts
+            'https://videos.pexels.com/video-files/8728382/8728382-uhd_3840_2160_25fps.mp4'  // Trading graphs
+        ];
+
+        let currentVideoIndex = 0;
+        const video = document.getElementById('backgroundVideo');
+        let isTransitioning = false;
+
+        function loadVideo(index) {
+            if (isTransitioning) return;
+
+            const videoUrl = videoSources[index];
+            console.log(`Loading video ${index + 1}/${videoSources.length}: ${videoUrl}`);
+
+            // Create new video element for smooth transition
+            const newVideo = document.createElement('video');
+            newVideo.autoplay = true;
+            newVideo.muted = true;
+            newVideo.loop = true;
+            newVideo.playsInline = true;
+            newVideo.className = 'video-background';
+            newVideo.style.opacity = '0';
+
+            newVideo.addEventListener('loadeddata', function () {
+                // Fade out current video, fade in new video
+                isTransitioning = true;
+                video.style.transition = 'opacity 2s ease-in-out';
+                newVideo.style.transition = 'opacity 2s ease-in-out';
+
+                video.style.opacity = '0';
+                newVideo.style.opacity = '1';
+
+                setTimeout(() => {
+                    // Replace the video element
+                    video.src = videoUrl;
+                    video.style.opacity = '1';
+                    video.style.transition = '';
+
+                    // Remove the temporary video
+                    if (newVideo.parentNode) {
+                        newVideo.parentNode.removeChild(newVideo);
+                    }
+
+                    isTransitioning = false;
+                }, 2000);
+            });
+
+            newVideo.addEventListener('error', function () {
+                console.log(`Video ${index + 1} failed to load, trying next...`);
+                cycleToNextVideo();
+            });
+
+            // Add to container temporarily
+            document.querySelector('.video-container').appendChild(newVideo);
+            newVideo.src = videoUrl;
+        }
+
+        function cycleToNextVideo() {
+            if (isTransitioning) return;
+
+            currentVideoIndex = (currentVideoIndex + 1) % videoSources.length;
+            loadVideo(currentVideoIndex);
+        }
+
+        // Initialize first video
+        video.src = videoSources[0];
+
+        // Handle video errors - try next video
+        video.addEventListener('error', function () {
+            console.log('Current video failed, trying next...');
+            cycleToNextVideo();
         });
 
-        // Add gradient animation keyframes if video fails
+        // Cycle videos every 30 seconds
+        setInterval(cycleToNextVideo, 30000);
+
+        // Fallback to gradient if all videos fail
+        let failedAttempts = 0;
+        video.addEventListener('error', function () {
+            failedAttempts++;
+            if (failedAttempts >= videoSources.length) {
+                console.log('All videos failed, using gradient fallback');
+                document.body.style.background = `
+                    linear-gradient(135deg, #0a0e27 0%, #1a1f3a 25%, #2d1b69 50%, #3b82f6 75%, #8b5cf6 100%)
+                `;
+                document.body.style.backgroundSize = '400% 400%';
+                document.body.style.animation = 'gradientShift 20s ease infinite';
+
+                // Hide video container
+                document.querySelector('.video-container').style.display = 'none';
+            }
+        });
+
+        // Add gradient animation keyframes for fallback
         const style = document.createElement('style');
         style.textContent = `
             @keyframes gradientShift {
@@ -437,8 +581,18 @@
                 50% { background-position: 100% 50%; }
                 100% { background-position: 0% 50%; }
             }
+            .video-container {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: -2;
+                overflow: hidden;
+            }
         `;
         document.head.appendChild(style);
     </script>
 </body>
+
 </html>

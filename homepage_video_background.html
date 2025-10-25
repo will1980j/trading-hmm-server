@@ -439,13 +439,12 @@
     </style>
 </head>
 <body>
-    <!-- Video Background -->
-    <video autoplay muted loop class="video-background" playsinline>
-        <!-- Replace with your video files -->
-        <source src="/static/videos/city-skyline-timelapse.mp4" type="video/mp4">
-        <source src="/static/videos/city-skyline-timelapse.webm" type="video/webm">
-        <!-- Fallback for browsers that don't support video -->
-    </video>
+    <!-- Cycling Video Background -->
+    <div class="video-container">
+        <video id="backgroundVideo" autoplay muted loop class="video-background" playsinline>
+            <!-- Will be populated by JavaScript -->
+        </video>
+    </div>
 
     <!-- Video Overlay -->
     <div class="video-overlay"></div>
@@ -630,24 +629,124 @@
             });
         });
 
-        // Video fallback handling
-        const video = document.querySelector('.video-background');
+        // Cycling Video Background System - Trading/Business Theme
+        const videoSources = [
+            // Trading/Business/Tech Videos from Pexels
+            'https://videos.pexels.com/video-files/7710243/7710243-uhd_3840_2160_25fps.mp4', // Financial charts
+            'https://videos.pexels.com/video-files/8728382/8728382-uhd_3840_2160_25fps.mp4', // Trading graphs
+            'https://videos.pexels.com/video-files/6774264/6774264-uhd_3840_2160_25fps.mp4', // Matrix/data
+            'https://videos.pexels.com/video-files/3195394/3195394-uhd_3840_2160_25fps.mp4', // Data flow
+            'https://videos.pexels.com/video-files/3209828/3209828-uhd_3840_2160_25fps.mp4', // Circuit board
+            'https://videos.pexels.com/video-files/3141207/3141207-uhd_3840_2160_30fps.mp4', // Tech grid
+            'https://videos.pexels.com/video-files/3130284/3130284-uhd_3840_2160_30fps.mp4', // Digital waves
+            'https://videos.pexels.com/video-files/3129957/3129957-uhd_3840_2160_30fps.mp4'  // Abstract particles
+        ];
+
+        let currentVideoIndex = 0;
+        const video = document.getElementById('backgroundVideo');
+        let isTransitioning = false;
+
+        function loadVideo(index) {
+            if (isTransitioning) return;
+            
+            const videoUrl = videoSources[index];
+            console.log(`Loading homepage video ${index + 1}/${videoSources.length}: ${videoUrl}`);
+            
+            // Create new video element for smooth transition
+            const newVideo = document.createElement('video');
+            newVideo.autoplay = true;
+            newVideo.muted = true;
+            newVideo.loop = true;
+            newVideo.playsInline = true;
+            newVideo.className = 'video-background';
+            newVideo.style.opacity = '0';
+            
+            newVideo.addEventListener('loadeddata', function() {
+                // Fade out current video, fade in new video
+                isTransitioning = true;
+                video.style.transition = 'opacity 3s ease-in-out';
+                newVideo.style.transition = 'opacity 3s ease-in-out';
+                
+                video.style.opacity = '0';
+                newVideo.style.opacity = '1';
+                
+                setTimeout(() => {
+                    // Replace the video element
+                    video.src = videoUrl;
+                    video.style.opacity = '1';
+                    video.style.transition = '';
+                    
+                    // Remove the temporary video
+                    if (newVideo.parentNode) {
+                        newVideo.parentNode.removeChild(newVideo);
+                    }
+                    
+                    isTransitioning = false;
+                }, 3000);
+            });
+
+            newVideo.addEventListener('error', function() {
+                console.log(`Homepage video ${index + 1} failed to load, trying next...`);
+                cycleToNextVideo();
+            });
+
+            // Add to container temporarily
+            document.querySelector('.video-container').appendChild(newVideo);
+            newVideo.src = videoUrl;
+        }
+
+        function cycleToNextVideo() {
+            if (isTransitioning) return;
+            
+            currentVideoIndex = (currentVideoIndex + 1) % videoSources.length;
+            loadVideo(currentVideoIndex);
+        }
+
+        // Initialize first video
+        video.src = videoSources[0];
+        
+        // Handle video errors - try next video
         video.addEventListener('error', function() {
-            // If video fails to load, enhance the gradient background
-            document.body.style.background = `
-                linear-gradient(135deg, #0a0e27 0%, #1a1f3a 25%, #2d1b69 50%, #3b82f6 75%, #8b5cf6 100%)
-            `;
-            document.body.style.backgroundSize = '400% 400%';
-            document.body.style.animation = 'gradientShift 25s ease infinite';
+            console.log('Current homepage video failed, trying next...');
+            cycleToNextVideo();
         });
 
-        // Add gradient animation keyframes if video fails
+        // Cycle videos every 45 seconds (longer for homepage)
+        setInterval(cycleToNextVideo, 45000);
+
+        // Fallback to gradient if all videos fail
+        let failedAttempts = 0;
+        video.addEventListener('error', function() {
+            failedAttempts++;
+            if (failedAttempts >= videoSources.length) {
+                console.log('All homepage videos failed, using gradient fallback');
+                document.body.style.background = `
+                    linear-gradient(135deg, #0a0e27 0%, #1a1f3a 25%, #2d1b69 50%, #3b82f6 75%, #8b5cf6 100%)
+                `;
+                document.body.style.backgroundSize = '400% 400%';
+                document.body.style.animation = 'gradientShift 25s ease infinite';
+                
+                // Hide video container
+                document.querySelector('.video-container').style.display = 'none';
+            }
+        });
+
+        // Add gradient animation keyframes for fallback
         const style = document.createElement('style');
         style.textContent = `
             @keyframes gradientShift {
                 0% { background-position: 0% 50%; }
                 50% { background-position: 100% 50%; }
                 100% { background-position: 0% 50%; }
+            }
+            .video-container {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: -2;
+                overflow: hidden;
             }
         `;
         document.head.appendChild(style);
