@@ -16,33 +16,77 @@
     </video>
     
     <script>
+        // Testing different Google Drive URL formats with your file ID: 18gYaw4YLy0r4-N-NVFP7MTRyRBbhCH1i
         const videoSources = [
+            // Format 1: Direct download (current)
             'https://drive.google.com/uc?export=download&id=18gYaw4YLy0r4-N-NVFP7MTRyRBbhCH1i',
-            // Add more file IDs here as you get them
+            
+            // Format 2: View format
+            'https://drive.google.com/file/d/18gYaw4YLy0r4-N-NVFP7MTRyRBbhCH1i/view',
+            
+            // Format 3: Preview format
+            'https://drive.google.com/file/d/18gYaw4YLy0r4-N-NVFP7MTRyRBbhCH1i/preview',
+            
+            // Format 4: Open format
+            'https://drive.google.com/open?id=18gYaw4YLy0r4-N-NVFP7MTRyRBbhCH1i',
+            
+            // Format 5: Alternative download format
+            'https://drive.google.com/uc?id=18gYaw4YLy0r4-N-NVFP7MTRyRBbhCH1i&export=download',
+            
+            // Format 6: Thumbnail format (might work for video)
+            'https://drive.google.com/thumbnail?id=18gYaw4YLy0r4-N-NVFP7MTRyRBbhCH1i',
+            
+            // Format 7: Direct access attempt
+            'https://docs.google.com/uc?export=download&id=18gYaw4YLy0r4-N-NVFP7MTRyRBbhCH1i',
+            
+            // Format 8: Alternative docs format
+            'https://docs.google.com/file/d/18gYaw4YLy0r4-N-NVFP7MTRyRBbhCH1i/edit',
+            
+            // Format 9: Raw content attempt
+            'https://drive.google.com/uc?export=view&id=18gYaw4YLy0r4-N-NVFP7MTRyRBbhCH1i',
+            
+            // Format 10: Alternative raw format
+            'https://drive.google.com/file/d/18gYaw4YLy0r4-N-NVFP7MTRyRBbhCH1i/raw'
         ];
         
         let currentIndex = 0;
         const video = document.getElementById('testVideo');
         const status = document.getElementById('status');
         
+        const formatNames = [
+            'Direct Download',
+            'View Format', 
+            'Preview Format',
+            'Open Format',
+            'Alt Download',
+            'Thumbnail Format',
+            'Docs Download',
+            'Docs Edit',
+            'Export View',
+            'Raw Format'
+        ];
+        
         function loadVideo(index) {
             const url = videoSources[index];
-            status.textContent = `Testing video ${index + 1}/${videoSources.length}: ${url}`;
+            const formatName = formatNames[index] || `Format ${index + 1}`;
+            status.textContent = `🔄 Testing ${formatName} (${index + 1}/${videoSources.length}): ${url}`;
             video.src = url;
         }
         
         video.addEventListener('error', function() {
-            status.textContent = `❌ Video ${currentIndex + 1} failed to load. Trying next...`;
+            const formatName = formatNames[currentIndex] || `Format ${currentIndex + 1}`;
+            status.textContent = `❌ ${formatName} failed. Trying next format...`;
             currentIndex++;
             if (currentIndex < videoSources.length) {
-                setTimeout(() => loadVideo(currentIndex), 2000);
+                setTimeout(() => loadVideo(currentIndex), 3000);
             } else {
-                status.textContent = '❌ All test videos failed to load.';
+                status.textContent = '❌ All Google Drive URL formats failed to load.';
             }
         });
         
         video.addEventListener('loadeddata', function() {
-            status.textContent = `✅ Video ${currentIndex + 1} loaded successfully!`;
+            const formatName = formatNames[currentIndex] || `Format ${currentIndex + 1}`;
+            status.textContent = `✅ SUCCESS! ${formatName} works! URL: ${videoSources[currentIndex]}`;
         });
         
         // Start testing
