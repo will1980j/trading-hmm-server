@@ -629,17 +629,17 @@
             });
         });
 
-        // Cycling Video Background System - Trading/Business Theme
+        // Cycling City Skyline Background System - Financial District Theme
         const videoSources = [
-            // Trading/Business/Tech Videos from Pexels
-            'https://videos.pexels.com/video-files/7710243/7710243-uhd_3840_2160_25fps.mp4', // Financial charts
-            'https://videos.pexels.com/video-files/8728382/8728382-uhd_3840_2160_25fps.mp4', // Trading graphs
-            'https://videos.pexels.com/video-files/6774264/6774264-uhd_3840_2160_25fps.mp4', // Matrix/data
-            'https://videos.pexels.com/video-files/3195394/3195394-uhd_3840_2160_25fps.mp4', // Data flow
-            'https://videos.pexels.com/video-files/3209828/3209828-uhd_3840_2160_25fps.mp4', // Circuit board
-            'https://videos.pexels.com/video-files/3141207/3141207-uhd_3840_2160_30fps.mp4', // Tech grid
-            'https://videos.pexels.com/video-files/3130284/3130284-uhd_3840_2160_30fps.mp4', // Digital waves
-            'https://videos.pexels.com/video-files/3129957/3129957-uhd_3840_2160_30fps.mp4'  // Abstract particles
+            // Premium Nighttime Financial District & City Skylines from Pexels
+            'https://videos.pexels.com/video-files/2169880/2169880-uhd_3840_2160_30fps.mp4', // NYC Financial District
+            'https://videos.pexels.com/video-files/3571264/3571264-uhd_3840_2160_30fps.mp4', // Urban financial center
+            'https://videos.pexels.com/video-files/2169307/2169307-uhd_3840_2160_30fps.mp4', // Trading district lights
+            'https://videos.pexels.com/video-files/3141205/3141205-uhd_3840_2160_30fps.mp4', // Business district aerial
+            'https://videos.pexels.com/video-files/2169305/2169305-uhd_3840_2160_30fps.mp4', // Corporate towers
+            'https://videos.pexels.com/video-files/2169879/2169879-uhd_3840_2160_30fps.mp4', // Metropolitan finance
+            'https://videos.pexels.com/video-files/3141206/3141206-uhd_3840_2160_30fps.mp4', // Downtown trading hub
+            'https://videos.pexels.com/video-files/2169306/2169306-uhd_3840_2160_30fps.mp4'  // Financial center night
         ];
 
         let currentVideoIndex = 0;
@@ -650,7 +650,7 @@
             if (isTransitioning) return;
             
             const videoUrl = videoSources[index];
-            console.log(`Loading homepage video ${index + 1}/${videoSources.length}: ${videoUrl}`);
+            console.log(`Loading financial district skyline ${index + 1}/${videoSources.length}: ${videoUrl}`);
             
             // Create new video element for smooth transition
             const newVideo = document.createElement('video');

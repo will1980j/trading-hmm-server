@@ -471,17 +471,17 @@
             });
         });
 
-        // Cycling Video Background System
+        // Cycling City Skyline Background System
         const videoSources = [
-            // Abstract/Tech Videos from Pexels
-            'https://videos.pexels.com/video-files/3129957/3129957-uhd_3840_2160_30fps.mp4', // Abstract particles
-            'https://videos.pexels.com/video-files/3130284/3130284-uhd_3840_2160_30fps.mp4', // Digital waves
-            'https://videos.pexels.com/video-files/3141207/3141207-uhd_3840_2160_30fps.mp4', // Tech grid
-            'https://videos.pexels.com/video-files/3195394/3195394-uhd_3840_2160_25fps.mp4', // Data flow
-            'https://videos.pexels.com/video-files/3209828/3209828-uhd_3840_2160_25fps.mp4', // Circuit board
-            'https://videos.pexels.com/video-files/6774264/6774264-uhd_3840_2160_25fps.mp4', // Matrix style
-            'https://videos.pexels.com/video-files/7710243/7710243-uhd_3840_2160_25fps.mp4', // Financial charts
-            'https://videos.pexels.com/video-files/8728382/8728382-uhd_3840_2160_25fps.mp4'  // Trading graphs
+            // Stunning Nighttime City Skylines from Pexels
+            'https://videos.pexels.com/video-files/2169880/2169880-uhd_3840_2160_30fps.mp4', // NYC skyline at night
+            'https://videos.pexels.com/video-files/2169307/2169307-uhd_3840_2160_30fps.mp4', // City lights timelapse
+            'https://videos.pexels.com/video-files/3571264/3571264-uhd_3840_2160_30fps.mp4', // Urban night panorama
+            'https://videos.pexels.com/video-files/2169305/2169305-uhd_3840_2160_30fps.mp4', // Skyscraper lights
+            'https://videos.pexels.com/video-files/3141205/3141205-uhd_3840_2160_30fps.mp4', // City night aerial
+            'https://videos.pexels.com/video-files/2169879/2169879-uhd_3840_2160_30fps.mp4', // Metropolitan night
+            'https://videos.pexels.com/video-files/3141206/3141206-uhd_3840_2160_30fps.mp4', // Downtown night view
+            'https://videos.pexels.com/video-files/2169306/2169306-uhd_3840_2160_30fps.mp4'  // City night timelapse
         ];
 
         let currentVideoIndex = 0;
@@ -492,7 +492,7 @@
             if (isTransitioning) return;
 
             const videoUrl = videoSources[index];
-            console.log(`Loading video ${index + 1}/${videoSources.length}: ${videoUrl}`);
+            console.log(`Loading city skyline ${index + 1}/${videoSources.length}: ${videoUrl}`);
 
             // Create new video element for smooth transition
             const newVideo = document.createElement('video');
