@@ -62,21 +62,12 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             padding: 1rem 2rem;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
             z-index: 100;
         }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 0.8rem;
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+
 
         .nav-container {
             display: flex;
@@ -105,20 +96,20 @@
         }
 
         .main-content {
-            padding: 4rem 2rem;
+            padding: 2.5rem 2rem;
             max-width: 1400px;
             margin: 0 auto;
         }
 
         .welcome-section {
             text-align: center;
-            margin-bottom: 4rem;
+            margin-bottom: 2.5rem;
         }
 
         .welcome-title {
-            font-size: 3.5rem;
+            font-size: 2.8rem;
             font-weight: 800;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             background: linear-gradient(135deg, #ffffff, #e2e8f0, #3b82f6);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -126,9 +117,9 @@
         }
 
         .welcome-subtitle {
-            font-size: 1.3rem;
+            font-size: 1.1rem;
             color: #94a3b8;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
             max-width: 600px;
             margin-left: auto;
             margin-right: auto;
@@ -136,44 +127,45 @@
 
         .tools-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 2rem;
-            margin-bottom: 4rem;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.2rem;
+            margin-bottom: 3rem;
         }
 
         .tool-card {
             background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(25px);
             border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 20px;
-            padding: 2rem;
+            border-radius: 16px;
+            padding: 1.4rem;
             transition: all 0.3s ease;
             text-decoration: none;
             color: inherit;
         }
 
         .tool-card:hover {
-            transform: translateY(-8px);
+            transform: translateY(-6px);
             background: rgba(255, 255, 255, 0.12);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.4);
         }
 
         .tool-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
+            font-size: 2rem;
+            margin-bottom: 0.8rem;
             display: block;
         }
 
         .tool-title {
-            font-size: 1.3rem;
+            font-size: 1.1rem;
             font-weight: 700;
-            margin-bottom: 0.8rem;
+            margin-bottom: 0.6rem;
             color: #ffffff;
         }
 
         .tool-description {
             color: #94a3b8;
-            line-height: 1.6;
+            line-height: 1.5;
+            font-size: 0.9rem;
         }
 
         @media (max-width: 768px) {
@@ -207,9 +199,6 @@
     <div class="video-overlay"></div>
 
     <header class="header">
-        <div class="logo">
-            <span>📈</span>
-        </div>
         <nav class="nav-container">
             <a href="/homepage" class="nav-link">🏠 Home</a>
             <a href="/signal-lab-dashboard" class="nav-link">📊 Dashboard</a>
@@ -260,6 +249,12 @@
                 <span class="tool-icon">🧪</span>
                 <h3 class="tool-title">Signal Lab</h3>
                 <p class="tool-description">Advanced signal analysis, manual backtesting, and validation tools</p>
+            </a>
+
+            <a href="/signal-lab-v2" class="tool-card">
+                <span class="tool-icon">🤖</span>
+                <h3 class="tool-title">Signal Lab V2</h3>
+                <p class="tool-description">Automated trading interface with V2 signal processing and real-time automation</p>
             </a>
 
             <a href="/time-analysis" class="tool-card">
