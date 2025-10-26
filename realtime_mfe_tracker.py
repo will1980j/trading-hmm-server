@@ -88,17 +88,15 @@ class RealtimeMFETracker:
         - Broker API (Interactive Brokers, etc.)
         - Market data provider
         
-        For now, we'll simulate price movement
+        REAL DATA ONLY - No price simulation
         """
-        # Simulate realistic NASDAQ price movement
-        import random
-        base_price = 20000.00
+        # NO FAKE DATA - Must integrate with real market data provider
+        # This should connect to Polygon, Alpha Vantage, or TradingView data
         
-        # Simulate price with small random movements
-        price_change = random.uniform(-50, 50)  # ±50 points movement
-        current_price = base_price + price_change
+        raise NotImplementedError("❌ REAL MARKET DATA REQUIRED - No fake price simulation allowed")
         
-        return round(current_price, 2)
+        # TODO: Implement real market data integration
+        # return real_market_price
     
     def _calculate_current_mfe(self, trade, current_price):
         """Calculate current MFE based on trade direction and current price"""

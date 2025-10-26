@@ -1068,10 +1068,8 @@
             }
         }
         
-        // Load sample data
-        function loadSampleData() {
-            if (propFirms.length === 0) {
-                const sampleFirms = [
+        // REMOVED: loadSampleData() function - NO FAKE DATA ALLOWED
+        // All prop firm data must be real
                     { firmName: 'FTMO', firmWebsite: 'https://ftmo.com', status: 'funded', marketType: 'Forex', accountSize: 200000, maxFunding: 2000000, profitSplit: 90, currency: 'EUR', monthlyProfit: 3500, challengeProgress: 100, scalingPercent: 10 },
                     { firmName: 'Apex Trader', firmWebsite: 'https://apextraderfunding.com', status: 'challenge', marketType: 'Futures', accountSize: 150000, maxFunding: 300000, profitSplit: 90, currency: 'USD', monthlyProfit: 0, challengeProgress: 65, scalingPercent: 50 },
                     { firmName: 'The5ers', firmWebsite: 'https://the5ers.com', status: 'funded', marketType: 'Forex', accountSize: 100000, maxFunding: 4000000, profitSplit: 90, currency: 'GBP', monthlyProfit: 2800, challengeProgress: 100, scalingPercent: 2.5 }

@@ -607,8 +607,8 @@
             <!-- Real-time Price Tracker -->
             <div class="price-tracker">
                 <h2 class="section-title">
-                    📈 Real-time NASDAQ Price
-                    <span class="real-time-indicator">
+                    📈 NASDAQ Price
+                    <span class="real-time-indicator" id="liveIndicator" style="display: none;">
                         <div class="real-time-dot"></div>
                         LIVE
                     </span>
@@ -722,50 +722,70 @@
 
         async function loadCurrentPrice() {
             try {
-                // Simulate real-time price for demo (replace with actual endpoint when available)
-                const basePrice = 20500;
-                const variation = (Math.random() - 0.5) * 10; // ±5 points
-                const currentPrice = basePrice + variation;
-                const change = variation;
-                
-                document.getElementById('currentPrice').textContent = currentPrice.toFixed(2);
-                
-                const changeElement = document.getElementById('priceChange');
-                changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}`;
-                changeElement.className = `price-change ${change >= 0 ? 'positive' : 'negative'}`;
-                
-                // Get current session
-                const now = new Date();
-                const hour = now.getHours();
-                let session = 'Unknown';
-                
-                if (hour >= 0 && hour < 6) session = 'London';
-                else if (hour >= 6 && hour < 8.5) session = 'NY Pre';
-                else if (hour >= 8.5 && hour < 12) session = 'NY AM';
-                else if (hour >= 12 && hour < 13) session = 'NY Lunch';
-                else if (hour >= 13 && hour < 16) session = 'NY PM';
-                else session = 'Asia';
-                
-                document.getElementById('currentSession').textContent = session;
-                document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
-                
-                // Update price update counter
-                const currentMinute = now.getMinutes();
-                if (currentMinute !== lastMinute) {
-                    priceUpdateCount = 1;
-                    lastMinute = currentMinute;
-                } else {
-                    priceUpdateCount++;
+                // Try to get real price data from endpoints
+                let response = await fetch('/api/v2/price/current');
+                if (!response.ok) {
+                    response = await fetch('/api/v2/price/stream?limit=1');
                 }
-                document.getElementById('priceUpdates').textContent = priceUpdateCount;
                 
-                // Update status indicators
-                updateStatusIndicator('priceStatus', true);
+                if (response.ok) {
+                    const data = await response.json();
+                    let priceData = null;
+                    
+                    if (data.current_price) {
+                        priceData = data.current_price;
+                    } else if (data.prices && data.prices.length > 0) {
+                        priceData = data.prices[0];
+                    }
+                    
+                    if (priceData) {
+                        document.getElementById('currentPrice').textContent = parseFloat(priceData.price).toFixed(2);
+                        
+                        const change = priceData.change || 0;
+                        const changeElement = document.getElementById('priceChange');
+                        changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}`;
+                        changeElement.className = `price-change ${change >= 0 ? 'positive' : 'negative'}`;
+                        
+                        document.getElementById('currentSession').textContent = priceData.session || 'Unknown';
+                        
+                        const lastUpdate = new Date(priceData.timestamp || priceData.created_at);
+                        document.getElementById('lastUpdate').textContent = lastUpdate.toLocaleTimeString();
+                        
+                        // Update price update counter only with real data
+                        const currentMinute = new Date().getMinutes();
+                        if (currentMinute !== lastMinute) {
+                            priceUpdateCount = 1;
+                            lastMinute = currentMinute;
+                        } else {
+                            priceUpdateCount++;
+                        }
+                        document.getElementById('priceUpdates').textContent = priceUpdateCount;
+                        
+                        updateStatusIndicator('priceStatus', true);
+                    } else {
+                        // No real data available - show market closed state
+                        showMarketClosedState();
+                    }
+                } else {
+                    // No price endpoint available - show market closed state
+                    showMarketClosedState();
+                }
                 
             } catch (error) {
                 console.error('Error loading current price:', error);
-                updateStatusIndicator('priceStatus', false);
+                showMarketClosedState();
             }
+        }
+
+        function showMarketClosedState() {
+            // Show honest market closed state - NO FAKE DATA
+            document.getElementById('currentPrice').textContent = '---.--';
+            document.getElementById('priceChange').textContent = '--';
+            document.getElementById('priceChange').className = 'price-change';
+            document.getElementById('currentSession').textContent = 'Market Closed';
+            document.getElementById('lastUpdate').textContent = 'No Data';
+            document.getElementById('priceUpdates').textContent = '0';
+            updateStatusIndicator('priceStatus', false);
         }
 
         async function loadEnhancedSignals() {
@@ -931,9 +951,19 @@
             if (isActive) {
                 element.className = 'status-indicator status-active';
                 element.querySelector('.status-dot').className = 'status-dot active';
+                
+                // Show LIVE indicator only when price data is actually live
+                if (elementId === 'priceStatus') {
+                    document.getElementById('liveIndicator').style.display = 'inline-flex';
+                }
             } else {
                 element.className = 'status-indicator status-warning';
                 element.querySelector('.status-dot').className = 'status-dot warning';
+                
+                // Hide LIVE indicator when no real data
+                if (elementId === 'priceStatus') {
+                    document.getElementById('liveIndicator').style.display = 'none';
+                }
             }
         }
 

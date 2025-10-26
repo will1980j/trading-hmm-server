@@ -366,8 +366,10 @@ def add_confirmation_requirement(trade_uuid: str, signal_type: str,
 if __name__ == "__main__":
     import os
     
-    # Mock database connection string
-    db_conn_string = os.environ.get('DATABASE_URL', 'postgresql://localhost/test')
+    # Real database connection string - NO FAKE DATA
+    db_conn_string = os.environ.get('DATABASE_URL')
+    if not db_conn_string:
+        raise ValueError("❌ DATABASE_URL required - no fake database operations")
     
     # Start monitoring
     monitor = start_confirmation_monitoring(db_conn_string)

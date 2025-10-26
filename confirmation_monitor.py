@@ -436,13 +436,11 @@ class ConfirmationMonitor:
     def _get_signal_candle_data(self, signal):
         """Get the original signal candle data"""
         
-        # For now, simulate signal candle data
-        # In production, this would be stored when signal is created
+        # REAL DATA ONLY - No fake signal candle data
+        # Signal candle data must be stored when signal is created
         
-        return {
-            'open': 20000.00,
-            'high': 20005.00,
-            'low': 19995.00,
+        # Return None if no real data available
+        return None  # NO FAKE DATA - must be implemented with real signal storage
             'close': 20002.00,
             'timestamp': signal['created_at']
         }

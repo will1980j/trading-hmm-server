@@ -374,8 +374,10 @@ def get_trade_status(trade_uuid: str) -> Optional[Dict]:
 if __name__ == "__main__":
     import os
     
-    # Mock database connection string
-    db_conn_string = os.environ.get('DATABASE_URL', 'postgresql://localhost/test')
+    # Real database connection string - NO FAKE DATA
+    db_conn_string = os.environ.get('DATABASE_URL')
+    if not db_conn_string:
+        raise ValueError("❌ DATABASE_URL required - no fake database operations")
     
     # Start MFE tracking
     tracker = start_mfe_tracking(db_conn_string)

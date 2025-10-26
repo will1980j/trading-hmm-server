@@ -315,7 +315,7 @@
             </div>
             
             <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="btn" onclick="loadSampleData()">Load 96 Sample Trades</button>
+                <!-- REMOVED: No fake sample data allowed -->
                 <button class="btn" onclick="exportData()">Export CSV</button>
                 <input type="file" id="csvFile" accept=".csv" style="display: none;" onchange="importCSV(event)">
                 <button class="btn" onclick="document.getElementById('csvFile').click()">Import CSV</button>
@@ -413,8 +413,9 @@
                     });
                     console.log('Loaded', trades.length, 'trades from database');
                 } else {
-                    console.log('No trades found, loading sample data');
-                    loadSampleData();
+                    console.log('No trades found - showing empty state');
+                    // NO FAKE DATA - Show honest empty state instead of sample data
+                    trades = [];
                 }
                 updateDisplay();
             } catch (error) {
@@ -709,9 +710,8 @@
             }
         }
         
-        function loadSampleData() {
-            const data = [
-                ['2024-08-06','LONG','LONDON',false,-1],['2024-08-06','LONG','LONDON',false,-1],['2024-08-06','LONG','LONDON',true,2],['2024-08-06','LONG','LONDON',true,23],['2024-08-06','LONG','LONDON',true,7],
+        // REMOVED: loadSampleData() function - NO FAKE DATA ALLOWED
+        // All data must come from real trading results
                 ['2024-08-06','LONG','LONDON',true,8],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,1],['2024-08-06','LONG','LONDON',true,7]
             ];
             
