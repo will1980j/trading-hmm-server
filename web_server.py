@@ -8871,16 +8871,35 @@ def get_v2_active_trades():
             })
         
         # Full data for authenticated users
+        if not db_enabled or not db:
+            return jsonify({
+                "success": True,
+                "trades": [],
+                "message": "Database not available",
+                "count": 0
+            })
+        
         cursor = db.conn.cursor()
-        cursor.execute("""
-            SELECT id, bias, session, trade_status, date, time, 
-                   entry_price, stop_loss_price, current_mfe,
-                   target_1r_price, target_2r_price, target_3r_price,
-                   target_5r_price, target_10r_price, target_20r_price
-            FROM signal_lab_v2_trades 
-            ORDER BY id DESC 
-            LIMIT 50;
-        """)
+        
+        # Check if V2 table exists, if not return empty
+        try:
+            cursor.execute("""
+                SELECT id, bias, session, trade_status, date, time, 
+                       entry_price, stop_loss_price, current_mfe,
+                       target_1r_price, target_2r_price, target_3r_price,
+                       target_5r_price, target_10r_price, target_20r_price
+                FROM signal_lab_v2_trades 
+                ORDER BY id DESC 
+                LIMIT 50;
+            """)
+        except Exception as table_error:
+            logger.warning(f"V2 trades table not found: {str(table_error)}")
+            return jsonify({
+                "success": True,
+                "trades": [],
+                "message": "V2 trades table not initialized",
+                "count": 0
+            })
         
         trades = []
         columns = [desc[0] for desc in cursor.description]
@@ -9106,6 +9125,102 @@ def get_v2_stats():
         
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+# Missing V2 API endpoints for Signal Lab V2 dashboard
+@app.route('/api/v2/price/current', methods=['GET'])
+def get_v2_current_price():
+    """Get current NASDAQ price for V2 dashboard"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        cursor = db.conn.cursor()
+        
+        # Get the most recent price from realtime price data
+        try:
+            cursor.execute("""
+                SELECT price, timestamp, session
+                FROM realtime_prices 
+                ORDER BY timestamp DESC 
+                LIMIT 1
+            """)
+        except Exception as table_error:
+            logger.warning(f"Realtime prices table not found: {str(table_error)}")
+            # NO FAKE DATA - Return honest error
+            return jsonify({
+                'error': 'Realtime prices table not available',
+                'status': 'table_not_found',
+                'message': 'No real price data available'
+            }), 404
+        
+        result = cursor.fetchone()
+        if result:
+            return jsonify({
+                'price': float(result['price']),
+                'timestamp': result['timestamp'].isoformat(),
+                'session': result['session'],
+                'status': 'success'
+            })
+        else:
+            # NO FAKE DATA - Return honest error when no real data exists
+            return jsonify({
+                'error': 'No real price data available',
+                'status': 'no_data',
+                'message': 'Real-time price streaming not active'
+            }), 404
+            
+    except Exception as e:
+        logger.error(f"V2 current price error: {str(e)}")
+        # NO FAKE DATA - Return honest error
+        return jsonify({
+            'error': 'Failed to retrieve real price data',
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/v2/price/stream', methods=['GET'])
+def get_v2_price_stream():
+    """Get recent price stream data for V2 dashboard"""
+    try:
+        limit = int(request.args.get('limit', 10))
+        
+        if not db_enabled or not db:
+            return jsonify({'prices': [], 'status': 'no_database'}), 200
+        
+        cursor = db.conn.cursor()
+        
+        # Get recent price data
+        cursor.execute("""
+            SELECT price, timestamp, session
+            FROM realtime_prices 
+            ORDER BY timestamp DESC 
+            LIMIT %s
+        """, (limit,))
+        
+        results = cursor.fetchall()
+        prices = []
+        
+        for row in results:
+            prices.append({
+                'price': float(row['price']),
+                'timestamp': row['timestamp'].isoformat(),
+                'session': row['session']
+            })
+        
+        return jsonify({
+            'prices': prices,
+            'count': len(prices),
+            'status': 'success'
+        })
+        
+    except Exception as e:
+        logger.error(f"V2 price stream error: {str(e)}")
+        # NO FAKE DATA - Return honest error
+        return jsonify({
+            'error': 'Failed to retrieve real price stream data',
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 # Enhanced webhook endpoint for V2 automation
 @app.route('/api/live-signals-v2', methods=['POST'])
