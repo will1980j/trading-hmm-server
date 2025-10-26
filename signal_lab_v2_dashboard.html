@@ -662,6 +662,7 @@
         let currentFilter = 'all';
         let priceUpdateCount = 0;
         let lastMinute = new Date().getMinutes();
+        let consecutiveFailures = 0;
 
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
@@ -686,8 +687,21 @@
                 loadEnhancedSignals();
             }, 10000);
             
-            // Update price more frequently
-            setInterval(loadCurrentPrice, 2000);
+            // Update price more frequently - but only if data is available
+            let pricePollingInterval = setInterval(async () => {
+                const hasData = await loadCurrentPrice();
+                // If no data available for 5 consecutive attempts, reduce polling frequency
+                if (!hasData) {
+                    consecutiveFailures++;
+                    if (consecutiveFailures >= 5) {
+                        clearInterval(pricePollingInterval);
+                        // Check again every 30 seconds instead of every 2 seconds
+                        setInterval(loadCurrentPrice, 30000);
+                    }
+                } else {
+                    consecutiveFailures = 0;
+                }
+            }, 2000);
         });
 
         async function loadSystemStats() {
@@ -762,18 +776,22 @@
                         document.getElementById('priceUpdates').textContent = priceUpdateCount;
                         
                         updateStatusIndicator('priceStatus', true);
+                        return true; // Successfully got real data
                     } else {
                         // No real data available - show market closed state
                         showMarketClosedState();
+                        return false; // No real data available
                     }
                 } else {
                     // No price endpoint available - show market closed state
                     showMarketClosedState();
+                    return false; // No endpoint available
                 }
                 
             } catch (error) {
                 console.error('Error loading current price:', error);
                 showMarketClosedState();
+                return false; // Error occurred
             }
         }
 
