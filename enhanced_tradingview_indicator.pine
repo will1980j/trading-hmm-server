@@ -1,0 +1,203 @@
+//@version=5
+indicator("Enhanced NASDAQ Scalping Signals - V2 Automation", overlay=true)
+
+// ============================================================================
+// ENHANCED INDICATOR FOR EXACT METHODOLOGY AUTOMATION
+// ============================================================================
+// This version sends comprehensive candle data needed for:
+// - 3-candle pivot detection
+// - Exact confirmation monitoring  
+// - Stop loss calculation
+// - Entry price determination
+// - Real-time MFE tracking
+// ============================================================================
+
+// Input parameters (adjust based on your current indicator logic)
+length = input.int(14, "Signal Length")
+sensitivity = input.float(2.0, "Signal Sensitivity")
+
+// Webhook URL - UPDATE THIS TO YOUR RAILWAY ENDPOINT
+webhook_url = input.string("https://web-production-cd33.up.railway.app/api/live-signals-v2", "Webhook URL")
+
+// Your existing signal logic (replace with your actual conditions)
+// This is placeholder - use your actual bullish/bearish signal conditions
+bullish_condition = ta.crossover(ta.rsi(length), 30) // Replace with your logic
+bearish_condition = ta.crossunder(ta.rsi(length), 70) // Replace with your logic
+
+// ============================================================================
+// PIVOT DETECTION FUNCTIONS
+// ============================================================================
+
+// 3-candle pivot detection (your exact methodology)
+is_bullish_pivot(index) =>
+    low[index] < low[index-1] and low[index] < low[index+1]
+
+is_bearish_pivot(index) =>
+    high[index] > high[index-1] and high[index] > high[index+1]
+
+// Find pivots in historical data
+find_recent_pivots() =>
+    bullish_pivots = array.new<float>()
+    bearish_pivots = array.new<float>()
+    
+    // Check last 10 candles for pivots
+    for i = 1 to 10
+        if i < bar_index and is_bullish_pivot(i)
+            array.push(bullish_pivots, low[i])
+        if i < bar_index and is_bearish_pivot(i)
+            array.push(bearish_pivots, high[i])
+    
+    [bullish_pivots, bearish_pivots]
+
+// ============================================================================
+// CANDLE DATA COLLECTION
+// ============================================================================
+
+// Collect historical candle data (last 10 candles for pivot analysis)
+get_historical_candles() =>
+    candles = array.new<string>()
+    
+    for i = 0 to 9
+        candle_data = '{"index":' + str.tostring(i) + 
+                     ',"open":' + str.tostring(open[i]) + 
+                     ',"high":' + str.tostring(high[i]) + 
+                     ',"low":' + str.tostring(low[i]) + 
+                     ',"close":' + str.tostring(close[i]) + 
+                     ',"volume":' + str.tostring(volume[i]) + 
+                     ',"timestamp":' + str.tostring(time[i]) + '}'
+        array.push(candles, candle_data)
+    
+    '[' + array.join(candles, ',') + ']'
+
+// ============================================================================
+// SESSION DETECTION (Your exact session times)
+// ============================================================================
+
+get_current_session() =>
+    current_hour = hour(time, "America/New_York")
+    current_minute = minute(time, "America/New_York")
+    
+    session_name = ""
+    
+    // ASIA: 20:00-23:59
+    if current_hour >= 20 and current_hour <= 23
+        session_name := "ASIA"
+    // LONDON: 00:00-05:59  
+    else if current_hour >= 0 and current_hour <= 5
+        session_name := "LONDON"
+    // NY PRE: 06:00-08:29
+    else if current_hour >= 6 and (current_hour < 8 or (current_hour == 8 and current_minute <= 29))
+        session_name := "NY PRE"
+    // NY AM: 08:30-11:59
+    else if (current_hour == 8 and current_minute >= 30) or (current_hour >= 9 and current_hour <= 11)
+        session_name := "NY AM"
+    // NY LUNCH: 12:00-12:59
+    else if current_hour == 12
+        session_name := "NY LUNCH"
+    // NY PM: 13:00-15:59
+    else if current_hour >= 13 and current_hour <= 15
+        session_name := "NY PM"
+    else
+        session_name := "INVALID"
+    
+    session_name
+
+// ============================================================================
+// ENHANCED WEBHOOK PAYLOAD CREATION
+// ============================================================================
+
+create_enhanced_payload(signal_type) =>
+    // Get current session
+    current_session = get_current_session()
+    
+    // Create simplified but comprehensive payload (Pine Script string limits)
+    signal_data = '{"signal_type":"' + signal_type + '",' +
+                 '"timestamp":' + str.tostring(time) + ',' +
+                 '"session":"' + current_session + '",' +
+                 '"signal_candle":{"open":' + str.tostring(open) + ',' +
+                 '"high":' + str.tostring(high) + ',' +
+                 '"low":' + str.tostring(low) + ',' +
+                 '"close":' + str.tostring(close) + ',' +
+                 '"volume":' + str.tostring(volume) + '},' +
+                 '"market_context":{"atr":' + str.tostring(ta.atr(14)) + ',' +
+                 '"volatility":' + str.tostring(ta.stdev(close, 20)) + '},' +
+                 '"methodology_data":{"requires_confirmation":true,' +
+                 '"stop_loss_buffer":25}}'
+    
+    signal_data
+
+// ============================================================================
+// SIGNAL GENERATION AND WEBHOOK ALERTS
+// ============================================================================
+
+// Bullish Signal Detection
+if bullish_condition and get_current_session() != "INVALID"
+    // Create enhanced payload
+    payload = create_enhanced_payload("Bullish")
+    
+    // Send webhook with comprehensive data
+    alert(payload, alert.freq_once_per_bar)
+    
+    // Visual indicator
+    plotshape(true, title="Bullish Signal", location=location.belowbar, 
+              color=color.blue, style=shape.triangleup, size=size.normal)
+    
+    // Debug label (remove in production)
+    label.new(bar_index, low, "BULL\n" + str.tostring(close), 
+              color=color.blue, textcolor=color.white, size=size.small)
+
+// Bearish Signal Detection  
+if bearish_condition and get_current_session() != "INVALID"
+    // Create enhanced payload
+    payload = create_enhanced_payload("Bearish")
+    
+    // Send webhook with comprehensive data
+    alert(payload, alert.freq_once_per_bar)
+    
+    // Visual indicator
+    plotshape(true, title="Bearish Signal", location=location.abovebar, 
+              color=color.red, style=shape.triangledown, size=size.normal)
+    
+    // Debug label (remove in production)
+    label.new(bar_index, high, "BEAR\n" + str.tostring(close), 
+              color=color.red, textcolor=color.white, size=size.small)
+
+// ============================================================================
+// VISUAL ENHANCEMENTS
+// ============================================================================
+
+// Plot pivot points for visual confirmation
+plot_pivots = input.bool(true, "Show Pivot Points")
+
+if plot_pivots
+    // Bullish pivots
+    if is_bullish_pivot(1)
+        label.new(bar_index[1], low[1], "BP", color=color.green, 
+                  textcolor=color.white, size=size.tiny, style=label.style_circle)
+    
+    // Bearish pivots
+    if is_bearish_pivot(1)
+        label.new(bar_index[1], high[1], "TP", color=color.orange, 
+                  textcolor=color.white, size=size.tiny, style=label.style_circle)
+
+// ============================================================================
+// WEBHOOK SETUP INSTRUCTIONS
+// ============================================================================
+// 1. Add this indicator to your NASDAQ 1-minute chart
+// 2. Create alert on this indicator
+// 3. Set webhook URL to: https://web-production-cd33.up.railway.app/api/live-signals-v2
+// 4. Set alert message to: {{strategy.order.alert_text}}
+// 5. Enable "Webhook URL" in alert settings
+// ============================================================================
+
+// Debug information
+if barstate.islast
+    var table debug_table = table.new(position.top_right, 2, 5, bgcolor=color.white, border_width=1)
+    table.cell(debug_table, 0, 0, "Session", text_color=color.black)
+    table.cell(debug_table, 1, 0, get_current_session(), text_color=color.black)
+    table.cell(debug_table, 0, 1, "Price", text_color=color.black)
+    table.cell(debug_table, 1, 1, str.tostring(close), text_color=color.black)
+    table.cell(debug_table, 0, 2, "ATR", text_color=color.black)
+    table.cell(debug_table, 1, 2, str.tostring(ta.atr(14)), text_color=color.black)
+    table.cell(debug_table, 0, 3, "Webhook", text_color=color.black)
+    table.cell(debug_table, 1, 3, "Ready", text_color=color.green)

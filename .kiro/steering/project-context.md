@@ -608,6 +608,50 @@ break_even_trigger = target_1R
 
 **The eventual goal is to build a system that helps grow a prop firm trading business and leverage cloud-based automation, AI and machine learning to collect data, analyze trading signals, and establish a trading edge like none that has ever existed before.**
 
+## 🎯 **CORE TRADING INDICATOR - EXACT SIGNAL LOGIC**
+
+### **Master Indicator: Live FVG/IFVG Signal with HTF Bias + Engulfing**
+
+**This is the EXACT signal logic that drives the entire V2 automation system. DO NOT CHANGE ANY LOGIC.**
+
+**Signal Generation Logic:**
+- **FVG/IFVG Bias Detection:** Complex Fair Value Gap and Inverse Fair Value Gap analysis
+- **HTF Alignment:** Multi-timeframe bias confirmation (Daily, 4H, 1H, 15M, 5M)
+- **Engulfing Filters:** Optional engulfing candle pattern requirements
+- **Signal Triggers:** Bias change from Neutral → Bullish/Bearish with optional filters
+
+**Key Signal Conditions:**
+```pinescript
+// BULLISH SIGNAL: bias changes to "Bullish" AND passes all filters
+fvg_bull_signal = bias != bias[1] and bias == "Bullish" and (not htf_aligned_only or htf_bullish)
+
+// BEARISH SIGNAL: bias changes to "Bearish" AND passes all filters  
+fvg_bear_signal = bias != bias[1] and bias == "Bearish" and (not htf_aligned_only or htf_bearish)
+
+// ENGULFING FILTERS (priority: sweep > regular > none)
+show_bull_triangle = require_sweep_engulfing ? (fvg_bull_signal and bullish_sweep_engulfing) : 
+                    require_engulfing ? (fvg_bull_signal and bullish_engulfing) : 
+                    fvg_bull_signal
+
+show_bear_triangle = require_sweep_engulfing ? (fvg_bear_signal and bearish_sweep_engulfing) : 
+                    require_engulfing ? (fvg_bear_signal and bearish_engulfing) : 
+                    fvg_bear_signal
+```
+
+**Current Webhook Format:**
+```
+SIGNAL:Bullish:4156.25:85.0:1H:Bullish 15M:Bullish 5M:Bullish:FVG:1698765432000
+```
+
+**Default Settings (from image):**
+- **HTF Bias Filter:** Daily=OFF, 4H=OFF, 1H=ON, 15M=ON, 5M=ON
+- **Signal Filter:** FVG + Engulfing Only=OFF, FVG + Sweep Engulfing Only=OFF
+- **Display:** Show HTF Status=ON, HTF Aligned Triangles Only=ON, Triangle Size=Small
+- **Table Position:** Bottom Right
+- **Colors:** Bullish=Blue, Bearish=Red/Pink, Neutral=Gray
+
+**CRITICAL:** This indicator logic is the foundation of the entire V2 automation system. Any enhanced version MUST preserve this exact signal generation logic while adding comprehensive data output for methodology automation.
+
 ## Platform Architecture
 
 ### 12 Interconnected Trading Tools:

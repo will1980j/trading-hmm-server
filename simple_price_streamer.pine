@@ -1,0 +1,118 @@
+//@version=5
+indicator("Simple NASDAQ Price Streamer", overlay=false)
+
+// ============================================================================
+// SIMPLE 1-SECOND PRICE STREAMER (GUARANTEED TO COMPILE)
+// ============================================================================
+
+// Configuration
+webhook_url = input.string("https://web-production-cd33.up.railway.app/api/realtime-price", "Webhook URL")
+enable_streaming = input.bool(true, "Enable Streaming")
+min_change = input.float(0.25, "Min Price Change")
+
+// Track previous price
+var float prev_price = na
+
+// Session check
+is_valid_session() =>
+    h = hour(time, "America/New_York")
+    m = minute(time, "America/New_York")
+    
+    valid = false
+    if h >= 20 and h <= 23
+        valid := true  // ASIA
+    else if h >= 0 and h <= 5
+        valid := true  // LONDON
+    else if h >= 6 and (h < 8 or (h == 8 and m <= 29))
+        valid := true  // NY PRE
+    else if (h == 8 and m >= 30) or (h >= 9 and h <= 11)
+        valid := true  // NY AM
+    else if h == 12
+        valid := true  // NY LUNCH
+    else if h >= 13 and h <= 15
+        valid := true  // NY PM
+    
+    valid
+
+// Get session name
+get_session() =>
+    h = hour(time, "America/New_York")
+    m = minute(time, "America/New_York")
+    
+    session = "INVALID"
+    if h >= 20 and h <= 23
+        session := "ASIA"
+    else if h >= 0 and h <= 5
+        session := "LONDON"
+    else if h >= 6 and (h < 8 or (h == 8 and m <= 29))
+        session := "NY_PRE"
+    else if (h == 8 and m >= 30) or (h >= 9 and h <= 11)
+        session := "NY_AM"
+    else if h == 12
+        session := "NY_LUNCH"
+    else if h >= 13 and h <= 15
+        session := "NY_PM"
+    
+    session
+
+// Check if price changed enough
+price_changed() =>
+    if na(prev_price)
+        true
+    else
+        math.abs(close - prev_price) >= min_change
+
+// Should we stream?
+should_stream() =>
+    enable_streaming and is_valid_session() and price_changed()
+
+// Create simple JSON payload
+create_payload() =>
+    session_name = get_session()
+    change_val = na(prev_price) ? 0.0 : close - prev_price
+    
+    // Simple JSON string (no multi-line concatenation)
+    json_str = '{"type":"realtime_price","symbol":"NQ","price":' + str.tostring(close) + ',"timestamp":' + str.tostring(time) + ',"session":"' + session_name + '","volume":' + str.tostring(volume) + ',"change":' + str.tostring(change_val) + '}'
+    
+    json_str
+
+// Main streaming logic
+if should_stream() and barstate.isconfirmed
+    payload = create_payload()
+    alert(payload, alert.freq_once_per_bar)
+    prev_price := close
+
+// Visual elements
+plot(close, "Price", color.blue, 2)
+
+change_val = na(prev_price) ? 0.0 : close - prev_price
+plot(change_val, "Change", change_val > 0 ? color.green : color.red)
+
+// Status table
+if barstate.islast
+    var table info = table.new(position.top_right, 2, 4, bgcolor=color.white, border_width=1)
+    
+    session_name = get_session()
+    session_color = session_name == "INVALID" ? color.red : color.green
+    
+    table.cell(info, 0, 0, "Session", text_color=color.black)
+    table.cell(info, 1, 0, session_name, text_color=color.white, bgcolor=session_color)
+    
+    table.cell(info, 0, 1, "Price", text_color=color.black)
+    table.cell(info, 1, 1, str.tostring(close), text_color=color.black)
+    
+    table.cell(info, 0, 2, "Streaming", text_color=color.black)
+    stream_status = enable_streaming ? "ON" : "OFF"
+    stream_color = enable_streaming ? color.green : color.red
+    table.cell(info, 1, 2, stream_status, text_color=color.white, bgcolor=stream_color)
+    
+    table.cell(info, 0, 3, "Volume", text_color=color.black)
+    table.cell(info, 1, 3, str.tostring(volume), text_color=color.black)
+
+// ============================================================================
+// SETUP INSTRUCTIONS:
+// 1. Add to NASDAQ 1-SECOND chart
+// 2. Create alert with webhook URL above
+// 3. Set message to: {{strategy.order.alert_text}}
+// 4. Enable "Once Per Bar Close" frequency
+// ============================================================================

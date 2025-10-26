@@ -114,6 +114,25 @@
             gap: 1rem;
         }
 
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 0.85rem;
+        }
+
         .price-tracker {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
@@ -163,35 +182,6 @@
         .price-info-label {
             color: #94a3b8;
             font-size: 0.8rem;
-        }
-
-        .real-time-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.8rem;
-            color: #22c55e;
-        }
-
-        .real-time-dot {
-            width: 6px;
-            height: 6px;
-            background: #22c55e;
-            border-radius: 50%;
-            animation: blink 1s infinite;
-        }
-
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0.3; }
-        }
-
-        .stat-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 1rem;
-            text-align: center;
         }
 
         .signals-section {
@@ -339,54 +329,6 @@
             color: #8b5cf6;
         }
 
-        .webhook-info {
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid #3b82f6;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-top: 1rem;
-        }
-
-        .webhook-url {
-            font-family: 'Courier New', monospace;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 0.5rem;
-            border-radius: 4px;
-            margin-top: 0.5rem;
-            word-break: break-all;
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-label {
-            color: #94a3b8;
-            font-size: 0.9rem;
-        }
-
-        .trades-section {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 1.5rem;
-        }
-
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .section-title {
-            font-size: 1.3rem;
-            font-weight: 600;
-        }
-
         .refresh-btn {
             background: linear-gradient(135deg, #3b82f6, #8b5cf6);
             border: none;
@@ -400,74 +342,6 @@
 
         .refresh-btn:hover {
             transform: translateY(-2px);
-        }
-
-        .trades-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
-        }
-
-        .trades-table th,
-        .trades-table td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .trades-table th {
-            background: rgba(255, 255, 255, 0.05);
-            font-weight: 600;
-            color: #94a3b8;
-        }
-
-        .trade-status {
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        .status-pending {
-            background: rgba(251, 191, 36, 0.2);
-            color: #fbbf24;
-            border: 1px solid #fbbf24;
-        }
-
-        .status-active {
-            background: rgba(34, 197, 94, 0.2);
-            color: #22c55e;
-            border: 1px solid #22c55e;
-        }
-
-        .status-completed {
-            background: rgba(59, 130, 246, 0.2);
-            color: #3b82f6;
-            border: 1px solid #3b82f6;
-        }
-
-        .bias-bullish {
-            color: #22c55e;
-            font-weight: 600;
-        }
-
-        .bias-bearish {
-            color: #ef4444;
-            font-weight: 600;
-        }
-
-        .r-targets {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .r-target {
-            background: rgba(139, 92, 246, 0.2);
-            color: #8b5cf6;
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
         }
 
         .loading {
@@ -487,12 +361,51 @@
             color: #ffffff;
         }
 
+        .webhook-info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .webhook-url {
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+            word-break: break-all;
+        }
+
+        .real-time-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: #22c55e;
+        }
+
+        .real-time-dot {
+            width: 6px;
+            height: 6px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
         .nav-link {
             color: #94a3b8;
             text-decoration: none;
             padding: 0.5rem 1rem;
             border-radius: 8px;
             transition: all 0.2s;
+            font-size: 0.9rem;
         }
 
         .nav-link:hover {
@@ -526,21 +439,6 @@
             .signals-table th,
             .signals-table td {
                 padding: 0.5rem;
-            }
-            
-            .system-status {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            
-            .section-header {
-                flex-direction: column;
-                gap: 1rem;
-                align-items: flex-start;
-            }
-            
-            .filter-tabs {
-                order: 2;
             }
         }
     </style>
@@ -645,7 +543,6 @@
                         <div class="filter-tab" data-filter="confirmed">Confirmed</div>
                         <div class="filter-tab" data-filter="resolved">Resolved</div>
                     </div>
-                    <a href="/signal-analysis-lab" class="nav-link">📋 Manual Lab</a>
                     <button class="refresh-btn" onclick="loadEnhancedSignals()">🔄 Refresh</button>
                 </div>
             </div>
@@ -692,17 +589,39 @@
 
         async function loadSystemStats() {
             try {
-                // Use existing V2 stats endpoint
-                const response = await fetch('/api/v2/stats');
+                // Try V2 comprehensive endpoint first
+                let response = await fetch('/api/v2/signals/comprehensive');
+                if (!response.ok) {
+                    // Fallback to existing endpoint
+                    response = await fetch('/api/v2/stats');
+                }
                 
                 if (response.ok) {
                     const data = await response.json();
                     
-                    // Use existing stats format
-                    document.getElementById('totalSignals').textContent = data.total_signals || 0;
-                    document.getElementById('awaitingConfirmation').textContent = data.pending_trades || 0;
-                    document.getElementById('activeTrades').textContent = data.active_trades || 0;
-                    document.getElementById('todaySignals').textContent = data.today_signals || 0;
+                    if (data.signals) {
+                        // Process comprehensive data
+                        const signals = data.signals;
+                        const total = signals.length;
+                        const awaiting = signals.filter(s => s.status === 'awaiting_confirmation').length;
+                        const active = signals.filter(s => s.status === 'confirmed' && !s.resolved).length;
+                        const today = signals.filter(s => {
+                            const signalDate = new Date(s.timestamp);
+                            const today = new Date();
+                            return signalDate.toDateString() === today.toDateString();
+                        }).length;
+                        
+                        document.getElementById('totalSignals').textContent = total;
+                        document.getElementById('awaitingConfirmation').textContent = awaiting;
+                        document.getElementById('activeTrades').textContent = active;
+                        document.getElementById('todaySignals').textContent = today;
+                    } else {
+                        // Fallback stats format
+                        document.getElementById('totalSignals').textContent = data.total_signals || 0;
+                        document.getElementById('awaitingConfirmation').textContent = data.pending_trades || 0;
+                        document.getElementById('activeTrades').textContent = data.active_trades || 0;
+                        document.getElementById('todaySignals').textContent = data.today_signals || 0;
+                    }
                 } else {
                     console.log('Stats endpoint not available, using defaults');
                     setDefaultStats();
@@ -722,46 +641,52 @@
 
         async function loadCurrentPrice() {
             try {
-                // Simulate real-time price for demo (replace with actual endpoint when available)
-                const basePrice = 20500;
-                const variation = (Math.random() - 0.5) * 10; // ±5 points
-                const currentPrice = basePrice + variation;
-                const change = variation;
-                
-                document.getElementById('currentPrice').textContent = currentPrice.toFixed(2);
-                
-                const changeElement = document.getElementById('priceChange');
-                changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}`;
-                changeElement.className = `price-change ${change >= 0 ? 'positive' : 'negative'}`;
-                
-                // Get current session
-                const now = new Date();
-                const hour = now.getHours();
-                let session = 'Unknown';
-                
-                if (hour >= 0 && hour < 6) session = 'London';
-                else if (hour >= 6 && hour < 8.5) session = 'NY Pre';
-                else if (hour >= 8.5 && hour < 12) session = 'NY AM';
-                else if (hour >= 12 && hour < 13) session = 'NY Lunch';
-                else if (hour >= 13 && hour < 16) session = 'NY PM';
-                else session = 'Asia';
-                
-                document.getElementById('currentSession').textContent = session;
-                document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
-                
-                // Update price update counter
-                const currentMinute = now.getMinutes();
-                if (currentMinute !== lastMinute) {
-                    priceUpdateCount = 1;
-                    lastMinute = currentMinute;
-                } else {
-                    priceUpdateCount++;
+                // Try V2 price endpoint first
+                let response = await fetch('/api/v2/price/current');
+                if (!response.ok) {
+                    // Fallback to price stream endpoint
+                    response = await fetch('/api/v2/price/stream?limit=1');
                 }
-                document.getElementById('priceUpdates').textContent = priceUpdateCount;
                 
-                // Update status indicators
-                updateStatusIndicator('priceStatus', true);
-                
+                if (response.ok) {
+                    const data = await response.json();
+                    let priceData = null;
+                    
+                    if (data.current_price) {
+                        priceData = data.current_price;
+                    } else if (data.prices && data.prices.length > 0) {
+                        priceData = data.prices[0];
+                    }
+                    
+                    if (priceData) {
+                        document.getElementById('currentPrice').textContent = parseFloat(priceData.price).toFixed(2);
+                        
+                        const change = priceData.change || 0;
+                        const changeElement = document.getElementById('priceChange');
+                        changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}`;
+                        changeElement.className = `price-change ${change >= 0 ? 'positive' : 'negative'}`;
+                        
+                        document.getElementById('currentSession').textContent = priceData.session || 'Unknown';
+                        
+                        const lastUpdate = new Date(priceData.timestamp || priceData.created_at);
+                        document.getElementById('lastUpdate').textContent = lastUpdate.toLocaleTimeString();
+                        
+                        // Update price update counter
+                        const currentMinute = new Date().getMinutes();
+                        if (currentMinute !== lastMinute) {
+                            priceUpdateCount = 1;
+                            lastMinute = currentMinute;
+                        } else {
+                            priceUpdateCount++;
+                        }
+                        document.getElementById('priceUpdates').textContent = priceUpdateCount;
+                        
+                        // Update status indicators
+                        updateStatusIndicator('priceStatus', true);
+                    }
+                } else {
+                    updateStatusIndicator('priceStatus', false);
+                }
             } catch (error) {
                 console.error('Error loading current price:', error);
                 updateStatusIndicator('priceStatus', false);
@@ -770,21 +695,20 @@
 
         async function loadEnhancedSignals() {
             try {
-                // Try to get V2 trades from existing endpoint
-                const response = await fetch('/api/v2/active-trades');
+                const response = await fetch('/api/v2/signals/comprehensive');
                 const container = document.getElementById('signalsContainer');
                 
                 if (response.ok) {
                     const data = await response.json();
-                    let signals = data.trades || [];
+                    let signals = data.signals || [];
                     
-                    // Apply filter (adapt to existing data structure)
+                    // Apply filter
                     if (currentFilter !== 'all') {
                         signals = signals.filter(signal => {
                             switch (currentFilter) {
-                                case 'awaiting': return signal.trade_status === 'pending_confirmation';
-                                case 'confirmed': return signal.trade_status === 'active';
-                                case 'resolved': return signal.trade_status === 'completed';
+                                case 'awaiting': return signal.status === 'awaiting_confirmation';
+                                case 'confirmed': return signal.confirmation && signal.confirmation.received && !signal.resolved;
+                                case 'resolved': return signal.resolved;
                                 default: return true;
                             }
                         });
@@ -801,7 +725,6 @@
                                 </div>
                             </div>
                         `;
-                        updateStatusIndicator('fvgStatus', false);
                         return;
                     }
                     
@@ -810,13 +733,13 @@
                             <thead>
                                 <tr>
                                     <th>ID</th>
-                                    <th>Date/Time</th>
+                                    <th>Time</th>
                                     <th>Type</th>
                                     <th>Session</th>
                                     <th>Status</th>
-                                    <th>Entry Price</th>
-                                    <th>Stop Loss</th>
-                                    <th>R-Targets</th>
+                                    <th>Signal Candle</th>
+                                    <th>HTF Alignment</th>
+                                    <th>Entry/Stop</th>
                                     <th>MFE</th>
                                     <th>Automation</th>
                                 </tr>
@@ -825,21 +748,18 @@
                     `;
                     
                     signals.forEach(signal => {
-                        const statusClass = getStatusClassV1(signal.trade_status);
-                        const typeClass = signal.bias === 'Bullish' ? 'signal-bullish' : 'signal-bearish';
-                        
                         tableHTML += `
                             <tr class="signal-row">
                                 <td>${signal.id}</td>
-                                <td>${formatDateTimeV1(signal.date, signal.time)}</td>
-                                <td><span class="signal-type ${typeClass}">${signal.bias}</span></td>
+                                <td>${formatTimestamp(signal.timestamp)}</td>
+                                <td><span class="signal-type ${signal.signal_type.toLowerCase() === 'bullish' ? 'signal-bullish' : 'signal-bearish'}">${signal.signal_type}</span></td>
                                 <td>${signal.session}</td>
-                                <td><span class="signal-status ${statusClass}">${formatStatusV1(signal.trade_status)}</span></td>
-                                <td>${formatPriceV1(signal.entry_price)}</td>
-                                <td>${formatPriceV1(signal.stop_loss_price)}</td>
-                                <td>${formatRTargetsV1(signal)}</td>
-                                <td><span class="mfe-display">${formatMFEV1(signal.current_mfe)}</span></td>
-                                <td>enhanced_v2</td>
+                                <td><span class="signal-status ${getStatusClass(signal.status)}">${formatStatus(signal.status)}</span></td>
+                                <td>${formatCandleData(signal.signal_candle)}</td>
+                                <td>${formatHTFAlignment(signal)}</td>
+                                <td>${formatEntryStop(signal.trade_data)}</td>
+                                <td><span class="mfe-display">${formatMFE(signal.trade_data)}</span></td>
+                                <td>${signal.automation_level || 'enhanced_v2'}</td>
                             </tr>
                         `;
                     });
@@ -853,12 +773,8 @@
                 } else {
                     container.innerHTML = `
                         <div class="empty-state">
-                            <h3>🎯 Enhanced FVG System Ready</h3>
-                            <p>Enhanced signals will appear here when received from TradingView.</p>
-                            <div class="webhook-info">
-                                <strong>Enhanced FVG Webhook:</strong>
-                                <div class="webhook-url">https://web-production-cd33.up.railway.app/api/live-signals-v2</div>
-                            </div>
+                            <h3>📊 No Enhanced Signals Available</h3>
+                            <p>The enhanced FVG system is ready to process new signals.</p>
                         </div>
                     `;
                     updateStatusIndicator('fvgStatus', false);
@@ -868,64 +784,14 @@
                 console.error('Error loading enhanced signals:', error);
                 document.getElementById('signalsContainer').innerHTML = `
                     <div class="empty-state">
-                        <h3>🎯 Enhanced FVG System Ready</h3>
-                        <p>System is ready to receive signals from your TradingView alerts.</p>
-                        <div class="webhook-info">
-                            <strong>Enhanced FVG Webhook:</strong>
-                            <div class="webhook-url">https://web-production-cd33.up.railway.app/api/live-signals-v2</div>
-                        </div>
+                        <h3>⚠️ Connection Error</h3>
+                        <p>Unable to load enhanced signals. Please try again.</p>
                     </div>
                 `;
-                updateStatusIndicator('fvgStatus', true); // Show as ready
+                updateStatusIndicator('fvgStatus', false);
             }
         }
 
-        function getStatusClass(status) {
-            switch (status) {
-                case 'pending_confirmation': return 'status-pending';
-                case 'active': return 'status-active';
-                case 'completed': return 'status-completed';
-                default: return 'status-pending';
-            }
-        }
-
-        function formatStatus(status) {
-            switch (status) {
-                case 'pending_confirmation': return 'Pending';
-                case 'active': return 'Active';
-                case 'completed': return 'Completed';
-                default: return status;
-            }
-        }
-
-        function formatDateTime(date, time) {
-            if (!date || !time) return 'N/A';
-            return `${date} ${time}`;
-        }
-
-        function formatPrice(price) {
-            if (!price) return 'Pending';
-            return `$${parseFloat(price).toFixed(2)}`;
-        }
-
-        function formatRTargets(trade) {
-            const targets = [];
-            if (trade.target_1r_price) targets.push('1R');
-            if (trade.target_2r_price) targets.push('2R');
-            if (trade.target_3r_price) targets.push('3R');
-            if (trade.target_5r_price) targets.push('5R');
-            if (trade.target_10r_price) targets.push('10R');
-            if (trade.target_20r_price) targets.push('20R');
-            
-            if (targets.length === 0) return 'Pending';
-            
-            return targets.map(target => `<span class="r-target">${target}</span>`).join('');
-        }
-
-        function formatMFE(mfe) {
-            if (!mfe || mfe === 0) return '0.00R';
-            return `${parseFloat(mfe).toFixed(2)}R`;
-        }
         function updateStatusIndicator(elementId, isActive) {
             const element = document.getElementById(elementId);
             if (isActive) {
@@ -996,54 +862,6 @@
             const maxMFE = tradeData.max_mfe || 0;
             
             return `${parseFloat(currentMFE).toFixed(2)}R<br><small>Max: ${parseFloat(maxMFE).toFixed(2)}R</small>`;
-        }
-
-        // V1 compatibility functions for existing data structure
-        function getStatusClassV1(status) {
-            switch (status) {
-                case 'pending_confirmation': return 'status-awaiting';
-                case 'active': return 'status-confirmed';
-                case 'completed': return 'status-resolved';
-                default: return 'status-awaiting';
-            }
-        }
-
-        function formatStatusV1(status) {
-            switch (status) {
-                case 'pending_confirmation': return 'Awaiting';
-                case 'active': return 'Active';
-                case 'completed': return 'Completed';
-                default: return status;
-            }
-        }
-
-        function formatDateTimeV1(date, time) {
-            if (!date) return 'N/A';
-            return `${date}${time ? ' ' + time : ''}`;
-        }
-
-        function formatPriceV1(price) {
-            if (!price || price === 0) return 'Pending';
-            return parseFloat(price).toFixed(2);
-        }
-
-        function formatRTargetsV1(trade) {
-            const targets = [];
-            if (trade.target_1r_price) targets.push('1R');
-            if (trade.target_2r_price) targets.push('2R');
-            if (trade.target_3r_price) targets.push('3R');
-            if (trade.target_5r_price) targets.push('5R');
-            if (trade.target_10r_price) targets.push('10R');
-            if (trade.target_20r_price) targets.push('20R');
-            
-            if (targets.length === 0) return 'Pending';
-            
-            return targets.map(target => `<span class="htf-badge htf-aligned">${target}</span>`).join(' ');
-        }
-
-        function formatMFEV1(mfe) {
-            if (!mfe || mfe === 0) return '0.00R';
-            return `${parseFloat(mfe).toFixed(2)}R`;
         }
     </script>
 </body>

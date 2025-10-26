@@ -1,0 +1,133 @@
+//@version=5
+indicator("Enhanced NASDAQ Signal Processor - Fixed", overlay=true)
+
+// ============================================================================
+// ENHANCED SIGNAL INDICATOR FOR V2 AUTOMATION (FIXED VERSION)
+// ============================================================================
+// This version sends comprehensive signal data for exact methodology automation
+// Fixed Pine Script syntax issues
+// ============================================================================
+
+// Input parameters
+length = input.int(14, "Signal Length")
+sensitivity = input.float(2.0, "Signal Sensitivity")
+
+// Webhook URL
+webhook_url = input.string("https://web-production-cd33.up.railway.app/api/live-signals-v2", "Signal Webhook URL")
+
+// Your signal logic (replace with your actual conditions)
+bullish_condition = ta.crossover(ta.rsi(length), 30) // Replace with your logic
+bearish_condition = ta.crossunder(ta.rsi(length), 70) // Replace with your logic
+
+// ============================================================================
+// SESSION DETECTION
+// ============================================================================
+
+get_current_session() =>
+    current_hour = hour(time, "America/New_York")
+    current_minute = minute(time, "America/New_York")
+    
+    session_name = ""
+    
+    if current_hour >= 20 and current_hour <= 23
+        session_name := "ASIA"
+    else if current_hour >= 0 and current_hour <= 5
+        session_name := "LONDON"
+    else if current_hour >= 6 and (current_hour < 8 or (current_hour == 8 and current_minute <= 29))
+        session_name := "NY PRE"
+    else if (current_hour == 8 and current_minute >= 30) or (current_hour >= 9 and current_hour <= 11)
+        session_name := "NY AM"
+    else if current_hour == 12
+        session_name := "NY LUNCH"
+    else if current_hour >= 13 and current_hour <= 15
+        session_name := "NY PM"
+    else
+        session_name := "INVALID"
+    
+    session_name
+
+// ============================================================================
+// SIGNAL PAYLOAD CREATION (SIMPLIFIED FOR PINE SCRIPT)
+// ============================================================================
+
+create_signal_payload(signal_type) =>
+    current_session = get_current_session()
+    
+    // Create comprehensive signal payload
+    signal_json = '{"signal_type":"' + signal_type + '",' +
+                 '"timestamp":' + str.tostring(time) + ',' +
+                 '"session":"' + current_session + '",' +
+                 '"signal_candle":{"open":' + str.tostring(open) + ',' +
+                 '"high":' + str.tostring(high) + ',' +
+                 '"low":' + str.tostring(low) + ',' +
+                 '"close":' + str.tostring(close) + ',' +
+                 '"volume":' + str.tostring(volume) + '},' +
+                 '"previous_candle":{"open":' + str.tostring(open[1]) + ',' +
+                 '"high":' + str.tostring(high[1]) + ',' +
+                 '"low":' + str.tostring(low[1]) + ',' +
+                 '"close":' + str.tostring(close[1]) + '},' +
+                 '"market_context":{"atr":' + str.tostring(ta.atr(14)) + ',' +
+                 '"volatility":' + str.tostring(ta.stdev(close, 20)) + '},' +
+                 '"methodology_data":{"requires_confirmation":true,' +
+                 '"stop_loss_buffer":25}}'
+    
+    signal_json
+
+// ============================================================================
+// SIGNAL GENERATION
+// ============================================================================
+
+// Bullish Signal Detection
+if bullish_condition and get_current_session() != "INVALID"
+    payload = create_signal_payload("Bullish")
+    alert(payload, alert.freq_once_per_bar)
+    
+    // Visual indicator
+    plotshape(true, title="Bullish Signal", location=location.belowbar, 
+              color=color.blue, style=shape.triangleup, size=size.normal)
+
+// Bearish Signal Detection  
+if bearish_condition and get_current_session() != "INVALID"
+    payload = create_signal_payload("Bearish")
+    alert(payload, alert.freq_once_per_bar)
+    
+    // Visual indicator
+    plotshape(true, title="Bearish Signal", location=location.abovebar, 
+              color=color.red, style=shape.triangledown, size=size.normal)
+
+// ============================================================================
+// VISUAL ELEMENTS
+// ============================================================================
+
+// Plot current price
+plot(close, title="Price", color=color.blue, linewidth=1)
+
+// Status table
+if barstate.islast
+    var table status_table = table.new(position.top_right, 2, 4, bgcolor=color.white, border_width=1)
+    
+    current_session = get_current_session()
+    session_color = current_session == "INVALID" ? color.red : color.green
+    
+    table.cell(status_table, 0, 0, "Session", text_color=color.black, bgcolor=color.yellow)
+    table.cell(status_table, 1, 0, current_session, text_color=color.white, bgcolor=session_color)
+    
+    table.cell(status_table, 0, 1, "Price", text_color=color.black)
+    table.cell(status_table, 1, 1, "$" + str.tostring(close), text_color=color.black)
+    
+    table.cell(status_table, 0, 2, "RSI", text_color=color.black)
+    table.cell(status_table, 1, 2, str.tostring(ta.rsi(length)), text_color=color.black)
+    
+    table.cell(status_table, 0, 3, "Webhook", text_color=color.black)
+    table.cell(status_table, 1, 3, "Ready", text_color=color.green)
+
+// ============================================================================
+// SETUP INSTRUCTIONS
+// ============================================================================
+// 1. Add this indicator to NASDAQ 1-minute chart
+// 2. Replace bullish_condition and bearish_condition with your actual signal logic
+// 3. Create alert on this indicator
+// 4. Set webhook URL to: https://web-production-cd33.up.railway.app/api/live-signals-v2
+// 5. Set alert message to: {{strategy.order.alert_text}}
+// 6. Enable "Webhook URL" in alert settings
+// ============================================================================

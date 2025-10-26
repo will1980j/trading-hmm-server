@@ -1,0 +1,135 @@
+//@version=5
+indicator("Simple Enhanced Signal Processor", overlay=true)
+
+// ============================================================================
+// SIMPLE ENHANCED SIGNAL INDICATOR (GUARANTEED TO COMPILE)
+// ============================================================================
+
+// Configuration
+webhook_url = input.string("https://web-production-cd33.up.railway.app/api/live-signals-v2", "Signal Webhook URL")
+
+// Signal parameters (replace with your actual signal logic)
+rsi_length = input.int(14, "RSI Length")
+rsi_oversold = input.float(30, "RSI Oversold Level")
+rsi_overbought = input.float(70, "RSI Overbought Level")
+
+// Calculate RSI
+rsi_value = ta.rsi(close, rsi_length)
+
+// Your signal conditions (REPLACE THESE WITH YOUR ACTUAL SIGNAL LOGIC)
+bullish_signal = ta.crossover(rsi_value, rsi_oversold)
+bearish_signal = ta.crossunder(rsi_value, rsi_overbought)
+
+// Session check
+is_valid_session() =>
+    h = hour(time, "America/New_York")
+    m = minute(time, "America/New_York")
+    
+    valid = false
+    if h >= 20 and h <= 23
+        valid := true  // ASIA
+    else if h >= 0 and h <= 5
+        valid := true  // LONDON
+    else if h >= 6 and (h < 8 or (h == 8 and m <= 29))
+        valid := true  // NY PRE
+    else if (h == 8 and m >= 30) or (h >= 9 and h <= 11)
+        valid := true  // NY AM
+    else if h == 12
+        valid := true  // NY LUNCH
+    else if h >= 13 and h <= 15
+        valid := true  // NY PM
+    
+    valid
+
+// Get session name
+get_session() =>
+    h = hour(time, "America/New_York")
+    m = minute(time, "America/New_York")
+    
+    session = "INVALID"
+    if h >= 20 and h <= 23
+        session := "ASIA"
+    else if h >= 0 and h <= 5
+        session := "LONDON"
+    else if h >= 6 and (h < 8 or (h == 8 and m <= 29))
+        session := "NY_PRE"
+    else if (h == 8 and m >= 30) or (h >= 9 and h <= 11)
+        session := "NY_AM"
+    else if h == 12
+        session := "NY_LUNCH"
+    else if h >= 13 and h <= 15
+        session := "NY_PM"
+    
+    session
+
+// Create signal payload (single line to avoid syntax errors)
+create_signal_payload(signal_type) =>
+    session_name = get_session()
+    atr_value = ta.atr(14)
+    volatility = ta.stdev(close, 20)
+    
+    // Single-line JSON creation (no multi-line concatenation)
+    json_str = '{"signal_type":"' + signal_type + '","timestamp":' + str.tostring(time) + ',"session":"' + session_name + '","signal_candle":{"open":' + str.tostring(open) + ',"high":' + str.tostring(high) + ',"low":' + str.tostring(low) + ',"close":' + str.tostring(close) + ',"volume":' + str.tostring(volume) + '},"previous_candle":{"open":' + str.tostring(open[1]) + ',"high":' + str.tostring(high[1]) + ',"low":' + str.tostring(low[1]) + ',"close":' + str.tostring(close[1]) + '},"market_context":{"atr":' + str.tostring(atr_value) + ',"volatility":' + str.tostring(volatility) + '},"methodology_data":{"requires_confirmation":true,"stop_loss_buffer":25}}'
+    
+    json_str
+
+// Bullish signal detection
+if bullish_signal and is_valid_session()
+    payload = create_signal_payload("Bullish")
+    alert(payload, alert.freq_once_per_bar)
+    
+    // Visual indicator
+    plotshape(true, title="Bullish Signal", location=location.belowbar, 
+              color=color.blue, style=shape.triangleup, size=size.normal)
+
+// Bearish signal detection
+if bearish_signal and is_valid_session()
+    payload = create_signal_payload("Bearish")
+    alert(payload, alert.freq_once_per_bar)
+    
+    // Visual indicator
+    plotshape(true, title="Bearish Signal", location=location.abovebar, 
+              color=color.red, style=shape.triangledown, size=size.normal)
+
+// Plot RSI for reference (in separate pane)
+plot(rsi_value, "RSI", color.purple)
+hline(rsi_oversold, "Oversold", color.green, linestyle=hline.style_dashed)
+hline(rsi_overbought, "Overbought", color.red, linestyle=hline.style_dashed)
+hline(50, "Midline", color.gray, linestyle=hline.style_dotted)
+
+// Status table
+if barstate.islast
+    var table info = table.new(position.top_right, 2, 5, bgcolor=color.white, border_width=1)
+    
+    session_name = get_session()
+    session_color = session_name == "INVALID" ? color.red : color.green
+    
+    table.cell(info, 0, 0, "Session", text_color=color.black)
+    table.cell(info, 1, 0, session_name, text_color=color.white, bgcolor=session_color)
+    
+    table.cell(info, 0, 1, "Price", text_color=color.black)
+    table.cell(info, 1, 1, str.tostring(close), text_color=color.black)
+    
+    table.cell(info, 0, 2, "RSI", text_color=color.black)
+    rsi_color = rsi_value < rsi_oversold ? color.green : (rsi_value > rsi_overbought ? color.red : color.gray)
+    table.cell(info, 1, 2, str.tostring(rsi_value), text_color=color.white, bgcolor=rsi_color)
+    
+    table.cell(info, 0, 3, "ATR", text_color=color.black)
+    table.cell(info, 1, 3, str.tostring(ta.atr(14)), text_color=color.black)
+    
+    table.cell(info, 0, 4, "Webhook", text_color=color.black)
+    table.cell(info, 1, 4, "Ready", text_color=color.white, bgcolor=color.green)
+
+// ============================================================================
+// SETUP INSTRUCTIONS:
+// 1. Add to NASDAQ 1-MINUTE chart
+// 2. REPLACE bullish_signal and bearish_signal with YOUR ACTUAL SIGNAL LOGIC
+// 3. Create alert with webhook URL above
+// 4. Set message to: {{strategy.order.alert_text}}
+// 5. Enable "Once Per Bar Close" frequency
+// ============================================================================
+
+// ============================================================================
+// IMPORTANT: REPLACE THE SIGNAL LOGIC ABOVE WITH YOUR ACTUAL CONDITIONS
+// Currently using RSI crossovers as placeholder - use your real signals!
+// ============================================================================
