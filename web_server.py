@@ -8878,23 +8878,24 @@ def get_v2_active_trades():
         
         cursor = db.conn.cursor()
         
-        # Check if V2 table exists, if not return empty
+        # Use real trading data from signal_lab_trades (your actual trades)
         try:
             cursor.execute("""
-                SELECT id, bias, session, trade_status, date, time, 
-                       entry_price, stop_loss_price, current_mfe,
-                       target_1r_price, target_2r_price, target_3r_price,
-                       target_5r_price, target_10r_price, target_20r_price
-                FROM signal_lab_v2_trades 
-                ORDER BY id DESC 
+                SELECT id, bias, session, date, time, 
+                       COALESCE(mfe_none, mfe, 0) as current_mfe,
+                       COALESCE(active_trade, false) as is_active,
+                       created_at
+                FROM signal_lab_trades 
+                WHERE COALESCE(active_trade, false) = true
+                ORDER BY created_at DESC 
                 LIMIT 50;
             """)
         except Exception as table_error:
-            logger.warning(f"V2 trades table not found: {str(table_error)}")
+            logger.warning(f"Signal lab trades table not found: {str(table_error)}")
             return jsonify({
                 "success": True,
                 "trades": [],
-                "message": "V2 trades table not initialized",
+                "message": "No real trade data available",
                 "count": 0
             })
         
