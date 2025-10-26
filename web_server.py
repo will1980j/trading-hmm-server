@@ -3325,10 +3325,7 @@ def check_localStorage():
     })
 
 # Live Signals API endpoints
-@app.route('/live-signals-dashboard')
-@login_required
-def live_signals_dashboard():
-    return read_html_file('live_signals_dashboard.html')
+
 
 @app.route('/api/live-signals', methods=['GET'])
 @login_required
@@ -9136,21 +9133,21 @@ def get_v2_current_price():
         
         cursor = db.conn.cursor()
         
-        # Get the most recent price from realtime price data
+        # Get the most recent price from live signals (real TradingView data)
         try:
             cursor.execute("""
                 SELECT price, timestamp, session
-                FROM realtime_prices 
+                FROM live_signals 
                 ORDER BY timestamp DESC 
                 LIMIT 1
             """)
         except Exception as table_error:
-            logger.warning(f"Realtime prices table not found: {str(table_error)}")
+            logger.warning(f"Live signals table not found: {str(table_error)}")
             # NO FAKE DATA - Return honest error
             return jsonify({
-                'error': 'Realtime prices table not available',
+                'error': 'Live signals table not available',
                 'status': 'table_not_found',
-                'message': 'No real price data available'
+                'message': 'No real signal data available'
             }), 404
         
         result = cursor.fetchone()
@@ -9189,10 +9186,10 @@ def get_v2_price_stream():
         
         cursor = db.conn.cursor()
         
-        # Get recent price data
+        # Get recent price data from live signals (real TradingView data)
         cursor.execute("""
             SELECT price, timestamp, session
-            FROM realtime_prices 
+            FROM live_signals 
             ORDER BY timestamp DESC 
             LIMIT %s
         """, (limit,))

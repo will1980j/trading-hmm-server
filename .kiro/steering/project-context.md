@@ -65,19 +65,18 @@ I have a comprehensive cloud-based NASDAQ day trading analytics platform built w
 
 **Production URL:** `https://web-production-cd33.up.railway.app/`
 
-### **12 Core Trading Tools:**
+### **11 Core Trading Tools:**
 1. **🏠 Main Dashboard** - `/signal-lab-dashboard` (Primary Signal Lab)
 2. **🧪 Signal Lab V2** - `/signal-lab-v2` (Automated trading interface)
-3. **📶 Live Signals** - `/live-signals-dashboard` (Real-time signals)
-4. **🤖 ML Intelligence** - `/ml-dashboard` (ML Feature Dashboard)
-5. **⏰ Time Analysis** - `/time-analysis` (Temporal patterns)
-6. **🎯 Strategy Optimizer** - `/strategy-optimizer` (Backtesting)
-7. **🏆 Strategy Comparison** - `/strategy-comparison` (Compare strategies)
-8. **🧠 AI Business Advisor** - `/ai-business-advisor` (AI insights)
-9. **💼 Prop Portfolio** - `/prop-portfolio` (Prop firm management)
-10. **📋 Trade Manager** - `/trade-manager` (Trade execution)
-11. **💰 Financial Summary** - `/financial-summary` (Performance)
-12. **📊 Reports** - `/reporting-hub` (Comprehensive reporting)
+3. **🤖 ML Intelligence** - `/ml-dashboard` (ML Feature Dashboard)
+4. **⏰ Time Analysis** - `/time-analysis` (Temporal patterns)
+5. **🎯 Strategy Optimizer** - `/strategy-optimizer` (Backtesting)
+6. **🏆 Strategy Comparison** - `/strategy-comparison` (Compare strategies)
+7. **🧠 AI Business Advisor** - `/ai-business-advisor` (AI insights)
+8. **💼 Prop Portfolio** - `/prop-portfolio` (Prop firm management)
+9. **📋 Trade Manager** - `/trade-manager` (Trade execution)
+10. **💰 Financial Summary** - `/financial-summary` (Performance)
+11. **📊 Reports** - `/reporting-hub` (Comprehensive reporting)
 
 ### **Critical Webhook Endpoints:**
 - **`/api/live-signals`** (POST) - Primary TradingView webhook

@@ -39,8 +39,7 @@
 - **`/signal-analysis-5m`** - 5-minute analysis → `signal-analysis-5m.html`
 - **`/signal-analysis-15m`** - 15-minute analysis → `signal_analysis_15m.html`
 
-### **3. 📶 Live Signals Dashboard**
-- **`/live-signals-dashboard`** - Real-time signals → `live_signals_dashboard.html`
+
 
 ### **4. 🤖 ML Intelligence Hub**
 - **`/ml-dashboard`** - **ML Feature Dashboard** → `ml_feature_dashboard.html`
@@ -318,4 +317,4 @@
 
 ---
 
-**This specification represents the complete structure of your NASDAQ day trading analytics platform as deployed on Railway, with all 12 core tools, comprehensive API endpoints, real-time features, and exact methodology compliance.**
+**This specification represents the complete structure of your NASDAQ day trading analytics platform as deployed on Railway, with all 11 core tools, comprehensive API endpoints, real-time features, and exact methodology compliance.**
