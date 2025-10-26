@@ -61,6 +61,86 @@ I have a comprehensive cloud-based NASDAQ day trading analytics platform built w
 
 **This platform serves real traders with real money - cloud reliability is non-negotiable!**
 
+## 🌐 **COMPLETE WEBAPP STRUCTURE**
+
+**Production URL:** `https://web-production-cd33.up.railway.app/`
+
+### **12 Core Trading Tools:**
+1. **🏠 Main Dashboard** - `/signal-lab-dashboard` (Primary Signal Lab)
+2. **🧪 Signal Lab V2** - `/signal-lab-v2` (Automated trading interface)
+3. **📶 Live Signals** - `/live-signals-dashboard` (Real-time signals)
+4. **🤖 ML Intelligence** - `/ml-dashboard` (ML Feature Dashboard)
+5. **⏰ Time Analysis** - `/time-analysis` (Temporal patterns)
+6. **🎯 Strategy Optimizer** - `/strategy-optimizer` (Backtesting)
+7. **🏆 Strategy Comparison** - `/strategy-comparison` (Compare strategies)
+8. **🧠 AI Business Advisor** - `/ai-business-advisor` (AI insights)
+9. **💼 Prop Portfolio** - `/prop-portfolio` (Prop firm management)
+10. **📋 Trade Manager** - `/trade-manager` (Trade execution)
+11. **💰 Financial Summary** - `/financial-summary` (Performance)
+12. **📊 Reports** - `/reporting-hub` (Comprehensive reporting)
+
+### **Critical Webhook Endpoints:**
+- **`/api/live-signals`** (POST) - Primary TradingView webhook
+- **`/api/live-signals-v2`** (POST) - Enhanced V2 automation webhook
+- **`/api/live-signals-v2-complete`** (POST) - Complete automation webhook (comprehensive data collection)
+- **`/api/realtime-price`** (POST) - Real-time price streaming webhook (1-second MFE tracking)
+- **`/api/webhook-stats`** (GET) - Webhook statistics
+- **`/api/webhook-health`** (GET) - Webhook health monitoring
+
+### **Authentication System:**
+- **`/login`** - Main login (video backgrounds)
+- **`/homepage`** - Main homepage after login
+- **All dashboards protected** with `@login_required`
+- **Webhooks public** for TradingView access
+
+### **ML & AI APIs:**
+- **`/api/nasdaq-train`** (POST) - Train ML models
+- **`/api/nasdaq-predict`** (POST) - Get predictions
+- **`/api/prediction-accuracy`** (GET) - Accuracy tracking
+- **`/api/ai-insights`** (POST) - AI trading insights
+
+### **Real-time Features:**
+- **WebSocket connections** for live updates
+- **Signal broadcasting** to all connected clients
+- **ML prediction updates** in real-time
+- **Health monitoring** with auto-recovery
+
+### **Database Architecture:**
+- **`live_signals`** - Real-time TradingView signals
+- **`signal_lab_trades`** - Manual Signal Lab entries  
+- **`signal_lab_v2_trades`** - Automated V2 Signal Lab
+- **Resilient connection system** with auto-recovery
+- **Health monitoring** with diagnostics
+
+### **Specialized Tools:**
+- **`/webhook-monitor`** - Webhook monitoring dashboard
+- **`/trade-manager`** - Trade execution & management
+- **`/chart-extractor`** - Chart data extraction
+- **`/recover-signal-lab`** - Data recovery tools
+
+### **🎯 DUAL INDICATOR SYSTEM:**
+
+**Enhanced FVG Indicator V2** (`enhanced_fvg_indicator_v2.pine`):
+- **Purpose:** Main signal generation with comprehensive data output
+- **Webhook:** `/api/live-signals-v2` or `/api/live-signals-v2-complete`
+- **Features:** HTF bias filtering, engulfing patterns, exact methodology compliance
+- **Data Output:** Signal type, session, HTF alignment, market context, raw signal data
+
+**Real-Time Price Streamer** (`tradingview_realtime_price_streamer.pine`):
+- **Purpose:** 1-second price streaming for real-time MFE tracking
+- **Webhook:** `/api/realtime-price`
+- **Features:** Session filtering, price change thresholds, continuous streaming
+- **Data Output:** Real-time price, session context, timestamp, price changes
+
+### **🚀 AUTOMATION WEBHOOK LEVELS:**
+
+**Level 1:** `/api/live-signals` - Basic signal capture
+**Level 2:** `/api/live-signals-v2` - Enhanced V2 automation
+**Level 3:** `/api/live-signals-v2-complete` - Complete automation with comprehensive data collection
+**Real-time:** `/api/realtime-price` - 1-second price streaming for MFE tracking
+
+**Complete specification available in: `WEBAPP_STRUCTURE_SPECIFICATION.md`**
+
 ## 🚨 **CRITICAL NO FAKE DATA RULE** 🚨
 
 **⚠️ NEVER USE FALLBACK, SAMPLE, OR SIMULATION DATA ⚠️**
