@@ -9231,6 +9231,42 @@ def receive_signal_v2():
         }), 500
 
 # ============================================================================
+# REAL-TIME PRICE WEBHOOK ENDPOINT (TradingView 1-Second Data)
+# ============================================================================
+
+@app.route('/api/realtime-price', methods=['POST'])
+def receive_realtime_price():
+    """
+    Receive real-time price updates from TradingView 1-second indicator
+    Used for MFE tracking, stop loss monitoring, and break-even detection
+    """
+    try:
+        data = request.get_json()
+        
+        # Import real-time price handler
+        from realtime_price_webhook_handler import process_realtime_price_webhook
+        
+        # Process the real-time price update
+        result = process_realtime_price_webhook(data)
+        
+        return jsonify(result)
+        
+    except ImportError:
+        # Fallback if real-time handler not available
+        logger.warning("Real-time price handler not available - install realtime_price_webhook_handler.py")
+        return jsonify({
+            "status": "error",
+            "message": "Real-time price handler not configured"
+        }), 500
+        
+    except Exception as e:
+        logger.error(f"Real-time price webhook error: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+# ============================================================================
 # END V2 AUTOMATION API ENDPOINTS
 # ============================================================================
 

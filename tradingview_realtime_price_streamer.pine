@@ -1,0 +1,195 @@
+//@version=5
+indicator("NASDAQ Real-Time Price Streamer - 1 Second", overlay=false)
+
+// ============================================================================
+// REAL-TIME PRICE STREAMING INDICATOR FOR V2 AUTOMATION
+// ============================================================================
+// This indicator runs on 1-second timeframe and continuously streams
+// NASDAQ price data to your automation system for:
+// - Real-time MFE tracking
+// - Stop loss monitoring  
+// - Break-even detection
+// - Precise trade management
+// ============================================================================
+
+// Configuration
+webhook_url = input.string("https://web-production-cd33.up.railway.app/api/realtime-price", "Real-Time Price Webhook URL")
+enable_streaming = input.bool(true, "Enable Real-Time Price Streaming")
+price_threshold = input.float(0.25, "Minimum Price Change to Send Update (points)")
+
+// Session filtering - only stream during active trading sessions
+enable_session_filter = input.bool(true, "Only Stream During Active Sessions")
+
+// ============================================================================
+// SESSION DETECTION (Same as your signal indicator)
+// ============================================================================
+
+get_current_session() =>
+    current_hour = hour(time, "America/New_York")
+    current_minute = minute(time, "America/New_York")
+    
+    session_name = ""
+    
+    // ASIA: 20:00-23:59
+    if current_hour >= 20 and current_hour <= 23
+        session_name := "ASIA"
+    // LONDON: 00:00-05:59  
+    else if current_hour >= 0 and current_hour <= 5
+        session_name := "LONDON"
+    // NY PRE: 06:00-08:29
+    else if current_hour >= 6 and (current_hour < 8 or (current_hour == 8 and current_minute <= 29))
+        session_name := "NY PRE"
+    // NY AM: 08:30-11:59
+    else if (current_hour == 8 and current_minute >= 30) or (current_hour >= 9 and current_hour <= 11)
+        session_name := "NY AM"
+    // NY LUNCH: 12:00-12:59
+    else if current_hour == 12
+        session_name := "NY LUNCH"
+    // NY PM: 13:00-15:59
+    else if current_hour >= 13 and current_hour <= 15
+        session_name := "NY PM"
+    else
+        session_name := "INVALID"
+    
+    session_name
+
+// ============================================================================
+// PRICE CHANGE DETECTION
+// ============================================================================
+
+// Track previous price to detect meaningful changes
+var float previous_price = na
+var int last_update_time = na
+
+// Detect if price change is significant enough to send
+price_changed_significantly() =>
+    if na(previous_price)
+        true  // First price update
+    else
+        math.abs(close - previous_price) >= price_threshold
+
+// ============================================================================
+// REAL-TIME PRICE PAYLOAD CREATION
+// ============================================================================
+
+create_price_payload() =>
+    current_session = get_current_session()
+    
+    // Create lightweight price payload
+    payload = '{' +
+        '"type":"realtime_price",' +
+        '"symbol":"NQ",' +
+        '"price":' + str.tostring(close) + ',' +
+        '"timestamp":' + str.tostring(time) + ',' +
+        '"session":"' + current_session + '",' +
+        '"volume":' + str.tostring(volume) + ',' +
+        '"bid":' + str.tostring(low) + ',' +
+        '"ask":' + str.tostring(high) + ',' +
+        '"change":' + str.tostring(close - previous_price) + ',' +
+        '"timeframe":"1s"' +
+    '}'
+    
+    payload
+
+// ============================================================================
+// STREAMING LOGIC
+// ============================================================================
+
+// Check if we should stream this price update
+should_stream_price() =>
+    // Basic checks
+    if not enable_streaming
+        false
+    else if enable_session_filter and get_current_session() == "INVALID"
+        false  // Don't stream during invalid sessions
+    else if not price_changed_significantly()
+        false  // Don't spam with tiny price changes
+    else
+        true
+
+// Stream price update
+if should_stream_price() and barstate.isconfirmed
+    price_payload = create_price_payload()
+    
+    // Send real-time price update
+    alert(price_payload, alert.freq_once_per_bar)
+    
+    // Update tracking variables
+    previous_price := close
+    last_update_time := time
+    
+    // Debug label (remove in production)
+    if barstate.islast
+        label.new(bar_index, close, "PRICE: $" + str.tostring(close), 
+                  color=color.blue, textcolor=color.white, size=size.tiny)
+
+// ============================================================================
+// VISUAL ELEMENTS
+// ============================================================================
+
+// Plot real-time price line
+plot(close, title="Real-Time NASDAQ Price", color=color.blue, linewidth=2)
+
+// Plot price change
+price_change = close - (previous_price ? previous_price : close)
+plot(price_change, title="Price Change", color=price_change > 0 ? color.green : color.red, display=display.data_window)
+
+// ============================================================================
+// STATUS DASHBOARD
+// ============================================================================
+
+if barstate.islast
+    var table status_table = table.new(position.top_right, 2, 6, bgcolor=color.white, border_width=1)
+    
+    // Current session
+    current_session = get_current_session()
+    session_color = current_session == "INVALID" ? color.red : color.green
+    
+    table.cell(status_table, 0, 0, "Session", text_color=color.black, bgcolor=color.yellow)
+    table.cell(status_table, 1, 0, current_session, text_color=color.white, bgcolor=session_color)
+    
+    // Current price
+    table.cell(status_table, 0, 1, "Price", text_color=color.black)
+    table.cell(status_table, 1, 1, "$" + str.tostring(close), text_color=color.black)
+    
+    // Price change
+    change_color = price_change > 0 ? color.green : color.red
+    table.cell(status_table, 0, 2, "Change", text_color=color.black)
+    table.cell(status_table, 1, 2, str.tostring(price_change), text_color=color.white, bgcolor=change_color)
+    
+    // Streaming status
+    streaming_status = enable_streaming ? "ON" : "OFF"
+    streaming_color = enable_streaming ? color.green : color.red
+    table.cell(status_table, 0, 3, "Streaming", text_color=color.black)
+    table.cell(status_table, 1, 3, streaming_status, text_color=color.white, bgcolor=streaming_color)
+    
+    // Volume
+    table.cell(status_table, 0, 4, "Volume", text_color=color.black)
+    table.cell(status_table, 1, 4, str.tostring(volume), text_color=color.black)
+    
+    // Last update
+    table.cell(status_table, 0, 5, "Updated", text_color=color.black)
+    table.cell(status_table, 1, 5, str.tostring(time), text_color=color.black)
+
+// ============================================================================
+// PERFORMANCE OPTIMIZATION
+// ============================================================================
+
+// Only process on confirmed bars to avoid repainting
+// Only send updates when price changes significantly
+// Session filtering to reduce unnecessary data during low-activity periods
+
+// ============================================================================
+// SETUP INSTRUCTIONS
+// ============================================================================
+// 1. Add this indicator to NASDAQ 1-second chart
+// 2. Set webhook URL to: https://web-production-cd33.up.railway.app/api/realtime-price
+// 3. Create alert on this indicator with message: {{strategy.order.alert_text}}
+// 4. Enable "Webhook URL" in alert settings
+// 5. Set alert to trigger "Once Per Bar Close" on "1s" timeframe
+// 6. Your system will receive real-time price updates every second!
+// ============================================================================
+
+// Debug information
+plotchar(should_stream_price(), "Stream Signal", "●", location.bottom, 
+         color=color.blue, size=size.small, display=display.data_window)
