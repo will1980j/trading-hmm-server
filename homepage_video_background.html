@@ -80,17 +80,23 @@
 
         .nav-container {
             display: flex;
-            gap: 2rem;
+            gap: 0.5rem;
             align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
         }
 
         .nav-link {
             color: #e2e8f0;
             text-decoration: none;
             font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
+            padding: 6px 10px;
+            border-radius: 6px;
             transition: all 0.3s;
+            font-size: 13px;
+            white-space: nowrap;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .nav-link:hover {
@@ -211,6 +217,7 @@
             <a href="/signal-analysis-lab" class="nav-link">🧪 Signal Lab</a>
             <a href="/ml-dashboard" class="nav-link">🤖 ML Hub</a>
             <a href="/live-signals-dashboard" class="nav-link">📶 Live Signals</a>
+            <a href="/signal-lab-v2" class="nav-link">🤖 V2 Auto</a>
             <a href="/time-analysis" class="nav-link">⏰ Time Analysis</a>
             <a href="/strategy-optimizer" class="nav-link">🎯 Strategy</a>
             <a href="/strategy-comparison" class="nav-link">🏆 Compare</a>
