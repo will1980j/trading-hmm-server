@@ -318,7 +318,7 @@
                     document.getElementById('activeTrades').textContent = stats.active_trades || 0;
                     document.getElementById('todayTrades').textContent = stats.today_signals || 0;
                 } else {
-                    console.log('Stats endpoint requires authentication');
+                    console.log('No stats data available');
                 }
             } catch (error) {
                 console.error('Error loading V2 stats:', error);
@@ -388,9 +388,8 @@
                 } else {
                     container.innerHTML = `
                         <div class="empty-state">
-                            <h3>🔐 Authentication Required</h3>
-                            <p>Please log in to view automated V2 trades.</p>
-                            <p><a href="/login" class="nav-link">Login</a></p>
+                            <h3>📊 No V2 Trades Available</h3>
+                            <p>No automated V2 trades found. The system is ready to process new signals.</p>
                         </div>
                     `;
                 }
