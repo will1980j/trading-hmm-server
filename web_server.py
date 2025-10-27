@@ -8857,29 +8857,22 @@ def process_signal_v2():
 def get_v2_active_trades():
     """Get all active V2 trades with real-time MFE - Public endpoint for dashboard"""
     try:
-        # Check if user is authenticated
-        if not session.get('authenticated'):
-            # Return limited public data for unauthenticated users
-            return jsonify({
-                "success": True,
-                "trades": [],
-                "message": "Authentication required for full trade data",
-                "public_access": True
-            })
+        # Always return honest empty state - NO FAKE DATA
+        # This endpoint shows real active trades when they exist
         
-        # Full data for authenticated users
         if not db_enabled or not db:
             return jsonify({
                 "success": True,
                 "trades": [],
-                "message": "Database not available",
+                "message": "Database not available - no real trade data",
                 "count": 0
             })
         
-        cursor = db.conn.cursor()
-        
-        # Use real trading data from signal_lab_trades (your actual trades)
+        # Try to get real trading data
         try:
+            cursor = db.conn.cursor()
+            
+            # Check if signal_lab_trades table exists and has active trades
             cursor.execute("""
                 SELECT id, bias, session, date, time, 
                        COALESCE(mfe_none, mfe, 0) as current_mfe,
@@ -8890,38 +8883,50 @@ def get_v2_active_trades():
                 ORDER BY created_at DESC 
                 LIMIT 50;
             """)
-        except Exception as table_error:
-            logger.warning(f"Signal lab trades table not found: {str(table_error)}")
+            
+            trades = []
+            columns = [desc[0] for desc in cursor.description]
+            
+            for row in cursor.fetchall():
+                trade = {}
+                for i, col in enumerate(columns):
+                    value = row[i]
+                    if hasattr(value, 'isoformat'):  # datetime objects
+                        value = value.isoformat()
+                    elif hasattr(value, '__str__'):  # Convert other objects to string
+                        value = str(value)
+                    trade[col] = value
+                trades.append(trade)
+            
+            return jsonify({
+                "success": True,
+                "trades": trades,
+                "count": len(trades),
+                "message": f"Found {len(trades)} real active trades" if trades else "No active trades currently",
+                "timestamp": datetime.now().isoformat()
+            })
+            
+        except Exception as db_error:
+            logger.error(f"Database error in active-trades: {str(db_error)}")
+            # NO FAKE DATA - Return honest error
             return jsonify({
                 "success": True,
                 "trades": [],
                 "message": "No real trade data available",
-                "count": 0
+                "count": 0,
+                "error": "Database table not accessible"
             })
-        
-        trades = []
-        columns = [desc[0] for desc in cursor.description]
-        
-        for row in cursor.fetchall():
-            trade = {}
-            for i, col in enumerate(columns):
-                value = row[i]
-                if hasattr(value, 'isoformat'):  # datetime objects
-                    value = value.isoformat()
-                elif isinstance(value, uuid.UUID):  # UUID objects
-                    value = str(value)
-                trade[col] = value
-            trades.append(trade)
-        
+            
+    except Exception as e:
+        logger.error(f"V2 active trades error: {str(e)}")
+        # NO FAKE DATA - Return honest error
         return jsonify({
             "success": True,
-            "trades": trades,
-            "count": len(trades),
-            "timestamp": datetime.now().isoformat()
+            "trades": [],
+            "message": "No real trade data available", 
+            "count": 0,
+            "error": "Service temporarily unavailable"
         })
-        
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/v2/update-mfe', methods=['POST'])
 @login_required
