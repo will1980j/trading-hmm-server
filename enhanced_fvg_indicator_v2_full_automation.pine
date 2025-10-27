@@ -1,0 +1,654 @@
+//@version=5
+indicator("Enhanced FVG/IFVG Full Automation V2", overlay=true)
+
+// ============================================================================
+// FULL AUTOMATION VERSION - EXACT METHODOLOGY COMPLIANCE
+// HANDLES: SIGNAL DETECTION → CONFIRMATION MONITORING → TRADE ACTIVATION
+// NO FAKE DATA - NO ASSUMPTIONS - EXACT METHODOLOGY ONLY
+// ============================================================================
+
+// Webhook settings - MULTIPLE ENDPOINTS FOR DIFFERENT AUTOMATION STAGES
+webhook_url_signals = input.string("https://web-production-cd33.up.railway.app/api/live-signals-v2", "Signal Webhook URL")
+webhook_url_confirmations = input.string("https://web-production-cd33.up.railway.app/api/confirmations", "Confirmation Webhook URL")
+webhook_url_trades = input.string("https://web-production-cd33.up.railway.app/api/trade-activation", "Trade Activation Webhook URL")
+enable_webhooks = input.bool(true, "Enable Webhooks")
+enable_full_automation = input.bool(true, "Enable Full Automation", tooltip="When enabled, monitors for confirmations and activates trades automatically")
+
+// HTF Timeframe selection (EXACT SAME AS ORIGINAL)
+use_daily = input.bool(false, "Daily", group="HTF Bias Filter")
+use_4h = input.bool(false, "4H", group="HTF Bias Filter")
+use_1h = input.bool(true, "1H", group="HTF Bias Filter")
+use_15m = input.bool(true, "15M", group="HTF Bias Filter")
+use_5m = input.bool(true, "5M", group="HTF Bias Filter")
+
+// Engulfing Filters (EXACT SAME AS ORIGINAL)
+require_engulfing = input.bool(false, "FVG + Engulfing Only", group="Signal Filter")
+require_sweep_engulfing = input.bool(false, "FVG + Sweep Engulfing Only", group="Signal Filter")
+
+// Visual settings (EXACT SAME AS ORIGINAL)
+show_htf_status = input.bool(true, "Show HTF Status", group="Display")
+show_background = input.bool(false, "Show Background Color", group="Display")
+htf_aligned_only = input.bool(true, "HTF Aligned Triangles Only", group="Display")
+triangle_size = input.string("Small", "Triangle Size", options=["Tiny", "Small", "Normal", "Large", "Huge"], group="Display")
+table_position = input.string("Bottom Right", "Table Position", options=["Top Left", "Top Right", "Bottom Left", "Bottom Right", "Middle Left", "Middle Right"], group="Display")
+bull_color = input.color(color.blue, "Bullish Color", group="Display")
+bear_color = input.color(color.red, "Bearish Color", group="Display")
+neutral_color = input.color(color.gray, "Neutral Color", group="Display")
+table_bg_color = input.color(color.new(color.black, 80), "Table Background", group="Display")
+table_border_color = input.color(color.gray, "Table Border", group="Display")
+
+// Automation Display Settings
+show_confirmation_markers = input.bool(true, "Show Confirmation Markers", group="Automation Display")
+show_entry_markers = input.bool(true, "Show Entry Markers", group="Automation Display")
+show_stop_loss_lines = input.bool(true, "Show Stop Loss Lines", group="Automation Display")
+confirmation_color = input.color(color.yellow, "Confirmation Color", group="Automation Display")
+entry_color = input.color(color.orange, "Entry Color", group="Automation Display")
+stop_loss_color = input.color(color.purple, "Stop Loss Color", group="Automation Display")
+
+// ============================================================================
+// EXACT ENGULFING DETECTION LOGIC - UNCHANGED
+// ============================================================================
+
+prev_open = open[1]
+prev_close = close[1]
+curr_open = open
+curr_close = close
+
+bearish_engulfing = curr_close < curr_open and prev_close > prev_open and curr_open >= prev_close and curr_close < prev_open
+bullish_engulfing = curr_close > curr_open and prev_close < prev_open and curr_open <= prev_close and curr_close > prev_open
+
+// Sweep Engulfing - rare events
+bearish_sweep_engulfing = bearish_engulfing and high > high[1] and curr_close < prev_close
+bullish_sweep_engulfing = bullish_engulfing and low < low[1] and curr_close > prev_close
+
+// ============================================================================
+// EXACT BIAS CALCULATION FUNCTION - UNCHANGED
+// ============================================================================
+
+get_bias() =>
+    var string bias = "Neutral"
+    var float ath = na
+    var float atl = na
+    var bull_fvg_highs = array.new<float>()
+    var bull_fvg_lows = array.new<float>()
+    var bear_fvg_highs = array.new<float>()
+    var bear_fvg_lows = array.new<float>()
+    var bull_ifvg_highs = array.new<float>()
+    var bull_ifvg_lows = array.new<float>()
+    var bear_ifvg_highs = array.new<float>()
+    var bear_ifvg_lows = array.new<float>()
+
+    if barstate.isconfirmed
+        // Update all-time high/low
+        ath := na(ath) ? high : math.max(ath, high)
+        atl := na(atl) ? low : math.min(atl, low)
+
+        // Check for ATH/ATL bias changes
+        if close > ath[1] and bias != "Bullish"
+            bias := "Bullish"
+        else if close < atl[1] and bias != "Bearish"
+            bias := "Bearish"
+
+        c2_high = high[2]
+        c2_low = low[2]
+        c0_high = high
+        c0_low = low
+
+        bullish_fvg = c2_high < c0_low
+        bearish_fvg = c2_low > c0_high
+
+        if bullish_fvg
+            array.push(bull_fvg_highs, c0_low)
+            array.push(bull_fvg_lows, c2_high)
+
+        if bearish_fvg
+            array.push(bear_fvg_highs, c2_low)
+            array.push(bear_fvg_lows, c0_high)
+
+        // IFVG logic
+        if array.size(bull_fvg_highs) > 0
+            for i = array.size(bull_fvg_highs) - 1 to 0
+                if close < array.get(bull_fvg_lows, i)
+                    array.push(bear_ifvg_highs, array.get(bull_fvg_highs, i))
+                    array.push(bear_ifvg_lows, array.get(bull_fvg_lows, i))
+                    array.remove(bull_fvg_highs, i)
+                    array.remove(bull_fvg_lows, i)
+                    bias := "Bearish"
+
+        if array.size(bear_fvg_highs) > 0
+            for i = array.size(bear_fvg_highs) - 1 to 0
+                if close > array.get(bear_fvg_highs, i)
+                    array.push(bull_ifvg_highs, array.get(bear_fvg_highs, i))
+                    array.push(bull_ifvg_lows, array.get(bear_fvg_lows, i))
+                    array.remove(bear_fvg_highs, i)
+                    array.remove(bear_fvg_lows, i)
+                    bias := "Bullish"
+
+        if array.size(bear_ifvg_highs) > 0
+            for i = array.size(bear_ifvg_highs) - 1 to 0
+                if close > array.get(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_lows, i)
+                    bias := "Bullish"
+
+        if array.size(bull_ifvg_highs) > 0
+            for i = array.size(bull_ifvg_highs) - 1 to 0
+                if close < array.get(bull_ifvg_lows, i)
+                    array.remove(bull_ifvg_highs, i)
+                    array.remove(bull_ifvg_lows, i)
+                    bias := "Bearish"
+
+    bias
+
+// ============================================================================
+// EXACT HTF BIAS AND ALIGNMENT LOGIC - UNCHANGED
+// ============================================================================
+
+bias = get_bias()
+daily_bias = request.security(syminfo.tickerid, "1D", get_bias())
+h4_bias = request.security(syminfo.tickerid, "240", get_bias())
+h1_bias = request.security(syminfo.tickerid, "60", get_bias())
+m15_bias = request.security(syminfo.tickerid, "15", get_bias())
+m5_bias = request.security(syminfo.tickerid, "5", get_bias())
+
+// Check HTF alignment
+daily_bull_ok = not use_daily or daily_bias == "Bullish"
+daily_bear_ok = not use_daily or daily_bias == "Bearish"
+h4_bull_ok = not use_4h or h4_bias == "Bullish"
+h4_bear_ok = not use_4h or h4_bias == "Bearish"
+h1_bull_ok = not use_1h or h1_bias == "Bullish"
+h1_bear_ok = not use_1h or h1_bias == "Bearish"
+m15_bull_ok = not use_15m or m15_bias == "Bullish"
+m15_bear_ok = not use_15m or m15_bias == "Bearish"
+m5_bull_ok = not use_5m or m5_bias == "Bullish"
+m5_bear_ok = not use_5m or m5_bias == "Bearish"
+
+htf_bullish = daily_bull_ok and h4_bull_ok and h1_bull_ok and m15_bull_ok and m5_bull_ok
+htf_bearish = daily_bear_ok and h4_bear_ok and h1_bear_ok and m15_bear_ok and m5_bear_ok
+
+// ============================================================================
+// EXACT SIGNAL STRENGTH LOGIC - UNCHANGED
+// ============================================================================
+
+htf_aligned_current = (bias == "Bullish" and htf_bullish) or (bias == "Bearish" and htf_bearish)
+signal_strength = 50.0
+
+if htf_aligned_current
+    signal_strength := 85.0
+else if htf_bullish or htf_bearish
+    signal_strength := 70.0
+
+// Enhanced signal strength for engulfing + FVG combo
+if require_sweep_engulfing and ((bias == "Bullish" and bullish_sweep_engulfing) or (bias == "Bearish" and bearish_sweep_engulfing))
+    signal_strength := signal_strength + 25.0
+else if require_engulfing and ((bias == "Bullish" and bullish_engulfing) or (bias == "Bearish" and bearish_engulfing))
+    signal_strength := signal_strength + 15.0
+
+// ============================================================================
+// EXACT SIGNAL GENERATION LOGIC - UNCHANGED
+// ============================================================================
+
+// Visual signals - bias change triangles with engulfing filter
+fvg_bull_signal = bias != bias[1] and bias == "Bullish" and (not htf_aligned_only or htf_bullish)
+fvg_bear_signal = bias != bias[1] and bias == "Bearish" and (not htf_aligned_only or htf_bearish)
+
+// Apply engulfing filters - priority: sweep > regular > none
+show_bull_triangle = require_sweep_engulfing ? (fvg_bull_signal and bullish_sweep_engulfing) : require_engulfing ? (fvg_bull_signal and bullish_engulfing) : fvg_bull_signal
+show_bear_triangle = require_sweep_engulfing ? (fvg_bear_signal and bearish_sweep_engulfing) : require_engulfing ? (fvg_bear_signal and bearish_engulfing) : fvg_bear_signal
+
+// ============================================================================
+// AUTOMATION STATE TRACKING - PERSISTENT VARIABLES
+// ============================================================================
+
+// Track pending signals awaiting confirmation
+var int pending_signal_bar = na
+var string pending_signal_type = na
+var float pending_signal_high = na
+var float pending_signal_low = na
+var float pending_signal_open = na
+var float pending_signal_close = na
+var int pending_signal_timestamp = na
+var string pending_signal_id = na
+
+// Track confirmed trades awaiting entry
+var int confirmed_trade_bar = na
+var string confirmed_trade_type = na
+var float confirmed_entry_price = na
+var float confirmed_stop_loss = na
+var int confirmed_trade_timestamp = na
+var string confirmed_trade_id = na
+
+// Track active trades for MFE monitoring
+var int active_trade_bar = na
+var string active_trade_type = na
+var float active_entry_price = na
+var float active_stop_loss = na
+var float active_current_mfe = na
+var int active_trade_timestamp = na
+var string active_trade_id = na
+
+// ============================================================================
+// EXACT METHODOLOGY FUNCTIONS - NO ASSUMPTIONS OR FAKE DATA
+// ============================================================================
+
+// Function to detect 3-candle pivot (EXACT METHODOLOGY)
+is_pivot_low(index) =>
+    if index < 1 or index >= bar_index - 1
+        false
+    else
+        low[index] < low[index - 1] and low[index] < low[index + 1]
+
+is_pivot_high(index) =>
+    if index < 1 or index >= bar_index - 1
+        false
+    else
+        high[index] > high[index - 1] and high[index] > high[index + 1]
+
+// Function to calculate exact stop loss (EXACT METHODOLOGY)
+calculate_stop_loss(signal_type, signal_bar_index, confirmation_bar_index) =>
+    var float stop_loss_price = na
+    
+    if signal_type == "Bullish"
+        // Find lowest point between signal and confirmation
+        lowest_low = low[signal_bar_index]
+        lowest_bar = signal_bar_index
+        
+        for i = signal_bar_index to confirmation_bar_index
+            if low[i] < lowest_low
+                lowest_low := low[i]
+                lowest_bar := i
+        
+        // Check if lowest point is a 3-candle pivot
+        if is_pivot_low(lowest_bar)
+            stop_loss_price := lowest_low - 25  // 25 points below pivot
+        else if lowest_bar == signal_bar_index and is_pivot_low(signal_bar_index)
+            stop_loss_price := low[signal_bar_index] - 25  // Signal candle is pivot
+        else if lowest_bar == signal_bar_index
+            // Search left 5 candles for pivot
+            pivot_found = false
+            for j = 1 to 5
+                if signal_bar_index + j < bar_index and is_pivot_low(signal_bar_index + j)
+                    stop_loss_price := low[signal_bar_index + j] - 25
+                    pivot_found := true
+                    break
+            
+            if not pivot_found
+                // Find first bearish candle after 5-candle search
+                for k = signal_bar_index + 6 to bar_index - 1
+                    if close[k] < open[k]  // Bearish candle
+                        stop_loss_price := low[k] - 25
+                        break
+    
+    else if signal_type == "Bearish"
+        // Find highest point between signal and confirmation
+        highest_high = high[signal_bar_index]
+        highest_bar = signal_bar_index
+        
+        for i = signal_bar_index to confirmation_bar_index
+            if high[i] > highest_high
+                highest_high := high[i]
+                highest_bar := i
+        
+        // Check if highest point is a 3-candle pivot
+        if is_pivot_high(highest_bar)
+            stop_loss_price := highest_high + 25  // 25 points above pivot
+        else if highest_bar == signal_bar_index and is_pivot_high(signal_bar_index)
+            stop_loss_price := high[signal_bar_index] + 25  // Signal candle is pivot
+        else if highest_bar == signal_bar_index
+            // Search left 5 candles for pivot
+            pivot_found = false
+            for j = 1 to 5
+                if signal_bar_index + j < bar_index and is_pivot_high(signal_bar_index + j)
+                    stop_loss_price := high[signal_bar_index + j] + 25
+                    pivot_found := true
+                    break
+            
+            if not pivot_found
+                // Find first bullish candle after 5-candle search
+                for k = signal_bar_index + 6 to bar_index - 1
+                    if close[k] > open[k]  // Bullish candle
+                        stop_loss_price := high[k] + 25
+                        break
+    
+    stop_loss_price
+
+// Function to check for confirmation (EXACT METHODOLOGY)
+check_confirmation(signal_type, signal_high, signal_low) =>
+    var bool confirmed = false
+    
+    if signal_type == "Bullish"
+        // Bullish confirmation: candle closes above signal candle high
+        confirmed := close > signal_high and barstate.isconfirmed
+    else if signal_type == "Bearish"
+        // Bearish confirmation: candle closes below signal candle low
+        confirmed := close < signal_low and barstate.isconfirmed
+    
+    confirmed
+
+// Function to calculate MFE (EXACT METHODOLOGY)
+calculate_mfe(trade_type, entry_price, stop_loss_price, current_high, current_low) =>
+    var float mfe = 0.0
+    
+    if trade_type == "Bullish"
+        risk_distance = entry_price - stop_loss_price
+        if risk_distance > 0
+            mfe := (current_high - entry_price) / risk_distance
+    else if trade_type == "Bearish"
+        risk_distance = stop_loss_price - entry_price
+        if risk_distance > 0
+            mfe := (entry_price - current_low) / risk_distance
+    
+    math.max(mfe, 0.0)
+
+// ============================================================================
+// SESSION VALIDATION (EXACT METHODOLOGY)
+// ============================================================================
+
+get_session() =>
+    var string session_name = "INVALID"
+    
+    // Convert to Eastern Time for session validation
+    et_hour = hour(time, "America/New_York")
+    et_minute = minute(time, "America/New_York")
+    
+    // Session validation (Eastern Time - matches TradingView)
+    if et_hour >= 20 or et_hour <= 23
+        session_name := "ASIA"
+    else if et_hour >= 0 and et_hour <= 5
+        session_name := "LONDON"
+    else if et_hour == 6 or (et_hour == 8 and et_minute <= 29)
+        session_name := "NY_PRE"
+    else if (et_hour == 8 and et_minute >= 30) or (et_hour >= 9 and et_hour <= 11)
+        session_name := "NY_AM"
+    else if et_hour == 12
+        session_name := "NY_LUNCH"
+    else if et_hour >= 13 and et_hour <= 15
+        session_name := "NY_PM"
+    else
+        session_name := "INVALID"
+    
+    session_name
+
+current_session = get_session()
+is_valid_session = current_session != "INVALID"
+
+// ============================================================================
+// AUTOMATION LOGIC - FULL METHODOLOGY COMPLIANCE
+// ============================================================================
+
+// STAGE 1: SIGNAL DETECTION AND WEBHOOK
+bias_changed = bias != bias[1]
+
+if enable_webhooks and barstate.isconfirmed and bias_changed and is_valid_session
+    // Check filters in priority order (EXACT LOGIC)
+    send_alert = require_sweep_engulfing ? ((bias == "Bullish" and bullish_sweep_engulfing) or (bias == "Bearish" and bearish_sweep_engulfing)) : require_engulfing ? ((bias == "Bullish" and bullish_engulfing) or (bias == "Bearish" and bearish_engulfing)) : true
+    
+    if send_alert
+        // Generate unique signal ID
+        signal_id = str.tostring(time) + "_" + bias + "_" + str.tostring(bar_index)
+        
+        // Store pending signal for confirmation monitoring
+        pending_signal_bar := bar_index
+        pending_signal_type := bias
+        pending_signal_high := high
+        pending_signal_low := low
+        pending_signal_open := open
+        pending_signal_close := close
+        pending_signal_timestamp := time
+        pending_signal_id := signal_id
+        
+        // Build HTF status
+        htf_status = ""
+        htf_status := htf_status + (use_daily ? "D:" + daily_bias + " " : "")
+        htf_status := htf_status + (use_4h ? "4H:" + h4_bias + " " : "")
+        htf_status := htf_status + (use_1h ? "1H:" + h1_bias + " " : "")
+        htf_status := htf_status + (use_15m ? "15M:" + m15_bias + " " : "")
+        htf_status := htf_status + (use_5m ? "5M:" + m5_bias : "")
+        
+        signal_type = require_sweep_engulfing ? "FVG+SWEEP" : require_engulfing ? "FVG+ENG" : "FVG"
+        
+        // ENHANCED JSON PAYLOAD FOR SIGNAL DETECTION
+        signal_payload = '{"signal_id":"' + signal_id + '","signal_type":"' + bias + '","timestamp":' + str.tostring(time) + ',"session":"' + current_session + '","signal_candle":{"open":' + str.tostring(open) + ',"high":' + str.tostring(high) + ',"low":' + str.tostring(low) + ',"close":' + str.tostring(close) + ',"volume":' + str.tostring(volume) + '},"previous_candle":{"open":' + str.tostring(open[1]) + ',"high":' + str.tostring(high[1]) + ',"low":' + str.tostring(low[1]) + ',"close":' + str.tostring(close[1]) + '},"market_context":{"atr":' + str.tostring(ta.atr(14)) + ',"volatility":' + str.tostring(ta.stdev(close, 20)) + ',"signal_strength":' + str.tostring(signal_strength) + '},"fvg_data":{"bias":"' + bias + '","htf_status":"' + htf_status + '","signal_type":"' + signal_type + '","htf_aligned":' + str.tostring(htf_aligned_current) + ',"engulfing":{"bullish":' + str.tostring(bullish_engulfing) + ',"bearish":' + str.tostring(bearish_engulfing) + ',"sweep_bullish":' + str.tostring(bullish_sweep_engulfing) + ',"sweep_bearish":' + str.tostring(bearish_sweep_engulfing) + '}},"methodology_data":{"requires_confirmation":true,"stop_loss_buffer":25,"automation_stage":"SIGNAL_DETECTED"}}'
+        
+        // Send signal detection webhook
+        alert(signal_payload, alert.freq_once_per_bar)
+
+// STAGE 2: CONFIRMATION MONITORING
+if enable_full_automation and not na(pending_signal_bar) and not na(pending_signal_type) and barstate.isconfirmed
+    // Check for confirmation
+    is_confirmed = check_confirmation(pending_signal_type, pending_signal_high, pending_signal_low)
+    
+    // Check for signal cancellation (opposing signal)
+    signal_cancelled = (pending_signal_type == "Bullish" and show_bear_triangle) or (pending_signal_type == "Bearish" and show_bull_triangle)
+    
+    if is_confirmed and not signal_cancelled
+        // CONFIRMATION DETECTED - Calculate entry and stop loss
+        entry_price = open[1]  // Next candle open after confirmation
+        stop_loss_price = calculate_stop_loss(pending_signal_type, bar_index - pending_signal_bar, 0)
+        
+        if not na(stop_loss_price)
+            // Store confirmed trade data
+            confirmed_trade_bar := bar_index
+            confirmed_trade_type := pending_signal_type
+            confirmed_entry_price := entry_price
+            confirmed_stop_loss := stop_loss_price
+            confirmed_trade_timestamp := time
+            confirmed_trade_id := pending_signal_id
+            
+            // Send confirmation webhook
+            confirmation_payload = '{"signal_id":"' + pending_signal_id + '","confirmation_type":"' + pending_signal_type + '","timestamp":' + str.tostring(time) + ',"session":"' + current_session + '","confirmation_candle":{"open":' + str.tostring(open) + ',"high":' + str.tostring(high) + ',"low":' + str.tostring(low) + ',"close":' + str.tostring(close) + '},"entry_price":' + str.tostring(entry_price) + ',"stop_loss_price":' + str.tostring(stop_loss_price) + ',"risk_distance":' + str.tostring(math.abs(entry_price - stop_loss_price)) + ',"automation_stage":"CONFIRMATION_DETECTED"}'
+            
+            alert(confirmation_payload, alert.freq_once_per_bar)
+        
+        // Clear pending signal
+        pending_signal_bar := na
+        pending_signal_type := na
+        pending_signal_high := na
+        pending_signal_low := na
+        pending_signal_timestamp := na
+        pending_signal_id := na
+    
+    else if signal_cancelled
+        // SIGNAL CANCELLED - Send cancellation webhook
+        cancellation_payload = '{"signal_id":"' + pending_signal_id + '","cancellation_reason":"OPPOSING_SIGNAL","timestamp":' + str.tostring(time) + ',"automation_stage":"SIGNAL_CANCELLED"}'
+        
+        alert(cancellation_payload, alert.freq_once_per_bar)
+        
+        // Clear pending signal
+        pending_signal_bar := na
+        pending_signal_type := na
+        pending_signal_high := na
+        pending_signal_low := na
+        pending_signal_timestamp := na
+        pending_signal_id := na
+
+// STAGE 3: TRADE ACTIVATION (Next candle after confirmation)
+if enable_full_automation and not na(confirmed_trade_bar) and bar_index == confirmed_trade_bar + 1 and barstate.isconfirmed
+    // ACTIVATE TRADE - This is the actual entry point
+    active_trade_bar := bar_index
+    active_trade_type := confirmed_trade_type
+    active_entry_price := open  // Actual entry at current candle open
+    active_stop_loss := confirmed_stop_loss
+    active_current_mfe := 0.0
+    active_trade_timestamp := time
+    active_trade_id := confirmed_trade_id
+    
+    // Calculate initial MFE
+    initial_mfe = calculate_mfe(active_trade_type, active_entry_price, active_stop_loss, high, low)
+    active_current_mfe := initial_mfe
+    
+    // Send trade activation webhook
+    activation_payload = '{"trade_id":"' + confirmed_trade_id + '","trade_type":"' + confirmed_trade_type + '","timestamp":' + str.tostring(time) + ',"session":"' + current_session + '","entry_candle":{"open":' + str.tostring(open) + ',"high":' + str.tostring(high) + ',"low":' + str.tostring(low) + ',"close":' + str.tostring(close) + '},"actual_entry_price":' + str.tostring(open) + ',"stop_loss_price":' + str.tostring(active_stop_loss) + ',"risk_distance":' + str.tostring(math.abs(open - active_stop_loss)) + ',"initial_mfe":' + str.tostring(initial_mfe) + ',"automation_stage":"TRADE_ACTIVATED"}'
+    
+    alert(activation_payload, alert.freq_once_per_bar)
+    
+    // Clear confirmed trade data
+    confirmed_trade_bar := na
+    confirmed_trade_type := na
+    confirmed_entry_price := na
+    confirmed_stop_loss := na
+    confirmed_trade_timestamp := na
+    confirmed_trade_id := na
+
+// STAGE 4: MFE TRACKING FOR ACTIVE TRADES
+if enable_full_automation and not na(active_trade_bar) and not na(active_trade_type) and barstate.isconfirmed
+    // Calculate current MFE
+    current_mfe = calculate_mfe(active_trade_type, active_entry_price, active_stop_loss, high, low)
+    
+    // Check if MFE improved
+    if current_mfe > active_current_mfe
+        active_current_mfe := current_mfe
+        
+        // Send MFE update webhook (only on improvements)
+        mfe_payload = '{"trade_id":"' + active_trade_id + '","timestamp":' + str.tostring(time) + ',"current_mfe":' + str.tostring(current_mfe) + ',"current_price":' + str.tostring(close) + ',"automation_stage":"MFE_UPDATE"}'
+        
+        alert(mfe_payload, alert.freq_once_per_bar)
+    
+    // Check for stop loss hit
+    stop_loss_hit = (active_trade_type == "Bullish" and low <= active_stop_loss) or (active_trade_type == "Bearish" and high >= active_stop_loss)
+    
+    // Check for break even trigger (1R achieved)
+    risk_distance = math.abs(active_entry_price - active_stop_loss)
+    break_even_price = active_trade_type == "Bullish" ? active_entry_price + risk_distance : active_entry_price - risk_distance
+    break_even_hit = (active_trade_type == "Bullish" and high >= break_even_price) or (active_trade_type == "Bearish" and low <= break_even_price)
+    
+    if stop_loss_hit or break_even_hit
+        // TRADE RESOLVED
+        resolution_type = stop_loss_hit ? "STOP_LOSS" : "BREAK_EVEN"
+        final_mfe = active_current_mfe
+        
+        // Send trade resolution webhook
+        resolution_payload = '{"trade_id":"' + active_trade_id + '","resolution_type":"' + resolution_type + '","timestamp":' + str.tostring(time) + ',"final_mfe":' + str.tostring(final_mfe) + ',"resolution_price":' + str.tostring(close) + ',"automation_stage":"TRADE_RESOLVED"}'
+        
+        alert(resolution_payload, alert.freq_once_per_bar)
+        
+        // Clear active trade
+        active_trade_bar := na
+        active_trade_type := na
+        active_entry_price := na
+        active_stop_loss := na
+        active_current_mfe := na
+        active_trade_timestamp := na
+        active_trade_id := na
+
+// ============================================================================
+// VISUAL ELEMENTS - ORIGINAL + AUTOMATION MARKERS
+// ============================================================================
+
+// Original triangle signals
+plotshape(triangle_size == "Tiny" and show_bull_triangle, "Bias Bullish Tiny", shape.triangleup, location.belowbar, bull_color, size=size.tiny)
+plotshape(triangle_size == "Small" and show_bull_triangle, "Bias Bullish Small", shape.triangleup, location.belowbar, bull_color, size=size.small)
+plotshape(triangle_size == "Normal" and show_bull_triangle, "Bias Bullish Normal", shape.triangleup, location.belowbar, bull_color, size=size.normal)
+plotshape(triangle_size == "Large" and show_bull_triangle, "Bias Bullish Large", shape.triangleup, location.belowbar, bull_color, size=size.large)
+plotshape(triangle_size == "Huge" and show_bull_triangle, "Bias Bullish Huge", shape.triangleup, location.belowbar, bull_color, size=size.huge)
+
+plotshape(triangle_size == "Tiny" and show_bear_triangle, "Bias Bearish Tiny", shape.triangledown, location.abovebar, bear_color, size=size.tiny)
+plotshape(triangle_size == "Small" and show_bear_triangle, "Bias Bearish Small", shape.triangledown, location.abovebar, bear_color, size=size.small)
+plotshape(triangle_size == "Normal" and show_bear_triangle, "Bias Bearish Normal", shape.triangledown, location.abovebar, bear_color, size=size.normal)
+plotshape(triangle_size == "Large" and show_bear_triangle, "Bias Bearish Large", shape.triangledown, location.abovebar, bear_color, size=size.large)
+plotshape(triangle_size == "Huge" and show_bear_triangle, "Bias Bearish Huge", shape.triangledown, location.abovebar, bear_color, size=size.huge)
+
+// Automation markers
+confirmation_detected = enable_full_automation and not na(pending_signal_bar) and check_confirmation(pending_signal_type, pending_signal_high, pending_signal_low) and barstate.isconfirmed
+plotshape(show_confirmation_markers and confirmation_detected, "Confirmation", shape.diamond, location.abovebar, confirmation_color, size=size.small)
+
+entry_activated = enable_full_automation and not na(confirmed_trade_bar) and bar_index == confirmed_trade_bar + 1 and barstate.isconfirmed
+plotshape(show_entry_markers and entry_activated, "Entry", shape.circle, location.belowbar, entry_color, size=size.small)
+
+// Stop loss lines for active trades
+plot(show_stop_loss_lines and not na(active_stop_loss) ? active_stop_loss : na, "Stop Loss", stop_loss_color, 2, plot.style_line)
+
+// ============================================================================
+// ORIGINAL HTF STATUS TABLE - ENHANCED WITH AUTOMATION STATUS
+// ============================================================================
+
+if show_htf_status
+    var table htf_table = na
+    if barstate.islast
+        if not na(htf_table)
+            table.delete(htf_table)
+        
+        table_pos = table_position == "Top Left" ? position.top_left : table_position == "Top Right" ? position.top_right :
+                   table_position == "Bottom Left" ? position.bottom_left :
+                   table_position == "Bottom Right" ? position.bottom_right :
+                   table_position == "Middle Left" ? position.middle_left : position.middle_right
+        
+        htf_table := table.new(table_pos, 3, 10, bgcolor=table_bg_color, border_width=1, border_color=table_border_color)
+        
+        table.cell(htf_table, 0, 0, "Timeframe", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 1, 0, "Bias", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 2, 0, "Status", text_color=color.white, text_size=size.small)
+        
+        current_color = bias == "Bullish" ? bull_color : bias == "Bearish" ? bear_color : neutral_color
+        table.cell(htf_table, 0, 1, "1M", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 1, 1, bias, text_color=current_color, text_size=size.small)
+        table.cell(htf_table, 2, 1, "CURRENT", text_color=color.yellow, text_size=size.small)
+        
+        // Automation status row
+        automation_status = enable_full_automation ? (not na(active_trade_bar) ? "ACTIVE TRADE" : not na(pending_signal_bar) ? "PENDING" : "MONITORING") : "DISABLED"
+        automation_color = enable_full_automation ? (not na(active_trade_bar) ? color.green : not na(pending_signal_bar) ? color.orange : color.blue) : color.gray
+        table.cell(htf_table, 0, 2, "AUTO", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 1, 2, automation_status, text_color=automation_color, text_size=size.small)
+        table.cell(htf_table, 2, 2, current_session, text_color=is_valid_session ? color.green : color.red, text_size=size.small)
+        
+        // Add engulfing status row
+        engulf_status = require_sweep_engulfing ? (bullish_sweep_engulfing ? "BULL SWEEP" : bearish_sweep_engulfing ? "BEAR SWEEP" : "NO SWEEP") :
+                       require_engulfing ? (bullish_engulfing ? "BULL ENG" : bearish_engulfing ? "BEAR ENG" : "NO ENG") : "DISABLED"
+        engulf_color = require_sweep_engulfing ? (bullish_sweep_engulfing ? bull_color : bearish_sweep_engulfing ? bear_color : color.gray) :
+                      require_engulfing ? (bullish_engulfing ? bull_color : bearish_engulfing ? bear_color : color.gray) : color.gray
+        
+        table.cell(htf_table, 0, 3, "ENGULF", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 1, 3, engulf_status, text_color=engulf_color, text_size=size.small)
+        
+        filter_status = require_sweep_engulfing ? "SWEEP ON" : require_engulfing ? "ENG ON" : "FILTER OFF"
+        filter_color = require_sweep_engulfing ? color.red : require_engulfing ? color.orange : color.gray
+        table.cell(htf_table, 2, 3, filter_status, text_color=filter_color, text_size=size.small)
+        
+        row = 4
+        if use_5m
+            htf_color = m5_bias == "Bullish" ? bull_color : m5_bias == "Bearish" ? bear_color : neutral_color
+            align_status = (bias == "Bullish" and m5_bull_ok) or (bias == "Bearish" and m5_bear_ok) ? "✓" : "✗"
+            align_color = (bias == "Bullish" and m5_bull_ok) or (bias == "Bearish" and m5_bear_ok) ? color.green : color.red
+            table.cell(htf_table, 0, row, "5M", text_color=color.white, text_size=size.small)
+            table.cell(htf_table, 1, row, m5_bias, text_color=htf_color, text_size=size.small)
+            table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+            row := row + 1
+        
+        if use_15m
+            htf_color = m15_bias == "Bullish" ? bull_color : m15_bias == "Bearish" ? bear_color : neutral_color
+            align_status = (bias == "Bullish" and m15_bull_ok) or (bias == "Bearish" and m15_bear_ok) ? "✓" : "✗"
+            align_color = (bias == "Bullish" and m15_bull_ok) or (bias == "Bearish" and m15_bear_ok) ? color.green : color.red
+            table.cell(htf_table, 0, row, "15M", text_color=color.white, text_size=size.small)
+            table.cell(htf_table, 1, row, m15_bias, text_color=htf_color, text_size=size.small)
+            table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+            row := row + 1
+        
+        if use_1h
+            htf_color = h1_bias == "Bullish" ? bull_color : h1_bias == "Bearish" ? bear_color : neutral_color
+            align_status = (bias == "Bullish" and h1_bull_ok) or (bias == "Bearish" and h1_bear_ok) ? "✓" : "✗"
+            align_color = (bias == "Bullish" and h1_bull_ok) or (bias == "Bearish" and h1_bear_ok) ? color.green : color.red
+            table.cell(htf_table, 0, row, "1H", text_color=color.white, text_size=size.small)
+            table.cell(htf_table, 1, row, h1_bias, text_color=htf_color, text_size=size.small)
+            table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+            row := row + 1
+        
+        if use_4h
+            htf_color = h4_bias == "Bullish" ? bull_color : h4_bias == "Bearish" ? bear_color : neutral_color
+            align_status = (bias == "Bullish" and h4_bull_ok) or (bias == "Bearish" and h4_bear_ok) ? "✓" : "✗"
+            align_color = (bias == "Bullish" and h4_bull_ok) or (bias == "Bearish" and h4_bear_ok) ? color.green : color.red
+            table.cell(htf_table, 0, row, "4H", text_color=color.white, text_size=size.small)
+            table.cell(htf_table, 1, row, h4_bias, text_color=htf_color, text_size=size.small)
+            table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+            row := row + 1
+        
+        if use_daily
+            htf_color = daily_bias == "Bullish" ? bull_color : daily_bias == "Bearish" ? bear_color : neutral_color
+            align_status = (bias == "Bullish" and daily_bull_ok) or (bias == "Bearish" and daily_bear_ok) ? "✓" : "✗"
+            align_color = (bias == "Bullish" and daily_bull_ok) or (bias == "Bearish" and daily_bear_ok) ? color.green : color.red
+            table.cell(htf_table, 0, row, "Daily", text_color=color.white, text_size=size.small)
+            table.cell(htf_table, 1, row, daily_bias, text_color=daily_color, text_size=size.small)
+            table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+
+// Background color for HTF alignment (ORIGINAL LOGIC)
+bg_col = show_background and htf_bullish and bias == "Bullish" ? color.new(bull_color, 95) : show_background and htf_bearish and bias == "Bearish" ? color.new(bear_color, 95) : na
+bgcolor(bg_col)

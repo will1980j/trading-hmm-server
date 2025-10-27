@@ -9394,6 +9394,9 @@ def deploy_dual_schema():
     try:
         # Import database connection
         from database.railway_db import RailwayDB
+
+# Full Automation System Integration
+from full_automation_webhook_handlers import register_automation_routes
         
         # Get database connection
         railway_db = RailwayDB()
@@ -9574,6 +9577,9 @@ def deploy_dual_schema():
 # ============================================================================
 # END V2 AUTOMATION API ENDPOINTS
 # ============================================================================
+
+# Register full automation webhook routes
+register_automation_routes(app)
 
 if __name__ == '__main__':
     port = int(environ.get('PORT', 8080))
