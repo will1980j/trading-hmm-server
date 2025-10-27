@@ -278,19 +278,19 @@ def _execute_insert(conn, signal_type, session, entry_price, stop_loss_price, ri
     try:
         cursor = conn.cursor()
         
-        # Prepare SQL with parameter validation
+        # Prepare SQL with parameter validation - FIXED for V2 schema
         insert_sql = """
         INSERT INTO signal_lab_v2_trades (
             trade_uuid, symbol, bias, session, 
-            date, time, entry_price, stop_loss_price, risk_distance,
+            signal_timestamp, entry_price, stop_loss_price, risk_distance,
             target_1r_price, target_2r_price, target_3r_price,
             target_5r_price, target_10r_price, target_20r_price,
-            current_mfe, trade_status, active_trade, auto_populated
+            current_mfe, trade_status, auto_populated
         ) VALUES (
-            gen_random_uuid(), 'NQ1!', %s, %s,
-            CURRENT_DATE, CURRENT_TIME, %s, %s, %s,
+            gen_random_uuid(), 'NQ', %s, %s,
+            NOW(), %s, %s, %s,
             %s, %s, %s, %s, %s, %s,
-            0.00, 'pending_confirmation', false, true
+            0.00, 'PENDING', true
         ) RETURNING id, trade_uuid;
         """
         
@@ -9593,7 +9593,7 @@ def receive_signal_v2():
         
         # Process through V2 automation
         signal_result = {
-            "type": data.get('type', data.get('signal_type', '')),
+            "type": data.get('type', data.get('signal_type', data.get('signal', ''))),
             "price": data.get('price', 0),
             "timestamp": data.get('timestamp', datetime.now().isoformat()),
             "session": data.get('session', 'NY AM')
