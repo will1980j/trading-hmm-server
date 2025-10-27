@@ -9493,49 +9493,19 @@ def get_v2_stats():
 def get_v2_current_price():
     """Get current NASDAQ price for V2 dashboard"""
     try:
-        if not db_enabled or not db:
-            return jsonify({'error': 'Database not available'}), 500
-        
-        cursor = db.conn.cursor()
-        
-        # Get the most recent price from live signals (real TradingView data)
-        try:
-            cursor.execute("""
-                SELECT price, timestamp, session
-                FROM live_signals 
-                ORDER BY timestamp DESC 
-                LIMIT 1
-            """)
-        except Exception as table_error:
-            logger.warning(f"Live signals table not found: {str(table_error)}")
-            # NO FAKE DATA - Return honest error
-            return jsonify({
-                'error': 'Live signals table not available',
-                'status': 'table_not_found',
-                'message': 'No real signal data available'
-            }), 404
-        
-        result = cursor.fetchone()
-        if result:
-            return jsonify({
-                'price': float(result[0]),
-                'timestamp': result[1].isoformat() if result[1] else None,
-                'session': result[2] if result[2] else get_current_session(),
-                'status': 'success'
-            })
-        else:
-            # NO FAKE DATA - Return honest error when no real data exists
-            return jsonify({
-                'error': 'No real price data available',
-                'status': 'no_data',
-                'message': 'Real-time price streaming not active'
-            }), 404
+        # NO FAKE DATA - Return honest response about data availability
+        return jsonify({
+            'error': 'No real-time price data available',
+            'status': 'no_data',
+            'message': 'Real-time price streaming not configured',
+            'session': get_current_session(),
+            'timestamp': datetime.now().isoformat()
+        }), 404
             
     except Exception as e:
         logger.error(f"V2 current price error: {str(e)}")
-        # NO FAKE DATA - Return honest error
         return jsonify({
-            'error': 'Failed to retrieve real price data',
+            'error': 'Price endpoint error',
             'status': 'error',
             'message': str(e)
         }), 500
