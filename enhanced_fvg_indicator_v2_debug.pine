@@ -1,0 +1,275 @@
+//@version=5
+indicator("Enhanced FVG/IFVG Signal V2 - DEBUG VERSION", overlay=true)
+
+// ============================================================================
+// DEBUG VERSION OF ENHANCED FVG INDICATOR
+// ADDS DEBUGGING INFO TO IDENTIFY WHY SIGNALS AREN'T WORKING
+// ============================================================================
+
+// Webhook settings - CORRECTED FOR V2 AUTOMATION
+webhook_url = input.string("https://web-production-cd33.up.railway.app/api/live-signals-v2", "Webhook URL")
+enable_webhooks = input.bool(true, "Enable Webhooks")
+
+// HTF Timeframe selection (SAME AS ORIGINAL)
+use_daily = input.bool(false, "Daily", group="HTF Bias Filter")
+use_4h = input.bool(false, "4H", group="HTF Bias Filter")
+use_1h = input.bool(true, "1H", group="HTF Bias Filter")
+use_15m = input.bool(true, "15M", group="HTF Bias Filter")
+use_5m = input.bool(true, "5M", group="HTF Bias Filter")
+
+// Engulfing Filters (SAME AS ORIGINAL)
+require_engulfing = input.bool(false, "FVG + Engulfing Only", group="Signal Filter")
+require_sweep_engulfing = input.bool(false, "FVG + Sweep Engulfing Only", group="Signal Filter")
+
+// Visual settings (SAME AS ORIGINAL)
+show_htf_status = input.bool(true, "Show HTF Status", group="Display")
+htf_aligned_only = input.bool(true, "HTF Aligned Triangles Only", group="Display")
+triangle_size = input.string("Small", "Triangle Size", options=["Tiny", "Small", "Normal", "Large", "Huge"], group="Display")
+table_position = input.string("Bottom Right", "Table Position", options=["Top Left", "Top Right", "Bottom Left", "Bottom Right"], group="Display")
+bull_color = input.color(color.blue, "Bullish Color", group="Display")
+bear_color = input.color(color.red, "Bearish Color", group="Display")
+neutral_color = input.color(color.gray, "Neutral Color", group="Display")
+
+// DEBUG SETTINGS
+show_debug_info = input.bool(true, "Show Debug Info", group="Debug")
+debug_alerts = input.bool(true, "Debug Alert Conditions", group="Debug")
+
+// ============================================================================
+// ENGULFING DETECTION LOGIC
+// ============================================================================
+
+prev_open = open[1]
+prev_close = close[1]
+curr_open = open
+curr_close = close
+
+bearish_engulfing = curr_close < curr_open and prev_close > prev_open and curr_open >= prev_close and curr_close < prev_open
+bullish_engulfing = curr_close > curr_open and prev_close < prev_open and curr_open <= prev_close and curr_close > prev_open
+
+// Sweep Engulfing
+bearish_sweep_engulfing = bearish_engulfing and high > high[1] and curr_close < prev_close
+bullish_sweep_engulfing = bullish_engulfing and low < low[1] and curr_close > prev_close
+
+// ============================================================================
+// SIMPLIFIED BIAS CALCULATION FOR DEBUGGING
+// ============================================================================
+
+get_bias() =>
+    var string bias = "Neutral"
+    var float ath = na
+    var float atl = na
+    
+    if barstate.isconfirmed
+        // Update all-time high/low
+        ath := na(ath) ? high : math.max(ath, high)
+        atl := na(atl) ? low : math.min(atl, low)
+        
+        // Simple bias change logic for debugging
+        if close > ath[1] and bias != "Bullish"
+            bias := "Bullish"
+        else if close < atl[1] and bias != "Bearish"
+            bias := "Bearish"
+    
+    bias
+
+// ============================================================================
+// HTF BIAS CALCULATION
+// ============================================================================
+
+bias = get_bias()
+daily_bias = request.security(syminfo.tickerid, "1D", get_bias())
+h4_bias = request.security(syminfo.tickerid, "240", get_bias())
+h1_bias = request.security(syminfo.tickerid, "60", get_bias())
+m15_bias = request.security(syminfo.tickerid, "15", get_bias())
+m5_bias = request.security(syminfo.tickerid, "5", get_bias())
+
+// Check HTF alignment
+daily_bull_ok = not use_daily or daily_bias == "Bullish"
+daily_bear_ok = not use_daily or daily_bias == "Bearish"
+h4_bull_ok = not use_4h or h4_bias == "Bullish"
+h4_bear_ok = not use_4h or h4_bias == "Bearish"
+h1_bull_ok = not use_1h or h1_bias == "Bullish"
+h1_bear_ok = not use_1h or h1_bias == "Bearish"
+m15_bull_ok = not use_15m or m15_bias == "Bullish"
+m15_bear_ok = not use_15m or m15_bias == "Bearish"
+m5_bull_ok = not use_5m or m5_bias == "Bullish"
+m5_bear_ok = not use_5m or m5_bias == "Bearish"
+
+htf_bullish = daily_bull_ok and h4_bull_ok and h1_bull_ok and m15_bull_ok and m5_bull_ok
+htf_bearish = daily_bear_ok and h4_bear_ok and h1_bear_ok and m15_bear_ok and m5_bear_ok
+
+// ============================================================================
+// SIGNAL GENERATION WITH DEBUG INFO
+// ============================================================================
+
+// Basic signal conditions
+bias_changed = bias != bias[1]
+fvg_bull_signal = bias_changed and bias == "Bullish"
+fvg_bear_signal = bias_changed and bias == "Bearish"
+
+// HTF alignment check
+htf_bull_aligned = fvg_bull_signal and (not htf_aligned_only or htf_bullish)
+htf_bear_aligned = fvg_bear_signal and (not htf_aligned_only or htf_bearish)
+
+// Engulfing filter check
+engulf_bull_ok = require_sweep_engulfing ? bullish_sweep_engulfing : require_engulfing ? bullish_engulfing : true
+engulf_bear_ok = require_sweep_engulfing ? bearish_sweep_engulfing : require_engulfing ? bearish_engulfing : true
+
+// Final signal conditions
+show_bull_triangle = htf_bull_aligned and engulf_bull_ok
+show_bear_triangle = htf_bear_aligned and engulf_bear_ok
+
+// ============================================================================
+// CURRENT SESSION DETECTION
+// ============================================================================
+
+get_current_session() =>
+    current_hour = hour(time, "America/New_York")
+    current_minute = minute(time, "America/New_York")
+    
+    session_name = ""
+    
+    // NY AM: 08:30-11:59
+    if (current_hour == 8 and current_minute >= 30) or (current_hour >= 9 and current_hour <= 11)
+        session_name := "NY_AM"
+    // NY PM: 13:00-15:59
+    else if current_hour >= 13 and current_hour <= 15
+        session_name := "NY_PM"
+    // NY LUNCH: 12:00-12:59
+    else if current_hour == 12
+        session_name := "NY_LUNCH"
+    // LONDON: 00:00-05:59
+    else if current_hour >= 0 and current_hour <= 5
+        session_name := "LONDON"
+    // NY PRE: 06:00-08:29
+    else if current_hour >= 6 and (current_hour < 8 or (current_hour == 8 and current_minute <= 29))
+        session_name := "NY_PRE"
+    // ASIA: 20:00-23:59
+    else if current_hour >= 20 and current_hour <= 23
+        session_name := "ASIA"
+    else
+        session_name := "INVALID"
+    
+    session_name
+
+current_session = get_current_session()
+
+// ============================================================================
+// WEBHOOK ALERTS WITH DEBUG
+// ============================================================================
+
+if enable_webhooks and barstate.isconfirmed and (show_bull_triangle or show_bear_triangle)
+    signal_type_value = show_bull_triangle ? "Bullish" : "Bearish"
+    
+    // Build HTF status
+    htf_status = ""
+    htf_status := htf_status + (use_1h ? "1H:" + h1_bias + " " : "")
+    htf_status := htf_status + (use_15m ? "15M:" + m15_bias + " " : "")
+    htf_status := htf_status + (use_5m ? "5M:" + m5_bias : "")
+    
+    // Create webhook payload
+    webhook_payload = '{"signal_type":"' + signal_type_value + '","timestamp":' + str.tostring(time) + ',"session":"' + current_session + '","signal_candle":{"open":' + str.tostring(open) + ',"high":' + str.tostring(high) + ',"low":' + str.tostring(low) + ',"close":' + str.tostring(close) + '},"htf_status":"' + htf_status + '","debug":{"bias_changed":' + str.tostring(bias_changed) + ',"htf_aligned":' + str.tostring(htf_bullish or htf_bearish) + ',"engulfing_ok":' + str.tostring(engulf_bull_ok or engulf_bear_ok) + '}}'
+    
+    // Send alert
+    alert(webhook_payload, alert.freq_once_per_bar)
+
+// ============================================================================
+// VISUAL ELEMENTS
+// ============================================================================
+
+// Plot triangles
+plotshape(triangle_size == "Small" and show_bull_triangle, "Bull Signal", shape.triangleup, location.belowbar, bull_color, size=size.small)
+plotshape(triangle_size == "Small" and show_bear_triangle, "Bear Signal", shape.triangledown, location.abovebar, bear_color, size=size.small)
+
+// Debug plots
+plotchar(bias_changed, "Bias Changed", "B", location.top, color.yellow, size=size.tiny, display=display.data_window)
+plotchar(htf_bullish, "HTF Bull", "H", location.top, color.green, size=size.tiny, display=display.data_window)
+plotchar(htf_bearish, "HTF Bear", "h", location.top, color.red, size=size.tiny, display=display.data_window)
+
+// ============================================================================
+// DEBUG STATUS TABLE
+// ============================================================================
+
+if show_debug_info and barstate.islast
+    var table debug_table = table.new(position.top_left, 2, 12, bgcolor=color.new(color.black, 80), border_width=1)
+    
+    // Current status
+    table.cell(debug_table, 0, 0, "DEBUG INFO", text_color=color.white, text_size=size.small, bgcolor=color.blue)
+    table.cell(debug_table, 1, 0, "STATUS", text_color=color.white, text_size=size.small, bgcolor=color.blue)
+    
+    // Current session
+    session_color = current_session == "INVALID" ? color.red : color.green
+    table.cell(debug_table, 0, 1, "Session", text_color=color.white, text_size=size.small)
+    table.cell(debug_table, 1, 1, current_session, text_color=session_color, text_size=size.small)
+    
+    // Current bias
+    bias_color = bias == "Bullish" ? color.green : bias == "Bearish" ? color.red : color.gray
+    table.cell(debug_table, 0, 2, "Current Bias", text_color=color.white, text_size=size.small)
+    table.cell(debug_table, 1, 2, bias, text_color=bias_color, text_size=size.small)
+    
+    // Bias changed
+    changed_color = bias_changed ? color.green : color.gray
+    table.cell(debug_table, 0, 3, "Bias Changed", text_color=color.white, text_size=size.small)
+    table.cell(debug_table, 1, 3, str.tostring(bias_changed), text_color=changed_color, text_size=size.small)
+    
+    // HTF alignment
+    htf_color = (htf_bullish or htf_bearish) ? color.green : color.red
+    htf_text = htf_bullish ? "BULL" : htf_bearish ? "BEAR" : "NONE"
+    table.cell(debug_table, 0, 4, "HTF Aligned", text_color=color.white, text_size=size.small)
+    table.cell(debug_table, 1, 4, htf_text, text_color=htf_color, text_size=size.small)
+    
+    // Engulfing status
+    engulf_text = require_sweep_engulfing ? "SWEEP REQ" : require_engulfing ? "ENG REQ" : "NONE"
+    engulf_color = require_sweep_engulfing or require_engulfing ? color.orange : color.gray
+    table.cell(debug_table, 0, 5, "Engulf Filter", text_color=color.white, text_size=size.small)
+    table.cell(debug_table, 1, 5, engulf_text, text_color=engulf_color, text_size=size.small)
+    
+    // Signal ready
+    signal_ready = show_bull_triangle or show_bear_triangle
+    signal_color = signal_ready ? color.green : color.red
+    table.cell(debug_table, 0, 6, "Signal Ready", text_color=color.white, text_size=size.small)
+    table.cell(debug_table, 1, 6, str.tostring(signal_ready), text_color=signal_color, text_size=size.small)
+    
+    // Webhook enabled
+    webhook_color = enable_webhooks ? color.green : color.red
+    table.cell(debug_table, 0, 7, "Webhooks", text_color=color.white, text_size=size.small)
+    table.cell(debug_table, 1, 7, str.tostring(enable_webhooks), text_color=webhook_color, text_size=size.small)
+    
+    // HTF timeframes
+    table.cell(debug_table, 0, 8, "1H Bias", text_color=color.white, text_size=size.small)
+    h1_color = h1_bias == "Bullish" ? color.green : h1_bias == "Bearish" ? color.red : color.gray
+    table.cell(debug_table, 1, 8, h1_bias, text_color=h1_color, text_size=size.small)
+    
+    table.cell(debug_table, 0, 9, "15M Bias", text_color=color.white, text_size=size.small)
+    m15_color = m15_bias == "Bullish" ? color.green : m15_bias == "Bearish" ? color.red : color.gray
+    table.cell(debug_table, 1, 9, m15_bias, text_color=m15_color, text_size=size.small)
+    
+    table.cell(debug_table, 0, 10, "5M Bias", text_color=color.white, text_size=size.small)
+    m5_color = m5_bias == "Bullish" ? color.green : m5_bias == "Bearish" ? color.red : color.gray
+    table.cell(debug_table, 1, 10, m5_bias, text_color=m5_color, text_size=size.small)
+    
+    // Alert frequency warning
+    table.cell(debug_table, 0, 11, "Alert Setup", text_color=color.white, text_size=size.small)
+    table.cell(debug_table, 1, 11, "Once Per Bar", text_color=color.yellow, text_size=size.small)
+
+// ============================================================================
+// DEBUGGING SUMMARY
+// ============================================================================
+// 
+// This debug version shows:
+// 1. Current session detection
+// 2. Bias change status
+// 3. HTF alignment status
+// 4. Engulfing filter status
+// 5. Final signal readiness
+// 6. Webhook configuration
+// 
+// Common issues:
+// - Session shows "INVALID" (outside trading hours)
+// - HTF alignment shows "NONE" (timeframes not aligned)
+// - Bias not changing (market not creating new ATH/ATL)
+// - Engulfing filters blocking signals
+// - Webhooks disabled
+// - Alert not configured as "Once Per Bar"
+// 
+// ============================================================================
