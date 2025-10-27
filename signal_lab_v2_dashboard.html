@@ -746,10 +746,17 @@
                     const data = await response.json();
                     let priceData = null;
                     
-                    if (data.current_price) {
-                        priceData = data.current_price;
-                    } else if (data.prices && data.prices.length > 0) {
+                    // Handle direct price data from /api/v2/price/current
+                    if (data.price) {
+                        priceData = data;
+                    }
+                    // Handle price stream data from /api/v2/price/stream
+                    else if (data.prices && data.prices.length > 0) {
                         priceData = data.prices[0];
+                    }
+                    // Legacy format support
+                    else if (data.current_price) {
+                        priceData = data.current_price;
                     }
                     
                     if (priceData) {

@@ -1,0 +1,272 @@
+//@version=5
+indicator("NASDAQ Simple Price Streamer - 15/3min Safe", overlay=false)
+
+// ============================================================================
+// SIMPLE & SAFE PRICE STREAMER FOR 15 ALERTS PER 3 MINUTES LIMIT
+// ============================================================================
+// This version uses a simple time-based approach without complex array tracking
+// to avoid any Pine Script errors while staying within TradingView limits
+// ============================================================================
+
+// Configuration
+webhook_url = input.string("https://web-production-cd33.up.railway.app/api/realtime-price", "Real-Time Price Webhook URL")
+enable_streaming = input.bool(true, "Enable Real-Time Price Streaming")
+
+// SIMPLE FREQUENCY CONTROL - No complex arrays
+min_interval_seconds = input.int(20, "Minimum Interval (seconds)", minval=15, maxval=300)
+price_threshold = input.float(3.0, "Minimum Price Change (points)", minval=1.0, maxval=10.0)
+
+// Session filtering
+enable_session_filter = input.bool(true, "Enable Session Filtering")
+priority_sessions_only = input.bool(true, "Priority Sessions Only (NY AM/PM)")
+
+// ============================================================================
+// SIMPLE TRACKING VARIABLES
+// ============================================================================
+
+var float last_sent_price = na
+var int last_sent_time = na
+var int alerts_sent_today = 0
+var int last_day = na
+
+// Reset daily counter
+current_day = dayofweek(time)
+if na(last_day) or current_day != last_day
+    alerts_sent_today := 0
+    last_day := current_day
+
+// ============================================================================
+// SESSION DETECTION
+// ============================================================================
+
+get_session_info() =>
+    current_hour = hour(time, "America/New_York")
+    current_minute = minute(time, "America/New_York")
+    
+    session_name = ""
+    is_priority = false
+    
+    // NY AM: 08:30-11:59 (PRIORITY)
+    if (current_hour == 8 and current_minute >= 30) or (current_hour >= 9 and current_hour <= 11)
+        session_name := "NY AM"
+        is_priority := true
+    // NY PM: 13:00-15:59 (PRIORITY)
+    else if current_hour >= 13 and current_hour <= 15
+        session_name := "NY PM"
+        is_priority := true
+    // NY LUNCH: 12:00-12:59
+    else if current_hour == 12
+        session_name := "NY LUNCH"
+        is_priority := false
+    // LONDON: 00:00-05:59
+    else if current_hour >= 0 and current_hour <= 5
+        session_name := "LONDON"
+        is_priority := false
+    // NY PRE: 06:00-08:29
+    else if current_hour >= 6 and (current_hour < 8 or (current_hour == 8 and current_minute <= 29))
+        session_name := "NY PRE"
+        is_priority := false
+    // ASIA: 20:00-23:59
+    else if current_hour >= 20 and current_hour <= 23
+        session_name := "ASIA"
+        is_priority := false
+    else
+        session_name := "INVALID"
+        is_priority := false
+    
+    [session_name, is_priority]
+
+// ============================================================================
+// SIMPLE FILTERING SYSTEM
+// ============================================================================
+
+// Time-based filtering
+time_filter_passed() =>
+    if na(last_sent_time)
+        true
+    else
+        time_since_last = (time - last_sent_time) / 1000  // Convert to seconds
+        time_since_last >= min_interval_seconds
+
+// Price-based filtering
+price_filter_passed() =>
+    if na(last_sent_price)
+        true
+    else
+        price_change = math.abs(close - last_sent_price)
+        price_change >= price_threshold
+
+// Daily limit check (safety net)
+daily_limit_ok() =>
+    alerts_sent_today < 200  // Conservative daily limit
+
+// Master filtering function
+should_send_alert() =>
+    [session_name, is_priority] = get_session_info()
+    
+    // Basic checks
+    if not enable_streaming
+        false
+    else if not daily_limit_ok()
+        false
+    else if enable_session_filter and session_name == "INVALID"
+        false
+    else if priority_sessions_only and not is_priority
+        false
+    else if not time_filter_passed()
+        false
+    else if not price_filter_passed()
+        false
+    else
+        true
+
+// ============================================================================
+// PAYLOAD CREATION
+// ============================================================================
+
+create_payload() =>
+    [session_name, is_priority] = get_session_info()
+    price_change = na(last_sent_price) ? 0 : close - last_sent_price
+    
+    payload = '{"type":"realtime_price",' +
+              '"symbol":"NQ",' +
+              '"price":' + str.tostring(close) + ',' +
+              '"timestamp":' + str.tostring(time) + ',' +
+              '"session":"' + session_name + '",' +
+              '"volume":' + str.tostring(volume) + ',' +
+              '"change":' + str.tostring(price_change) + ',' +
+              '"bid":' + str.tostring(close - 0.25) + ',' +
+              '"ask":' + str.tostring(close + 0.25) + ',' +
+              '"priority":"' + (is_priority ? "high" : "low") + '",' +
+              '"daily_count":' + str.tostring(alerts_sent_today) + '}'
+    
+    payload
+
+// ============================================================================
+// SIMPLE EXECUTION SYSTEM
+// ============================================================================
+
+if should_send_alert() and barstate.isconfirmed
+    // Send the alert
+    payload = create_payload()
+    alert(payload, alert.freq_once_per_bar)
+    
+    // Update tracking variables
+    last_sent_price := close
+    last_sent_time := time
+    alerts_sent_today := alerts_sent_today + 1
+    
+    // Visual confirmation
+    if barstate.islast
+        label.new(bar_index, close, 
+                  "SENT #" + str.tostring(alerts_sent_today), 
+                  color=color.green, textcolor=color.white, size=size.tiny)
+
+// ============================================================================
+// VISUAL ELEMENTS
+// ============================================================================
+
+// Plot price with alert eligibility coloring
+alert_eligible = should_send_alert()
+price_color = alert_eligible ? color.green : color.gray
+plot(close, title="NASDAQ Price", color=price_color, linewidth=2)
+
+// Plot daily alert count
+plot(alerts_sent_today, title="Daily Alerts", color=color.blue, display=display.data_window)
+
+// ============================================================================
+// STATUS DASHBOARD
+// ============================================================================
+
+if barstate.islast
+    var table status_table = table.new(position.top_right, 2, 10, bgcolor=color.white, border_width=1)
+    
+    [session_name, is_priority] = get_session_info()
+    
+    // Daily alert count (CRITICAL)
+    daily_color = alerts_sent_today > 150 ? color.red : alerts_sent_today > 100 ? color.orange : color.green
+    table.cell(status_table, 0, 0, "Daily Alerts", text_color=color.black, bgcolor=color.yellow)
+    table.cell(status_table, 1, 0, str.tostring(alerts_sent_today) + "/200", text_color=color.white, bgcolor=daily_color)
+    
+    // Session info
+    session_color = session_name == "INVALID" ? color.red : is_priority ? color.green : color.yellow
+    table.cell(status_table, 0, 1, "Session", text_color=color.black)
+    table.cell(status_table, 1, 1, session_name, text_color=color.white, bgcolor=session_color)
+    
+    // Current price
+    table.cell(status_table, 0, 2, "Price", text_color=color.black)
+    table.cell(status_table, 1, 2, "$" + str.tostring(close), text_color=color.black)
+    
+    // Price change vs threshold
+    price_change = na(last_sent_price) ? 0 : math.abs(close - last_sent_price)
+    threshold_met = price_change >= price_threshold
+    change_color = threshold_met ? color.green : color.gray
+    table.cell(status_table, 0, 3, "Price Δ", text_color=color.black)
+    table.cell(status_table, 1, 3, str.tostring(price_change, "#.##") + "/" + str.tostring(price_threshold, "#.##"), 
+               text_color=color.white, bgcolor=change_color)
+    
+    // Time since last alert
+    seconds_since = na(last_sent_time) ? 0 : (time - last_sent_time) / 1000
+    time_ok = seconds_since >= min_interval_seconds
+    time_color = time_ok ? color.green : color.red
+    table.cell(status_table, 0, 4, "Time Since", text_color=color.black)
+    table.cell(status_table, 1, 4, str.tostring(math.round(seconds_since)) + "s", text_color=color.white, bgcolor=time_color)
+    
+    // Minimum interval setting
+    table.cell(status_table, 0, 5, "Min Interval", text_color=color.black)
+    table.cell(status_table, 1, 5, str.tostring(min_interval_seconds) + "s", text_color=color.black)
+    
+    // Priority status
+    priority_color = is_priority ? color.green : color.orange
+    table.cell(status_table, 0, 6, "Priority", text_color=color.black)
+    table.cell(status_table, 1, 6, is_priority ? "HIGH" : "LOW", text_color=color.white, bgcolor=priority_color)
+    
+    // Alert eligibility
+    eligible = should_send_alert()
+    eligible_color = eligible ? color.green : color.red
+    table.cell(status_table, 0, 7, "Eligible", text_color=color.black)
+    table.cell(status_table, 1, 7, eligible ? "YES" : "NO", text_color=color.white, bgcolor=eligible_color)
+    
+    // Streaming status
+    streaming_color = enable_streaming ? color.green : color.red
+    table.cell(status_table, 0, 8, "Streaming", text_color=color.black)
+    table.cell(status_table, 1, 8, enable_streaming ? "ON" : "OFF", text_color=color.white, bgcolor=streaming_color)
+    
+    // Price threshold
+    table.cell(status_table, 0, 9, "Threshold", text_color=color.black)
+    table.cell(status_table, 1, 9, str.tostring(price_threshold) + " pts", text_color=color.black)
+
+// ============================================================================
+// SIMPLE & SAFE APPROACH SUMMARY
+// ============================================================================
+// 
+// TRADINGVIEW LIMIT: 15 alerts per 3 minutes
+// SAFE APPROACH: 20-second minimum intervals (max 9 alerts per 3 minutes)
+// DAILY LIMIT: 200 alerts per day (safety net)
+// 
+// FILTERING SYSTEM:
+// 1. Simple time-based intervals (no complex arrays)
+// 2. Price change thresholds
+// 3. Session-based filtering
+// 4. Daily limit safety net
+// 
+// EXPECTED PERFORMANCE:
+// - Priority sessions: 2-3 alerts per 3 minutes
+// - Low priority sessions: 1-2 alerts per 3 minutes
+// - Daily total: 50-150 alerts
+// 
+// SAFETY FEATURES:
+// - No array operations (eliminates bounds errors)
+// - Simple time-based throttling
+// - Conservative intervals
+// - Daily limit protection
+// 
+// ============================================================================
+
+// Debug visualization
+plotchar(should_send_alert(), "Alert Ready", "●", location.bottom, 
+         color=color.green, size=size.small, display=display.data_window)
+plotchar(time_filter_passed(), "Time OK", "T", location.bottom, 
+         color=color.blue, size=size.tiny, display=display.data_window)
+plotchar(price_filter_passed(), "Price OK", "P", location.bottom, 
+         color=color.orange, size=size.tiny, display=display.data_window)
