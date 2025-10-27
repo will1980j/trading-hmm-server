@@ -9415,9 +9415,9 @@ def get_v2_stats():
                 cursor.execute("""
                     SELECT 
                         COUNT(*) as total_signals,
-                        COUNT(CASE WHEN trade_status = 'pending_confirmation' THEN 1 END) as pending_trades,
-                        COUNT(CASE WHEN active_trade = true THEN 1 END) as active_trades,
-                        COUNT(CASE WHEN DATE(date) = CURRENT_DATE THEN 1 END) as today_signals
+                        COUNT(CASE WHEN trade_status = 'PENDING' THEN 1 END) as pending_trades,
+                        COUNT(CASE WHEN trade_status = 'ACTIVE' THEN 1 END) as active_trades,
+                        COUNT(CASE WHEN date = CURRENT_DATE THEN 1 END) as today_signals
                     FROM signal_lab_v2_trades;
                 """)
                 
@@ -9456,15 +9456,15 @@ def get_v2_stats():
         cursor.execute("""
             SELECT 
                 COUNT(*) as total_v2_trades,
-                COUNT(CASE WHEN active_trade = true THEN 1 END) as active_trades,
-                COUNT(CASE WHEN active_trade = false THEN 1 END) as closed_trades,
-                AVG(CASE WHEN active_trade = true THEN current_mfe END) as avg_active_mfe,
-                AVG(CASE WHEN active_trade = false THEN final_mfe END) as avg_final_mfe,
-                MAX(CASE WHEN active_trade = true THEN current_mfe ELSE final_mfe END) as max_mfe_achieved,
-                COUNT(CASE WHEN (CASE WHEN active_trade = true THEN current_mfe ELSE final_mfe END) >= 1 THEN 1 END) as trades_above_1r,
-                COUNT(CASE WHEN (CASE WHEN active_trade = true THEN current_mfe ELSE final_mfe END) >= 5 THEN 1 END) as trades_above_5r,
-                COUNT(CASE WHEN (CASE WHEN active_trade = true THEN current_mfe ELSE final_mfe END) >= 10 THEN 1 END) as trades_above_10r,
-                COUNT(CASE WHEN (CASE WHEN active_trade = true THEN current_mfe ELSE final_mfe END) >= 20 THEN 1 END) as trades_above_20r,
+                COUNT(CASE WHEN trade_status = 'ACTIVE' THEN 1 END) as active_trades,
+                COUNT(CASE WHEN trade_status = 'RESOLVED' THEN 1 END) as closed_trades,
+                AVG(CASE WHEN trade_status = 'ACTIVE' THEN current_mfe END) as avg_active_mfe,
+                AVG(CASE WHEN trade_status = 'RESOLVED' THEN final_mfe END) as avg_final_mfe,
+                MAX(CASE WHEN trade_status = 'ACTIVE' THEN current_mfe ELSE final_mfe END) as max_mfe_achieved,
+                COUNT(CASE WHEN (CASE WHEN trade_status = 'ACTIVE' THEN current_mfe ELSE final_mfe END) >= 1 THEN 1 END) as trades_above_1r,
+                COUNT(CASE WHEN (CASE WHEN trade_status = 'ACTIVE' THEN current_mfe ELSE final_mfe END) >= 5 THEN 1 END) as trades_above_5r,
+                COUNT(CASE WHEN (CASE WHEN trade_status = 'ACTIVE' THEN current_mfe ELSE final_mfe END) >= 10 THEN 1 END) as trades_above_10r,
+                COUNT(CASE WHEN (CASE WHEN trade_status = 'ACTIVE' THEN current_mfe ELSE final_mfe END) >= 20 THEN 1 END) as trades_above_20r,
                 COUNT(CASE WHEN auto_populated = true THEN 1 END) as automated_trades
             FROM signal_lab_v2_trades;
         """)
