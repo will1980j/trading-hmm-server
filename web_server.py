@@ -9514,42 +9514,18 @@ def get_v2_current_price():
 def get_v2_price_stream():
     """Get recent price stream data for V2 dashboard"""
     try:
-        limit = int(request.args.get('limit', 10))
-        
-        if not db_enabled or not db:
-            return jsonify({'prices': [], 'status': 'no_database'}), 200
-        
-        cursor = db.conn.cursor()
-        
-        # Get recent price data from live signals (real TradingView data)
-        cursor.execute("""
-            SELECT price, timestamp, session
-            FROM live_signals 
-            ORDER BY timestamp DESC 
-            LIMIT %s
-        """, (limit,))
-        
-        results = cursor.fetchall()
-        prices = []
-        
-        for row in results:
-            prices.append({
-                'price': float(row['price']),
-                'timestamp': row['timestamp'].isoformat(),
-                'session': row['session']
-            })
-        
+        # NO FAKE DATA - Return honest response about data availability
         return jsonify({
-            'prices': prices,
-            'count': len(prices),
-            'status': 'success'
-        })
+            'prices': [],
+            'count': 0,
+            'status': 'no_data',
+            'message': 'Real-time price streaming not configured'
+        }), 404
         
     except Exception as e:
         logger.error(f"V2 price stream error: {str(e)}")
-        # NO FAKE DATA - Return honest error
         return jsonify({
-            'error': 'Failed to retrieve real price stream data',
+            'error': 'Price stream endpoint error',
             'status': 'error',
             'message': str(e)
         }), 500
