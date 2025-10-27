@@ -17,6 +17,11 @@ from auth import login_required, authenticate
 from ml_insights_endpoint import get_ml_insights_response
 import math
 import pytz
+
+try:
+    from full_automation_webhook_handlers import register_automation_routes
+except ImportError:
+    register_automation_routes = None
 import uuid
 import requests
 import re
@@ -9392,13 +9397,8 @@ def receive_realtime_price():
 def deploy_dual_schema():
     """Deploy dual indicator schema via web endpoint"""
     try:
-        # Import database connection
         from database.railway_db import RailwayDB
-
-# Full Automation System Integration
-from full_automation_webhook_handlers import register_automation_routes
         
-        # Get database connection
         railway_db = RailwayDB()
         if not railway_db.conn:
             return jsonify({
