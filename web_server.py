@@ -9217,7 +9217,7 @@ def get_v2_active_trades():
         try:
             cursor = db.conn.cursor()
             
-            # Check if signal_lab_v2_trades table exists and has active trades
+            # Check if signal_lab_v2_trades table exists and get all V2 trades (pending, active, completed)
             cursor.execute("""
                 SELECT id, bias, session, date, time, 
                        COALESCE(current_mfe, 0) as current_mfe,
@@ -9227,7 +9227,6 @@ def get_v2_active_trades():
                        target_5r_price, target_10r_price, target_20r_price,
                        trade_status, trade_uuid, signal_timestamp
                 FROM signal_lab_v2_trades 
-                WHERE COALESCE(active_trade, false) = true
                 ORDER BY signal_timestamp DESC 
                 LIMIT 50;
             """)
