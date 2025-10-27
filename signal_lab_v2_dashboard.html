@@ -760,6 +760,21 @@
                     }
                     
                     if (priceData) {
+                        // CHECK FOR STALE DATA OR INVALID SESSION
+                        const session = priceData.session || 'Unknown';
+                        const timestamp = priceData.timestamp || priceData.created_at;
+                        const lastUpdate = new Date(timestamp);
+                        const now = new Date();
+                        const ageMinutes = (now - lastUpdate) / 1000 / 60;
+                        
+                        // REJECT STALE DATA (>5 minutes old) OR INVALID SESSION
+                        if (session === 'INVALID' || ageMinutes > 5) {
+                            console.log(`🚫 Rejecting stale/invalid price data: session=${session}, age=${ageMinutes.toFixed(1)}min`);
+                            showMarketClosedState();
+                            return false;
+                        }
+                        
+                        // VALID FRESH DATA - DISPLAY IT
                         document.getElementById('currentPrice').textContent = parseFloat(priceData.price).toFixed(2);
                         
                         const change = priceData.change || 0;
@@ -767,9 +782,7 @@
                         changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}`;
                         changeElement.className = `price-change ${change >= 0 ? 'positive' : 'negative'}`;
                         
-                        document.getElementById('currentSession').textContent = priceData.session || 'Unknown';
-                        
-                        const lastUpdate = new Date(priceData.timestamp || priceData.created_at);
+                        document.getElementById('currentSession').textContent = session;
                         document.getElementById('lastUpdate').textContent = lastUpdate.toLocaleTimeString();
                         
                         // Update price update counter only with real data
@@ -807,10 +820,19 @@
             document.getElementById('currentPrice').textContent = '---.--';
             document.getElementById('priceChange').textContent = '--';
             document.getElementById('priceChange').className = 'price-change';
-            document.getElementById('currentSession').textContent = 'Market Closed';
-            document.getElementById('lastUpdate').textContent = 'No Data';
+            document.getElementById('currentSession').textContent = 'CLOSED';
+            document.getElementById('lastUpdate').textContent = 'After Hours';
             document.getElementById('priceUpdates').textContent = '0';
             updateStatusIndicator('priceStatus', false);
+            
+            // Also update the status indicator to show "CLOSED" instead of "LIVE"
+            const statusElement = document.querySelector('.status-indicator');
+            if (statusElement) {
+                statusElement.classList.remove('status-active');
+                statusElement.classList.add('status-warning');
+                const statusText = statusElement.querySelector('span:last-child');
+                if (statusText) statusText.textContent = 'Market Closed';
+            }
         }
 
         async function loadEnhancedSignals() {

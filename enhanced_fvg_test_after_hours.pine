@@ -1,0 +1,67 @@
+//@version=5
+indicator("Enhanced FVG Test - After Hours", overlay=true)
+
+// ============================================================================
+// TEST VERSION THAT WORKS AFTER HOURS FOR WEBHOOK TESTING
+// ============================================================================
+
+webhook_url = input.string("https://web-production-cd33.up.railway.app/api/live-signals-v2", "Webhook URL")
+enable_webhooks = input.bool(true, "Enable Webhooks")
+test_frequency = input.int(5, "Test Signal Every N Bars", minval=1, maxval=20)
+
+// Simple test logic - triggers every N bars regardless of session
+test_signal = bar_index % test_frequency == 0 and barstate.isconfirmed
+signal_type = close > open ? "Bullish" : "Bearish"
+
+// Send webhook regardless of session (for testing)
+if enable_webhooks and test_signal
+    // ULTRA SIMPLE PAYLOAD - SAME FORMAT AS WORKING PRICE STREAMER
+    test_payload = '{"signal_type":"' + signal_type + '","price":' + str.tostring(close) + ',"timestamp":' + str.tostring(time) + ',"session":"TEST"}'
+    
+    alert(test_payload, alert.freq_once_per_bar)
+
+// Visual signals
+plotshape(test_signal and signal_type == "Bullish", "Test Bull", shape.triangleup, location.belowbar, color.green, size=size.normal)
+plotshape(test_signal and signal_type == "Bearish", "Test Bear", shape.triangledown, location.abovebar, color.red, size=size.normal)
+
+// Status table
+if barstate.islast
+    var table status_table = table.new(position.top_right, 2, 6, bgcolor=color.new(color.black, 80), border_width=1)
+    
+    table.cell(status_table, 0, 0, "AFTER HOURS TEST", text_color=color.white, text_size=size.small, bgcolor=color.orange)
+    table.cell(status_table, 1, 0, "STATUS", text_color=color.white, text_size=size.small, bgcolor=color.orange)
+    
+    table.cell(status_table, 0, 1, "Webhooks", text_color=color.white, text_size=size.small)
+    webhook_color = enable_webhooks ? color.green : color.red
+    table.cell(status_table, 1, 1, str.tostring(enable_webhooks), text_color=webhook_color, text_size=size.small)
+    
+    table.cell(status_table, 0, 2, "Frequency", text_color=color.white, text_size=size.small)
+    table.cell(status_table, 1, 2, str.tostring(test_frequency) + " bars", text_color=color.white, text_size=size.small)
+    
+    table.cell(status_table, 0, 3, "Next Signal", text_color=color.white, text_size=size.small)
+    bars_until = test_frequency - (bar_index % test_frequency)
+    table.cell(status_table, 1, 3, str.tostring(bars_until) + " bars", text_color=color.yellow, text_size=size.small)
+    
+    table.cell(status_table, 0, 4, "Current Price", text_color=color.white, text_size=size.small)
+    table.cell(status_table, 1, 4, "$" + str.tostring(close), text_color=color.white, text_size=size.small)
+    
+    table.cell(status_table, 0, 5, "Signal Type", text_color=color.white, text_size=size.small)
+    signal_color = signal_type == "Bullish" ? color.green : color.red
+    table.cell(status_table, 1, 5, signal_type, text_color=signal_color, text_size=size.small)
+
+// ============================================================================
+// AFTER HOURS TESTING INSTRUCTIONS:
+// 
+// 1. Deploy this test version to TradingView
+// 2. Set up alert as "Once Per Bar Close"
+// 3. Use webhook URL: https://web-production-cd33.up.railway.app/api/live-signals-v2
+// 4. This will send signals every 5 bars even after hours
+// 5. Check if signals appear in your platform
+// 
+// If this works after hours:
+//   → The webhook system is working, original FVG just needs session fixes
+// 
+// If this doesn't work:
+//   → There's a fundamental issue with the /api/live-signals-v2 endpoint
+// 
+// ============================================================================
