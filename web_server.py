@@ -9491,16 +9491,44 @@ def get_v2_stats():
 # Missing V2 API endpoints for Signal Lab V2 dashboard
 @app.route('/api/v2/price/current', methods=['GET'])
 def get_v2_current_price():
-    """Get current NASDAQ price for V2 dashboard"""
+    """Get current NASDAQ price for V2 dashboard from realtime price system"""
     try:
-        # NO FAKE DATA - Return honest response about data availability
-        return jsonify({
-            'error': 'No real-time price data available',
-            'status': 'no_data',
-            'message': 'Real-time price streaming not configured',
-            'session': get_current_session(),
-            'timestamp': datetime.now().isoformat()
-        }), 404
+        # Import and get current price from realtime system
+        try:
+            from realtime_price_webhook_handler import get_current_price
+            current_price = get_current_price()
+            
+            if current_price:
+                return jsonify({
+                    'price': current_price.price,
+                    'timestamp': datetime.fromtimestamp(current_price.timestamp/1000).isoformat(),
+                    'session': current_price.session,
+                    'change': current_price.change,
+                    'bid': current_price.bid,
+                    'ask': current_price.ask,
+                    'volume': current_price.volume,
+                    'status': 'success',
+                    'source': 'realtime_1s'
+                })
+            else:
+                # No current price available
+                return jsonify({
+                    'error': 'No real-time price data available',
+                    'status': 'no_data',
+                    'message': 'Waiting for TradingView 1-second price updates',
+                    'session': get_current_session(),
+                    'timestamp': datetime.now().isoformat()
+                }), 404
+                
+        except ImportError:
+            logger.warning("Realtime price handler not available")
+            return jsonify({
+                'error': 'Real-time price system not available',
+                'status': 'system_error',
+                'message': 'Realtime price handler not loaded',
+                'session': get_current_session(),
+                'timestamp': datetime.now().isoformat()
+            }), 503
             
     except Exception as e:
         logger.error(f"V2 current price error: {str(e)}")
@@ -9512,15 +9540,51 @@ def get_v2_current_price():
 
 @app.route('/api/v2/price/stream', methods=['GET'])
 def get_v2_price_stream():
-    """Get recent price stream data for V2 dashboard"""
+    """Get recent price stream data for V2 dashboard from realtime system"""
     try:
-        # NO FAKE DATA - Return honest response about data availability
-        return jsonify({
-            'prices': [],
-            'count': 0,
-            'status': 'no_data',
-            'message': 'Real-time price streaming not configured'
-        }), 404
+        limit = int(request.args.get('limit', 10))
+        
+        # Import and get current price from realtime system
+        try:
+            from realtime_price_webhook_handler import get_current_price
+            current_price = get_current_price()
+            
+            if current_price:
+                # Return the current price as a single-item stream
+                price_data = {
+                    'price': current_price.price,
+                    'timestamp': datetime.fromtimestamp(current_price.timestamp/1000).isoformat(),
+                    'session': current_price.session,
+                    'change': current_price.change,
+                    'bid': current_price.bid,
+                    'ask': current_price.ask,
+                    'volume': current_price.volume,
+                    'source': 'realtime_1s'
+                }
+                
+                return jsonify({
+                    'prices': [price_data],
+                    'count': 1,
+                    'status': 'success',
+                    'message': 'Real-time price data from 1-second stream'
+                })
+            else:
+                # No current price available
+                return jsonify({
+                    'prices': [],
+                    'count': 0,
+                    'status': 'no_data',
+                    'message': 'Waiting for TradingView 1-second price updates'
+                }), 404
+                
+        except ImportError:
+            logger.warning("Realtime price handler not available")
+            return jsonify({
+                'prices': [],
+                'count': 0,
+                'status': 'system_error',
+                'message': 'Realtime price handler not loaded'
+            }), 503
         
     except Exception as e:
         logger.error(f"V2 price stream error: {str(e)}")
@@ -9882,6 +9946,16 @@ def deploy_dual_schema():
 register_automation_routes(app)
 
 if __name__ == '__main__':
+    # Start real-time price handler for 1-second TradingView data
+    try:
+        from realtime_price_webhook_handler import start_realtime_price_handler
+        start_realtime_price_handler()
+        logger.info("🚀 Real-time price handler started for 1-second TradingView data")
+    except ImportError:
+        logger.warning("⚠️ Real-time price handler not available")
+    except Exception as e:
+        logger.error(f"❌ Failed to start real-time price handler: {str(e)}")
+    
     port = int(environ.get('PORT', 8080))
     debug_mode = environ.get('DEBUG', 'False').lower() == 'true'
     host = '0.0.0.0'  # Accept external connections
