@@ -9396,6 +9396,17 @@ def close_v2_trade():
 def get_v2_stats():
     """Get comprehensive V2 automation statistics - Public endpoint for dashboard"""
     try:
+        # Check database availability first
+        if not db_enabled or not db:
+            return jsonify({
+                "total_signals": 0,
+                "pending_trades": 0,
+                "active_trades": 0,
+                "today_signals": 0,
+                "public_access": True,
+                "error": "Database not available"
+            })
+
         # Check if user is authenticated
         if not session.get('authenticated'):
             # Return basic public stats for unauthenticated users
@@ -9427,14 +9438,15 @@ def get_v2_stats():
                         "today_signals": 0,
                         "public_access": True
                     })
-            except:
+            except Exception as e:
+                logger.error(f"V2 stats database error: {str(e)}")
                 return jsonify({
                     "total_signals": 0,
                     "pending_trades": 0,
                     "active_trades": 0,
                     "today_signals": 0,
                     "public_access": True,
-                    "error": "Database connection issue"
+                    "error": f"Database query failed: {str(e)}"
                 })
         
         # Full stats for authenticated users
