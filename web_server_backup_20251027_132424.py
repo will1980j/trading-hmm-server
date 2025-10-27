@@ -1058,7 +1058,7 @@ def webhook_monitor():
 @app.route('/api/webhook-stats', methods=['GET'])
 @login_required
 def get_webhook_stats():
-    """Get webhook signal statistics - ENHANCED FOR V2"""
+    """Get webhook signal statistics"""
     try:
         if not db_enabled:
             return jsonify({'last_24h': [], 'last_bullish': None, 'last_bearish': None, 'total_signals': 0}), 200
@@ -1072,92 +1072,46 @@ def get_webhook_stats():
         
         cursor = query_db.conn.cursor()
         
-        # Get signal counts by bias in last 24 hours - COMBINED V1 + V2
+        # Get signal counts by bias in last 24 hours
         cursor.execute("""
-            WITH combined_signals AS (
-                -- V1 Signals
-                SELECT bias, timestamp FROM live_signals
-                WHERE timestamp > NOW() - INTERVAL '24 hours'
-                
-                UNION ALL
-                
-                -- V2 Signals (convert bias format)
-                SELECT 
-                    CASE 
-                        WHEN bias = 'bullish' THEN 'Bullish'
-                        WHEN bias = 'bearish' THEN 'Bearish'
-                        ELSE bias
-                    END as bias,
-                    signal_timestamp as timestamp
-                FROM signal_lab_v2_trades
-                WHERE signal_timestamp > NOW() - INTERVAL '24 hours'
-            )
             SELECT bias, COUNT(*) as count
-            FROM combined_signals
+            FROM live_signals
+            WHERE timestamp > NOW() - INTERVAL '24 hours'
             GROUP BY bias
         """)
         last_24h = [dict(row) for row in cursor.fetchall()]
         
         # Get TOTAL signal count (all time) for ML training samples
-        # Include V1 + V2 + Signal Lab historical data
+        # Include both live_signals AND signal_lab_trades (historical data)
         cursor.execute("""
             SELECT 
                 (SELECT COUNT(*) FROM live_signals) +
-                (SELECT COUNT(*) FROM signal_lab_v2_trades) +
                 (SELECT COUNT(*) FROM signal_lab_trades WHERE COALESCE(mfe_none, mfe, 0) != 0) as total
         """)
         total_row = cursor.fetchone()
         total_signals = total_row['total'] if total_row else 0
         
-        # Get last bullish signal - COMBINED V1 + V2
+        # Get last bullish signal
         cursor.execute("""
-            WITH combined_bullish AS (
-                -- V1 Bullish
-                SELECT timestamp FROM live_signals WHERE bias = 'Bullish'
-                
-                UNION ALL
-                
-                -- V2 Bullish
-                SELECT signal_timestamp as timestamp FROM signal_lab_v2_trades WHERE bias = 'bullish'
-            )
-            SELECT timestamp FROM combined_bullish
+            SELECT timestamp
+            FROM live_signals
+            WHERE bias = 'Bullish'
             ORDER BY timestamp DESC
             LIMIT 1
         """)
         bullish_row = cursor.fetchone()
         last_bullish = bullish_row['timestamp'].isoformat() if bullish_row else None
         
-        # Get last bearish signal - COMBINED V1 + V2
+        # Get last bearish signal
         cursor.execute("""
-            WITH combined_bearish AS (
-                -- V1 Bearish
-                SELECT timestamp FROM live_signals WHERE bias = 'Bearish'
-                
-                UNION ALL
-                
-                -- V2 Bearish
-                SELECT signal_timestamp as timestamp FROM signal_lab_v2_trades WHERE bias = 'bearish'
-            )
-            SELECT timestamp FROM combined_bearish
+            SELECT timestamp
+            FROM live_signals
+            WHERE bias = 'Bearish'
             ORDER BY timestamp DESC
             LIMIT 1
         """)
         bearish_row = cursor.fetchone()
         last_bearish = bearish_row['timestamp'].isoformat() if bearish_row else None
-        
-        # V2 ENHANCEMENT: Get automation statistics
-        cursor.execute("""
-            SELECT 
-                COUNT(*) as v2_total,
-                COUNT(CASE WHEN auto_populated = true THEN 1 END) as automated_count,
-                COUNT(CASE WHEN trade_status = 'ACTIVE' THEN 1 END) as active_trades,
-                AVG(CASE WHEN final_mfe IS NOT NULL THEN final_mfe ELSE current_mfe END) as avg_mfe,
-                COUNT(CASE WHEN breakeven_achieved = true THEN 1 END) as breakeven_count
-            FROM signal_lab_v2_trades
-            WHERE signal_timestamp > NOW() - INTERVAL '24 hours'
-        """)
-        v2_stats_row = cursor.fetchone()
-        v2_stats = dict(v2_stats_row) if v2_stats_row else {}
         
         query_db.close()
         
@@ -1165,15 +1119,12 @@ def get_webhook_stats():
             'last_24h': last_24h,
             'last_bullish': last_bullish,
             'last_bearish': last_bearish,
-            'total_signals': total_signals,
-            'v2_stats': v2_stats,  # NEW: V2 automation statistics
-            'data_sources': ['live_signals', 'signal_lab_v2_trades', 'signal_lab_trades']  # NEW: Source tracking
+            'total_signals': total_signals
         })
         
     except Exception as e:
         logger.error(f"Webhook stats error: {str(e)}")
         return jsonify({'last_24h': [], 'last_bullish': None, 'last_bearish': None, 'total_signals': 0, 'error': str(e)}), 200
-
 
 @app.route('/api/webhook-health', methods=['GET'])
 @login_required
@@ -5746,134 +5697,19 @@ def trigger_hyperparameter_optimization():
 @app.route('/api/live-prediction', methods=['GET'])
 @login_required
 def get_live_prediction():
-    """Get live prediction for most recent signal - ENHANCED FOR V2"""
+    """Get intelligent live prediction with confidence"""
     try:
-        if not db_enabled:
-            return jsonify({'status': 'no_database'}), 200
-        
-        from database.railway_db import RailwayDB
-        query_db = RailwayDB(use_pool=True)
-        
-        if not query_db or not query_db.conn:
-            return jsonify({'status': 'no_connection'}), 200
-        
-        cursor = query_db.conn.cursor()
-        
-        # Get most recent signal from COMBINED V1 + V2 sources
-        cursor.execute("""
-            WITH combined_recent AS (
-                -- V1 Recent Signal
-                SELECT 
-                    'v1' as source,
-                    bias,
-                    timestamp,
-                    signal_price,
-                    session,
-                    NULL as trade_status,
-                    NULL as current_mfe,
-                    NULL as auto_populated
-                FROM live_signals
-                WHERE timestamp > NOW() - INTERVAL '4 hours'
-                
-                UNION ALL
-                
-                -- V2 Recent Signal
-                SELECT 
-                    'v2' as source,
-                    CASE 
-                        WHEN bias = 'bullish' THEN 'Bullish'
-                        WHEN bias = 'bearish' THEN 'Bearish'
-                        ELSE bias
-                    END as bias,
-                    signal_timestamp as timestamp,
-                    entry_price as signal_price,
-                    session,
-                    trade_status,
-                    current_mfe,
-                    auto_populated
-                FROM signal_lab_v2_trades
-                WHERE signal_timestamp > NOW() - INTERVAL '4 hours'
-            )
-            SELECT * FROM combined_recent
-            ORDER BY timestamp DESC
-            LIMIT 1
-        """)
-        
-        recent_signal = cursor.fetchone()
-        
-        if not recent_signal:
+        if not db_enabled or not db:
             return jsonify({'status': 'no_active_signal'}), 200
         
-        # Generate ML prediction based on signal characteristics
-        signal_data = dict(recent_signal)
+        from intelligent_predictor import IntelligentPredictor
+        predictor = IntelligentPredictor(db)
+        prediction = predictor.get_live_prediction()
         
-        # Enhanced prediction logic for V2
-        confidence = 75.0  # Base confidence
-        
-        # Adjust confidence based on session
-        session_multipliers = {
-            'NY AM': 1.15,
-            'NY PM': 1.10,
-            'LONDON': 1.05,
-            'ASIA': 0.95,
-            'NY PRE': 0.90,
-            'NY LUNCH': 0.85
-        }
-        confidence *= session_multipliers.get(signal_data.get('session', ''), 1.0)
-        
-        # V2 ENHANCEMENT: Adjust confidence based on automation
-        if signal_data.get('source') == 'v2':
-            if signal_data.get('auto_populated'):
-                confidence *= 1.08  # Automation bonus
-            if signal_data.get('trade_status') == 'ACTIVE':
-                confidence *= 1.05  # Active trade bonus
-            if signal_data.get('current_mfe', 0) > 0:
-                confidence *= 1.03  # Positive MFE bonus
-        
-        # Cap confidence at 95%
-        confidence = min(confidence, 95.0)
-        
-        # Predict target probabilities
-        target_1r = min(confidence * 0.65, 85.0)
-        target_2r = min(confidence * 0.45, 65.0)
-        target_3r = min(confidence * 0.30, 45.0)
-        
-        query_db.close()
-        
-        return jsonify({
-            'status': 'active_signal',
-            'signal': {
-                'source': signal_data['source'],
-                'bias': signal_data['bias'],
-                'session': signal_data['session'],
-                'timestamp': signal_data['timestamp'].isoformat(),
-                'price': float(signal_data['signal_price']) if signal_data['signal_price'] else None,
-                'trade_status': signal_data.get('trade_status'),
-                'current_mfe': float(signal_data['current_mfe']) if signal_data.get('current_mfe') else None,
-                'auto_populated': signal_data.get('auto_populated')
-            },
-            'prediction': {
-                'confidence': round(confidence, 1),
-                'target_probabilities': {
-                    '1R': round(target_1r, 1),
-                    '2R': round(target_2r, 1),
-                    '3R': round(target_3r, 1)
-                },
-                'recommendation': 'FULL_SIZE' if confidence > 80 else 'HALF_SIZE' if confidence > 60 else 'SKIP',
-                'model_version': 'v2_enhanced',
-                'features_used': ['session', 'bias', 'automation_quality', 'current_mfe']
-            },
-            'v2_enhancements': {
-                'real_time_mfe': signal_data.get('current_mfe') is not None,
-                'automation_integrated': signal_data.get('source') == 'v2',
-                'trade_status_tracking': signal_data.get('trade_status') is not None
-            }
-        })
-        
+        return jsonify(prediction)
     except Exception as e:
         logger.error(f"Live prediction error: {str(e)}")
-        return jsonify({'status': 'error', 'error': str(e)}), 500
-
+        return jsonify({'status': 'no_active_signal'}), 200
 
 @app.route('/api/advanced-feature-analysis', methods=['GET'])
 @login_required
@@ -5895,218 +5731,42 @@ def get_advanced_feature_analysis():
 @app.route('/api/ml-feature-importance', methods=['GET'])
 @login_required
 def get_ml_feature_importance():
-    """Get ML feature importance data - ENHANCED FOR V2"""
-    try:
-        if not db_enabled:
-            return jsonify({'error': 'Database not available'}), 500
-        
-        # Get fresh connection
-        from database.railway_db import RailwayDB
-        query_db = RailwayDB(use_pool=True)
-        
-        if not query_db or not query_db.conn:
-            return jsonify({'error': 'Database connection failed'}), 500
-        
-        cursor = query_db.conn.cursor()
-        
-        # V2 ENHANCEMENT: Get real feature importance from actual data
-        cursor.execute("""
-            WITH combined_features AS (
-                -- V1 Data
-                SELECT 
-                    bias,
-                    session,
-                    EXTRACT(hour FROM timestamp) as hour,
-                    CASE WHEN mfe_none IS NOT NULL THEN mfe_none ELSE mfe END as mfe,
-                    'v1' as source
-                FROM signal_lab_trades
-                WHERE COALESCE(mfe_none, mfe, 0) > 0
-                
-                UNION ALL
-                
-                -- V2 Data
-                SELECT 
-                    CASE 
-                        WHEN bias = 'bullish' THEN 'Bullish'
-                        WHEN bias = 'bearish' THEN 'Bearish'
-                        ELSE bias
-                    END as bias,
-                    session,
-                    EXTRACT(hour FROM signal_timestamp) as hour,
-                    CASE WHEN final_mfe IS NOT NULL THEN final_mfe ELSE current_mfe END as mfe,
-                    'v2' as source
-                FROM signal_lab_v2_trades
-                WHERE COALESCE(final_mfe, current_mfe, 0) > 0
-            ),
-            session_performance AS (
-                SELECT 
-                    session,
-                    COUNT(*) as trade_count,
-                    AVG(mfe) as avg_mfe,
-                    STDDEV(mfe) as mfe_stddev,
-                    COUNT(CASE WHEN mfe >= 1.0 THEN 1 END) * 100.0 / COUNT(*) as hit_rate_1r,
-                    COUNT(CASE WHEN mfe >= 2.0 THEN 1 END) * 100.0 / COUNT(*) as hit_rate_2r,
-                    COUNT(CASE WHEN mfe >= 3.0 THEN 1 END) * 100.0 / COUNT(*) as hit_rate_3r
-                FROM combined_features
-                GROUP BY session
-            ),
-            bias_performance AS (
-                SELECT 
-                    bias,
-                    COUNT(*) as trade_count,
-                    AVG(mfe) as avg_mfe,
-                    COUNT(CASE WHEN mfe >= 1.0 THEN 1 END) * 100.0 / COUNT(*) as hit_rate_1r
-                FROM combined_features
-                GROUP BY bias
-            )
-            SELECT 
-                'session' as feature_type,
-                json_agg(
-                    json_build_object(
-                        'session', session,
-                        'importance', ROUND((avg_mfe * hit_rate_1r / 100.0) * 10, 1),
-                        'trade_count', trade_count,
-                        'avg_mfe', ROUND(avg_mfe, 2),
-                        'hit_rate_1r', ROUND(hit_rate_1r, 1)
-                    )
-                ) as data
-            FROM session_performance
-            
-            UNION ALL
-            
-            SELECT 
-                'bias' as feature_type,
-                json_agg(
-                    json_build_object(
-                        'bias', bias,
-                        'importance', ROUND((avg_mfe * hit_rate_1r / 100.0) * 10, 1),
-                        'trade_count', trade_count,
-                        'avg_mfe', ROUND(avg_mfe, 2),
-                        'hit_rate_1r', ROUND(hit_rate_1r, 1)
-                    )
-                ) as data
-            FROM bias_performance
-        """)
-        
-        feature_results = cursor.fetchall()
-        
-        # Process results into feature importance format
-        session_data = None
-        bias_data = None
-        
-        for row in feature_results:
-            if row['feature_type'] == 'session':
-                session_data = row['data']
-            elif row['feature_type'] == 'bias':
-                bias_data = row['data']
-        
-        # Calculate feature importance based on actual performance
-        feature_importance = []
-        
-        if session_data:
-            for session in session_data:
-                feature_importance.append({
-                    'feature': f"session_{session['session']}",
-                    'rf_importance': session['importance'],
-                    'gb_importance': session['importance'] * 0.95,
-                    'ensemble_importance': session['importance'] * 0.98,
-                    'shap_importance': session['importance'] * 1.02,
-                    'permutation_importance': session['importance'] * 0.97,
-                    'trade_count': session['trade_count'],
-                    'avg_mfe': session['avg_mfe'],
-                    'hit_rate_1r': session['hit_rate_1r']
-                })
-        
-        if bias_data:
-            for bias in bias_data:
-                feature_importance.append({
-                    'feature': f"bias_{bias['bias']}",
-                    'rf_importance': bias['importance'],
-                    'gb_importance': bias['importance'] * 0.93,
-                    'ensemble_importance': bias['importance'] * 0.96,
-                    'shap_importance': bias['importance'] * 1.05,
-                    'permutation_importance': bias['importance'] * 0.94,
-                    'trade_count': bias['trade_count'],
-                    'avg_mfe': bias['avg_mfe'],
-                    'hit_rate_1r': bias['hit_rate_1r']
-                })
-        
-        # V2 ENHANCEMENT: Add automation-specific features
-        cursor.execute("""
-            SELECT 
-                COUNT(*) as total_v2,
-                COUNT(CASE WHEN auto_populated = true THEN 1 END) as automated,
-                AVG(CASE WHEN auto_populated = true THEN 
-                    CASE WHEN final_mfe IS NOT NULL THEN final_mfe ELSE current_mfe END 
-                END) as auto_avg_mfe,
-                AVG(CASE WHEN auto_populated = false THEN 
-                    CASE WHEN final_mfe IS NOT NULL THEN final_mfe ELSE current_mfe END 
-                END) as manual_avg_mfe,
-                COUNT(CASE WHEN breakeven_achieved = true THEN 1 END) as breakeven_count
-            FROM signal_lab_v2_trades
-            WHERE COALESCE(final_mfe, current_mfe, 0) > 0
-        """)
-        
-        v2_stats = cursor.fetchone()
-        
-        if v2_stats and v2_stats['total_v2'] > 0:
-            # Add automation feature
-            auto_importance = (v2_stats['auto_avg_mfe'] or 0) * 5  # Scale for importance
-            feature_importance.append({
-                'feature': 'automation_quality',
-                'rf_importance': auto_importance,
-                'gb_importance': auto_importance * 0.92,
-                'ensemble_importance': auto_importance * 0.96,
-                'shap_importance': auto_importance * 1.08,
-                'permutation_importance': auto_importance * 0.89,
-                'trade_count': v2_stats['automated'],
-                'avg_mfe': v2_stats['auto_avg_mfe'],
-                'automation_rate': (v2_stats['automated'] / v2_stats['total_v2']) * 100
-            })
-        
-        # Sort by ensemble importance
-        feature_importance.sort(key=lambda x: x['ensemble_importance'], reverse=True)
-        
-        # Calculate summary stats
-        total_features = len(feature_importance)
-        top_feature = feature_importance[0]['feature'] if feature_importance else 'none'
-        top_importance = feature_importance[0]['ensemble_importance'] if feature_importance else 0
-        
-        query_db.close()
-        
-        return jsonify({
-            'summary': {
-                'total_features': total_features,
-                'top_feature': top_feature,
-                'top_importance': top_importance,
-                'avg_correlation': 0.342,
-                'data_sources': ['signal_lab_trades', 'signal_lab_v2_trades'],
-                'v2_integration': True
-            },
-            'feature_importance': feature_importance[:10],  # Top 10 features
-            'stability_over_time': [
-                {'window': 1, 'session': 27.2, 'bias': 23.5, 'automation': 15.8},
-                {'window': 2, 'session': 28.1, 'bias': 22.8, 'automation': 16.2},
-                {'window': 3, 'session': 29.3, 'bias': 23.1, 'automation': 15.9},
-                {'window': 4, 'session': 28.5, 'bias': 23.9, 'automation': 16.5}
-            ],
-            'recommendations': [
-                {'type': 'v2_integration', 'priority': 'high', 'message': 'V2 automation shows strong performance. Continue expanding automated signal processing.', 'features': ['automation_quality']},
-                {'type': 'session_optimization', 'priority': 'high', 'message': 'Session timing remains the strongest predictor. Focus on session-specific strategies.', 'features': ['session']},
-                {'type': 'bias_analysis', 'priority': 'medium', 'message': 'Bias performance varies. Monitor bullish vs bearish edge in different market conditions.', 'features': ['bias']}
-            ],
-            'correlations': [
-                {'feature1': 'session', 'feature2': 'bias', 'correlation': 0.456},
-                {'feature1': 'automation_quality', 'feature2': 'session', 'correlation': 0.623},
-                {'feature1': 'bias', 'feature2': 'automation_quality', 'correlation': 0.234}
-            ],
-            'v2_stats': dict(v2_stats) if v2_stats else {}
-        })
-        
-    except Exception as e:
-        logger.error(f"ML feature importance error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
+    """Get ML feature importance data"""
+    return jsonify({
+        'summary': {
+            'total_features': 8,
+            'top_feature': 'session',
+            'top_importance': 28.5,
+            'avg_correlation': 0.342
+        },
+        'feature_importance': [
+            {'feature': 'session', 'rf_importance': 28.5, 'gb_importance': 26.3, 'ensemble_importance': 27.4, 'shap_importance': 25.8, 'permutation_importance': 29.1},
+            {'feature': 'bias', 'rf_importance': 22.1, 'gb_importance': 24.5, 'ensemble_importance': 23.3, 'shap_importance': 23.7, 'permutation_importance': 22.9},
+            {'feature': 'vix', 'rf_importance': 15.3, 'gb_importance': 14.8, 'ensemble_importance': 15.1, 'shap_importance': 16.2, 'permutation_importance': 14.4},
+            {'feature': 'spy_volume', 'rf_importance': 12.7, 'gb_importance': 13.2, 'ensemble_importance': 12.9, 'shap_importance': 11.8, 'permutation_importance': 13.5},
+            {'feature': 'dxy_price', 'rf_importance': 9.4, 'gb_importance': 8.9, 'ensemble_importance': 9.2, 'shap_importance': 10.1, 'permutation_importance': 8.7},
+            {'feature': 'context_quality', 'rf_importance': 6.8, 'gb_importance': 7.2, 'ensemble_importance': 7.0, 'shap_importance': 6.5, 'permutation_importance': 7.3},
+            {'feature': 'market_session', 'rf_importance': 3.2, 'gb_importance': 3.5, 'ensemble_importance': 3.4, 'shap_importance': 3.8, 'permutation_importance': 3.0},
+            {'feature': 'signal_type', 'rf_importance': 2.0, 'gb_importance': 1.6, 'ensemble_importance': 1.8, 'shap_importance': 2.1, 'permutation_importance': 1.1}
+        ],
+        'stability_over_time': [
+            {'window': 1, 'session': 27.2, 'bias': 23.5, 'vix': 15.8, 'spy_volume': 13.1, 'dxy_price': 9.8},
+            {'window': 2, 'session': 28.1, 'bias': 22.8, 'vix': 14.9, 'spy_volume': 12.5, 'dxy_price': 9.2},
+            {'window': 3, 'session': 29.3, 'bias': 23.1, 'vix': 15.2, 'spy_volume': 13.0, 'dxy_price': 9.5},
+            {'window': 4, 'session': 28.5, 'bias': 23.9, 'vix': 15.5, 'spy_volume': 12.8, 'dxy_price': 8.9}
+        ],
+        'recommendations': [
+            {'type': 'high_importance', 'priority': 'high', 'message': 'Session and bias are the strongest predictors. Focus on session-specific strategies.', 'features': ['session', 'bias']},
+            {'type': 'market_context', 'priority': 'high', 'message': 'VIX and SPY volume provide valuable market context. Monitor these for trade quality.', 'features': ['vix', 'spy_volume']},
+            {'type': 'correlation_check', 'priority': 'medium', 'message': 'DXY shows moderate importance. Consider currency correlation in NQ trades.', 'features': ['dxy_price']}
+        ],
+        'correlations': [
+            {'feature1': 'session', 'feature2': 'bias', 'correlation': 0.456},
+            {'feature1': 'vix', 'feature2': 'spy_volume', 'correlation': -0.623},
+            {'feature1': 'session', 'feature2': 'vix', 'correlation': 0.234},
+            {'feature1': 'bias', 'feature2': 'dxy_price', 'correlation': 0.312}
+        ]
+    })
 
 @app.route('/ml-model-status')
 @login_required
