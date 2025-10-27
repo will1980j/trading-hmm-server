@@ -9518,9 +9518,9 @@ def get_v2_current_price():
         result = cursor.fetchone()
         if result:
             return jsonify({
-                'price': float(result['price']),
-                'timestamp': result['timestamp'].isoformat(),
-                'session': result['session'],
+                'price': float(result[0]),
+                'timestamp': result[1].isoformat() if result[1] else None,
+                'session': result[2] if result[2] else get_current_session(),
                 'status': 'success'
             })
         else:
