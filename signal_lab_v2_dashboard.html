@@ -612,25 +612,70 @@
                 </h2>
                 <!-- TradingView Widget BEGIN -->
                 <div class="tradingview-widget-container" style="height: 100%; width: 100%;">
-                    <div class="tradingview-widget-container__widget" style="height: calc(100% - 32px); width: 100%;"></div>
-                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
-                    {
-                        "symbol": "CME_MINI:NQ1!",
-                        "width": "100%",
-                        "height": "100%",
-                        "locale": "en",
-                        "dateRange": "1D",
-                        "colorTheme": "dark",
-                        "trendLineColor": "rgba(41, 98, 255, 1)",
-                        "underLineColor": "rgba(41, 98, 255, 0.3)",
-                        "underLineBottomColor": "rgba(41, 98, 255, 0)",
-                        "isTransparent": true,
-                        "autosize": true,
-                        "largeChartUrl": ""
-                    }
-                    </script>
+                    <div class="tradingview-widget-container__widget" id="tradingview-widget" style="height: calc(100% - 32px); width: 100%;"></div>
                 </div>
                 <!-- TradingView Widget END -->
+                <script type="text/javascript">
+                // Auto-select correct NQ futures contract based on current date
+                function getNQFuturesSymbol() {
+                    const now = new Date();
+                    const month = now.getMonth(); // 0-11 (0=Jan, 9=Oct, 11=Dec)
+                    const year = now.getFullYear(); // 2025
+                    
+                    // NQ futures months: H=Mar, M=Jun, U=Sep, Z=Dec
+                    // Contracts roll ~2 weeks before expiry (3rd Friday of contract month)
+                    let contractMonth, contractYear;
+                    
+                    // October 2025 = month 9
+                    if (month < 2 || (month === 2 && now.getDate() < 8)) {
+                        // Jan-early Mar: Use March contract
+                        contractMonth = 'H';
+                        contractYear = year;
+                    } else if (month < 5 || (month === 5 && now.getDate() < 8)) {
+                        // Mid Mar-early Jun: Use June contract
+                        contractMonth = 'M';
+                        contractYear = year;
+                    } else if (month < 8 || (month === 8 && now.getDate() < 8)) {
+                        // Mid Jun-early Sep: Use September contract
+                        contractMonth = 'U';
+                        contractYear = year;
+                    } else if (month < 11 || (month === 11 && now.getDate() < 8)) {
+                        // Mid Sep-early Dec: Use December contract (Oct 2025 = NQZ2025)
+                        contractMonth = 'Z';
+                        contractYear = year;
+                    } else {
+                        // Mid Dec-end of year: Use next March contract
+                        contractMonth = 'H';
+                        contractYear = year + 1;
+                    }
+                    
+                    const symbol = `CME_MINI:NQ${contractMonth}${contractYear}`;
+                    console.log(`📊 Auto-selected NQ contract: ${symbol} (Current: ${now.toLocaleDateString()})`);
+                    return symbol;
+                }
+                
+                // Load TradingView widget with correct symbol
+                const nqSymbol = getNQFuturesSymbol();
+                
+                const script = document.createElement('script');
+                script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
+                script.async = true;
+                script.innerHTML = JSON.stringify({
+                    "symbol": nqSymbol,
+                    "width": "100%",
+                    "height": "100%",
+                    "locale": "en",
+                    "dateRange": "1D",
+                    "colorTheme": "dark",
+                    "trendLineColor": "rgba(41, 98, 255, 1)",
+                    "underLineColor": "rgba(41, 98, 255, 0.3)",
+                    "underLineBottomColor": "rgba(41, 98, 255, 0)",
+                    "isTransparent": true,
+                    "autosize": true,
+                    "largeChartUrl": ""
+                });
+                document.getElementById('tradingview-widget').parentElement.appendChild(script);
+                </script>
             </div>
         </div>
 
