@@ -1,0 +1,79 @@
+//@version=5
+indicator("NASDAQ Always Stream - DEBUG", overlay=false)
+
+// ============================================================================
+// ALWAYS STREAM - NO FILTERS - DEBUG VERSION
+// This version sends EVERY bar close regardless of any conditions
+// Use this to test if the webhook system is working
+// ============================================================================
+
+// Configuration
+webhook_url = input.string("https://web-production-cd33.up.railway.app/api/realtime-price", "Webhook URL")
+
+// Session detection
+get_session() =>
+    current_hour = hour(time, "America/New_York")
+    current_minute = minute(time, "America/New_York")
+    
+    if (current_hour == 8 and current_minute >= 30) or (current_hour >= 9 and current_hour <= 11)
+        "NY AM"
+    else if current_hour >= 13 and current_hour <= 15
+        "NY PM"
+    else if current_hour == 12
+        "NY LUNCH"
+    else if current_hour >= 0 and current_hour <= 5
+        "LONDON"
+    else if current_hour >= 6 and (current_hour < 8 or (current_hour == 8 and current_minute <= 29))
+        "NY PRE"
+    else if current_hour >= 20 and current_hour <= 23
+        "ASIA"
+    else
+        "INVALID"
+
+// Track last price for change calculation
+var float last_price = na
+price_change = na(last_price) ? 0 : close - last_price
+
+// Create payload
+session = get_session()
+payload = '{"type":"realtime_price",' +
+          '"symbol":"NQ",' +
+          '"price":' + str.tostring(close) + ',' +
+          '"timestamp":' + str.tostring(time) + ',' +
+          '"session":"' + session + '",' +
+          '"volume":' + str.tostring(volume) + ',' +
+          '"change":' + str.tostring(price_change) + ',' +
+          '"bid":' + str.tostring(close - 0.25) + ',' +
+          '"ask":' + str.tostring(close + 0.25) + ',' +
+          '"priority":"debug"}'
+
+// ALWAYS SEND - NO CONDITIONS
+if barstate.isconfirmed and session != "INVALID"
+    alert(payload, alert.freq_once_per_bar)
+    last_price := close
+    
+    // Visual confirmation
+    if barstate.islast
+        label.new(bar_index, close, "SENT", color=color.green, textcolor=color.white, size=size.tiny)
+
+// Plot price
+plot(close, title="Price", color=color.blue, linewidth=2)
+
+// Status table
+if barstate.islast
+    var table status_table = table.new(position.top_right, 2, 5, bgcolor=color.white, border_width=1)
+    
+    table.cell(status_table, 0, 0, "Session", text_color=color.black, bgcolor=color.yellow)
+    table.cell(status_table, 1, 0, session, text_color=color.white, bgcolor=session == "INVALID" ? color.red : color.green)
+    
+    table.cell(status_table, 0, 1, "Price", text_color=color.black)
+    table.cell(status_table, 1, 1, "$" + str.tostring(close), text_color=color.black)
+    
+    table.cell(status_table, 0, 2, "Change", text_color=color.black)
+    table.cell(status_table, 1, 2, str.tostring(price_change, "#.##"), text_color=color.black)
+    
+    table.cell(status_table, 0, 3, "Mode", text_color=color.black, bgcolor=color.orange)
+    table.cell(status_table, 1, 3, "ALWAYS ON", text_color=color.white, bgcolor=color.orange)
+    
+    table.cell(status_table, 0, 4, "Eligible", text_color=color.black, bgcolor=color.green)
+    table.cell(status_table, 1, 4, "YES", text_color=color.white, bgcolor=color.green)

@@ -1,0 +1,47 @@
+//@version=5
+strategy("NASDAQ Price Strategy Stream", overlay=true, process_orders_on_close=true)
+
+// This uses STRATEGY which has reliable alert functionality
+// Every bar close will trigger an order which triggers the alert
+
+// Session detection
+get_session() =>
+    h = hour(time, "America/New_York")
+    m = minute(time, "America/New_York")
+    
+    if (h == 8 and m >= 30) or (h >= 9 and h <= 11)
+        "NY_AM"
+    else if h >= 13 and h <= 15
+        "NY_PM"
+    else if h == 12
+        "NY_LUNCH"
+    else if h >= 0 and h <= 5
+        "LONDON"
+    else if h >= 6 and (h < 8 or (h == 8 and m <= 29))
+        "NY_PRE"
+    else if h >= 20 and h <= 23
+        "ASIA"
+    else
+        "INVALID"
+
+session = get_session()
+
+// Only trade during valid sessions
+if session != "INVALID" and barstate.isconfirmed
+    // Place a tiny order to trigger alert
+    strategy.entry("Price Update", strategy.long, qty=0.01)
+    strategy.close("Price Update")
+
+// Plot
+plot(close, "Price", color=color.blue, linewidth=2)
+bgcolor(session != "INVALID" ? color.new(color.green, 95) : color.new(color.red, 95))
+
+// Status table
+if barstate.islast
+    var t = table.new(position.top_right, 2, 3, bgcolor=color.white, border_width=1)
+    table.cell(t, 0, 0, "Session", text_color=color.black)
+    table.cell(t, 1, 0, session, text_color=color.white, bgcolor=session == "INVALID" ? color.red : color.green)
+    table.cell(t, 0, 1, "Price", text_color=color.black)
+    table.cell(t, 1, 1, "$" + str.tostring(close), text_color=color.black)
+    table.cell(t, 0, 2, "Streaming", text_color=color.black)
+    table.cell(t, 1, 2, session != "INVALID" ? "YES" : "NO", text_color=color.white, bgcolor=session != "INVALID" ? color.green : color.red)

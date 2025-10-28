@@ -1,0 +1,40 @@
+//@version=5
+indicator("NASDAQ AlertCondition Stream", overlay=false)
+
+// ============================================================================
+// USES ALERTCONDITION - DIFFERENT APPROACH
+// ============================================================================
+
+// Session detection
+get_session() =>
+    current_hour = hour(time, "America/New_York")
+    current_minute = minute(time, "America/New_York")
+    
+    if (current_hour == 8 and current_minute >= 30) or (current_hour >= 9 and current_hour <= 11)
+        "NY AM"
+    else if current_hour >= 13 and current_hour <= 15
+        "NY PM"
+    else
+        "OTHER"
+
+session = get_session()
+
+// Simple condition - fires every bar when not invalid
+fire_alert = session != "INVALID" and barstate.isconfirmed
+
+// Plot
+plot(close, title="Price", color=color.blue, linewidth=2)
+bgcolor(fire_alert ? color.new(color.green, 90) : na)
+
+// Create alert condition - message must be constant, use placeholders
+alertcondition(fire_alert, title="Price Update", message='{"type":"realtime_price","symbol":"NQ","price":{{close}},"timestamp":{{time}},"session":"DYNAMIC","volume":{{volume}},"change":0,"bid":{{close}},"ask":{{close}},"priority":"alert"}')
+
+// Status
+if barstate.islast
+    var table t = table.new(position.top_right, 2, 3, bgcolor=color.white, border_width=1)
+    table.cell(t, 0, 0, "Session", text_color=color.black)
+    table.cell(t, 1, 0, session, text_color=color.white, bgcolor=color.green)
+    table.cell(t, 0, 1, "Price", text_color=color.black)
+    table.cell(t, 1, 1, "$" + str.tostring(close), text_color=color.black)
+    table.cell(t, 0, 2, "Alert Ready", text_color=color.black)
+    table.cell(t, 1, 2, fire_alert ? "YES" : "NO", text_color=color.white, bgcolor=fire_alert ? color.green : color.red)

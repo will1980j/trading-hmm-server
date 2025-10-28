@@ -14,11 +14,11 @@ enable_streaming = input.bool(true, "Enable Real-Time Price Streaming")
 
 // SIMPLE FREQUENCY CONTROL - No complex arrays
 min_interval_seconds = input.int(20, "Minimum Interval (seconds)", minval=15, maxval=300)
-price_threshold = input.float(3.0, "Minimum Price Change (points)", minval=1.0, maxval=10.0)
+price_threshold = input.float(1.0, "Minimum Price Change (points)", minval=0.5, maxval=10.0)
 
 // Session filtering
 enable_session_filter = input.bool(true, "Enable Session Filtering")
-priority_sessions_only = input.bool(true, "Priority Sessions Only (NY AM/PM)")
+priority_sessions_only = input.bool(false, "Priority Sessions Only (NY AM/PM)")
 
 // ============================================================================
 // SIMPLE TRACKING VARIABLES
@@ -104,20 +104,17 @@ daily_limit_ok() =>
 should_send_alert() =>
     [session_name, is_priority] = get_session_info()
     
-    // Basic checks
+    // SIMPLIFIED - Only check essential filters
     if not enable_streaming
         false
     else if not daily_limit_ok()
         false
     else if enable_session_filter and session_name == "INVALID"
         false
-    else if priority_sessions_only and not is_priority
-        false
     else if not time_filter_passed()
         false
-    else if not price_filter_passed()
-        false
     else
+        // REMOVED priority and price filters for more frequent updates
         true
 
 // ============================================================================
