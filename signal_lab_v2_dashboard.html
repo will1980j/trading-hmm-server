@@ -744,6 +744,14 @@
                 
                 if (response.ok) {
                     const data = await response.json();
+                    
+                    // Check if API returned no_data status
+                    if (data.status === 'no_data' || data.status === 'system_error') {
+                        console.log(`📊 No price data available: ${data.message}`);
+                        showMarketClosedState();
+                        return false;
+                    }
+                    
                     let priceData = null;
                     
                     // Handle direct price data from /api/v2/price/current

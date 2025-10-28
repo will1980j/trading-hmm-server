@@ -4,6 +4,27 @@ inclusion: always
 
 # NASDAQ Day Trading Analytics Platform - Development Context
 
+## 📊 **ARCHITECTURE DOCUMENTATION**
+
+**Complete system architecture is documented in:**
+- **Visual Diagram:** `platform_architecture_diagram.drawio` - Open with [diagrams.net](https://app.diagrams.net/)
+- **Technical Docs:** `ARCHITECTURE_DOCUMENTATION.md` - Complete system documentation
+- **API Reference:** `API_QUICK_REFERENCE.md` - All endpoints and examples
+- **Quick Summary:** `ARCHITECTURE_SUMMARY.md` - Overview and guide
+
+**The diagram shows:**
+- All 5 system layers (TradingView → Webhooks → Database → Backend → Frontend)
+- All 12 dashboard tools with URLs
+- All API endpoints with methods and payloads
+- All database tables with schemas
+- Complete data flow paths (webhooks, APIs, WebSocket)
+- Cloud infrastructure (Railway deployment, PostgreSQL, GitHub auto-deploy)
+- Color-coded components and connections
+
+**Always reference these files when working on system architecture, APIs, or data flows.**
+
+---
+
 ## Project Overview
 
 I have a comprehensive cloud-based NASDAQ day trading analytics platform built with Amazon Q assistance, deployed at `web-production-cd33.up.railway.app/`. This is a multi-faceted trading platform designed to optimize scalping strategies on the NASDAQ using advanced analytics, real-time data processing, and machine learning as one of several key features.

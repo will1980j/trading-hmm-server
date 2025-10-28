@@ -9447,14 +9447,14 @@ def get_v2_current_price():
                     'source': 'realtime_1s'
                 })
             else:
-                # No current price available
+                # No current price available - return 200 with no_data status
                 return jsonify({
                     'error': 'No real-time price data available',
                     'status': 'no_data',
                     'message': 'Waiting for TradingView 1-second price updates',
                     'session': get_current_session(),
                     'timestamp': datetime.now().isoformat()
-                }), 404
+                }), 200
                 
         except ImportError:
             logger.warning("Realtime price handler not available")
@@ -9505,13 +9505,13 @@ def get_v2_price_stream():
                     'message': 'Real-time price data from 1-second stream'
                 })
             else:
-                # No current price available
+                # No current price available - return 200 with no_data status
                 return jsonify({
                     'prices': [],
                     'count': 0,
                     'status': 'no_data',
                     'message': 'Waiting for TradingView 1-second price updates'
-                }), 404
+                }), 200
                 
         except ImportError:
             logger.warning("Realtime price handler not available")
