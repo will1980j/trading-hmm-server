@@ -1065,7 +1065,7 @@
             
             const beText = { 'none': 'No BE', 'be1': 'BE=1R' };
             
-            let html = '<table id="strategyTable"><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th class="sortable" data-sort="expectancy">Expectancy</th><th class="sortable" data-sort="profitFactor">Profit Factor</th><th class="sortable" data-sort="avgTrade">Avg Trade</th><th class="sortable" data-sort="winRate">Win Rate</th><th class="sortable" data-sort="breakevenRate">BE Rate</th><th class="sortable" data-sort="trades">Trades</th><th class="sortable" data-sort="expectedR">Expected R</th><th class="sortable" data-sort="expectedPercent">Expected %</th><th class="sortable" data-sort="maxDD">Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
+            let html = '<table id="strategyTable"><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th class="sortable" data-sort="expectancy">Expectancy</th><th class="sortable" data-sort="profitFactor">Profit Factor</th><th class="sortable" data-sort="avgTrade">Avg Trade</th><th class="sortable" data-sort="winRate">Win Rate</th><th class="sortable" data-sort="breakevenRate">BE Rate</th><th class="sortable" data-sort="trades">Trades</th><th class="sortable" data-sort="expectedR">Expected R</th><th class="sortable" data-sort="expectedPercent">Expected %</th><th class="sortable" data-sort="maxDailyLoss">Max Daily Loss</th><th class="sortable" data-sort="maxDD">Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
             
             const maxDailyLoss = parseFloat(document.getElementById('maxDailyLoss')?.value || 5);
             const minWinRate = parseFloat(document.getElementById('minWinRate')?.value || 20);
@@ -1104,6 +1104,7 @@
                     <td>${s.stats.total}</td>
                     <td style="color: #00ff88; font-weight: 700;">${s.stats.expectedTotalReturn > 0 ? '+' : ''}${s.stats.expectedTotalReturn.toFixed(1)}R</td>
                     <td style="color: #00ff88; font-weight: 700;">${s.expectedReturnPercent > 0 ? '+' : ''}${s.expectedReturnPercent.toFixed(2)}%</td>
+                    <td style="background: ${s.maxDailyLossPercent > maxDailyLoss ? '#ff4444' : '#22c55e'}; color: white; font-weight: 600;">${s.maxDailyLossPercent.toFixed(1)}%</td>
                     <td style="background: ${ddColor}; font-weight: 600;">${s.maxDrawdownPercent.toFixed(1)}%</td>
                     <td style="text-align: center; font-size: 18px;">${propIcon}</td>
                     <td><button onclick="showStrategyDetails(${i})" class="view-btn">📊 View</button></td>
