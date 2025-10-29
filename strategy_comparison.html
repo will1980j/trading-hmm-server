@@ -48,6 +48,7 @@
         .checkbox-group:hover { background: rgba(59, 130, 246, 0.1); }
         .checkbox-group input { width: 18px; height: 18px; accent-color: var(--accent-primary); cursor: pointer; }
         .checkbox-group span { font-weight: 600; color: var(--text-primary); }
+        .prop-firm-logo { width: 20px; height: 20px; border-radius: 4px; object-fit: contain; background: white; padding: 2px; margin-right: 4px; }
         .btn-primary { background: linear-gradient(135deg, var(--accent-primary), #2563eb); border: none; padding: var(--spacing-md) var(--spacing-xl); border-radius: var(--radius-md); color: white; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.3s; box-shadow: var(--shadow-md); }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
         .btn-primary:active { transform: translateY(0); }
@@ -247,6 +248,93 @@
                 <span>Only show prop firm viable strategies</span>
             </label>
             
+            <!-- Prop Firm Selector Section -->
+            <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-md); padding: var(--spacing-lg); margin-top: var(--spacing-lg);">
+                <div style="display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-md);">
+                    <span style="font-size: 1.25rem;">💼</span>
+                    <h4 style="font-size: 1rem; font-weight: 700; color: var(--accent-primary);">Prop Firm Rules (Select to Apply Specific Firm Requirements)</h4>
+                </div>
+                <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: var(--spacing-md);">Select a prop firm to filter strategies that meet their specific evaluation and funded account rules</p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md);">
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="propMyfundedfutures" onchange="updatePropFirmRules()">
+                        <img src="https://www.google.com/s2/favicons?domain=myfundedfutures.com&sz=32" class="prop-firm-logo" alt="MFF" onerror="this.style.display='none'">
+                        <span>My Funded Futures ⭐</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="propTopstep" onchange="updatePropFirmRules()">
+                        <img src="https://www.google.com/s2/favicons?domain=topstep.com&sz=32" class="prop-firm-logo" alt="Topstep" onerror="this.style.display='none'">
+                        <span>Topstep</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="propApex" onchange="updatePropFirmRules()">
+                        <img src="https://www.google.com/s2/favicons?domain=apextraderfunding.com&sz=32" class="prop-firm-logo" alt="Apex" onerror="this.style.display='none'">
+                        <span>Apex Trader</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="propAlphafutures" onchange="updatePropFirmRules()">
+                        <img src="https://www.google.com/s2/favicons?domain=alphafutures.io&sz=32" class="prop-firm-logo" alt="Alpha" onerror="this.style.display='none'">
+                        <span>Alpha Futures ⭐</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="propToponefutures" onchange="updatePropFirmRules()">
+                        <img src="https://www.google.com/s2/favicons?domain=toponefutures.com&sz=32" class="prop-firm-logo" alt="Top One" onerror="this.style.display='none'">
+                        <span>Top One Futures ⭐</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="propTradeify" onchange="updatePropFirmRules()">
+                        <img src="https://www.google.com/s2/favicons?domain=tradeify.com&sz=32" class="prop-firm-logo" alt="Tradeify" onerror="this.style.display='none'">
+                        <span>Tradeify ⭐</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="propFundednext" onchange="updatePropFirmRules()">
+                        <img src="https://www.google.com/s2/favicons?domain=fundednext.com&sz=32" class="prop-firm-logo" alt="FundedNext" onerror="this.style.display='none'">
+                        <span>FundedNext</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="propE8futures" onchange="updatePropFirmRules()">
+                        <img src="https://www.google.com/s2/favicons?domain=e8funding.com&sz=32" class="prop-firm-logo" alt="E8" onerror="this.style.display='none'">
+                        <span>E8 Futures</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="propBlueguardian" onchange="updatePropFirmRules()">
+                        <img src="https://www.google.com/s2/favicons?domain=blueguardian.com&sz=32" class="prop-firm-logo" alt="Blue Guardian" onerror="this.style.display='none'">
+                        <span>Blue Guardian</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="propAquafutures" onchange="updatePropFirmRules()">
+                        <img src="https://www.google.com/s2/favicons?domain=aquafunded.com&sz=32" class="prop-firm-logo" alt="Aqua" onerror="this.style.display='none'">
+                        <span>AquaFutures</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="propFundingticks" onchange="updatePropFirmRules()">
+                        <img src="https://www.google.com/s2/favicons?domain=fundingticks.com&sz=32" class="prop-firm-logo" alt="FundingTicks" onerror="this.style.display='none'">
+                        <span>FundingTicks</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="propTakeprofittrader" onchange="updatePropFirmRules()">
+                        <img src="https://www.google.com/s2/favicons?domain=takeprofittrader.com&sz=32" class="prop-firm-logo" alt="TPT" onerror="this.style.display='none'">
+                        <span>Take Profit Trader</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="propTradeday" onchange="updatePropFirmRules()">
+                        <img src="https://www.google.com/s2/favicons?domain=tradeday.com&sz=32" class="prop-firm-logo" alt="TradeDay" onerror="this.style.display='none'">
+                        <span>TradeDay</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="propTradingpit" onchange="updatePropFirmRules()">
+                        <img src="https://www.google.com/s2/favicons?domain=thetradingpit.com&sz=32" class="prop-firm-logo" alt="Trading Pit" onerror="this.style.display='none'">
+                        <span>The Trading Pit</span>
+                    </label>
+                </div>
+                <div id="propFirmInfo" style="margin-top: var(--spacing-md); padding: var(--spacing-md); background: rgba(59, 130, 246, 0.05); border-radius: var(--radius-sm); display: none;">
+                    <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                        <strong style="color: var(--accent-primary);">Active Rules:</strong>
+                        <div id="propFirmRulesDisplay" style="margin-top: var(--spacing-sm);"></div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Best Of All Time Section -->
             <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-md); padding: var(--spacing-lg); margin-top: var(--spacing-lg);">
                 <div style="display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-md);">
@@ -295,6 +383,189 @@
     <script>
         let signals = [];
         let allSignals = [];
+        
+        // Prop Firm Rules Database (based on comprehensive futures prop firm research)
+        // Source: Futures Prop Firm Risk Metrics Analysis
+        const propFirmRules = {
+            myfundedfutures: {
+                name: "My Funded Futures",
+                website: "myfundedfutures.com",
+                maxDailyLoss: 0,  // No daily loss limits
+                maxDrawdown: 8,   // End-of-day trailing DD
+                minWinRate: 0,
+                rating: 4.5,
+                maxAccount: 450000,
+                description: "No daily limits, 8% EOD trailing DD, 80/20 split, $450K max"
+            },
+            topstep: {
+                name: "Topstep",
+                website: "topstep.com",
+                maxDailyLoss: 0,
+                maxDrawdown: 6,
+                minWinRate: 0,
+                rating: 4.0,
+                maxAccount: 150000,
+                description: "No daily limits (TopstepX), 6% EOD DD, $150K max"
+            },
+            apex: {
+                name: "Apex Trader Funding",
+                website: "apextraderfunding.com",
+                maxDailyLoss: 0,
+                maxDrawdown: 6,
+                minWinRate: 0,
+                rating: 3.8,
+                maxAccount: 6000000,
+                description: "No daily DD, 6% trailing, 90/10 split, $6M total capital"
+            },
+            alphafutures: {
+                name: "Alpha Futures",
+                website: "alphafutures.io",
+                maxDailyLoss: 3,
+                maxDrawdown: 6,
+                minWinRate: 0,
+                rating: 4.9,
+                maxAccount: 450000,
+                description: "UK-based, 4.9/5 rating, $450K max, premium service"
+            },
+            toponefutures: {
+                name: "Top One Futures",
+                website: "toponefutures.com",
+                maxDailyLoss: 3,
+                maxDrawdown: 6,
+                minWinRate: 0,
+                rating: 4.8,
+                maxAccount: 1500000,
+                description: "4.8/5 rating, $1.5M max accounts, excellent reputation"
+            },
+            tradeify: {
+                name: "Tradeify",
+                website: "tradeify.com",
+                maxDailyLoss: 3,
+                maxDrawdown: 6,
+                minWinRate: 0,
+                rating: 4.8,
+                maxAccount: 750000,
+                description: "4.8/5 rating, $750K max, trader-friendly policies"
+            },
+            fundednext: {
+                name: "FundedNext Futures",
+                website: "fundednext.com",
+                maxDailyLoss: 2.4,
+                maxDrawdown: 5,
+                minWinRate: 0,
+                rating: 4.0,
+                maxAccount: 200000,
+                description: "2.4% daily loss, strict rules, includes fees in calculations"
+            },
+            e8futures: {
+                name: "E8 Futures",
+                website: "e8funding.com",
+                maxDailyLoss: 3,
+                maxDrawdown: 6,
+                minWinRate: 0,
+                rating: 4.0,
+                maxAccount: 500000,
+                consistency: 35,
+                description: "35% best day rule, $500K max, 1-4 phase evaluation"
+            },
+            blueguardian: {
+                name: "Blue Guardian",
+                website: "blueguardian.com",
+                maxDailyLoss: 3,
+                maxDrawdown: 6,
+                minWinRate: 0,
+                rating: 4.3,
+                maxAccount: 300000,
+                description: "Guardian Shield protection, 4.3/5 rating, automated safety"
+            },
+            aquafutures: {
+                name: "AquaFutures",
+                website: "aquafunded.com",
+                maxDailyLoss: 3,
+                maxDrawdown: 6,
+                minWinRate: 0,
+                rating: 4.1,
+                maxAccount: 300000,
+                description: "4.1/5 rating, $300K max, extended trading hours"
+            },
+            fundingticks: {
+                name: "FundingTicks",
+                website: "fundingticks.com",
+                maxDailyLoss: 3,
+                maxDrawdown: 6,
+                minWinRate: 0,
+                rating: 4.0,
+                maxAccount: 300000,
+                description: "UAE-based, $300K max, international platform"
+            },
+            takeprofittrader: {
+                name: "Take Profit Trader",
+                website: "takeprofittrader.com",
+                maxDailyLoss: 3,
+                maxDrawdown: 6,
+                minWinRate: 0,
+                rating: 3.5,
+                maxAccount: 250000,
+                description: "Emerging firm, instant funding options available"
+            },
+            tradeday: {
+                name: "TradeDay",
+                website: "tradeday.com",
+                maxDailyLoss: 3,
+                maxDrawdown: 6,
+                minWinRate: 0,
+                rating: 3.5,
+                maxAccount: 250000,
+                description: "No evaluation required, direct funded accounts"
+            },
+            tradingpit: {
+                name: "The Trading Pit",
+                website: "thetradingpit.com",
+                maxDailyLoss: 3,
+                maxDrawdown: 6,
+                minWinRate: 0,
+                rating: 3.5,
+                maxAccount: 200000,
+                description: "Emerging platform, competitive terms"
+            }
+        };
+        
+        function updatePropFirmRules() {
+            const selectedFirms = [];
+            let strictestDailyLoss = 100;
+            let strictestDrawdown = 100;
+            
+            // Check which firms are selected
+            Object.keys(propFirmRules).forEach(firmKey => {
+                const checkbox = document.getElementById(`prop${firmKey.charAt(0).toUpperCase() + firmKey.slice(1)}`);
+                if (checkbox && checkbox.checked) {
+                    const rules = propFirmRules[firmKey];
+                    selectedFirms.push(rules.name);
+                    strictestDailyLoss = Math.min(strictestDailyLoss, rules.maxDailyLoss);
+                    strictestDrawdown = Math.min(strictestDrawdown, rules.maxDrawdown);
+                }
+            });
+            
+            const infoDiv = document.getElementById('propFirmInfo');
+            const rulesDisplay = document.getElementById('propFirmRulesDisplay');
+            
+            if (selectedFirms.length > 0) {
+                // Update the filter inputs to match strictest rules
+                document.getElementById('maxDailyLoss').value = strictestDailyLoss;
+                document.getElementById('maxDrawdown').value = strictestDrawdown;
+                
+                // Show info
+                infoDiv.style.display = 'block';
+                rulesDisplay.innerHTML = `
+                    <div style="margin-bottom: 4px;"><strong>Selected Firms:</strong> ${selectedFirms.join(', ')}</div>
+                    <div style="margin-bottom: 4px;">📉 <strong>Max Daily Loss:</strong> ${strictestDailyLoss}% (strictest rule applied)</div>
+                    <div>📊 <strong>Max Drawdown:</strong> ${strictestDrawdown}% (strictest rule applied)</div>
+                    <div style="margin-top: 8px; font-size: 0.8rem; opacity: 0.8;">Filters above have been automatically updated to match these requirements</div>
+                `;
+            } else {
+                infoDiv.style.display = 'none';
+            }
+        }
         
         function toggleDateInputs() {
             const timePeriodType = document.getElementById('timePeriodType').value;

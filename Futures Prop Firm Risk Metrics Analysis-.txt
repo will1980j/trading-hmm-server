@@ -1,0 +1,775 @@
+Futures Prop Firm Risk Metrics Analysis: Optimizing NASDAQ Day Trading
+Strategy Selection
+1
+
+Executive Summary
+
+This comprehensive analysis of the futures prop trading landscape provides KIRO with the strategic framework and quantitative
+parameters necessary to implement an automated strategy filtering system capable of processing over 100,000 trading strategies
+against 14 major prop firms. The research reveals critical insights that will enable eﬀicient matching of Nasdaq futures trading
+strategies with compatible funding sources while optimizing for risk tolerance alignment and operational eﬀiciency.
+Market Landscape and Firm Categorization
+The analysis identifies 14 active futures prop firms with distinct risk management approaches that create clear compatibility
+profiles for strategy filtering applications. The firms demonstrate significant variation in risk tolerance levels, ranging from
+highly restrictive approaches like E8 Futures with its 35% best day rule [1] to highly accommodating policies like Apex Trader
+Funding’s elimination of daily loss limits [2]. This stratification enables systematic categorization into conservative, moderate,
+and high risk tolerance segments that directly correlate with maximum account sizes and evaluation complexity.
+Major established firms including My Funded Futures (4.5/5 rating, $450,000 maximum accounts) [3], Topstep ($150,000
+maximum accounts with structured evaluation) [4], and Apex Trader Funding ($6 million total capital access) [3] represent the
+primary opportunities for strategy placement. The strong correlation between risk tolerance levels and account size offerings
+suggests that firms with higher risk tolerance possess greater confidence in their risk management systems, creating optimal
+opportunities for aggressive trading strategies.
+Critical Risk Parameter Analysis
+The most significant finding concerns drawdown calculation methodologies, which represent the primary determinant of strategy
+compatibility. End-of-day drawdown calculations employed by Topstep [5] and My Funded Futures [6] provide the most strategyfriendly environment by allowing intraday recovery from temporary adverse movements. This approach contrasts sharply with
+intraday trailing drawdowns that often punish normal market pullbacks [5], creating fundamental compatibility differences that
+must drive filtering algorithm design.
+Daily loss limits create immediate filtering constraints with three distinct categories: strict limits (FundedNext Futures at 2.4%
+of account value) [7], moderate limits (traditional Topstep at 2.0%) [8], and no daily limits (Apex Trader Funding and My
+Funded Futures) [2, 9]. The industry evolution toward eliminating daily loss limits, demonstrated by Topstep’s removal of these
+constraints for TopstepX accounts [8], indicates continued movement toward more trader-friendly policies that benefit strategy
+compatibility.
+Consistency rules create additional stratification with E8 Futures implementing the most restrictive 35% best day requirement
+[1], while firms like My Funded Futures remove consistency constraints entirely in funded phases [10]. These requirements
+particularly impact strategies with irregular profit patterns, requiring careful evaluation of profit distribution characteristics in
+filtering algorithms.
+Nasdaq Futures Trading Specifications
+The technical analysis of NQ futures trading reveals precise quantitative relationships that enable mathematical modeling of
+strategy compatibility. The $20 contract multiplier and $5 per tick value [11] create direct translation between strategy risk
+requirements and prop firm constraints. A typical 1% risk rule on a $100,000 account ($1,000 maximum risk) translates to
+200-tick maximum stop losses on one NQ contract, enabling precise compatibility evaluation against firm position sizing rules.
+The nearly 24-hour trading schedule [11] combined with the absence of Pattern Day Trader rules for futures [12] creates
+significant flexibility for strategy implementation. However, firms with end-of-day drawdown calculations provide additional
+advantages for strategies operating across extended trading hours, while intraday trailing systems create constraints for 24-hour
+trading approaches.
+Quantitative Filtering Framework
+The research establishes comprehensive mathematical formulations that enable automated compatibility assessment at scale.
+Daily loss limit calculations follow firm-specific formulas ranging from FundedNext’s linear 2.4% scaling [7] to Topstep’s tiered
+approach [8]. Maximum drawdown models require sophisticated algorithms that accommodate end-of-day calculations, intraday
+trailing systems, and hybrid approaches like Apex Trader Funding’s dynamic thresholds [13].
+The recommended composite scoring algorithm employs weighted evaluation across five dimensions: maximum drawdown
+methodology compatibility (35%), daily loss compatibility (25%), consistency rule compliance (20%), position sizing alignment
+(15%), and evaluation period requirements (5%). This weighting structure reflects the relative importance of each parameter
+based on industry analysis and enables standardized compatibility assessment across all firm-strategy combinations.
+Strategic Implementation Recommendations
+
+Created with Amazon Quick Research
+
+1
+
+KIRO should implement a tiered filtering approach that prioritizes high risk tolerance firms like Apex Trader Funding (9/10
+tolerance score) and My Funded Futures (8/10 tolerance score) for aggressive strategies while maintaining compatibility options across the entire risk spectrum. The analysis reveals that strategies with high volatility characteristics achieve optimal
+compatibility with firms offering end-of-day drawdown calculations and eliminated daily loss limits.
+The computational architecture should leverage cloud-native scaling and parallel processing to achieve the millisecond-level
+performance benchmarks established by modern financial platforms [14]. Batch processing approaches that group strategies with
+similar characteristics enable optimized algorithm application, while caching mechanisms for frequently accessed calculations
+significantly reduce processing time for large-scale operations.
+Competitive Advantage and Market Opportunity
+The algorithmic trading market’s projected growth to $23.48 billion in 2025 [15] demonstrates the commercial importance
+of automated trading systems and validates the strategic value of KIRO’s filtering system. The ability to eﬀiciently process
+100,000+ strategies against multiple prop firm requirements creates significant competitive advantage in strategy placement
+and optimization.
+The industry’s evolution toward more accommodating risk management policies, combined with the increasing sophistication of
+prop firm evaluation processes, creates expanding opportunities for systematic strategy-firm matching. KIRO’s implementation
+of this comprehensive filtering framework positions the organization to capitalize on these market trends while providing superior
+strategy placement capabilities.
+Implementation Timeline and Success Metrics
+The analysis provides all necessary components for immediate implementation, including detailed firm inventories, quantitative
+parameter specifications, mathematical formulations, and architectural recommendations. Success metrics should focus on
+processing eﬀiciency (strategies evaluated per second), compatibility accuracy (successful strategy-firm matches), and market
+coverage (percentage of viable strategies successfully placed with appropriate firms).
+The framework’s modular design enables phased implementation that can begin with the highest priority firm-strategy combinations while expanding coverage systematically. This approach minimizes implementation risk while providing immediate
+value through improved strategy placement eﬀiciency and compatibility optimization.
+
+2
+
+Comprehensive Inventory of Futures Prop Firms
+
+Based on comprehensive analysis of propfirmmatch.com/futures, the current landscape includes 14 active futures prop trading
+firms, each offering distinct risk management approaches and account structures for day traders. These firms represent the
+primary options available for traders seeking funded accounts to trade Nasdaq futures and other instruments.
+Major Established Firms
+My Funded Futures stands as one of the leading platforms with a 4.5/5 rating based on 51 reviews [3]. The firm offers
+maximum account allocations up to $450,000 [3] with an 80/20 profit split during the sim funded phase [16]. Their evaluation
+structure implements a 50% consistency rule [16], requiring traders to demonstrate balanced performance across trading
+sessions. The firm distinguishes itself by offering weekly payouts for Core and Scale plans [16] and maintains no daily loss limits
+or consistency rules on sim funded accounts [16]. Payout requests can reach up to $100,000 in the sim funded phase [16].
+Topstep operates with a structured approach based on 53 reviews [3], offering three distinct account tiers with $50,000,
+$100,000, and $150,000 buying power [4]. Their monthly subscription model starts at $49 per month for the $50,000 account
+[4], with corresponding profit targets of $3,000 for the smallest tier [4]. The firm employs end-of-day drawdown calculations
+[5] and sets maximum loss limits using the formula: Account Balance High minus Maximum Drawdown [4]. Funded traders
+can access payouts up to four times monthly [4].
+Apex Trader Funding presents a different model with ratings of 3.7-3.8/5 across 47 reviews [3]. The firm offers the largest
+maximum account sizes up to $6 million [3] and implements a unique profit structure providing 100% of the first $25,000 in
+profits, followed by a 90/10 split [2]. Their payout frequency of every 8 days [2] combined with no daily drawdowns [2] creates
+flexibility for various trading approaches. Traders can maintain up to 20 accounts with a maximum balance of $300,000 per
+trader [17], and the firm permits trading during holidays and news events [2].
+Specialized and Regional Firms
+Alpha Futures operates from the UK [3] with an exceptional 4.9/5 rating from 13 reviews [3], offering accounts up to $450,000
+[3]. Top One Futures maintains a 4.8/5 rating with 22 reviews [3] and provides maximum allocations reaching $1.5 million
+[3]. Tradeify also achieves a 4.8/5 rating [3] with account sizes up to $750,000 [3].
+Risk-Focused Platforms
+
+Created with Amazon Quick Research
+
+2
+
+FundedNext Futures implements specific daily loss limits scaled by account size, with $25,000 accounts limited to $600
+daily losses, $50,000 accounts to $1,200, and $100,000 accounts to $2,400 [7]. Their risk calculations include floating losses,
+commissions, and fees [7], with different rules applying to Legacy versus Rapid Challenge account types [7].
+E8 Futures enforces a 35% best day rule, ensuring no single trading session exceeds 35% of total generated profits [1]. The
+firm offers accounts up to $500,000 [18] with evaluation structures ranging from 1-4 phases depending on the chosen product
+[19].
+Blue Guardian Futures maintains ratings between 4.2-4.3/5 [3] and features the Guardian Shield automated protection
+system [20]. Their daily loss limits are calculated based on account balance [21], with payout frequencies varying from 7-14
+days depending on account type [22]. The firm restricts automated trading systems exceeding 200 trades per day and prohibits
+AI, bots, and fully automated trading mechanisms [23].
+Emerging and Specialized Platforms
+AquaFutures operates with a 4.1/5 rating [3] and maximum allocations of $300,000 [3]. Their trading hours extend from 5:00
+PM to 3:10 PM CT [24]. FundingTicks is based in the UAE [3] with similar $300,000 maximum allocations [3].
+Developing Firms
+Three firms currently maintain fewer than 10 reviews, indicating newer market presence: Take Profit Trader [3], TradeDay
+[3], and The Trading Pit Futures [3]. While these platforms may offer competitive terms, their limited review history suggests
+traders should exercise additional due diligence.
+Industry Patterns and Market Position
+The futures prop trading landscape demonstrates clear segmentation between established platforms with proven track records
+and emerging firms seeking market share through competitive terms. Maximum account sizes range from $300,000 to $6
+million, while rating distributions cluster between 4.1-4.9/5 for established firms. The most critical differentiator across firms
+lies in drawdown calculation methodologies, with end-of-day calculations providing more trader-friendly conditions compared to
+intraday trailing systems [5]. This fundamental difference significantly impacts account survival rates and strategy compatibility,
+making drawdown methodology the primary consideration for strategy filtering applications.
+
+3
+
+Day Trading Risk Metrics Analysis
+
+The risk management frameworks employed by futures prop firms create the fundamental constraints that any trading strategy
+must respect to maintain account viability. These parameters form the core filtering criteria for strategy selection systems, with
+each firm implementing distinct approaches to risk control that directly impact strategy compatibility.
+Daily Loss Limit Structures
+Daily loss limits represent the most immediate risk constraint for day trading strategies. Topstep implements strict daily loss
+limits scaled by account size: $1,000 for $50,000 accounts, $2,000 for $100,000 accounts, and $3,000 for $150,000 accounts
+[8]. However, as of August 25, 2024, Topstep removed daily loss limits for new TopstepX accounts [8], demonstrating the
+industry’s evolution toward more trader-friendly policies.
+FundedNext Futures maintains precise daily loss limits with $600 limits for $25,000 accounts, $1,200 for $50,000 accounts, and
+$2,400 for $100,000 accounts [7]. These limits include floating losses, commissions, and fees [7], creating comprehensive risk
+calculations that strategies must account for. The firm applies different rules to Legacy Challenges versus Rapid Challenges
+[7], requiring strategy filtering systems to accommodate multiple rule sets per firm.
+In contrast, several major firms have eliminated daily loss limits entirely. Apex Trader Funding operates without daily drawdowns
+[2], while My Funded Futures implements no daily loss limits, relying solely on end-of-day trailing drawdown rules [9]. This
+fundamental difference creates distinct strategy compatibility profiles across firms.
+Maximum Drawdown Methodologies
+Maximum drawdown calculations represent the most critical risk parameter for strategy filtering, with calculation methodologies
+creating vastly different risk profiles. Industry standards typically range from 6-12% of account value [25], but the calculation
+timing significantly impacts strategy viability.
+Topstep employs end-of-day drawdown calculations [5], using the formula: Account Balance High minus Maximum Drawdown
+equals Maximum Loss Limit, set at the end of each trading day [4]. This approach allows strategies to recover from intraday
+drawdowns, providing more flexibility for volatile trading approaches.
+Apex Trader Funding implements a trailing drawdown system where a $50,000 account starts with a maximum loss threshold
+at $47,500 [13]. The trailing threshold operates based on the highest live value during trades, not closed trade values [13],
+creating dynamic risk management that adjusts with open position performance. For funded accounts, the maximum drawdown
+stops trailing once the liquidation threshold reaches the initial balance plus $100 [13].
+
+Created with Amazon Quick Research
+
+3
+
+My Funded Futures utilizes an end-of-day trailing drawdown mechanism [6] that adjusts the minimum account balance upward as
+profits increase [6]. This system rewards positive performance by providing cushions against future losses, making it particularly
+suitable for strategies with consistent profit generation.
+Consistency Rules and Profit Distribution Requirements
+Consistency rules create additional constraints on strategy performance patterns. Topstep requires that closed trade profits
+don’t exceed 50% of the profit target in a single trading day [26], ensuring balanced performance across trading sessions. This
+rule particularly impacts strategies with high win-rate, large-win characteristics.
+E8 Futures implements a 35% best day rule [1], the most restrictive consistency requirement in the industry. My Funded
+Futures applies different consistency rules by account type: 40% for Starter accounts during both evaluation and funded stages
+[10], and 50% for Core, Scale, and Pro plans only during evaluation [10].
+Apex Trader Funding enforces a 30% consistency rule for funded accounts, where the biggest trading day cannot account for
+more than 30% of total profits between payout requests [27]. This requirement affects strategy filtering for high-volatility
+approaches that may generate irregular profit patterns.
+Position Sizing and Leverage Constraints
+Position sizing restrictions create direct limitations on strategy implementation. Topstep sets maximum position sizes cumulative
+across all open trades, with 5 contracts maximum for $50,000 accounts [4]. The firm adjusts daily loss limits with account
+balance growth and allows contract limit increases once accounts reach $100,000 [28].
+Industry best practices restrict risk per individual trade to approximately 1% of account value [29], with daily drawdowns typically
+capped at 3-5% [29]. These parameters create mathematical constraints that strategy filtering systems must incorporate when
+evaluating position sizing algorithms.
+Evaluation Period Requirements
+Evaluation structures create temporal constraints on strategy performance. Topstep’s Trading Combine can be completed in as
+little as 2 trading days due to their Consistency Target objective [30], while requiring specific profit targets: $3,000 for $50,000
+accounts, $6,000 for $100,000 accounts, and $9,000 for $150,000 accounts [26].
+My Funded Futures requires completion of at least one active trade day in at least five separate trading sessions before review
+[10], creating minimum activity requirements that strategies must satisfy. For funded accounts, traders must maintain activity
+by placing at least one trade every seven days [10].
+Advanced Risk Management Features
+Modern prop firms implement sophisticated risk management tools that create additional filtering parameters. Topstep’s
+TopstepX platform provides Fixed Personal Daily Loss Limits, Personal Daily Profit Targets, and Trailing Personal Daily Loss
+Limits [31]. These features allow dynamic risk adjustment but require strategy filtering systems to account for variable risk
+parameters.
+Blue Guardian Futures employs the Guardian Shield automated protection system [20], which intervenes before single trades can
+breach accounts. This system creates additional complexity for strategy compatibility assessment, as automated interventions
+may affect strategy performance characteristics.
+Risk Parameter Evolution and Industry Trends
+The industry demonstrates clear evolution toward more trader-friendly risk management. The elimination of daily loss limits
+by major firms like Topstep and the focus on end-of-day calculations reflect recognition that intraday trailing drawdowns often
+punish normal market pullbacks [5]. This trend creates opportunities for strategy filtering systems to prioritize firms with more
+accommodating risk frameworks while maintaining appropriate risk controls.
+
+4
+
+Nasdaq-Specific Trading Requirements
+
+Trading Nasdaq futures (NQ) through prop firms requires understanding specific contract characteristics, margin requirements,
+and operational constraints that directly impact strategy design and filtering parameters. These technical specifications create
+the foundation for translating strategy performance into prop firm compatibility assessments.
+Contract Specifications and Value Calculations
+The E-mini Nasdaq-100 futures contract (NQ) operates with a contract multiplier of $20 per index point [11], creating direct
+translation between index movement and profit/loss calculations. Each minimum price fluctuation of 0.25 index points equals
+$5.00 per tick [11], establishing the fundamental unit for risk and reward calculations in strategy filtering systems.
+For strategy filtering applications, this means a 10-tick stop loss represents $50 risk per contract, while a 20-tick profit
+target equals $100 potential reward per contract. These precise value relationships enable mathematical modeling of strategy
+
+Created with Amazon Quick Research
+
+4
+
+performance against firm-specific risk parameters. A typical 1% risk rule on a $100,000 account ($1,000 maximum risk) would
+allow for a 200-tick stop loss on one NQ contract or proportionally smaller stops on multiple contracts.
+Trading Hours and Session Management
+NQ futures trade nearly 24 hours daily, five days weekly, from Sunday 5:00 PM to Friday 4:00 PM Central Time, with a daily
+one-hour trading halt from 4:00 PM to 5:00 PM CT [11]. This extended trading schedule creates opportunities for strategies to
+operate across multiple global market sessions but also requires prop firm compatibility with overnight position management.
+The continuous trading nature of NQ futures means that strategies must account for gap risk during the daily trading halt and
+weekend periods. Prop firms with end-of-day drawdown calculations like Topstep [5] provide more flexibility for strategies that
+may experience temporary adverse movements during extended trading hours, while firms with intraday trailing drawdowns
+create additional constraints for 24-hour trading approaches.
+Margin Requirements and Capital Eﬀiciency
+CME margin requirements for NQ futures range from $2,800 to $3,500 per contract for overnight positions [12], with many
+brokers offering reduced intraday margins of approximately 50% during regular trading hours [32]. This margin structure creates
+leverage opportunities that strategy filtering systems must carefully evaluate against prop firm position sizing limits.
+For prop firm applications, the margin requirements become less relevant than the firm’s internal position sizing rules. Topstep’s
+5-contract limit for $50,000 accounts [4] creates a maximum exposure of $500,000 in notional value (5 contracts × $20 multiplier
+× current NQ price), representing significant leverage that strategies must manage within the firm’s risk parameters.
+Position Limits and Regulatory Considerations
+Current CFTC regulations do not impose specific position limits on equity index futures like NQ for individual traders [33],
+eliminating regulatory constraints on strategy position sizing. However, exchanges may impose accountability levels and large
+trader reporting requirements for significant positions, though these typically exceed the scale relevant to prop firm trading.
+The absence of Pattern Day Trader rules for futures trading [12] creates additional flexibility compared to equity trading
+strategies. Futures traders can execute unlimited day trades without the $25,000 minimum equity requirement that constrains
+stock trading strategies, making futures prop trading accessible to strategies with various trading frequencies.
+Risk Management Integration with Prop Firm Rules
+The $5 per tick value structure enables precise risk management calculations that align with prop firm requirements. For
+firms implementing 1% risk per trade guidelines [29], a $100,000 account allows $1,000 maximum risk, translating to 200
+ticks maximum stop loss on one NQ contract. This mathematical relationship enables automated strategy filtering based on
+historical drawdown patterns and stop loss requirements.
+Strategies targeting specific risk-reward ratios can be evaluated against NQ contract specifications. A strategy requiring 3:1
+risk-reward ratios with 10-tick stops ($50 risk) must achieve 30-tick profits ($150 reward) to maintain the target ratio. Strategy
+filtering systems can evaluate historical performance against these precise requirements to determine prop firm compatibility.
+Micro Contract Alternatives
+The availability of Micro E-mini Nasdaq-100 futures (MNQ) with a $2 multiplier [34] provides additional flexibility for strategy
+implementation. MNQ contracts offer 1/10th the exposure of standard NQ contracts, enabling more precise position sizing for
+smaller account sizes or strategies requiring granular risk management.
+For prop firms with smaller account offerings or strict position sizing requirements, MNQ contracts may provide better strategy
+compatibility. A strategy requiring $50 risk per trade can use 25 MNQ contracts (25 × $2 × 10 ticks = $50) instead of one
+NQ contract, providing more flexibility in position management and risk distribution.
+Technology and Execution Considerations
+The nearly 24-hour trading nature of NQ futures requires strategy filtering systems to account for execution technology
+requirements. Day trading strategies may require millisecond-level execution speeds [12], particularly for scalping approaches
+that capitalize on small price movements.
+Prop firms with restrictions on high-frequency trading, such as Blue Guardian Futures’ limits on systems exceeding 200 trades
+per day [23], create additional filtering criteria for strategy selection. Strategies must be evaluated not only for risk management
+compatibility but also for trading frequency alignment with firm policies.
+Market Access and Global Considerations
+The global nature of NQ futures trading creates opportunities for strategies to capitalize on international market events
+and earnings announcements outside regular U.S. market hours [35]. However, this extended access also requires careful
+consideration of liquidity patterns and spread variations during different trading sessions.
+
+Created with Amazon Quick Research
+
+5
+
+Strategy filtering systems must account for the varying market conditions across different trading sessions when evaluating
+historical performance. Strategies optimized for U.S. market hours may perform differently during Asian or European sessions,
+requiring comprehensive backtesting across all available trading periods to ensure prop firm compatibility.
+
+5
+
+Strategy Compatibility Framework
+
+The development of an effective strategy compatibility framework requires systematic evaluation of trading strategies against
+prop firm risk parameters, creating a multi-dimensional assessment matrix that enables automated filtering of large strategy
+datasets. This framework translates qualitative firm requirements into quantitative metrics that can be programmatically
+applied to strategy performance data.
+Risk Parameter Mapping and Classification
+The framework begins with comprehensive mapping of each firm’s risk parameters into standardized categories. Daily loss limits
+create the most immediate filtering constraint, with firms falling into three distinct categories: strict daily limits (FundedNext
+Futures with $600-$2,400 limits [7]), moderate daily limits (traditional Topstep accounts with $1,000-$3,000 limits [8]), and
+no daily limits (Apex Trader Funding [2] and My Funded Futures [9]). This classification enables initial strategy filtering based
+on maximum daily drawdown characteristics observed in historical performance data.
+Maximum drawdown calculation methodologies represent the most critical compatibility factor, requiring strategies to be
+evaluated against three distinct approaches. End-of-day drawdown calculations, employed by Topstep [5] and My Funded
+Futures [6], provide the most strategy-friendly environment by allowing intraday recovery from temporary adverse movements.
+Intraday trailing drawdowns create more restrictive conditions, while hybrid approaches like Apex Trader Funding’s system [13]
+require specialized evaluation based on open position management characteristics.
+Consistency Rule Integration
+Consistency requirements create additional filtering layers that significantly impact strategy compatibility. The framework must
+evaluate strategies against varying consistency thresholds: E8 Futures’ restrictive 35% best day rule [1], Apex Trader Funding’s
+30% consistency requirement for funded accounts [27], and My Funded Futures’ differentiated approach with 40% rules for
+Starter accounts and 50% rules for other account types during evaluation phases [10].
+Strategy filtering systems must analyze historical performance distributions to identify strategies that consistently violate these
+thresholds. Strategies with high win-rate, large-win characteristics face particular challenges with strict consistency rules,
+requiring careful evaluation of profit distribution patterns across trading sessions.
+Position Sizing and Leverage Compatibility
+The framework incorporates position sizing constraints through mathematical modeling of strategy requirements against firm
+limitations. Topstep’s 5-contract maximum for $50,000 accounts [4] creates specific constraints for strategies requiring larger
+position sizes, while firms offering higher contract limits provide greater flexibility for capital-intensive approaches.
+Risk-per-trade calculations form the foundation of position sizing compatibility assessment. Industry standard 1% risk per trade
+guidelines [29] translate into specific position sizing requirements when combined with NQ contract specifications. A strategy
+requiring $500 risk per trade on a $100,000 account (0.5% risk) can accommodate 100-tick stop losses on one NQ contract
+($500 ÷ $5 per tick = 100 ticks), enabling precise compatibility evaluation against firm position sizing rules.
+Evaluation Period and Activity Requirements
+Temporal constraints create additional filtering parameters that strategies must satisfy. Topstep’s minimum 2-day evaluation
+period [30] accommodates rapid strategy validation, while My Funded Futures’ requirement for active trading across at least
+five separate sessions [10] favors strategies with consistent daily activity patterns.
+The framework must evaluate strategy trading frequency against firm activity requirements. My Funded Futures’ mandate for
+at least one trade every seven days in funded accounts [10] eliminates strategies with extended inactive periods, while firms
+with more flexible activity requirements accommodate various trading frequencies.
+Chart Explanation: The risk tolerance analysis reveals clear stratification among futures prop firms, with Apex Trader Funding
+achieving the highest tolerance score (9/10) due to its elimination of daily loss limits and flexible trailing drawdown system [2,
+13]. E8 Futures ranks lowest (4/10) primarily due to its restrictive 35% best day rule [1], while My Funded Futures achieves
+strong compatibility (8/10) through end-of-day drawdown calculations without daily limits [9]. This ranking system enables
+KIRO to prioritize strategy filtering based on firm risk tolerance alignment.
+Multi-Dimensional Scoring Algorithm
+The compatibility framework employs a weighted scoring algorithm that evaluates strategies across multiple dimensions simultaneously. Daily loss compatibility receives 25% weighting, maximum drawdown methodology compatibility 35%, consistency
+rule compliance 20%, position sizing alignment 15%, and evaluation period requirements 5%. This weighting reflects the
+relative importance of each parameter in determining overall strategy viability.
+Created with Amazon Quick Research
+
+6
+
+Figure 1: Risk Tolerance Rankings
+Strategies receive scores from 0-100 for each dimension, with composite scores determining overall firm compatibility. Strategies scoring above 80 demonstrate high compatibility, scores between 60-80 indicate moderate compatibility with potential
+modifications, and scores below 60 suggest fundamental incompatibility requiring significant strategy adjustments.
+Dynamic Risk Adjustment Capabilities
+Advanced compatibility assessment incorporates dynamic risk adjustment features offered by modern prop firms. Topstep’s
+TopstepX platform provides Fixed Personal Daily Loss Limits, Personal Daily Profit Targets, and Trailing Personal Daily Loss
+Limits [31], creating variable risk parameters that strategies must accommodate.
+The framework evaluates strategy adaptability to dynamic risk environments, assessing whether strategies can operate effectively
+under variable risk constraints. Strategies with built-in risk adjustment capabilities receive higher compatibility scores for firms
+offering dynamic risk management tools.
+Automated Compatibility Scoring Implementation
+The framework translates qualitative assessments into quantitative algorithms suitable for large-scale strategy processing. Each
+firm’s requirements are encoded into mathematical functions that evaluate strategy performance metrics, generating compatibility scores automatically. This approach enables eﬀicient processing of 100,000+ strategies against multiple firm requirements
+simultaneously.
+Implementation requires comprehensive historical performance databases that capture all relevant strategy characteristics: daily
+profit/loss distributions, maximum drawdown patterns, consistency metrics, position sizing requirements, and trading frequency
+patterns. The framework applies firm-specific algorithms to these datasets, generating compatibility matrices that identify
+optimal firm-strategy pairings.
+
+6
+
+Quantitative Filtering Parameters
+
+The translation of prop firm risk management requirements into precise quantitative parameters enables automated strategy
+filtering at scale. These mathematical formulations provide the computational foundation for evaluating strategy compatibility
+across multiple firms simultaneously, creating standardized metrics that can be applied programmatically to large strategy
+datasets.
+
+Created with Amazon Quick Research
+
+7
+
+Daily Loss Limit Formulations
+Daily loss limit calculations require firm-specific mathematical expressions that account for varying account sizes and risk
+tolerance levels. FundedNext Futures implements linear scaling with the formula: Daily Loss Limit = Account Size × 0.024
+for $25,000 accounts ($600 limit), Account Size × 0.024 for $50,000 accounts ($1,200 limit), and Account Size × 0.024 for
+$100,000 accounts ($2,400 limit) [7]. This consistent 2.4% ratio enables straightforward scaling across account sizes.
+Traditional Topstep accounts employ a tiered approach with Daily Loss Limit = $1,000 for $50,000 accounts (2.0% ratio),
+$2,000 for $100,000 accounts (2.0% ratio), and $3,000 for $150,000 accounts (2.0% ratio) [8]. However, the elimination of
+daily loss limits for TopstepX accounts [8] creates a binary filtering parameter where strategies either require daily loss protection
+(incompatible with TopstepX) or operate without daily constraints (fully compatible).
+Firms without daily loss limits, including Apex Trader Funding [2] and My Funded Futures [9], receive maximum compatibility
+scores for strategies with any daily drawdown characteristics, eliminating this filtering constraint entirely.
+Maximum Drawdown Mathematical Models
+Maximum drawdown calculations require sophisticated mathematical modeling that accounts for different calculation methodologies and timing mechanisms. End-of-day drawdown systems employ the formula: Maximum Allowable Loss = Account High
+Balance - (Account Size × Maximum Drawdown Percentage), calculated at market close [5, 4].
+Topstep’s specific implementation uses: Maximum Loss Limit = Account Balance High - Maximum Drawdown, where the
+Account Balance High represents the highest end-of-day balance achieved [4]. This approach allows strategies to experience
+intraday drawdowns exceeding the maximum threshold provided they recover before market close.
+Apex Trader Funding’s trailing drawdown system requires dynamic calculation: Current Maximum Loss Threshold = Highest
+Unrealized Balance During Trade - Fixed Drawdown Amount [13]. For a $50,000 account, this translates to: Maximum Loss
+Threshold = Peak Unrealized Balance - $2,500, with the threshold trailing upward as unrealized profits increase but never
+decreasing during open positions.
+My Funded Futures implements end-of-day trailing drawdown with the formula: Minimum Account Balance = Previous Day
+Close Balance + Daily Profit, where the minimum allowable balance increases by $1.00 for every $1.00 of profit generated [6].
+This creates a ratcheting effect that rewards consistent profitability while maintaining downside protection.
+Chart Explanation: The account size versus risk tolerance analysis reveals a strong positive correlation between firm risk
+tolerance levels and maximum capital allocation. Apex Trader Funding leads with $6 million maximum allocation and the
+highest risk tolerance score (9/10), while conservative firms like FundedNext limit accounts to $100,000 with restrictive risk
+parameters. The color coding distinguishes firms with daily loss limits (red) from those with partial limits (orange) and no daily
+limits (green), demonstrating how risk tolerance directly impacts policy flexibility. This correlation enables KIRO to prioritize
+high-tolerance firms for aggressive strategies while maintaining options across the risk spectrum.
+
+Firm
+
+Daily Loss Limit
+
+Topstep
+
+$1,000-$3,000
+(2.0%)
+None
+
+Apex
+Trader
+My
+None
+Funded
+E8
+Variable
+Futures
+FundedNext $600-$2,400 (2.4%)
+Blue
+Balance-based
+Guardian
+
+Max Drawdown
+Method
+
+Consistency Rule
+
+Position Limit
+
+Evaluation Period
+
+End-of-Day
+
+50% of profit target
+
+2+ days
+
+Intraday Trailing
+
+30% (funded only)
+
+5 contracts
+($50K)
+20 accounts max
+
+7+ days
+
+EOD Trailing
+
+40-50% by account
+
+Variable
+
+5+ sessions
+
+Standard
+
+35% best day
+
+1-4 phases
+
+Standard
+Standard
+
+Variable
+Variable
+
+Up to 500K
+account
+Variable
+<200 trades/day
+
+Variable
+Variable
+
+Table Quantitative Parameters: Comprehensive comparison of key filtering parameters across major futures prop firms,
+showing the mathematical constraints that strategies must satisfy for compatibility assessment [7, 1, 4, 8, 13, 9, 10].
+Consistency Rule Mathematical Expressions
+Consistency requirements translate into mathematical constraints on profit distribution patterns. E8 Futures’ 35% best day
+rule requires: Maximum Single Day Profit � 0.35 × Total Cumulative Profit [1]. This constraint eliminates strategies with
+highly concentrated profit patterns, requiring more balanced performance distributions.
+Apex Trader Funding’s 30% consistency rule for funded accounts applies between payout requests: Largest Daily Profit � 0.30
+× Total Profit Since Last Payout [27]. This creates dynamic constraints that reset with each payout cycle, requiring strategies
+Created with Amazon Quick Research
+
+8
+
+Figure 2: Account Size vs Risk Tolerance
+
+Created with Amazon Quick Research
+
+9
+
+to maintain consistent performance patterns throughout funded trading periods.
+My Funded Futures implements differentiated consistency rules requiring separate mathematical evaluations. Starter accounts
+must satisfy: Maximum Daily Profit � 0.40 × Total Profits during both evaluation and funded phases [10]. Core, Scale, and
+Pro accounts require: Maximum Daily Profit � 0.50 × Total Profits during evaluation only, with the constraint removed in
+funded phases [10].
+Position Sizing and Risk Calculation Formulas
+Position sizing constraints require mathematical modeling that incorporates NQ contract specifications with firm-specific limitations. The fundamental risk calculation employs: Risk Per Contract = Stop Loss Distance (ticks) × $5.00 per tick [11]. This
+enables precise risk quantification for any strategy’s stop loss requirements.
+Maximum position sizing calculations combine firm limits with risk management requirements: Maximum Contracts =
+MIN(Firm Contract Limit, Account Risk Limit ÷ Risk Per Contract). For Topstep’s 5-contract limit on $50,000 accounts
+with 1% risk tolerance ($500 maximum risk), a strategy with 20-tick stops can trade: Maximum Contracts = MIN(5, $500 ÷
+$100) = 5 contracts [4].
+Strategies requiring larger position sizes must be filtered against firms offering higher contract limits or larger account sizes.
+The mathematical relationship enables automated compatibility assessment based on historical stop loss patterns and position
+sizing requirements.
+Evaluation Period and Activity Constraints
+Temporal filtering parameters require mathematical modeling of strategy trading patterns against firm requirements. Minimum
+trading day calculations employ: Required Trading Days = MAX(Firm Minimum Days, Strategy Historical Average), ensuring
+strategies can satisfy firm activity requirements based on historical performance patterns.
+My Funded Futures’ requirement for active trading across five separate sessions [10] translates to: Strategy Compatibility =
+(Historical Trading Days ÷ Total Days) × 100 � Minimum Activity Threshold. Strategies with insuﬀicient trading frequency
+receive compatibility scores below the threshold, indicating potential incompatibility.
+Funded account activity requirements create ongoing constraints that strategies must maintain. My Funded Futures’ mandate
+for at least one trade every seven days [10] requires: Maximum Days Between Trades � 7, eliminating strategies with extended
+inactive periods from compatibility consideration.
+Computational Implementation Framework
+The quantitative parameters enable eﬀicient computational processing through vectorized operations applied to large strategy
+datasets. Each parameter translates into mathematical functions that can be applied simultaneously across multiple strategies,
+generating compatibility matrices that identify optimal firm-strategy pairings.
+Implementation requires standardized data structures that capture all relevant strategy characteristics in quantifiable formats.
+Historical performance databases must include daily profit/loss arrays, drawdown sequences, consistency metrics, position sizing
+patterns, and trading frequency distributions. The mathematical formulations process these datasets automatically, generating
+compatibility scores that enable eﬀicient filtering of 100,000+ strategies against multiple firm requirements.
+
+7
+
+Comparative Risk Tolerance Assessment
+
+The systematic evaluation of prop firm risk tolerance levels reveals distinct stratification that enables strategic matching of
+trading strategies with appropriate funding sources. This assessment creates a comprehensive ranking system that facilitates
+automated strategy filtering by aligning risk characteristics with firm tolerance profiles.
+Risk Tolerance Spectrum Analysis
+The analysis reveals a clear spectrum ranging from highly restrictive to highly accommodating risk management approaches.
+At the conservative end, FundedNext Futures and E8 Futures implement the most restrictive parameters, with FundedNext
+maintaining strict daily loss limits of 2.4% of account value [7] and E8 Futures enforcing the industry’s most stringent 35% best
+day rule [1]. These firms target strategies with consistent, low-volatility performance characteristics that minimize drawdown
+risk.
+The moderate risk tolerance category includes Topstep and Blue Guardian Futures, which balance risk management with trader
+flexibility. Topstep’s traditional accounts maintain 2.0% daily loss limits [8] but provide end-of-day drawdown calculations [5]
+that allow intraday recovery opportunities. Blue Guardian Futures implements balance-based daily loss limits [21] combined with
+the Guardian Shield automated protection system [20], creating dynamic risk management that adapts to account performance.
+The high risk tolerance segment encompasses My Funded Futures and Apex Trader Funding, representing the most traderfriendly approaches in the industry. My Funded Futures eliminates daily loss limits entirely [9] while implementing end-of-day
+trailing drawdown mechanisms [6] that reward consistent profitability. Apex Trader Funding achieves the highest risk tolerance
+
+Created with Amazon Quick Research
+
+10
+
+rating by combining elimination of daily loss limits [2] with flexible trailing drawdown systems [13] and permitting trading
+during news events and holidays [2].
+Account Size and Risk Tolerance Correlation
+The analysis reveals a strong positive correlation between risk tolerance levels and maximum account sizes offered. Conservative
+firms like FundedNext Futures limit accounts to $100,000 maximum, while moderate tolerance firms like Topstep offer accounts
+up to $150,000 [4]. High tolerance firms provide significantly larger opportunities, with My Funded Futures offering accounts
+up to $450,000 [3] and Apex Trader Funding providing access to $6 million in total capital [3].
+This correlation suggests that firms with higher risk tolerance possess greater confidence in their risk management systems and
+trader selection processes. The willingness to provide larger account sizes indicates sophisticated risk assessment capabilities
+that enable accommodation of more aggressive trading approaches while maintaining overall portfolio risk control.
+Evaluation Complexity and Risk Assessment
+Firms demonstrate varying approaches to evaluation complexity that correlate with their risk tolerance levels. Conservative
+firms typically implement multi-phase evaluation processes with strict progression requirements, while high tolerance firms
+offer streamlined evaluation paths. Topstep’s comprehensive three-step evaluation process [26] contrasts with the one-step
+evaluations offered by My Funded Futures and Apex Trader Funding [36], reflecting different philosophies regarding trader
+assessment and risk management.
+The evaluation complexity directly impacts strategy compatibility, with complex evaluation processes favoring strategies that
+demonstrate consistent performance across multiple assessment phases. Simplified evaluation processes accommodate strategies
+with higher volatility characteristics that might struggle with extended evaluation periods but perform effectively in live trading
+environments.
+Consistency Rule Impact on Strategy Compatibility
+Consistency requirements create the most significant differentiation in strategy compatibility across the risk tolerance spectrum.
+E8 Futures’ 35% best day rule [1] eliminates strategies with concentrated profit patterns, requiring highly diversified performance
+characteristics. This constraint particularly impacts momentum-based strategies and breakout approaches that may generate
+irregular profit distributions.
+Moderate tolerance firms like Topstep implement 50% consistency rules [26] that accommodate more varied profit patterns
+while maintaining performance balance requirements. High tolerance firms demonstrate the most flexibility, with My Funded
+Futures removing consistency rules entirely in funded phases for most account types [10] and Apex Trader Funding applying
+30% rules only during funded trading periods [27].
+Payout Structure and Risk Tolerance Alignment
+Payout frequency and structure reflect underlying risk tolerance philosophies and create additional compatibility considerations
+for strategy selection. Conservative firms typically implement longer payout cycles with more restrictive requirements, while
+high tolerance firms offer frequent payout opportunities with flexible terms.
+Apex Trader Funding’s 8-day payout frequency [2] combined with 100% profit retention on the first $25,000 [2] demonstrates
+high confidence in trader performance and risk management capabilities. My Funded Futures’ weekly payout options [16] for
+certain account types similarly reflect accommodating risk tolerance levels. Conservative firms maintain longer payout cycles
+that provide additional risk assessment periods before capital distribution.
+Technology Integration and Risk Management Evolution
+Advanced risk management technology integration correlates with higher risk tolerance levels, suggesting that sophisticated
+monitoring systems enable more accommodating policies. Blue Guardian Futures’ Guardian Shield system [20] exemplifies
+technology-enabled risk management that provides real-time protection while maintaining trading flexibility.
+Topstep’s TopstepX platform with dynamic risk adjustment capabilities [31] demonstrates how technology enables personalized
+risk management that can accommodate varying strategy characteristics. This technological evolution suggests continued
+industry movement toward higher risk tolerance levels supported by advanced monitoring and protection systems.
+Strategic Implications for Strategy Filtering
+The risk tolerance assessment creates clear strategic implications for automated strategy filtering systems. Strategies with high
+volatility characteristics and irregular profit patterns achieve optimal compatibility with high tolerance firms like Apex Trader
+Funding and My Funded Futures. Conservative strategies with consistent performance patterns remain compatible across the
+entire spectrum but may achieve better terms with moderate tolerance firms.
+The assessment enables KIRO to implement tiered filtering approaches that prioritize high tolerance firms for aggressive
+strategies while maintaining compatibility options across the risk spectrum. This approach maximizes strategy placement
+opportunities while ensuring appropriate risk-firm alignment that supports long-term trading success.
+
+Created with Amazon Quick Research
+
+11
+
+8
+
+Implementation Guide for Strategy Filtering
+
+The practical implementation of KIRO’s strategy filtering system requires a systematic approach that balances computational
+eﬀiciency with comprehensive compatibility assessment. This guide provides specific recommendations for processing 100,000+
+trading strategies against multiple prop firm requirements while maintaining scalable performance and accurate matching
+capabilities.
+Data Architecture and Infrastructure Requirements
+The foundation of effective strategy filtering requires robust data architecture capable of handling large-scale parallel processing.
+The system should implement cloud-native architectures utilizing horizontal scaling and elastic resource provisioning to match
+peak demand [37]. Modern financial platforms deploy AI algorithms capable of scanning global exchanges within milliseconds
+[14], establishing the performance benchmarks that KIRO’s system must achieve for competitive advantage.
+Database design should accommodate vectorized operations applied to large strategy datasets, enabling simultaneous processing of multiple compatibility parameters. Historical performance databases must capture daily profit/loss arrays, drawdown
+sequences, consistency metrics, position sizing patterns, and trading frequency distributions in standardized formats that support
+eﬀicient mathematical operations across the entire dataset.
+The algorithmic trading market projected to reach $23.48 billion in 2025 [15] demonstrates the scale and commercial importance
+of automated trading systems, emphasizing the need for enterprise-grade infrastructure that can compete effectively in this
+rapidly growing market.
+Strategy Filtering Workflow Process
+Chart Explanation: The workflow visualization demonstrates KIRO’s systematic approach to processing large strategy datasets
+through parallel filtering steps. The process begins with comprehensive metric extraction from 100,000+ strategies, followed
+by simultaneous evaluation against daily loss limits, drawdown methodologies, consistency rules, and position sizing constraints.
+The system then calculates weighted composite scores combining all filtering parameters before generating final firm-strategy
+compatibility rankings. This parallel processing architecture enables scalable evaluation while maintaining comprehensive
+assessment accuracy.
+The filtering workflow begins with comprehensive extraction of strategy performance metrics from the 100,000+ strategy
+dataset. This initial phase processes historical performance data to generate standardized metrics including daily profit/loss
+patterns, maximum drawdown sequences, profit distribution characteristics, position sizing requirements, and trading frequency
+patterns.
+The system then applies parallel filtering steps that evaluate strategies against each major risk parameter category. Daily loss
+limit compatibility checks process strategies against firm-specific thresholds, with FundedNext Futures implementing specific
+daily loss limits [7] and firms with no daily limits [2] creating distinct filtering categories. Maximum drawdown methodology
+filters evaluate strategies against end-of-day calculations [5] and intraday trailing systems, requiring specialized algorithms for
+each calculation method.
+Consistency rule compliance analysis processes profit distribution patterns against varying thresholds, from E8 Futures’ restrictive
+35% best day rule [1] to more accommodating requirements and firms with no consistency constraints [10]. Position sizing
+constraint evaluation combines NQ contract specifications [11] with firm-specific limits to determine compatibility based on
+historical stop loss patterns and position sizing requirements.
+The workflow culminates in composite compatibility score calculation using weighted algorithms that combine individual parameter scores. The recommended weighting structure assigns 35% to maximum drawdown methodology compatibility, 25%
+to daily loss compatibility, 20% to consistency rule compliance, 15% to position sizing alignment, and 5% to evaluation period
+requirements. This weighting reflects the relative importance of each parameter in determining overall strategy viability based
+on industry analysis.
+Computational Eﬀiciency Optimization
+Processing 100,000+ strategies requires sophisticated optimization techniques that maximize computational eﬀiciency while
+maintaining accuracy. The system should implement batch processing approaches that group strategies with similar characteristics, enabling optimized algorithm application across strategy clusters. Strategies with similar drawdown patterns, consistency
+characteristics, or position sizing requirements can be processed simultaneously using vectorized operations [38].
+Parallel processing architecture should distribute computational load across multiple processing units, with each unit handling
+specific firm compatibility assessments simultaneously. This approach enables concurrent evaluation of strategies against all 14
+identified prop firms, generating comprehensive compatibility matrices eﬀiciently.
+Caching mechanisms should store frequently accessed compatibility calculations, particularly for common strategy characteristics
+that appear across multiple strategies. Pre-computed compatibility scores for standard risk parameters can significantly reduce
+processing time for large-scale filtering operations.
+
+Created with Amazon Quick Research
+
+12
+
+Figure 3: Strategy Filtering Workflow
+
+Created with Amazon Quick Research
+
+13
+
+Prioritization and Ranking Algorithms
+The system should implement intelligent prioritization that focuses computational resources on the most promising strategy-firm
+combinations. Initial screening filters can eliminate obviously incompatible pairings before applying comprehensive compatibility
+assessment, reducing overall processing requirements.
+Ranking algorithms should consider both compatibility scores and practical considerations such as firm reputation, account size
+offerings, and payout structures. Firms with established track records and higher ratings provide valuable funding opportunities,
+suggesting these firms should receive consideration in final recommendations.
+Dynamic ranking adjustment should account for firm capacity and current market conditions. Firms with accommodating risk
+management approaches like those with no daily limits [2] may provide more flexible trading environments, while conservative
+firms may have different operational characteristics.
+Quality Assurance and Validation Framework
+Implementation requires comprehensive quality assurance processes that validate compatibility assessments against known
+performance outcomes. The system should maintain feedback loops that track actual strategy performance with recommended
+firms, enabling continuous refinement of compatibility algorithms.
+Validation testing should include edge case scenarios that stress-test the filtering system against extreme strategy characteristics. Strategies with unusual profit patterns, irregular trading frequencies, or atypical position sizing requirements should be
+specifically tested to ensure accurate compatibility assessment.
+Regular calibration against industry benchmarks ensures that compatibility scores remain aligned with actual market conditions and firm policy changes. The industry’s evolution toward more trader-friendly policies requires dynamic adjustment of
+compatibility algorithms to reflect current market conditions.
+Integration and Deployment Considerations
+The filtering system should integrate seamlessly with existing strategy development and evaluation workflows. API-based architecture enables flexible integration with various strategy development platforms and backtesting systems, providing compatibility
+assessment as a service across multiple applications.
+Real-time processing capabilities enable dynamic strategy filtering that responds to changing market conditions and firm policy
+updates. The system should monitor firm websites and policy announcements to maintain current compatibility parameters,
+ensuring recommendations remain accurate and actionable.
+Scalability planning should accommodate future growth in both strategy datasets and prop firm options. The modular architecture should support addition of new firms and expansion of strategy processing capacity without requiring fundamental system
+redesign.
+Performance Monitoring and Optimization
+Continuous performance monitoring ensures that the filtering system maintains optimal eﬀiciency as datasets grow and requirements evolve. Key performance indicators should include processing time per strategy, accuracy of compatibility predictions,
+and successful strategy-firm matching rates.
+The system should implement automated optimization routines that adjust processing algorithms based on performance metrics
+and changing requirements. Machine learning approaches can identify patterns in successful strategy-firm pairings, enabling
+predictive optimization that improves matching accuracy over time.
+Regular performance benchmarking against industry standards ensures that KIRO’s filtering system maintains competitive
+advantage in processing speed and accuracy. The goal of millisecond-level processing speeds [14] requires ongoing optimization
+and infrastructure investment to achieve and maintain market-leading performance.
+
+9
+
+References
+
+1. https://helpfutures.e8markets.com/en/articles/11864618-e8-signature-futures
+2. https://www.apextraderfunding.com/
+3. https://propfirmmatch.com/futures/all-prop-firms
+4. https://topstep.com/
+5. https://www.topstep.com/blog/prop-firm-drawdown-rules/
+6. https://help.myfundedfutures.com/en/articles/8528339-understanding-evaluation-parameters-at-mffu
+7. https://helpfutures.fundednext.com/en/articles/10740105-what-is-the-daily-loss-limit-at-fnfutures-fundednext-futures-howdo-i-calculate-my-daily-loss-limit
+Created with Amazon Quick Research
+
+14
+
+8. https://help.topstep.com/en/articles/8284207-what-is-the-daily-loss-limit-and-what-happens-if-i-exceed-it
+9. https://www.quantvps.com/blog/my-funded-futures-review
+10.
+https://help.myfundedfutures.com/en/articles/11533540-myfundedfutures-funded-account-rules-and-prop-tradingchallenge-guide
+11. https://www.ironbeam.com/knowledge-base/e-mini-nasdaq-100-futures-nq-contract-specifications/
+12. Source: Wikipedia
+13. https://support.apextraderfunding.com/hc/en-us/articles/31519769997083-Evaluation-Rules
+14. https://www.techtimes.com/articles/312266/20251013/redefining-finance-how-ai-transforming-data-decisions-risk.htm
+15. https://www.ainvest.com/news/algorithmic-edge-gen-trading-systems-reshaping-market-dominance-roi-2510/
+16. https://myfundedfutures.com/
+17. https://www.benzinga.com/money/apex-vs-topstep
+18. https://www.quantvps.com/blog/prop-firms-for-day-trading
+19. https://e8markets.com/e8-markets-evaluation
+20. https://www.blueguardian.com/blogs/funded-account-trading-rules-2025
+21. https://help.blueguardianfutures.com/en/articles/9969853-blue-guardian-futures-trading-parameters
+22. https://help.blueguardianfutures.com/en/articles/10097636-funded-trading-parameters
+23. https://help.blueguardianfutures.com/en/articles/9969869-prohibited-trading-strategies
+24. https://help.aquafutures.io/en/articles/10080145-futures-instrument-list
+25. https://myfundedfutures.com/blog/best-futures-prop-firm-your-guide-to-finding-the-ideal-partner
+
+26. https://www.quantvps.com/blog/topstep-vs-my-funded-futures?srsltid=AfmBOoqJpMUSl-W5Gqc65uysfeeMiENe0ACUTGNfaoSG
+27. https://damnpropfirms.com/trading-guides/apex-trader-funding-commandments-the-4-rules-every-trader-must-follow-forpayouts/
+28. https://topstep.com/live-funded-account-rules
+29. https://www.vantir.com/blog/how-prop-trading-firms-manage-risk
+30. https://www.topstep.com/faqs/
+31. https://help.topstep.com/en/articles/9078173-topstepx-lockout-and-trade-limits
+32. https://futuresonline.com/education/products/margin-requirements/?by=Exchange
+33. https://www.cftc.gov/IndustryOversight/MarketSurveillance/SpeculativeLimits/index.htm
+34. https://www.cmegroup.com/education/courses/micro-e-mini-futures/micro-e-mini-futures-products-overview.html
+35. https://www.schwab.com/futures/nasdaq-100-emini
+36. https://sigm-algo.gitbook.io/sigma-algo-docs/futures-prop-firms-list/overview-of-firms/detailed-comparison
+37. https://etedge-insights.com/technology/fintech/architecting-scalable-secure-and-intelligent-data-systems-for-the-new-ageof-fintech/
+38. https://www.pingcap.com/article/real-time-data-analytics-in-financial-risk-management/
+
+Created with Amazon Quick Research
+
+15
+
+
