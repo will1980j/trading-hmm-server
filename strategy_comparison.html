@@ -668,7 +668,8 @@
                     return {
                         ...s,
                         profitFactor,
-                        compositeScore: 0
+                        compositeScore: 0,
+                        originalIndex: idx  // Track original index for signal mapping
                     };
                 });
                 
@@ -759,7 +760,8 @@
             
             allStrategies = filteredStrategies.slice(0, 20);
             allStrategySignals = allStrategies.map(s => {
-                const originalIdx = strategies.indexOf(s);
+                // Use originalIndex if available (Best Of mode), otherwise find in original array
+                const originalIdx = s.originalIndex !== undefined ? s.originalIndex : strategies.indexOf(s);
                 return strategySignalsMap.get(originalIdx);
             });
             displayComparison(allStrategies, totalPossible, filteredStrategies.length);
