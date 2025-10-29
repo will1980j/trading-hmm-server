@@ -534,14 +534,24 @@
             const selectedFirms = [];
             let strictestDailyLoss = 100;
             let strictestDrawdown = 100;
+            let hasNoDailyLimit = false;
             
             // Check which firms are selected
             Object.keys(propFirmRules).forEach(firmKey => {
-                const checkbox = document.getElementById(`prop${firmKey.charAt(0).toUpperCase() + firmKey.slice(1)}`);
+                // Convert firmKey to match checkbox ID (capitalize first letter only)
+                const checkboxId = `prop${firmKey.charAt(0).toUpperCase()}${firmKey.slice(1)}`;
+                const checkbox = document.getElementById(checkboxId);
                 if (checkbox && checkbox.checked) {
                     const rules = propFirmRules[firmKey];
                     selectedFirms.push(rules.name);
-                    strictestDailyLoss = Math.min(strictestDailyLoss, rules.maxDailyLoss);
+                    
+                    // Handle firms with no daily loss limits (0 means no limit)
+                    if (rules.maxDailyLoss === 0) {
+                        hasNoDailyLimit = true;
+                    } else {
+                        strictestDailyLoss = Math.min(strictestDailyLoss, rules.maxDailyLoss);
+                    }
+                    
                     strictestDrawdown = Math.min(strictestDrawdown, rules.maxDrawdown);
                 }
             });
@@ -550,15 +560,24 @@
             const rulesDisplay = document.getElementById('propFirmRulesDisplay');
             
             if (selectedFirms.length > 0) {
+                // If all selected firms have no daily limit, use a reasonable default
+                if (hasNoDailyLimit && strictestDailyLoss === 100) {
+                    strictestDailyLoss = 10; // Default to 10% if only no-limit firms selected
+                }
+                
                 // Update the filter inputs to match strictest rules
                 document.getElementById('maxDailyLoss').value = strictestDailyLoss;
                 document.getElementById('maxDrawdown').value = strictestDrawdown;
                 
                 // Show info
                 infoDiv.style.display = 'block';
+                const dailyLossText = hasNoDailyLimit && strictestDailyLoss === 10 ? 
+                    'No daily limits (using 10% default for filtering)' : 
+                    `${strictestDailyLoss}% (strictest rule applied)`;
+                    
                 rulesDisplay.innerHTML = `
                     <div style="margin-bottom: 4px;"><strong>Selected Firms:</strong> ${selectedFirms.join(', ')}</div>
-                    <div style="margin-bottom: 4px;">📉 <strong>Max Daily Loss:</strong> ${strictestDailyLoss}% (strictest rule applied)</div>
+                    <div style="margin-bottom: 4px;">📉 <strong>Max Daily Loss:</strong> ${dailyLossText}</div>
                     <div>📊 <strong>Max Drawdown:</strong> ${strictestDrawdown}% (strictest rule applied)</div>
                     <div style="margin-top: 8px; font-size: 0.8rem; opacity: 0.8;">Filters above have been automatically updated to match these requirements</div>
                 `;
