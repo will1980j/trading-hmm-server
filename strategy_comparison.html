@@ -238,11 +238,46 @@
                     <label>Min Profit Factor</label>
                     <input type="number" id="minProfitFactor" value="0" min="0" max="5" step="0.1">
                 </div>
+                <label class="checkbox-group" style="grid-column: 1 / -1;">
+                    <input type="checkbox" id="onlyPropViable" checked>
+                    <span>Only show prop firm viable strategies</span>
+                </label>
             </div>
-            <label class="checkbox-group">
-                <input type="checkbox" id="onlyPropViable" checked>
-                <span>Only show prop firm viable strategies</span>
-            </label>
+            
+            <!-- Best Of All Time Section -->
+            <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-md); padding: var(--spacing-lg); margin-top: var(--spacing-lg);">
+                <div style="display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-md);">
+                    <span style="font-size: 1.25rem;">🏆</span>
+                    <h4 style="font-size: 1rem; font-weight: 700; color: var(--accent-secondary);">Best Of All Time (Overrides Filters Above)</h4>
+                </div>
+                <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: var(--spacing-md);">Select criteria to find strategies with the best combination of metrics across all historical data</p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md);">
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="bestLowestDD">
+                        <span>Lowest Max DD</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="bestExpectedPercent">
+                        <span>Highest Expected %</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="bestExpectedR">
+                        <span>Highest Expected R</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="bestWinRate">
+                        <span>Highest Win Rate</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="bestProfitFactor">
+                        <span>Highest Profit Factor</span>
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="bestExpectancy">
+                        <span>Highest Expectancy</span>
+                    </label>
+                </div>
+            </div>
             <div style="text-align: center; margin-top: var(--spacing-lg);">
                 <button class="btn-primary" onclick="runComparison()">🔄 Run Comparison</button>
             </div>
@@ -603,23 +638,106 @@
                 strategySignalsMap.set(idx, filteredSignals);
             });
             
-            let filteredStrategies = strategies.filter((s, idx) => {
-                const stratSignals = strategySignalsMap.get(idx);
-                const results = stratSignals.map(sig => calculateTradeResult(sig, s.beStrategy, s.rTarget, feeR));
-                const winResults = results.filter(r => r > 0);
-                const lossResults = results.filter(r => r < 0);
-                const totalWinR = winResults.reduce((a,b) => a + b, 0);
-                const totalLossR = Math.abs(lossResults.reduce((a,b) => a + b, 0));
-                const profitFactor = totalLossR > 0 ? (totalWinR / totalLossR) : (totalWinR > 0 ? 999 : 0);
+            // Check if any "Best Of" checkboxes are selected
+            const bestLowestDD = document.getElementById('bestLowestDD').checked;
+            const bestExpectedPercent = document.getElementById('bestExpectedPercent').checked;
+            const bestExpectedR = document.getElementById('bestExpectedR').checked;
+            const bestWinRate = document.getElementById('bestWinRate').checked;
+            const bestProfitFactor = document.getElementById('bestProfitFactor').checked;
+            const bestExpectancy = document.getElementById('bestExpectancy').checked;
+            
+            const anyBestOfSelected = bestLowestDD || bestExpectedPercent || bestExpectedR || bestWinRate || bestProfitFactor || bestExpectancy;
+            
+            let filteredStrategies;
+            
+            if (anyBestOfSelected) {
+                // Best Of mode - override all filters and rank by selected criteria
+                // Calculate profit factor for all strategies
+                const strategiesWithMetrics = strategies.map((s, idx) => {
+                    const stratSignals = strategySignalsMap.get(idx);
+                    const results = stratSignals.map(sig => calculateTradeResult(sig, s.beStrategy, s.rTarget, feeR));
+                    const winResults = results.filter(r => r > 0);
+                    const lossResults = results.filter(r => r < 0);
+                    const totalWinR = winResults.reduce((a,b) => a + b, 0);
+                    const totalLossR = Math.abs(lossResults.reduce((a,b) => a + b, 0));
+                    const profitFactor = totalLossR > 0 ? (totalWinR / totalLossR) : (totalWinR > 0 ? 999 : 0);
+                    
+                    return {
+                        ...s,
+                        profitFactor,
+                        compositeScore: 0
+                    };
+                });
                 
-                if (s.stats.expectancy < minExpectancy) return false;
-                if (profitFactor < minProfitFactor) return false;
+                // Calculate composite score based on selected criteria
+                strategiesWithMetrics.forEach(s => {
+                    let score = 0;
+                    let criteriaCount = 0;
+                    
+                    if (bestLowestDD) {
+                        // Lower is better - invert the score
+                        const maxDD = Math.max(...strategiesWithMetrics.map(st => st.maxDrawdownPercent));
+                        const minDD = Math.min(...strategiesWithMetrics.map(st => st.maxDrawdownPercent));
+                        score += maxDD > minDD ? (maxDD - s.maxDrawdownPercent) / (maxDD - minDD) : 1;
+                        criteriaCount++;
+                    }
+                    if (bestExpectedPercent) {
+                        const maxExp = Math.max(...strategiesWithMetrics.map(st => st.expectedReturnPercent));
+                        const minExp = Math.min(...strategiesWithMetrics.map(st => st.expectedReturnPercent));
+                        score += maxExp > minExp ? (s.expectedReturnPercent - minExp) / (maxExp - minExp) : 1;
+                        criteriaCount++;
+                    }
+                    if (bestExpectedR) {
+                        const maxExpR = Math.max(...strategiesWithMetrics.map(st => st.stats.expectedTotalReturn));
+                        const minExpR = Math.min(...strategiesWithMetrics.map(st => st.stats.expectedTotalReturn));
+                        score += maxExpR > minExpR ? (s.stats.expectedTotalReturn - minExpR) / (maxExpR - minExpR) : 1;
+                        criteriaCount++;
+                    }
+                    if (bestWinRate) {
+                        const maxWR = Math.max(...strategiesWithMetrics.map(st => st.stats.winRate));
+                        const minWR = Math.min(...strategiesWithMetrics.map(st => st.stats.winRate));
+                        score += maxWR > minWR ? (s.stats.winRate - minWR) / (maxWR - minWR) : 1;
+                        criteriaCount++;
+                    }
+                    if (bestProfitFactor) {
+                        const maxPF = Math.max(...strategiesWithMetrics.map(st => st.profitFactor));
+                        const minPF = Math.min(...strategiesWithMetrics.map(st => st.profitFactor));
+                        score += maxPF > minPF ? (s.profitFactor - minPF) / (maxPF - minPF) : 1;
+                        criteriaCount++;
+                    }
+                    if (bestExpectancy) {
+                        const maxExpcy = Math.max(...strategiesWithMetrics.map(st => st.stats.expectancy));
+                        const minExpcy = Math.min(...strategiesWithMetrics.map(st => st.stats.expectancy));
+                        score += maxExpcy > minExpcy ? (s.stats.expectancy - minExpcy) / (maxExpcy - minExpcy) : 1;
+                        criteriaCount++;
+                    }
+                    
+                    s.compositeScore = criteriaCount > 0 ? score / criteriaCount : 0;
+                });
                 
-                if (onlyPropViable) {
-                    return s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate;
-                }
-                return true;
-            });
+                // Sort by composite score
+                filteredStrategies = strategiesWithMetrics.sort((a, b) => b.compositeScore - a.compositeScore);
+                
+            } else {
+                // Normal filtering mode
+                filteredStrategies = strategies.filter((s, idx) => {
+                    const stratSignals = strategySignalsMap.get(idx);
+                    const results = stratSignals.map(sig => calculateTradeResult(sig, s.beStrategy, s.rTarget, feeR));
+                    const winResults = results.filter(r => r > 0);
+                    const lossResults = results.filter(r => r < 0);
+                    const totalWinR = winResults.reduce((a,b) => a + b, 0);
+                    const totalLossR = Math.abs(lossResults.reduce((a,b) => a + b, 0));
+                    const profitFactor = totalLossR > 0 ? (totalWinR / totalLossR) : (totalWinR > 0 ? 999 : 0);
+                    
+                    if (s.stats.expectancy < minExpectancy) return false;
+                    if (profitFactor < minProfitFactor) return false;
+                    
+                    if (onlyPropViable) {
+                        return s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate;
+                    }
+                    return true;
+                });
+            }
             
             // Map filtered strategies to their original indices
             const filteredIndices = [];
@@ -629,7 +747,13 @@
                 }
             });
             
-            filteredStrategies.sort((a, b) => b.expectedReturnPercent - a.expectedReturnPercent);
+            // Sort based on mode
+            if (anyBestOfSelected) {
+                // Already sorted by composite score
+            } else {
+                filteredStrategies.sort((a, b) => b.expectedReturnPercent - a.expectedReturnPercent);
+            }
+            
             allStrategies = filteredStrategies.slice(0, 20);
             allStrategySignals = allStrategies.map(s => {
                 const originalIdx = strategies.indexOf(s);
