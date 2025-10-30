@@ -1708,7 +1708,7 @@
             const results = signals.map(s => calculateTradeResult(s, strategy.beStrategy, strategy.rTarget, feeR));
             
             // Calculate evaluation metrics
-            const passesRules = strategy.maxDailyLossPercent <= firm.maxDailyLoss && 
+            const passesRules = (firm.maxDailyLoss === 0 || strategy.maxDailyLossPercent <= firm.maxDailyLoss) && 
                                strategy.maxDrawdownPercent <= firm.maxDrawdown && 
                                strategy.stats.winRate >= firm.minWinRate;
             
