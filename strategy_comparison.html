@@ -1017,7 +1017,12 @@
                                     sessionSignals = sessionSignals.filter(s => {
                                         if (!s.time) return false;
                                         const [hour, minute] = s.time.split(':').map(Number);
-                                        return (hour === optimalHours[session] && minute >= 45) || (hour === (optimalHours[session] + 1) % 24 && minute <= 15);
+                                        const optHour = optimalHours[session];
+                                        // Macro before optimal hour: (optHour-1):45 to optHour:15
+                                        const beforeMacro = (hour === ((optHour - 1 + 24) % 24) && minute >= 45) || (hour === optHour && minute <= 15);
+                                        // Macro after optimal hour: optHour:45 to (optHour+1):15
+                                        const afterMacro = (hour === optHour && minute >= 45) || (hour === ((optHour + 1) % 24) && minute <= 15);
+                                        return beforeMacro || afterMacro;
                                     });
                                 }
                                 if (sessionSignals.length < 30) return;
@@ -1059,7 +1064,11 @@
                                         const optHour = optimalHours[s.session];
                                         if (optHour === undefined || !s.time) return false;
                                         const [hour, minute] = s.time.split(':').map(Number);
-                                        return (hour === optHour && minute >= 45) || (hour === (optHour + 1) % 24 && minute <= 15);
+                                        // Macro before optimal hour: (optHour-1):45 to optHour:15
+                                        const beforeMacro = (hour === ((optHour - 1 + 24) % 24) && minute >= 45) || (hour === optHour && minute <= 15);
+                                        // Macro after optimal hour: optHour:45 to (optHour+1):15
+                                        const afterMacro = (hour === optHour && minute >= 45) || (hour === ((optHour + 1) % 24) && minute <= 15);
+                                        return beforeMacro || afterMacro;
                                     });
                                 }
                                 if (combinedSignals.length < 50) continue;
@@ -1124,7 +1133,11 @@
                             const optHour = optimalHours[sig.session];
                             if (optHour === undefined || !sig.time) return false;
                             const [hour, minute] = sig.time.split(':').map(Number);
-                            return (hour === optHour && minute >= 45) || (hour === (optHour + 1) % 24 && minute <= 15);
+                            // Macro before optimal hour: (optHour-1):45 to optHour:15
+                            const beforeMacro = (hour === ((optHour - 1 + 24) % 24) && minute >= 45) || (hour === optHour && minute <= 15);
+                            // Macro after optimal hour: optHour:45 to (optHour+1):15
+                            const afterMacro = (hour === optHour && minute >= 45) || (hour === ((optHour + 1) % 24) && minute <= 15);
+                            return beforeMacro || afterMacro;
                         });
                     }
                 } else if (s.timeFilter === 'macro') {
