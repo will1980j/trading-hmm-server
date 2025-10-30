@@ -369,8 +369,9 @@
                     </label>
                 </div>
             </div>
-            <div style="text-align: center; margin-top: var(--spacing-lg);">
+            <div style="text-align: center; margin-top: var(--spacing-lg); display: flex; gap: var(--spacing-md); justify-content: center; flex-wrap: wrap;">
                 <button class="btn-primary" onclick="runComparison()">🔄 Run Comparison</button>
+                <button class="btn-primary" onclick="runPropFirmOptimizer()" style="background: linear-gradient(135deg, #10b981, #059669); border-color: #10b981;">🎯 Optimize for Selected Firms</button>
             </div>
         </div>
         
@@ -742,6 +743,93 @@
                 else if (result > 0) currentConsecLosses = 0;
             });
             return { expectancy, avgTrade, winRate, breakevenRate, totalR, maxConsecLosses, maxDrawdown, total, expectedTotalReturn };
+        }
+        
+        async function runPropFirmOptimizer() {
+            // Get selected prop firms
+            const selectedFirms = [];
+            Object.keys(propFirmRules).forEach(firmKey => {
+                const checkboxId = `prop${firmKey.charAt(0).toUpperCase()}${firmKey.slice(1)}`;
+                const checkbox = document.getElementById(checkboxId);
+                if (checkbox && checkbox.checked) {
+                    selectedFirms.push({key: firmKey, rules: propFirmRules[firmKey]});
+                }
+            });
+            
+            if (selectedFirms.length === 0) {
+                alert('⚠️ Please select at least one prop firm to optimize for!');
+                return;
+            }
+            
+            // Find the strictest rules across all selected firms
+            const strictestRules = {
+                maxDailyLoss: Math.min(...selectedFirms.map(f => f.rules.maxDailyLoss)),
+                maxDrawdown: Math.min(...selectedFirms.map(f => f.rules.maxDrawdown)),
+                minWinRate: Math.max(...selectedFirms.map(f => f.rules.minWinRate))
+            };
+            
+            // Set the filters to match strictest rules
+            document.getElementById('maxDailyLoss').value = strictestRules.maxDailyLoss;
+            document.getElementById('maxDrawdown').value = strictestRules.maxDrawdown;
+            document.getElementById('minWinRate').value = strictestRules.minWinRate;
+            document.getElementById('onlyPropViable').checked = true;
+            
+            // Show optimization message
+            document.getElementById('results').innerHTML = `
+                <div style="text-align: center; padding: 60px;">
+                    <div style="font-size: 3rem; margin-bottom: var(--spacing-md);">🎯</div>
+                    <h3 style="color: var(--accent-secondary); margin-bottom: var(--spacing-md);">Optimizing for ${selectedFirms.length} Prop Firm${selectedFirms.length > 1 ? 's' : ''}</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: var(--spacing-lg);">
+                        ${selectedFirms.map(f => f.rules.name).join(', ')}
+                    </p>
+                    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-md); padding: var(--spacing-lg); max-width: 600px; margin: 0 auto; text-align: left;">
+                        <h4 style="margin: 0 0 var(--spacing-md) 0; color: var(--accent-primary);">Strictest Rules Applied:</h4>
+                        <ul style="margin: 0; padding-left: 1.5rem; color: var(--text-primary); line-height: 1.8;">
+                            <li><strong>Max Daily Loss:</strong> ${strictestRules.maxDailyLoss}%</li>
+                            <li><strong>Max Drawdown:</strong> ${strictestRules.maxDrawdown}%</li>
+                            <li><strong>Min Win Rate:</strong> ${strictestRules.minWinRate}%</li>
+                        </ul>
+                    </div>
+                    <p style="color: var(--text-secondary); margin-top: var(--spacing-lg);">🔄 Analyzing strategies...</p>
+                </div>
+            `;
+            
+            // Run the comparison with optimized settings
+            await runComparison();
+            
+            // Add optimization summary to results
+            setTimeout(() => {
+                const resultsDiv = document.getElementById('results');
+                const optimizationBanner = document.createElement('div');
+                optimizationBanner.style.cssText = 'background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)); border: 2px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-md); padding: var(--spacing-lg); margin-bottom: var(--spacing-xl);';
+                optimizationBanner.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
+                        <div style="font-size: 2rem;">🎯</div>
+                        <div>
+                            <h3 style="margin: 0; color: var(--accent-secondary); font-size: 1.25rem;">Prop Firm Optimized Results</h3>
+                            <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary);">Strategies optimized for: ${selectedFirms.map(f => f.rules.name).join(', ')}</p>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md); margin-top: var(--spacing-md);">
+                        <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Max Daily Loss</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-secondary); margin-top: 0.25rem;">≤ ${strictestRules.maxDailyLoss}%</div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Max Drawdown</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-secondary); margin-top: 0.25rem;">≤ ${strictestRules.maxDrawdown}%</div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Min Win Rate</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-secondary); margin-top: 0.25rem;">≥ ${strictestRules.minWinRate}%</div>
+                        </div>
+                    </div>
+                    <p style="margin: var(--spacing-md) 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">
+                        💡 <strong>Tip:</strong> All strategies below meet the strictest requirements across your selected prop firms. Click any strategy to see detailed evaluation analysis.
+                    </p>
+                `;
+                resultsDiv.insertBefore(optimizationBanner, resultsDiv.firstChild);
+            }, 100);
         }
         
         async function runComparison() {
@@ -1350,7 +1438,10 @@
             activeHeader.classList.add(currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
         }
         
+        let currentModalStrategyIndex = 0;
+        
         function showStrategyDetails(index) {
+            currentModalStrategyIndex = index;
             const strategy = allStrategies[index];
             const signals = allStrategySignals[index];
             
@@ -1487,6 +1578,11 @@
                     tab.style.borderBottom = '2px solid var(--accent-primary)';
                     modal.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
                     modal.querySelector(`[data-content="${tab.dataset.tab}"]`).style.display = 'block';
+                    
+                    // Re-render equity chart when tab is clicked (D3 needs visible container)
+                    if (tab.dataset.tab === 'equity') {
+                        setTimeout(() => renderModalEquity(signals, strategy), 50);
+                    }
                 });
             });
             tabs[0].style.color = 'var(--accent-primary)';
@@ -1502,7 +1598,7 @@
         
         function renderModalPropEval(signals, strategy) {
             const container = document.getElementById('modalPropEval');
-            const selectedFirm = document.getElementById('propFirmSelect')?.value || 'myfundedfutures';
+            const selectedFirm = document.getElementById('modalPropFirmSelect')?.value || document.getElementById('propFirmSelect')?.value || 'myfundedfutures';
             const firm = propFirmRules[selectedFirm];
             
             const feeR = parseFloat(document.getElementById('brokerFee').value);
@@ -1528,8 +1624,20 @@
             const worstStreakLoss = worstStreak * strategy.riskPerTrade;
             const safetyMargin = firm.maxDailyLoss - strategy.maxDailyLossPercent;
             
+            // Generate firm selector options
+            const firmOptions = Object.entries(propFirmRules).map(([key, f]) => 
+                `<option value="${key}" ${key === selectedFirm ? 'selected' : ''}>${f.name}</option>`
+            ).join('');
+            
             let html = `
                 <div style="display: grid; gap: var(--spacing-lg);">
+                    <!-- Firm Selector -->
+                    <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--spacing-md);">
+                        <label style="display: block; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 600;">Select Prop Firm:</label>
+                        <select id="modalPropFirmSelect" onchange="renderModalPropEval(allStrategySignals[currentModalStrategyIndex], allStrategies[currentModalStrategyIndex])" style="width: 100%; padding: var(--spacing-sm); background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 1rem;">
+                            ${firmOptions}
+                        </select>
+                    </div>
                     <!-- Evaluation Status -->
                     <div style="background: ${passesRules ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; border: 2px solid ${passesRules ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}; border-radius: var(--radius-md); padding: var(--spacing-lg);">
                         <div style="display: flex; align-items: center; gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
