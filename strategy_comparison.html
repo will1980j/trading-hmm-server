@@ -1057,61 +1057,114 @@
             displayComparison(allStrategies, totalPossible, filteredStrategies.length);
         }
         
+        function generateStrategyRow(s, displayIndex, dataIndex, beText, maxDailyLoss, maxDrawdown, minWinRate) {
+            const rowClass = displayIndex === 0 ? 'style="background: rgba(0,255,136,0.1);"' : '';
+            const sessionsText = s.sessions.join('+');
+            const timeFilterText = {'none': 'None', 'optimal': 'Optimal', 'macro': 'Macro', 'both': 'Both'}[s.timeFilter];
+            const propViable = s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate;
+            const propIcon = propViable ? '✅' : '❌';
+            const expectancyColor = s.stats.expectancy > 0.2 ? `rgba(0,255,136,${Math.min(s.stats.expectancy * 2, 1) * 0.3})` : 'transparent';
+            const winRateColor = s.stats.winRate > 50 ? `rgba(0,255,136,${(s.stats.winRate - 50) / 50 * 0.3})` : 'transparent';
+            const ddColor = `rgba(255,71,87,${Math.min(s.maxDrawdownPercent / 10, 1) * 0.3})`;
+            
+            const feeR = parseFloat(document.getElementById('brokerFee').value);
+            const results = allStrategySignals[dataIndex].map(sig => calculateTradeResult(sig, s.beStrategy, s.rTarget, feeR));
+            const winResults = results.filter(r => r > 0);
+            const lossResults = results.filter(r => r < 0);
+            const totalWinR = winResults.reduce((a,b) => a + b, 0);
+            const totalLossR = Math.abs(lossResults.reduce((a,b) => a + b, 0));
+            const profitFactor = totalLossR > 0 ? (totalWinR / totalLossR) : (totalWinR > 0 ? 999 : 0);
+            const pfColor = profitFactor >= 2 ? `rgba(0,255,136,${Math.min((profitFactor - 1) / 3, 1) * 0.3})` : 'transparent';
+            
+            return `<tr ${rowClass} data-index="${dataIndex}">
+                <td>${displayIndex === 0 ? '🏆' : displayIndex + 1}</td>
+                <td>${sessionsText}</td>
+                <td>${timeFilterText}</td>
+                <td>${beText[s.beStrategy]}</td>
+                <td>${s.rTarget}R</td>
+                <td style="background: ${expectancyColor}; font-weight: 600;">${s.stats.expectancy.toFixed(3)}</td>
+                <td style="background: ${pfColor}; font-weight: 600;">${profitFactor === 999 ? '∞' : profitFactor.toFixed(2)}</td>
+                <td>${s.stats.avgTrade.toFixed(3)}R</td>
+                <td style="background: ${winRateColor}; font-weight: 600;">${s.stats.winRate.toFixed(1)}%</td>
+                <td>${s.stats.breakevenRate.toFixed(1)}%</td>
+                <td>${s.stats.total}</td>
+                <td style="color: #00ff88; font-weight: 700;">${s.stats.expectedTotalReturn > 0 ? '+' : ''}${s.stats.expectedTotalReturn.toFixed(1)}R</td>
+                <td style="color: #00ff88; font-weight: 700;">${s.expectedReturnPercent > 0 ? '+' : ''}${s.expectedReturnPercent.toFixed(2)}%</td>
+                <td style="background: ${s.maxDailyLossPercent > maxDailyLoss ? '#ff4444' : '#22c55e'}; color: white; font-weight: 600;">${s.maxDailyLossPercent.toFixed(1)}%</td>
+                <td style="background: ${ddColor}; font-weight: 600;">${s.maxDrawdownPercent.toFixed(1)}%</td>
+                <td style="text-align: center; font-size: 18px;">${propIcon}</td>
+                <td><button onclick="showStrategyDetails(${dataIndex})" class="view-btn">📊 View</button></td>
+            </tr>`;
+        }
+        
         function displayComparison(strategies, totalPossible, profitableCount) {
             if (!strategies || strategies.length === 0) {
                 document.getElementById('results').innerHTML = '<div class="results-card" style="text-align: center; padding: 60px; color: var(--accent-warning);">No strategies found matching criteria</div>';
                 return;
             }
             
+            // Check if Best of All Time mode is active
+            const bestLowestDD = document.getElementById('bestLowestDD').checked;
+            const bestExpectedPercent = document.getElementById('bestExpectedPercent').checked;
+            const bestExpectedR = document.getElementById('bestExpectedR').checked;
+            const bestWinRate = document.getElementById('bestWinRate').checked;
+            const bestProfitFactor = document.getElementById('bestProfitFactor').checked;
+            const bestExpectancy = document.getElementById('bestExpectancy').checked;
+            const anyBestOfSelected = bestLowestDD || bestExpectedPercent || bestExpectedR || bestWinRate || bestProfitFactor || bestExpectancy;
+            
             const beText = { 'none': 'No BE', 'be1': 'BE=1R' };
-            
-            let html = '<table id="strategyTable"><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th class="sortable" data-sort="expectancy">Expectancy</th><th class="sortable" data-sort="profitFactor">Profit Factor</th><th class="sortable" data-sort="avgTrade">Avg Trade</th><th class="sortable" data-sort="winRate">Win Rate</th><th class="sortable" data-sort="breakevenRate">BE Rate</th><th class="sortable" data-sort="trades">Trades</th><th class="sortable" data-sort="expectedR">Expected R</th><th class="sortable" data-sort="expectedPercent">Expected %</th><th class="sortable" data-sort="maxDailyLoss">Max Daily Loss</th><th class="sortable" data-sort="maxDD">Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
-            
             const maxDailyLoss = parseFloat(document.getElementById('maxDailyLoss')?.value || 5);
-            const minWinRate = parseFloat(document.getElementById('minWinRate')?.value || 20);
-            const maxDrawdown = parseFloat(document.getElementById('maxDrawdown')?.value || 10);
             
-            strategies.forEach((s, i) => {
-                const rowClass = i === 0 ? 'style="background: rgba(0,255,136,0.1);"' : '';
-                const sessionsText = s.sessions.join('+');
-                const timeFilterText = {'none': 'None', 'optimal': 'Optimal', 'macro': 'Macro', 'both': 'Both'}[s.timeFilter];
-                const propViable = s.maxDailyLossPercent <= maxDailyLoss && s.maxDrawdownPercent <= maxDrawdown && s.stats.winRate >= minWinRate;
-                const propIcon = propViable ? '✅' : '❌';
-                const expectancyColor = s.stats.expectancy > 0.2 ? `rgba(0,255,136,${Math.min(s.stats.expectancy * 2, 1) * 0.3})` : 'transparent';
-                const winRateColor = s.stats.winRate > 50 ? `rgba(0,255,136,${(s.stats.winRate - 50) / 50 * 0.3})` : 'transparent';
-                const ddColor = `rgba(255,71,87,${Math.min(s.maxDrawdownPercent / 10, 1) * 0.3})`;
-                
-                const feeR = parseFloat(document.getElementById('brokerFee').value);
-                const results = allStrategySignals[i].map(sig => calculateTradeResult(sig, s.beStrategy, s.rTarget, feeR));
-                const winResults = results.filter(r => r > 0);
-                const lossResults = results.filter(r => r < 0);
-                const totalWinR = winResults.reduce((a,b) => a + b, 0);
-                const totalLossR = Math.abs(lossResults.reduce((a,b) => a + b, 0));
-                const profitFactor = totalLossR > 0 ? (totalWinR / totalLossR) : (totalWinR > 0 ? 999 : 0);
-                const pfColor = profitFactor >= 2 ? `rgba(0,255,136,${Math.min((profitFactor - 1) / 3, 1) * 0.3})` : 'transparent';
-                
-                html += `<tr ${rowClass} data-index="${i}">
-                    <td>${i === 0 ? '🏆' : i + 1}</td>
-                    <td>${sessionsText}</td>
-                    <td>${timeFilterText}</td>
-                    <td>${beText[s.beStrategy]}</td>
-                    <td>${s.rTarget}R</td>
-                    <td style="background: ${expectancyColor}; font-weight: 600;">${s.stats.expectancy.toFixed(3)}</td>
-                    <td style="background: ${pfColor}; font-weight: 600;">${profitFactor === 999 ? '∞' : profitFactor.toFixed(2)}</td>
-                    <td>${s.stats.avgTrade.toFixed(3)}R</td>
-                    <td style="background: ${winRateColor}; font-weight: 600;">${s.stats.winRate.toFixed(1)}%</td>
-                    <td>${s.stats.breakevenRate.toFixed(1)}%</td>
-                    <td>${s.stats.total}</td>
-                    <td style="color: #00ff88; font-weight: 700;">${s.stats.expectedTotalReturn > 0 ? '+' : ''}${s.stats.expectedTotalReturn.toFixed(1)}R</td>
-                    <td style="color: #00ff88; font-weight: 700;">${s.expectedReturnPercent > 0 ? '+' : ''}${s.expectedReturnPercent.toFixed(2)}%</td>
-                    <td style="background: ${s.maxDailyLossPercent > maxDailyLoss ? '#ff4444' : '#22c55e'}; color: white; font-weight: 600;">${s.maxDailyLossPercent.toFixed(1)}%</td>
-                    <td style="background: ${ddColor}; font-weight: 600;">${s.maxDrawdownPercent.toFixed(1)}%</td>
-                    <td style="text-align: center; font-size: 18px;">${propIcon}</td>
-                    <td><button onclick="showStrategyDetails(${i})" class="view-btn">📊 View</button></td>
-                </tr>`;
-            });
+            let html = '';
             
-            html += '</tbody></table>';
+            // If Best of All Time mode, group by risk percentage
+            if (anyBestOfSelected) {
+                // Group strategies by risk percentage
+                const riskGroups = {};
+                strategies.forEach((s, i) => {
+                    const risk = s.riskPerTrade;
+                    if (!riskGroups[risk]) riskGroups[risk] = [];
+                    riskGroups[risk].push({...s, originalIndex: i});
+                });
+                
+                // Sort risk levels
+                const sortedRisks = Object.keys(riskGroups).map(Number).sort((a, b) => a - b);
+                
+                // Display each risk group
+                sortedRisks.forEach(risk => {
+                    const groupStrategies = riskGroups[risk].slice(0, 3); // Top 3 per risk level
+                    
+                    html += `<div style="margin-bottom: var(--spacing-xl);">`;
+                    html += `<div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1)); border: 2px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-md); padding: var(--spacing-md); margin-bottom: var(--spacing-md);">`;
+                    html += `<h3 style="margin: 0; color: var(--accent-secondary); font-size: 1.25rem;">💰 Risk Per Trade: ${risk}%</h3>`;
+                    html += `<p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">Top ${groupStrategies.length} strategies at this risk level</p>`;
+                    html += `</div>`;
+                    
+                    html += '<table class="risk-group-table"><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th class="sortable" data-sort="expectancy">Expectancy</th><th class="sortable" data-sort="profitFactor">Profit Factor</th><th class="sortable" data-sort="avgTrade">Avg Trade</th><th class="sortable" data-sort="winRate">Win Rate</th><th class="sortable" data-sort="breakevenRate">BE Rate</th><th class="sortable" data-sort="trades">Trades</th><th class="sortable" data-sort="expectedR">Expected R</th><th class="sortable" data-sort="expectedPercent">Expected %</th><th class="sortable" data-sort="maxDailyLoss">Max Daily Loss</th><th class="sortable" data-sort="maxDD">Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
+                    
+                    const minWinRate = parseFloat(document.getElementById('minWinRate')?.value || 20);
+                    const maxDrawdown = parseFloat(document.getElementById('maxDrawdown')?.value || 10);
+                    
+                    groupStrategies.forEach((s, i) => {
+                        html += generateStrategyRow(s, i, s.originalIndex, beText, maxDailyLoss, maxDrawdown, minWinRate);
+                    });
+                    
+                    html += '</tbody></table></div>';
+                });
+                
+            } else {
+                // Normal display mode
+                const minWinRate = parseFloat(document.getElementById('minWinRate')?.value || 20);
+                const maxDrawdown = parseFloat(document.getElementById('maxDrawdown')?.value || 10);
+                
+                html += '<table id="strategyTable"><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th class="sortable" data-sort="expectancy">Expectancy</th><th class="sortable" data-sort="profitFactor">Profit Factor</th><th class="sortable" data-sort="avgTrade">Avg Trade</th><th class="sortable" data-sort="winRate">Win Rate</th><th class="sortable" data-sort="breakevenRate">BE Rate</th><th class="sortable" data-sort="trades">Trades</th><th class="sortable" data-sort="expectedR">Expected R</th><th class="sortable" data-sort="expectedPercent">Expected %</th><th class="sortable" data-sort="maxDailyLoss">Max Daily Loss</th><th class="sortable" data-sort="maxDD">Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
+                
+                strategies.forEach((s, i) => {
+                    html += generateStrategyRow(s, i, i, beText, maxDailyLoss, maxDrawdown, minWinRate);
+                });
+                
+                html += '</tbody></table>';
+            }
             
             html += '<div class="info-card">';
             html += '<h3>📊 Strategy Universe</h3>';
