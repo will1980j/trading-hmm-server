@@ -759,7 +759,20 @@
             
             document.getElementById('results').innerHTML = '<div style="text-align: center; padding: 60px;">🔄 Analyzing strategies...</div>';
             
-            const riskPerTrade = parseFloat(document.getElementById('riskPerTrade').value);
+            // Check if Best of All Time mode is active
+            const bestLowestDD = document.getElementById('bestLowestDD').checked;
+            const bestExpectedPercent = document.getElementById('bestExpectedPercent').checked;
+            const bestExpectedR = document.getElementById('bestExpectedR').checked;
+            const bestWinRate = document.getElementById('bestWinRate').checked;
+            const bestProfitFactor = document.getElementById('bestProfitFactor').checked;
+            const bestExpectancy = document.getElementById('bestExpectancy').checked;
+            const anyBestOfSelected = bestLowestDD || bestExpectedPercent || bestExpectedR || bestWinRate || bestProfitFactor || bestExpectancy;
+            
+            // If Best of All Time mode, use multiple risk percentages; otherwise use selected value
+            const riskPerTradeValues = anyBestOfSelected 
+                ? [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0] 
+                : [parseFloat(document.getElementById('riskPerTrade').value)];
+            
             const maxDrawdown = parseFloat(document.getElementById('maxDrawdown').value);
             const feeR = parseFloat(document.getElementById('brokerFee').value);
             const sessions = ['Asia', 'London', 'NY Pre Market', 'NY AM', 'NY Lunch', 'NY PM'];
@@ -768,9 +781,11 @@
             for (let r = 1; r <= 20; r += 0.5) rTargets.push(r);
             const timeFilters = ['none', 'optimal', 'macro', 'both'];
             
-            const totalPossible = 62 * 2 * rTargets.length * timeFilters.length;
+            const totalPossible = 62 * 2 * rTargets.length * timeFilters.length * riskPerTradeValues.length;
             const strategies = [];
-            timeFilters.forEach(timeFilter => {
+            
+            riskPerTradeValues.forEach(riskPerTrade => {
+                timeFilters.forEach(timeFilter => {
                     beStrategies.forEach(beStrategy => {
                         rTargets.forEach(rTarget => {
                             const optimalHours = {};
@@ -869,6 +884,7 @@
                                     });
                                 }
                             }
+                        });
                     });
                 });
             });
