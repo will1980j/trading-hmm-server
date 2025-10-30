@@ -1448,13 +1448,17 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); border-bottom: 2px solid var(--border-color);">
-                    <button class="modal-tab active" data-tab="equity" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">📈 Equity</button>
+                    <button class="modal-tab active" data-tab="propeval" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">🎯 Prop Firm Eval</button>
+                    <button class="modal-tab" data-tab="equity" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">📈 Equity</button>
                     <button class="modal-tab" data-tab="calendar" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">📅 Calendar</button>
                     <button class="modal-tab" data-tab="trades" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">📋 Trades</button>
                     <button class="modal-tab" data-tab="risk" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">⚠️ Risk</button>
                     <button class="modal-tab" data-tab="performance" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">📊 Performance</button>
                 </div>
-                <div class="tab-content" data-content="equity" style="display: block;">
+                <div class="tab-content" data-content="propeval" style="display: block;">
+                    <div id="modalPropEval" style="width: 100%;"></div>
+                </div>
+                <div class="tab-content" data-content="equity" style="display: none;">
                     <div id="modalEquity" style="width: 100%; height: 450px; background: var(--bg-tertiary); border-radius: var(--radius-md); border: 1px solid var(--border-color);"></div>
                 </div>
                 <div class="tab-content" data-content="calendar" style="display: none;">
@@ -1488,11 +1492,148 @@
             tabs[0].style.color = 'var(--accent-primary)';
             tabs[0].style.borderBottom = '2px solid var(--accent-primary)';
             
+            renderModalPropEval(signals, strategy);
             renderModalEquity(signals, strategy);
             renderModalCalendar(signals, strategy);
             renderModalTrades(signals, strategy);
             renderModalRisk(signals, strategy);
             renderModalPerformance(signals, strategy);
+        }
+        
+        function renderModalPropEval(signals, strategy) {
+            const container = document.getElementById('modalPropEval');
+            const selectedFirm = document.getElementById('propFirmSelect')?.value || 'myfundedfutures';
+            const firm = propFirmRules[selectedFirm];
+            
+            const feeR = parseFloat(document.getElementById('brokerFee').value);
+            const results = signals.map(s => calculateTradeResult(s, strategy.beStrategy, strategy.rTarget, feeR));
+            
+            // Calculate evaluation metrics
+            const passesRules = strategy.maxDailyLossPercent <= firm.maxDailyLoss && 
+                               strategy.maxDrawdownPercent <= firm.maxDrawdown && 
+                               strategy.stats.winRate >= firm.minWinRate;
+            
+            // Estimate days to pass evaluation (assuming 10 trading days minimum)
+            const avgTradesPerDay = strategy.stats.total / 60; // Assuming 60 trading days in dataset
+            const daysToMinTrades = firm.minTrades ? Math.ceil(firm.minTrades / avgTradesPerDay) : 10;
+            const estimatedDays = Math.max(daysToMinTrades, 10);
+            
+            // Calculate expected profit during eval
+            const expectedTradesDuringEval = avgTradesPerDay * estimatedDays;
+            const expectedProfitR = strategy.stats.expectancy * expectedTradesDuringEval;
+            const expectedProfitPercent = expectedProfitR * strategy.riskPerTrade;
+            
+            // Risk analysis
+            const worstStreak = strategy.stats.maxConsecLosses;
+            const worstStreakLoss = worstStreak * strategy.riskPerTrade;
+            const safetyMargin = firm.maxDailyLoss - strategy.maxDailyLossPercent;
+            
+            let html = `
+                <div style="display: grid; gap: var(--spacing-lg);">
+                    <!-- Evaluation Status -->
+                    <div style="background: ${passesRules ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; border: 2px solid ${passesRules ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}; border-radius: var(--radius-md); padding: var(--spacing-lg);">
+                        <div style="display: flex; align-items: center; gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
+                            <div style="font-size: 3rem;">${passesRules ? '✅' : '❌'}</div>
+                            <div>
+                                <h3 style="margin: 0; color: ${passesRules ? 'var(--accent-secondary)' : '#ef4444'}; font-size: 1.25rem;">${passesRules ? 'EVALUATION READY' : 'NEEDS OPTIMIZATION'}</h3>
+                                <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary);">For ${firm.name} (${firm.maxAccount ? '$' + firm.maxAccount.toLocaleString() + ' max' : 'Unlimited'})</p>
+                            </div>
+                        </div>
+                        ${!passesRules ? `
+                            <div style="background: rgba(239, 68, 68, 0.1); padding: var(--spacing-md); border-radius: var(--radius-sm); margin-top: var(--spacing-md);">
+                                <strong style="color: #ef4444;">⚠️ Rule Violations:</strong>
+                                <ul style="margin: 0.5rem 0 0 0; padding-left: 1.5rem; color: var(--text-secondary);">
+                                    ${strategy.maxDailyLossPercent > firm.maxDailyLoss ? `<li>Max Daily Loss: ${strategy.maxDailyLossPercent.toFixed(1)}% exceeds ${firm.maxDailyLoss}% limit</li>` : ''}
+                                    ${strategy.maxDrawdownPercent > firm.maxDrawdown ? `<li>Max Drawdown: ${strategy.maxDrawdownPercent.toFixed(1)}% exceeds ${firm.maxDrawdown}% limit</li>` : ''}
+                                    ${strategy.stats.winRate < firm.minWinRate ? `<li>Win Rate: ${strategy.stats.winRate.toFixed(1)}% below ${firm.minWinRate}% minimum</li>` : ''}
+                                </ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <!-- Evaluation Timeline -->
+                    <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--spacing-lg);">
+                        <h4 style="margin: 0 0 var(--spacing-md) 0; color: var(--accent-primary);">📅 Estimated Evaluation Timeline</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md);">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Estimated Days</div>
+                                <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-secondary); margin-top: 0.25rem;">${estimatedDays} days</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Expected Trades</div>
+                                <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-secondary); margin-top: 0.25rem;">${Math.round(expectedTradesDuringEval)} trades</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Expected Profit</div>
+                                <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-secondary); margin-top: 0.25rem;">+${expectedProfitPercent.toFixed(2)}%</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Risk Management Insights -->
+                    <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--spacing-lg);">
+                        <h4 style="margin: 0 0 var(--spacing-md) 0; color: var(--accent-primary);">⚠️ Risk Management Insights</h4>
+                        <div style="display: grid; gap: var(--spacing-md);">
+                            <div style="background: ${worstStreakLoss > firm.maxDailyLoss ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'}; padding: var(--spacing-md); border-radius: var(--radius-sm);">
+                                <div style="font-weight: 600; margin-bottom: 0.5rem;">Worst Losing Streak</div>
+                                <div style="color: var(--text-secondary);">${worstStreak} consecutive losses = ${worstStreakLoss.toFixed(2)}% loss</div>
+                                ${worstStreakLoss > firm.maxDailyLoss ? 
+                                    `<div style="color: #ef4444; margin-top: 0.5rem;">⚠️ This exceeds daily loss limit! Consider reducing risk per trade to ${(firm.maxDailyLoss / worstStreak).toFixed(2)}%</div>` :
+                                    `<div style="color: var(--accent-secondary); margin-top: 0.5rem;">✅ Within daily loss limits</div>`
+                                }
+                            </div>
+                            <div style="background: ${safetyMargin < 1 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'}; padding: var(--spacing-md); border-radius: var(--radius-sm);">
+                                <div style="font-weight: 600; margin-bottom: 0.5rem;">Safety Margin</div>
+                                <div style="color: var(--text-secondary);">${safetyMargin.toFixed(2)}% buffer before hitting daily loss limit</div>
+                                ${safetyMargin < 1 ? 
+                                    `<div style="color: #ef4444; margin-top: 0.5rem;">⚠️ Very tight margin! One bad day could breach limits</div>` :
+                                    safetyMargin < 2 ?
+                                    `<div style="color: #f59e0b; margin-top: 0.5rem;">⚠️ Moderate margin. Trade carefully on losing days</div>` :
+                                    `<div style="color: var(--accent-secondary); margin-top: 0.5rem;">✅ Comfortable safety buffer</div>`
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Actionable Recommendations -->
+                    <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-md); padding: var(--spacing-lg);">
+                        <h4 style="margin: 0 0 var(--spacing-md) 0; color: var(--accent-primary);">💡 Recommendations for Success</h4>
+                        <ul style="margin: 0; padding-left: 1.5rem; color: var(--text-primary); line-height: 1.8;">
+                            ${strategy.stats.winRate < 50 ? 
+                                `<li><strong>Improve Win Rate:</strong> Current ${strategy.stats.winRate.toFixed(1)}% is below 50%. Focus on better entry timing or tighter filters</li>` : 
+                                `<li><strong>Win Rate Strength:</strong> ${strategy.stats.winRate.toFixed(1)}% win rate is solid. Maintain discipline</li>`
+                            }
+                            ${strategy.riskPerTrade > 1 ? 
+                                `<li><strong>Reduce Position Size:</strong> ${strategy.riskPerTrade}% risk per trade is aggressive. Consider 0.5-1% for evaluation safety</li>` :
+                                `<li><strong>Position Sizing:</strong> ${strategy.riskPerTrade}% risk per trade is conservative and appropriate for evaluations</li>`
+                            }
+                            ${avgTradesPerDay < 2 ? 
+                                `<li><strong>Increase Trade Frequency:</strong> Only ${avgTradesPerDay.toFixed(1)} trades/day. May take ${estimatedDays}+ days to complete evaluation</li>` :
+                                avgTradesPerDay > 10 ?
+                                `<li><strong>High Frequency:</strong> ${avgTradesPerDay.toFixed(1)} trades/day. Ensure quality over quantity to avoid overtrading</li>` :
+                                `<li><strong>Trade Frequency:</strong> ${avgTradesPerDay.toFixed(1)} trades/day is reasonable for steady evaluation progress</li>`
+                            }
+                            ${strategy.stats.expectancy < 0.2 ? 
+                                `<li><strong>Improve Edge:</strong> ${strategy.stats.expectancy.toFixed(3)}R expectancy is low. Refine strategy or wait for better setups</li>` :
+                                `<li><strong>Strong Edge:</strong> ${strategy.stats.expectancy.toFixed(3)}R expectancy provides good profit potential</li>`
+                            }
+                            <li><strong>Consistency is Key:</strong> Stick to your rules. Most evaluation failures come from discipline breaks, not strategy flaws</li>
+                            <li><strong>Track Daily P&L:</strong> Monitor daily performance closely. If approaching ${(firm.maxDailyLoss * 0.7).toFixed(1)}% loss, stop trading for the day</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Firm-Specific Notes -->
+                    ${firm.description ? `
+                        <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--spacing-lg);">
+                            <h4 style="margin: 0 0 var(--spacing-md) 0; color: var(--accent-primary);">📋 ${firm.name} Details</h4>
+                            <p style="margin: 0; color: var(--text-secondary); line-height: 1.6;">${firm.description}</p>
+                            ${firm.website ? `<p style="margin: 0.5rem 0 0 0;"><a href="https://${firm.website}" target="_blank" style="color: var(--accent-secondary);">Visit ${firm.website} →</a></p>` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            container.innerHTML = html;
         }
         
         function renderModalEquity(signals, strategy) {
