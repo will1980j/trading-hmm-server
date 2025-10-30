@@ -947,16 +947,7 @@
                 strategySignalsMap.set(idx, filteredSignals);
             });
             
-            // Check if any "Best Of" checkboxes are selected
-            const bestLowestDD = document.getElementById('bestLowestDD').checked;
-            const bestExpectedPercent = document.getElementById('bestExpectedPercent').checked;
-            const bestExpectedR = document.getElementById('bestExpectedR').checked;
-            const bestWinRate = document.getElementById('bestWinRate').checked;
-            const bestProfitFactor = document.getElementById('bestProfitFactor').checked;
-            const bestExpectancy = document.getElementById('bestExpectancy').checked;
-            
-            const anyBestOfSelected = bestLowestDD || bestExpectedPercent || bestExpectedR || bestWinRate || bestProfitFactor || bestExpectancy;
-            
+            // anyBestOfSelected already declared at top of function
             let filteredStrategies;
             
             if (anyBestOfSelected) {
