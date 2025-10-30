@@ -761,17 +761,19 @@
                 return;
             }
             
-            // Find the strictest rules across all selected firms
+            // Find the strictest rules across all selected firms (ONLY risk metrics that cause violations)
             const strictestRules = {
-                maxDailyLoss: Math.min(...selectedFirms.map(f => f.rules.maxDailyLoss)),
-                maxDrawdown: Math.min(...selectedFirms.map(f => f.rules.maxDrawdown)),
-                minWinRate: Math.max(...selectedFirms.map(f => f.rules.minWinRate))
+                maxDailyLoss: Math.min(...selectedFirms.map(f => f.rules.maxDailyLoss || 100)),
+                maxDrawdown: Math.min(...selectedFirms.map(f => f.rules.maxDrawdown || 100))
             };
             
-            // Set the filters to match strictest rules
+            // Check if any firms have trailing drawdown (EOD drawdown that can lock in profits)
+            const hasTrailingDD = selectedFirms.some(f => f.rules.description && f.rules.description.includes('trailing'));
+            
+            // Set the filters to match strictest rules (NO WIN RATE - not a violation metric)
             document.getElementById('maxDailyLoss').value = strictestRules.maxDailyLoss;
             document.getElementById('maxDrawdown').value = strictestRules.maxDrawdown;
-            document.getElementById('minWinRate').value = strictestRules.minWinRate;
+            document.getElementById('minWinRate').value = 0; // Remove win rate requirement
             document.getElementById('onlyPropViable').checked = true;
             
             // Show optimization message
@@ -783,12 +785,15 @@
                         ${selectedFirms.map(f => f.rules.name).join(', ')}
                     </p>
                     <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-md); padding: var(--spacing-lg); max-width: 600px; margin: 0 auto; text-align: left;">
-                        <h4 style="margin: 0 0 var(--spacing-md) 0; color: var(--accent-primary);">Strictest Rules Applied:</h4>
+                        <h4 style="margin: 0 0 var(--spacing-md) 0; color: var(--accent-primary);">Risk Limits (Violation Metrics Only):</h4>
                         <ul style="margin: 0; padding-left: 1.5rem; color: var(--text-primary); line-height: 1.8;">
-                            <li><strong>Max Daily Loss:</strong> ${strictestRules.maxDailyLoss}%</li>
-                            <li><strong>Max Drawdown:</strong> ${strictestRules.maxDrawdown}%</li>
-                            <li><strong>Min Win Rate:</strong> ${strictestRules.minWinRate}%</li>
+                            <li><strong>Max Daily Loss:</strong> ${strictestRules.maxDailyLoss}% ${strictestRules.maxDailyLoss === 0 ? '(No daily limit)' : ''}</li>
+                            <li><strong>Max Drawdown:</strong> ${strictestRules.maxDrawdown}% ${hasTrailingDD ? '(Trailing/EOD)' : ''}</li>
+                            ${hasTrailingDD ? '<li><strong>⚠️ Trailing Drawdown:</strong> Protects profits but can lock losses</li>' : ''}
                         </ul>
+                        <p style="margin: var(--spacing-sm) 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">
+                            <em>Note: Win rate is NOT a violation metric and has been excluded from optimization</em>
+                        </p>
                     </div>
                     <p style="color: var(--text-secondary); margin-top: var(--spacing-lg);">🔄 Analyzing strategies...</p>
                 </div>
@@ -810,26 +815,124 @@
                             <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary);">Strategies optimized for: ${selectedFirms.map(f => f.rules.name).join(', ')}</p>
                         </div>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md); margin-top: var(--spacing-md);">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--spacing-md); margin-top: var(--spacing-md);">
                         <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                            <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Max Daily Loss</div>
-                            <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-secondary); margin-top: 0.25rem;">≤ ${strictestRules.maxDailyLoss}%</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Max Daily Loss Limit</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: ${strictestRules.maxDailyLoss === 0 ? '#10b981' : 'var(--accent-secondary)'}; margin-top: 0.25rem;">
+                                ${strictestRules.maxDailyLoss === 0 ? 'No Limit ✓' : '≤ ' + strictestRules.maxDailyLoss + '%'}
+                            </div>
                         </div>
                         <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                            <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Max Drawdown</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Max Drawdown ${hasTrailingDD ? '(Trailing)' : ''}</div>
                             <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-secondary); margin-top: 0.25rem;">≤ ${strictestRules.maxDrawdown}%</div>
-                        </div>
-                        <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                            <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Min Win Rate</div>
-                            <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-secondary); margin-top: 0.25rem;">≥ ${strictestRules.minWinRate}%</div>
+                            ${hasTrailingDD ? '<div style="font-size: 0.7rem; color: #f59e0b; margin-top: 0.25rem;">⚠️ Can lock in losses</div>' : ''}
                         </div>
                     </div>
-                    <p style="margin: var(--spacing-md) 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">
-                        💡 <strong>Tip:</strong> All strategies below meet the strictest requirements across your selected prop firms. Click any strategy to see detailed evaluation analysis.
-                    </p>
+                    <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-sm); padding: var(--spacing-md); margin-top: var(--spacing-md);">
+                        <p style="margin: 0; color: var(--text-primary); font-size: 0.875rem; line-height: 1.6;">
+                            💡 <strong>Optimization Focus:</strong> Strategies filtered by VIOLATION METRICS only (daily loss & drawdown limits). Win rate excluded as it's not a rule violation.
+                            ${hasTrailingDD ? '<br><br>⚠️ <strong>Trailing Drawdown Alert:</strong> Some firms use EOD trailing drawdown which locks in your high-water mark. Strategies with consistent positive expectancy are critical.' : ''}
+                        </p>
+                    </div>
                 `;
                 resultsDiv.insertBefore(optimizationBanner, resultsDiv.firstChild);
+                
+                // Automatically request GPT-4 analysis of top strategy
+                if (allStrategies.length > 0) {
+                    requestGPT4Analysis(allStrategies[0], selectedFirms, strictestRules);
+                }
             }, 100);
+        }
+        
+        async function requestGPT4Analysis(topStrategy, selectedFirms, strictestRules) {
+            try {
+                // Show loading indicator
+                const resultsDiv = document.getElementById('results');
+                const loadingDiv = document.createElement('div');
+                loadingDiv.id = 'gpt4-analysis-loading';
+                loadingDiv.style.cssText = 'background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 20px; margin-top: 20px;';
+                loadingDiv.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 2rem;">🤖</div>
+                        <div>
+                            <h3 style="margin: 0; color: #8b5cf6;">GPT-4 is analyzing your strategy...</h3>
+                            <p style="margin: 4px 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">This may take a few seconds</p>
+                        </div>
+                    </div>
+                `;
+                resultsDiv.insertBefore(loadingDiv, resultsDiv.children[1]);
+                
+                // Prepare strategy data
+                const strategyData = {
+                    sessions: topStrategy.sessions.join(' + '),
+                    timeFilter: {'none': 'None', 'optimal': 'Optimal', 'macro': 'Macro', 'both': 'Both'}[topStrategy.timeFilter],
+                    beStrategy: topStrategy.beStrategy === 'none' ? 'No Break Even' : 'Break Even at 1R',
+                    rTarget: topStrategy.rTarget,
+                    riskPerTrade: topStrategy.riskPerTrade,
+                    expectancy: topStrategy.stats.expectancy.toFixed(3),
+                    winRate: topStrategy.stats.winRate.toFixed(1),
+                    expectedReturn: topStrategy.expectedReturnPercent.toFixed(2),
+                    maxDailyLoss: topStrategy.maxDailyLossPercent.toFixed(1),
+                    maxDrawdown: topStrategy.maxDrawdownPercent.toFixed(1),
+                    totalTrades: topStrategy.stats.total,
+                    profitFactor: topStrategy.profitFactor ? topStrategy.profitFactor.toFixed(2) : 'N/A'
+                };
+                
+                const propFirmRules = {
+                    firms: selectedFirms.map(f => f.rules.name),
+                    maxDailyLoss: strictestRules.maxDailyLoss,
+                    maxDrawdown: strictestRules.maxDrawdown,
+                    hasTrailingDD: selectedFirms.some(f => f.rules.description && f.rules.description.includes('trailing'))
+                };
+                
+                // Call GPT-4 API
+                const response = await fetch('/api/gpt4-validate-strategy', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        strategy: strategyData,
+                        propFirmRules: propFirmRules,
+                        alternatives: allStrategies.slice(1, 4).map(s => ({
+                            sessions: s.sessions.join('+'),
+                            expectancy: s.stats.expectancy.toFixed(3),
+                            expectedReturn: s.expectedReturnPercent.toFixed(2)
+                        }))
+                    })
+                });
+                
+                const result = await response.json();
+                
+                // Remove loading indicator
+                loadingDiv.remove();
+                
+                // Display GPT-4 analysis
+                if (result.success) {
+                    const analysisDiv = document.createElement('div');
+                    analysisDiv.style.cssText = 'background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(99, 102, 241, 0.1)); border: 2px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 20px; margin-top: 20px;';
+                    analysisDiv.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                            <div style="font-size: 2rem;">🤖</div>
+                            <div>
+                                <h3 style="margin: 0; color: #8b5cf6; font-size: 1.25rem;">GPT-4 Strategy Analysis</h3>
+                                <p style="margin: 4px 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">Independent AI validation of strategy selection</p>
+                            </div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); border-radius: 8px; padding: 16px; line-height: 1.8; color: var(--text-primary); white-space: pre-wrap;">${result.analysis}</div>
+                        <p style="margin: 12px 0 0 0; color: var(--text-secondary); font-size: 0.75rem; font-style: italic;">
+                            Powered by OpenAI GPT-4 • Analysis generated at ${new Date(result.timestamp).toLocaleTimeString()}
+                        </p>
+                    `;
+                    resultsDiv.insertBefore(analysisDiv, resultsDiv.children[1]);
+                } else {
+                    console.error('GPT-4 analysis failed:', result.error);
+                }
+                
+            } catch (error) {
+                console.error('Error requesting GPT-4 analysis:', error);
+                // Remove loading indicator if it exists
+                const loadingDiv = document.getElementById('gpt4-analysis-loading');
+                if (loadingDiv) loadingDiv.remove();
+            }
         }
         
         async function runComparison() {

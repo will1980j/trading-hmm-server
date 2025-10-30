@@ -15,6 +15,7 @@ from news_api import NewsAPI, get_market_sentiment, extract_key_levels
 from datetime import datetime
 from auth import login_required, authenticate
 from ml_insights_endpoint import get_ml_insights_response
+from gpt4_strategy_validator import validate_strategy, format_analysis_for_display
 import math
 import pytz
 
@@ -1493,6 +1494,32 @@ def get_strategy_comparison():
     except Exception as e:
         logger.error(f'Strategy comparison error: {str(e)}')
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/gpt4-validate-strategy', methods=['POST'])
+@login_required
+def gpt4_validate_strategy():
+    """Use GPT-4 to analyze and validate the selected trading strategy"""
+    try:
+        data = request.json
+        strategy_data = data.get('strategy', {})
+        prop_firm_rules = data.get('propFirmRules', {})
+        alternatives = data.get('alternatives', [])
+        
+        # Call GPT-4 validator
+        analysis_result = validate_strategy(strategy_data, prop_firm_rules, alternatives)
+        
+        # Add timestamp
+        analysis_result['timestamp'] = datetime.now().isoformat()
+        
+        return jsonify(analysis_result), 200
+        
+    except Exception as e:
+        logger.error(f'GPT-4 validation error: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'analysis': 'Unable to generate AI analysis. Please check your OpenAI API configuration.'
+        }), 500
 
 @app.route('/api/strategy-trades', methods=['GET'])
 @login_required
