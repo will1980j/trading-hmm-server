@@ -2673,9 +2673,7 @@
                 
                 console.log('Loading 1M signals from:', endpoint);
                 
-                // Add analysis_only parameter for dashboard to get only processed trades
-                const analysisParam = '?analysis_only=true';
-                const response = await fetch(endpoint + analysisParam);
+                const response = await fetch(endpoint);
                 if (response.ok) {
                     const data = await response.json();
                     console.log('Raw API response:', data);
