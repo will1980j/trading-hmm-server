@@ -1365,9 +1365,66 @@
             const timeFilterText = {'none': 'None', 'optimal': 'Optimal', 'macro': 'Macro', 'both': 'Both'}[strategy.timeFilter];
             const beText = strategy.beStrategy === 'none' ? 'No BE' : 'BE=1R';
             
+            // Calculate actual trading hours for this strategy
+            const feeR = parseFloat(document.getElementById('brokerFee').value);
+            let timeFilterExplanation = '';
+            let hourDetails = '';
+            
+            if (strategy.timeFilter === 'none') {
+                timeFilterExplanation = '⏰ <strong>All Times:</strong> Trading all signals within session hours (no time filtering)';
+            } else if (strategy.timeFilter === 'optimal' || strategy.timeFilter === 'both') {
+                // Calculate optimal hours for each session
+                const optimalHours = {};
+                strategy.sessions.forEach(session => {
+                    const sessionSignals = signals.filter(s => s.session === session);
+                    const hourlyPerf = {};
+                    sessionSignals.forEach(s => {
+                        if (!s.time) return;
+                        const hour = parseInt(s.time.split(':')[0]);
+                        if (!hourlyPerf[hour]) hourlyPerf[hour] = [];
+                        hourlyPerf[hour].push(s);
+                    });
+                    const hourlyStats = Object.entries(hourlyPerf)
+                        .map(([hour, sigs]) => {
+                            if (sigs.length < 3) return null;
+                            const results = sigs.map(s => calculateTradeResult(s, strategy.beStrategy, strategy.rTarget, feeR));
+                            const stats = calculateStats(results);
+                            return { hour: parseInt(hour), expectancy: stats.expectancy, trades: sigs.length };
+                        })
+                        .filter(h => h !== null)
+                        .sort((a, b) => b.expectancy - a.expectancy);
+                    if (hourlyStats.length > 0) {
+                        optimalHours[session] = hourlyStats[0];
+                    }
+                });
+                
+                if (strategy.timeFilter === 'optimal') {
+                    timeFilterExplanation = '⏰ <strong>Optimal Hour Only:</strong> Trading only during the best-performing hour for each session';
+                    hourDetails = '<div style="margin-top: 0.5rem; padding-left: 1.5rem;">';
+                    Object.entries(optimalHours).forEach(([session, data]) => {
+                        hourDetails += `<div style="color: var(--text-secondary); font-size: 0.875rem;">• <strong>${session}:</strong> ${data.hour}:00-${data.hour}:59 (${data.trades} trades, ${data.expectancy.toFixed(3)}R expectancy)</div>`;
+                    });
+                    hourDetails += '</div>';
+                } else {
+                    timeFilterExplanation = '⏰ <strong>Optimal + Macro:</strong> Trading the optimal hour\'s :45-:15 window only';
+                    hourDetails = '<div style="margin-top: 0.5rem; padding-left: 1.5rem;">';
+                    Object.entries(optimalHours).forEach(([session, data]) => {
+                        const nextHour = (data.hour + 1) % 24;
+                        hourDetails += `<div style="color: var(--text-secondary); font-size: 0.875rem;">• <strong>${session}:</strong> ${data.hour}:45-${nextHour}:15 (${data.trades} trades, ${data.expectancy.toFixed(3)}R expectancy)</div>`;
+                    });
+                    hourDetails += '</div>';
+                }
+            } else if (strategy.timeFilter === 'macro') {
+                timeFilterExplanation = '⏰ <strong>Macro Times:</strong> Trading only during :45-:15 minute windows (e.g., 9:45-10:15)';
+                hourDetails = '<div style="margin-top: 0.5rem; padding-left: 1.5rem; color: var(--text-secondary); font-size: 0.875rem;">Trades signals that occur at minutes :45-:59 or :00-:15 of any hour</div>';
+            }
+            
             content.innerHTML = `
                 <button onclick="this.closest('div[style*=fixed]').remove()" style="position: absolute; top: 20px; right: 20px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--radius-sm); color: #ef4444; cursor: pointer; font-weight: 600;">✕ Close</button>
-                <h2 style="color: var(--accent-primary); margin-bottom: var(--spacing-lg); font-size: 1.5rem; font-weight: 700;">${sessionsText} | ${timeFilterText} | ${beText} | ${strategy.rTarget}R</h2>
+                <h2 style="color: var(--accent-primary); margin-bottom: var(--spacing-md); font-size: 1.5rem; font-weight: 700;">${sessionsText} | ${timeFilterText} | ${beText} | ${strategy.rTarget}R</h2>
+                <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-md); padding: var(--spacing-md); margin-bottom: var(--spacing-lg);">
+                    <div style="color: var(--text-primary); font-size: 0.95rem; line-height: 1.6;">${timeFilterExplanation}${hourDetails}</div>
+                </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--spacing-md); margin-bottom: var(--spacing-xl);">
                     <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
                         <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Expectancy</div>
