@@ -1653,7 +1653,7 @@
                     <div id="modalPropEval" style="width: 100%;"></div>
                 </div>
                 <div class="tab-content" data-content="equity" style="display: none;">
-                    <div id="modalEquity" style="width: 100%; height: 450px; background: var(--bg-tertiary); border-radius: var(--radius-md); border: 1px solid var(--border-color);"></div>
+                    <div id="modalEquity" style="width: 100%; height: 450px; background: var(--bg-tertiary); border-radius: var(--radius-md); border: 1px solid var(--border-color); overflow: hidden;"></div>
                 </div>
                 <div class="tab-content" data-content="calendar" style="display: none;">
                     <div id="modalCalendar" style="width: 100%;"></div>
@@ -1851,6 +1851,10 @@
         
         function renderModalEquity(signals, strategy) {
             const container = document.getElementById('modalEquity');
+            
+            // Clear previous chart
+            d3.select(container).selectAll('*').remove();
+            
             const feeR = parseFloat(document.getElementById('brokerFee').value);
             const results = signals.map(s => calculateTradeResult(s, strategy.beStrategy, strategy.rTarget, feeR));
             let cumulative = 0;
@@ -1862,7 +1866,11 @@
             const innerWidth = width - margin.left - margin.right;
             const innerHeight = height - margin.top - margin.bottom;
             
-            const svg = d3.select(container).append('svg').attr('width', width).attr('height', height);
+            const svg = d3.select(container).append('svg')
+                .attr('width', '100%')
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .attr('preserveAspectRatio', 'xMidYMid meet');
             const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
             
             const xScale = d3.scaleLinear().domain([0, equityData.length]).range([0, innerWidth]);
