@@ -1288,7 +1288,7 @@
                 <td>${s.stats.total}</td>
                 <td style="color: #00ff88; font-weight: 700;">${s.stats.expectedTotalReturn > 0 ? '+' : ''}${s.stats.expectedTotalReturn.toFixed(1)}R</td>
                 <td style="color: #00ff88; font-weight: 700;">${s.expectedReturnPercent > 0 ? '+' : ''}${s.expectedReturnPercent.toFixed(2)}%</td>
-                <td style="background: ${s.maxDailyLossPercent > maxDailyLoss ? '#ff4444' : '#22c55e'}; color: white; font-weight: 600;">${s.maxDailyLossPercent.toFixed(1)}%</td>
+                <td style="background: ${(maxDailyLoss > 0 && s.maxDailyLossPercent > maxDailyLoss) ? '#ff4444' : '#22c55e'}; color: white; font-weight: 600;">${s.maxDailyLossPercent.toFixed(1)}%</td>
                 <td style="background: ${ddColor}; font-weight: 600;">${s.maxDrawdownPercent.toFixed(1)}%</td>
                 <td style="text-align: center; font-size: 18px;">${propIcon}</td>
                 <td><button onclick="showStrategyDetails(${dataIndex})" class="view-btn">📊 View</button></td>
@@ -1754,7 +1754,7 @@
                             <div style="background: rgba(239, 68, 68, 0.1); padding: var(--spacing-md); border-radius: var(--radius-sm); margin-top: var(--spacing-md);">
                                 <strong style="color: #ef4444;">⚠️ Rule Violations:</strong>
                                 <ul style="margin: 0.5rem 0 0 0; padding-left: 1.5rem; color: var(--text-secondary);">
-                                    ${strategy.maxDailyLossPercent > firm.maxDailyLoss ? `<li>Max Daily Loss: ${strategy.maxDailyLossPercent.toFixed(1)}% exceeds ${firm.maxDailyLoss}% limit</li>` : ''}
+                                    ${(firm.maxDailyLoss > 0 && strategy.maxDailyLossPercent > firm.maxDailyLoss) ? `<li>Max Daily Loss: ${strategy.maxDailyLossPercent.toFixed(1)}% exceeds ${firm.maxDailyLoss}% limit</li>` : ''}
                                     ${strategy.maxDrawdownPercent > firm.maxDrawdown ? `<li>Max Drawdown: ${strategy.maxDrawdownPercent.toFixed(1)}% exceeds ${firm.maxDrawdown}% limit</li>` : ''}
                                     ${strategy.stats.winRate < firm.minWinRate ? `<li>Win Rate: ${strategy.stats.winRate.toFixed(1)}% below ${firm.minWinRate}% minimum</li>` : ''}
                                 </ul>
@@ -1785,12 +1785,14 @@
                     <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--spacing-lg);">
                         <h4 style="margin: 0 0 var(--spacing-md) 0; color: var(--accent-primary);">⚠️ Risk Management Insights</h4>
                         <div style="display: grid; gap: var(--spacing-md);">
-                            <div style="background: ${worstStreakLoss > firm.maxDailyLoss ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'}; padding: var(--spacing-md); border-radius: var(--radius-sm);">
+                            <div style="background: ${(firm.maxDailyLoss > 0 && worstStreakLoss > firm.maxDailyLoss) ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'}; padding: var(--spacing-md); border-radius: var(--radius-sm);">
                                 <div style="font-weight: 600; margin-bottom: 0.5rem;">Worst Losing Streak</div>
                                 <div style="color: var(--text-secondary);">${worstStreak} consecutive losses = ${worstStreakLoss.toFixed(2)}% loss</div>
-                                ${worstStreakLoss > firm.maxDailyLoss ? 
-                                    `<div style="color: #ef4444; margin-top: 0.5rem;">⚠️ This exceeds daily loss limit! Consider reducing risk per trade to ${(firm.maxDailyLoss / worstStreak).toFixed(2)}%</div>` :
-                                    `<div style="color: var(--accent-secondary); margin-top: 0.5rem;">✅ Within daily loss limits</div>`
+                                ${firm.maxDailyLoss === 0 ? 
+                                    `<div style="color: var(--accent-secondary); margin-top: 0.5rem;">✅ No daily loss limit - unlimited risk tolerance</div>` :
+                                    (worstStreakLoss > firm.maxDailyLoss ? 
+                                        `<div style="color: #ef4444; margin-top: 0.5rem;">⚠️ This exceeds daily loss limit! Consider reducing risk per trade to ${(firm.maxDailyLoss / worstStreak).toFixed(2)}%</div>` :
+                                        `<div style="color: var(--accent-secondary); margin-top: 0.5rem;">✅ Within daily loss limits</div>`)
                                 }
                             </div>
                             <div style="background: ${safetyMargin < 1 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'}; padding: var(--spacing-md); border-radius: var(--radius-sm);">
