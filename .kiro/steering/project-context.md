@@ -708,6 +708,56 @@ break_even_trigger = target_1R
 
 **The eventual goal is to build a system that helps grow a prop firm trading business and leverage cloud-based automation, AI and machine learning to collect data, analyze trading signals, and establish a trading edge like none that has ever existed before.**
 
+---
+
+## 🚀 **TRADOVATE REAL-TIME INTEGRATION SPEC**
+
+**Complete specification for Tradovate real-time API integration available at:**
+- **Requirements:** `.kiro/specs/tradovate-realtime-integration/requirements.md` (20 requirements)
+- **Design:** `.kiro/specs/tradovate-realtime-integration/design.md` (Complete architecture)
+- **Tasks:** `.kiro/specs/tradovate-realtime-integration/tasks.md` (44 tasks, 200+ sub-tasks)
+
+**This spec transforms the platform from semi-manual TradingView webhooks to fully autonomous live trading intelligence:**
+
+### **Key Transformation:**
+- **Current:** TradingView → Manual Validation → Signal Lab Entry → Analytics
+- **Target:** Tradovate Real-Time Data → Automated Validation → Auto Signal Lab Entry → Live Analytics
+
+### **7 Implementation Phases (28 weeks):**
+1. **Foundation (Weeks 1-4):** WebSocket client, real-time price service, event bus, live price ticker on all dashboards
+2. **Signal Automation (Weeks 5-8):** Automated signal validation, confirmation monitoring, pivot detection, auto Signal Lab entries
+3. **MFE Tracking (Weeks 9-12):** Real-time MFE tracking, stop loss monitoring, break-even detection
+4. **Paper Trading (Weeks 13-16):** Paper trading simulator, order execution, Trade Manager interface
+5. **Risk Management (Weeks 17-20):** Risk engine, prop firm rules, pre-trade checks
+6. **ML Enhancement (Weeks 21-24):** Live feature engineering, real-time predictions, regime detection
+7. **Advanced Analytics (Weeks 25-28):** Execution quality tracking, slippage analysis, comprehensive reporting
+
+### **Platform-Wide Impact:**
+All 12 dashboards enhanced with real-time data:
+- Main Dashboard: Live trades monitor, pending signals, automated entries
+- Signal Lab V2: Confirmation timeline, live pivot detection, MFE history
+- ML Dashboard: Live features, real-time predictions, regime detector
+- Time Analysis: Live session performance, intraday heatmap, volatility tracking
+- Strategy Optimizer: Live vs backtest comparison, execution quality metrics
+- Strategy Comparison: Live strategy comparison, paper trading comparison
+- AI Business Advisor: Live market insights, adaptive recommendations
+- Prop Portfolio: Live P&L, risk exposure monitor, rule compliance
+- Trade Manager: Signal execution queue, active position monitor
+- Financial Summary: Live P&L updates, commission tracking
+- Reports: Live trading reports, execution quality reports
+
+### **Core Components:**
+- Tradovate WebSocket Client (real-time tick data)
+- Real-Time Price Service (tick processing, candle building)
+- Signal Validation Engine (automated methodology validation)
+- MFE Tracking Service (real-time MFE for all trades)
+- Paper Trading Simulator (risk-free testing)
+- Risk Management Engine (prop firm rule enforcement)
+
+**Always reference these spec files when working on Tradovate integration tasks.**
+
+---
+
 ## 🎯 **CORE TRADING INDICATOR - EXACT SIGNAL LOGIC**
 
 ### **Master Indicator: Live FVG/IFVG Signal with HTF Bias + Engulfing**
