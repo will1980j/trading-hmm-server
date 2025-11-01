@@ -1272,12 +1272,12 @@
             
             // Sort based on mode
             if (anyBestOfSelected) {
-                // Already sorted by composite score
+                // Already sorted by composite score - show ALL strategies (grouped by risk level)
+                allStrategies = filteredStrategies;
             } else {
                 filteredStrategies.sort((a, b) => b.expectedReturnPercent - a.expectedReturnPercent);
+                allStrategies = filteredStrategies.slice(0, 20);  // Limit to top 20 in normal mode
             }
-            
-            allStrategies = filteredStrategies.slice(0, 20);
             allStrategySignals = allStrategies.map(s => {
                 // Use originalIndex if available (Best Of mode), otherwise find in original array
                 const originalIdx = s.originalIndex !== undefined ? s.originalIndex : strategies.indexOf(s);
