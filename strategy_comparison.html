@@ -1174,54 +1174,72 @@
                     };
                 });
                 
-                // Calculate composite score based on selected criteria
+                // Group strategies by risk level FIRST
+                const riskGroups = {};
                 strategiesWithMetrics.forEach(s => {
-                    let score = 0;
-                    let criteriaCount = 0;
-                    
-                    if (bestLowestDD) {
-                        // Lower is better - invert the score
-                        const maxDD = Math.max(...strategiesWithMetrics.map(st => st.maxDrawdownPercent));
-                        const minDD = Math.min(...strategiesWithMetrics.map(st => st.maxDrawdownPercent));
-                        score += maxDD > minDD ? (maxDD - s.maxDrawdownPercent) / (maxDD - minDD) : 1;
-                        criteriaCount++;
-                    }
-                    if (bestExpectedPercent) {
-                        const maxExp = Math.max(...strategiesWithMetrics.map(st => st.expectedReturnPercent));
-                        const minExp = Math.min(...strategiesWithMetrics.map(st => st.expectedReturnPercent));
-                        score += maxExp > minExp ? (s.expectedReturnPercent - minExp) / (maxExp - minExp) : 1;
-                        criteriaCount++;
-                    }
-                    if (bestExpectedR) {
-                        const maxExpR = Math.max(...strategiesWithMetrics.map(st => st.stats.expectedTotalReturn));
-                        const minExpR = Math.min(...strategiesWithMetrics.map(st => st.stats.expectedTotalReturn));
-                        score += maxExpR > minExpR ? (s.stats.expectedTotalReturn - minExpR) / (maxExpR - minExpR) : 1;
-                        criteriaCount++;
-                    }
-                    if (bestWinRate) {
-                        const maxWR = Math.max(...strategiesWithMetrics.map(st => st.stats.winRate));
-                        const minWR = Math.min(...strategiesWithMetrics.map(st => st.stats.winRate));
-                        score += maxWR > minWR ? (s.stats.winRate - minWR) / (maxWR - minWR) : 1;
-                        criteriaCount++;
-                    }
-                    if (bestProfitFactor) {
-                        const maxPF = Math.max(...strategiesWithMetrics.map(st => st.profitFactor));
-                        const minPF = Math.min(...strategiesWithMetrics.map(st => st.profitFactor));
-                        score += maxPF > minPF ? (s.profitFactor - minPF) / (maxPF - minPF) : 1;
-                        criteriaCount++;
-                    }
-                    if (bestExpectancy) {
-                        const maxExpcy = Math.max(...strategiesWithMetrics.map(st => st.stats.expectancy));
-                        const minExpcy = Math.min(...strategiesWithMetrics.map(st => st.stats.expectancy));
-                        score += maxExpcy > minExpcy ? (s.stats.expectancy - minExpcy) / (maxExpcy - minExpcy) : 1;
-                        criteriaCount++;
-                    }
-                    
-                    s.compositeScore = criteriaCount > 0 ? score / criteriaCount : 0;
+                    const risk = s.riskPerTrade;
+                    if (!riskGroups[risk]) riskGroups[risk] = [];
+                    riskGroups[risk].push(s);
                 });
                 
-                // Sort by composite score
-                filteredStrategies = strategiesWithMetrics.sort((a, b) => b.compositeScore - a.compositeScore);
+                // Calculate composite score WITHIN each risk group
+                Object.keys(riskGroups).forEach(risk => {
+                    const groupStrategies = riskGroups[risk];
+                    
+                    groupStrategies.forEach(s => {
+                        let score = 0;
+                        let criteriaCount = 0;
+                        
+                        if (bestLowestDD) {
+                            // Lower is better - invert the score (compare within risk group)
+                            const maxDD = Math.max(...groupStrategies.map(st => st.maxDrawdownPercent));
+                            const minDD = Math.min(...groupStrategies.map(st => st.maxDrawdownPercent));
+                            score += maxDD > minDD ? (maxDD - s.maxDrawdownPercent) / (maxDD - minDD) : 1;
+                            criteriaCount++;
+                        }
+                        if (bestExpectedPercent) {
+                            const maxExp = Math.max(...groupStrategies.map(st => st.expectedReturnPercent));
+                            const minExp = Math.min(...groupStrategies.map(st => st.expectedReturnPercent));
+                            score += maxExp > minExp ? (s.expectedReturnPercent - minExp) / (maxExp - minExp) : 1;
+                            criteriaCount++;
+                        }
+                        if (bestExpectedR) {
+                            const maxExpR = Math.max(...groupStrategies.map(st => st.stats.expectedTotalReturn));
+                            const minExpR = Math.min(...groupStrategies.map(st => st.stats.expectedTotalReturn));
+                            score += maxExpR > minExpR ? (s.stats.expectedTotalReturn - minExpR) / (maxExpR - minExpR) : 1;
+                            criteriaCount++;
+                        }
+                        if (bestWinRate) {
+                            const maxWR = Math.max(...groupStrategies.map(st => st.stats.winRate));
+                            const minWR = Math.min(...groupStrategies.map(st => st.stats.winRate));
+                            score += maxWR > minWR ? (s.stats.winRate - minWR) / (maxWR - minWR) : 1;
+                            criteriaCount++;
+                        }
+                        if (bestProfitFactor) {
+                            const maxPF = Math.max(...groupStrategies.map(st => st.profitFactor));
+                            const minPF = Math.min(...groupStrategies.map(st => st.profitFactor));
+                            score += maxPF > minPF ? (s.profitFactor - minPF) / (maxPF - minPF) : 1;
+                            criteriaCount++;
+                        }
+                        if (bestExpectancy) {
+                            const maxExpcy = Math.max(...groupStrategies.map(st => st.stats.expectancy));
+                            const minExpcy = Math.min(...groupStrategies.map(st => st.stats.expectancy));
+                            score += maxExpcy > minExpcy ? (s.stats.expectancy - minExpcy) / (maxExpcy - minExpcy) : 1;
+                            criteriaCount++;
+                        }
+                        
+                        s.compositeScore = criteriaCount > 0 ? score / criteriaCount : 0;
+                    });
+                    
+                    // Sort within each risk group
+                    riskGroups[risk] = groupStrategies.sort((a, b) => b.compositeScore - a.compositeScore);
+                });
+                
+                // Flatten back to single array (best from each risk level)
+                filteredStrategies = [];
+                Object.keys(riskGroups).sort((a, b) => parseFloat(a) - parseFloat(b)).forEach(risk => {
+                    filteredStrategies.push(...riskGroups[risk]);
+                });
                 
             } else {
                 // Normal filtering mode
