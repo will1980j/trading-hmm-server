@@ -1174,9 +1174,21 @@
                     };
                 });
                 
-                // Group strategies by risk level FIRST
+                // Apply prop firm viable filtering FIRST if enabled
+                const onlyPropViable = document.getElementById('onlyPropViable').checked;
+                let viableStrategies = strategiesWithMetrics;
+                
+                if (onlyPropViable) {
+                    viableStrategies = strategiesWithMetrics.filter(s => 
+                        s.maxDailyLossPercent <= maxDailyLoss && 
+                        s.maxDrawdownPercent <= maxDrawdown && 
+                        s.stats.winRate >= minWinRate
+                    );
+                }
+                
+                // Group strategies by risk level
                 const riskGroups = {};
-                strategiesWithMetrics.forEach(s => {
+                viableStrategies.forEach(s => {
                     const risk = s.riskPerTrade;
                     if (!riskGroups[risk]) riskGroups[risk] = [];
                     riskGroups[risk].push(s);
@@ -1231,11 +1243,11 @@
                         s.compositeScore = criteriaCount > 0 ? score / criteriaCount : 0;
                     });
                     
-                    // Sort within each risk group
-                    riskGroups[risk] = groupStrategies.sort((a, b) => b.compositeScore - a.compositeScore);
+                    // Sort within each risk group and take top 5
+                    riskGroups[risk] = groupStrategies.sort((a, b) => b.compositeScore - a.compositeScore).slice(0, 5);
                 });
                 
-                // Flatten back to single array (best from each risk level)
+                // Flatten back to single array (top 5 from each risk level)
                 filteredStrategies = [];
                 Object.keys(riskGroups).sort((a, b) => parseFloat(a) - parseFloat(b)).forEach(risk => {
                     filteredStrategies.push(...riskGroups[risk]);
