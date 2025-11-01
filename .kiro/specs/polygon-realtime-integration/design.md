@@ -1,4 +1,4 @@
-# Tradovate Real-Time API Integration - Design Document
+# Polygon/Massive Real-Time Futures Data Integration - Design Document
 
 ## Overview
 
@@ -12,13 +12,13 @@ This design transforms the NASDAQ Day Trading Analytics Platform from a semi-man
 
 **Backward Compatibility**: Maintain existing TradingView webhook functionality during transition, allowing parallel operation and gradual migration.
 
-**Paper Trading First**: All order execution features start with simulation mode, building confidence before live trading.
+**Data-Only Integration**: Focus on real-time market data streaming for signal validation and MFE tracking. Order execution remains with existing broker infrastructure.
 
 ### Transformation Impact
 
 **Current State**: TradingView → Webhook → Manual Validation → Signal Lab Entry → Analytics
 
-**Target State**: Tradovate Real-Time Data → Automated Validation → Auto Signal Lab Entry → Live Analytics → Optional Paper Trading
+**Target State**: Polygon/Massive Real-Time Data → Automated Validation → Auto Signal Lab Entry → Live Analytics → Paper Trading Simulation
 
 ---
 
@@ -41,7 +41,7 @@ This design transforms the NASDAQ Day Trading Analytics Platform from a semi-man
                               ↕
 ┌─────────────────────────────────────────────────────────────────┐
 │                    INTEGRATION LAYER                            │
-│  • Tradovate WebSocket Client  • Tradovate REST API Client     │
+│  • Polygon WebSocket Client    • Polygon REST API Client       │
 │  • TradingView Webhook Handler • Event Processing Pipeline     │
 └─────────────────────────────────────────────────────────────────┘
                               ↕
@@ -66,22 +66,22 @@ This design transforms the NASDAQ Day Trading Analytics Platform from a semi-man
 
 ## Components and Interfaces
 
-### 1. Tradovate WebSocket Client
+### 1. Polygon WebSocket Client
 
-**Purpose**: Maintain persistent connection to Tradovate for real-time market data streaming.
+**Purpose**: Maintain persistent connection to Polygon.io for real-time futures market data streaming.
 
 **Responsibilities**:
 - Establish and maintain WebSocket connection with auto-reconnect
-- Subscribe to NQ futures tick data stream
+- Subscribe to NQ futures tick data stream (symbol: NQZ23 or current contract)
 - Parse incoming tick data and emit events
 - Handle connection errors and implement exponential backoff
 - Monitor connection health and latency
 
 **Key Interfaces**:
 ```python
-class TradovateWebSocketClient:
-    def connect(api_key: str, environment: str) -> bool
-    def subscribe_market_data(symbol: str) -> bool
+class PolygonWebSocketClient:
+    def connect(api_key: str) -> bool
+    def subscribe_futures(symbol: str) -> bool  # e.g., "X:NQZ23"
     def on_tick(callback: Callable[[TickData], None])
     def on_connection_status(callback: Callable[[ConnectionStatus], None])
     def disconnect() -> None

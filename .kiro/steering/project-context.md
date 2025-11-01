@@ -710,18 +710,18 @@ break_even_trigger = target_1R
 
 ---
 
-## 🚀 **TRADOVATE REAL-TIME INTEGRATION SPEC**
+## 🚀 **POLYGON/MASSIVE REAL-TIME FUTURES DATA INTEGRATION SPEC**
 
-**Complete specification for Tradovate real-time API integration available at:**
-- **Requirements:** `.kiro/specs/tradovate-realtime-integration/requirements.md` (20 requirements)
-- **Design:** `.kiro/specs/tradovate-realtime-integration/design.md` (Complete architecture)
-- **Tasks:** `.kiro/specs/tradovate-realtime-integration/tasks.md` (44 tasks, 200+ sub-tasks)
+**Complete specification for Polygon/Massive real-time futures data integration available at:**
+- **Requirements:** `.kiro/specs/polygon-realtime-integration/requirements.md` (20 requirements)
+- **Design:** `.kiro/specs/polygon-realtime-integration/design.md` (Complete architecture)
+- **Tasks:** `.kiro/specs/polygon-realtime-integration/tasks.md` (44 tasks, 200+ sub-tasks)
 
 **This spec transforms the platform from semi-manual TradingView webhooks to fully autonomous live trading intelligence:**
 
 ### **Key Transformation:**
 - **Current:** TradingView → Manual Validation → Signal Lab Entry → Analytics
-- **Target:** Tradovate Real-Time Data → Automated Validation → Auto Signal Lab Entry → Live Analytics
+- **Target:** Polygon/Massive Real-Time Data → Automated Validation → Auto Signal Lab Entry → Live Analytics
 
 ### **7 Implementation Phases (28 weeks):**
 1. **Foundation (Weeks 1-4):** WebSocket client, real-time price service, event bus, live price ticker on all dashboards
@@ -747,14 +747,14 @@ All 12 dashboards enhanced with real-time data:
 - Reports: Live trading reports, execution quality reports
 
 ### **Core Components:**
-- Tradovate WebSocket Client (real-time tick data)
+- Polygon/Massive WebSocket Client (real-time tick data for futures)
 - Real-Time Price Service (tick processing, candle building)
 - Signal Validation Engine (automated methodology validation)
 - MFE Tracking Service (real-time MFE for all trades)
 - Paper Trading Simulator (risk-free testing)
 - Risk Management Engine (prop firm rule enforcement)
 
-**Always reference these spec files when working on Tradovate integration tasks.**
+**Always reference these spec files when working on Polygon/Massive integration tasks.**
 
 ---
 

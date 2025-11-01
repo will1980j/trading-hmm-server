@@ -1,12 +1,13 @@
-# Tradovate Real-Time API Integration - Requirements Document
+# Polygon/Massive Real-Time Futures Data Integration - Requirements Document
 
 ## Introduction
 
-This specification outlines the comprehensive integration of Tradovate's real-time streaming API into the NASDAQ Day Trading Analytics Platform. Tradovate provides direct market access with real-time tick-by-tick data, order execution capabilities, and account management - transforming the platform from a historical analysis tool into a live trading intelligence system.
+This specification outlines the comprehensive integration of Polygon.io and Massive real-time futures data streaming into the NASDAQ Day Trading Analytics Platform. Polygon/Massive provides institutional-grade real-time tick-by-tick data for futures contracts, transforming the platform from a historical analysis tool into a live trading intelligence system with professional-grade market data.
 
 ## Glossary
 
-- **Tradovate API**: Real-time futures trading API providing market data, order execution, and account management
+- **Polygon API**: Real-time market data API providing tick-by-tick futures data, aggregates, and market snapshots
+- **Massive Data**: High-frequency futures market data provider with sub-millisecond latency
 - **Market Data Stream**: Real-time tick-by-tick price updates for futures contracts
 - **Order Book**: Live bid/ask depth data showing market liquidity
 - **WebSocket Connection**: Persistent connection for streaming real-time data
@@ -31,7 +32,7 @@ This specification outlines the comprehensive integration of Tradovate's real-ti
 
 #### Acceptance Criteria
 
-1. WHEN the Tradovate API connection is established, THE System SHALL stream tick-by-tick price data for NQ futures with sub-100ms latency
+1. WHEN the Polygon/Massive API connection is established, THE System SHALL stream tick-by-tick price data for NQ futures with sub-100ms latency
 2. WHEN a new tick arrives, THE System SHALL store timestamp, price, volume, bid, ask, and trade direction in the database
 3. WHEN the connection drops, THE System SHALL automatically reconnect and resume streaming within 5 seconds
 4. WHEN multiple instruments are subscribed, THE System SHALL handle concurrent data streams without data loss
@@ -88,7 +89,7 @@ This specification outlines the comprehensive integration of Tradovate's real-ti
 #### Acceptance Criteria
 
 1. WHEN a validated signal is confirmed, THE System SHALL provide one-click order placement capability
-2. WHEN an order is placed, THE System SHALL submit market or limit orders to Tradovate API within 500ms
+2. WHEN an order is placed, THE System SHALL submit market or limit orders to broker API within 500ms (data-only integration - execution via existing broker)
 3. IF order is filled, THEN THE System SHALL receive fill confirmation with exact price and timestamp
 4. WHEN an order is rejected, THE System SHALL display rejection reason and log the event
 5. WHERE bracket orders are supported, THE System SHALL place entry, stop loss, and target orders simultaneously
@@ -283,7 +284,7 @@ This specification outlines the comprehensive integration of Tradovate's real-ti
 
 #### Acceptance Criteria
 
-1. WHEN data arrives from Tradovate, THE System SHALL measure and log end-to-end latency
+1. WHEN data arrives from Polygon/Massive, THE System SHALL measure and log end-to-end latency
 2. WHEN latency exceeds 100ms, THE System SHALL alert and investigate cause
 3. IF order execution is slow, THEN THE System SHALL identify bottleneck (network, processing, API)
 4. WHEN comparing to benchmarks, THE System SHALL show latency percentiles (p50, p95, p99)
@@ -397,8 +398,9 @@ This specification outlines the comprehensive integration of Tradovate's real-ti
 - Data retention policies
 
 ### Integration Points
-- Tradovate WebSocket API for market data
-- Tradovate REST API for order execution
+- Polygon.io WebSocket API for real-time futures data
+- Polygon.io REST API for historical data and aggregates
+- Massive data feed for ultra-low latency tick data (optional upgrade)
 - Existing TradingView webhook system
 - Current database schema extensions
 - Frontend dashboard updates

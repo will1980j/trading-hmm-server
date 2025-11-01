@@ -1343,12 +1343,12 @@
                 
                 // Display each risk group
                 sortedRisks.forEach(risk => {
-                    const groupStrategies = riskGroups[risk].slice(0, 3); // Top 3 per risk level
+                    const groupStrategies = riskGroups[risk]; // Show ALL strategies at this risk level
                     
                     html += `<div style="margin-bottom: var(--spacing-xl);">`;
                     html += `<div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1)); border: 2px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-md); padding: var(--spacing-md); margin-bottom: var(--spacing-md);">`;
                     html += `<h3 style="margin: 0; color: var(--accent-secondary); font-size: 1.25rem;">💰 Risk Per Trade: ${risk}%</h3>`;
-                    html += `<p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">Top ${groupStrategies.length} strategies at this risk level</p>`;
+                    html += `<p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">${groupStrategies.length} strategies at this risk level</p>`;
                     html += `</div>`;
                     
                     html += '<table class="risk-group-table"><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th class="sortable" data-sort="expectancy">Expectancy</th><th class="sortable" data-sort="profitFactor">Profit Factor</th><th class="sortable" data-sort="avgTrade">Avg Trade</th><th class="sortable" data-sort="winRate">Win Rate</th><th class="sortable" data-sort="breakevenRate">BE Rate</th><th class="sortable" data-sort="trades">Trades</th><th class="sortable" data-sort="expectedR">Expected R</th><th class="sortable" data-sort="expectedPercent">Expected %</th><th class="sortable" data-sort="maxDailyLoss">Max Daily Loss</th><th class="sortable" data-sort="maxDD">Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';

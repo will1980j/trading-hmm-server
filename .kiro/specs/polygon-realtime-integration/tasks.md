@@ -1,26 +1,26 @@
-# Tradovate Real-Time API Integration - Implementation Tasks
+# Polygon/Massive Real-Time Futures Data Integration - Implementation Tasks
 
 ## Overview
 
-This implementation plan breaks down the Tradovate integration into discrete, manageable coding tasks. Each task builds incrementally on previous work, with clear objectives and requirements references. The plan follows a 7-phase approach over approximately 28 weeks, with each phase delivering working, testable functionality.
+This implementation plan breaks down the Polygon/Massive integration into discrete, manageable coding tasks. Each task builds incrementally on previous work, with clear objectives and requirements references. The plan follows a 7-phase approach over approximately 28 weeks, with each phase delivering working, testable functionality.
 
 **Key Principles:**
 - Each task is independently testable
 - Tasks build on each other incrementally
 - All code must work on Railway cloud infrastructure
-- Paper trading before live trading
+- Data-only integration (no order execution)
 - Parallel operation with existing systems during transition
 
 ---
 
 ## Phase 1: Foundation - Real-Time Data Infrastructure (Weeks 1-4)
 
-### 1. Set Up Tradovate API Integration
+### 1. Set Up Polygon API Integration
 
-- [ ] 1.1 Create Tradovate API client module with authentication
-  - Implement OAuth2 authentication flow for Tradovate API
+- [ ] 1.1 Create Polygon API client module with authentication
+  - Implement API key authentication for Polygon.io
   - Store API credentials in Railway environment variables
-  - Create connection manager with demo/live environment support
+  - Create connection manager for WebSocket and REST APIs
   - Add credential validation and error handling
   - _Requirements: 1.1, 1.3_
 
@@ -33,8 +33,8 @@ This implementation plan breaks down the Tradovate integration into discrete, ma
   - _Requirements: 1.1, 1.3, 19.1_
 
 - [ ] 1.3 Subscribe to NQ futures market data stream
-  - Implement market data subscription protocol
-  - Parse incoming tick data messages
+  - Implement Polygon futures subscription (symbol format: "X:NQZ23")
+  - Parse incoming tick data messages (trades, quotes, aggregates)
   - Validate data format and handle malformed messages
   - Emit tick events to event bus
   - _Requirements: 1.1, 1.2_
@@ -51,7 +51,7 @@ This implementation plan breaks down the Tradovate integration into discrete, ma
 ### 2. Build Real-Time Price Service
 
 - [ ] 2.1 Create tick data storage system
-  - Create `tradovate_tick_data` database table
+  - Create `polygon_tick_data` database table
   - Implement batch insert for tick data (1-second batches)
   - Add database indexes for efficient querying
   - Implement data retention policy (archive old ticks)
