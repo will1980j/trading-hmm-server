@@ -2909,6 +2909,31 @@
                 riskInput.value = strategy.riskPerTrade;
             }
             
+            // Reset results when parameters change
+            const resetMonteCarloResults = () => {
+                const resultsContainer = document.getElementById('monteCarloResults');
+                if (resultsContainer) {
+                    resultsContainer.style.display = 'none';
+                }
+            };
+            
+            // Attach change listeners to all parameter controls
+            const paramControls = [
+                'mcNumSims',
+                'mcNumTrades',
+                'mcCapital',
+                'mcRisk',
+                'mcShowBands'
+            ];
+            
+            paramControls.forEach(controlId => {
+                const control = document.getElementById(controlId);
+                if (control) {
+                    control.addEventListener('change', resetMonteCarloResults);
+                    control.addEventListener('input', resetMonteCarloResults);
+                }
+            });
+            
             runBtn.addEventListener('click', () => {
                 runMonteCarloAnalysis(strategy, winRate, results);
             });
@@ -3215,51 +3240,13 @@
                 .attr('fill', '#94a3b8')
                 .style('font-size', '11px')
                 .text('Account Equity ($)');
-            
-            // Old histogram code removed
-            const finalEquities = results.map(r => r.finalEquity);
-            const maxDrawdowns = results.map(r => r.maxDrawdown);
-            const lossStreaks = results.map(r => r.maxConsecutiveLosses);
-            
-            const profitableRuns = finalEquities.filter(e => e > 0).length;
-            const profitablePercent = (profitableRuns / results.length) * 100;
-            
-            const avgFinalEquity = finalEquities.reduce((a, b) => a + b, 0) / finalEquities.length;
-            const avgMaxDrawdown = maxDrawdowns.reduce((a, b) => a + b, 0) / maxDrawdowns.length;
-            const avgMaxLossStreak = lossStreaks.reduce((a, b) => a + b, 0) / lossStreaks.length;
-            
-            // Histograms replaced with D3.js equity curve visualization above
-            const summaryContainer = document.getElementById('simulationSummary');
-            summaryContainer.innerHTML = `
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
-                    <div style="text-align: center;">
-                        <div style="font-size: 24px; font-weight: 700; color: #00ff88;">${profitablePercent.toFixed(1)}%</div>
-                        <div style="font-size: 12px; color: var(--text-secondary);">Profitable Runs</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 24px; font-weight: 700; color: var(--text-primary);">${avgFinalEquity.toFixed(1)}R</div>
-                        <div style="font-size: 12px; color: var(--text-secondary);">Avg Final Equity</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 24px; font-weight: 700; color: #ef4444;">${avgMaxDrawdown.toFixed(1)}R</div>
-                        <div style="font-size: 12px; color: var(--text-secondary);">Avg Max Drawdown</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 24px; font-weight: 700; color: #f59e0b;">${avgMaxLossStreak.toFixed(1)}</div>
-                        <div style="font-size: 12px; color: var(--text-secondary);">Avg Max Loss Streak</div>
-                    </div>
-                </div>
-                <div style="font-size: 14px; color: var(--text-primary); text-align: center;">
-                    <strong>Monte Carlo Insight:</strong> 
-                    ${profitablePercent > 80 ? 
-                        `Excellent strategy - ${profitablePercent.toFixed(0)}% of simulations were profitable` :
-                      profitablePercent > 60 ?
-                        `Good strategy - ${profitablePercent.toFixed(0)}% success rate with manageable risk` :
-                      profitablePercent > 40 ?
-                        `Marginal strategy - Only ${profitablePercent.toFixed(0)}% success rate, use conservative sizing` :
-                        `Poor strategy - Only ${profitablePercent.toFixed(0)}% of simulations were profitable`}
-                </div>
-            `;
+        }
+        
+        function calculateMaxConsecLosses(winRate, confidence) {
+            // Calculate maximum consecutive losses for given confidence level
+            // Using geometric distribution
+            const p = 1 - winRate;
+            return Math.ceil(Math.log(1 - confidence) / Math.log(p));
         }
         
         function createHistogram(canvasId, data, title, color) {
