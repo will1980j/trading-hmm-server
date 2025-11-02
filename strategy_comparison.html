@@ -367,6 +367,10 @@
                         <input type="checkbox" id="bestExpectancy">
                         <span>Highest Expectancy</span>
                     </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="bestSmoothestCurve">
+                        <span>Smoothest Equity Curve</span>
+                    </label>
                 </div>
             </div>
             <div style="text-align: center; margin-top: var(--spacing-lg); display: flex; gap: var(--spacing-md); justify-content: center; flex-wrap: wrap;">
@@ -745,6 +749,116 @@
             return { expectancy, avgTrade, winRate, breakevenRate, totalR, maxConsecLosses, maxDrawdown, total, expectedTotalReturn };
         }
         
+        function calculateRSquared(equityCurve) {
+            const n = equityCurve.length;
+            if (n < 2) return 0;
+            
+            // Linear regression
+            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+            for (let i = 0; i < n; i++) {
+                sumX += i;
+                sumY += equityCurve[i];
+                sumXY += i * equityCurve[i];
+                sumX2 += i * i;
+                sumY2 += equityCurve[i] * equityCurve[i];
+            }
+            
+            const numerator = (n * sumXY - sumX * sumY);
+            const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+            if (denominator === 0) return 0;
+            
+            const r = numerator / denominator;
+            return r * r; // R-squared
+        }
+        
+        function calculateEquityCurveSmoothness(tradeResults) {
+            // Build cumulative equity curve
+            let equity = 0;
+            const equityCurve = [];
+            let peak = 0;
+            let maxDrawdown = 0;
+            let drawdownStart = null;
+            let maxDrawdownDuration = 0;
+            
+            // Streak tracking
+            let currentStreak = 0;
+            let lastWasWin = null;
+            let maxWinStreak = 0;
+            let maxLossStreak = 0;
+            
+            tradeResults.forEach((result, i) => {
+                equity += result;
+                equityCurve.push(equity);
+                
+                // Track drawdown and duration
+                if (equity > peak) {
+                    peak = equity;
+                    if (drawdownStart !== null) {
+                        const currentDrawdownDuration = i - drawdownStart;
+                        if (currentDrawdownDuration > maxDrawdownDuration) {
+                            maxDrawdownDuration = currentDrawdownDuration;
+                        }
+                        drawdownStart = null;
+                    }
+                } else {
+                    if (drawdownStart === null) drawdownStart = i;
+                    const drawdown = peak - equity;
+                    if (drawdown > maxDrawdown) maxDrawdown = drawdown;
+                }
+                
+                // Track win/loss streaks
+                const isWin = result > 0;
+                if (lastWasWin === null || lastWasWin === isWin) {
+                    currentStreak++;
+                } else {
+                    if (lastWasWin) {
+                        maxWinStreak = Math.max(maxWinStreak, currentStreak);
+                    } else {
+                        maxLossStreak = Math.max(maxLossStreak, currentStreak);
+                    }
+                    currentStreak = 1;
+                }
+                lastWasWin = isWin;
+            });
+            
+            // Final streak check
+            if (lastWasWin) {
+                maxWinStreak = Math.max(maxWinStreak, currentStreak);
+            } else {
+                maxLossStreak = Math.max(maxLossStreak, currentStreak);
+            }
+            
+            // R-Squared (linearity of equity curve)
+            const rSquared = calculateRSquared(equityCurve);
+            
+            // Recovery Factor
+            const recoveryFactor = maxDrawdown > 0 ? equity / maxDrawdown : 999;
+            
+            // Streak Balance (lower loss streaks = better)
+            const streakScore = maxLossStreak > 0 ? Math.min(maxWinStreak / maxLossStreak, 3) / 3 : 1;
+            
+            // Drawdown Duration Score (shorter = better)
+            const avgTradesPerDay = tradeResults.length / 30; // Assume 30 days
+            const durationScore = Math.max(0, 1 - (maxDrawdownDuration / (avgTradesPerDay * 5))); // 5 days max acceptable
+            
+            // Composite Smoothness Score (0-100) - SCALPING FOCUSED
+            const smoothnessScore = (
+                (rSquared * 50) +                              // 50% weight on linearity (most important)
+                (Math.min(recoveryFactor / 5, 1) * 25) +      // 25% weight on recovery
+                (streakScore * 15) +                           // 15% weight on streak balance
+                (durationScore * 10)                           // 10% weight on quick recovery
+            );
+            
+            return {
+                smoothnessScore: Math.round(smoothnessScore),
+                rSquared: rSquared.toFixed(3),
+                recoveryFactor: recoveryFactor.toFixed(2),
+                maxConsecutiveLosses: maxLossStreak,
+                maxDrawdownDuration: maxDrawdownDuration,
+                maxDrawdown: maxDrawdown.toFixed(2)
+            };
+        }
+        
         async function runPropFirmOptimizer() {
             // Get selected prop firms
             const selectedFirms = [];
@@ -957,7 +1071,8 @@
             const bestWinRate = document.getElementById('bestWinRate').checked;
             const bestProfitFactor = document.getElementById('bestProfitFactor').checked;
             const bestExpectancy = document.getElementById('bestExpectancy').checked;
-            const anyBestOfSelected = bestLowestDD || bestExpectedPercent || bestExpectedR || bestWinRate || bestProfitFactor || bestExpectancy;
+            const bestSmoothestCurve = document.getElementById('bestSmoothestCurve').checked;
+            const anyBestOfSelected = bestLowestDD || bestExpectedPercent || bestExpectedR || bestWinRate || bestProfitFactor || bestExpectancy || bestSmoothestCurve;
             
             // If Best of All Time mode, use multiple risk percentages; otherwise use selected value
             const riskPerTradeValues = anyBestOfSelected 
@@ -1028,11 +1143,12 @@
                                 if (sessionSignals.length < 30) return;
                                 const results = sessionSignals.map(s => calculateTradeResult(s, beStrategy, rTarget, feeR));
                                 const stats = calculateStats(results);
+                                const smoothness = calculateEquityCurveSmoothness(results);
                                 const expectedReturnPercent = stats.expectedTotalReturn * riskPerTrade;
                                 const maxDrawdownPercent = stats.maxDrawdown * riskPerTrade;
                                 if (stats.expectancy > 0 && maxDrawdownPercent <= maxDrawdown) {
                                     strategies.push({
-                                        sessions: [session], beStrategy, rTarget, riskPerTrade, timeFilter, stats, expectedReturnPercent,
+                                        sessions: [session], beStrategy, rTarget, riskPerTrade, timeFilter, stats, smoothness, expectedReturnPercent,
                                         maxDailyLossPercent: stats.maxConsecLosses * riskPerTrade,
                                         maxDrawdownPercent
                                     });
@@ -1074,11 +1190,12 @@
                                 if (combinedSignals.length < 50) continue;
                                 const results = combinedSignals.map(s => calculateTradeResult(s, beStrategy, rTarget, feeR));
                                 const stats = calculateStats(results);
+                                const smoothness = calculateEquityCurveSmoothness(results);
                                 const expectedReturnPercent = stats.expectedTotalReturn * riskPerTrade;
                                 const maxDrawdownPercent = stats.maxDrawdown * riskPerTrade;
                                 if (stats.expectancy > 0 && maxDrawdownPercent <= maxDrawdown) {
                                     strategies.push({
-                                        sessions: sessionCombo, beStrategy, rTarget, riskPerTrade, timeFilter, stats, expectedReturnPercent,
+                                        sessions: sessionCombo, beStrategy, rTarget, riskPerTrade, timeFilter, stats, smoothness, expectedReturnPercent,
                                         maxDailyLossPercent: stats.maxConsecLosses * riskPerTrade,
                                         maxDrawdownPercent
                                     });
@@ -1239,6 +1356,12 @@
                             score += maxExpcy > minExpcy ? (s.stats.expectancy - minExpcy) / (maxExpcy - minExpcy) : 1;
                             criteriaCount++;
                         }
+                        if (bestSmoothestCurve) {
+                            const maxSmooth = Math.max(...groupStrategies.map(st => st.smoothness ? st.smoothness.smoothnessScore : 0));
+                            const minSmooth = Math.min(...groupStrategies.map(st => st.smoothness ? st.smoothness.smoothnessScore : 0));
+                            score += maxSmooth > minSmooth ? ((s.smoothness ? s.smoothness.smoothnessScore : 0) - minSmooth) / (maxSmooth - minSmooth) : 1;
+                            criteriaCount++;
+                        }
                         
                         s.compositeScore = criteriaCount > 0 ? score / criteriaCount : 0;
                     });
@@ -1333,6 +1456,7 @@
                 <td style="color: #00ff88; font-weight: 700;">${s.expectedReturnPercent > 0 ? '+' : ''}${s.expectedReturnPercent.toFixed(2)}%</td>
                 <td style="background: ${(maxDailyLoss > 0 && s.maxDailyLossPercent > maxDailyLoss) ? '#ff4444' : '#22c55e'}; color: white; font-weight: 600;">${s.maxDailyLossPercent.toFixed(1)}%</td>
                 <td style="background: ${ddColor}; font-weight: 600;">${s.maxDrawdownPercent.toFixed(1)}%</td>
+                <td style="font-weight: 600; color: ${s.smoothness && s.smoothness.smoothnessScore >= 75 ? '#00ff88' : s.smoothness && s.smoothness.smoothnessScore >= 60 ? '#f59e0b' : '#ff4444'};" title="R²: ${s.smoothness ? s.smoothness.rSquared : 'N/A'} | Recovery: ${s.smoothness ? s.smoothness.recoveryFactor : 'N/A'} | Max Loss Streak: ${s.smoothness ? s.smoothness.maxConsecutiveLosses : 'N/A'}">${s.smoothness ? s.smoothness.smoothnessScore : 'N/A'}</td>
                 <td style="text-align: center; font-size: 18px;">${propIcon}</td>
                 <td><button onclick="showStrategyDetails(${dataIndex})" class="view-btn">📊 View</button></td>
             </tr>`;
@@ -1351,7 +1475,8 @@
             const bestWinRate = document.getElementById('bestWinRate').checked;
             const bestProfitFactor = document.getElementById('bestProfitFactor').checked;
             const bestExpectancy = document.getElementById('bestExpectancy').checked;
-            const anyBestOfSelected = bestLowestDD || bestExpectedPercent || bestExpectedR || bestWinRate || bestProfitFactor || bestExpectancy;
+            const bestSmoothestCurve = document.getElementById('bestSmoothestCurve').checked;
+            const anyBestOfSelected = bestLowestDD || bestExpectedPercent || bestExpectedR || bestWinRate || bestProfitFactor || bestExpectancy || bestSmoothestCurve;
             
             const beText = { 'none': 'No BE', 'be1': 'BE=1R' };
             const maxDailyLoss = parseFloat(document.getElementById('maxDailyLoss')?.value || 5);
@@ -1381,7 +1506,7 @@
                     html += `<p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">${groupStrategies.length} strategies at this risk level</p>`;
                     html += `</div>`;
                     
-                    html += '<table class="risk-group-table"><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th class="sortable" data-sort="expectancy">Expectancy</th><th class="sortable" data-sort="profitFactor">Profit Factor</th><th class="sortable" data-sort="avgTrade">Avg Trade</th><th class="sortable" data-sort="winRate">Win Rate</th><th class="sortable" data-sort="breakevenRate">BE Rate</th><th class="sortable" data-sort="trades">Trades</th><th class="sortable" data-sort="expectedR">Expected R</th><th class="sortable" data-sort="expectedPercent">Expected %</th><th class="sortable" data-sort="maxDailyLoss">Max Daily Loss</th><th class="sortable" data-sort="maxDD">Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
+                    html += '<table class="risk-group-table"><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th class="sortable" data-sort="expectancy">Expectancy</th><th class="sortable" data-sort="profitFactor">Profit Factor</th><th class="sortable" data-sort="avgTrade">Avg Trade</th><th class="sortable" data-sort="winRate">Win Rate</th><th class="sortable" data-sort="breakevenRate">BE Rate</th><th class="sortable" data-sort="trades">Trades</th><th class="sortable" data-sort="expectedR">Expected R</th><th class="sortable" data-sort="expectedPercent">Expected %</th><th class="sortable" data-sort="maxDailyLoss">Max Daily Loss</th><th class="sortable" data-sort="maxDD">Max DD</th><th class="sortable" data-sort="smoothness">Smoothness</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
                     
                     const minWinRate = parseFloat(document.getElementById('minWinRate')?.value || 20);
                     const maxDrawdown = parseFloat(document.getElementById('maxDrawdown')?.value || 10);
@@ -1398,7 +1523,7 @@
                 const minWinRate = parseFloat(document.getElementById('minWinRate')?.value || 20);
                 const maxDrawdown = parseFloat(document.getElementById('maxDrawdown')?.value || 10);
                 
-                html += '<table id="strategyTable"><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th class="sortable" data-sort="expectancy">Expectancy</th><th class="sortable" data-sort="profitFactor">Profit Factor</th><th class="sortable" data-sort="avgTrade">Avg Trade</th><th class="sortable" data-sort="winRate">Win Rate</th><th class="sortable" data-sort="breakevenRate">BE Rate</th><th class="sortable" data-sort="trades">Trades</th><th class="sortable" data-sort="expectedR">Expected R</th><th class="sortable" data-sort="expectedPercent">Expected %</th><th class="sortable" data-sort="maxDailyLoss">Max Daily Loss</th><th class="sortable" data-sort="maxDD">Max DD</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
+                html += '<table id="strategyTable"><thead><tr><th>Rank</th><th>Sessions</th><th>Time Filter</th><th>BE</th><th>R-Target</th><th class="sortable" data-sort="expectancy">Expectancy</th><th class="sortable" data-sort="profitFactor">Profit Factor</th><th class="sortable" data-sort="avgTrade">Avg Trade</th><th class="sortable" data-sort="winRate">Win Rate</th><th class="sortable" data-sort="breakevenRate">BE Rate</th><th class="sortable" data-sort="trades">Trades</th><th class="sortable" data-sort="expectedR">Expected R</th><th class="sortable" data-sort="expectedPercent">Expected %</th><th class="sortable" data-sort="maxDailyLoss">Max Daily Loss</th><th class="sortable" data-sort="maxDD">Max DD</th><th class="sortable" data-sort="smoothness">Smoothness</th><th>Prop Viable</th><th>Details</th></tr></thead><tbody>';
                 
                 strategies.forEach((s, i) => {
                     html += generateStrategyRow(s, i, i, beText, maxDailyLoss, maxDrawdown, minWinRate);
@@ -1686,7 +1811,45 @@
                         <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Trades</div>
                         <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-primary); margin-top: var(--spacing-xs);">${strategy.stats.total}</div>
                     </div>
+                    <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Smoothness</div>
+                        <div style="font-size: 1.75rem; font-weight: 700; color: ${strategy.smoothness && strategy.smoothness.smoothnessScore >= 75 ? '#00ff88' : strategy.smoothness && strategy.smoothness.smoothnessScore >= 60 ? '#f59e0b' : '#ef4444'}; margin-top: var(--spacing-xs);">${strategy.smoothness ? strategy.smoothness.smoothnessScore : 'N/A'}</div>
+                    </div>
                 </div>
+                ${strategy.smoothness ? `<div style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-md); padding: var(--spacing-lg); margin-bottom: var(--spacing-lg);">
+                    <h3 style="color: var(--accent-primary); margin: 0 0 var(--spacing-md) 0; font-size: 1.1rem; font-weight: 700;">📊 Equity Curve Quality (Scalping-Focused)</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md);">
+                        <div>
+                            <div style="font-size: 0.875rem; color: var(--text-secondary);">R-Squared (Linearity)</div>
+                            <div style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">${strategy.smoothness.rSquared}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">0.95+ = very smooth</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.875rem; color: var(--text-secondary);">Recovery Factor</div>
+                            <div style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">${strategy.smoothness.recoveryFactor}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">Total R / Max DD</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.875rem; color: var(--text-secondary);">Max Consecutive Losses</div>
+                            <div style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">${strategy.smoothness.maxConsecutiveLosses}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">Lower = better psychology</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.875rem; color: var(--text-secondary);">Max Drawdown Duration</div>
+                            <div style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">${strategy.smoothness.maxDrawdownDuration} trades</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">Shorter = faster recovery</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: var(--spacing-md); padding: var(--spacing-md); background: rgba(59, 130, 246, 0.05); border-radius: var(--radius-sm);">
+                        <div style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">
+                            <strong style="color: var(--accent-primary);">Smoothness Score Breakdown:</strong><br>
+                            • 90-100: Exceptionally smooth (institutional quality)<br>
+                            • 75-89: Very smooth (prop firm ready)<br>
+                            • 60-74: Acceptable (tradeable but bumpy)<br>
+                            • Below 60: Rough ride (psychological challenge)
+                        </div>
+                    </div>
+                </div>` : ''}
                 <div style="display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); border-bottom: 2px solid var(--border-color);">
                     <button class="modal-tab active" data-tab="propeval" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">🎯 Prop Firm Eval</button>
                     <button class="modal-tab" data-tab="equity" style="padding: var(--spacing-md) var(--spacing-lg); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent;">📈 Equity</button>
