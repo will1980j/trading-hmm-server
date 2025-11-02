@@ -2279,32 +2279,61 @@
                             </h4>
                         </div>
                         <div class="monte-carlo-container" style="background: var(--bg-tertiary); border-radius: 8px; padding: 12px; border: 1px solid var(--border-color);">
+                            
+                            <!-- Options Panel -->
+                            <div style="background: rgba(59, 130, 246, 0.05); border-radius: 8px; padding: 12px; margin-bottom: 12px; border: 1px solid rgba(59, 130, 246, 0.2);">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                                    <div>
+                                        <label style="font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; display: block;">Simulations</label>
+                                        <select id="mcNumSims" style="width: 100%; padding: 5px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 11px;">
+                                            <option value="100">100</option>
+                                            <option value="500">500</option>
+                                            <option value="1000" selected>1,000</option>
+                                            <option value="5000">5,000</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; display: block;">Trades</label>
+                                        <select id="mcNumTrades" style="width: 100%; padding: 5px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 11px;">
+                                            <option value="actual">Actual</option>
+                                            <option value="100">100</option>
+                                            <option value="250" selected>250</option>
+                                            <option value="500">500</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; display: block;">Capital ($)</label>
+                                        <input type="number" id="mcCapital" value="100000" min="1000" step="1000" style="width: 100%; padding: 5px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 11px;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; display: block;">Risk (%)</label>
+                                        <input type="number" id="mcRisk" value="1" min="0.1" max="5" step="0.1" style="width: 100%; padding: 5px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 11px;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; display: block;">Display</label>
+                                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding-top: 2px;">
+                                            <input type="checkbox" id="mcShowBands" checked style="accent-color: var(--accent-primary);">
+                                            <span style="font-size: 10px; color: var(--text-primary);">Percentiles</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
                                 <button id="runMonteCarloBtn" class="btn-primary" style="padding: 10px 20px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                                     <span>🚀</span>
-                                    <span>Run 1,000 Simulations</span>
+                                    <span>Run Simulation</span>
                                 </button>
                                 <div id="simulationProgress" style="flex: 1; height: 6px; background: var(--bg-primary); border-radius: 3px; overflow: hidden; display: none;">
                                     <div id="progressBar" style="height: 100%; background: linear-gradient(90deg, #00ff88, #00d4aa); width: 0%; transition: width 0.1s;"></div>
                                 </div>
-                                <div id="progressText" style="font-size: 11px; color: var(--text-secondary); display: none;">Ready to simulate</div>
+                                <div id="progressText" style="font-size: 11px; color: var(--text-secondary); display: none;">Ready</div>
                             </div>
                             <div id="monteCarloResults" style="display: none;">
-                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
-                                    <div id="finalEquityChart" style="background: var(--bg-primary); border-radius: 6px; padding: 10px; border: 1px solid var(--border-color);">
-                                        <h6 style="color: var(--text-primary); margin: 0 0 8px 0; font-size: 12px;">Final Equity Distribution</h6>
-                                        <canvas id="equityHistogram" width="180" height="100"></canvas>
-                                    </div>
-                                    <div id="maxDrawdownChart" style="background: var(--bg-primary); border-radius: 6px; padding: 10px; border: 1px solid var(--border-color);">
-                                        <h6 style="color: var(--text-primary); margin: 0 0 8px 0; font-size: 12px;">Max Drawdown Distribution</h6>
-                                        <canvas id="drawdownHistogram" width="180" height="100"></canvas>
-                                    </div>
-                                    <div id="lossStreakChart" style="background: var(--bg-primary); border-radius: 6px; padding: 10px; border: 1px solid var(--border-color);">
-                                        <h6 style="color: var(--text-primary); margin: 0 0 8px 0; font-size: 12px;">Loss Streak Distribution</h6>
-                                        <canvas id="lossStreakHistogram" width="180" height="100"></canvas>
-                                    </div>
+                                <div style="background: var(--bg-primary); border-radius: 8px; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border-color);">
+                                    <div id="mcEquityCurveChart" style="width: 100%; height: 350px;"></div>
                                 </div>
-                                <div id="simulationSummary" style="padding: 10px; background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: 6px;"></div>
+                                <div id="mcStatistics"></div>
                             </div>
                         </div>
                     </div>
@@ -2874,6 +2903,12 @@
             const runBtn = document.getElementById('runMonteCarloBtn');
             if (!runBtn) return;
             
+            // Set default risk from strategy
+            const riskInput = document.getElementById('mcRisk');
+            if (riskInput && strategy.riskPerTrade) {
+                riskInput.value = strategy.riskPerTrade;
+            }
+            
             runBtn.addEventListener('click', () => {
                 runMonteCarloAnalysis(strategy, winRate, results);
             });
@@ -2899,8 +2934,14 @@
             const avgWin = wins.length > 0 ? wins.reduce((a, b) => a + b, 0) / wins.length : 2.0;
             const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((a, b) => a + b, 0) / losses.length) : 1.0;
             
-            const numSimulations = 1000;
-            const numTrades = 100;
+            // Read options from UI
+            const numSimulations = parseInt(document.getElementById('mcNumSims').value) || 1000;
+            const numTradesOption = document.getElementById('mcNumTrades').value;
+            const numTrades = numTradesOption === 'actual' ? results.length : parseInt(numTradesOption);
+            const startingCapital = parseFloat(document.getElementById('mcCapital').value) || 100000;
+            const riskPercent = parseFloat(document.getElementById('mcRisk').value) / 100 || 0.01;
+            const showBands = document.getElementById('mcShowBands').checked;
+            
             const simulationResults = [];
             
             let completed = 0;
@@ -2911,7 +2952,7 @@
                 const endIndex = Math.min(completed + batchSize, numSimulations);
                 
                 for (let sim = completed; sim < endIndex; sim++) {
-                    const result = runSingleSimulation(winRate, avgWin, avgLoss, numTrades);
+                    const result = runSingleSimulation(winRate, avgWin, avgLoss, numTrades, startingCapital, riskPercent, results);
                     simulationResults.push(result);
                 }
                 
@@ -2925,11 +2966,11 @@
                     setTimeout(runBatch, 10); // Small delay to keep UI responsive
                 } else {
                     // Simulation complete
-                    displayMonteCarloResults(simulationResults);
+                    displayMonteCarloResults(simulationResults, {showBands, startingCapital});
                     
                     // Reset UI
                     runBtn.disabled = false;
-                    runBtn.innerHTML = '<span>🚀</span><span>Run 1,000 Simulations</span>';
+                    runBtn.innerHTML = '<span>🚀</span><span>Run Simulation</span>';
                     progressContainer.style.display = 'none';
                     progressText.style.display = 'none';
                     resultsContainer.style.display = 'block';
@@ -2940,42 +2981,242 @@
             setTimeout(runBatch, 100);
         }
         
-        function runSingleSimulation(winRate, avgWin, avgLoss, numTrades) {
-            let equity = 0;
-            let peak = 0;
+        function runSingleSimulation(winRate, avgWin, avgLoss, numTrades, startingCapital, riskPercent, actualResults) {
+            let equity = startingCapital || 100000;
+            const equityCurve = [equity];
+            let peak = equity;
             let maxDrawdown = 0;
             let consecutiveLosses = 0;
             let maxConsecutiveLosses = 0;
             
             for (let trade = 0; trade < numTrades; trade++) {
-                const isWin = Math.random() < winRate;
-                const result = isWin ? avgWin : -avgLoss;
+                let result;
+                if (actualResults && actualResults.length > 0) {
+                    result = actualResults[Math.floor(Math.random() * actualResults.length)];
+                } else {
+                    const isWin = Math.random() < winRate;
+                    result = isWin ? avgWin : -avgLoss;
+                }
                 
-                equity += result;
+                const positionSize = equity * (riskPercent || 0.01);
+                const dollarResult = positionSize * result;
+                equity += dollarResult;
+                equityCurve.push(equity);
                 
                 if (equity > peak) {
                     peak = equity;
                     consecutiveLosses = 0;
                 } else {
-                    if (!isWin) {
+                    if (result < 0) {
                         consecutiveLosses++;
                         maxConsecutiveLosses = Math.max(maxConsecutiveLosses, consecutiveLosses);
                     }
                 }
                 
-                const drawdown = peak - equity;
+                const drawdown = ((peak - equity) / peak) * 100;
                 maxDrawdown = Math.max(maxDrawdown, drawdown);
             }
             
             return {
                 finalEquity: equity,
+                equityCurve: equityCurve,
                 maxDrawdown: maxDrawdown,
-                maxConsecutiveLosses: maxConsecutiveLosses
+                maxConsecutiveLosses: maxConsecutiveLosses,
+                startingCapital: startingCapital || 100000
             };
         }
         
-        function displayMonteCarloResults(results) {
+        function displayMonteCarloResults(results, options) {
+            const resultsContainer = document.getElementById('monteCarloResults');
+            const statsContainer = document.getElementById('mcStatistics');
+            resultsContainer.style.display = 'block';
+            
             // Calculate statistics
+            const finalEquities = results.map(r => r.finalEquity).sort((a, b) => a - b);
+            const maxDrawdowns = results.map(r => r.maxDrawdown).sort((a, b) => a - b);
+            const profitable = results.filter(r => r.finalEquity > r.startingCapital).length;
+            const profitablePercent = (profitable / results.length) * 100;
+            
+            // Render D3 equity curve
+            renderEquityCurveD3(results, options);
+            
+            // Display enhanced statistics
+            statsContainer.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                    <div style="background: var(--bg-tertiary); border-radius: 6px; padding: 12px; border: 1px solid var(--border-color);">
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">Final Equity</div>
+                        <div style="display: grid; gap: 4px; font-size: 11px;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Best (95%):</span>
+                                <span style="color: #00ff88; font-weight: 600;">$${d3.quantile(finalEquities, 0.95).toFixed(0)}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Median:</span>
+                                <span style="color: var(--text-primary); font-weight: 600;">$${d3.quantile(finalEquities, 0.50).toFixed(0)}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Worst (5%):</span>
+                                <span style="color: #ef4444; font-weight: 600;">$${d3.quantile(finalEquities, 0.05).toFixed(0)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="background: var(--bg-tertiary); border-radius: 6px; padding: 12px; border: 1px solid var(--border-color);">
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">Max Drawdown</div>
+                        <div style="display: grid; gap: 4px; font-size: 11px;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Best (5%):</span>
+                                <span style="color: #00ff88; font-weight: 600;">-${d3.quantile(maxDrawdowns, 0.05).toFixed(1)}%</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Median:</span>
+                                <span style="color: var(--text-primary); font-weight: 600;">-${d3.quantile(maxDrawdowns, 0.50).toFixed(1)}%</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Worst (95%):</span>
+                                <span style="color: #ef4444; font-weight: 600;">-${d3.quantile(maxDrawdowns, 0.95).toFixed(1)}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="background: var(--bg-tertiary); border-radius: 6px; padding: 12px; border: 1px solid var(--border-color);">
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">Success Rate</div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 36px; font-weight: 700; color: ${profitablePercent >= 75 ? '#00ff88' : profitablePercent >= 50 ? '#f59e0b' : '#ef4444'};">
+                                ${profitablePercent.toFixed(0)}%
+                            </div>
+                            <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px;">
+                                ${profitable} of ${results.length} profitable
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="padding: 12px; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 6px; font-size: 11px;">
+                    <strong style="color: var(--accent-primary);">Monte Carlo Insight:</strong>
+                    <span style="color: var(--text-primary);">
+                        ${profitablePercent >= 80 ? `Excellent strategy - ${profitablePercent.toFixed(0)}% of simulations were profitable` :
+                          profitablePercent >= 60 ? `Good strategy - ${profitablePercent.toFixed(0)}% success rate with manageable risk` :
+                          profitablePercent >= 40 ? `Moderate strategy - ${profitablePercent.toFixed(0)}% success rate, consider risk management` :
+                          `High risk strategy - only ${profitablePercent.toFixed(0)}% of simulations were profitable`}
+                    </span>
+                </div>
+            `;
+        }
+        
+        function renderEquityCurveD3(results, options) {
+            const container = d3.select('#mcEquityCurveChart');
+            container.selectAll('*').remove();
+            
+            const margin = {top: 20, right: 30, bottom: 40, left: 60};
+            const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+            const height = 350 - margin.top - margin.bottom;
+            
+            const svg = container.append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            // Calculate percentiles
+            const numTrades = results[0].equityCurve.length;
+            const percentileData = [];
+            for (let i = 0; i < numTrades; i++) {
+                const values = results.map(r => r.equityCurve[i]).sort((a, b) => a - b);
+                percentileData.push({
+                    trade: i,
+                    p5: d3.quantile(values, 0.05),
+                    p25: d3.quantile(values, 0.25),
+                    p50: d3.quantile(values, 0.50),
+                    p75: d3.quantile(values, 0.75),
+                    p95: d3.quantile(values, 0.95)
+                });
+            }
+            
+            // Scales
+            const xScale = d3.scaleLinear().domain([0, numTrades - 1]).range([0, width]);
+            const allValues = results.flatMap(r => r.equityCurve);
+            const yScale = d3.scaleLinear()
+                .domain([d3.min(allValues) * 0.95, d3.max(allValues) * 1.05])
+                .range([height, 0]);
+            
+            // Axes
+            svg.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(xScale))
+                .style('color', '#94a3b8');
+            
+            svg.append('g')
+                .call(d3.axisLeft(yScale).tickFormat(d => '$' + (d/1000).toFixed(0) + 'K'))
+                .style('color', '#94a3b8');
+            
+            // Percentile bands
+            if (options.showBands) {
+                const area95 = d3.area()
+                    .x(d => xScale(d.trade))
+                    .y0(d => yScale(d.p5))
+                    .y1(d => yScale(d.p95))
+                    .curve(d3.curveMonotoneX);
+                
+                svg.append('path')
+                    .datum(percentileData)
+                    .attr('fill', '#3b82f6')
+                    .attr('fill-opacity', 0.1)
+                    .attr('d', area95);
+                
+                const area75 = d3.area()
+                    .x(d => xScale(d.trade))
+                    .y0(d => yScale(d.p25))
+                    .y1(d => yScale(d.p75))
+                    .curve(d3.curveMonotoneX);
+                
+                svg.append('path')
+                    .datum(percentileData)
+                    .attr('fill', '#3b82f6')
+                    .attr('fill-opacity', 0.2)
+                    .attr('d', area75);
+            }
+            
+            // Median line
+            const medianLine = d3.line()
+                .x(d => xScale(d.trade))
+                .y(d => yScale(d.p50))
+                .curve(d3.curveMonotoneX);
+            
+            svg.append('path')
+                .datum(percentileData)
+                .attr('fill', 'none')
+                .attr('stroke', '#00ff88')
+                .attr('stroke-width', 2)
+                .attr('d', medianLine);
+            
+            // Starting capital line
+            svg.append('line')
+                .attr('x1', 0)
+                .attr('x2', width)
+                .attr('y1', yScale(options.startingCapital))
+                .attr('y2', yScale(options.startingCapital))
+                .attr('stroke', '#f59e0b')
+                .attr('stroke-width', 1)
+                .attr('stroke-dasharray', '5,5')
+                .attr('opacity', 0.5);
+            
+            // Labels
+            svg.append('text')
+                .attr('x', width / 2)
+                .attr('y', height + 35)
+                .attr('text-anchor', 'middle')
+                .attr('fill', '#94a3b8')
+                .style('font-size', '11px')
+                .text('Trade Number');
+            
+            svg.append('text')
+                .attr('transform', 'rotate(-90)')
+                .attr('x', -height / 2)
+                .attr('y', -45)
+                .attr('text-anchor', 'middle')
+                .attr('fill', '#94a3b8')
+                .style('font-size', '11px')
+                .text('Account Equity ($)');
+            
+            // Old histogram code removed
             const finalEquities = results.map(r => r.finalEquity);
             const maxDrawdowns = results.map(r => r.maxDrawdown);
             const lossStreaks = results.map(r => r.maxConsecutiveLosses);
@@ -2987,12 +3228,7 @@
             const avgMaxDrawdown = maxDrawdowns.reduce((a, b) => a + b, 0) / maxDrawdowns.length;
             const avgMaxLossStreak = lossStreaks.reduce((a, b) => a + b, 0) / lossStreaks.length;
             
-            // Create histograms
-            createHistogram('equityHistogram', finalEquities, 'Final Equity (R)', '#00ff88');
-            createHistogram('drawdownHistogram', maxDrawdowns, 'Max Drawdown (R)', '#ef4444');
-            createHistogram('lossStreakHistogram', lossStreaks, 'Max Loss Streak', '#f59e0b');
-            
-            // Display summary
+            // Histograms replaced with D3.js equity curve visualization above
             const summaryContainer = document.getElementById('simulationSummary');
             summaryContainer.innerHTML = `
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
