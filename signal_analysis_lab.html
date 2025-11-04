@@ -1153,7 +1153,15 @@
                 newsProximity: document.getElementById('newsProximity')
             };
             
-            if (els.signalDate) els.signalDate.value = '';
+            // Preserve date field - use selected calendar date or current date
+            if (els.signalDate) {
+                if (selectedDate) {
+                    els.signalDate.value = selectedDate;
+                } else {
+                    const today = new Date().toISOString().split('T')[0];
+                    els.signalDate.value = today;
+                }
+            }
             if (els.entryTime) els.entryTime.value = '';
 
             if (els.mfeNone) els.mfeNone.value = '';
