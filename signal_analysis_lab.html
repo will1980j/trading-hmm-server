@@ -1153,11 +1153,17 @@
                 newsProximity: document.getElementById('newsProximity')
             };
             
-            // Preserve date field - use selected calendar date or current date
+            // Preserve date field - use selected calendar date, current field value, or today's date
             if (els.signalDate) {
+                const currentDateValue = els.signalDate.value;
                 if (selectedDate) {
+                    // Use selected calendar date
                     els.signalDate.value = selectedDate;
+                } else if (currentDateValue && currentDateValue !== '') {
+                    // Keep current date value if it exists
+                    els.signalDate.value = currentDateValue;
                 } else {
+                    // Fallback to today's date
                     const today = new Date().toISOString().split('T')[0];
                     els.signalDate.value = today;
                 }
