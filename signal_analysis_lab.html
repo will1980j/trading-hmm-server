@@ -1804,6 +1804,10 @@
             localStorage.removeItem('signalLabData');
             localStorage.removeItem('economicNewsData');
             
+            // Initialize date field to current date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('signalDate').value = today;
+            
             await loadEconomicNews();
             await loadSignals();
             setTimeout(restoreFormState, 600);
@@ -2195,8 +2199,13 @@
         function filterDate(dateStr) {
             if (selectedDate === dateStr) {
                 selectedDate = null; // Clear filter
+                // Reset date field to current date when clearing selection
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('signalDate').value = today;
             } else {
                 selectedDate = dateStr; // Set filter
+                // Update date input field to match selected calendar date
+                document.getElementById('signalDate').value = dateStr;
             }
             updateDisplay();
         }
