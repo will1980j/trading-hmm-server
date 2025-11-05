@@ -224,7 +224,8 @@ class ExactMethodologyProcessor:
         """
         
         try:
-            from datetime import datetime, timezone, timedelta
+            from datetime import datetime
+import pytz
             
             if isinstance(timestamp_str, str):
                 signal_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
@@ -232,7 +233,7 @@ class ExactMethodologyProcessor:
                 signal_time = timestamp_str
             
             # Convert to Eastern Time
-            eastern = timezone(timedelta(hours=-5))  # EST (adjust for EDT)
+            eastern = pytz.timezone('US/Eastern')  # Auto-handles DST
             et_time = signal_time.astimezone(eastern)
             hour = et_time.hour
             minute = et_time.minute
