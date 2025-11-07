@@ -1,0 +1,719 @@
+//@version=5
+strategy("Complete Automated Trading System - FVG + Position Sizing", overlay=true, initial_capital=100000, default_qty_type=strategy.cash, commission_type=strategy.commission.cash_per_contract, commission_value=2.40)
+
+// ============================================================================
+// ACCOUNT & RISK SETTINGS
+// ============================================================================
+
+account_size = input.float(100000, "Account Size ($)", group="Risk Management")
+risk_percent = input.float(1.0, "Risk Per Trade (%)", minval=0.1, maxval=100, step=0.1, group="Risk Management")
+buffer_points = input.float(0.25, "Stop Loss Buffer (Points)", minval=0.01, step=0.01, group="Risk Management")
+
+// AUTO-DETECT CONTRACT TYPE AND POINT VALUE
+auto_detect_contract = input.bool(true, "Auto-Detect Contract Type", tooltip="Automatically detect contract type from chart symbol", group="Risk Management")
+manual_point_value = input.float(20.0, "Manual Point Value ($)", minval=0.1, tooltip="Only used if Auto-Detect is OFF", group="Risk Management")
+
+// Automatic point value detection based on symbol
+get_point_value() =>
+    string ticker = syminfo.ticker
+    float detected_value = 20.0  // Default to NQ
+    
+    // NASDAQ contracts
+    if str.contains(ticker, "MNQ")
+        detected_value := 2.0   // Micro NQ
+    else if str.contains(ticker, "NQ")
+        detected_value := 20.0  // Standard NQ
+    
+    // S&P 500 contracts
+    else if str.contains(ticker, "MES")
+        detected_value := 5.0   // Micro ES
+    else if str.contains(ticker, "ES")
+        detected_value := 50.0  // Standard ES
+    
+    // Dow Jones contracts
+    else if str.contains(ticker, "MYM")
+        detected_value := 0.5   // Micro YM
+    else if str.contains(ticker, "YM")
+        detected_value := 5.0   // Standard YM
+    
+    // Russell 2000 contracts
+    else if str.contains(ticker, "M2K")
+        detected_value := 5.0   // Micro RTY
+    else if str.contains(ticker, "RTY")
+        detected_value := 50.0  // Standard RTY
+    
+    detected_value
+
+point_value = auto_detect_contract ? get_point_value() : manual_point_value
+
+// ============================================================================
+// FVG INDICATOR SETTINGS (YOUR EXACT SETTINGS)
+// ============================================================================
+
+// HTF Timeframe selection (all OFF by default for maximum performance)
+use_daily = input.bool(false, "Daily", group="HTF Bias Filter")
+use_4h = input.bool(false, "4H", group="HTF Bias Filter")
+use_1h = input.bool(false, "1H", group="HTF Bias Filter")
+use_15m = input.bool(false, "15M", group="HTF Bias Filter")
+use_5m = input.bool(false, "5M", group="HTF Bias Filter")
+
+// Engulfing Filters
+require_engulfing = input.bool(false, "FVG + Engulfing Only", group="Signal Filter")
+require_sweep_engulfing = input.bool(false, "FVG + Sweep Engulfing Only", group="Signal Filter")
+
+// Visual settings
+show_htf_status = input.bool(false, "Show HTF Status", group="Display", tooltip="⚠️ Disable for better performance (table updates every bar)")
+show_position_table = input.bool(false, "Show Position Sizing Table", group="Display", tooltip="⚠️ Enable when needed (significantly slower performance)")
+position_table_location = input.string("Top Left", "Position Table Location", options=["Top Left", "Top Right", "Bottom Left", "Bottom Right"], group="Display")
+htf_aligned_only = input.bool(false, "HTF Aligned Triangles Only", group="Display", tooltip="Enable this with HTF filters for aligned signals only")
+triangle_size = input.string("Small", "Triangle Size", options=["Tiny", "Small", "Normal", "Large", "Huge"], group="Display")
+bull_color = input.color(color.blue, "Bullish Color", group="Display")
+bear_color = input.color(color.red, "Bearish Color", group="Display")
+neutral_color = input.color(color.gray, "Neutral Color", group="Display")
+
+// MFE Label Settings (disabled by default for performance)
+show_mfe_labels = input.bool(false, "Show MFE Labels", group="MFE Labels", tooltip="Enable to see MFE tracking (slower performance)")
+mfe_label_size = input.string("Small", "MFE Label Size", options=["Tiny", "Small", "Normal", "Large", "Huge"], group="MFE Labels")
+mfe_active_color = input.color(color.new(color.yellow, 20), "Active Trade Background Color", group="MFE Labels", tooltip="Background color for active (running) trades")
+mfe_active_text_color = input.color(color.black, "Active Trade Text Color", group="MFE Labels", tooltip="Text color for active (running) trades")
+mfe_complete_color = input.color(color.new(color.orange, 0), "Completed Trade Background Color", group="MFE Labels", tooltip="Background color for completed (stopped out) trades")
+mfe_complete_text_color = input.color(color.white, "Completed Trade Text Color", group="MFE Labels", tooltip="Text color for completed (stopped out) trades")
+mfe_label_format = input.string("MFE: {mfe}R", "Label Format", group="MFE Labels", tooltip="Use {mfe} for MFE value")
+max_signal_history = input.int(100, "Max Signal History", minval=50, maxval=500, step=50, group="MFE Labels", tooltip="Maximum number of signals to track (higher = more history but slower performance)")
+
+// ============================================================================
+// ENGULFING DETECTION (YOUR EXACT LOGIC)
+// ============================================================================
+
+prev_open = open[1]
+prev_close = close[1]
+curr_open = open
+curr_close = close
+
+bearish_engulfing = curr_close < curr_open and prev_close > prev_open and curr_open >= prev_close and curr_close < prev_open
+bullish_engulfing = curr_close > curr_open and prev_close < prev_open and curr_open <= prev_close and curr_close > prev_open
+
+bearish_sweep_engulfing = bearish_engulfing and high > high[1] and curr_close < prev_close
+bullish_sweep_engulfing = bullish_engulfing and low < low[1] and curr_close > prev_close
+
+// ============================================================================
+// BIAS CALCULATION (YOUR EXACT LOGIC) - OPTIMIZED
+// ============================================================================
+
+// Performance optimization: Limit FVG/IFVG array sizes to prevent slowdown
+MAX_FVG_ARRAY_SIZE = 50  // Keeps only most recent 50 FVG/IFVG levels
+
+get_bias() =>
+    var string bias = "Neutral"
+    var float ath = na
+    var float atl = na
+    var bull_fvg_highs = array.new<float>()
+    var bull_fvg_lows = array.new<float>()
+    var bear_fvg_highs = array.new<float>()
+    var bear_fvg_lows = array.new<float>()
+    var bull_ifvg_highs = array.new<float>()
+    var bull_ifvg_lows = array.new<float>()
+    var bear_ifvg_highs = array.new<float>()
+    var bear_ifvg_lows = array.new<float>()
+
+    if barstate.isconfirmed
+        ath := na(ath) ? high : math.max(ath, high)
+        atl := na(atl) ? low : math.min(atl, low)
+
+        if close > ath[1] and bias != "Bullish"
+            bias := "Bullish"
+        else if close < atl[1] and bias != "Bearish"
+            bias := "Bearish"
+
+        c2_high = high[2]
+        c2_low = low[2]
+        c0_high = high
+        c0_low = low
+
+        bullish_fvg = c2_high < c0_low
+        bearish_fvg = c2_low > c0_high
+
+        if bullish_fvg
+            array.push(bull_fvg_highs, c0_low)
+            array.push(bull_fvg_lows, c2_high)
+            // Limit array size for performance
+            if array.size(bull_fvg_highs) > MAX_FVG_ARRAY_SIZE
+                array.shift(bull_fvg_highs)
+                array.shift(bull_fvg_lows)
+
+        if bearish_fvg
+            array.push(bear_fvg_highs, c2_low)
+            array.push(bear_fvg_lows, c0_high)
+            // Limit array size for performance
+            if array.size(bear_fvg_highs) > MAX_FVG_ARRAY_SIZE
+                array.shift(bear_fvg_highs)
+                array.shift(bear_fvg_lows)
+
+        if array.size(bull_fvg_highs) > 0
+            for i = array.size(bull_fvg_highs) - 1 to 0
+                if close < array.get(bull_fvg_lows, i)
+                    array.push(bear_ifvg_highs, array.get(bull_fvg_highs, i))
+                    array.push(bear_ifvg_lows, array.get(bull_fvg_lows, i))
+                    array.remove(bull_fvg_highs, i)
+                    array.remove(bull_fvg_lows, i)
+                    bias := "Bearish"
+                    // Limit IFVG array size for performance
+                    if array.size(bear_ifvg_highs) > MAX_FVG_ARRAY_SIZE
+                        array.shift(bear_ifvg_highs)
+                        array.shift(bear_ifvg_lows)
+
+        if array.size(bear_fvg_highs) > 0
+            for i = array.size(bear_fvg_highs) - 1 to 0
+                if close > array.get(bear_fvg_highs, i)
+                    array.push(bull_ifvg_highs, array.get(bear_fvg_highs, i))
+                    array.push(bull_ifvg_lows, array.get(bear_fvg_lows, i))
+                    array.remove(bear_fvg_highs, i)
+                    array.remove(bear_fvg_lows, i)
+                    bias := "Bullish"
+                    // Limit IFVG array size for performance
+                    if array.size(bull_ifvg_highs) > MAX_FVG_ARRAY_SIZE
+                        array.shift(bull_ifvg_highs)
+                        array.shift(bull_ifvg_lows)
+
+        if array.size(bear_ifvg_highs) > 0
+            for i = array.size(bear_ifvg_highs) - 1 to 0
+                if close > array.get(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_lows, i)
+                    bias := "Bullish"
+
+        if array.size(bull_ifvg_highs) > 0
+            for i = array.size(bull_ifvg_highs) - 1 to 0
+                if close < array.get(bull_ifvg_lows, i)
+                    array.remove(bull_ifvg_highs, i)
+                    array.remove(bull_ifvg_lows, i)
+                    bias := "Bearish"
+
+    bias
+
+bias = get_bias()
+// Only calculate HTF bias when enabled (major performance optimization)
+daily_bias = use_daily ? request.security(syminfo.tickerid, "1D", get_bias()) : "Neutral"
+h4_bias = use_4h ? request.security(syminfo.tickerid, "240", get_bias()) : "Neutral"
+h1_bias = use_1h ? request.security(syminfo.tickerid, "60", get_bias()) : "Neutral"
+m15_bias = use_15m ? request.security(syminfo.tickerid, "15", get_bias()) : "Neutral"
+m5_bias = use_5m ? request.security(syminfo.tickerid, "5", get_bias()) : "Neutral"
+
+// HTF alignment
+daily_bull_ok = not use_daily or daily_bias == "Bullish"
+daily_bear_ok = not use_daily or daily_bias == "Bearish"
+h4_bull_ok = not use_4h or h4_bias == "Bullish"
+h4_bear_ok = not use_4h or h4_bias == "Bearish"
+h1_bull_ok = not use_1h or h1_bias == "Bullish"
+h1_bear_ok = not use_1h or h1_bias == "Bearish"
+m15_bull_ok = not use_15m or m15_bias == "Bullish"
+m15_bear_ok = not use_15m or m15_bias == "Bearish"
+m5_bull_ok = not use_5m or m5_bias == "Bullish"
+m5_bear_ok = not use_5m or m5_bias == "Bearish"
+
+htf_bullish = daily_bull_ok and h4_bull_ok and h1_bull_ok and m15_bull_ok and m5_bull_ok
+htf_bearish = daily_bear_ok and h4_bear_ok and h1_bear_ok and m15_bear_ok and m5_bear_ok
+
+// ============================================================================
+// SIGNAL GENERATION (YOUR EXACT LOGIC)
+// ============================================================================
+
+fvg_bull_signal = bias != bias[1] and bias == "Bullish" and (not htf_aligned_only or htf_bullish)
+fvg_bear_signal = bias != bias[1] and bias == "Bearish" and (not htf_aligned_only or htf_bearish)
+
+show_bull_triangle = require_sweep_engulfing ? (fvg_bull_signal and bullish_sweep_engulfing) : require_engulfing ? (fvg_bull_signal and bullish_engulfing) : fvg_bull_signal
+show_bear_triangle = require_sweep_engulfing ? (fvg_bear_signal and bearish_sweep_engulfing) : require_engulfing ? (fvg_bear_signal and bearish_engulfing) : fvg_bear_signal
+
+// ============================================================================
+// PIVOT DETECTION (Supports 3-candle and 4-candle double-bottom/top pivots)
+// ============================================================================
+
+is_pivot_low(index) =>
+    // Standard 3-candle pivot: low[index] < both adjacent lows
+    bool is_3candle_pivot = low[index] < low[index-1] and low[index] < low[index+1]
+    
+    // 4-candle double-bottom pivot: two candles share equal low, flanked by higher lows
+    // Check if current candle and next candle share same low, with higher lows on outside
+    bool is_4candle_pivot = false
+    if index >= 1 and index <= bar_index - 2
+        // Pattern: [higher] [equal_low] [equal_low] [higher]
+        is_4candle_pivot := low[index] == low[index+1] and low[index] < low[index-1] and low[index] < low[index+2]
+    
+    is_3candle_pivot or is_4candle_pivot
+
+is_pivot_high(index) =>
+    // Standard 3-candle pivot: high[index] > both adjacent highs
+    bool is_3candle_pivot = high[index] > high[index-1] and high[index] > high[index+1]
+    
+    // 4-candle double-top pivot: two candles share equal high, flanked by lower highs
+    // Check if current candle and next candle share same high, with lower highs on outside
+    bool is_4candle_pivot = false
+    if index >= 1 and index <= bar_index - 2
+        // Pattern: [lower] [equal_high] [equal_high] [lower]
+        is_4candle_pivot := high[index] == high[index+1] and high[index] > high[index-1] and high[index] > high[index+2]
+    
+    is_3candle_pivot or is_4candle_pivot
+
+// ============================================================================
+// POSITION SIZING & STOP LOSS AUTOMATION
+// ============================================================================
+
+var float signal_candle_high = na
+var float signal_candle_low = na
+var int signal_bar_index = na
+var string active_signal = "None"
+var bool waiting_for_confirmation = false
+
+var float entry_price = na
+var float stop_loss_price = na
+var float risk_distance = na
+var int contract_size = na
+var bool trade_ready = false
+
+// Multi-signal MFE tracking arrays
+var array<float> signal_entries = array.new<float>()
+var array<float> signal_stops = array.new<float>()
+var array<float> signal_risks = array.new<float>()
+var array<string> signal_directions = array.new<string>()
+var array<float> signal_mfes = array.new<float>()
+var array<bool> signal_completes = array.new<bool>()
+var array<label> signal_labels = array.new<label>()
+var array<int> signal_entry_times = array.new<int>()
+
+// Detect new signals
+if show_bull_triangle
+    signal_candle_high := high
+    signal_candle_low := low
+    signal_bar_index := bar_index
+    active_signal := "Bullish"
+    waiting_for_confirmation := true
+    trade_ready := false
+    entry_price := na
+    stop_loss_price := na
+
+if show_bear_triangle
+    signal_candle_high := high
+    signal_candle_low := low
+    signal_bar_index := bar_index
+    active_signal := "Bearish"
+    waiting_for_confirmation := true
+    trade_ready := false
+    entry_price := na
+    stop_loss_price := na
+
+// Cancel on opposite signal
+if show_bull_triangle and active_signal == "Bearish"
+    active_signal := "None"
+    waiting_for_confirmation := false
+
+if show_bear_triangle and active_signal == "Bullish"
+    active_signal := "None"
+    waiting_for_confirmation := false
+
+// ============================================================================
+// BULLISH CONFIRMATION & STOP LOSS CALCULATION
+// ============================================================================
+
+if waiting_for_confirmation and active_signal == "Bullish"
+    if close > signal_candle_high
+        waiting_for_confirmation := false
+        entry_price := close
+        
+        // Find lowest point from signal candle to current (confirmation) candle
+        int bars_since_signal = bar_index - signal_bar_index
+        float lowest_low = signal_candle_low
+        int lowest_bar_offset = bars_since_signal
+        
+        // Check all candles between signal and confirmation
+        for i = 1 to bars_since_signal - 1
+            if low[i] < lowest_low
+                lowest_low := low[i]
+                lowest_bar_offset := i
+        
+        // Check current confirmation candle
+        if low < lowest_low
+            lowest_low := low
+            lowest_bar_offset := 0
+        
+        // Apply your exact methodology
+        bool lowest_is_pivot = false
+        if lowest_bar_offset >= 1 and lowest_bar_offset <= bars_since_signal - 1
+            // Lowest point is between signal and confirmation - check if it's a pivot
+            lowest_is_pivot := is_pivot_low(lowest_bar_offset)
+        
+        if lowest_is_pivot
+            // Scenario A: Lowest point is a 3-candle pivot
+            stop_loss_price := lowest_low - buffer_points
+        else
+            // Lowest point is NOT a pivot - search left 5 candles from signal for pivot
+            // This applies whether lowest is signal candle, between candles, or confirmation
+            bool found_pivot = false
+            float pivot_low = na
+            
+            // Start from 1 candle left of signal, search up to 5 candles left
+            int search_start = bars_since_signal + 1
+            int search_end = bars_since_signal + 5
+            
+            for i = search_start to math.min(search_end, bar_index - 1)
+                // Need at least 1 bar on each side for valid pivot check
+                if i >= 1 and i <= bar_index - 1
+                    // Check if this candle is a 3-candle or 4-candle pivot
+                    if is_pivot_low(i)
+                        pivot_low := low[i]
+                        found_pivot := true
+                        break
+            
+            if found_pivot
+                stop_loss_price := pivot_low - buffer_points
+            else
+                // No pivot found - use first bearish candle low in the 5-candle search
+                float bearish_candle_low = signal_candle_low
+                for i = search_start to math.min(search_end, bar_index)
+                    if close[i] < open[i]
+                        bearish_candle_low := low[i]
+                        break
+                stop_loss_price := bearish_candle_low - buffer_points
+        
+        risk_distance := entry_price - stop_loss_price
+        float risk_amount = account_size * (risk_percent / 100)
+        // For futures: risk per contract = risk_distance * point_value
+        float risk_per_contract = risk_distance * point_value
+        float calculated_contracts = risk_per_contract > 0 ? risk_amount / risk_per_contract : 0
+        // Ensure at least 1 contract (use math.max to prevent 0 contracts)
+        contract_size := calculated_contracts > 0 ? math.max(1, math.floor(calculated_contracts)) : 0
+        trade_ready := true
+        
+        // Add this signal to tracking arrays
+        array.push(signal_entries, entry_price)
+        array.push(signal_stops, stop_loss_price)
+        array.push(signal_risks, risk_distance)
+        array.push(signal_directions, "Bullish")
+        array.push(signal_mfes, 0.0)
+        array.push(signal_completes, false)
+        array.push(signal_labels, label(na))
+        array.push(signal_entry_times, time)
+        
+        // PERFORMANCE: Limit array size to most recent signals
+        if array.size(signal_entries) > max_signal_history
+            array.shift(signal_entries)
+            array.shift(signal_stops)
+            array.shift(signal_risks)
+            array.shift(signal_directions)
+            array.shift(signal_mfes)
+            array.shift(signal_completes)
+            label old_label = array.shift(signal_labels)
+            if not na(old_label)
+                label.delete(old_label)
+            array.shift(signal_entry_times)
+
+// ============================================================================
+// BEARISH CONFIRMATION & STOP LOSS CALCULATION
+// ============================================================================
+
+if waiting_for_confirmation and active_signal == "Bearish"
+    if close < signal_candle_low
+        waiting_for_confirmation := false
+        entry_price := close
+        
+        // Find highest point from signal candle to current (confirmation) candle
+        int bars_since_signal = bar_index - signal_bar_index
+        float highest_high = signal_candle_high
+        int highest_bar_offset = bars_since_signal
+        
+        // Check all candles between signal and confirmation
+        for i = 1 to bars_since_signal - 1
+            if high[i] > highest_high
+                highest_high := high[i]
+                highest_bar_offset := i
+        
+        // Check current confirmation candle
+        if high > highest_high
+            highest_high := high
+            highest_bar_offset := 0
+        
+        // Apply your exact methodology
+        bool highest_is_pivot = false
+        if highest_bar_offset >= 1 and highest_bar_offset <= bars_since_signal - 1
+            // Highest point is between signal and confirmation - check if it's a pivot
+            highest_is_pivot := is_pivot_high(highest_bar_offset)
+        
+        if highest_is_pivot
+            // Scenario A: Highest point is a 3-candle pivot
+            stop_loss_price := highest_high + buffer_points
+        else
+            // Highest point is NOT a pivot - search left 5 candles from signal for pivot
+            // This applies whether highest is signal candle, between candles, or confirmation
+            bool found_pivot = false
+            float pivot_high = na
+            
+            // Start from 1 candle left of signal, search up to 5 candles left
+            int search_start = bars_since_signal + 1
+            int search_end = bars_since_signal + 5
+            
+            for i = search_start to math.min(search_end, bar_index - 1)
+                // Need at least 1 bar on each side for valid pivot check
+                if i >= 1 and i <= bar_index - 1
+                    // Check if this candle is a 3-candle or 4-candle pivot
+                    if is_pivot_high(i)
+                        pivot_high := high[i]
+                        found_pivot := true
+                        break
+            
+            if found_pivot
+                stop_loss_price := pivot_high + buffer_points
+            else
+                // No pivot found - use first bullish candle high in the 5-candle search
+                float bullish_candle_high = signal_candle_high
+                for i = search_start to math.min(search_end, bar_index)
+                    if close[i] > open[i]
+                        bullish_candle_high := high[i]
+                        break
+                stop_loss_price := bullish_candle_high + buffer_points
+        
+        risk_distance := stop_loss_price - entry_price
+        float risk_amount = account_size * (risk_percent / 100)
+        // For futures: risk per contract = risk_distance * point_value
+        float risk_per_contract = risk_distance * point_value
+        float calculated_contracts = risk_per_contract > 0 ? risk_amount / risk_per_contract : 0
+        // Ensure at least 1 contract (use math.max to prevent 0 contracts)
+        contract_size := calculated_contracts > 0 ? math.max(1, math.floor(calculated_contracts)) : 0
+        trade_ready := true
+        
+        // Add this signal to tracking arrays
+        array.push(signal_entries, entry_price)
+        array.push(signal_stops, stop_loss_price)
+        array.push(signal_risks, risk_distance)
+        array.push(signal_directions, "Bearish")
+        array.push(signal_mfes, 0.0)
+        array.push(signal_completes, false)
+        array.push(signal_labels, label(na))
+        array.push(signal_entry_times, time)
+        
+        // PERFORMANCE: Limit array size to most recent signals
+        if array.size(signal_entries) > max_signal_history
+            array.shift(signal_entries)
+            array.shift(signal_stops)
+            array.shift(signal_risks)
+            array.shift(signal_directions)
+            array.shift(signal_mfes)
+            array.shift(signal_completes)
+            label old_label = array.shift(signal_labels)
+            if not na(old_label)
+                label.delete(old_label)
+            array.shift(signal_entry_times)
+
+// ============================================================================
+// VISUALIZATION
+// ============================================================================
+
+plotshape(triangle_size == "Small" and show_bull_triangle, "Bullish Signal", shape.triangleup, location.belowbar, bull_color, size=size.small)
+plotshape(triangle_size == "Small" and show_bear_triangle, "Bearish Signal", shape.triangledown, location.abovebar, bear_color, size=size.small)
+
+plot(trade_ready and active_signal == "Bullish" ? entry_price : na, "Entry", color.green, 2, plot.style_linebr)
+plot(trade_ready and active_signal == "Bullish" ? stop_loss_price : na, "Stop Loss", color.red, 2, plot.style_linebr)
+plot(trade_ready and active_signal == "Bearish" ? entry_price : na, "Entry", color.green, 2, plot.style_linebr)
+plot(trade_ready and active_signal == "Bearish" ? stop_loss_price : na, "Stop Loss", color.red, 2, plot.style_linebr)
+
+// ============================================================================
+// MULTI-SIGNAL MFE TRACKING
+// ============================================================================
+
+// Loop through all tracked signals and update MFE
+// PERFORMANCE OPTIMIZED: Only processes active signals when labels enabled
+if show_mfe_labels and array.size(signal_entries) > 0
+    // Pre-calculate label size once (not per signal)
+    string label_size_value = mfe_label_size == "Tiny" ? size.tiny : 
+                             mfe_label_size == "Small" ? size.small : 
+                             mfe_label_size == "Normal" ? size.normal : 
+                             mfe_label_size == "Large" ? size.large : size.huge
+    
+    for i = 0 to array.size(signal_entries) - 1
+        bool sig_complete = array.get(signal_completes, i)
+        
+        // Get signal data
+        float sig_entry = array.get(signal_entries, i)
+        float sig_stop = array.get(signal_stops, i)
+        float sig_risk = array.get(signal_risks, i)
+        string sig_dir = array.get(signal_directions, i)
+        float sig_mfe = array.get(signal_mfes, i)
+        
+        // Calculate current MFE (skip if already completed)
+        float current_mfe = 0.0
+        bool just_completed = false
+        
+        if not sig_complete
+            if sig_dir == "Bullish"
+                current_mfe := (high - sig_entry) / sig_risk
+                // Check if stop loss hit
+                if low <= sig_stop
+                    array.set(signal_completes, i, true)
+                    just_completed := true
+            else  // Bearish
+                current_mfe := (sig_entry - low) / sig_risk
+                // Check if stop loss hit
+                if high >= sig_stop
+                    array.set(signal_completes, i, true)
+                    just_completed := true
+        
+        // Update MFE if it increased
+        bool mfe_changed = current_mfe > sig_mfe
+        if mfe_changed
+            array.set(signal_mfes, i, current_mfe)
+            sig_mfe := current_mfe
+        
+        // Delete old label
+        label old_label = array.get(signal_labels, i)
+        if not na(old_label)
+            label.delete(old_label)
+        
+        // Create new label for ALL signals (active and completed)
+        string mfe_value_str = str.tostring(sig_mfe, "#.##")
+        string mfe_text = str.replace(mfe_label_format, "{mfe}", mfe_value_str)
+        // Use completed colors if signal is completed (either just now or previously)
+        bool is_completed = just_completed or sig_complete
+        color label_bg_color = is_completed ? mfe_complete_color : mfe_active_color
+        color label_text_color = is_completed ? mfe_complete_text_color : mfe_active_text_color
+        int sig_entry_time = array.get(signal_entry_times, i)
+        
+        label new_label = label.new(
+             x=sig_entry_time, 
+             y=sig_stop, 
+             text=mfe_text, 
+             xloc=xloc.bar_time,
+             style=label.style_label_left,
+             color=label_bg_color,
+             textcolor=label_text_color,
+             size=label_size_value)
+        
+        array.set(signal_labels, i, new_label)
+
+// ============================================================================
+// POSITION SIZING TABLE
+// ============================================================================
+
+if show_position_table
+    // Determine table position based on user selection
+    string table_position = position_table_location == "Top Left" ? position.top_left : 
+                           position_table_location == "Top Right" ? position.top_right : 
+                           position_table_location == "Bottom Left" ? position.bottom_left : 
+                           position.bottom_right
+    
+    // Calculate intended vs actual risk to determine if suggestion is needed
+    float intended_risk = account_size * (risk_percent / 100)
+    float actual_risk = trade_ready ? contract_size * risk_distance * point_value : 0
+    float actual_risk_pct = trade_ready ? (actual_risk / account_size) * 100 : 0
+    // Show suggestion ONLY if actual risk would exceed 0.15% (cannot trade with standard contract)
+    bool show_suggestion = trade_ready and actual_risk_pct > 0.15
+    
+    // Use var for performance - fixed 10 rows, hide row 9 when not needed
+    var table pos_table = table.new(table_position, 2, 10, border_width=2)
+    
+    table.cell(pos_table, 0, 0, "🎯 TRADE READY", text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.normal)
+    table.merge_cells(pos_table, 0, 0, 1, 0)
+    
+    string status_text = waiting_for_confirmation ? "⏳ Waiting" : trade_ready ? "✅ READY" : "⚪ No Signal"
+    color status_color = waiting_for_confirmation ? color.orange : trade_ready ? color.green : color.gray
+    table.cell(pos_table, 0, 1, "Status:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 1, status_text, text_color=color.white, bgcolor=color.new(status_color, 50))
+    
+    table.cell(pos_table, 0, 2, "Signal:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 2, active_signal, text_color=color.white, bgcolor=color.new(color.gray, 70))
+    
+    table.cell(pos_table, 0, 3, "Entry:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 3, trade_ready ? str.tostring(entry_price, "#.##") : "-", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    
+    table.cell(pos_table, 0, 4, "Stop Loss:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 4, trade_ready ? str.tostring(stop_loss_price, "#.##") : "-", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    
+    table.cell(pos_table, 0, 5, "Risk (pts):", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 5, trade_ready ? str.tostring(risk_distance, "#.##") : "-", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    
+    table.cell(pos_table, 0, 6, "📊 CONTRACTS:", text_color=color.white, bgcolor=color.new(color.blue, 30), text_size=size.large)
+    table.cell(pos_table, 1, 6, trade_ready ? str.tostring(contract_size) : "-", text_color=color.yellow, bgcolor=color.new(color.blue, 30), text_size=size.large)
+    
+    table.cell(pos_table, 0, 7, "Intended Risk:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 7, "$" + str.tostring(intended_risk, "#,###"), text_color=color.white, bgcolor=color.new(color.gray, 70))
+    
+    // Highlight actual risk if it exceeds intended risk
+    color actual_risk_color = trade_ready and actual_risk > intended_risk ? color.new(color.orange, 30) : color.new(color.gray, 70)
+    color actual_risk_text = trade_ready and actual_risk > intended_risk ? color.yellow : color.white
+    table.cell(pos_table, 0, 8, "Actual Risk:", text_color=color.white, bgcolor=actual_risk_color)
+    string actual_risk_text_str = trade_ready ? "$" + str.tostring(actual_risk, "#,###") + " (" + str.tostring(actual_risk_pct, "#.##") + "%)" : "-"
+    table.cell(pos_table, 1, 8, actual_risk_text_str, text_color=actual_risk_text, bgcolor=actual_risk_color)
+    
+    // Show suggestion row ONLY when actual risk exceeds 0.15% (cannot trade with standard contract)
+    if show_suggestion
+        // Calculate Micro contract sizing (NQ Micro = $2 per point, 1/10th of standard)
+        float micro_point_value = point_value / 10.0
+        float micro_contracts = intended_risk / (risk_distance * micro_point_value)
+        float micro_actual_risk = math.floor(micro_contracts) * risk_distance * micro_point_value
+        float micro_risk_pct = (micro_actual_risk / account_size) * 100
+        
+        table.cell(pos_table, 0, 9, "⚠️ SWITCH TO MICRO:", text_color=color.white, bgcolor=color.new(color.red, 0), text_size=size.normal)
+        string suggestion_text = str.tostring(math.floor(micro_contracts), "#") + " MNQ @ $" + str.tostring(micro_point_value, "#.#") + "/pt (" + str.tostring(micro_risk_pct, "#.##") + "%)"
+        table.cell(pos_table, 1, 9, suggestion_text, text_color=color.yellow, bgcolor=color.new(color.red, 0), text_size=size.normal)
+    else
+        // Hide row 9 with transparent cells (appears as 9-row table)
+        table.cell(pos_table, 0, 9, "", text_color=color.new(color.white, 100), bgcolor=color.new(color.white, 100))
+        table.cell(pos_table, 1, 9, "", text_color=color.new(color.white, 100), bgcolor=color.new(color.white, 100))
+
+// ============================================================================
+// HTF STATUS TABLE
+// ============================================================================
+
+if show_htf_status
+    var table htf_table = table.new(position.top_right, 3, 8, border_width=1)
+    
+    table.cell(htf_table, 0, 0, "TF", text_color=color.white, text_size=size.small)
+    table.cell(htf_table, 1, 0, "Bias", text_color=color.white, text_size=size.small)
+    table.cell(htf_table, 2, 0, "✓", text_color=color.white, text_size=size.small)
+    
+    color current_color = bias == "Bullish" ? bull_color : bias == "Bearish" ? bear_color : neutral_color
+    table.cell(htf_table, 0, 1, "1M", text_color=color.white, text_size=size.small)
+    table.cell(htf_table, 1, 1, bias, text_color=current_color, text_size=size.small)
+    table.cell(htf_table, 2, 1, "NOW", text_color=color.yellow, text_size=size.small)
+    
+    int row = 2
+    if use_5m
+        color htf_color = m5_bias == "Bullish" ? bull_color : m5_bias == "Bearish" ? bear_color : neutral_color
+        string align_status = (bias == "Bullish" and m5_bull_ok) or (bias == "Bearish" and m5_bear_ok) ? "✓" : "✗"
+        color align_color = (bias == "Bullish" and m5_bull_ok) or (bias == "Bearish" and m5_bear_ok) ? color.green : color.red
+        table.cell(htf_table, 0, row, "5M", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 1, row, m5_bias, text_color=htf_color, text_size=size.small)
+        table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+        row := row + 1
+    
+    if use_15m
+        color htf_color = m15_bias == "Bullish" ? bull_color : m15_bias == "Bearish" ? bear_color : neutral_color
+        string align_status = (bias == "Bullish" and m15_bull_ok) or (bias == "Bearish" and m15_bear_ok) ? "✓" : "✗"
+        color align_color = (bias == "Bullish" and m15_bull_ok) or (bias == "Bearish" and m15_bear_ok) ? color.green : color.red
+        table.cell(htf_table, 0, row, "15M", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 1, row, m15_bias, text_color=htf_color, text_size=size.small)
+        table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+        row := row + 1
+    
+    if use_1h
+        color htf_color = h1_bias == "Bullish" ? bull_color : h1_bias == "Bearish" ? bear_color : neutral_color
+        string align_status = (bias == "Bullish" and h1_bull_ok) or (bias == "Bearish" and h1_bear_ok) ? "✓" : "✗"
+        color align_color = (bias == "Bullish" and h1_bull_ok) or (bias == "Bearish" and h1_bear_ok) ? color.green : color.red
+        table.cell(htf_table, 0, row, "1H", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 1, row, h1_bias, text_color=htf_color, text_size=size.small)
+        table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+        row := row + 1
+    
+    if use_4h
+        color htf_color = h4_bias == "Bullish" ? bull_color : h4_bias == "Bearish" ? bear_color : neutral_color
+        string align_status = (bias == "Bullish" and h4_bull_ok) or (bias == "Bearish" and h4_bear_ok) ? "✓" : "✗"
+        color align_color = (bias == "Bullish" and h4_bull_ok) or (bias == "Bearish" and h4_bear_ok) ? color.green : color.red
+        table.cell(htf_table, 0, row, "4H", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 1, row, h4_bias, text_color=htf_color, text_size=size.small)
+        table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+        row := row + 1
+    
+    if use_daily
+        color htf_color = daily_bias == "Bullish" ? bull_color : daily_bias == "Bearish" ? bear_color : neutral_color
+        string align_status = (bias == "Bullish" and daily_bull_ok) or (bias == "Bearish" and daily_bear_ok) ? "✓" : "✗"
+        color align_color = (bias == "Bullish" and daily_bull_ok) or (bias == "Bearish" and daily_bear_ok) ? color.green : color.red
+        table.cell(htf_table, 0, row, "1D", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 1, row, daily_bias, text_color=htf_color, text_size=size.small)
+        table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)

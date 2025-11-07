@@ -496,9 +496,21 @@ Better Insights ← Richer Analytics ← More Data Points ← Validated Outcomes
 
 ### **📊 KEY DEFINITIONS:**
 
-#### **3-Candle Pivot:**
-- **Bullish Pivot:** Candle low < both adjacent candle lows
-- **Bearish Pivot:** Candle high > both adjacent candle highs
+#### **Pivot Detection (3-Candle and 4-Candle):**
+
+**3-Candle Pivot (Standard):**
+- **Bullish Pivot:** Single candle with low < both adjacent candle lows
+- **Bearish Pivot:** Single candle with high > both adjacent candle highs
+
+**4-Candle Double-Bottom/Top Pivot:**
+- **Bullish Double-Bottom Pivot:** Two consecutive candles sharing the same low, flanked by candles with higher lows
+  - Pattern: [higher low] [equal low] [equal low] [higher low]
+  - The shared low becomes the pivot point
+- **Bearish Double-Top Pivot:** Two consecutive candles sharing the same high, flanked by candles with lower highs
+  - Pattern: [lower high] [equal high] [equal high] [lower high]
+  - The shared high becomes the pivot point
+
+**Note:** Both 3-candle and 4-candle pivots are valid for stop loss placement. The system automatically detects both patterns.
 
 #### **Signal Cancellation:**
 - Opposing signal (red/blue triangle) cancels pending confirmation

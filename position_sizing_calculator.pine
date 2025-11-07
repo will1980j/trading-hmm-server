@@ -1,0 +1,311 @@
+//@version=5
+indicator("Position Sizing Calculator - WJ", overlay=true, max_lines_count=500, max_labels_count=500)
+
+//==============================================================================
+// INPUTS
+//==============================================================================
+
+// Account Settings
+account_size = input.float(50000, "Account Size ($)", group="Account Settings", minval=100)
+risk_percent = input.float(1.0, "Risk Per Trade (%)", group="Account Settings", minval=0.1, maxval=10, step=0.1)
+
+// Entry & Stop Loss (Draggable)
+entry_price = input.price(20000, "Entry Price", group="Trade Setup", confirm=true, tooltip="Drag this line on the chart to set entry price")
+stop_loss = input.price(19975, "Stop Loss Price", group="Trade Setup", confirm=true, tooltip="Drag this line on the chart to set stop loss")
+
+// Trade Direction
+trade_direction = input.string("Long", "Trade Direction", options=["Long", "Short"], group="Trade Setup")
+
+// Display Options
+show_targets = input.bool(true, "Show R-Multiple Targets", group="Display")
+show_dashboard = input.bool(true, "Show Dashboard", group="Display")
+dashboard_position = input.string("Top Right", "Dashboard Position", 
+     options=["Top Right", "Top Left", "Bottom Right", "Bottom Left"], group="Display")
+
+//==============================================================================
+// SYMBOL DETECTION & CONTRACT SPECS
+//==============================================================================
+
+// Detect symbol and set contract specifications
+is_nq = str.contains(syminfo.ticker, "NQ") and not str.contains(syminfo.ticker, "MNQ")
+is_es = str.contains(syminfo.ticker, "ES") and not str.contains(syminfo.ticker, "MES")
+is_ym = str.contains(syminfo.ticker, "YM") and not str.contains(syminfo.ticker, "MYM")
+is_rty = (str.contains(syminfo.ticker, "RTY") or str.contains(syminfo.ticker, "2000")) and not str.contains(syminfo.ticker, "M2K")
+
+// Detect MICRO contracts
+is_mnq = str.contains(syminfo.ticker, "MNQ")  // Micro NASDAQ
+is_mes = str.contains(syminfo.ticker, "MES")  // Micro S&P 500
+is_mym = str.contains(syminfo.ticker, "MYM")  // Micro Dow
+is_m2k = str.contains(syminfo.ticker, "M2K")  // Micro Russell
+
+// Set tick value based on symbol
+tick_value = is_nq ? 5.0 :      // NASDAQ: $5 per point
+             is_es ? 12.5 :     // S&P 500: $12.50 per point
+             is_ym ? 5.0 :      // Dow: $5 per point
+             is_rty ? 10.0 :    // Russell: $10 per point
+             is_mnq ? 0.5 :     // Micro NASDAQ: $0.50 per point
+             is_mes ? 1.25 :    // Micro S&P: $1.25 per point
+             is_mym ? 0.5 :     // Micro Dow: $0.50 per point
+             is_m2k ? 1.0 :     // Micro Russell: $1.00 per point
+             1.0                // Default
+
+// Adjust for actual contract values
+contract_multiplier = is_nq ? 20.0 :    // NQ: $20 per point
+                     is_es ? 50.0 :    // ES: $50 per point
+                     is_ym ? 5.0 :     // YM: $5 per point
+                     is_rty ? 50.0 :   // RTY: $50 per point
+                     is_mnq ? 2.0 :    // MNQ: $2 per point (1/10th of NQ)
+                     is_mes ? 5.0 :    // MES: $5 per point (1/10th of ES)
+                     is_mym ? 0.5 :    // MYM: $0.50 per point (1/10th of YM)
+                     is_m2k ? 5.0 :    // M2K: $5 per point (1/10th of RTY)
+                     1.0
+
+symbol_name = is_nq ? "NASDAQ (NQ)" :
+             is_es ? "S&P 500 (ES)" :
+             is_ym ? "Dow (YM)" :
+             is_rty ? "Russell (RTY)" :
+             is_mnq ? "Micro NASDAQ (MNQ)" :
+             is_mes ? "Micro S&P 500 (MES)" :
+             is_mym ? "Micro Dow (MYM)" :
+             is_m2k ? "Micro Russell (M2K)" :
+             syminfo.ticker
+
+//==============================================================================
+// POSITION SIZING CALCULATIONS
+//==============================================================================
+
+// Calculate risk distance in points
+risk_distance = trade_direction == "Long" ? 
+     math.abs(entry_price - stop_loss) : 
+     math.abs(stop_loss - entry_price)
+
+// Validate setup
+valid_setup = trade_direction == "Long" ? entry_price > stop_loss : entry_price < stop_loss
+
+// Calculate dollar risk
+dollar_risk = account_size * (risk_percent / 100)
+
+// Calculate risk per contract
+risk_per_contract = risk_distance * contract_multiplier
+
+// Calculate number of contracts
+contracts = risk_per_contract > 0 ? math.floor(dollar_risk / risk_per_contract) : 0
+
+// Actual dollar risk (after rounding contracts)
+actual_risk = contracts * risk_per_contract
+
+// Calculate R-multiple targets
+target_1r = trade_direction == "Long" ? entry_price + risk_distance : entry_price - risk_distance
+target_2r = trade_direction == "Long" ? entry_price + (risk_distance * 2) : entry_price - (risk_distance * 2)
+target_3r = trade_direction == "Long" ? entry_price + (risk_distance * 3) : entry_price - (risk_distance * 3)
+target_5r = trade_direction == "Long" ? entry_price + (risk_distance * 5) : entry_price - (risk_distance * 5)
+
+// Calculate profit at each target
+profit_1r = contracts * risk_distance * contract_multiplier
+profit_2r = profit_1r * 2
+profit_3r = profit_1r * 3
+profit_5r = profit_1r * 5
+
+//==============================================================================
+// VISUAL ELEMENTS - LINES
+//==============================================================================
+
+// Entry Line
+var line entry_line = na
+if barstate.islast and valid_setup
+    if na(entry_line)
+        entry_line := line.new(bar_index - 50, entry_price, bar_index + 10, entry_price, 
+             color=color.new(color.blue, 0), width=2, style=line.style_solid, extend=extend.right)
+    else
+        line.set_xy1(entry_line, bar_index - 50, entry_price)
+        line.set_xy2(entry_line, bar_index + 10, entry_price)
+
+// Stop Loss Line
+var line sl_line = na
+if barstate.islast and valid_setup
+    if na(sl_line)
+        sl_line := line.new(bar_index - 50, stop_loss, bar_index + 10, stop_loss, 
+             color=color.new(color.red, 0), width=2, style=line.style_solid, extend=extend.right)
+    else
+        line.set_xy1(sl_line, bar_index - 50, stop_loss)
+        line.set_xy2(sl_line, bar_index + 10, stop_loss)
+
+// Target Lines
+var line target_1r_line = na
+var line target_2r_line = na
+var line target_3r_line = na
+var line target_5r_line = na
+
+if barstate.islast and valid_setup and show_targets
+    // 1R Target
+    if na(target_1r_line)
+        target_1r_line := line.new(bar_index - 50, target_1r, bar_index + 10, target_1r, 
+             color=color.new(color.green, 50), width=1, style=line.style_dashed, extend=extend.right)
+    else
+        line.set_xy1(target_1r_line, bar_index - 50, target_1r)
+        line.set_xy2(target_1r_line, bar_index + 10, target_1r)
+    
+    // 2R Target
+    if na(target_2r_line)
+        target_2r_line := line.new(bar_index - 50, target_2r, bar_index + 10, target_2r, 
+             color=color.new(color.green, 30), width=1, style=line.style_dashed, extend=extend.right)
+    else
+        line.set_xy1(target_2r_line, bar_index - 50, target_2r)
+        line.set_xy2(target_2r_line, bar_index + 10, target_2r)
+    
+    // 3R Target
+    if na(target_3r_line)
+        target_3r_line := line.new(bar_index - 50, target_3r, bar_index + 10, target_3r, 
+             color=color.new(color.green, 10), width=1, style=line.style_dashed, extend=extend.right)
+    else
+        line.set_xy1(target_3r_line, bar_index - 50, target_3r)
+        line.set_xy2(target_3r_line, bar_index + 10, target_3r)
+    
+    // 5R Target
+    if na(target_5r_line)
+        target_5r_line := line.new(bar_index - 50, target_5r, bar_index + 10, target_5r, 
+             color=color.new(color.lime, 0), width=2, style=line.style_dashed, extend=extend.right)
+    else
+        line.set_xy1(target_5r_line, bar_index - 50, target_5r)
+        line.set_xy2(target_5r_line, bar_index + 10, target_5r)
+
+//==============================================================================
+// LABELS
+//==============================================================================
+
+// Entry Label
+var label entry_label = na
+if barstate.islast and valid_setup
+    label_text = "ENTRY: " + str.tostring(entry_price, format.mintick)
+    if na(entry_label)
+        entry_label := label.new(bar_index + 10, entry_price, label_text, 
+             style=label.style_label_left, color=color.blue, textcolor=color.white, size=size.normal)
+    else
+        label.set_xy(entry_label, bar_index + 10, entry_price)
+        label.set_text(entry_label, label_text)
+
+// Stop Loss Label
+var label sl_label = na
+if barstate.islast and valid_setup
+    label_text = "STOP: " + str.tostring(stop_loss, format.mintick)
+    if na(sl_label)
+        sl_label := label.new(bar_index + 10, stop_loss, label_text, 
+             style=label.style_label_left, color=color.red, textcolor=color.white, size=size.normal)
+    else
+        label.set_xy(sl_label, bar_index + 10, stop_loss)
+        label.set_text(sl_label, label_text)
+
+// Target Labels
+var label target_1r_label = na
+var label target_2r_label = na
+var label target_3r_label = na
+var label target_5r_label = na
+
+if barstate.islast and valid_setup and show_targets
+    // 1R Label
+    label_text_1r = "1R: " + str.tostring(target_1r, format.mintick) + " (+$" + str.tostring(profit_1r, format.mintick) + ")"
+    if na(target_1r_label)
+        target_1r_label := label.new(bar_index + 10, target_1r, label_text_1r, 
+             style=label.style_label_left, color=color.new(color.green, 50), textcolor=color.white, size=size.small)
+    else
+        label.set_xy(target_1r_label, bar_index + 10, target_1r)
+        label.set_text(target_1r_label, label_text_1r)
+    
+    // 2R Label
+    label_text_2r = "2R: " + str.tostring(target_2r, format.mintick) + " (+$" + str.tostring(profit_2r, format.mintick) + ")"
+    if na(target_2r_label)
+        target_2r_label := label.new(bar_index + 10, target_2r, label_text_2r, 
+             style=label.style_label_left, color=color.new(color.green, 30), textcolor=color.white, size=size.small)
+    else
+        label.set_xy(target_2r_label, bar_index + 10, target_2r)
+        label.set_text(target_2r_label, label_text_2r)
+    
+    // 3R Label
+    label_text_3r = "3R: " + str.tostring(target_3r, format.mintick) + " (+$" + str.tostring(profit_3r, format.mintick) + ")"
+    if na(target_3r_label)
+        target_3r_label := label.new(bar_index + 10, target_3r, label_text_3r, 
+             style=label.style_label_left, color=color.new(color.green, 10), textcolor=color.white, size=size.small)
+    else
+        label.set_xy(target_3r_label, bar_index + 10, target_3r)
+        label.set_text(target_3r_label, label_text_3r)
+    
+    // 5R Label
+    label_text_5r = "5R: " + str.tostring(target_5r, format.mintick) + " (+$" + str.tostring(profit_5r, format.mintick) + ")"
+    if na(target_5r_label)
+        target_5r_label := label.new(bar_index + 10, target_5r, label_text_5r, 
+             style=label.style_label_left, color=color.lime, textcolor=color.black, size=size.small)
+    else
+        label.set_xy(target_5r_label, bar_index + 10, target_5r)
+        label.set_text(target_5r_label, label_text_5r)
+
+//==============================================================================
+// DASHBOARD
+//==============================================================================
+
+var table_pos = dashboard_position == "Top Right" ? position.top_right :
+               dashboard_position == "Top Left" ? position.top_left :
+               dashboard_position == "Bottom Right" ? position.bottom_right :
+               position.bottom_left
+
+var table dashboard = table.new(table_pos, 2, 12, 
+     bgcolor=color.new(#1e222d, 0), border_color=#373a46, border_width=2, frame_color=#373a46, frame_width=2)
+
+if barstate.islast and show_dashboard
+    // Header
+    table.cell(dashboard, 0, 0, "POSITION SIZING", text_color=color.white, text_size=size.normal, bgcolor=#2962ff)
+    table.merge_cells(dashboard, 0, 0, 1, 0)
+    
+    // Symbol
+    table.cell(dashboard, 0, 1, "Symbol:", text_color=color.gray, text_size=size.small)
+    table.cell(dashboard, 1, 1, symbol_name, text_color=color.white, text_size=size.small)
+    
+    // Account Size
+    table.cell(dashboard, 0, 2, "Account:", text_color=color.gray, text_size=size.small)
+    table.cell(dashboard, 1, 2, "$" + str.tostring(account_size, "#,###"), text_color=color.white, text_size=size.small)
+    
+    // Risk %
+    table.cell(dashboard, 0, 3, "Risk %:", text_color=color.gray, text_size=size.small)
+    table.cell(dashboard, 1, 3, str.tostring(risk_percent, "#.##") + "% ($" + str.tostring(dollar_risk, "#,###") + ")", 
+         text_color=color.orange, text_size=size.small)
+    
+    // Separator
+    table.cell(dashboard, 0, 4, "─────────────", text_color=color.gray, text_size=size.tiny)
+    table.merge_cells(dashboard, 0, 4, 1, 4)
+    
+    // Entry Price
+    table.cell(dashboard, 0, 5, "Entry:", text_color=color.gray, text_size=size.small)
+    table.cell(dashboard, 1, 5, str.tostring(entry_price, format.mintick), text_color=color.blue, text_size=size.small)
+    
+    // Stop Loss
+    table.cell(dashboard, 0, 6, "Stop Loss:", text_color=color.gray, text_size=size.small)
+    table.cell(dashboard, 1, 6, str.tostring(stop_loss, format.mintick), text_color=color.red, text_size=size.small)
+    
+    // Risk Distance
+    table.cell(dashboard, 0, 7, "Risk Dist:", text_color=color.gray, text_size=size.small)
+    table.cell(dashboard, 1, 7, str.tostring(risk_distance, format.mintick) + " pts", text_color=color.white, text_size=size.small)
+    
+    // Separator
+    table.cell(dashboard, 0, 8, "─────────────", text_color=color.gray, text_size=size.tiny)
+    table.merge_cells(dashboard, 0, 8, 1, 8)
+    
+    // Contracts
+    contracts_color = contracts > 0 ? color.lime : color.red
+    table.cell(dashboard, 0, 9, "CONTRACTS:", text_color=color.white, text_size=size.normal, bgcolor=#1e3a5f)
+    table.cell(dashboard, 1, 9, str.tostring(contracts), text_color=contracts_color, text_size=size.large, bgcolor=#1e3a5f)
+    
+    // Actual Risk
+    table.cell(dashboard, 0, 10, "Actual Risk:", text_color=color.gray, text_size=size.small)
+    table.cell(dashboard, 1, 10, "$" + str.tostring(actual_risk, "#,###.##"), text_color=color.orange, text_size=size.small)
+    
+    // Risk per Contract
+    table.cell(dashboard, 0, 11, "Risk/Contract:", text_color=color.gray, text_size=size.tiny)
+    table.cell(dashboard, 1, 11, "$" + str.tostring(risk_per_contract, "#,###.##"), text_color=color.gray, text_size=size.tiny)
+
+//==============================================================================
+// ALERTS (Optional - can be enabled if needed)
+//==============================================================================
+
+// Note: Alerts removed due to Pine Script v5 constant string requirements
+// You can manually check the dashboard for:
+// - Invalid setup warnings (entry/stop positioning)
+// - Zero contracts warnings (increase account size or risk %)

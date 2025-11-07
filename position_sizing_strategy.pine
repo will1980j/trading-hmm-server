@@ -1,0 +1,336 @@
+//@version=5
+strategy("Position Sizing Strategy - WJ", overlay=true, 
+     default_qty_type=strategy.fixed, default_qty_value=1,
+     initial_capital=50000, currency=currency.USD,
+     calc_on_every_tick=true, process_orders_on_close=false)
+
+//==============================================================================
+// INPUTS
+//==============================================================================
+
+// Account Settings
+account_size = input.float(50000, "Account Size ($)", group="Account Settings", minval=100)
+risk_percent = input.float(1.0, "Risk Per Trade (%)", group="Account Settings", minval=0.1, maxval=10, step=0.1)
+
+// Trade Direction
+trade_direction = input.string("Long", "Trade Direction", options=["Long", "Short"], group="Trade Setup")
+
+// Stop Loss - Use nearest support/resistance or round number
+stop_offset_points = input.float(100.0, "Stop Loss Offset (Points)", group="Trade Setup",
+     tooltip="Distance from entry to stop. Adjust this one number for your stop level.")
+
+// Display Options
+show_targets = input.bool(true, "Show R-Multiple Targets", group="Display")
+show_dashboard = input.bool(true, "Show Dashboard", group="Display")
+dashboard_position = input.string("Top Right", "Dashboard Position", 
+     options=["Top Right", "Top Left", "Bottom Right", "Bottom Left"], group="Display")
+
+// R-Multiple Projection Settings
+num_r_lines = input.int(10, "Number of R-Multiple Lines", group="R-Multiple Projections", minval=1, maxval=20)
+show_entry_line = input.bool(true, "Show Entry Line", group="R-Multiple Projections")
+show_stop_line = input.bool(true, "Show Stop Loss Line", group="R-Multiple Projections")
+
+// Line Style Settings
+line_style_input = input.string("Dashed", "Line Style", options=["Solid", "Dashed", "Dotted"], group="Line Styles")
+line_width = input.int(1, "Line Width", group="Line Styles", minval=1, maxval=4)
+extend_lines = input.bool(true, "Extend Lines Right", group="Line Styles")
+
+// Color Settings - Entry & Stop
+entry_color = input.color(color.new(color.blue, 0), "Entry Line Color", group="Colors - Entry/Stop")
+stop_color = input.color(color.new(color.red, 0), "Stop Loss Color", group="Colors - Entry/Stop")
+
+// Color Settings - Profit Targets
+profit_color_1 = input.color(color.new(color.green, 70), "1R-2R Color", group="Colors - Profit Targets")
+profit_color_2 = input.color(color.new(color.green, 50), "3R-4R Color", group="Colors - Profit Targets")
+profit_color_3 = input.color(color.new(color.green, 30), "5R-7R Color", group="Colors - Profit Targets")
+profit_color_4 = input.color(color.new(color.lime, 0), "8R+ Color", group="Colors - Profit Targets")
+
+// Label Settings
+show_labels = input.bool(true, "Show Price Labels", group="Label Settings")
+show_profit_labels = input.bool(true, "Show Profit $ Labels", group="Label Settings")
+label_size_input = input.string("Small", "Label Size", options=["Tiny", "Small", "Normal", "Large"], group="Label Settings")
+
+//==============================================================================
+// SYMBOL DETECTION & CONTRACT SPECS
+//==============================================================================
+
+// Detect symbol and set contract specifications
+is_nq = str.contains(syminfo.ticker, "NQ") and not str.contains(syminfo.ticker, "MNQ")
+is_es = str.contains(syminfo.ticker, "ES") and not str.contains(syminfo.ticker, "MES")
+is_ym = str.contains(syminfo.ticker, "YM") and not str.contains(syminfo.ticker, "MYM")
+is_rty = (str.contains(syminfo.ticker, "RTY") or str.contains(syminfo.ticker, "2000")) and not str.contains(syminfo.ticker, "M2K")
+
+// Detect MICRO contracts
+is_mnq = str.contains(syminfo.ticker, "MNQ")
+is_mes = str.contains(syminfo.ticker, "MES")
+is_mym = str.contains(syminfo.ticker, "MYM")
+is_m2k = str.contains(syminfo.ticker, "M2K")
+
+// Contract multiplier
+contract_multiplier = is_nq ? 20.0 :
+                     is_es ? 50.0 :
+                     is_ym ? 5.0 :
+                     is_rty ? 50.0 :
+                     is_mnq ? 2.0 :
+                     is_mes ? 5.0 :
+                     is_mym ? 0.5 :
+                     is_m2k ? 5.0 :
+                     1.0
+
+symbol_name = is_nq ? "NASDAQ (NQ)" :
+             is_es ? "S&P 500 (ES)" :
+             is_ym ? "Dow (YM)" :
+             is_rty ? "Russell (RTY)" :
+             is_mnq ? "Micro NASDAQ (MNQ)" :
+             is_mes ? "Micro S&P 500 (MES)" :
+             is_mym ? "Micro Dow (MYM)" :
+             is_m2k ? "Micro Russell (M2K)" :
+             syminfo.ticker
+
+//==============================================================================
+// STRATEGY ORDERS (Creates draggable lines!)
+//==============================================================================
+
+// Execute strategy to create draggable order lines
+// These will appear as draggable lines on your chart!
+if trade_direction == "Long"
+    strategy.entry("Long", strategy.long, qty=1, comment="Long Entry")
+    strategy.exit("Exit", "Long", stop=close * 0.99, limit=close * 1.02, comment="Long Exit")
+    
+if trade_direction == "Short"
+    strategy.entry("Short", strategy.short, qty=1, comment="Short Entry")
+    strategy.exit("Exit", "Short", stop=close * 1.01, limit=close * 0.98, comment="Short Exit")
+
+//==============================================================================
+// POSITION SIZING CALCULATIONS
+//==============================================================================
+
+// Entry = Current Price (updates in real-time)
+entry_price = close
+
+// Stop Loss = Entry +/- offset points
+stop_loss = trade_direction == "Long" ? entry_price - stop_offset_points : entry_price + stop_offset_points
+
+// Calculate risk distance
+risk_distance = trade_direction == "Long" ? 
+     math.abs(entry_price - stop_loss) : 
+     math.abs(stop_loss - entry_price)
+
+// Validate setup
+valid_setup = trade_direction == "Long" ? entry_price > stop_loss : entry_price < stop_loss
+
+// Calculate dollar risk
+dollar_risk = account_size * (risk_percent / 100)
+
+// Calculate risk per contract
+risk_per_contract = risk_distance * contract_multiplier
+
+// Calculate number of contracts
+contracts = risk_per_contract > 0 ? math.floor(dollar_risk / risk_per_contract) : 0
+
+// Actual dollar risk
+actual_risk = contracts * risk_per_contract
+
+// Convert line style input to Pine Script style
+line_style = line_style_input == "Solid" ? line.style_solid : line_style_input == "Dotted" ? line.style_dotted : line.style_dashed
+
+// Convert label size input
+label_size = label_size_input == "Tiny" ? size.tiny : label_size_input == "Normal" ? size.normal : label_size_input == "Large" ? size.large : size.small
+
+// Line extension setting
+line_extend = extend_lines ? extend.right : extend.none
+
+// Calculate dynamic R-multiple targets
+var float[] r_targets = array.new_float(0)
+var float[] r_profits = array.new_float(0)
+
+if barstate.islast
+    array.clear(r_targets)
+    array.clear(r_profits)
+    
+    for i = 1 to num_r_lines
+        r_price = trade_direction == "Long" ? entry_price + (risk_distance * i) : entry_price - (risk_distance * i)
+        r_profit = contracts * risk_distance * contract_multiplier * i
+        
+        array.push(r_targets, r_price)
+        array.push(r_profits, r_profit)
+
+//==============================================================================
+// ENTRY & STOP LOSS LINES
+//==============================================================================
+
+var line entry_line = na
+var line stop_line = na
+
+if barstate.islast and valid_setup
+    // Entry Line
+    if show_entry_line
+        if na(entry_line)
+            entry_line := line.new(bar_index - 50, entry_price, bar_index + 10, entry_price, 
+                 color=entry_color, width=line_width + 1, style=line.style_solid, extend=line_extend)
+        else
+            line.set_xy1(entry_line, bar_index - 50, entry_price)
+            line.set_xy2(entry_line, bar_index + 10, entry_price)
+            line.set_color(entry_line, entry_color)
+            line.set_width(entry_line, line_width + 1)
+            line.set_extend(entry_line, line_extend)
+    
+    // Stop Loss Line
+    if show_stop_line
+        if na(stop_line)
+            stop_line := line.new(bar_index - 50, stop_loss, bar_index + 10, stop_loss, 
+                 color=stop_color, width=line_width + 1, style=line.style_solid, extend=line_extend)
+        else
+            line.set_xy1(stop_line, bar_index - 50, stop_loss)
+            line.set_xy2(stop_line, bar_index + 10, stop_loss)
+            line.set_color(stop_line, stop_color)
+            line.set_width(stop_line, line_width + 1)
+            line.set_extend(stop_line, line_extend)
+
+//==============================================================================
+// R-MULTIPLE TARGET LINES (DYNAMIC)
+//==============================================================================
+
+var line[] r_lines = array.new_line(0)
+
+if barstate.islast and valid_setup and show_targets
+    // Clear old lines
+    if array.size(r_lines) > 0
+        for i = 0 to array.size(r_lines) - 1
+            line.delete(array.get(r_lines, i))
+        array.clear(r_lines)
+    
+    // Create new R-multiple lines
+    for i = 0 to array.size(r_targets) - 1
+        r_num = i + 1
+        target_price = array.get(r_targets, i)
+        
+        // Determine color based on R-multiple
+        line_color = r_num <= 2 ? profit_color_1 : r_num <= 4 ? profit_color_2 : r_num <= 7 ? profit_color_3 : profit_color_4
+        
+        // Create line
+        new_line = line.new(bar_index - 50, target_price, bar_index + 10, target_price, 
+             color=line_color, width=line_width, style=line_style, extend=line_extend)
+        array.push(r_lines, new_line)
+
+//==============================================================================
+// LABELS (DYNAMIC)
+//==============================================================================
+
+var label entry_label = na
+var label stop_label = na
+var label[] r_labels = array.new_label(0)
+
+if barstate.islast and valid_setup and show_labels
+    // Entry Label
+    if show_entry_line
+        entry_text = "ENTRY: " + str.tostring(entry_price, format.mintick)
+        if na(entry_label)
+            entry_label := label.new(bar_index + 10, entry_price, entry_text, 
+                 style=label.style_label_left, color=entry_color, textcolor=color.white, size=label_size)
+        else
+            label.set_xy(entry_label, bar_index + 10, entry_price)
+            label.set_text(entry_label, entry_text)
+            label.set_color(entry_label, entry_color)
+            label.set_size(entry_label, label_size)
+    
+    // Stop Loss Label
+    if show_stop_line
+        stop_text = "STOP: " + str.tostring(stop_loss, format.mintick) + " (-$" + str.tostring(actual_risk, "#,###") + ")"
+        if na(stop_label)
+            stop_label := label.new(bar_index + 10, stop_loss, stop_text, 
+                 style=label.style_label_left, color=stop_color, textcolor=color.white, size=label_size)
+        else
+            label.set_xy(stop_label, bar_index + 10, stop_loss)
+            label.set_text(stop_label, stop_text)
+            label.set_color(stop_label, stop_color)
+            label.set_size(stop_label, label_size)
+
+if barstate.islast and valid_setup and show_targets and show_labels
+    // Clear old labels
+    if array.size(r_labels) > 0
+        for i = 0 to array.size(r_labels) - 1
+            label.delete(array.get(r_labels, i))
+        array.clear(r_labels)
+    
+    // Create R-multiple labels
+    for i = 0 to array.size(r_targets) - 1
+        r_num = i + 1
+        target_price = array.get(r_targets, i)
+        target_profit = array.get(r_profits, i)
+        
+        // Determine color
+        label_color = r_num <= 2 ? profit_color_1 : r_num <= 4 ? profit_color_2 : r_num <= 7 ? profit_color_3 : profit_color_4
+        
+        // Build label text
+        label_text = str.tostring(r_num) + "R: " + str.tostring(target_price, format.mintick)
+        if show_profit_labels
+            label_text := label_text + " (+$" + str.tostring(target_profit, "#,###") + ")"
+        
+        // Create label
+        new_label = label.new(bar_index + 10, target_price, label_text, 
+             style=label.style_label_left, color=label_color, textcolor=color.white, size=label_size)
+        array.push(r_labels, new_label)
+
+//==============================================================================
+// DASHBOARD
+//==============================================================================
+
+var table_pos = dashboard_position == "Top Right" ? position.top_right :
+               dashboard_position == "Top Left" ? position.top_left :
+               dashboard_position == "Bottom Right" ? position.bottom_right :
+               position.bottom_left
+
+var table dashboard = table.new(table_pos, 2, 12, 
+     bgcolor=color.new(#1e222d, 0), border_color=#373a46, border_width=2, frame_color=#373a46, frame_width=2)
+
+if barstate.islast and show_dashboard
+    // Header
+    table.cell(dashboard, 0, 0, "POSITION SIZING", text_color=color.white, text_size=size.normal, bgcolor=#2962ff)
+    table.merge_cells(dashboard, 0, 0, 1, 0)
+    
+    // Symbol
+    table.cell(dashboard, 0, 1, "Symbol:", text_color=color.gray, text_size=size.small)
+    table.cell(dashboard, 1, 1, symbol_name, text_color=color.white, text_size=size.small)
+    
+    // Account Size
+    table.cell(dashboard, 0, 2, "Account:", text_color=color.gray, text_size=size.small)
+    table.cell(dashboard, 1, 2, "$" + str.tostring(account_size, "#,###"), text_color=color.white, text_size=size.small)
+    
+    // Risk %
+    table.cell(dashboard, 0, 3, "Risk %:", text_color=color.gray, text_size=size.small)
+    table.cell(dashboard, 1, 3, str.tostring(risk_percent, "#.##") + "% ($" + str.tostring(dollar_risk, "#,###") + ")", 
+         text_color=color.orange, text_size=size.small)
+    
+    // Separator
+    table.cell(dashboard, 0, 4, "─────────────", text_color=color.gray, text_size=size.tiny)
+    table.merge_cells(dashboard, 0, 4, 1, 4)
+    
+    // Entry Price
+    table.cell(dashboard, 0, 5, "Entry:", text_color=color.gray, text_size=size.small)
+    table.cell(dashboard, 1, 5, str.tostring(entry_price, format.mintick), text_color=color.blue, text_size=size.small)
+    
+    // Stop Loss
+    table.cell(dashboard, 0, 6, "Stop Loss:", text_color=color.gray, text_size=size.small)
+    table.cell(dashboard, 1, 6, str.tostring(stop_loss, format.mintick), text_color=color.red, text_size=size.small)
+    
+    // Risk Distance
+    table.cell(dashboard, 0, 7, "Risk Dist:", text_color=color.gray, text_size=size.small)
+    table.cell(dashboard, 1, 7, str.tostring(risk_distance, format.mintick) + " pts", text_color=color.white, text_size=size.small)
+    
+    // Separator
+    table.cell(dashboard, 0, 8, "─────────────", text_color=color.gray, text_size=size.tiny)
+    table.merge_cells(dashboard, 0, 8, 1, 8)
+    
+    // Contracts
+    contracts_color = contracts > 0 ? color.lime : color.red
+    table.cell(dashboard, 0, 9, "CONTRACTS:", text_color=color.white, text_size=size.normal, bgcolor=#1e3a5f)
+    table.cell(dashboard, 1, 9, str.tostring(contracts), text_color=contracts_color, text_size=size.large, bgcolor=#1e3a5f)
+    
+    // Actual Risk
+    table.cell(dashboard, 0, 10, "Actual Risk:", text_color=color.gray, text_size=size.small)
+    table.cell(dashboard, 1, 10, "$" + str.tostring(actual_risk, "#,###.##"), text_color=color.orange, text_size=size.small)
+    
+    // Risk per Contract
+    table.cell(dashboard, 0, 11, "Risk/Contract:", text_color=color.gray, text_size=size.tiny)
+    table.cell(dashboard, 1, 11, "$" + str.tostring(risk_per_contract, "#,###.##"), text_color=color.gray, text_size=size.tiny)

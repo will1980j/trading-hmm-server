@@ -1,0 +1,21 @@
+//Timezones - Auto DST Detection
+use_auto_dst = input(true, 'Auto Eastern Time (Handles DST)', group = 'Timezone')
+manual_offset = input.int(-5, 'Manual UTC Offset', group = 'Timezone')
+
+// Function to detect if we're in DST
+is_dst() =>
+    // Get current time in New York timezone
+    ny_time = time("1D", "America/New_York")
+    utc_time = time("1D", "UTC")
+    
+    // Calculate offset (will be -4 during EDT, -5 during EST)
+    offset_hours = math.round((ny_time - utc_time) / (1000 * 60 * 60))
+    
+    // Return true if EDT (UTC-4), false if EST (UTC-5)
+    offset_hours == -4
+
+// Automatically determine timezone
+auto_tz_offset = is_dst() ? -4 : -5
+final_offset = use_auto_dst ? auto_tz_offset : manual_offset
+
+var tz = str.format('UTC{0}{1}', final_offset >= 0 ? '+' : '-', math.abs(final_offset))

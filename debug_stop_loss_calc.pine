@@ -1,0 +1,166 @@
+//@version=5
+indicator("Debug Stop Loss - All 3 Scenarios", overlay=true)
+
+// EXACT METHODOLOGY - ALL 3 SCENARIOS FOR BULLISH TRADES
+// Scenario A: Lowest point IS a pivot -> SL = pivot low - 25
+// Scenario B: Signal candle is lowest AND is pivot -> SL = signal low - 25
+// Scenario C: Signal candle is lowest BUT NOT pivot -> Search left 5 for pivot
+//             - If pivot found: SL = pivot low - 25
+//             - If no pivot: SL = first bearish candle low - 25
+
+// Inputs
+show_debug = input.bool(true, "Show Debug Table")
+bullish_signal = input.bool(false, "Trigger Bullish Signal")
+
+// State variables
+var float signal_low = na
+var float signal_high = na
+var int signal_bar = na
+var bool waiting = false
+var float entry = na
+var float stop_loss = na
+var string scenario = ""
+var string details = ""
+
+// Capture signal
+if bullish_signal and not bullish_signal[1]
+    signal_low := low
+    signal_high := high
+    signal_bar := bar_index
+    waiting := true
+    entry := na
+    stop_loss := na
+
+// Detect confirmation and calculate stop loss IMMEDIATELY
+if waiting and close > signal_high
+    waiting := false
+    
+    int bars_since = bar_index - signal_bar
+    
+    // STEP 1: Find lowest low in range (signal to confirmation)
+    float lowest = signal_low
+    int lowest_offset = bars_since
+    
+    for i = 1 to bars_since - 1
+        if low[i] < lowest
+            lowest := low[i]
+            lowest_offset := i
+    
+    if low < lowest
+        lowest := low
+        lowest_offset := 0
+    
+    // STEP 2: Determine which scenario applies
+    
+    // Check if lowest point is a 3-candle pivot
+    bool lowest_is_pivot = false
+    if lowest_offset >= 1
+        lowest_is_pivot := low[lowest_offset] < low[lowest_offset - 1] and low[lowest_offset] < low[lowest_offset + 1]
+    
+    // SCENARIO A: Lowest point is a pivot (and NOT signal candle)
+    if lowest_is_pivot and lowest_offset != bars_since
+        stop_loss := lowest - 25
+        scenario := "SCENARIO A"
+        details := "Lowest is pivot at offset " + str.tostring(lowest_offset) + " | Low: " + str.tostring(lowest)
+    
+    // SCENARIO B or C: Signal candle is the lowest
+    else if lowest_offset == bars_since
+        // Check if signal candle is a pivot
+        bool signal_is_pivot = false
+        if bars_since >= 1
+            signal_is_pivot := low[bars_since] < low[bars_since - 1] and low[bars_since] < low[bars_since + 1]
+        
+        // SCENARIO B: Signal is lowest AND is a pivot
+        if signal_is_pivot
+            stop_loss := signal_low - 25
+            scenario := "SCENARIO B"
+            details := "Signal is lowest AND pivot | Low: " + str.tostring(signal_low)
+        
+        // SCENARIO C: Signal is lowest but NOT a pivot
+        else
+            scenario := "SCENARIO C"
+            
+            // Search left 5 candles for pivot
+            bool found_pivot = false
+            for i = (bars_since + 1) to math.min(bars_since + 5, bar_index - 1)
+                if i >= 1
+                    if low[i] < low[i - 1] and low[i] < low[i + 1]
+                        stop_loss := low[i] - 25
+                        found_pivot := true
+                        details := "Signal NOT pivot, found pivot at offset " + str.tostring(i) + " | Low: " + str.tostring(low[i])
+                        break
+            
+            // No pivot found - use first bearish candle low
+            if not found_pivot
+                float first_bearish_low = signal_low
+                bool found_bearish = false
+                
+                for i = (bars_since + 1) to math.min(bars_since + 5, bar_index)
+                    if i >= 0 and close[i] < open[i]
+                        first_bearish_low := low[i]
+                        found_bearish := true
+                        details := "No pivot, using first bearish at offset " + str.tostring(i) + " | Low: " + str.tostring(first_bearish_low)
+                        break
+                
+                if not found_bearish
+                    details := "No pivot/bearish found, fallback to signal low | Low: " + str.tostring(signal_low)
+                
+                stop_loss := first_bearish_low - 25
+    
+    // FALLBACK: Lowest is NOT a pivot and NOT signal candle
+    else
+        stop_loss := lowest - 25
+        scenario := "FALLBACK"
+        details := "Lowest at offset " + str.tostring(lowest_offset) + " (not pivot) | Low: " + str.tostring(lowest)
+    
+    // Entry will be next bar's open
+    entry := na
+
+// Set entry on bar after confirmation
+if not na(stop_loss) and na(entry) and na(entry[1])
+    entry := open
+
+// Visualization - only plot lines, not historical circles
+hline(not na(entry) ? entry : na, "Entry", color.green, hline.style_solid, 2)
+hline(not na(stop_loss) ? stop_loss : na, "Stop Loss", color.red, hline.style_solid, 2)
+
+// Labels for candles - placed ABOVE price action
+if bullish_signal and not bullish_signal[1]
+    label.new(bar_index, high + 50, "SIGNAL", style=label.style_label_down, color=color.blue, textcolor=color.white, size=size.large)
+
+if not waiting and waiting[1]
+    label.new(bar_index, high + 50, "CONFIRM", style=label.style_label_down, color=color.orange, textcolor=color.white, size=size.large)
+
+if not na(entry) and na(entry[1])
+    label.new(bar_index, high + 50, "ENTRY", style=label.style_label_down, color=color.green, textcolor=color.white, size=size.large)
+
+// Debug table
+if show_debug and not na(entry) and not na(stop_loss)
+    var table t = table.new(position.bottom_center, 2, 9, border_width=2)
+    
+    table.cell(t, 0, 0, "Signal Low:", text_color=color.white, bgcolor=color.new(color.blue, 70))
+    table.cell(t, 1, 0, str.tostring(signal_low, "#.##"), text_color=color.white, bgcolor=color.new(color.blue, 70))
+    
+    table.cell(t, 0, 1, "Signal High:", text_color=color.white, bgcolor=color.new(color.blue, 70))
+    table.cell(t, 1, 1, str.tostring(signal_high, "#.##"), text_color=color.white, bgcolor=color.new(color.blue, 70))
+    
+    table.cell(t, 0, 2, "Entry Price:", text_color=color.white, bgcolor=color.new(color.green, 70))
+    table.cell(t, 1, 2, str.tostring(entry, "#.##"), text_color=color.white, bgcolor=color.new(color.green, 70))
+    
+    table.cell(t, 0, 3, "Stop Loss:", text_color=color.white, bgcolor=color.new(color.red, 70))
+    table.cell(t, 1, 3, str.tostring(stop_loss, "#.##"), text_color=color.white, bgcolor=color.new(color.red, 70))
+    
+    table.cell(t, 0, 4, "Risk (pts):", text_color=color.white)
+    table.cell(t, 1, 4, str.tostring(entry - stop_loss, "#.##"), text_color=color.white)
+    
+    table.cell(t, 0, 5, "Current Bar:", text_color=color.white)
+    table.cell(t, 1, 5, str.tostring(bar_index), text_color=color.white)
+    
+    table.cell(t, 0, 6, "Scenario:", text_color=color.white, bgcolor=color.new(color.blue, 70))
+    table.cell(t, 1, 6, scenario, text_color=color.yellow, bgcolor=color.new(color.blue, 70))
+    
+    table.cell(t, 0, 7, "Details:", text_color=color.white)
+    table.cell(t, 1, 7, details, text_color=color.aqua)
+    
+    table.cell(t, 0, 8, "DEBUG MODE", text_color=color.orange, bgcolor=color.new(color.orange, 80))
+    table.cell(t, 1, 8, "ALL 3 SCENARIOS", text_color=color.orange, bgcolor=color.new(color.orange, 80))
