@@ -1243,8 +1243,8 @@
 
                     <td>${signal.be1Level}R</td>
                     <td class="editable-cell" onclick="editInlineCheckbox(${signal.id}, 'be1Hit', this)">${signal.be1Hit ? '✓' : '✗'}</td>
-                    <td class="editable-cell ${signal.mfe1 > 0 ? 'positive' : signal.mfe1 < 0 ? 'negative' : 'neutral'}" onclick="editInline(${signal.id}, 'mfe1', this)">${signal.mfe1 ? signal.mfe1.toFixed(1) + 'R' : '-'}</td>
-                    <td class="editable-cell ${signal.mfeNone > 0 ? 'positive' : signal.mfeNone < 0 ? 'negative' : 'neutral'}" onclick="editInline(${signal.id}, 'mfeNone', this)">${signal.mfeNone ? signal.mfeNone.toFixed(1) + 'R' : '-'}</td>
+                    <td class="editable-cell ${signal.mfe1 > 0 ? 'positive' : signal.mfe1 < 0 ? 'negative' : 'neutral'}" onclick="editInline(${signal.id}, 'mfe1', this)">${signal.mfe1 ? signal.mfe1.toFixed(2) + 'R' : '-'}</td>
+                    <td class="editable-cell ${signal.mfeNone > 0 ? 'positive' : signal.mfeNone < 0 ? 'negative' : 'neutral'}" onclick="editInline(${signal.id}, 'mfeNone', this)">${signal.mfeNone ? signal.mfeNone.toFixed(2) + 'R' : '-'}</td>
 
 
 
