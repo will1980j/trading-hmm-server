@@ -3405,6 +3405,251 @@ def check_localStorage():
         "migration_endpoint": "/api/signal-lab-migrate"
     })
 
+# Automated Signal Lab Webhook Endpoint
+@app.route('/api/signal-lab-automated', methods=['POST'])
+def handle_automated_signal():
+    """Handle automated signal webhooks from TradingView"""
+    try:
+        # Parse webhook payload
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+        
+        webhook_type = data.get('type')
+        signal_id = data.get('signal_id')
+        
+        if not webhook_type or not signal_id:
+            return jsonify({'error': 'Missing required fields: type, signal_id'}), 400
+        
+        logger.info(f"Received automated signal webhook: {webhook_type} for signal {signal_id}")
+        
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        conn = db.get_connection()
+        if not conn:
+            return jsonify({'error': 'Database connection failed'}), 500
+        
+        cursor = conn.cursor()
+        
+        try:
+            if webhook_type == 'signal_created':
+                # Create new signal entry
+                result = handle_signal_created(cursor, data)
+            elif webhook_type == 'mfe_update':
+                # Update MFE values
+                result = handle_mfe_update(cursor, data)
+            elif webhook_type == 'be_triggered':
+                # Update BE trigger status
+                result = handle_be_triggered(cursor, data)
+            elif webhook_type == 'signal_completed':
+                # Mark signal as completed
+                result = handle_signal_completed(cursor, data)
+            else:
+                return jsonify({'error': f'Unknown webhook type: {webhook_type}'}), 400
+            
+            # Commit transaction
+            conn.commit()
+            logger.info(f"Successfully processed {webhook_type} for {signal_id}")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Processed {webhook_type}',
+                'signal_id': signal_id,
+                'result': result
+            })
+            
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error processing {webhook_type}: {e}")
+            return jsonify({'error': str(e)}), 500
+        finally:
+            cursor.close()
+            conn.close()
+            
+    except Exception as e:
+        logger.error(f"Webhook handler error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+def handle_signal_created(cursor, data):
+    """Handle signal_created webhook - insert new signal"""
+    # Parse date and time
+    signal_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+    signal_time = datetime.strptime(data['time'], '%H:%M:%S').time()
+    
+    # Insert new signal
+    insert_query = """
+    INSERT INTO signal_lab_trades (
+        signal_id, source, date, time, bias, session,
+        entry_price, sl_price, risk_distance, be_price,
+        target_1r, target_2r, target_3r,
+        be_hit, mfe_be, mfe_none,
+        lowest_low, highest_high, status,
+        created_at, updated_at
+    ) VALUES (
+        %s, 'automated', %s, %s, %s, %s,
+        %s, %s, %s, %s,
+        %s, %s, %s,
+        %s, %s, %s,
+        %s, %s, %s,
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    )
+    """
+    
+    cursor.execute(insert_query, (
+        data['signal_id'],
+        signal_date,
+        signal_time,
+        data['bias'],
+        data['session'],
+        data['entry_price'],
+        data['sl_price'],
+        data['risk_distance'],
+        data['be_price'],
+        data.get('target_1r'),
+        data.get('target_2r'),
+        data.get('target_3r'),
+        data.get('be_hit', False),
+        data.get('be_mfe', 0.00),
+        data.get('no_be_mfe', 0.00),
+        data.get('lowest_low'),
+        data.get('highest_high'),
+        data.get('status', 'active')
+    ))
+    
+    return {'action': 'created', 'rows_affected': cursor.rowcount}
+
+def handle_mfe_update(cursor, data):
+    """Handle mfe_update webhook - update MFE values and extreme prices"""
+    update_query = """
+    UPDATE signal_lab_trades 
+    SET 
+        mfe_be = %s,
+        mfe_none = %s,
+        lowest_low = %s,
+        highest_high = %s,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE signal_id = %s AND source = 'automated'
+    """
+    
+    cursor.execute(update_query, (
+        data.get('be_mfe', 0.00),
+        data.get('no_be_mfe', 0.00),
+        data.get('lowest_low'),
+        data.get('highest_high'),
+        data['signal_id']
+    ))
+    
+    return {'action': 'mfe_updated', 'rows_affected': cursor.rowcount}
+
+def handle_be_triggered(cursor, data):
+    """Handle be_triggered webhook - update BE hit status"""
+    update_query = """
+    UPDATE signal_lab_trades 
+    SET 
+        be_hit = %s,
+        mfe_be = %s,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE signal_id = %s AND source = 'automated'
+    """
+    
+    cursor.execute(update_query, (
+        data.get('be_hit', True),
+        data.get('be_mfe', 0.00),
+        data['signal_id']
+    ))
+    
+    return {'action': 'be_triggered', 'rows_affected': cursor.rowcount}
+
+def handle_signal_completed(cursor, data):
+    """Handle signal_completed webhook - mark signal as completed"""
+    update_query = """
+    UPDATE signal_lab_trades 
+    SET 
+        status = 'completed',
+        completion_reason = %s,
+        mfe_be = %s,
+        mfe_none = %s,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE signal_id = %s AND source = 'automated'
+    """
+    
+    cursor.execute(update_query, (
+        data.get('completion_reason', 'stop_loss_hit'),
+        data.get('final_be_mfe', 0.00),
+        data.get('final_no_be_mfe', 0.00),
+        data['signal_id']
+    ))
+    
+    return {'action': 'completed', 'rows_affected': cursor.rowcount}
+
+@app.route('/api/signal-lab-automated/status', methods=['GET'])
+def get_automated_signals_status():
+    """Get status of automated signals"""
+    try:
+        if not db_enabled or not db:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        conn = db.get_connection()
+        if not conn:
+            return jsonify({'error': 'Database connection failed'}), 500
+        
+        cursor = conn.cursor()
+        
+        # Get counts by status
+        cursor.execute("""
+            SELECT 
+                status,
+                COUNT(*) as count,
+                AVG(mfe_be) as avg_be_mfe,
+                AVG(mfe_none) as avg_no_be_mfe
+            FROM signal_lab_trades 
+            WHERE source = 'automated'
+            GROUP BY status
+        """)
+        
+        status_data = []
+        for row in cursor.fetchall():
+            status_data.append({
+                'status': row[0],
+                'count': row[1],
+                'avg_be_mfe': float(row[2]) if row[2] else 0.0,
+                'avg_no_be_mfe': float(row[3]) if row[3] else 0.0
+            })
+        
+        # Get recent signals
+        cursor.execute("""
+            SELECT signal_id, date, time, bias, status, mfe_be, mfe_none
+            FROM signal_lab_trades 
+            WHERE source = 'automated'
+            ORDER BY created_at DESC
+            LIMIT 10
+        """)
+        
+        recent_signals = []
+        for row in cursor.fetchall():
+            recent_signals.append({
+                'signal_id': row[0],
+                'date': row[1].isoformat(),
+                'time': row[2].strftime('%H:%M:%S'),
+                'bias': row[3],
+                'status': row[4],
+                'mfe_be': float(row[5]) if row[5] else 0.0,
+                'mfe_none': float(row[6]) if row[6] else 0.0
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'status_summary': status_data,
+            'recent_signals': recent_signals
+        })
+        
+    except Exception as e:
+        logger.error(f"Status endpoint error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 # Live Signals API endpoints
 
 
