@@ -890,23 +890,74 @@ def signal_lab_v2_dashboard():
     """Signal Lab V2 Dashboard - Automated trading interface"""
     return read_html_file('signal_lab_v2_dashboard.html')
 
+@app.route('/automated-signals-option1')
+@login_required
+def automated_signals_dashboard_option1():
+    """Automated Signals Dashboard - Option 1 (Clean Modern)"""
+    return read_html_file('automated_signals_dashboard.html')
+
+@app.route('/automated-signals-option2')
+@login_required
+def automated_signals_dashboard_option2():
+    """Automated Signals Dashboard - Option 2 (Data Dense)"""
+    return read_html_file('automated_signals_dashboard_option2.html')
+
+@app.route('/automated-signals-option3')
+@login_required
+def automated_signals_dashboard_option3():
+    """Automated Signals Dashboard - Option 3 (Visual Focus)"""
+    return read_html_file('automated_signals_dashboard_option3.html')
+
 @app.route('/automated-signals')
 @login_required
 def automated_signals_dashboard():
-    """Automated Signals Dashboard - Real-time signal monitoring (Option 1: Professional)"""
-    return read_html_file('automated_signals_dashboard.html')
+    """Automated Signals Dashboard - Real-time signal monitoring"""
+    return """
+    <!DOCTYPE html>
+    <html><head><meta charset="UTF-8"><title>Automated Signals</title></head>
+    <body style="font-family:Arial;background:#0a0e27;color:#fff;padding:40px;text-align:center;">
+    <h1 style="color:#00d4ff;">🤖 Automated Signals Dashboard</h1>
+    <p style="margin:20px 0;">Dashboard is being built. Check back soon!</p>
+    <p><a href="/signal-lab-dashboard" style="color:#00d4ff;">← Back to Main Dashboard</a></p>
+    <div style="margin-top:40px;padding:20px;background:rgba(0,212,255,0.1);border-radius:8px;">
+    <h3>Coming Soon:</h3>
+    <ul style="list-style:none;padding:0;">
+    <li>✅ Real-time signal monitoring</li>
+    <li>✅ Live stats and analytics</li>
+    <li>✅ WebSocket updates</li>
+    <li>✅ Signal filtering</li>
+    </ul>
+    </div>
+    </body></html>
+    """
 
 @app.route('/automated-signals-analytics')
 @login_required
 def automated_signals_analytics():
-    """Automated Signals Dashboard - Analytics-focused (Option 2)"""
-    return read_html_file('automated_signals_dashboard_option2.html')
+    """Automated Signals Dashboard - Analytics-focused"""
+    return """
+    <!DOCTYPE html>
+    <html><head><meta charset="UTF-8"><title>Signal Analytics</title></head>
+    <body style="font-family:Arial;background:#0f1419;color:#fff;padding:40px;text-align:center;">
+    <h1 style="color:#00d4ff;">📊 Signal Analytics Dashboard</h1>
+    <p style="margin:20px 0;">Analytics dashboard coming soon!</p>
+    <p><a href="/signal-lab-dashboard" style="color:#00d4ff;">← Back to Main Dashboard</a></p>
+    </body></html>
+    """
 
 @app.route('/automated-signals-command')
 @login_required
 def automated_signals_command():
-    """Automated Signals Dashboard - Command Center (Option 3)"""
-    return read_html_file('automated_signals_dashboard_option3.html')
+    """Automated Signals Dashboard - Command Center"""
+    return """
+    <!DOCTYPE html>
+    <html><head><meta charset="UTF-8"><title>Command Center</title></head>
+    <body style="font-family:'Courier New';background:#000;color:#00ff41;padding:40px;text-align:center;">
+    <h1>⚡ SIGNAL COMMAND CENTER</h1>
+    <p style="margin:20px 0;">Terminal interface coming soon!</p>
+    <p><a href="/signal-lab-dashboard" style="color:#00ff41;">← Back to Main Dashboard</a></p>
+    </body></html>
+    """
 
 @app.route('/1m-execution')
 @login_required

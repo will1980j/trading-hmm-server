@@ -62,13 +62,13 @@ class AutoPredictionOutcomeUpdater:
                     ABS(EXTRACT(EPOCH FROM (ls.timestamp::time - slt.time::time))) < 300
                 )
                 WHERE slt.active_trade = false 
-                AND slt.updated_at > NOW() - INTERVAL '1 hour'
+                AND slt.created_at > NOW() - INTERVAL '1 hour'
                 AND slt.mfe IS NOT NULL
                 AND NOT EXISTS (
                     SELECT 1 FROM prediction_accuracy_tracking pat 
                     WHERE pat.signal_id = ls.id AND pat.actual_outcome IS NOT NULL
                 )
-                ORDER BY slt.updated_at DESC
+                ORDER BY slt.created_at DESC
                 LIMIT 10
             """)
             
