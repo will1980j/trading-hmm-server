@@ -890,6 +890,12 @@ def signal_lab_v2_dashboard():
     """Signal Lab V2 Dashboard - Automated trading interface"""
     return read_html_file('signal_lab_v2_dashboard.html')
 
+@app.route('/automated-signals')
+@login_required
+def automated_signals_dashboard():
+    """Automated Signals Dashboard - Real-time signal monitoring"""
+    return read_html_file('automated_signals_dashboard.html')
+
 @app.route('/1m-execution')
 @login_required
 def execution_dashboard():
@@ -10544,6 +10550,70 @@ def handle_exit_signal(data, exit_type):
 # ============================================================================
 # END AUTOMATED SIGNALS WEBHOOK ENDPOINT
 # ============================================================================
+
+@app.route('/api/automated-signals/recent', methods=['GET'])
+@login_required
+def get_recent_automated_signals():
+    """Get recent automated signals for dashboard"""
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get signals from last 24 hours
+        cursor.execute("""
+            SELECT 
+                id,
+                trade_id,
+                event_type,
+                direction,
+                entry_price,
+                stop_loss,
+                session,
+                bias,
+                current_price,
+                mfe,
+                exit_price,
+                final_mfe,
+                timestamp,
+                CASE 
+                    WHEN event_type = 'entry' THEN 'pending'
+                    WHEN event_type = 'confirmation' THEN 'confirmed'
+                    WHEN event_type = 'exit' THEN 'resolved'
+                    ELSE 'unknown'
+                END as status
+            FROM automated_signals
+            WHERE timestamp >= NOW() - INTERVAL '24 hours'
+            ORDER BY timestamp DESC
+            LIMIT 100
+        """)
+        
+        signals = cursor.fetchall()
+        
+        # Convert to list of dicts
+        signals_list = []
+        for signal in signals:
+            signal_dict = dict(signal)
+            # Convert timestamp to string
+            if signal_dict.get('timestamp'):
+                signal_dict['timestamp'] = signal_dict['timestamp'].isoformat()
+            signals_list.append(signal_dict)
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "signals": signals_list,
+            "count": len(signals_list)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching automated signals: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "signals": []
+        }), 500
 
 # ============================================================================
 # END V2 AUTOMATION API ENDPOINTS
