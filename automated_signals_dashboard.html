@@ -6,6 +6,39 @@
     <title>Automated Signals Dashboard | Trading Platform</title> 
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
+        /* Navigation Bar */
+        .top-nav {
+            background: #141b3d;
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #2d3a5f;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .top-nav a {
+            padding: 8px 12px;
+            background: #1a2142;
+            color: #f8fafc;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        
+        .top-nav a:hover {
+            background: #2d3a5f;
+        }
+        
+        .top-nav a.active {
+            background: #3b82f6;
+            color: white;
+        }
+        
+    
         * {
             margin: 0;
             padding: 0;
@@ -485,6 +518,23 @@
     </style>
 </head>
 <body>
+    <!-- Navigation Bar -->
+    <nav class="top-nav">
+        <a href="/ml-dashboard">🤖 ML</a>
+        <a href="/signal-lab-dashboard">🏠 Dashboard</a>
+        <a href="/signal-analysis-lab">🧪 Signal Lab</a>
+        <a href="/signal-lab-v2">🧪 Signal Lab V2</a>
+        <a href="/automated-signals" class="active">📡 Automated Signals</a>
+        <a href="/time-analysis">⏰ Time</a>
+        <a href="/strategy-optimizer">🎯 Optimizer</a>
+        <a href="/strategy-comparison">🏆 Compare</a>
+        <a href="/ai-business-advisor">🧠 AI Advisor</a>
+        <a href="/prop-portfolio">💼 Prop</a>
+        <a href="/trade-manager">📋 Trades</a>
+        <a href="/financial-summary">💰 Finance</a>
+        <a href="/reporting-hub">📊 Reports</a>
+    </nav>
+
     <div class="dashboard-container">
         <!-- Header -->
         <div class="header">
