@@ -211,6 +211,177 @@ def register_automated_signals_api(app, db):
                 'error': str(e)
             }), 500
 
+    @app.route('/api/automated-signals/stats')
+    def get_stats():
+        """Get dashboard statistics"""
+        try:
+            cursor = db.conn.cursor()
+            today = datetime.now(pytz.timezone('US/Eastern')).date()
+            
+            # Get today's statistics
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total_signals,
+                    COUNT(CASE WHEN trade_status IN ('ACTIVE', 'CONFIRMED') THEN 1 END) as active_count,
+                    COUNT(CASE WHEN trade_status = 'PENDING' THEN 1 END) as pending_count,
+                    COUNT(CASE WHEN trade_status = 'RESOLVED' THEN 1 END) as completed_count,
+                    AVG(CASE WHEN final_mfe IS NOT NULL THEN final_mfe 
+                             WHEN current_mfe IS NOT NULL THEN current_mfe END) as avg_mfe,
+                    COUNT(CASE WHEN final_mfe >= 1.0 THEN 1 END) as win_count
+                FROM signal_lab_v2_trades
+                WHERE date = %s
+            """, (today,))
+            stats = dict(cursor.fetchone())
+            
+            # Calculate win rate and success rate
+            if stats['completed_count'] and stats['completed_count'] > 0:
+                stats['win_rate'] = (stats['win_count'] / stats['completed_count']) * 100
+                stats['success_rate'] = stats['win_rate']
+            else:
+                stats['win_rate'] = 0
+                stats['success_rate'] = 0
+            
+            # Get session breakdown
+            cursor.execute("""
+                SELECT 
+                    session,
+                    COUNT(*) as count
+                FROM signal_lab_v2_trades
+                WHERE date = %s
+                GROUP BY session
+            """, (today,))
+            session_breakdown = {}
+            for row in cursor.fetchall():
+                session_breakdown[row['session']] = row['count']
+            
+            return jsonify({
+                'success': True,
+                'total_signals': stats['total_signals'] or 0,
+                'active_count': stats['active_count'] or 0,
+                'pending_count': stats['pending_count'] or 0,
+                'completed_count': stats['completed_count'] or 0,
+                'avg_mfe': float(stats['avg_mfe']) if stats['avg_mfe'] else 0,
+                'win_rate': stats['win_rate'],
+                'success_rate': stats['success_rate'],
+                'session_breakdown': session_breakdown
+            })
+            
+        except Exception as e:
+            logger.error(f"Error fetching stats: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/api/automated-signals/active')
+    def get_active_trades():
+        """Get active trades"""
+        try:
+            cursor = db.conn.cursor()
+            
+            cursor.execute("""
+                SELECT 
+                    id,
+                    date,
+                    time,
+                    bias as direction,
+                    entry_price,
+                    stop_loss_price,
+                    current_mfe as mfe,
+                    session,
+                    created_at as timestamp,
+                    trade_status
+                FROM signal_lab_v2_trades
+                WHERE trade_status IN ('ACTIVE', 'CONFIRMED')
+                ORDER BY created_at DESC
+            """)
+            trades = [dict(row) for row in cursor.fetchall()]
+            
+            return jsonify({
+                'success': True,
+                'trades': trades
+            })
+            
+        except Exception as e:
+            logger.error(f"Error fetching active trades: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/api/automated-signals/completed')
+    def get_completed_trades():
+        """Get completed trades"""
+        try:
+            cursor = db.conn.cursor()
+            today = datetime.now(pytz.timezone('US/Eastern')).date()
+            
+            cursor.execute("""
+                SELECT 
+                    id,
+                    date,
+                    time,
+                    bias as direction,
+                    entry_price,
+                    stop_loss_price,
+                    final_mfe as mfe,
+                    session,
+                    created_at as timestamp,
+                    trade_status
+                FROM signal_lab_v2_trades
+                WHERE trade_status = 'RESOLVED'
+                AND date = %s
+                ORDER BY created_at DESC
+                LIMIT 20
+            """, (today,))
+            trades = [dict(row) for row in cursor.fetchall()]
+            
+            return jsonify({
+                'success': True,
+                'trades': trades
+            })
+            
+        except Exception as e:
+            logger.error(f"Error fetching completed trades: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/api/automated-signals/hourly-distribution')
+    def get_hourly_distribution():
+        """Get hourly trade distribution for calendar heatmap"""
+        try:
+            cursor = db.conn.cursor()
+            today = datetime.now(pytz.timezone('US/Eastern')).date()
+            
+            cursor.execute("""
+                SELECT 
+                    EXTRACT(HOUR FROM time) as hour,
+                    COUNT(*) as count
+                FROM signal_lab_v2_trades
+                WHERE date = %s
+                GROUP BY EXTRACT(HOUR FROM time)
+                ORDER BY hour
+            """, (today,))
+            
+            hourly_data = {}
+            for row in cursor.fetchall():
+                hour = int(row['hour'])
+                hourly_data[hour] = row['count']
+            
+            return jsonify({
+                'success': True,
+                'hourly_data': hourly_data
+            })
+            
+        except Exception as e:
+            logger.error(f"Error fetching hourly distribution: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
 def format_duration(duration):
     """Format timedelta to readable string"""
     total_seconds = int(duration.total_seconds())
