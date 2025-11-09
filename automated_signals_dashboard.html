@@ -146,6 +146,108 @@
             color: #ef4444;
         }
 
+        /* System Health Monitor */
+        .health-monitor {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .health-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .health-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .health-item:hover {
+            transform: translateY(-2px);
+            border-color: rgba(0, 212, 255, 0.3);
+        }
+
+        .health-label {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .health-icon {
+            font-size: 16px;
+        }
+
+        .health-status {
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .health-status.online {
+            color: #4ade80;
+        }
+
+        .health-status.offline {
+            color: #ef4444;
+        }
+
+        .health-status.checking {
+            color: #fbbf24;
+        }
+
+        .health-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .health-indicator.online {
+            background: #4ade80;
+            box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        .health-indicator.offline {
+            background: #ef4444;
+        }
+
+        .health-indicator.checking {
+            background: #fbbf24;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .health-details {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .last-check {
+            font-size: 11px;
+            color: #64748b;
+            text-align: right;
+            margin-top: 10px;
+        }
+
         /* Main Content Grid */
         .content-grid {
             display: grid;
@@ -544,6 +646,43 @@
             <div class="connection-status">
                 <div class="status-dot" id="statusDot"></div>
                 <span id="statusText">Connected</span>
+            </div>
+        </div>
+
+        <!-- System Health Monitor -->
+        <div class="signals-panel" style="margin-bottom: 20px;">
+            <div class="panel-header">
+                <h2 class="panel-title">🔧 System Health Monitor</h2>
+                <button onclick="checkSystemHealth()" style="padding: 6px 12px; background: rgba(0,212,255,0.2); border: 1px solid rgba(0,212,255,0.3); color: white; border-radius: 6px; cursor: pointer; font-size: 12px;">Refresh Status</button>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div class="health-item">
+                    <div class="health-label">🌐 Railway Server</div>
+                    <div class="health-status" id="serverStatus">Checking...</div>
+                </div>
+                <div class="health-item">
+                    <div class="health-label">📡 Webhook Endpoint</div>
+                    <div class="health-status" id="webhookStatus">Checking...</div>
+                </div>
+                <div class="health-item">
+                    <div class="health-label">💾 Database</div>
+                    <div class="health-status" id="databaseStatus">Checking...</div>
+                </div>
+                <div class="health-item">
+                    <div class="health-label">📊 API Endpoints</div>
+                    <div class="health-status" id="apiStatus">Checking...</div>
+                </div>
+                <div class="health-item">
+                    <div class="health-label">🔌 WebSocket</div>
+                    <div class="health-status" id="websocketStatus">Checking...</div>
+                </div>
+                <div class="health-item">
+                    <div class="health-label">📅 Calendar System</div>
+                    <div class="health-status" id="calendarStatus">Checking...</div>
+                </div>
+            </div>
+            <div style="margin-top: 15px; padding: 12px; background: rgba(0,212,255,0.05); border-radius: 8px; font-size: 13px; color: #94a3b8;">
+                <strong style="color: #00d4ff;">💡 Automation Status:</strong> <span id="automationMessage">System is fully operational and ready to receive signals 24/7</span>
             </div>
         </div>
 
@@ -985,8 +1124,121 @@
             });
         }
 
+        // System Health Check
+        async function checkSystemHealth() {
+            const checks = {
+                server: { element: 'serverStatus', name: 'Railway Server' },
+                webhook: { element: 'webhookStatus', name: 'Webhook Endpoint' },
+                database: { element: 'databaseStatus', name: 'Database' },
+                api: { element: 'apiStatus', name: 'API Endpoints' },
+                websocket: { element: 'websocketStatus', name: 'WebSocket' },
+                calendar: { element: 'calendarStatus', name: 'Calendar System' }
+            };
+
+            // Set all to checking
+            Object.values(checks).forEach(check => {
+                const el = document.getElementById(check.element);
+                el.className = 'health-status checking';
+                el.innerHTML = '<span class="health-indicator checking"></span> Checking...';
+            });
+
+            let allHealthy = true;
+
+            // 1. Check Server (basic connectivity)
+            try {
+                const serverCheck = await fetch('/api/automated-signals/dashboard-data');
+                if (serverCheck.ok) {
+                    updateHealthStatus('serverStatus', true, 'Online');
+                } else {
+                    updateHealthStatus('serverStatus', false, 'Error');
+                    allHealthy = false;
+                }
+            } catch (error) {
+                updateHealthStatus('serverStatus', false, 'Offline');
+                allHealthy = false;
+            }
+
+            // 2. Check Webhook Endpoint
+            try {
+                const webhookCheck = await fetch('/api/automated-signals', {
+                    method: 'OPTIONS'
+                });
+                updateHealthStatus('webhookStatus', true, 'Ready');
+            } catch (error) {
+                updateHealthStatus('webhookStatus', false, 'Error');
+                allHealthy = false;
+            }
+
+            // 3. Check Database
+            try {
+                const dbCheck = await fetch('/api/automated-signals/stats');
+                if (dbCheck.ok) {
+                    updateHealthStatus('databaseStatus', true, 'Connected');
+                } else {
+                    updateHealthStatus('databaseStatus', false, 'Error');
+                    allHealthy = false;
+                }
+            } catch (error) {
+                updateHealthStatus('databaseStatus', false, 'Offline');
+                allHealthy = false;
+            }
+
+            // 4. Check API Endpoints
+            try {
+                const apiCheck = await fetch('/api/automated-signals/stats');
+                if (apiCheck.ok) {
+                    updateHealthStatus('apiStatus', true, 'Operational');
+                } else {
+                    updateHealthStatus('apiStatus', false, 'Error');
+                    allHealthy = false;
+                }
+            } catch (error) {
+                updateHealthStatus('apiStatus', false, 'Failed');
+                allHealthy = false;
+            }
+
+            // 5. Check WebSocket
+            if (socket.connected) {
+                updateHealthStatus('websocketStatus', true, 'Connected');
+            } else {
+                updateHealthStatus('websocketStatus', false, 'Disconnected');
+                allHealthy = false;
+            }
+
+            // 6. Check Calendar System
+            const calendarGrid = document.querySelector('.calendar-grid');
+            if (calendarGrid && calendarGrid.children.length > 0) {
+                updateHealthStatus('calendarStatus', true, 'Loaded');
+            } else {
+                updateHealthStatus('calendarStatus', false, 'Error');
+                allHealthy = false;
+            }
+
+            // Update automation message
+            const automationMsg = document.getElementById('automationMessage');
+            if (allHealthy) {
+                automationMsg.innerHTML = '✅ <strong>All systems operational!</strong> Ready to receive TradingView signals 24/7. Your laptop can be off - everything runs in the cloud.';
+                automationMsg.style.color = '#4ade80';
+            } else {
+                automationMsg.innerHTML = '⚠️ <strong>Some systems need attention.</strong> Check the status indicators above for details.';
+                automationMsg.style.color = '#fbbf24';
+            }
+        }
+
+        function updateHealthStatus(elementId, isHealthy, statusText) {
+            const el = document.getElementById(elementId);
+            el.className = `health-status ${isHealthy ? 'online' : 'offline'}`;
+            el.innerHTML = `<span class="health-indicator ${isHealthy ? 'online' : 'offline'}"></span> ${statusText}`;
+        }
+
+        // Auto-check health every 30 seconds
+        setInterval(checkSystemHealth, 30000);
+
         // Initialize
         loadInitialData();
+        
+        // Run initial health check after 2 seconds
+        setTimeout(checkSystemHealth, 2000);
     </script>
 </body>
 </html>

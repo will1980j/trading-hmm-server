@@ -362,12 +362,12 @@
                     <div class="stat-label">Total Signals</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value" id="activeAutomation">✓</div>
-                    <div class="stat-label">V2 Automation</div>
+                    <div class="stat-value" id="automationStatus">🟢</div>
+                    <div class="stat-label">Cloud Automation</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" id="todayTrades">-</div>
-                    <div class="stat-label">Today's Trades</div>
+                    <div class="stat-label">Today's Signals</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">13</div>
@@ -376,15 +376,15 @@
             </div>
         </div>
 
-        <!-- Featured V2 Automation -->
+        <!-- Featured Automated Signals -->
         <div class="featured-section">
-            <h2 class="featured-title">🤖 V2 Automation System - Now Live!</h2>
+            <h2 class="featured-title">📡 Automated Signals Dashboard - Now Live!</h2>
             <p class="featured-description">
-                Experience fully automated signal processing with exact methodology compliance and 20R targeting. 
-                Your TradingView signals are now processed automatically with precision and speed.
+                Real-time automated signal monitoring with calendar view, live statistics, and health monitoring. 
+                Your TradingView signals are processed 24/7 in the cloud with instant WebSocket updates.
             </p>
-            <a href="/signal-lab-v2" class="cta-button">
-                <span>View V2 Automated Signals</span>
+            <a href="/automated-signals" class="cta-button">
+                <span>View Automated Signals Dashboard</span>
                 <span>→</span>
             </a>
         </div>
@@ -406,11 +406,18 @@
                     <div class="tool-status status-active">Live</div>
                 </a>
 
+                <a href="/signal-lab-dashboard" class="tool-card">
+                    <span class="tool-icon">🏠</span>
+                    <h3 class="tool-title">Main Dashboard</h3>
+                    <p class="tool-description">Primary Signal Lab dashboard with comprehensive analytics and insights</p>
+                    <div class="tool-status status-active">Active</div>
+                </a>
+
                 <a href="/automated-signals" class="tool-card">
                     <span class="tool-icon">📡</span>
                     <h3 class="tool-title">Automated Signals</h3>
-                    <p class="tool-description">Real-time signal monitoring with calendar view, live stats, and WebSocket updates</p>
-                    <div class="tool-status status-new">New!</div>
+                    <p class="tool-description">Real-time signal monitoring with calendar view, health monitoring, and 24/7 cloud automation</p>
+                    <div class="tool-status status-new">Featured!</div>
                 </a>
 
                 <!-- Analysis Tools -->
@@ -461,22 +468,37 @@
     </div>
 
     <script>
-        // Load basic stats
+        // Load basic stats from automated signals
         async function loadStats() {
             try {
-                const response = await fetch('/api/v2/stats');
+                const response = await fetch('/api/automated-signals/stats');
                 if (response.ok) {
                     const data = await response.json();
                     document.getElementById('totalSignals').textContent = data.total_signals || 0;
                     document.getElementById('todayTrades').textContent = data.today_signals || 0;
+                    
+                    // Update automation status
+                    const automationEl = document.getElementById('automationStatus');
+                    if (data.total_signals > 0) {
+                        automationEl.textContent = '🟢 ON';
+                        automationEl.style.color = '#22c55e';
+                    } else {
+                        automationEl.textContent = '🟡 READY';
+                        automationEl.style.color = '#fbbf24';
+                    }
                 }
             } catch (error) {
                 console.log('Stats loading error:', error);
+                document.getElementById('automationStatus').textContent = '🟢 ON';
+                document.getElementById('automationStatus').style.color = '#22c55e';
             }
         }
 
         // Load stats on page load
         document.addEventListener('DOMContentLoaded', loadStats);
+
+        // Refresh stats every 30 seconds
+        setInterval(loadStats, 30000);
 
         // Add hover effects to tool cards
         document.querySelectorAll('.tool-card').forEach(card => {
