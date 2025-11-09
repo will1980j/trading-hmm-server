@@ -10192,9 +10192,15 @@ def automated_signals_webhook():
 
 def handle_entry_signal(data):
     """Handle trade entry signal"""
+    cursor = None
     try:
         if not db_enabled or not db:
             return {"success": False, "error": "Database not available"}
+        
+        # Ensure database connection is healthy
+        if not db.conn or db.conn.closed:
+            logger.error("Database connection is closed")
+            return {"success": False, "error": "Database connection closed"}
         
         # Ensure table exists (separate transaction)
         try:
@@ -10220,40 +10226,60 @@ def handle_entry_signal(data):
             """)
             db.conn.commit()
             cursor.close()
+            cursor = None
+            logger.info("✅ Table automated_signals ready")
         except Exception as table_error:
-            logger.warning(f"Table creation warning: {str(table_error)}")
+            error_msg = str(table_error) if table_error and str(table_error) else f"Table creation error: {type(table_error).__name__}"
+            logger.warning(f"Table creation warning: {error_msg}")
+            if cursor:
+                cursor.close()
+                cursor = None
             if db and db.conn:
-                db.conn.rollback()
+                try:
+                    db.conn.rollback()
+                except:
+                    pass
         
-        # Extract entry data
-        trade_id = data.get('trade_id')
-        direction = data.get('direction')
-        entry_price = float(data.get('entry_price', 0))
-        stop_loss = float(data.get('stop_loss', 0))
+        # Extract entry data with validation
+        trade_id = data.get('trade_id', 'UNKNOWN')
+        direction = data.get('direction', 'LONG')
+        
+        try:
+            entry_price = float(data.get('entry_price', 0))
+            stop_loss = float(data.get('stop_loss', 0))
+        except (ValueError, TypeError) as conv_error:
+            return {"success": False, "error": f"Invalid price data: {str(conv_error)}"}
+        
+        if entry_price == 0 or stop_loss == 0:
+            return {"success": False, "error": "Entry price and stop loss must be non-zero"}
+        
         session = data.get('session', 'NY AM')
         bias = data.get('bias', direction)
         
         # Calculate risk distance and targets
         risk_distance = abs(entry_price - stop_loss)
         
+        if risk_distance == 0:
+            return {"success": False, "error": "Risk distance cannot be zero"}
+        
         # Calculate R-targets
         if direction == "LONG":
             targets = {
-                "1R": entry_price + risk_distance,
-                "2R": entry_price + (2 * risk_distance),
-                "3R": entry_price + (3 * risk_distance),
-                "5R": entry_price + (5 * risk_distance),
-                "10R": entry_price + (10 * risk_distance),
-                "20R": entry_price + (20 * risk_distance)
+                "1R": round(entry_price + risk_distance, 2),
+                "2R": round(entry_price + (2 * risk_distance), 2),
+                "3R": round(entry_price + (3 * risk_distance), 2),
+                "5R": round(entry_price + (5 * risk_distance), 2),
+                "10R": round(entry_price + (10 * risk_distance), 2),
+                "20R": round(entry_price + (20 * risk_distance), 2)
             }
         else:  # SHORT
             targets = {
-                "1R": entry_price - risk_distance,
-                "2R": entry_price - (2 * risk_distance),
-                "3R": entry_price - (3 * risk_distance),
-                "5R": entry_price - (5 * risk_distance),
-                "10R": entry_price - (10 * risk_distance),
-                "20R": entry_price - (20 * risk_distance)
+                "1R": round(entry_price - risk_distance, 2),
+                "2R": round(entry_price - (2 * risk_distance), 2),
+                "3R": round(entry_price - (3 * risk_distance), 2),
+                "5R": round(entry_price - (5 * risk_distance), 2),
+                "10R": round(entry_price - (10 * risk_distance), 2),
+                "20R": round(entry_price - (20 * risk_distance), 2)
             }
         
         # Insert into database
@@ -10269,9 +10295,14 @@ def handle_entry_signal(data):
             session, bias, risk_distance, dumps(targets)
         ))
         
-        signal_id = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        if not result:
+            raise Exception("Insert returned no result")
+            
+        signal_id = result[0]
         db.conn.commit()
         cursor.close()
+        cursor = None
         
         logger.info(f"✅ Entry signal stored: ID {signal_id}, Trade {trade_id}")
         
@@ -10281,25 +10312,43 @@ def handle_entry_signal(data):
             "trade_id": trade_id,
             "entry_price": entry_price,
             "stop_loss": stop_loss,
+            "risk_distance": risk_distance,
             "targets": targets
         }
         
     except Exception as e:
+        error_msg = str(e) if e and str(e) else f"Unknown error: {type(e).__name__}"
+        logger.error(f"Entry signal error: {error_msg}")
+        
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+                
         if db and db.conn:
-            db.conn.rollback()
-        logger.error(f"Entry signal error: {str(e)}")
-        return {"success": False, "error": str(e)}
+            try:
+                db.conn.rollback()
+            except:
+                pass
+                
+        return {"success": False, "error": error_msg}
 
 
 def handle_mfe_update(data):
     """Handle MFE update signal"""
+    cursor = None
     try:
         if not db_enabled or not db:
             return {"success": False, "error": "Database not available"}
         
-        trade_id = data.get('trade_id')
-        current_price = float(data.get('current_price', 0))
-        mfe = float(data.get('mfe', 0))
+        trade_id = data.get('trade_id', 'UNKNOWN')
+        
+        try:
+            current_price = float(data.get('current_price', 0))
+            mfe = float(data.get('mfe', 0))
+        except (ValueError, TypeError) as conv_error:
+            return {"success": False, "error": f"Invalid MFE data: {str(conv_error)}"}
         
         # Update MFE in database
         cursor = db.conn.cursor()
@@ -10310,8 +10359,14 @@ def handle_mfe_update(data):
             RETURNING id
         """, (trade_id, 'MFE_UPDATE', current_price, mfe))
         
-        signal_id = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        if not result:
+            raise Exception("Insert returned no result")
+            
+        signal_id = result[0]
         db.conn.commit()
+        cursor.close()
+        cursor = None
         
         logger.info(f"✅ MFE update stored: Trade {trade_id}, MFE {mfe}R")
         
@@ -10323,21 +10378,38 @@ def handle_mfe_update(data):
         }
         
     except Exception as e:
+        error_msg = str(e) if e and str(e) else f"Unknown error: {type(e).__name__}"
+        logger.error(f"MFE update error: {error_msg}")
+        
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+                
         if db and db.conn:
-            db.conn.rollback()
-        logger.error(f"MFE update error: {str(e)}")
-        return {"success": False, "error": str(e)}
+            try:
+                db.conn.rollback()
+            except:
+                pass
+                
+        return {"success": False, "error": error_msg}
 
 
 def handle_exit_signal(data, exit_type):
     """Handle trade exit signal (SL or BE)"""
+    cursor = None
     try:
         if not db_enabled or not db:
             return {"success": False, "error": "Database not available"}
         
-        trade_id = data.get('trade_id')
-        exit_price = float(data.get('exit_price', 0))
-        final_mfe = float(data.get('final_mfe', 0))
+        trade_id = data.get('trade_id', 'UNKNOWN')
+        
+        try:
+            exit_price = float(data.get('exit_price', 0))
+            final_mfe = float(data.get('final_mfe', 0))
+        except (ValueError, TypeError) as conv_error:
+            return {"success": False, "error": f"Invalid exit data: {str(conv_error)}"}
         
         # Store exit signal
         cursor = db.conn.cursor()
@@ -10348,8 +10420,14 @@ def handle_exit_signal(data, exit_type):
             RETURNING id
         """, (trade_id, f'EXIT_{exit_type}', exit_price, final_mfe))
         
-        signal_id = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        if not result:
+            raise Exception("Insert returned no result")
+            
+        signal_id = result[0]
         db.conn.commit()
+        cursor.close()
+        cursor = None
         
         logger.info(f"✅ Exit signal stored: Trade {trade_id}, Type {exit_type}, MFE {final_mfe}R")
         
@@ -10362,10 +10440,22 @@ def handle_exit_signal(data, exit_type):
         }
         
     except Exception as e:
+        error_msg = str(e) if e and str(e) else f"Unknown error: {type(e).__name__}"
+        logger.error(f"Exit signal error: {error_msg}")
+        
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+                
         if db and db.conn:
-            db.conn.rollback()
-        logger.error(f"Exit signal error: {str(e)}")
-        return {"success": False, "error": str(e)}
+            try:
+                db.conn.rollback()
+            except:
+                pass
+                
+        return {"success": False, "error": error_msg}
 
 # ============================================================================
 # END AUTOMATED SIGNALS WEBHOOK ENDPOINT
