@@ -898,8 +898,8 @@ def signal_lab_v2_dashboard():
 @app.route('/automated-signals-option1')
 @login_required
 def automated_signals_dashboard_option1():
-    """Automated Signals Dashboard - Option 1 (Clean Modern)"""
-    return read_html_file('automated_signals_dashboard.html')
+    """Automated Signals Dashboard - Option 1 (Trading Floor Command Center)"""
+    return read_html_file('trading_floor_command_center.html')
 
 @app.route('/automated-signals-option2')
 @login_required
