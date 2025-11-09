@@ -28,13 +28,13 @@ def register_automated_signals_api(app, db):
                     time,
                     bias,
                     entry_price,
-                    stop_loss,
+                    stop_loss_price,
                     current_mfe,
                     session,
                     created_at,
-                    active_trade
+                    trade_status
                 FROM signal_lab_v2_trades
-                WHERE active_trade = true
+                WHERE trade_status IN ('ACTIVE', 'CONFIRMED')
                 ORDER BY created_at DESC
             """)
             active_trades = [dict(row) for row in cursor.fetchall()]
@@ -62,13 +62,14 @@ def register_automated_signals_api(app, db):
                     time,
                     bias,
                     entry_price,
-                    stop_loss,
-                    mfe as final_mfe,
+                    stop_loss_price,
+                    final_mfe,
                     session,
                     created_at,
-                    active_trade
+                    trade_status,
+                    resolution_type
                 FROM signal_lab_v2_trades
-                WHERE active_trade = false
+                WHERE trade_status = 'RESOLVED'
                 AND date = %s
                 ORDER BY created_at DESC
                 LIMIT 50
@@ -79,10 +80,10 @@ def register_automated_signals_api(app, db):
             cursor.execute("""
                 SELECT 
                     COUNT(*) as total_signals,
-                    COUNT(CASE WHEN active_trade = true THEN 1 END) as active_count,
-                    COUNT(CASE WHEN active_trade = false THEN 1 END) as completed_count,
-                    AVG(CASE WHEN mfe IS NOT NULL THEN mfe END) as avg_mfe,
-                    COUNT(CASE WHEN mfe >= 1.0 THEN 1 END) as win_count
+                    COUNT(CASE WHEN trade_status IN ('ACTIVE', 'CONFIRMED') THEN 1 END) as active_count,
+                    COUNT(CASE WHEN trade_status = 'RESOLVED' THEN 1 END) as completed_count,
+                    AVG(CASE WHEN final_mfe IS NOT NULL THEN final_mfe END) as avg_mfe,
+                    COUNT(CASE WHEN final_mfe >= 1.0 THEN 1 END) as win_count
                 FROM signal_lab_v2_trades
                 WHERE date = %s
             """, (today,))
@@ -99,9 +100,10 @@ def register_automated_signals_api(app, db):
                 SELECT 
                     EXTRACT(HOUR FROM time) as hour,
                     COUNT(*) as count,
-                    AVG(CASE WHEN mfe IS NOT NULL THEN mfe END) as avg_mfe,
-                    COUNT(CASE WHEN active_trade = true THEN 1 END) as active,
-                    COUNT(CASE WHEN active_trade = false THEN 1 END) as completed
+                    AVG(CASE WHEN final_mfe IS NOT NULL THEN final_mfe 
+                             WHEN current_mfe IS NOT NULL THEN current_mfe END) as avg_mfe,
+                    COUNT(CASE WHEN trade_status IN ('ACTIVE', 'CONFIRMED') THEN 1 END) as active,
+                    COUNT(CASE WHEN trade_status = 'RESOLVED' THEN 1 END) as completed
                 FROM signal_lab_v2_trades
                 WHERE date = %s
                 GROUP BY EXTRACT(HOUR FROM time)
@@ -122,7 +124,8 @@ def register_automated_signals_api(app, db):
                 SELECT 
                     session,
                     COUNT(*) as count,
-                    AVG(CASE WHEN mfe IS NOT NULL THEN mfe END) as avg_mfe
+                    AVG(CASE WHEN final_mfe IS NOT NULL THEN final_mfe 
+                             WHEN current_mfe IS NOT NULL THEN current_mfe END) as avg_mfe
                 FROM signal_lab_v2_trades
                 WHERE date = %s
                 GROUP BY session
@@ -159,12 +162,12 @@ def register_automated_signals_api(app, db):
             
             # Get MFE values from completed trades
             cursor.execute("""
-                SELECT mfe
+                SELECT final_mfe as mfe
                 FROM signal_lab_v2_trades
-                WHERE mfe IS NOT NULL
-                AND active_trade = false
+                WHERE final_mfe IS NOT NULL
+                AND trade_status = 'RESOLVED'
                 AND date >= CURRENT_DATE - INTERVAL '7 days'
-                ORDER BY mfe
+                ORDER BY final_mfe
             """)
             
             mfe_values = [float(row['mfe']) for row in cursor.fetchall()]
