@@ -249,7 +249,8 @@
             padding: 12px 8px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             transition: all 0.3s ease;
-        }
+        
+    justify-content: center;}
 
         .floating-nav:hover {
             background: rgba(0, 0, 0, 0.9);
@@ -270,7 +271,8 @@
             cursor: pointer;
             transition: all 0.3s ease;
             min-width: 60px;
-        }
+        
+    justify-content: center;}
 
         .nav-btn:hover {
             background: rgba(0, 255, 136, 0.1);
@@ -4648,7 +4650,8 @@
                         featuresHtml = modelFeatures.top_features.slice(0, 5).map(([feature, importance]) => {
                             const barWidth = (importance * 100).toFixed(1);
                             return `<div style="margin: 4px 0; display: flex; align-items: center; gap: 8px;">
-                                <span style="min-width: 80px; font-size: 11px;">${feature.replace('_', ' ')}</span>
+                                <span style="min-width: 80px; font-size: 11px;">${feature.replace('_', ' ')
+    justify-content: center;}</span>
                                 <div style="flex: 1; background: rgba(255,255,255,0.1); height: 12px; border-radius: 6px; overflow: hidden;">
                                     <div style="background: #3742fa; height: 100%; width: ${barWidth}%; border-radius: 6px;"></div>
                                 </div>
