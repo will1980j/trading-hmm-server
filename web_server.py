@@ -10196,6 +10196,35 @@ def handle_entry_signal(data):
         if not db_enabled or not db:
             return {"success": False, "error": "Database not available"}
         
+        # Ensure table exists (separate transaction)
+        try:
+            cursor = db.conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS automated_signals (
+                    id SERIAL PRIMARY KEY,
+                    trade_id VARCHAR(100),
+                    event_type VARCHAR(20),
+                    direction VARCHAR(10),
+                    entry_price DECIMAL(10,2),
+                    stop_loss DECIMAL(10,2),
+                    session VARCHAR(20),
+                    bias VARCHAR(20),
+                    risk_distance DECIMAL(10,2),
+                    targets JSONB,
+                    current_price DECIMAL(10,2),
+                    mfe DECIMAL(10,4),
+                    exit_price DECIMAL(10,2),
+                    final_mfe DECIMAL(10,4),
+                    timestamp TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            db.conn.commit()
+            cursor.close()
+        except Exception as table_error:
+            logger.warning(f"Table creation warning: {str(table_error)}")
+            if db and db.conn:
+                db.conn.rollback()
+        
         # Extract entry data
         trade_id = data.get('trade_id')
         direction = data.get('direction')
@@ -10230,26 +10259,6 @@ def handle_entry_signal(data):
         # Insert into database
         cursor = db.conn.cursor()
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS automated_signals (
-                id SERIAL PRIMARY KEY,
-                trade_id VARCHAR(100),
-                event_type VARCHAR(20),
-                direction VARCHAR(10),
-                entry_price DECIMAL(10,2),
-                stop_loss DECIMAL(10,2),
-                session VARCHAR(20),
-                bias VARCHAR(20),
-                risk_distance DECIMAL(10,2),
-                targets JSONB,
-                current_price DECIMAL(10,2),
-                mfe DECIMAL(10,4),
-                exit_price DECIMAL(10,2),
-                final_mfe DECIMAL(10,4),
-                timestamp TIMESTAMP DEFAULT NOW()
-            )
-        """)
-        
-        cursor.execute("""
             INSERT INTO automated_signals (
                 trade_id, event_type, direction, entry_price, stop_loss,
                 session, bias, risk_distance, targets
@@ -10262,6 +10271,7 @@ def handle_entry_signal(data):
         
         signal_id = cursor.fetchone()[0]
         db.conn.commit()
+        cursor.close()
         
         logger.info(f"✅ Entry signal stored: ID {signal_id}, Trade {trade_id}")
         
