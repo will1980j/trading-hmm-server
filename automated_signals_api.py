@@ -66,8 +66,7 @@ def register_automated_signals_api(app, db):
                     final_mfe,
                     session,
                     created_at,
-                    trade_status,
-                    resolution_type
+                    trade_status
                 FROM signal_lab_v2_trades
                 WHERE trade_status = 'RESOLVED'
                 AND date = %s
