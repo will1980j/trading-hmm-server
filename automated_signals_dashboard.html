@@ -449,8 +449,16 @@
                     <div class="metric-value" id="sessionLondon">0</div>
                 </div>
                 <div class="metric-item">
+                    <div class="metric-label">NY Pre</div>
+                    <div class="metric-value" id="sessionNYPre">0</div>
+                </div>
+                <div class="metric-item">
                     <div class="metric-label">NY AM</div>
                     <div class="metric-value" id="sessionNYAM">0</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">NY Lunch</div>
+                    <div class="metric-value" id="sessionNYLunch">0</div>
                 </div>
                 <div class="metric-item">
                     <div class="metric-label">NY PM</div>
@@ -598,10 +606,10 @@
                 calculateAvgMFE(today).toFixed(2) + 'R';
             
             // Session breakdown
-            const sessions = ['Asia', 'London', 'NY AM', 'NY PM'];
+            const sessions = ['Asia', 'London', 'NY Pre', 'NY AM', 'NY Lunch', 'NY PM'];
             sessions.forEach(session => {
                 const count = today.filter(s => s.session === session).length;
-                const id = 'session' + session.replace(' ', '');
+                const id = 'session' + session.replace(/ /g, '');
                 const el = document.getElementById(id);
                 if (el) el.textContent = count;
             });
@@ -649,7 +657,7 @@
             if (charts.session) charts.session.destroy();
             
             const today = signals.filter(s => isToday(s.timestamp));
-            const sessions = ['Asia', 'London', 'NY AM', 'NY PM'];
+            const sessions = ['Asia', 'London', 'NY Pre', 'NY AM', 'NY Lunch', 'NY PM'];
             const counts = sessions.map(s => 
                 today.filter(sig => sig.session === s).length
             );

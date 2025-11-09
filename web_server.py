@@ -423,7 +423,12 @@ if db_enabled and db:
 
 # Initialize real-time signal handler
 from realtime_signal_handler import RealtimeSignalHandler
+from automated_signals_api import register_automated_signals_api
 realtime_handler = RealtimeSignalHandler(socketio, db) if db_enabled else None
+
+# Register automated signals API endpoints
+if db_enabled:
+    register_automated_signals_api(app, db)
 
 # Initialize prediction accuracy tracker
 prediction_tracker = None
