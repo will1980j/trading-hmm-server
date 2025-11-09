@@ -916,25 +916,8 @@ def automated_signals_dashboard_option3():
 @app.route('/automated-signals')
 @login_required
 def automated_signals_dashboard():
-    """Automated Signals Dashboard - Real-time signal monitoring"""
-    return """
-    <!DOCTYPE html>
-    <html><head><meta charset="UTF-8"><title>Automated Signals</title></head>
-    <body style="font-family:Arial;background:#0a0e27;color:#fff;padding:40px;text-align:center;">
-    <h1 style="color:#00d4ff;">🤖 Automated Signals Dashboard</h1>
-    <p style="margin:20px 0;">Dashboard is being built. Check back soon!</p>
-    <p><a href="/signal-lab-dashboard" style="color:#00d4ff;">← Back to Main Dashboard</a></p>
-    <div style="margin-top:40px;padding:20px;background:rgba(0,212,255,0.1);border-radius:8px;">
-    <h3>Coming Soon:</h3>
-    <ul style="list-style:none;padding:0;">
-    <li>✅ Real-time signal monitoring</li>
-    <li>✅ Live stats and analytics</li>
-    <li>✅ WebSocket updates</li>
-    <li>✅ Signal filtering</li>
-    </ul>
-    </div>
-    </body></html>
-    """
+    """Automated Signals Dashboard - Real-time signal monitoring with calendar"""
+    return read_html_file('automated_signals_dashboard.html')
 
 @app.route('/automated-signals-analytics')
 @login_required
