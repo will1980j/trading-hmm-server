@@ -381,6 +381,63 @@ def register_automated_signals_api(app, db):
                 'success': False,
                 'error': str(e)
             }), 500
+    
+    @app.route('/api/automated-signals/daily-calendar')
+    def get_daily_calendar():
+        """Get daily trade data for full calendar view"""
+        try:
+            cursor = db.conn.cursor()
+            
+            # Get all trades grouped by date
+            cursor.execute("""
+                SELECT 
+                    date,
+                    bias as direction,
+                    session,
+                    time,
+                    COALESCE(final_mfe, current_mfe, 0) as mfe,
+                    trade_status
+                FROM signal_lab_v2_trades
+                WHERE date >= CURRENT_DATE - INTERVAL '90 days'
+                ORDER BY date DESC, time DESC
+            """)
+            
+            trades = cursor.fetchall()
+            
+            # Group by date
+            daily_data = {}
+            for trade in trades:
+                date_str = trade['date'].strftime('%Y-%m-%d')
+                
+                if date_str not in daily_data:
+                    daily_data[date_str] = {
+                        'trades': [],
+                        'total_r': 0,
+                        'trade_count': 0,
+                        'has_news': False
+                    }
+                
+                mfe = float(trade['mfe']) if trade['mfe'] else 0
+                daily_data[date_str]['trades'].append({
+                    'direction': trade['direction'],
+                    'session': trade['session'],
+                    'time': trade['time'].strftime('%H:%M') if trade['time'] else None,
+                    'mfe': mfe
+                })
+                daily_data[date_str]['total_r'] += mfe
+                daily_data[date_str]['trade_count'] += 1
+            
+            return jsonify({
+                'success': True,
+                'daily_data': daily_data
+            })
+            
+        except Exception as e:
+            logger.error(f"Error fetching daily calendar: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
 
 def format_duration(duration):
     """Format timedelta to readable string"""
