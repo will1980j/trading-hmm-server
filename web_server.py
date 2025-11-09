@@ -893,8 +893,20 @@ def signal_lab_v2_dashboard():
 @app.route('/automated-signals')
 @login_required
 def automated_signals_dashboard():
-    """Automated Signals Dashboard - Real-time signal monitoring"""
+    """Automated Signals Dashboard - Real-time signal monitoring (Option 1: Professional)"""
     return read_html_file('automated_signals_dashboard.html')
+
+@app.route('/automated-signals-analytics')
+@login_required
+def automated_signals_analytics():
+    """Automated Signals Dashboard - Analytics-focused (Option 2)"""
+    return read_html_file('automated_signals_dashboard_option2.html')
+
+@app.route('/automated-signals-command')
+@login_required
+def automated_signals_command():
+    """Automated Signals Dashboard - Command Center (Option 3)"""
+    return read_html_file('automated_signals_dashboard_option3.html')
 
 @app.route('/1m-execution')
 @login_required
