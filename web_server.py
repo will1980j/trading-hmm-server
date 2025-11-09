@@ -10266,53 +10266,40 @@ def automated_signals_webhook():
 
 def handle_entry_signal(data):
     """Handle trade entry signal"""
+    conn = None
     cursor = None
     try:
-        if not db_enabled or not db:
-            return {"success": False, "error": "Database not available"}
+        # Get fresh database connection
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return {"success": False, "error": "DATABASE_URL not configured"}
         
-        # Ensure database connection is healthy
-        if not db.conn or db.conn.closed:
-            logger.error("Database connection is closed")
-            return {"success": False, "error": "Database connection closed"}
+        conn = psycopg2.connect(database_url)
+        conn.autocommit = False
         
-        # Ensure table exists (separate transaction)
-        try:
-            cursor = db.conn.cursor()
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS automated_signals (
-                    id SERIAL PRIMARY KEY,
-                    trade_id VARCHAR(100),
-                    event_type VARCHAR(20),
-                    direction VARCHAR(10),
-                    entry_price DECIMAL(10,2),
-                    stop_loss DECIMAL(10,2),
-                    session VARCHAR(20),
-                    bias VARCHAR(20),
-                    risk_distance DECIMAL(10,2),
-                    targets JSONB,
-                    current_price DECIMAL(10,2),
-                    mfe DECIMAL(10,4),
-                    exit_price DECIMAL(10,2),
-                    final_mfe DECIMAL(10,4),
-                    timestamp TIMESTAMP DEFAULT NOW()
-                )
-            """)
-            db.conn.commit()
-            cursor.close()
-            cursor = None
-            logger.info("✅ Table automated_signals ready")
-        except Exception as table_error:
-            error_msg = str(table_error) if table_error and str(table_error) else f"Table creation error: {type(table_error).__name__}"
-            logger.warning(f"Table creation warning: {error_msg}")
-            if cursor:
-                cursor.close()
-                cursor = None
-            if db and db.conn:
-                try:
-                    db.conn.rollback()
-                except:
-                    pass
+        # Ensure table exists
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS automated_signals (
+                id SERIAL PRIMARY KEY,
+                trade_id VARCHAR(100),
+                event_type VARCHAR(20),
+                direction VARCHAR(10),
+                entry_price DECIMAL(10,2),
+                stop_loss DECIMAL(10,2),
+                session VARCHAR(20),
+                bias VARCHAR(20),
+                risk_distance DECIMAL(10,2),
+                targets JSONB,
+                current_price DECIMAL(10,2),
+                mfe DECIMAL(10,4),
+                exit_price DECIMAL(10,2),
+                final_mfe DECIMAL(10,4),
+                timestamp TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        conn.commit()
+        logger.info("✅ Table automated_signals ready")
         
         # Extract entry data with validation
         trade_id = data.get('trade_id', 'UNKNOWN')
@@ -10357,7 +10344,6 @@ def handle_entry_signal(data):
             }
         
         # Insert into database
-        cursor = db.conn.cursor()
         cursor.execute("""
             INSERT INTO automated_signals (
                 trade_id, event_type, direction, entry_price, stop_loss,
@@ -10374,9 +10360,7 @@ def handle_entry_signal(data):
             raise Exception("Insert returned no result")
             
         signal_id = result[0]
-        db.conn.commit()
-        cursor.close()
-        cursor = None
+        conn.commit()
         
         logger.info(f"✅ Entry signal stored: ID {signal_id}, Trade {trade_id}")
         
@@ -10394,27 +10378,39 @@ def handle_entry_signal(data):
         error_msg = str(e) if e and str(e) else f"Unknown error: {type(e).__name__}"
         logger.error(f"Entry signal error: {error_msg}")
         
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+                
+        return {"success": False, "error": error_msg}
+    
+    finally:
         if cursor:
             try:
                 cursor.close()
             except:
                 pass
-                
-        if db and db.conn:
+        if conn:
             try:
-                db.conn.rollback()
+                conn.close()
             except:
                 pass
-                
-        return {"success": False, "error": error_msg}
 
 
 def handle_mfe_update(data):
     """Handle MFE update signal"""
+    conn = None
     cursor = None
     try:
-        if not db_enabled or not db:
-            return {"success": False, "error": "Database not available"}
+        # Get fresh database connection
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return {"success": False, "error": "DATABASE_URL not configured"}
+        
+        conn = psycopg2.connect(database_url)
+        conn.autocommit = False
         
         trade_id = data.get('trade_id', 'UNKNOWN')
         
@@ -10425,7 +10421,7 @@ def handle_mfe_update(data):
             return {"success": False, "error": f"Invalid MFE data: {str(conv_error)}"}
         
         # Update MFE in database
-        cursor = db.conn.cursor()
+        cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO automated_signals (
                 trade_id, event_type, current_price, mfe
@@ -10438,9 +10434,7 @@ def handle_mfe_update(data):
             raise Exception("Insert returned no result")
             
         signal_id = result[0]
-        db.conn.commit()
-        cursor.close()
-        cursor = None
+        conn.commit()
         
         logger.info(f"✅ MFE update stored: Trade {trade_id}, MFE {mfe}R")
         
@@ -10455,27 +10449,39 @@ def handle_mfe_update(data):
         error_msg = str(e) if e and str(e) else f"Unknown error: {type(e).__name__}"
         logger.error(f"MFE update error: {error_msg}")
         
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+                
+        return {"success": False, "error": error_msg}
+    
+    finally:
         if cursor:
             try:
                 cursor.close()
             except:
                 pass
-                
-        if db and db.conn:
+        if conn:
             try:
-                db.conn.rollback()
+                conn.close()
             except:
                 pass
-                
-        return {"success": False, "error": error_msg}
 
 
 def handle_exit_signal(data, exit_type):
     """Handle trade exit signal (SL or BE)"""
+    conn = None
     cursor = None
     try:
-        if not db_enabled or not db:
-            return {"success": False, "error": "Database not available"}
+        # Get fresh database connection
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return {"success": False, "error": "DATABASE_URL not configured"}
+        
+        conn = psycopg2.connect(database_url)
+        conn.autocommit = False
         
         trade_id = data.get('trade_id', 'UNKNOWN')
         
@@ -10486,7 +10492,7 @@ def handle_exit_signal(data, exit_type):
             return {"success": False, "error": f"Invalid exit data: {str(conv_error)}"}
         
         # Store exit signal
-        cursor = db.conn.cursor()
+        cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO automated_signals (
                 trade_id, event_type, exit_price, final_mfe
@@ -10499,9 +10505,7 @@ def handle_exit_signal(data, exit_type):
             raise Exception("Insert returned no result")
             
         signal_id = result[0]
-        db.conn.commit()
-        cursor.close()
-        cursor = None
+        conn.commit()
         
         logger.info(f"✅ Exit signal stored: Trade {trade_id}, Type {exit_type}, MFE {final_mfe}R")
         
@@ -10517,19 +10521,25 @@ def handle_exit_signal(data, exit_type):
         error_msg = str(e) if e and str(e) else f"Unknown error: {type(e).__name__}"
         logger.error(f"Exit signal error: {error_msg}")
         
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+                
+        return {"success": False, "error": error_msg}
+    
+    finally:
         if cursor:
             try:
                 cursor.close()
             except:
                 pass
-                
-        if db and db.conn:
+        if conn:
             try:
-                db.conn.rollback()
+                conn.close()
             except:
                 pass
-                
-        return {"success": False, "error": error_msg}
 
 # ============================================================================
 # END AUTOMATED SIGNALS WEBHOOK ENDPOINT
