@@ -10150,6 +10150,144 @@ def deploy_dual_schema():
 # AUTOMATED SIGNALS WEBHOOK ENDPOINT
 # ============================================================================
 
+@app.route('/api/create-automated-signals-table', methods=['POST', 'GET'])
+def create_automated_signals_table():
+    """
+    Create the automated_signals table if it doesn't exist
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Create table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS automated_signals (
+                id SERIAL PRIMARY KEY,
+                event_type VARCHAR(20) NOT NULL,
+                trade_id VARCHAR(100) NOT NULL,
+                direction VARCHAR(10),
+                entry_price DECIMAL(10, 2),
+                stop_loss DECIMAL(10, 2),
+                risk_distance DECIMAL(10, 2),
+                target_1r DECIMAL(10, 2),
+                target_2r DECIMAL(10, 2),
+                target_3r DECIMAL(10, 2),
+                target_5r DECIMAL(10, 2),
+                target_10r DECIMAL(10, 2),
+                target_20r DECIMAL(10, 2),
+                current_price DECIMAL(10, 2),
+                mfe DECIMAL(10, 4),
+                exit_price DECIMAL(10, 2),
+                final_mfe DECIMAL(10, 4),
+                session VARCHAR(20),
+                bias VARCHAR(20),
+                account_size DECIMAL(15, 2),
+                risk_percent DECIMAL(5, 2),
+                contracts INTEGER,
+                risk_amount DECIMAL(10, 2),
+                timestamp BIGINT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        ''')
+        
+        # Create indexes
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_trade_id ON automated_signals(trade_id);')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_event_type ON automated_signals(event_type);')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_timestamp ON automated_signals(timestamp);')
+        
+        conn.commit()
+        
+        # Verify table was created
+        cursor.execute("""
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'automated_signals'
+            ORDER BY ordinal_position;
+        """)
+        columns = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True, 
+            "message": "Table created successfully",
+            "columns": len(columns),
+            "column_list": [{"name": c[0], "type": c[1]} for c in columns]
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/create-automated-signals-table', methods=['POST'])
+def create_automated_signals_table():
+    """Create the automated_signals table"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Drop existing table
+        cursor.execute("DROP TABLE IF EXISTS automated_signals CASCADE;")
+        
+        # Create table
+        cursor.execute('''
+            CREATE TABLE automated_signals (
+                id SERIAL PRIMARY KEY,
+                event_type VARCHAR(20) NOT NULL,
+                trade_id VARCHAR(100) NOT NULL,
+                direction VARCHAR(10),
+                entry_price DECIMAL(10, 2),
+                stop_loss DECIMAL(10, 2),
+                risk_distance DECIMAL(10, 2),
+                target_1r DECIMAL(10, 2),
+                target_2r DECIMAL(10, 2),
+                target_3r DECIMAL(10, 2),
+                target_5r DECIMAL(10, 2),
+                target_10r DECIMAL(10, 2),
+                target_20r DECIMAL(10, 2),
+                session VARCHAR(20),
+                bias VARCHAR(20),
+                current_price DECIMAL(10, 2),
+                mfe DECIMAL(10, 4),
+                exit_price DECIMAL(10, 2),
+                exit_type VARCHAR(20),
+                final_mfe DECIMAL(10, 4),
+                account_size DECIMAL(15, 2),
+                risk_percent DECIMAL(5, 2),
+                contracts INTEGER,
+                risk_amount DECIMAL(10, 2),
+                timestamp BIGINT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            CREATE INDEX idx_trade_id ON automated_signals(trade_id);
+            CREATE INDEX idx_event_type ON automated_signals(event_type);
+            CREATE INDEX idx_created_at ON automated_signals(created_at);
+        ''')
+        
+        conn.commit()
+        
+        # Get column list
+        cursor.execute('''
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'automated_signals'
+            ORDER BY ordinal_position;
+        ''')
+        
+        columns = [row[0] for row in cursor.fetchall()]
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Table created successfully',
+            'columns': columns
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/automated-signals', methods=['POST'])
 def automated_signals_webhook():
     """

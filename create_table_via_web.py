@@ -1,59 +1,116 @@
 """
-Create automated_signals table via web endpoint
+Direct table creation via Railway database connection
+This bypasses the webhook handler and creates the table directly
 """
+import os
+import psycopg2
+from urllib.parse import urlparse
 
-import requests
-import json
+# Railway database URL from environment
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:vYOEMLXAjHbLtLNqzxWLWGGxjJJVLqYy@autorack.proxy.rlwy.net:47625/railway')
 
-RAILWAY_URL = "https://web-production-cd33.up.railway.app"
-
-def create_table_via_endpoint():
-    """Create table by calling Railway endpoint"""
+def create_automated_signals_table():
+    """Create the automated_signals table directly"""
     
-    print("🚀 Creating automated_signals table on Railway...")
-    print(f"Endpoint: {RAILWAY_URL}/api/create-automated-signals-table")
+    # Parse database URL
+    result = urlparse(DATABASE_URL)
+    
+    conn = None
+    cursor = None
     
     try:
-        response = requests.post(
-            f"{RAILWAY_URL}/api/create-automated-signals-table",
-            json={},
-            timeout=30
+        # Connect to database
+        conn = psycopg2.connect(
+            database=result.path[1:],
+            user=result.username,
+            password=result.password,
+            host=result.hostname,
+            port=result.port
         )
         
-        print(f"\nResponse Status: {response.status_code}")
+        cursor = conn.cursor()
         
-        if response.status_code == 200:
-            data = response.json()
-            print(f"Response: {json.dumps(data, indent=2)}")
-            
-            if data.get('success'):
-                print("\n✅ Table created successfully!")
-                print("\n📋 Table structure:")
-                for col in data.get('columns', []):
-                    print(f"   - {col}")
-                return True
-            else:
-                print(f"\n❌ Table creation failed: {data.get('error')}")
-                return False
-        else:
-            print(f"Response: {response.text}")
-            print(f"\n❌ Request failed with status {response.status_code}")
-            return False
-            
+        # Drop existing table if it exists
+        print("Dropping existing table if it exists...")
+        cursor.execute("DROP TABLE IF EXISTS automated_signals CASCADE;")
+        
+        # Create table with all required columns
+        print("Creating automated_signals table...")
+        create_table_sql = """
+        CREATE TABLE automated_signals (
+            id SERIAL PRIMARY KEY,
+            event_type VARCHAR(20) NOT NULL,
+            trade_id VARCHAR(100) NOT NULL,
+            direction VARCHAR(10),
+            entry_price DECIMAL(10, 2),
+            stop_loss DECIMAL(10, 2),
+            risk_distance DECIMAL(10, 2),
+            target_1r DECIMAL(10, 2),
+            target_2r DECIMAL(10, 2),
+            target_3r DECIMAL(10, 2),
+            target_5r DECIMAL(10, 2),
+            target_10r DECIMAL(10, 2),
+            target_20r DECIMAL(10, 2),
+            session VARCHAR(20),
+            bias VARCHAR(20),
+            current_price DECIMAL(10, 2),
+            mfe DECIMAL(10, 4),
+            exit_price DECIMAL(10, 2),
+            exit_type VARCHAR(20),
+            final_mfe DECIMAL(10, 4),
+            account_size DECIMAL(15, 2),
+            risk_percent DECIMAL(5, 2),
+            contracts INTEGER,
+            risk_amount DECIMAL(10, 2),
+            timestamp BIGINT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_trade_id (trade_id),
+            INDEX idx_event_type (event_type),
+            INDEX idx_created_at (created_at)
+        );
+        """
+        
+        cursor.execute(create_table_sql)
+        
+        # Commit changes
+        conn.commit()
+        
+        print("✅ Table created successfully!")
+        
+        # Verify table exists
+        cursor.execute("""
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'automated_signals'
+            ORDER BY ordinal_position;
+        """)
+        
+        columns = cursor.fetchall()
+        print(f"\n📋 Table structure ({len(columns)} columns):")
+        for col_name, col_type in columns:
+            print(f"  - {col_name}: {col_type}")
+        
+        return True
+        
     except Exception as e:
-        print(f"\n❌ Error: {str(e)}")
+        print(f"❌ Error: {e}")
+        if conn:
+            conn.rollback()
         return False
-
+        
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 if __name__ == "__main__":
-    success = create_table_via_endpoint()
+    print("🚀 Creating automated_signals table on Railway...")
+    print(f"Database: {DATABASE_URL.split('@')[1]}\n")
+    
+    success = create_automated_signals_table()
     
     if success:
-        print("\n🎉 Database is ready!")
-        print("\nRun the test:")
-        print("   python test_automated_webhook_system.py")
+        print("\n🎉 Table is ready! Now run: python test_automated_webhook_system.py")
     else:
-        print("\n⚠️  Need to add the endpoint to web_server.py first")
-        print("\nThe endpoint will create the table automatically on first use")
-        print("Just run the test and it will create the table:")
-        print("   python test_automated_webhook_system.py")
+        print("\n⚠️  Table creation failed. Check the error above.")
