@@ -10156,7 +10156,11 @@ def create_automated_signals_table():
     Create the automated_signals table if it doesn't exist
     """
     try:
-        conn = get_db_connection()
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({"success": False, "error": "DATABASE_URL not configured"}), 500
+        
+        conn = psycopg2.connect(database_url)
         cursor = conn.cursor()
         
         # Create table
