@@ -10285,8 +10285,9 @@ def create_automated_signals_table():
 def automated_signals_webhook():
     """
     Webhook endpoint for automated trading signals from TradingView
-    Handles signals from enhanced_fvg_indicator_v2_full_automation.pine
-    Translates automation_stage to event_type for processing
+    Handles signals from BOTH:
+    - enhanced_fvg_indicator_v2_full_automation.pine (automation_stage format)
+    - complete_automated_trading_system.pine (type format)
     """
     try:
         data = request.get_json()
@@ -10294,39 +10295,53 @@ def automated_signals_webhook():
         if not data:
             return jsonify({"success": False, "error": "No data provided"}), 400
         
-        # TRANSLATION LAYER: Convert indicator format to webhook format
-        automation_stage = data.get('automation_stage')
+        # DUAL FORMAT SUPPORT: Strategy uses "type", Indicator uses "automation_stage"
+        message_type = data.get('type')  # Strategy format
+        automation_stage = data.get('automation_stage')  # Indicator format
         
-        # Map automation_stage to event_type
-        stage_to_event = {
-            'SIGNAL_DETECTED': 'ENTRY',
-            'CONFIRMATION_DETECTED': 'ENTRY',
-            'TRADE_ACTIVATED': 'ENTRY',
-            'MFE_UPDATE': 'MFE_UPDATE',
-            'TRADE_RESOLVED': 'EXIT_SL',  # Will determine SL vs BE from resolution_type
-            'SIGNAL_CANCELLED': 'CANCELLED'
-        }
+        # Determine event type from either format
+        if message_type:
+            # STRATEGY FORMAT (complete_automated_trading_system.pine)
+            type_to_event = {
+                'signal_created': 'ENTRY',
+                'mfe_update': 'MFE_UPDATE',
+                'be_triggered': 'BE_TRIGGERED',
+                'signal_completed': 'EXIT_SL'
+            }
+            event_type = type_to_event.get(message_type)
+            trade_id = data.get('signal_id')
+            logger.info(f"📥 Strategy signal: type={message_type}, id={trade_id}")
+        elif automation_stage:
+            # INDICATOR FORMAT (enhanced_fvg_indicator_v2_full_automation.pine)
+            stage_to_event = {
+                'SIGNAL_DETECTED': 'ENTRY',
+                'CONFIRMATION_DETECTED': 'ENTRY',
+                'TRADE_ACTIVATED': 'ENTRY',
+                'MFE_UPDATE': 'MFE_UPDATE',
+                'TRADE_RESOLVED': 'EXIT_SL',
+                'SIGNAL_CANCELLED': 'CANCELLED'
+            }
+            event_type = stage_to_event.get(automation_stage)
+            trade_id = data.get('trade_id') or data.get('signal_id')
+            logger.info(f"📥 Indicator signal: stage={automation_stage}, id={trade_id}")
+        else:
+            return jsonify({"success": False, "error": "Missing type or automation_stage"}), 400
         
-        event_type = stage_to_event.get(automation_stage, data.get('event_type'))
-        
-        # Get trade/signal ID (indicator uses signal_id or trade_id)
-        trade_id = data.get('trade_id') or data.get('signal_id')
-        
-        logger.info(f"📥 Automated signal received: stage={automation_stage}, event={event_type}, id={trade_id}")
-        
-        # Validate required fields
+        # Validate event type
         if not event_type:
-            return jsonify({"success": False, "error": "event_type or automation_stage required"}), 400
+            return jsonify({"success": False, "error": f"Unknown message type: {message_type or automation_stage}"}), 400
         
         # Handle different event types
         if event_type == "ENTRY":
             result = handle_entry_signal(data)
         elif event_type == "MFE_UPDATE":
             result = handle_mfe_update(data)
+        elif event_type == "BE_TRIGGERED":
+            result = handle_be_trigger(data)
         elif event_type == "EXIT_SL" or event_type == "EXIT_BE":
-            # Check resolution_type for TRADE_RESOLVED
-            resolution_type = data.get('resolution_type', 'STOP_LOSS')
-            exit_type = "BREAK_EVEN" if resolution_type == "BREAK_EVEN" else "STOP_LOSS"
+            # Check resolution_type or completion_reason
+            resolution_type = data.get('resolution_type') or data.get('completion_reason', 'STOP_LOSS')
+            exit_type = "BREAK_EVEN" if 'be_stop' in resolution_type.lower() else "STOP_LOSS"
             result = handle_exit_signal(data, exit_type)
         elif event_type == "CANCELLED":
             result = {"success": True, "message": "Signal cancelled"}
@@ -10341,7 +10356,7 @@ def automated_signals_webhook():
 
 
 def handle_entry_signal(data):
-    """Handle trade entry signal"""
+    """Handle trade entry signal - supports both strategy and indicator formats"""
     conn = None
     cursor = None
     try:
@@ -10377,13 +10392,24 @@ def handle_entry_signal(data):
         conn.commit()
         logger.info("✅ Table automated_signals ready")
         
-        # Extract entry data with validation
-        trade_id = data.get('trade_id', 'UNKNOWN')
-        direction = data.get('direction', 'LONG')
+        # DUAL FORMAT SUPPORT
+        # Strategy format: signal_id, bias, entry_price, sl_price
+        # Indicator format: trade_id, direction, entry_price, stop_loss
         
+        trade_id = data.get('signal_id') or data.get('trade_id', 'UNKNOWN')
+        
+        # Direction/Bias mapping
+        bias = data.get('bias', '')
+        direction = data.get('direction', '')
+        if bias:
+            direction = 'LONG' if bias == 'Bullish' else 'SHORT'
+        elif not direction:
+            direction = 'LONG'
+        
+        # Price fields (strategy uses sl_price, indicator uses stop_loss)
         try:
             entry_price = float(data.get('entry_price', 0))
-            stop_loss = float(data.get('stop_loss', 0))
+            stop_loss = float(data.get('sl_price') or data.get('stop_loss', 0))
         except (ValueError, TypeError) as conv_error:
             return {"success": False, "error": f"Invalid price data: {str(conv_error)}"}
         
@@ -10391,33 +10417,38 @@ def handle_entry_signal(data):
             return {"success": False, "error": "Entry price and stop loss must be non-zero"}
         
         session = data.get('session', 'NY AM')
-        bias = data.get('bias', direction)
         
-        # Calculate risk distance and targets
-        risk_distance = abs(entry_price - stop_loss)
+        # Calculate risk distance (strategy may provide it)
+        risk_distance = data.get('risk_distance')
+        if risk_distance:
+            risk_distance = float(risk_distance)
+        else:
+            risk_distance = abs(entry_price - stop_loss)
         
         if risk_distance == 0:
             return {"success": False, "error": "Risk distance cannot be zero"}
         
-        # Calculate R-targets
-        if direction == "LONG":
-            targets = {
-                "1R": round(entry_price + risk_distance, 2),
-                "2R": round(entry_price + (2 * risk_distance), 2),
-                "3R": round(entry_price + (3 * risk_distance), 2),
-                "5R": round(entry_price + (5 * risk_distance), 2),
-                "10R": round(entry_price + (10 * risk_distance), 2),
-                "20R": round(entry_price + (20 * risk_distance), 2)
-            }
-        else:  # SHORT
-            targets = {
-                "1R": round(entry_price - risk_distance, 2),
-                "2R": round(entry_price - (2 * risk_distance), 2),
-                "3R": round(entry_price - (3 * risk_distance), 2),
-                "5R": round(entry_price - (5 * risk_distance), 2),
-                "10R": round(entry_price - (10 * risk_distance), 2),
-                "20R": round(entry_price - (20 * risk_distance), 2)
-            }
+        # Calculate R-targets (strategy may provide them)
+        targets = data.get('targets')
+        if not targets:
+            if direction == "LONG":
+                targets = {
+                    "1R": round(entry_price + risk_distance, 2),
+                    "2R": round(entry_price + (2 * risk_distance), 2),
+                    "3R": round(entry_price + (3 * risk_distance), 2),
+                    "5R": round(entry_price + (5 * risk_distance), 2),
+                    "10R": round(entry_price + (10 * risk_distance), 2),
+                    "20R": round(entry_price + (20 * risk_distance), 2)
+                }
+            else:  # SHORT
+                targets = {
+                    "1R": round(entry_price - risk_distance, 2),
+                    "2R": round(entry_price - (2 * risk_distance), 2),
+                    "3R": round(entry_price - (3 * risk_distance), 2),
+                    "5R": round(entry_price - (5 * risk_distance), 2),
+                    "10R": round(entry_price - (10 * risk_distance), 2),
+                    "20R": round(entry_price - (20 * risk_distance), 2)
+                }
         
         # Insert into database
         cursor.execute("""
@@ -10428,7 +10459,7 @@ def handle_entry_signal(data):
             RETURNING id
         """, (
             trade_id, 'ENTRY', direction, entry_price, stop_loss,
-            session, bias, risk_distance, dumps(targets)
+            session, bias or direction, risk_distance, dumps(targets)
         ))
         
         result = cursor.fetchone()
@@ -10438,7 +10469,7 @@ def handle_entry_signal(data):
         signal_id = result[0]
         conn.commit()
         
-        logger.info(f"✅ Entry signal stored: ID {signal_id}, Trade {trade_id}")
+        logger.info(f"✅ Entry signal stored: ID {signal_id}, Trade {trade_id}, Direction {direction}")
         
         return {
             "success": True,
@@ -10476,7 +10507,7 @@ def handle_entry_signal(data):
 
 
 def handle_mfe_update(data):
-    """Handle MFE update signal"""
+    """Handle MFE update signal - supports both strategy and indicator formats"""
     conn = None
     cursor = None
     try:
@@ -10488,11 +10519,16 @@ def handle_mfe_update(data):
         conn = psycopg2.connect(database_url)
         conn.autocommit = False
         
-        trade_id = data.get('trade_id', 'UNKNOWN')
+        # DUAL FORMAT SUPPORT
+        # Strategy format: signal_id, current_price, be_mfe, no_be_mfe
+        # Indicator format: trade_id, current_price, mfe
+        
+        trade_id = data.get('signal_id') or data.get('trade_id', 'UNKNOWN')
         
         try:
             current_price = float(data.get('current_price', 0))
-            mfe = float(data.get('mfe', 0))
+            # Strategy sends be_mfe and no_be_mfe, indicator sends mfe
+            mfe = float(data.get('no_be_mfe') or data.get('mfe', 0))
         except (ValueError, TypeError) as conv_error:
             return {"success": False, "error": f"Invalid MFE data: {str(conv_error)}"}
         
@@ -10512,7 +10548,7 @@ def handle_mfe_update(data):
         signal_id = result[0]
         conn.commit()
         
-        logger.info(f"✅ MFE update stored: Trade {trade_id}, MFE {mfe}R")
+        logger.info(f"✅ MFE update stored: Trade {trade_id}, MFE {mfe}R @ {current_price}")
         
         return {
             "success": True,
@@ -10546,8 +10582,8 @@ def handle_mfe_update(data):
                 pass
 
 
-def handle_exit_signal(data, exit_type):
-    """Handle trade exit signal (SL or BE)"""
+def handle_be_trigger(data):
+    """Handle break-even trigger signal (when price reaches +1R)"""
     conn = None
     cursor = None
     try:
@@ -10559,22 +10595,22 @@ def handle_exit_signal(data, exit_type):
         conn = psycopg2.connect(database_url)
         conn.autocommit = False
         
-        trade_id = data.get('trade_id', 'UNKNOWN')
+        trade_id = data.get('signal_id') or data.get('trade_id', 'UNKNOWN')
         
         try:
-            exit_price = float(data.get('exit_price', 0))
-            final_mfe = float(data.get('final_mfe', 0))
+            be_mfe = float(data.get('be_mfe', 0))
+            no_be_mfe = float(data.get('no_be_mfe', 0))
         except (ValueError, TypeError) as conv_error:
-            return {"success": False, "error": f"Invalid exit data: {str(conv_error)}"}
+            return {"success": False, "error": f"Invalid BE data: {str(conv_error)}"}
         
-        # Store exit signal
+        # Store BE trigger event
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO automated_signals (
-                trade_id, event_type, exit_price, final_mfe
-            ) VALUES (%s, %s, %s, %s)
+                trade_id, event_type, mfe
+            ) VALUES (%s, %s, %s)
             RETURNING id
-        """, (trade_id, f'EXIT_{exit_type}', exit_price, final_mfe))
+        """, (trade_id, 'BE_TRIGGERED', be_mfe))
         
         result = cursor.fetchone()
         if not result:
@@ -10583,7 +10619,94 @@ def handle_exit_signal(data, exit_type):
         signal_id = result[0]
         conn.commit()
         
-        logger.info(f"✅ Exit signal stored: Trade {trade_id}, Type {exit_type}, MFE {final_mfe}R")
+        logger.info(f"✅ BE trigger stored: Trade {trade_id}, BE MFE {be_mfe}R, No BE MFE {no_be_mfe}R")
+        
+        return {
+            "success": True,
+            "signal_id": signal_id,
+            "trade_id": trade_id,
+            "be_mfe": be_mfe,
+            "no_be_mfe": no_be_mfe
+        }
+        
+    except Exception as e:
+        error_msg = str(e) if e and str(e) else f"Unknown error: {type(e).__name__}"
+        logger.error(f"BE trigger error: {error_msg}")
+        
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+                
+        return {"success": False, "error": error_msg}
+    
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
+
+
+def handle_exit_signal(data, exit_type):
+    """Handle trade exit signal (SL or BE) - supports both strategy and indicator formats"""
+    conn = None
+    cursor = None
+    try:
+        # Get fresh database connection
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return {"success": False, "error": "DATABASE_URL not configured"}
+        
+        conn = psycopg2.connect(database_url)
+        conn.autocommit = False
+        
+        # DUAL FORMAT SUPPORT
+        # Strategy format: signal_id, completion_reason, final_be_mfe, final_no_be_mfe
+        # Indicator format: trade_id, exit_price, final_mfe
+        
+        trade_id = data.get('signal_id') or data.get('trade_id', 'UNKNOWN')
+        
+        try:
+            # Strategy doesn't send exit_price, indicator does
+            exit_price = float(data.get('exit_price', 0)) if data.get('exit_price') else 0
+            # Strategy sends final_be_mfe and final_no_be_mfe, indicator sends final_mfe
+            final_mfe = float(data.get('final_no_be_mfe') or data.get('final_mfe', 0))
+        except (ValueError, TypeError) as conv_error:
+            return {"success": False, "error": f"Invalid exit data: {str(conv_error)}"}
+        
+        # Store exit signal
+        cursor = conn.cursor()
+        if exit_price > 0:
+            cursor.execute("""
+                INSERT INTO automated_signals (
+                    trade_id, event_type, exit_price, final_mfe
+                ) VALUES (%s, %s, %s, %s)
+                RETURNING id
+            """, (trade_id, f'EXIT_{exit_type}', exit_price, final_mfe))
+        else:
+            # No exit price (strategy format)
+            cursor.execute("""
+                INSERT INTO automated_signals (
+                    trade_id, event_type, final_mfe
+                ) VALUES (%s, %s, %s)
+                RETURNING id
+            """, (trade_id, f'EXIT_{exit_type}', final_mfe))
+        
+        result = cursor.fetchone()
+        if not result:
+            raise Exception("Insert returned no result")
+            
+        signal_id = result[0]
+        conn.commit()
+        
+        logger.info(f"✅ Exit signal stored: Trade {trade_id}, Type {exit_type}, Final MFE {final_mfe}R")
         
         return {
             "success": True,
