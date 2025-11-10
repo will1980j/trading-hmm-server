@@ -20,25 +20,33 @@ def register_automated_signals_api(app, db):
         try:
             cursor = db.conn.cursor()
             
-            # Get active trades from automated_signals table (ENTRY events without EXIT)
+            # Get active trades with latest MFE from MFE_UPDATE events
             cursor.execute("""
-                SELECT DISTINCT ON (trade_id)
-                    id,
-                    trade_id,
-                    direction as bias,
-                    CAST(entry_price AS FLOAT) as entry_price,
-                    CAST(stop_loss AS FLOAT) as stop_loss_price,
-                    CAST(mfe AS FLOAT) as current_mfe,
-                    session,
-                    timestamp as created_at,
+                SELECT 
+                    e.id,
+                    e.trade_id,
+                    e.direction as bias,
+                    CAST(e.entry_price AS FLOAT) as entry_price,
+                    CAST(e.stop_loss AS FLOAT) as stop_loss_price,
+                    CAST(COALESCE(m.mfe, e.mfe, 0) AS FLOAT) as current_mfe,
+                    e.session,
+                    e.timestamp as created_at,
                     'ACTIVE' as trade_status
-                FROM automated_signals
-                WHERE event_type = 'ENTRY'
-                AND trade_id NOT IN (
+                FROM automated_signals e
+                LEFT JOIN LATERAL (
+                    SELECT mfe, current_price
+                    FROM automated_signals
+                    WHERE trade_id = e.trade_id
+                    AND event_type = 'MFE_UPDATE'
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                ) m ON true
+                WHERE e.event_type = 'ENTRY'
+                AND e.trade_id NOT IN (
                     SELECT trade_id FROM automated_signals 
                     WHERE event_type LIKE 'EXIT_%'
                 )
-                ORDER BY trade_id, timestamp DESC
+                ORDER BY e.timestamp DESC
             """)
             active_trades = []
             for row in cursor.fetchall():
