@@ -20,29 +20,32 @@ def register_automated_signals_api(app, db):
         try:
             cursor = db.conn.cursor()
             
-            # Get active trades from signal_lab_v2_trades
+            # Get active trades from automated_signals table (ENTRY events without EXIT)
             cursor.execute("""
-                SELECT 
+                SELECT DISTINCT ON (trade_id)
                     id,
-                    date,
-                    time,
-                    bias,
+                    trade_id,
+                    direction as bias,
                     entry_price,
-                    stop_loss_price,
-                    current_mfe,
+                    stop_loss as stop_loss_price,
+                    mfe as current_mfe,
                     session,
-                    created_at,
-                    trade_status
-                FROM signal_lab_v2_trades
-                WHERE trade_status IN ('ACTIVE', 'CONFIRMED')
-                ORDER BY created_at DESC
+                    timestamp as created_at,
+                    'ACTIVE' as trade_status
+                FROM automated_signals
+                WHERE event_type = 'ENTRY'
+                AND trade_id NOT IN (
+                    SELECT trade_id FROM automated_signals 
+                    WHERE event_type LIKE 'EXIT_%'
+                )
+                ORDER BY trade_id, timestamp DESC
             """)
             active_trades = [dict(row) for row in cursor.fetchall()]
             
             # Calculate duration for active trades
             now = datetime.now(pytz.timezone('US/Eastern'))
             for trade in active_trades:
-                if trade['created_at']:
+                if trade.get('created_at'):
                     created = trade['created_at']
                     if created.tzinfo is None:
                         created = pytz.timezone('US/Eastern').localize(created)
@@ -53,39 +56,44 @@ def register_automated_signals_api(app, db):
                     trade['duration_seconds'] = 0
                     trade['duration_display'] = '0m 0s'
             
-            # Get completed trades from today
-            today = datetime.now(pytz.timezone('US/Eastern')).date()
+            # Get completed trades (trades with EXIT events)
             cursor.execute("""
                 SELECT 
-                    id,
-                    date,
-                    time,
-                    bias,
-                    entry_price,
-                    stop_loss_price,
-                    final_mfe,
-                    session,
-                    created_at,
-                    trade_status
-                FROM signal_lab_v2_trades
-                WHERE trade_status = 'RESOLVED'
-                AND date = %s
-                ORDER BY created_at DESC
+                    e.id,
+                    e.trade_id,
+                    e.direction as bias,
+                    e.entry_price,
+                    e.stop_loss as stop_loss_price,
+                    x.final_mfe,
+                    e.session,
+                    e.timestamp as created_at,
+                    'RESOLVED' as trade_status
+                FROM automated_signals e
+                INNER JOIN (
+                    SELECT trade_id, final_mfe, timestamp
+                    FROM automated_signals
+                    WHERE event_type LIKE 'EXIT_%'
+                ) x ON e.trade_id = x.trade_id
+                WHERE e.event_type = 'ENTRY'
+                AND DATE(e.timestamp) = CURRENT_DATE
+                ORDER BY e.timestamp DESC
                 LIMIT 50
-            """, (today,))
+            """)
             completed_trades = [dict(row) for row in cursor.fetchall()]
             
             # Get today's statistics
             cursor.execute("""
                 SELECT 
-                    COUNT(*) as total_signals,
-                    COUNT(CASE WHEN trade_status IN ('ACTIVE', 'CONFIRMED') THEN 1 END) as active_count,
-                    COUNT(CASE WHEN trade_status = 'RESOLVED' THEN 1 END) as completed_count,
-                    AVG(CASE WHEN final_mfe IS NOT NULL THEN final_mfe END) as avg_mfe,
-                    COUNT(CASE WHEN final_mfe >= 1.0 THEN 1 END) as win_count
-                FROM signal_lab_v2_trades
-                WHERE date = %s
-            """, (today,))
+                    COUNT(DISTINCT CASE WHEN event_type = 'ENTRY' THEN trade_id END) as total_signals,
+                    COUNT(DISTINCT CASE WHEN event_type = 'ENTRY' 
+                        AND trade_id NOT IN (SELECT trade_id FROM automated_signals WHERE event_type LIKE 'EXIT_%')
+                        THEN trade_id END) as active_count,
+                    COUNT(DISTINCT CASE WHEN event_type LIKE 'EXIT_%' THEN trade_id END) as completed_count,
+                    AVG(CASE WHEN event_type LIKE 'EXIT_%' THEN final_mfe END) as avg_mfe,
+                    COUNT(DISTINCT CASE WHEN event_type LIKE 'EXIT_%' AND final_mfe >= 1.0 THEN trade_id END) as win_count
+                FROM automated_signals
+                WHERE DATE(timestamp) = CURRENT_DATE
+            """)
             stats = dict(cursor.fetchone())
             
             # Calculate win rate
@@ -97,17 +105,19 @@ def register_automated_signals_api(app, db):
             # Get hourly distribution for calendar heatmap
             cursor.execute("""
                 SELECT 
-                    EXTRACT(HOUR FROM time) as hour,
-                    COUNT(*) as count,
+                    EXTRACT(HOUR FROM timestamp) as hour,
+                    COUNT(DISTINCT trade_id) as count,
                     AVG(CASE WHEN final_mfe IS NOT NULL THEN final_mfe 
-                             WHEN current_mfe IS NOT NULL THEN current_mfe END) as avg_mfe,
-                    COUNT(CASE WHEN trade_status IN ('ACTIVE', 'CONFIRMED') THEN 1 END) as active,
-                    COUNT(CASE WHEN trade_status = 'RESOLVED' THEN 1 END) as completed
-                FROM signal_lab_v2_trades
-                WHERE date = %s
-                GROUP BY EXTRACT(HOUR FROM time)
+                             WHEN mfe IS NOT NULL THEN mfe END) as avg_mfe,
+                    COUNT(DISTINCT CASE WHEN event_type = 'ENTRY' 
+                        AND trade_id NOT IN (SELECT trade_id FROM automated_signals WHERE event_type LIKE 'EXIT_%')
+                        THEN trade_id END) as active,
+                    COUNT(DISTINCT CASE WHEN event_type LIKE 'EXIT_%' THEN trade_id END) as completed
+                FROM automated_signals
+                WHERE DATE(timestamp) = CURRENT_DATE
+                GROUP BY EXTRACT(HOUR FROM timestamp)
                 ORDER BY hour
-            """, (today,))
+            """)
             hourly_data = {}
             for row in cursor.fetchall():
                 hour = int(row['hour'])
@@ -122,13 +132,14 @@ def register_automated_signals_api(app, db):
             cursor.execute("""
                 SELECT 
                     session,
-                    COUNT(*) as count,
+                    COUNT(DISTINCT trade_id) as count,
                     AVG(CASE WHEN final_mfe IS NOT NULL THEN final_mfe 
-                             WHEN current_mfe IS NOT NULL THEN current_mfe END) as avg_mfe
-                FROM signal_lab_v2_trades
-                WHERE date = %s
+                             WHEN mfe IS NOT NULL THEN mfe END) as avg_mfe
+                FROM automated_signals
+                WHERE DATE(timestamp) = CURRENT_DATE
+                AND session IS NOT NULL
                 GROUP BY session
-            """, (today,))
+            """)
             session_breakdown = {}
             for row in cursor.fetchall():
                 session_breakdown[row['session']] = {
@@ -162,10 +173,10 @@ def register_automated_signals_api(app, db):
             # Get MFE values from completed trades
             cursor.execute("""
                 SELECT final_mfe as mfe
-                FROM signal_lab_v2_trades
+                FROM automated_signals
                 WHERE final_mfe IS NOT NULL
-                AND trade_status = 'RESOLVED'
-                AND date >= CURRENT_DATE - INTERVAL '7 days'
+                AND event_type LIKE 'EXIT_%'
+                AND timestamp >= CURRENT_DATE - INTERVAL '7 days'
                 ORDER BY final_mfe
             """)
             
@@ -216,21 +227,22 @@ def register_automated_signals_api(app, db):
         """Get dashboard statistics"""
         try:
             cursor = db.conn.cursor()
-            today = datetime.now(pytz.timezone('US/Eastern')).date()
             
             # Get today's statistics
             cursor.execute("""
                 SELECT 
-                    COUNT(*) as total_signals,
-                    COUNT(CASE WHEN trade_status IN ('ACTIVE', 'CONFIRMED') THEN 1 END) as active_count,
-                    COUNT(CASE WHEN trade_status = 'PENDING' THEN 1 END) as pending_count,
-                    COUNT(CASE WHEN trade_status = 'RESOLVED' THEN 1 END) as completed_count,
-                    AVG(CASE WHEN final_mfe IS NOT NULL THEN final_mfe 
-                             WHEN current_mfe IS NOT NULL THEN current_mfe END) as avg_mfe,
-                    COUNT(CASE WHEN final_mfe >= 1.0 THEN 1 END) as win_count
-                FROM signal_lab_v2_trades
-                WHERE date = %s
-            """, (today,))
+                    COUNT(DISTINCT CASE WHEN event_type = 'ENTRY' THEN trade_id END) as total_signals,
+                    COUNT(DISTINCT CASE WHEN event_type = 'ENTRY' 
+                        AND trade_id NOT IN (SELECT trade_id FROM automated_signals WHERE event_type LIKE 'EXIT_%')
+                        THEN trade_id END) as active_count,
+                    0 as pending_count,
+                    COUNT(DISTINCT CASE WHEN event_type LIKE 'EXIT_%' THEN trade_id END) as completed_count,
+                    AVG(CASE WHEN event_type LIKE 'EXIT_%' THEN final_mfe 
+                             WHEN event_type = 'MFE_UPDATE' THEN mfe END) as avg_mfe,
+                    COUNT(DISTINCT CASE WHEN event_type LIKE 'EXIT_%' AND final_mfe >= 1.0 THEN trade_id END) as win_count
+                FROM automated_signals
+                WHERE DATE(timestamp) = CURRENT_DATE
+            """)
             stats = dict(cursor.fetchone())
             
             # Calculate win rate and success rate
@@ -245,11 +257,12 @@ def register_automated_signals_api(app, db):
             cursor.execute("""
                 SELECT 
                     session,
-                    COUNT(*) as count
-                FROM signal_lab_v2_trades
-                WHERE date = %s
+                    COUNT(DISTINCT trade_id) as count
+                FROM automated_signals
+                WHERE DATE(timestamp) = CURRENT_DATE
+                AND session IS NOT NULL
                 GROUP BY session
-            """, (today,))
+            """)
             session_breakdown = {}
             for row in cursor.fetchall():
                 session_breakdown[row['session']] = row['count']
@@ -280,20 +293,22 @@ def register_automated_signals_api(app, db):
             cursor = db.conn.cursor()
             
             cursor.execute("""
-                SELECT 
+                SELECT DISTINCT ON (trade_id)
                     id,
-                    date,
-                    time,
-                    bias as direction,
+                    trade_id,
+                    direction,
                     entry_price,
-                    stop_loss_price,
-                    current_mfe as mfe,
+                    stop_loss as stop_loss_price,
+                    mfe,
                     session,
-                    created_at as timestamp,
-                    trade_status
-                FROM signal_lab_v2_trades
-                WHERE trade_status IN ('ACTIVE', 'CONFIRMED')
-                ORDER BY created_at DESC
+                    timestamp,
+                    'ACTIVE' as trade_status
+                FROM automated_signals
+                WHERE event_type = 'ENTRY'
+                AND trade_id NOT IN (
+                    SELECT trade_id FROM automated_signals WHERE event_type LIKE 'EXIT_%'
+                )
+                ORDER BY trade_id, timestamp DESC
             """)
             trades = [dict(row) for row in cursor.fetchall()]
             
@@ -314,26 +329,29 @@ def register_automated_signals_api(app, db):
         """Get completed trades"""
         try:
             cursor = db.conn.cursor()
-            today = datetime.now(pytz.timezone('US/Eastern')).date()
             
             cursor.execute("""
                 SELECT 
-                    id,
-                    date,
-                    time,
-                    bias as direction,
-                    entry_price,
-                    stop_loss_price,
-                    final_mfe as mfe,
-                    session,
-                    created_at as timestamp,
-                    trade_status
-                FROM signal_lab_v2_trades
-                WHERE trade_status = 'RESOLVED'
-                AND date = %s
-                ORDER BY created_at DESC
+                    e.id,
+                    e.trade_id,
+                    e.direction,
+                    e.entry_price,
+                    e.stop_loss as stop_loss_price,
+                    x.final_mfe as mfe,
+                    e.session,
+                    e.timestamp,
+                    'RESOLVED' as trade_status
+                FROM automated_signals e
+                INNER JOIN (
+                    SELECT trade_id, final_mfe, timestamp
+                    FROM automated_signals
+                    WHERE event_type LIKE 'EXIT_%'
+                ) x ON e.trade_id = x.trade_id
+                WHERE e.event_type = 'ENTRY'
+                AND DATE(e.timestamp) = CURRENT_DATE
+                ORDER BY e.timestamp DESC
                 LIMIT 20
-            """, (today,))
+            """)
             trades = [dict(row) for row in cursor.fetchall()]
             
             return jsonify({
@@ -353,17 +371,17 @@ def register_automated_signals_api(app, db):
         """Get hourly trade distribution for calendar heatmap"""
         try:
             cursor = db.conn.cursor()
-            today = datetime.now(pytz.timezone('US/Eastern')).date()
             
             cursor.execute("""
                 SELECT 
-                    EXTRACT(HOUR FROM time) as hour,
-                    COUNT(*) as count
-                FROM signal_lab_v2_trades
-                WHERE date = %s
-                GROUP BY EXTRACT(HOUR FROM time)
+                    EXTRACT(HOUR FROM timestamp) as hour,
+                    COUNT(DISTINCT trade_id) as count
+                FROM automated_signals
+                WHERE DATE(timestamp) = CURRENT_DATE
+                AND event_type = 'ENTRY'
+                GROUP BY EXTRACT(HOUR FROM timestamp)
                 ORDER BY hour
-            """, (today,))
+            """)
             
             hourly_data = {}
             for row in cursor.fetchall():
@@ -391,15 +409,20 @@ def register_automated_signals_api(app, db):
             # Get all trades grouped by date
             cursor.execute("""
                 SELECT 
-                    date,
-                    bias as direction,
+                    DATE(timestamp) as date,
+                    direction,
                     session,
-                    time,
-                    COALESCE(final_mfe, current_mfe, 0) as mfe,
-                    trade_status
-                FROM signal_lab_v2_trades
-                WHERE date >= CURRENT_DATE - INTERVAL '90 days'
-                ORDER BY date DESC, time DESC
+                    timestamp::time as time,
+                    COALESCE(final_mfe, mfe, 0) as mfe,
+                    CASE 
+                        WHEN event_type LIKE 'EXIT_%' THEN 'RESOLVED'
+                        WHEN event_type = 'ENTRY' THEN 'ACTIVE'
+                        ELSE 'PENDING'
+                    END as trade_status
+                FROM automated_signals
+                WHERE timestamp >= CURRENT_DATE - INTERVAL '90 days'
+                AND event_type IN ('ENTRY', 'EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN')
+                ORDER BY timestamp DESC
             """)
             
             trades = cursor.fetchall()
@@ -407,7 +430,7 @@ def register_automated_signals_api(app, db):
             # Group by date
             daily_data = {}
             for trade in trades:
-                date_str = trade['date'].strftime('%Y-%m-%d')
+                date_str = trade['date'].strftime('%Y-%m-%d') if hasattr(trade['date'], 'strftime') else str(trade['date'])
                 
                 if date_str not in daily_data:
                     daily_data[date_str] = {
@@ -418,10 +441,11 @@ def register_automated_signals_api(app, db):
                     }
                 
                 mfe = float(trade['mfe']) if trade['mfe'] else 0
+                time_str = trade['time'].strftime('%H:%M') if hasattr(trade['time'], 'strftime') else str(trade['time'])[:5] if trade['time'] else None
                 daily_data[date_str]['trades'].append({
                     'direction': trade['direction'],
                     'session': trade['session'],
-                    'time': trade['time'].strftime('%H:%M') if trade['time'] else None,
+                    'time': time_str,
                     'mfe': mfe
                 })
                 daily_data[date_str]['total_r'] += mfe
