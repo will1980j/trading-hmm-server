@@ -26,9 +26,9 @@ def register_automated_signals_api(app, db):
                     id,
                     trade_id,
                     direction as bias,
-                    entry_price,
-                    stop_loss as stop_loss_price,
-                    mfe as current_mfe,
+                    CAST(entry_price AS FLOAT) as entry_price,
+                    CAST(stop_loss AS FLOAT) as stop_loss_price,
+                    CAST(mfe AS FLOAT) as current_mfe,
                     session,
                     timestamp as created_at,
                     'ACTIVE' as trade_status
@@ -40,7 +40,17 @@ def register_automated_signals_api(app, db):
                 )
                 ORDER BY trade_id, timestamp DESC
             """)
-            active_trades = [dict(row) for row in cursor.fetchall()]
+            active_trades = []
+            for row in cursor.fetchall():
+                trade = dict(row)
+                # Ensure all numeric fields are floats
+                if trade.get('entry_price'):
+                    trade['entry_price'] = float(trade['entry_price'])
+                if trade.get('stop_loss_price'):
+                    trade['stop_loss_price'] = float(trade['stop_loss_price'])
+                if trade.get('current_mfe'):
+                    trade['current_mfe'] = float(trade['current_mfe'])
+                active_trades.append(trade)
             
             # Calculate duration for active trades
             now = datetime.now(pytz.timezone('US/Eastern'))
@@ -62,9 +72,9 @@ def register_automated_signals_api(app, db):
                     e.id,
                     e.trade_id,
                     e.direction as bias,
-                    e.entry_price,
-                    e.stop_loss as stop_loss_price,
-                    x.final_mfe,
+                    CAST(e.entry_price AS FLOAT) as entry_price,
+                    CAST(e.stop_loss AS FLOAT) as stop_loss_price,
+                    CAST(x.final_mfe AS FLOAT) as final_mfe,
                     e.session,
                     e.timestamp as created_at,
                     'RESOLVED' as trade_status
@@ -79,7 +89,17 @@ def register_automated_signals_api(app, db):
                 ORDER BY e.timestamp DESC
                 LIMIT 50
             """)
-            completed_trades = [dict(row) for row in cursor.fetchall()]
+            completed_trades = []
+            for row in cursor.fetchall():
+                trade = dict(row)
+                # Ensure all numeric fields are floats
+                if trade.get('entry_price'):
+                    trade['entry_price'] = float(trade['entry_price'])
+                if trade.get('stop_loss_price'):
+                    trade['stop_loss_price'] = float(trade['stop_loss_price'])
+                if trade.get('final_mfe'):
+                    trade['final_mfe'] = float(trade['final_mfe'])
+                completed_trades.append(trade)
             
             # Get today's statistics
             cursor.execute("""
@@ -89,12 +109,26 @@ def register_automated_signals_api(app, db):
                         AND trade_id NOT IN (SELECT trade_id FROM automated_signals WHERE event_type LIKE 'EXIT_%')
                         THEN trade_id END) as active_count,
                     COUNT(DISTINCT CASE WHEN event_type LIKE 'EXIT_%' THEN trade_id END) as completed_count,
-                    AVG(CASE WHEN event_type LIKE 'EXIT_%' THEN final_mfe END) as avg_mfe,
+                    CAST(AVG(CASE WHEN event_type LIKE 'EXIT_%' THEN final_mfe END) AS FLOAT) as avg_mfe,
                     COUNT(DISTINCT CASE WHEN event_type LIKE 'EXIT_%' AND final_mfe >= 1.0 THEN trade_id END) as win_count
                 FROM automated_signals
                 WHERE DATE(timestamp) = CURRENT_DATE
             """)
-            stats = dict(cursor.fetchone())
+            stats_row = cursor.fetchone()
+            stats = dict(stats_row) if stats_row else {
+                'total_signals': 0,
+                'active_count': 0,
+                'completed_count': 0,
+                'avg_mfe': 0.0,
+                'win_count': 0
+            }
+            
+            # Convert to proper types
+            stats['total_signals'] = int(stats['total_signals']) if stats['total_signals'] else 0
+            stats['active_count'] = int(stats['active_count']) if stats['active_count'] else 0
+            stats['completed_count'] = int(stats['completed_count']) if stats['completed_count'] else 0
+            stats['avg_mfe'] = float(stats['avg_mfe']) if stats['avg_mfe'] else 0.0
+            stats['win_count'] = int(stats['win_count']) if stats['win_count'] else 0
             
             # Calculate win rate
             if stats['completed_count'] and stats['completed_count'] > 0:
@@ -237,21 +271,37 @@ def register_automated_signals_api(app, db):
                         THEN trade_id END) as active_count,
                     0 as pending_count,
                     COUNT(DISTINCT CASE WHEN event_type LIKE 'EXIT_%' THEN trade_id END) as completed_count,
-                    AVG(CASE WHEN event_type LIKE 'EXIT_%' THEN final_mfe 
-                             WHEN event_type = 'MFE_UPDATE' THEN mfe END) as avg_mfe,
+                    CAST(AVG(CASE WHEN event_type LIKE 'EXIT_%' THEN final_mfe 
+                             WHEN event_type = 'MFE_UPDATE' THEN mfe END) AS FLOAT) as avg_mfe,
                     COUNT(DISTINCT CASE WHEN event_type LIKE 'EXIT_%' AND final_mfe >= 1.0 THEN trade_id END) as win_count
                 FROM automated_signals
                 WHERE DATE(timestamp) = CURRENT_DATE
             """)
-            stats = dict(cursor.fetchone())
+            stats_row = cursor.fetchone()
+            stats = dict(stats_row) if stats_row else {
+                'total_signals': 0,
+                'active_count': 0,
+                'pending_count': 0,
+                'completed_count': 0,
+                'avg_mfe': 0.0,
+                'win_count': 0
+            }
+            
+            # Convert to proper types
+            stats['total_signals'] = int(stats['total_signals']) if stats['total_signals'] else 0
+            stats['active_count'] = int(stats['active_count']) if stats['active_count'] else 0
+            stats['pending_count'] = 0
+            stats['completed_count'] = int(stats['completed_count']) if stats['completed_count'] else 0
+            stats['avg_mfe'] = float(stats['avg_mfe']) if stats['avg_mfe'] else 0.0
+            stats['win_count'] = int(stats['win_count']) if stats['win_count'] else 0
             
             # Calculate win rate and success rate
-            if stats['completed_count'] and stats['completed_count'] > 0:
-                stats['win_rate'] = (stats['win_count'] / stats['completed_count']) * 100
+            if stats['completed_count'] > 0:
+                stats['win_rate'] = float((stats['win_count'] / stats['completed_count']) * 100)
                 stats['success_rate'] = stats['win_rate']
             else:
-                stats['win_rate'] = 0
-                stats['success_rate'] = 0
+                stats['win_rate'] = 0.0
+                stats['success_rate'] = 0.0
             
             # Get session breakdown
             cursor.execute("""
