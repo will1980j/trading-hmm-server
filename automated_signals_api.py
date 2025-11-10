@@ -534,3 +534,36 @@ def format_duration(duration):
         return f"{minutes}m {seconds}s"
     else:
         return f"{seconds}s"
+
+    
+    @app.route('/api/automated-signals/delete/<trade_id>', methods=['DELETE'])
+    def delete_signal(trade_id):
+        """Delete all events for a specific trade_id"""
+        try:
+            cursor = db.conn.cursor()
+            
+            # Delete all rows with this trade_id
+            cursor.execute("""
+                DELETE FROM automated_signals
+                WHERE trade_id = %s
+            """, (trade_id,))
+            
+            rows_deleted = cursor.rowcount
+            db.conn.commit()
+            
+            logger.info(f"🗑️ Deleted signal {trade_id}: {rows_deleted} rows removed")
+            
+            return jsonify({
+                'success': True,
+                'trade_id': trade_id,
+                'rows_deleted': rows_deleted,
+                'message': f'Successfully deleted {rows_deleted} rows for trade {trade_id}'
+            })
+            
+        except Exception as e:
+            logger.error(f"Error deleting signal {trade_id}: {e}")
+            db.conn.rollback()
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500

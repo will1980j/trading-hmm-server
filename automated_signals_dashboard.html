@@ -369,6 +369,28 @@
             color: #8b5cf6;
         }
 
+        /* Delete Button */
+        .delete-btn {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .delete-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: #ef4444;
+            transform: scale(1.05);
+        }
+
+        .delete-btn:active {
+            transform: scale(0.95);
+        }
+
         /* Activity Feed */
         .activity-panel {
             background: rgba(255, 255, 255, 0.05);
@@ -754,6 +776,7 @@
                                 <th>Session</th>
                                 <th>MFE</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="signalsTableBody">
@@ -935,9 +958,10 @@
                 const status = signal.trade_status || signal.status || 'pending';
                 const mfe = signal.final_mfe || signal.current_mfe || signal.mfe;
                 const timestamp = signal.created_at || signal.timestamp;
+                const tradeId = signal.trade_id;
                 
                 return `
-                    <tr>
+                    <tr data-trade-id="${tradeId}">
                         <td>${signal.time || (timestamp ? formatTime(timestamp) : '-')}</td>
                         <td>
                             <span class="direction-badge ${direction ? direction.toLowerCase() : 'neutral'}">
@@ -952,6 +976,11 @@
                             <span class="status-badge ${status.toLowerCase()}">
                                 ${status}
                             </span>
+                        </td>
+                        <td>
+                            <button class="delete-btn" onclick="deleteSignal('${tradeId}')" title="Delete signal">
+                                🗑️
+                            </button>
                         </td>
                     </tr>
                 `;
@@ -1140,6 +1169,39 @@
                 timeZone: 'America/New_York',
                 hour12: false
             });
+        }
+
+        // Delete Signal Function
+        async function deleteSignal(tradeId) {
+            if (!confirm(`Delete signal ${tradeId}?\n\nThis will remove ALL events for this trade (entry, MFE updates, completion).`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/automated-signals/delete/${tradeId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Remove from signals array
+                    signals = signals.filter(s => s.trade_id !== tradeId);
+                    
+                    // Update dashboard
+                    updateDashboard();
+                    
+                    // Show success message
+                    addActivityItem('Signal deleted', { trade_id: tradeId, direction: 'DELETED' });
+                    
+                    alert(`✅ Signal ${tradeId} deleted successfully!\n\nRemoved ${result.rows_deleted} database rows.`);
+                } else {
+                    alert(`❌ Failed to delete signal: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert(`❌ Error deleting signal: ${error.message}`);
+            }
         }
 
         // System Health Check

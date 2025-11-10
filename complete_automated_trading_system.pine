@@ -244,6 +244,7 @@ is_pivot_high(index) =>
 var float signal_candle_high = na
 var float signal_candle_low = na
 var int signal_bar_index = na
+var int signal_candle_time = na  // Store signal candle time for webhook
 var string active_signal = "None"
 var bool waiting_for_confirmation = false
 
@@ -282,6 +283,7 @@ if show_bull_triangle and active_signal != "Bullish"
     signal_candle_high := high
     signal_candle_low := low
     signal_bar_index := bar_index
+    signal_candle_time := time  // Store signal candle time
     active_signal := "Bullish"
     waiting_for_confirmation := true
     trade_ready := false
@@ -292,6 +294,7 @@ if show_bear_triangle and active_signal != "Bearish"
     signal_candle_high := high
     signal_candle_low := low
     signal_bar_index := bar_index
+    signal_candle_time := time  // Store signal candle time
     active_signal := "Bearish"
     waiting_for_confirmation := true
     trade_ready := false
@@ -912,8 +915,8 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
     target_2r = signal_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
     target_3r = signal_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
     
-    // Create JSON payload using signal data from arrays
-    signal_created_payload = '{"type":"signal_created","signal_id":"' + signal_id + '","date":"' + str.format_time(time, "yyyy-MM-dd") + '","time":"' + str.format_time(time, "HH:mm:ss") + '","bias":"' + signal_direction + '","session":"' + current_session + '","entry_price":' + str.tostring(sig_entry) + ',"sl_price":' + str.tostring(sig_stop) + ',"risk_distance":' + str.tostring(sig_risk) + ',"be_price":' + str.tostring(sig_entry) + ',"target_1r":' + str.tostring(target_1r) + ',"target_2r":' + str.tostring(target_2r) + ',"target_3r":' + str.tostring(target_3r) + ',"be_hit":false,"be_mfe":0.00,"no_be_mfe":0.00,"status":"active","timestamp":' + str.tostring(time) + '}'
+    // Create JSON payload using SIGNAL CANDLE time (not current bar time)
+    signal_created_payload = '{"type":"signal_created","signal_id":"' + signal_id + '","date":"' + str.format_time(signal_candle_time, "yyyy-MM-dd") + '","time":"' + str.format_time(signal_candle_time, "HH:mm:ss") + '","bias":"' + signal_direction + '","session":"' + current_session + '","entry_price":' + str.tostring(sig_entry) + ',"sl_price":' + str.tostring(sig_stop) + ',"risk_distance":' + str.tostring(sig_risk) + ',"be_price":' + str.tostring(sig_entry) + ',"target_1r":' + str.tostring(target_1r) + ',"target_2r":' + str.tostring(target_2r) + ',"target_3r":' + str.tostring(target_3r) + ',"be_hit":false,"be_mfe":0.00,"no_be_mfe":0.00,"status":"active","timestamp":' + str.tostring(signal_candle_time) + '}'
     
     // Send webhook
     alert(signal_created_payload, alert.freq_once_per_bar)
@@ -930,7 +933,7 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
     trade_ready := false
 
 // 2. MFE UPDATE WEBHOOK
-// Send every bar for active signals
+// Send once per bar for active signals (not on every tick)
 if not na(last_signal_id) and barstate.isconfirmed and array.size(signal_entries) > 0
     // Get the most recent signal data
     last_index = array.size(signal_entries) - 1
@@ -942,8 +945,8 @@ if not na(last_signal_id) and barstate.isconfirmed and array.size(signal_entries
     // Create MFE update payload
     mfe_update_payload = '{"type":"mfe_update","signal_id":"' + last_signal_id + '","current_price":' + str.tostring(close) + ',"be_mfe":' + str.tostring(current_mfe_be) + ',"no_be_mfe":' + str.tostring(current_mfe_none) + ',"lowest_low":' + str.tostring(current_lowest_low) + ',"highest_high":' + str.tostring(current_highest_high) + ',"status":"active","timestamp":' + str.tostring(time) + '}'
     
-    // Send MFE update
-    alert(mfe_update_payload, alert.freq_all)
+    // Send MFE update once per bar (not every tick)
+    alert(mfe_update_payload, alert.freq_once_per_bar)
 
 // 3. BE TRIGGER WEBHOOK
 // Send when BE=1 is triggered (price reaches +1R)
