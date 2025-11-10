@@ -397,10 +397,8 @@ if waiting_for_confirmation and active_signal == "Bullish"
         array.push(signal_lowest_lows, low)  // Initialize with current low
         array.push(signal_highest_highs, high)  // Initialize with current high
         
-        // CRITICAL FIX: Reset state immediately to allow next signal to be tracked
-        active_signal := "None"
-        waiting_for_confirmation := false
-        trade_ready := false
+        // CRITICAL FIX: Mark as confirmed but DON'T reset trade_ready yet
+        // Let webhook code execute first, then reset on next bar
         confirmed_this_bar := true
 
 // ============================================================================
@@ -493,10 +491,8 @@ if waiting_for_confirmation and active_signal == "Bearish"
         array.push(signal_lowest_lows, low)  // Initialize with current low
         array.push(signal_highest_highs, high)  // Initialize with current high
         
-        // CRITICAL FIX: Reset state immediately to allow next signal to be tracked
-        active_signal := "None"
-        waiting_for_confirmation := false
-        trade_ready := false
+        // CRITICAL FIX: Mark as confirmed but DON'T reset trade_ready yet
+        // Let webhook code execute first, then reset on next bar
         confirmed_this_bar := true
 
 // ============================================================================
@@ -899,18 +895,25 @@ if barstate.isconfirmed
 
 // 1. SIGNAL CREATION WEBHOOK
 // Send when new trade is ready (entry conditions met)
-if trade_ready and not webhook_sent_this_bar and barstate.isconfirmed
-    signal_direction = active_signal  // "Bullish" or "Bearish"
+if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and array.size(signal_entries) > 0
+    // Get the most recent signal (just added)
+    int last_index = array.size(signal_entries) - 1
+    float sig_entry = array.get(signal_entries, last_index)
+    float sig_stop = array.get(signal_stops, last_index)
+    float sig_risk = array.get(signal_risks, last_index)
+    string sig_dir = array.get(signal_directions, last_index)
+    
+    signal_direction = sig_dir  // "Bullish" or "Bearish"
     signal_id = create_signal_id(signal_direction)
     current_session = get_session()
     
-    // Calculate target prices
-    target_1r = signal_direction == "Bullish" ? entry_price + risk_distance : entry_price - risk_distance
-    target_2r = signal_direction == "Bullish" ? entry_price + (2 * risk_distance) : entry_price - (2 * risk_distance)
-    target_3r = signal_direction == "Bullish" ? entry_price + (3 * risk_distance) : entry_price - (3 * risk_distance)
+    // Calculate target prices using signal data from arrays
+    target_1r = signal_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
+    target_2r = signal_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
+    target_3r = signal_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
     
-    // Create JSON payload
-    signal_created_payload = '{"type":"signal_created","signal_id":"' + signal_id + '","date":"' + str.format_time(time, "yyyy-MM-dd") + '","time":"' + str.format_time(time, "HH:mm:ss") + '","bias":"' + signal_direction + '","session":"' + current_session + '","entry_price":' + str.tostring(entry_price) + ',"sl_price":' + str.tostring(stop_loss_price) + ',"risk_distance":' + str.tostring(risk_distance) + ',"be_price":' + str.tostring(entry_price) + ',"target_1r":' + str.tostring(target_1r) + ',"target_2r":' + str.tostring(target_2r) + ',"target_3r":' + str.tostring(target_3r) + ',"be_hit":false,"be_mfe":0.00,"no_be_mfe":0.00,"status":"active","timestamp":' + str.tostring(time) + '}'
+    // Create JSON payload using signal data from arrays
+    signal_created_payload = '{"type":"signal_created","signal_id":"' + signal_id + '","date":"' + str.format_time(time, "yyyy-MM-dd") + '","time":"' + str.format_time(time, "HH:mm:ss") + '","bias":"' + signal_direction + '","session":"' + current_session + '","entry_price":' + str.tostring(sig_entry) + ',"sl_price":' + str.tostring(sig_stop) + ',"risk_distance":' + str.tostring(sig_risk) + ',"be_price":' + str.tostring(sig_entry) + ',"target_1r":' + str.tostring(target_1r) + ',"target_2r":' + str.tostring(target_2r) + ',"target_3r":' + str.tostring(target_3r) + ',"be_hit":false,"be_mfe":0.00,"no_be_mfe":0.00,"status":"active","timestamp":' + str.tostring(time) + '}'
     
     // Send webhook
     alert(signal_created_payload, alert.freq_once_per_bar)
@@ -920,6 +923,11 @@ if trade_ready and not webhook_sent_this_bar and barstate.isconfirmed
     webhook_sent_this_bar := true
     be_trigger_sent := false
     completion_sent := false
+    
+    // NOW reset state for next signal (AFTER webhook sent)
+    active_signal := "None"
+    waiting_for_confirmation := false
+    trade_ready := false
 
 // 2. MFE UPDATE WEBHOOK
 // Send every bar for active signals

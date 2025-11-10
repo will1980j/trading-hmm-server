@@ -826,8 +826,16 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Combine active and completed trades
-                    signals = [...(data.active_trades || []), ...(data.completed_trades || [])];
+                    // Combine active and completed trades and add date field
+                    signals = [...(data.active_trades || []), ...(data.completed_trades || [])].map(signal => {
+                        // Add date field from timestamp or created_at
+                        const timestamp = signal.created_at || signal.timestamp;
+                        if (timestamp && !signal.date) {
+                            const date = new Date(timestamp);
+                            signal.date = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+                        }
+                        return signal;
+                    });
                     updateDashboard();
                     updateCalendar();
                 }
@@ -861,20 +869,27 @@
 
         function updateStats() {
             const today = new Date().toDateString();
-            const todaySignals = signals.filter(s => 
-                new Date(s.timestamp).toDateString() === today
-            );
+            const todaySignals = signals.filter(s => {
+                const signalDate = s.created_at || s.timestamp;
+                return signalDate && new Date(signalDate).toDateString() === today;
+            });
 
             document.getElementById('totalSignals').textContent = todaySignals.length;
             document.getElementById('pendingSignals').textContent = 
-                todaySignals.filter(s => s.status === 'pending').length;
+                todaySignals.filter(s => (s.trade_status || s.status) === 'PENDING').length;
             document.getElementById('confirmedTrades').textContent = 
-                todaySignals.filter(s => s.status === 'confirmed').length;
+                todaySignals.filter(s => {
+                    const status = s.trade_status || s.status;
+                    return status === 'CONFIRMED' || status === 'ACTIVE';
+                }).length;
 
-            const avgMFE = todaySignals
-                .filter(s => s.mfe !== null)
-                .reduce((sum, s) => sum + (s.mfe || 0), 0) / 
-                (todaySignals.filter(s => s.mfe !== null).length || 1);
+            const mfeValues = todaySignals
+                .map(s => s.current_mfe || s.final_mfe || s.mfe || 0)
+                .filter(mfe => mfe > 0);
+            
+            const avgMFE = mfeValues.length > 0 
+                ? mfeValues.reduce((sum, mfe) => sum + mfe, 0) / mfeValues.length 
+                : 0;
             
             document.getElementById('avgMFE').textContent = avgMFE.toFixed(2) + 'R';
         }
