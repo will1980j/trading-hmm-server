@@ -10285,7 +10285,8 @@ def create_automated_signals_table():
 def automated_signals_webhook():
     """
     Webhook endpoint for automated trading signals from TradingView
-    Handles: ENTRY, EXIT_SL, EXIT_BE, MFE_UPDATE events
+    Handles signals from enhanced_fvg_indicator_v2_full_automation.pine
+    Translates automation_stage to event_type for processing
     """
     try:
         data = request.get_json()
@@ -10293,24 +10294,42 @@ def automated_signals_webhook():
         if not data:
             return jsonify({"success": False, "error": "No data provided"}), 400
         
-        event_type = data.get('event_type')
-        trade_id = data.get('trade_id')
+        # TRANSLATION LAYER: Convert indicator format to webhook format
+        automation_stage = data.get('automation_stage')
         
-        logger.info(f"📥 Automated signal received: {event_type} for trade {trade_id}")
+        # Map automation_stage to event_type
+        stage_to_event = {
+            'SIGNAL_DETECTED': 'ENTRY',
+            'CONFIRMATION_DETECTED': 'ENTRY',
+            'TRADE_ACTIVATED': 'ENTRY',
+            'MFE_UPDATE': 'MFE_UPDATE',
+            'TRADE_RESOLVED': 'EXIT_SL',  # Will determine SL vs BE from resolution_type
+            'SIGNAL_CANCELLED': 'CANCELLED'
+        }
+        
+        event_type = stage_to_event.get(automation_stage, data.get('event_type'))
+        
+        # Get trade/signal ID (indicator uses signal_id or trade_id)
+        trade_id = data.get('trade_id') or data.get('signal_id')
+        
+        logger.info(f"📥 Automated signal received: stage={automation_stage}, event={event_type}, id={trade_id}")
         
         # Validate required fields
         if not event_type:
-            return jsonify({"success": False, "error": "event_type required"}), 400
+            return jsonify({"success": False, "error": "event_type or automation_stage required"}), 400
         
         # Handle different event types
         if event_type == "ENTRY":
             result = handle_entry_signal(data)
         elif event_type == "MFE_UPDATE":
             result = handle_mfe_update(data)
-        elif event_type == "EXIT_SL":
-            result = handle_exit_signal(data, "STOP_LOSS")
-        elif event_type == "EXIT_BE":
-            result = handle_exit_signal(data, "BREAK_EVEN")
+        elif event_type == "EXIT_SL" or event_type == "EXIT_BE":
+            # Check resolution_type for TRADE_RESOLVED
+            resolution_type = data.get('resolution_type', 'STOP_LOSS')
+            exit_type = "BREAK_EVEN" if resolution_type == "BREAK_EVEN" else "STOP_LOSS"
+            result = handle_exit_signal(data, exit_type)
+        elif event_type == "CANCELLED":
+            result = {"success": True, "message": "Signal cancelled"}
         else:
             return jsonify({"success": False, "error": f"Unknown event_type: {event_type}"}), 400
         

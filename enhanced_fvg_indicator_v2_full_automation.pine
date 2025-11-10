@@ -7,10 +7,10 @@ indicator("Enhanced FVG/IFVG Full Automation V2", overlay=true)
 // NO FAKE DATA - NO ASSUMPTIONS - EXACT METHODOLOGY ONLY
 // ============================================================================
 
-// Webhook settings - MULTIPLE ENDPOINTS FOR DIFFERENT AUTOMATION STAGES
-webhook_url_signals = input.string("https://web-production-cd33.up.railway.app/api/live-signals-v2", "Signal Webhook URL")
-webhook_url_confirmations = input.string("https://web-production-cd33.up.railway.app/api/confirmations", "Confirmation Webhook URL")
-webhook_url_trades = input.string("https://web-production-cd33.up.railway.app/api/trade-activation", "Trade Activation Webhook URL")
+// Webhook settings - AUTOMATED SIGNALS ENDPOINT
+webhook_url_signals = input.string("https://web-production-cd33.up.railway.app/api/automated-signals", "Signal Webhook URL")
+webhook_url_confirmations = input.string("https://web-production-cd33.up.railway.app/api/automated-signals", "Confirmation Webhook URL")
+webhook_url_trades = input.string("https://web-production-cd33.up.railway.app/api/automated-signals", "Trade Activation Webhook URL")
 enable_webhooks = input.bool(true, "Enable Webhooks")
 enable_full_automation = input.bool(true, "Enable Full Automation", tooltip="When enabled, monitors for confirmations and activates trades automatically")
 
