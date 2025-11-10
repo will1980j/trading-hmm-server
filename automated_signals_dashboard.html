@@ -723,8 +723,12 @@
                 <div class="stat-value positive" id="confirmedTrades">0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Avg MFE</div>
-                <div class="stat-value" id="avgMFE">0.00R</div>
+                <div class="stat-label">Avg MFE (BE=1)</div>
+                <div class="stat-value" id="avgMFE_BE">0.00R</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg MFE (No BE)</div>
+                <div class="stat-value" id="avgMFE_NoBE">0.00R</div>
             </div>
         </div>
 
@@ -774,14 +778,15 @@
                                 <th>Entry</th>
                                 <th>Stop Loss</th>
                                 <th>Session</th>
-                                <th>MFE</th>
+                                <th>MFE (BE=1)</th>
+                                <th>MFE (No BE)</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="signalsTableBody">
                             <tr>
-                                <td colspan="7">
+                                <td colspan="9">
                                     <div class="empty-state">
                                         <div class="empty-state-icon">📊</div>
                                         <div>Waiting for automated signals...</div>
@@ -906,15 +911,25 @@
                     return status === 'CONFIRMED' || status === 'ACTIVE';
                 }).length;
 
-            const mfeValues = todaySignals
-                .map(s => s.current_mfe || s.final_mfe || s.mfe || 0)
+            // Calculate both MFE averages
+            const mfeBEValues = todaySignals
+                .map(s => s.be_mfe || s.mfe_be || 0)
                 .filter(mfe => mfe > 0);
             
-            const avgMFE = mfeValues.length > 0 
-                ? mfeValues.reduce((sum, mfe) => sum + mfe, 0) / mfeValues.length 
+            const mfeNoBEValues = todaySignals
+                .map(s => s.no_be_mfe || s.mfe_no_be || s.final_mfe || s.current_mfe || s.mfe || 0)
+                .filter(mfe => mfe > 0);
+            
+            const avgMFE_BE = mfeBEValues.length > 0 
+                ? mfeBEValues.reduce((sum, mfe) => sum + mfe, 0) / mfeBEValues.length 
                 : 0;
             
-            document.getElementById('avgMFE').textContent = avgMFE.toFixed(2) + 'R';
+            const avgMFE_NoBE = mfeNoBEValues.length > 0 
+                ? mfeNoBEValues.reduce((sum, mfe) => sum + mfe, 0) / mfeNoBEValues.length 
+                : 0;
+            
+            document.getElementById('avgMFE_BE').textContent = avgMFE_BE.toFixed(2) + 'R';
+            document.getElementById('avgMFE_NoBE').textContent = avgMFE_NoBE.toFixed(2) + 'R';
         }
 
         function updateSignalsTable() {
@@ -956,7 +971,9 @@
             tbody.innerHTML = filteredSignals.slice(0, 50).map(signal => {
                 const direction = signal.bias || signal.direction;
                 const status = signal.trade_status || signal.status || 'pending';
-                const mfe = signal.final_mfe || signal.current_mfe || signal.mfe;
+                // Get both MFE values from webhook data
+                const mfe_be = signal.be_mfe || signal.mfe_be || 0;
+                const mfe_no_be = signal.no_be_mfe || signal.mfe_no_be || signal.final_mfe || signal.current_mfe || signal.mfe || 0;
                 const timestamp = signal.created_at || signal.timestamp;
                 const tradeId = signal.trade_id;
                 
@@ -971,7 +988,8 @@
                         <td>${signal.entry_price ? signal.entry_price.toFixed(2) : '-'}</td>
                         <td>${signal.stop_loss_price || signal.stop_loss ? (signal.stop_loss_price || signal.stop_loss).toFixed(2) : '-'}</td>
                         <td>${signal.session || '-'}</td>
-                        <td>${mfe ? mfe.toFixed(2) + 'R' : '-'}</td>
+                        <td>${mfe_be > 0 ? mfe_be.toFixed(2) + 'R' : '-'}</td>
+                        <td>${mfe_no_be > 0 ? mfe_no_be.toFixed(2) + 'R' : '-'}</td>
                         <td>
                             <span class="status-badge ${status.toLowerCase()}">
                                 ${status}

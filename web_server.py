@@ -10471,6 +10471,20 @@ def handle_entry_signal(data):
         
         logger.info(f"✅ Entry signal stored: ID {signal_id}, Trade {trade_id}, Direction {direction}")
         
+        # Broadcast to WebSocket clients for Activity Feed
+        try:
+            socketio.emit('signal_received', {
+                'trade_id': trade_id,
+                'direction': bias or direction,
+                'entry_price': entry_price,
+                'stop_loss': stop_loss,
+                'session': session,
+                'timestamp': datetime.now().isoformat()
+            })
+            logger.info(f"📡 WebSocket broadcast: signal_received for {trade_id}")
+        except Exception as ws_error:
+            logger.warning(f"WebSocket broadcast failed: {ws_error}")
+        
         return {
             "success": True,
             "signal_id": signal_id,
@@ -10549,6 +10563,18 @@ def handle_mfe_update(data):
         conn.commit()
         
         logger.info(f"✅ MFE update stored: Trade {trade_id}, MFE {mfe}R @ {current_price}")
+        
+        # Broadcast to WebSocket clients for Activity Feed
+        try:
+            socketio.emit('mfe_update', {
+                'trade_id': trade_id,
+                'mfe': mfe,
+                'current_price': current_price,
+                'timestamp': datetime.now().isoformat()
+            })
+            logger.info(f"📡 WebSocket broadcast: mfe_update for {trade_id}")
+        except Exception as ws_error:
+            logger.warning(f"WebSocket broadcast failed: {ws_error}")
         
         return {
             "success": True,
@@ -10707,6 +10733,19 @@ def handle_exit_signal(data, exit_type):
         conn.commit()
         
         logger.info(f"✅ Exit signal stored: Trade {trade_id}, Type {exit_type}, Final MFE {final_mfe}R")
+        
+        # Broadcast to WebSocket clients for Activity Feed
+        try:
+            socketio.emit('signal_resolved', {
+                'trade_id': trade_id,
+                'exit_type': exit_type,
+                'final_mfe': final_mfe,
+                'exit_price': exit_price if exit_price > 0 else None,
+                'timestamp': datetime.now().isoformat()
+            })
+            logger.info(f"📡 WebSocket broadcast: signal_resolved for {trade_id}")
+        except Exception as ws_error:
+            logger.warning(f"WebSocket broadcast failed: {ws_error}")
         
         return {
             "success": True,
