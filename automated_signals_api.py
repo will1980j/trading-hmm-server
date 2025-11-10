@@ -521,21 +521,6 @@ def register_automated_signals_api(app, db):
                 'error': str(e)
             }), 500
 
-def format_duration(duration):
-    """Format timedelta to readable string"""
-    total_seconds = int(duration.total_seconds())
-    hours = total_seconds // 3600
-    minutes = (total_seconds % 3600) // 60
-    seconds = total_seconds % 60
-    
-    if hours > 0:
-        return f"{hours}h {minutes}m"
-    elif minutes > 0:
-        return f"{minutes}m {seconds}s"
-    else:
-        return f"{seconds}s"
-
-    
     @app.route('/api/automated-signals/delete/<trade_id>', methods=['DELETE'])
     def delete_signal(trade_id):
         """Delete all events for a specific trade_id"""
@@ -567,3 +552,17 @@ def format_duration(duration):
                 'success': False,
                 'error': str(e)
             }), 500
+
+def format_duration(duration):
+    """Format timedelta to readable string"""
+    total_seconds = int(duration.total_seconds())
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+    
+    if hours > 0:
+        return f"{hours}h {minutes}m"
+    elif minutes > 0:
+        return f"{minutes}m {seconds}s"
+    else:
+        return f"{seconds}s"
