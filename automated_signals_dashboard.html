@@ -976,10 +976,12 @@
                 const mfe_no_be = signal.no_be_mfe || signal.mfe_no_be || signal.final_mfe || signal.current_mfe || signal.mfe || 0;
                 const timestamp = signal.created_at || signal.timestamp;
                 const tradeId = signal.trade_id;
+                // Use signal_time (signal candle time) if available, otherwise fall back to timestamp
+                const displayTime = signal.signal_time || signal.time || (timestamp ? formatTime(timestamp) : '-');
                 
                 return `
                     <tr data-trade-id="${tradeId}">
-                        <td>${signal.time || (timestamp ? formatTime(timestamp) : '-')}</td>
+                        <td>${displayTime}</td>
                         <td>
                             <span class="direction-badge ${direction ? direction.toLowerCase() : 'neutral'}">
                                 ${direction || '-'}

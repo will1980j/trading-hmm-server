@@ -10386,6 +10386,8 @@ def handle_entry_signal(data):
                 mfe DECIMAL(10,4),
                 exit_price DECIMAL(10,2),
                 final_mfe DECIMAL(10,4),
+                signal_date DATE,
+                signal_time TIME,
                 timestamp TIMESTAMP DEFAULT NOW()
             )
         """)
@@ -10450,16 +10452,20 @@ def handle_entry_signal(data):
                     "20R": round(entry_price - (20 * risk_distance), 2)
                 }
         
+        # Get signal date and time from webhook (signal candle time, not current time)
+        signal_date = data.get('date')  # Format: "2024-01-15"
+        signal_time = data.get('time')  # Format: "10:00:00"
+        
         # Insert into database
         cursor.execute("""
             INSERT INTO automated_signals (
                 trade_id, event_type, direction, entry_price, stop_loss,
-                session, bias, risk_distance, targets
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                session, bias, risk_distance, targets, signal_date, signal_time
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             trade_id, 'ENTRY', direction, entry_price, stop_loss,
-            session, bias or direction, risk_distance, dumps(targets)
+            session, bias or direction, risk_distance, dumps(targets), signal_date, signal_time
         ))
         
         result = cursor.fetchone()

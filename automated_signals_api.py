@@ -30,6 +30,8 @@ def register_automated_signals_api(app, db):
                     CAST(e.stop_loss AS FLOAT) as stop_loss_price,
                     CAST(COALESCE(m.mfe, e.mfe, 0) AS FLOAT) as current_mfe,
                     e.session,
+                    e.signal_date,
+                    e.signal_time,
                     e.timestamp as created_at,
                     'ACTIVE' as trade_status
                 FROM automated_signals e
