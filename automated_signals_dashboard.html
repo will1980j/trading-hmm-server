@@ -642,7 +642,7 @@
     <div class="dashboard-container">
         <!-- Header -->
         <div class="header">
-            <h1>🤖 Automated Signals Dashboard</h1>
+            <h1>🤖 Automated Signals Dashboard <span style="font-size: 0.6em; color: #64b5f6; font-weight: normal;">(US Eastern Time)</span></h1>
             <div class="connection-status">
                 <div class="status-dot" id="statusDot"></div>
                 <span id="statusText">Connected</span>
@@ -747,7 +747,7 @@
                     <table class="signals-table">
                         <thead>
                             <tr>
-                                <th>Time</th>
+                                <th>Time (ET)</th>
                                 <th>Direction</th>
                                 <th>Entry</th>
                                 <th>Stop Loss</th>
@@ -1132,10 +1132,13 @@
         // Utility Functions
         function formatTime(timestamp) {
             const date = new Date(timestamp);
+            // Display in US Eastern Time (matches TradingView)
             return date.toLocaleTimeString('en-US', { 
                 hour: '2-digit', 
                 minute: '2-digit',
-                second: '2-digit'
+                second: '2-digit',
+                timeZone: 'America/New_York',
+                hour12: false
             });
         }
 
