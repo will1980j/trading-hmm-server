@@ -20,8 +20,24 @@ def register_automated_signals_api(app, db):
         try:
             cursor = db.conn.cursor()
             
-            # Get active trades with latest MFE from MFE_UPDATE events
+            # First, check if signal_date and signal_time columns exist
             cursor.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'automated_signals' 
+                AND column_name IN ('signal_date', 'signal_time')
+            """)
+            existing_columns = [row[0] for row in cursor.fetchall()]
+            has_signal_time_columns = 'signal_date' in existing_columns and 'signal_time' in existing_columns
+            
+            # Build query based on available columns
+            if has_signal_time_columns:
+                time_columns = "e.signal_date, e.signal_time,"
+            else:
+                time_columns = ""
+            
+            # Get active trades with latest MFE from MFE_UPDATE events
+            cursor.execute(f"""
                 SELECT 
                     e.id,
                     e.trade_id,
@@ -30,8 +46,7 @@ def register_automated_signals_api(app, db):
                     CAST(e.stop_loss AS FLOAT) as stop_loss_price,
                     CAST(COALESCE(m.mfe, e.mfe, 0) AS FLOAT) as current_mfe,
                     e.session,
-                    e.signal_date,
-                    e.signal_time,
+                    {time_columns}
                     e.timestamp as created_at,
                     'ACTIVE' as trade_status
                 FROM automated_signals e
