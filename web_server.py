@@ -10895,13 +10895,23 @@ def debug_automated_signals():
         cursor.execute("SELECT COUNT(*) FROM automated_signals")
         total = cursor.fetchone()[0]
         
+        # NOW RUN THE EXACT SAME QUERIES AS STATS ENDPOINT
+        cursor.execute("SELECT COUNT(*) FROM automated_signals WHERE event_type = 'ENTRY'")
+        entry_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM automated_signals WHERE event_type LIKE 'EXIT_%'")
+        exit_count = cursor.fetchone()[0]
+        
         cursor.close()
         conn.close()
         
         return jsonify({
             "success": True,
             "total_in_db": total,
-            "last_10_records": records
+            "entry_count": entry_count,
+            "exit_count": exit_count,
+            "last_10_records": records,
+            "message": f"If entry_count={entry_count} but stats shows 0, there's a caching or routing issue"
         }), 200
         
     except Exception as e:
