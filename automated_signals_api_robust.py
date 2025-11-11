@@ -20,7 +20,22 @@ def register_automated_signals_api_robust(app, db):
         Handles multiple data scenarios and provides meaningful fallbacks
         """
         try:
-            cursor = db.conn.cursor()
+            # Use fresh connection instead of db.conn
+            import os
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+            
+            database_url = os.environ.get('DATABASE_URL')
+            if not database_url:
+                return jsonify({
+                    'success': False,
+                    'error': 'no_database_url',
+                    'active_trades': [],
+                    'completed_trades': []
+                }), 500
+            
+            conn = psycopg2.connect(database_url)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # Strategy 1: Check table existence
             cursor.execute("""
@@ -85,6 +100,9 @@ def register_automated_signals_api_robust(app, db):
             # Strategy 7: Get distributions
             hourly_dist = _get_hourly_distribution_robust(cursor)
             session_breakdown = _get_session_breakdown_robust(cursor)
+            
+            cursor.close()
+            conn.close()
             
             return jsonify({
                 'success': True,
