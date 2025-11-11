@@ -4,17 +4,21 @@
 
 - [x] **Issue 1 Fixed:** Conditional check for `register_automation_routes()`
 - [x] **Issue 2 Fixed:** SocketIO async_mode changed to 'threading'
+- [x] **Issue 3 Fixed:** Dependency conflicts resolved in requirements.txt
 - [x] **Syntax Valid:** Python compilation successful
 - [x] **No Diagnostics:** No errors or warnings
 - [x] **Threading Mode Tested:** SocketIO threading mode verified working
+- [x] **Dependencies Clean:** No duplicate or conflicting packages
 
 ## 📋 Deployment Steps
 
 ### 1. Commit Changes
 ```
 Open GitHub Desktop
-Review changes to web_server.py
-Commit message: "Fix deployment crash - conditional routes + threading mode"
+Review changes to:
+  - web_server.py (2 fixes)
+  - requirements.txt (dependency fix)
+Commit message: "Fix deployment crash - routes + threading + dependencies"
 ```
 
 ### 2. Push to Railway
@@ -123,6 +127,23 @@ if register_automation_routes:
     logger.info("✅ Full automation webhook routes registered")
 else:
     logger.warning("⚠️ Full automation webhook routes not available")
+```
+
+### File: requirements.txt
+
+**Change 3 (Dependency Cleanup):**
+```txt
+# Before (BROKEN - Duplicate entries):
+Flask-SocketIO==5.3.4
+...
+eventlet>=0.33.3
+flask-socketio>=5.3.5
+python-socketio>=5.10.0
+
+# After (FIXED - Single versions):
+Flask-SocketIO==5.3.6
+...
+python-socketio==5.10.0
 ```
 
 ## 🎯 Expected Outcome

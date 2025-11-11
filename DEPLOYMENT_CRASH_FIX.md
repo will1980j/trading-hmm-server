@@ -12,6 +12,14 @@
 
 **Location:** `web_server.py` line 411
 
+### Issue 3: Dependency Conflict (CRITICAL)
+**Root Cause:** Duplicate Flask-SocketIO entries with conflicting versions in requirements.txt
+- Line 3: `Flask-SocketIO==5.3.4`
+- Line 20: `flask-socketio>=5.3.5`
+- Also included unnecessary `eventlet` package
+
+**Location:** `requirements.txt` lines 3, 19-21
+
 **Error Pattern:**
 ```python
 # At top of file (line 23-26)
@@ -54,13 +62,36 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 - `threading` mode is universally compatible and works on Railway
 - Both modes support WebSocket functionality needed for real-time updates
 
+### Fix 3: Dependency Conflict Resolution
+**Solution:** Removed duplicate Flask-SocketIO entries and eventlet dependency
+
+```txt
+# Before (BROKEN):
+Flask-SocketIO==5.3.4
+...
+eventlet>=0.33.3
+flask-socketio>=5.3.5
+python-socketio>=5.10.0
+
+# After (FIXED):
+Flask-SocketIO==5.3.6
+...
+python-socketio==5.10.0
+```
+
+**Why:**
+- Duplicate package specifications cause pip dependency resolution to fail
+- eventlet not needed with threading mode
+- Single version specification prevents conflicts
+
 ## Verification
 
 ✅ Python syntax validation passed
 ✅ No diagnostics errors found
 ✅ File `full_automation_webhook_handlers.py` exists and compiles successfully
 ✅ SocketIO threading mode tested and working
-✅ Both fixes applied and validated
+✅ Dependency conflicts resolved
+✅ All three fixes applied and validated
 
 ## Deployment Steps
 
@@ -131,7 +162,8 @@ socketio = SocketIO(app, async_mode='threading')  # Works everywhere
 
 **Status:** READY TO DEPLOY ✅
 **Date:** November 11, 2025
-**Impact:** Critical - Fixes deployment crash (2 issues resolved)
+**Impact:** Critical - Fixes deployment crash (3 issues resolved)
 **Changes:** 
-- Line 411: SocketIO async_mode changed to 'threading'
-- Line 10876-10880: Conditional check for register_automation_routes
+- `web_server.py` Line 411: SocketIO async_mode changed to 'threading'
+- `web_server.py` Line 10876-10880: Conditional check for register_automation_routes
+- `requirements.txt`: Removed duplicate Flask-SocketIO and eventlet dependencies
