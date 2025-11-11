@@ -249,6 +249,12 @@ def _get_active_trades_robust(cursor, has_signal_time):
                 if trade.get(field):
                     trade[field] = float(trade[field])
             
+            # Convert date/time fields to strings for JSON serialization
+            if trade.get('signal_date'):
+                trade['signal_date'] = trade['signal_date'].isoformat()
+            if trade.get('signal_time'):
+                trade['signal_time'] = trade['signal_time'].isoformat()
+            
             # Calculate duration and add date field for calendar
             if trade.get('created_at'):
                 created = trade['created_at']
@@ -259,6 +265,8 @@ def _get_active_trades_robust(cursor, has_signal_time):
                 trade['duration_display'] = _format_duration(duration)
                 # Add date field in YYYY-MM-DD format for calendar
                 trade['date'] = created.strftime('%Y-%m-%d')
+                # Convert created_at to string
+                trade['created_at'] = created.isoformat()
             
             active_trades.append(trade)
         
@@ -320,6 +328,12 @@ def _get_completed_trades_robust(cursor, has_signal_time):
                 if trade.get(field):
                     trade[field] = float(trade[field])
             
+            # Convert date/time fields to strings for JSON serialization
+            if trade.get('signal_date'):
+                trade['signal_date'] = trade['signal_date'].isoformat()
+            if trade.get('signal_time'):
+                trade['signal_time'] = trade['signal_time'].isoformat()
+            
             # Calculate trade duration and add date field for calendar
             if trade.get('created_at'):
                 created = trade['created_at']
@@ -327,6 +341,8 @@ def _get_completed_trades_robust(cursor, has_signal_time):
                     created = pytz.timezone('US/Eastern').localize(created)
                 # Add date field in YYYY-MM-DD format for calendar
                 trade['date'] = created.strftime('%Y-%m-%d')
+                # Convert created_at to string
+                trade['created_at'] = created.isoformat()
                 
                 if trade.get('exit_time'):
                     exited = trade['exit_time']
@@ -335,6 +351,8 @@ def _get_completed_trades_robust(cursor, has_signal_time):
                     duration = exited - created
                     trade['duration_seconds'] = int(duration.total_seconds())
                     trade['duration_display'] = _format_duration(duration)
+                    # Convert exit_time to string
+                    trade['exit_time'] = exited.isoformat()
             
             completed_trades.append(trade)
         
