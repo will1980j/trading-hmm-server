@@ -10927,34 +10927,29 @@ def get_automated_signals_stats():
                     "avg_mfe": 0.0,
                     "success_rate": 0.0
                 },
-                "error": "0"
+                "error": "DATABASE_URL not configured"
             }), 200
         
+        # Use EXACT same connection method as debug endpoint
         conn = psycopg2.connect(database_url)
         cursor = conn.cursor()
         
-        # First check if table exists and has data
+        # Get total count first
         cursor.execute("SELECT COUNT(*) FROM automated_signals")
-        raw_count = cursor.fetchone()[0]
-        logger.info(f"📊 Stats: Raw count from database: {raw_count}")
+        total = cursor.fetchone()[0]
         
-        # Get basic counts
-        cursor.execute("""
-            SELECT 
-                COUNT(*) as total,
-                COUNT(CASE WHEN event_type = 'ENTRY' THEN 1 END) as entries,
-                COUNT(CASE WHEN event_type LIKE 'EXIT_%' THEN 1 END) as exits,
-                AVG(CASE WHEN final_mfe IS NOT NULL THEN final_mfe END) as avg_mfe
-            FROM automated_signals
-        """)
+        # Count ENTRY events
+        cursor.execute("SELECT COUNT(*) FROM automated_signals WHERE event_type = 'ENTRY'")
+        entries = cursor.fetchone()[0]
         
-        row = cursor.fetchone()
-        total = row[0] if row else 0
-        entries = row[1] if row else 0
-        exits = row[2] if row else 0
-        avg_mfe = float(row[3]) if row and row[3] else 0.0
+        # Count EXIT events
+        cursor.execute("SELECT COUNT(*) FROM automated_signals WHERE event_type LIKE 'EXIT_%'")
+        exits = cursor.fetchone()[0]
         
-        logger.info(f"📊 Stats query results: total={total}, entries={entries}, exits={exits}, avg_mfe={avg_mfe}")
+        # Get average MFE
+        cursor.execute("SELECT AVG(final_mfe) FROM automated_signals WHERE final_mfe IS NOT NULL")
+        avg_mfe_result = cursor.fetchone()[0]
+        avg_mfe = float(avg_mfe_result) if avg_mfe_result else 0.0
         
         active_count = entries - exits
         
@@ -10977,7 +10972,7 @@ def get_automated_signals_stats():
         }), 200
         
     except Exception as e:
-        logger.error(f"Stats error: {str(e)}")
+        logger.error(f"Stats error: {str(e)}", exc_info=True)
         return jsonify({
             "success": True,
             "stats": {
