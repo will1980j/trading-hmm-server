@@ -10870,7 +10870,11 @@ def get_recent_automated_signals():
 # ============================================================================
 
 # Register full automation webhook routes
-register_automation_routes(app)
+if register_automation_routes:
+    register_automation_routes(app)
+    logger.info("✅ Full automation webhook routes registered")
+else:
+    logger.warning("⚠️ Full automation webhook routes not available")
 
 if __name__ == '__main__':
     # Start real-time price handler for 1-second TradingView data
