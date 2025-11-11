@@ -10919,6 +10919,91 @@ def debug_automated_signals():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/automated-signals/dashboard-data', methods=['GET'])
+def get_automated_signals_dashboard_data():
+    """Get all signals for dashboard display"""
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({"success": False, "error": "DATABASE_URL not configured"}), 500
+        
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        
+        # Get all ENTRY signals (active trades)
+        cursor.execute("""
+            SELECT id, trade_id, event_type, direction, entry_price, stop_loss,
+                   session, bias, timestamp, signal_date, signal_time
+            FROM automated_signals
+            WHERE event_type = 'ENTRY'
+            ORDER BY timestamp DESC
+            LIMIT 100
+        """)
+        
+        active_trades = []
+        for row in cursor.fetchall():
+            active_trades.append({
+                "id": row[0],
+                "trade_id": row[1],
+                "event_type": row[2],
+                "direction": row[3],
+                "entry_price": float(row[4]) if row[4] else None,
+                "stop_loss": float(row[5]) if row[5] else None,
+                "session": row[6],
+                "bias": row[7],
+                "timestamp": row[8].isoformat() if row[8] else None,
+                "date": row[9].isoformat() if row[9] else None,
+                "time": row[10].isoformat() if row[10] else None,
+                "status": "ACTIVE",
+                "trade_status": "ACTIVE"
+            })
+        
+        # Get all EXIT signals (completed trades)
+        cursor.execute("""
+            SELECT id, trade_id, event_type, direction, entry_price, stop_loss,
+                   session, bias, timestamp, final_mfe
+            FROM automated_signals
+            WHERE event_type LIKE 'EXIT_%'
+            ORDER BY timestamp DESC
+            LIMIT 100
+        """)
+        
+        completed_trades = []
+        for row in cursor.fetchall():
+            completed_trades.append({
+                "id": row[0],
+                "trade_id": row[1],
+                "event_type": row[2],
+                "direction": row[3],
+                "entry_price": float(row[4]) if row[4] else None,
+                "stop_loss": float(row[5]) if row[5] else None,
+                "session": row[6],
+                "bias": row[7],
+                "timestamp": row[8].isoformat() if row[8] else None,
+                "final_mfe": float(row[9]) if row[9] else None,
+                "status": "COMPLETED",
+                "trade_status": "COMPLETED"
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "active_trades": active_trades,
+            "completed_trades": completed_trades
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Dashboard data error: {str(e)}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "active_trades": [],
+            "completed_trades": []
+        }), 500
+
+
 @app.route('/api/automated-signals/stats-live', methods=['GET'])
 @app.route('/api/automated-signals/stats', methods=['GET'])
 def get_automated_signals_stats():
