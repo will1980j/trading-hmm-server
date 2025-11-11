@@ -1371,7 +1371,7 @@
             }
 
             // 5. Check WebSocket
-            if (wsClient && wsClient.isConnected()) {
+            if (wsClient && wsClient.isConnected) {
                 updateHealthStatus('websocketStatus', true, 'Connected');
             } else {
                 updateHealthStatus('websocketStatus', false, 'Disconnected');

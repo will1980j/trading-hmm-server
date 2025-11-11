@@ -114,6 +114,65 @@ def register_automated_signals_api_robust(app, db):
                 'hourly_distribution': {},
                 'session_breakdown': {}
             }), 200  # Return 200 to prevent frontend errors
+    
+    @app.route('/api/automated-signals/stats')
+    def get_stats_robust():
+        """
+        Get dashboard statistics with robust error handling
+        Returns basic stats for health checks and quick overview
+        """
+        try:
+            cursor = db.conn.cursor()
+            
+            # Check if table exists
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'automated_signals'
+                );
+            """)
+            table_exists = cursor.fetchone()[0]
+            
+            if not table_exists:
+                return jsonify({
+                    'success': True,
+                    'stats': _get_empty_stats(),
+                    'message': 'Table not initialized'
+                }), 200
+            
+            # Get basic counts
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total,
+                    COUNT(DISTINCT trade_id) as unique_trades,
+                    COUNT(CASE WHEN event_type = 'ENTRY' THEN 1 END) as entries,
+                    COUNT(CASE WHEN event_type LIKE 'EXIT_%' THEN 1 END) as exits
+                FROM automated_signals;
+            """)
+            row = cursor.fetchone()
+            
+            stats = {
+                'total_signals': row[0] if row else 0,
+                'unique_trades': row[1] if row else 0,
+                'entries': row[2] if row else 0,
+                'exits': row[3] if row else 0,
+                'active_count': (row[2] - row[3]) if row else 0,
+                'completed_count': row[3] if row else 0
+            }
+            
+            return jsonify({
+                'success': True,
+                'stats': stats,
+                'timestamp': datetime.now(pytz.UTC).isoformat()
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"Stats error: {e}", exc_info=True)
+            return jsonify({
+                'success': True,
+                'stats': _get_empty_stats(),
+                'error': str(e)
+            }), 200
 
 def _get_active_trades_robust(cursor, has_signal_time):
     """Get active trades with multiple fallback strategies"""
