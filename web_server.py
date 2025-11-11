@@ -10856,6 +10856,84 @@ def fix_automated_signals_schema():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/automated-signals/stats', methods=['GET'])
+def get_automated_signals_stats():
+    """Get statistics for automated signals dashboard"""
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({
+                "success": True,
+                "stats": {
+                    "total_signals": 0,
+                    "active_count": 0,
+                    "completed_count": 0,
+                    "pending_count": 0,
+                    "win_count": 0,
+                    "win_rate": 0.0,
+                    "avg_mfe": 0.0,
+                    "success_rate": 0.0
+                },
+                "error": "0"
+            }), 200
+        
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        
+        # Get basic counts
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total,
+                COUNT(CASE WHEN event_type = 'ENTRY' THEN 1 END) as entries,
+                COUNT(CASE WHEN event_type LIKE 'EXIT_%' THEN 1 END) as exits,
+                AVG(CASE WHEN final_mfe IS NOT NULL THEN final_mfe END) as avg_mfe
+            FROM automated_signals
+        """)
+        
+        row = cursor.fetchone()
+        total = row[0] if row else 0
+        entries = row[1] if row else 0
+        exits = row[2] if row else 0
+        avg_mfe = float(row[3]) if row and row[3] else 0.0
+        
+        active_count = entries - exits
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "stats": {
+                "total_signals": total,
+                "active_count": active_count,
+                "completed_count": exits,
+                "pending_count": 0,
+                "win_count": 0,
+                "win_rate": 0.0,
+                "avg_mfe": round(avg_mfe, 2),
+                "success_rate": 0.0
+            },
+            "error": "0"
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Stats error: {str(e)}")
+        return jsonify({
+            "success": True,
+            "stats": {
+                "total_signals": 0,
+                "active_count": 0,
+                "completed_count": 0,
+                "pending_count": 0,
+                "win_count": 0,
+                "win_rate": 0.0,
+                "avg_mfe": 0.0,
+                "success_rate": 0.0
+            },
+            "error": str(e)
+        }), 200
+
+
 @app.route('/api/automated-signals/recent', methods=['GET'])
 @login_required
 def get_recent_automated_signals():
