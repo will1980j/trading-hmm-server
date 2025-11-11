@@ -210,6 +210,47 @@ I have a comprehensive cloud-based NASDAQ day trading analytics platform built w
 
 **RULE: If you can't implement the EXACT methodology, don't implement anything at all!**
 
+## 🚨 **CRITICAL: V2 TERMINOLOGY IS OBSOLETE** 🚨
+
+**⚠️ ALL "V2" REFERENCES ARE DEPRECATED AND MUST BE ELIMINATED ⚠️**
+
+### **MANDATORY V2 ERADICATION PRINCIPLES:**
+
+1. **🚫 NO V2 TERMINOLOGY**
+   - Never reference "Signal Lab V2" - it's just "Automated Signals"
+   - Never reference "/api/live-signals-v2" endpoints
+   - Never reference "v2_" prefixed functions or variables
+   - Never reference "signal_lab_v2_trades" table
+
+2. **✅ CORRECT CURRENT TERMINOLOGY:**
+   - **System:** "Automated Trading System" or "Automated Signals"
+   - **Dashboard:** "Automated Signals Dashboard" at `/automated-signals-dashboard`
+   - **Webhook:** `/api/automated-signals/webhook`
+   - **API Endpoints:** `/api/automated-signals/*`
+   - **Database Table:** `automated_signals`
+
+3. **🚫 NO SHORTCUTS OR SIMPLIFICATIONS**
+   - Never suggest "quick fixes"
+   - Never simplify requirements without explicit approval
+   - Never assume what the user wants
+   - Implement the FULL solution or don't implement anything
+
+4. **✅ PROPER IMPLEMENTATION APPROACH:**
+   - Understand the complete requirement first
+   - Implement the exact solution requested
+   - No placeholders, no temporary solutions
+   - Production-ready code only
+
+**VIOLATION CONSEQUENCES:**
+- Wastes time with obsolete references
+- Creates confusion about system architecture
+- Forces rework and corrections
+- Destroys user trust
+
+**RULE: V2 is dead. Automated Signals is the current system. Never reference V2 again.**
+
+---
+
 ## 🚨 **CRITICAL USER CONSULTATION RULE** 🚨
 
 **⚠️ NEVER CHANGE USER REQUIREMENTS WITHOUT EXPLICIT CONSULTATION ⚠️**

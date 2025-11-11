@@ -10802,6 +10802,60 @@ def handle_exit_signal(data, exit_type):
 # END AUTOMATED SIGNALS WEBHOOK ENDPOINT
 # ============================================================================
 
+@app.route('/api/automated-signals/fix-schema', methods=['POST'])
+def fix_automated_signals_schema():
+    """Fix automated_signals table schema - add missing columns"""
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({"success": False, "error": "DATABASE_URL not configured"}), 500
+        
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        
+        # Add missing columns
+        cursor.execute("""
+            ALTER TABLE automated_signals 
+            ADD COLUMN IF NOT EXISTS signal_date DATE
+        """)
+        
+        cursor.execute("""
+            ALTER TABLE automated_signals 
+            ADD COLUMN IF NOT EXISTS signal_time TIME
+        """)
+        
+        cursor.execute("""
+            ALTER TABLE automated_signals 
+            ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP DEFAULT NOW()
+        """)
+        
+        conn.commit()
+        
+        # Verify schema
+        cursor.execute("""
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'automated_signals'
+            ORDER BY ordinal_position
+        """)
+        
+        columns = cursor.fetchall()
+        column_list = [{"name": col[0], "type": col[1]} for col in columns]
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": "Schema updated successfully",
+            "columns": column_list
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Schema fix error: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/api/automated-signals/recent', methods=['GET'])
 @login_required
 def get_recent_automated_signals():

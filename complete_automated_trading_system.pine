@@ -542,10 +542,18 @@ if array.size(signal_entries) > 0
         
         // Update extreme prices on EVERY bar (not just recent)
         if sig_dir == "Bullish"
+            // For bullish: track HIGHEST high (favorable) and LOWEST low (for stop check)
+            if high > sig_highest_high
+                array.set(signal_highest_highs, i, high)
+                sig_highest_high := high
             if low < sig_lowest_low
                 array.set(signal_lowest_lows, i, low)
                 sig_lowest_low := low
         else  // Bearish
+            // For bearish: track LOWEST low (favorable) and HIGHEST high (for stop check)
+            if low < sig_lowest_low
+                array.set(signal_lowest_lows, i, low)
+                sig_lowest_low := low
             if high > sig_highest_high
                 array.set(signal_highest_highs, i, high)
                 sig_highest_high := high
@@ -630,18 +638,22 @@ if array.size(signal_entries) > 0
                 array.set(signal_completes, i, true)
                 just_completed := true
         
-        // Update No BE MFE - only if not stopped out yet
+        // Calculate if MFE changed (used by both strategies)
         bool mfe_changed = current_mfe > sig_mfe
+        
+        // Update No BE MFE - only if not stopped out yet
         if mfe_changed and is_recent and not sig_no_be_stopped
             array.set(signal_mfes, i, current_mfe)
             sig_mfe := current_mfe
         
         // BE MFE tracking: Track MFE for BE=1 strategy
-        // CORRECT LOGIC: BE MFE continues to update (NEVER FREEZES!)
-        // It only stops when BE=1 strategy is stopped out (price hits entry after +1R)
+        // CRITICAL: BE MFE must track identically to No BE MFE until one stops out
+        // Both start at 0, both update together, they only diverge when different stops are hit
         if track_be_mfe
-            // Update BE MFE as long as BE=1 strategy is still active (not stopped at entry)
-            if not sig_be_stopped and current_mfe > sig_be_mfe
+            // BE MFE uses SAME current_mfe calculation, just different stop condition
+            // Update as long as BE=1 strategy is still active (not stopped at entry after +1R)
+            bool be_mfe_changed = current_mfe > sig_be_mfe
+            if be_mfe_changed and is_recent and not sig_be_stopped
                 array.set(signal_be_mfes, i, current_mfe)
                 sig_be_mfe := current_mfe
         
