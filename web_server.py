@@ -10921,7 +10921,14 @@ def debug_automated_signals():
 
 @app.route('/api/automated-signals/stats', methods=['GET'])
 def get_automated_signals_stats():
-    """Get statistics for automated signals dashboard"""
+    """Get statistics for automated signals dashboard - NO CACHING"""
+    # Add cache-busting headers
+    response_headers = {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+    }
+    
     try:
         database_url = os.environ.get('DATABASE_URL')
         if not database_url:
@@ -10966,7 +10973,7 @@ def get_automated_signals_stats():
         cursor.close()
         conn.close()
         
-        return jsonify({
+        response = jsonify({
             "success": True,
             "stats": {
                 "total_signals": total,
@@ -10979,11 +10986,17 @@ def get_automated_signals_stats():
                 "success_rate": 0.0
             },
             "error": "0"
-        }), 200
+        })
+        
+        # Add cache-busting headers
+        for key, value in response_headers.items():
+            response.headers[key] = value
+        
+        return response, 200
         
     except Exception as e:
         logger.error(f"Stats error: {str(e)}", exc_info=True)
-        return jsonify({
+        response = jsonify({
             "success": True,
             "stats": {
                 "total_signals": 0,
@@ -10996,7 +11009,13 @@ def get_automated_signals_stats():
                 "success_rate": 0.0
             },
             "error": str(e)
-        }), 200
+        })
+        
+        # Add cache-busting headers even on error
+        for key, value in response_headers.items():
+            response.headers[key] = value
+        
+        return response, 200
 
 
 @app.route('/api/automated-signals/recent', methods=['GET'])
