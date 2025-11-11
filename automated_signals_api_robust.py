@@ -121,11 +121,14 @@ def register_automated_signals_api_robust(app, db):
             }), 200
             
         except Exception as e:
-            logger.error(f"Dashboard data error: {e}", exc_info=True)
+            error_msg = f"{type(e).__name__}: {str(e)}"
+            logger.error(f"Dashboard data error: {error_msg}", exc_info=True)
             return jsonify({
                 'success': False,
                 'error': 'query_failed',
-                'message': str(e),
+                'message': error_msg,
+                'error_type': type(e).__name__,
+                'error_details': str(e),
                 'active_trades': [],
                 'completed_trades': [],
                 'stats': _get_empty_stats(),
