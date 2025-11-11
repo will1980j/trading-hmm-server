@@ -6698,6 +6698,58 @@ def predict_signal_ml():
             'confidence': 0.0
         }), 500
 
+@app.route('/api/add-dual-mfe-columns', methods=['POST'])
+def add_dual_mfe_columns():
+    """Add separate BE=1 and No BE MFE columns to automated_signals table"""
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({'success': False, 'error': 'DATABASE_URL not configured'}), 500
+        
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        
+        # Add columns
+        cursor.execute("""
+            ALTER TABLE automated_signals 
+            ADD COLUMN IF NOT EXISTS be_mfe FLOAT DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS no_be_mfe FLOAT DEFAULT NULL;
+        """)
+        
+        # Migrate existing data
+        cursor.execute("""
+            UPDATE automated_signals 
+            SET no_be_mfe = mfe 
+            WHERE no_be_mfe IS NULL AND mfe IS NOT NULL;
+        """)
+        
+        rows_updated = cursor.rowcount
+        conn.commit()
+        
+        # Verify
+        cursor.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'automated_signals' 
+            AND column_name IN ('be_mfe', 'no_be_mfe')
+            ORDER BY column_name;
+        """)
+        
+        columns = [row[0] for row in cursor.fetchall()]
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Added dual MFE columns, migrated {rows_updated} existing records',
+            'columns_added': columns
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error adding dual MFE columns: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/cleanup-signals', methods=['POST'])
 def cleanup_signals():
     """Comprehensive signal cleanup endpoint"""
