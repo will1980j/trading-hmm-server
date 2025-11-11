@@ -10933,6 +10933,11 @@ def get_automated_signals_stats():
         conn = psycopg2.connect(database_url)
         cursor = conn.cursor()
         
+        # First check if table exists and has data
+        cursor.execute("SELECT COUNT(*) FROM automated_signals")
+        raw_count = cursor.fetchone()[0]
+        logger.info(f"📊 Stats: Raw count from database: {raw_count}")
+        
         # Get basic counts
         cursor.execute("""
             SELECT 
@@ -10948,6 +10953,8 @@ def get_automated_signals_stats():
         entries = row[1] if row else 0
         exits = row[2] if row else 0
         avg_mfe = float(row[3]) if row and row[3] else 0.0
+        
+        logger.info(f"📊 Stats query results: total={total}, entries={entries}, exits={exits}, avg_mfe={avg_mfe}")
         
         active_count = entries - exits
         
