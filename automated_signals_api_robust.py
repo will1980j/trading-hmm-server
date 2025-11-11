@@ -223,7 +223,7 @@ def _get_active_trades_robust(cursor, has_signal_time):
                 if trade.get(field):
                     trade[field] = float(trade[field])
             
-            # Calculate duration
+            # Calculate duration and add date field for calendar
             if trade.get('created_at'):
                 created = trade['created_at']
                 if created.tzinfo is None:
@@ -231,6 +231,8 @@ def _get_active_trades_robust(cursor, has_signal_time):
                 duration = now - created
                 trade['duration_seconds'] = int(duration.total_seconds())
                 trade['duration_display'] = _format_duration(duration)
+                # Add date field in YYYY-MM-DD format for calendar
+                trade['date'] = created.strftime('%Y-%m-%d')
             
             active_trades.append(trade)
         
@@ -292,17 +294,21 @@ def _get_completed_trades_robust(cursor, has_signal_time):
                 if trade.get(field):
                     trade[field] = float(trade[field])
             
-            # Calculate trade duration
-            if trade.get('created_at') and trade.get('exit_time'):
+            # Calculate trade duration and add date field for calendar
+            if trade.get('created_at'):
                 created = trade['created_at']
-                exited = trade['exit_time']
                 if created.tzinfo is None:
                     created = pytz.timezone('US/Eastern').localize(created)
-                if exited.tzinfo is None:
-                    exited = pytz.timezone('US/Eastern').localize(exited)
-                duration = exited - created
-                trade['duration_seconds'] = int(duration.total_seconds())
-                trade['duration_display'] = _format_duration(duration)
+                # Add date field in YYYY-MM-DD format for calendar
+                trade['date'] = created.strftime('%Y-%m-%d')
+                
+                if trade.get('exit_time'):
+                    exited = trade['exit_time']
+                    if exited.tzinfo is None:
+                        exited = pytz.timezone('US/Eastern').localize(exited)
+                    duration = exited - created
+                    trade['duration_seconds'] = int(duration.total_seconds())
+                    trade['duration_display'] = _format_duration(duration)
             
             completed_trades.append(trade)
         

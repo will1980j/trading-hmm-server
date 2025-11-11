@@ -1,7 +1,7 @@
 # 🚀 DEPLOY ALL FIXES NOW
 
 ## Quick Summary
-Fixed **6 critical issues** across **4 files**
+Fixed **7 critical issues** across **4 files**
 
 ## Files to Commit
 1. ✅ `web_server.py`
@@ -16,9 +16,10 @@ Fix all deployment and runtime errors
 - Server: conditional routes + threading mode
 - Dependencies: removed duplicates
 - Dashboard: WebSocket variable fixes
-- API: added missing stats endpoint
+- API: added stats endpoint + date fields
+- Calendar: fixed missing date field
 
-Fixes 6 critical issues for stable deployment
+Fixes 7 critical issues for stable deployment
 ```
 
 ## Deploy Steps
@@ -35,6 +36,7 @@ Fixes 6 critical issues for stable deployment
 ✅ Dashboard loads with no console errors
 ✅ WebSocket connects and receives updates
 ✅ All API endpoints return 200 OK
+✅ Calendar displays trades correctly
 
 ---
 
