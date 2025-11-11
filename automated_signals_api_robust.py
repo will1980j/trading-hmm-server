@@ -35,7 +35,8 @@ def register_automated_signals_api_robust(app, db):
                 }), 500
             
             conn = psycopg2.connect(database_url)
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            # Use regular cursor for simple queries, RealDictCursor for data queries
+            cursor = conn.cursor()
             
             # Strategy 1: Check table existence
             cursor.execute("""
@@ -87,6 +88,10 @@ def register_automated_signals_api_robust(app, db):
             has_signal_time = 'signal_date' in columns and 'signal_time' in columns
             
             logger.info(f"Table has {total_records} records, columns: {columns}")
+            
+            # Close regular cursor and open RealDictCursor for data queries
+            cursor.close()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # Strategy 4: Get active trades with comprehensive error handling
             active_trades = _get_active_trades_robust(cursor, has_signal_time)
