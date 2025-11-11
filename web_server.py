@@ -407,8 +407,9 @@ def reset_db_transaction():
         except:
             pass
 
-# Initialize SocketIO with production-grade eventlet backend
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+# Initialize SocketIO with automatic async mode detection
+# Railway will use threading mode (compatible with all Python versions)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # Initialize webhook debugger
 webhook_debugger = None
