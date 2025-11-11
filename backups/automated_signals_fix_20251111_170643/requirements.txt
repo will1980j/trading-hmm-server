@@ -15,8 +15,3 @@ beautifulsoup4==4.12.2
 yfinance==0.2.28
 matplotlib==3.7.2
 openai>=1.0.0
-
-# Production WebSocket Support (Added by robust fix)
-eventlet>=0.33.3
-flask-socketio>=5.3.5
-python-socketio>=5.10.0

@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Automated Signals Dashboard | Trading Platform</title> 
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <script src="/static/websocket_client_robust.js"></script>
     <style>
         /* Navigation Bar */
         .top-nav {
@@ -817,106 +816,34 @@
     <script>
         // Calendar implementation updated: 2025-11-09 23:25:25
 
-        // Robust WebSocket Connection
-        const wsClient = new RobustWebSocketClient({
-            reconnectDelay: 1000,
-            maxReconnectDelay: 30000,
-            maxReconnectAttempts: 10,
-            pollingFallbackDelay: 60000
-        });
-        
+        // WebSocket Connection
+        const socket = io();
         let signals = [];
         let currentFilter = 'all';
         let selectedDate = null;
         let currentMonth = new Date().getMonth();
         let currentYear = new Date().getFullYear();
 
-        // Register WebSocket event handlers
-        wsClient.on('connected', () => {
-            console.log('[Dashboard] WebSocket connected');
+        // Connection Status
+        socket.on('connect', () => {
+            updateConnectionStatus(true);
             loadInitialData();
         });
 
-        wsClient.on('disconnected', (reason) => {
-            console.warn('[Dashboard] WebSocket disconnected:', reason);
+        socket.on('disconnect', () => {
+            updateConnectionStatus(false);
         });
 
-        wsClient.on('signal_update', (data) => {
-            console.log('[Dashboard] Signal update received:', data);
-            handleSignalUpdate(data);
-        });
-
-        wsClient.on('mfe_update', (data) => {
-            console.log('[Dashboard] MFE update received:', data);
-            handleMFEUpdate(data);
-        });
-
-        wsClient.on('trade_completed', (data) => {
-            console.log('[Dashboard] Trade completed:', data);
-            handleTradeCompletion(data);
-        });
-
-        wsClient.on('polling_update', (data) => {
-            console.log('[Dashboard] Polling update received');
-            if (data.success) {
-                updateDashboardFromPolling(data);
-            }
-        });
-
-        wsClient.on('connection_status', (status) => {
-            updateConnectionStatus(status.connected, status.message);
-        });
-
-        function updateConnectionStatus(connected, message = null) {
+        function updateConnectionStatus(connected) {
             const dot = document.getElementById('statusDot');
             const text = document.getElementById('statusText');
             
             if (connected) {
                 dot.classList.remove('disconnected');
                 text.textContent = 'Connected';
-                text.style.color = '#10b981';
             } else {
                 dot.classList.add('disconnected');
-                text.textContent = message || 'Disconnected';
-                text.style.color = '#ef4444';
-            }
-        }
-
-        // Handler functions for WebSocket events
-        function handleSignalUpdate(data) {
-            // Reload dashboard data when new signal arrives
-            loadInitialData();
-        }
-
-        function handleMFEUpdate(data) {
-            // Update specific trade's MFE in the UI
-            const tradeElement = document.querySelector(`[data-trade-id="${data.trade_id}"]`);
-            if (tradeElement) {
-                const mfeElement = tradeElement.querySelector('.mfe-value');
-                if (mfeElement && data.data.mfe) {
-                    mfeElement.textContent = data.data.mfe.toFixed(2) + 'R';
-                }
-            }
-        }
-
-        function handleTradeCompletion(data) {
-            // Reload dashboard when trade completes
-            loadInitialData();
-        }
-
-        function updateDashboardFromPolling(data) {
-            // Update dashboard from HTTP polling fallback
-            if (data.active_trades || data.completed_trades) {
-                signals = [...(data.active_trades || []), ...(data.completed_trades || [])].map(signal => {
-                    const timestamp = signal.created_at || signal.timestamp;
-                    if (timestamp && !signal.date) {
-                        const date = new Date(timestamp);
-                        signal.date = date.toISOString().split('T')[0];
-                    }
-                    return signal;
-                });
-                updateDashboard();
-                updateCalendar();
+                text.textContent = 'Disconnected';
             }
         }
 

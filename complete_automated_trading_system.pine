@@ -397,8 +397,8 @@ if waiting_for_confirmation and active_signal == "Bullish"
         array.push(signal_completes, false)
         array.push(signal_labels, label(na))
         array.push(signal_entry_times, signal_candle_time)  // Use SIGNAL candle time, not entry time
-        array.push(signal_lowest_lows, low)  // Initialize with current low
-        array.push(signal_highest_highs, high)  // Initialize with current high
+        array.push(signal_lowest_lows, entry_price)  // Initialize with entry price for accurate MFE tracking
+        array.push(signal_highest_highs, entry_price)  // Initialize with entry price for accurate MFE tracking
         
         // CRITICAL FIX: Mark as confirmed but DON'T reset trade_ready yet
         // Let webhook code execute first, then reset on next bar
@@ -491,8 +491,8 @@ if waiting_for_confirmation and active_signal == "Bearish"
         array.push(signal_completes, false)
         array.push(signal_labels, label(na))
         array.push(signal_entry_times, signal_candle_time)  // Use SIGNAL candle time, not entry time
-        array.push(signal_lowest_lows, low)  // Initialize with current low
-        array.push(signal_highest_highs, high)  // Initialize with current high
+        array.push(signal_lowest_lows, entry_price)  // Initialize with entry price for accurate MFE tracking
+        array.push(signal_highest_highs, entry_price)  // Initialize with entry price for accurate MFE tracking
         
         // CRITICAL FIX: Mark as confirmed but DON'T reset trade_ready yet
         // Let webhook code execute first, then reset on next bar

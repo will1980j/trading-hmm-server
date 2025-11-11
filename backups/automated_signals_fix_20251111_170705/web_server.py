@@ -407,8 +407,8 @@ def reset_db_transaction():
         except:
             pass
 
-# Initialize SocketIO with production-grade eventlet backend
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+# Initialize SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # Initialize webhook debugger
 webhook_debugger = None
@@ -421,26 +421,14 @@ if db_enabled and db:
         logger.warning(f"Webhook debugger not available: {str(e)}")
         webhook_debugger = None
 
-# Initialize robust WebSocket and API handlers
-from websocket_handler_robust import RobustWebSocketHandler, register_websocket_handlers
-from automated_signals_api_robust import register_automated_signals_api_robust
-
-# Initialize robust WebSocket handler
-robust_ws_handler = RobustWebSocketHandler(socketio, db) if db_enabled else None
-if robust_ws_handler:
-    robust_ws_handler.start_health_monitor()
-    register_websocket_handlers(socketio, robust_ws_handler)
-    logger.info("✅ Robust WebSocket handler initialized")
-
-# Register robust automated signals API endpoints
-if db_enabled:
-    register_automated_signals_api_robust(app, db)
-    logger.info("✅ Robust API endpoints registered")
-
-# Keep legacy handler for backward compatibility
+# Initialize real-time signal handler
 from realtime_signal_handler import RealtimeSignalHandler
 from automated_signals_api import register_automated_signals_api
 realtime_handler = RealtimeSignalHandler(socketio, db) if db_enabled else None
+
+# Register automated signals API endpoints
+if db_enabled:
+    register_automated_signals_api(app, db)
 
 # Initialize prediction accuracy tracker
 prediction_tracker = None
