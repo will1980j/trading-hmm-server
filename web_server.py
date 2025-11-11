@@ -10919,6 +10919,7 @@ def debug_automated_signals():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/automated-signals/stats-v2', methods=['GET'])
 @app.route('/api/automated-signals/stats', methods=['GET'])
 def get_automated_signals_stats():
     """Get statistics for automated signals dashboard - NO CACHING"""
