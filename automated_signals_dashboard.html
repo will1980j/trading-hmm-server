@@ -945,19 +945,19 @@
             }
         }
 
-        // Listen for New Signals
-        socket.on('new_automated_signal', (data) => {
+        // Listen for New Signals (using wsClient from robust WebSocket)
+        wsClient.on('new_automated_signal', (data) => {
             signals.unshift(data);
             updateDashboard();
             addActivityItem('New signal received', data);
         });
 
-        socket.on('signal_confirmed', (data) => {
+        wsClient.on('signal_confirmed', (data) => {
             updateSignalStatus(data.trade_id, 'confirmed');
             addActivityItem('Signal confirmed', data);
         });
 
-        socket.on('signal_resolved', (data) => {
+        wsClient.on('signal_resolved', (data) => {
             updateSignalStatus(data.trade_id, 'resolved');
             addActivityItem('Trade resolved', data);
         });
@@ -1371,7 +1371,7 @@
             }
 
             // 5. Check WebSocket
-            if (socket.connected) {
+            if (wsClient && wsClient.isConnected()) {
                 updateHealthStatus('websocketStatus', true, 'Connected');
             } else {
                 updateHealthStatus('websocketStatus', false, 'Disconnected');

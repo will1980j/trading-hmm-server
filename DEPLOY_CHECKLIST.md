@@ -18,7 +18,8 @@ Open GitHub Desktop
 Review changes to:
   - web_server.py (2 fixes)
   - requirements.txt (dependency fix)
-Commit message: "Fix deployment crash - routes + threading + dependencies"
+  - automated_signals_dashboard.html (WebSocket variable fix)
+Commit message: "Fix deployment crash + WebSocket errors"
 ```
 
 ### 2. Push to Railway
