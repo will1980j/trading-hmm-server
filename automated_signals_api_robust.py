@@ -212,14 +212,15 @@ def _get_active_trades_robust(cursor, has_signal_time):
                 e.direction as bias,
                 CAST(e.entry_price AS FLOAT) as entry_price,
                 CAST(e.stop_loss AS FLOAT) as stop_loss_price,
-                CAST(COALESCE(m.mfe, e.mfe, 0) AS FLOAT) as current_mfe,
+                CAST(COALESCE(m.be_mfe, e.be_mfe, 0) AS FLOAT) as be_mfe,
+                CAST(COALESCE(m.no_be_mfe, e.no_be_mfe, m.mfe, e.mfe, 0) AS FLOAT) as no_be_mfe,
                 e.session,
                 {time_columns}
                 e.timestamp as created_at,
                 'ACTIVE' as trade_status
             FROM automated_signals e
             LEFT JOIN LATERAL (
-                SELECT mfe, current_price
+                SELECT be_mfe, no_be_mfe, mfe, current_price
                 FROM automated_signals
                 WHERE trade_id = e.trade_id
                 AND event_type = 'MFE_UPDATE'
@@ -245,7 +246,7 @@ def _get_active_trades_robust(cursor, has_signal_time):
             trade = dict(row)
             
             # Ensure numeric fields
-            for field in ['entry_price', 'stop_loss_price', 'current_mfe']:
+            for field in ['entry_price', 'stop_loss_price', 'be_mfe', 'no_be_mfe']:
                 if trade.get(field):
                     trade[field] = float(trade[field])
             

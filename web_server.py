@@ -10521,16 +10521,22 @@ def handle_entry_signal(data):
         signal_date = data.get('date')  # Format: "2024-01-15"
         signal_time = data.get('time')  # Format: "10:00:00"
         
+        # Get initial MFE values (both start at 0 for new signals)
+        be_mfe = float(data.get('be_mfe', 0.0))
+        no_be_mfe = float(data.get('no_be_mfe', 0.0))
+        
         # Insert into database
         cursor.execute("""
             INSERT INTO automated_signals (
                 trade_id, event_type, direction, entry_price, stop_loss,
-                session, bias, risk_distance, targets, signal_date, signal_time
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                session, bias, risk_distance, targets, signal_date, signal_time,
+                be_mfe, no_be_mfe
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             trade_id, 'ENTRY', direction, entry_price, stop_loss,
-            session, bias or direction, risk_distance, dumps(targets), signal_date, signal_time
+            session, bias or direction, risk_distance, dumps(targets), signal_date, signal_time,
+            be_mfe, no_be_mfe
         ))
         
         result = cursor.fetchone()
@@ -10612,19 +10618,25 @@ def handle_mfe_update(data):
         
         try:
             current_price = float(data.get('current_price', 0))
-            # Strategy sends be_mfe and no_be_mfe, indicator sends mfe
-            mfe = float(data.get('no_be_mfe') or data.get('mfe', 0))
+            # Strategy sends be_mfe and no_be_mfe separately
+            be_mfe = float(data.get('be_mfe', 0))
+            no_be_mfe = float(data.get('no_be_mfe', 0))
+            # Fallback to legacy mfe field if new fields not present
+            if be_mfe == 0 and no_be_mfe == 0:
+                legacy_mfe = float(data.get('mfe', 0))
+                be_mfe = legacy_mfe
+                no_be_mfe = legacy_mfe
         except (ValueError, TypeError) as conv_error:
             return {"success": False, "error": f"Invalid MFE data: {str(conv_error)}"}
         
-        # Update MFE in database
+        # Update MFE in database (store both BE and No BE values)
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO automated_signals (
-                trade_id, event_type, current_price, mfe
-            ) VALUES (%s, %s, %s, %s)
+                trade_id, event_type, current_price, mfe, be_mfe, no_be_mfe
+            ) VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (trade_id, 'MFE_UPDATE', current_price, mfe))
+        """, (trade_id, 'MFE_UPDATE', current_price, no_be_mfe, be_mfe, no_be_mfe))
         
         result = cursor.fetchone()
         if not result:
@@ -10633,13 +10645,14 @@ def handle_mfe_update(data):
         signal_id = result[0]
         conn.commit()
         
-        logger.info(f"✅ MFE update stored: Trade {trade_id}, MFE {mfe}R @ {current_price}")
+        logger.info(f"✅ MFE update stored: Trade {trade_id}, BE={be_mfe}R, No BE={no_be_mfe}R @ {current_price}")
         
         # Broadcast to WebSocket clients for Activity Feed
         try:
             socketio.emit('mfe_update', {
                 'trade_id': trade_id,
-                'mfe': mfe,
+                'be_mfe': be_mfe,
+                'no_be_mfe': no_be_mfe,
                 'current_price': current_price,
                 'timestamp': datetime.now().isoformat()
             })
@@ -10651,7 +10664,8 @@ def handle_mfe_update(data):
             "success": True,
             "signal_id": signal_id,
             "trade_id": trade_id,
-            "mfe": mfe
+            "be_mfe": be_mfe,
+            "no_be_mfe": no_be_mfe
         }
         
     except Exception as e:
