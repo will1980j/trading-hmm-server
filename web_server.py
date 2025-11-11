@@ -10856,6 +10856,59 @@ def fix_automated_signals_schema():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/automated-signals/debug', methods=['GET'])
+def debug_automated_signals():
+    """Debug endpoint to see what's actually in the database"""
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({"error": "DATABASE_URL not configured"}), 500
+        
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        
+        # Get last 10 records
+        cursor.execute("""
+            SELECT id, trade_id, event_type, direction, entry_price, 
+                   stop_loss, session, bias, timestamp
+            FROM automated_signals
+            ORDER BY id DESC
+            LIMIT 10
+        """)
+        
+        rows = cursor.fetchall()
+        records = []
+        for row in rows:
+            records.append({
+                "id": row[0],
+                "trade_id": row[1],
+                "event_type": row[2],
+                "direction": row[3],
+                "entry_price": float(row[4]) if row[4] else None,
+                "stop_loss": float(row[5]) if row[5] else None,
+                "session": row[6],
+                "bias": row[7],
+                "timestamp": row[8].isoformat() if row[8] else None
+            })
+        
+        # Get total count
+        cursor.execute("SELECT COUNT(*) FROM automated_signals")
+        total = cursor.fetchone()[0]
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "total_in_db": total,
+            "last_10_records": records
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Debug error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/automated-signals/stats', methods=['GET'])
 def get_automated_signals_stats():
     """Get statistics for automated signals dashboard"""
