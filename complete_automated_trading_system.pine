@@ -559,12 +559,15 @@ if array.size(signal_entries) > 0
         int sig_entry_time = array.get(signal_entry_times, i)
         bool is_recent = (time - sig_entry_time) < 604800000  // 7 days in milliseconds
         
-        // Calculate MFE for all recent signals (complete or not)
+        // Calculate MFE using MAXIMUM favorable price movement (not current bar)
+        // MFE = Maximum Favorable Excursion (the best price achieved, not current price)
         if is_recent
             if sig_dir == "Bullish"
-                current_mfe := (high - sig_entry) / sig_risk
+                // Use highest high achieved, not current bar's high
+                current_mfe := (sig_highest_high - sig_entry) / sig_risk
             else  // Bearish
-                current_mfe := (sig_entry - low) / sig_risk
+                // Use lowest low achieved, not current bar's low
+                current_mfe := (sig_entry - sig_lowest_low) / sig_risk
         
         // FIRST: Update stopped flags on ALL bars (not just incomplete trades)
         // CRITICAL: Flag updates run regardless of is_recent to ensure historical completion detection
@@ -633,9 +636,11 @@ if array.size(signal_entries) > 0
             array.set(signal_mfes, i, current_mfe)
             sig_mfe := current_mfe
         
-        // BE MFE tracking: Track MFE for BE=1 strategy (stops when price hits entry after BE triggers)
+        // BE MFE tracking: Track MFE for BE=1 strategy
+        // CORRECT LOGIC: BE MFE continues to update (NEVER FREEZES!)
+        // It only stops when BE=1 strategy is stopped out (price hits entry after +1R)
         if track_be_mfe
-            // Update BE MFE only if BE strategy is still active (not stopped out yet)
+            // Update BE MFE as long as BE=1 strategy is still active (not stopped at entry)
             if not sig_be_stopped and current_mfe > sig_be_mfe
                 array.set(signal_be_mfes, i, current_mfe)
                 sig_be_mfe := current_mfe
