@@ -460,7 +460,8 @@
             padding: 20px;
             font-family: 'Courier New', monospace;
             color: #00ff00;
-            height: 600px;
+            height: 100%;
+            max-height: 580px;
             overflow-y: auto;
             box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
             position: relative;
@@ -1006,10 +1007,24 @@
                         <div class="filter-tab" data-filter="resolved">Resolved</div>
                     </div>
                 </div>
+                <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+                    <button id="batchDeleteBtn" onclick="batchDeleteSelected()" style="background: #ff4444; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; display: none;">
+                        🗑️ Delete Selected (<span id="selectedCount">0</span>)
+                    </button>
+                    <button onclick="selectAllTrades()" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 6px; cursor: pointer;">
+                        Select All
+                    </button>
+                    <button onclick="deselectAllTrades()" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 6px; cursor: pointer;">
+                        Deselect All
+                    </button>
+                </div>
                 <div id="signalsTableContainer">
                     <table class="signals-table">
                         <thead>
                             <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" style="cursor: pointer;">
+                                </th>
                                 <th>Time (ET)</th>
                                 <th>Direction</th>
                                 <th>Entry</th>
@@ -1283,7 +1298,7 @@
             if (filteredSignals.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7">
+                        <td colspan="10">
                             <div class="empty-state">
                                 <div class="empty-state-icon">📊</div>
                                 <div>No ${selectedDate ? 'signals for selected date' : currentFilter + ' signals'}</div>
@@ -1307,6 +1322,9 @@
                 
                 return `
                     <tr data-trade-id="${tradeId}">
+                        <td>
+                            <input type="checkbox" class="trade-checkbox" value="${tradeId}" onchange="updateSelectedCount()" style="cursor: pointer;">
+                        </td>
                         <td>${displayTime}</td>
                         <td>
                             <span class="direction-badge ${direction ? direction.toLowerCase() : 'neutral'}">
@@ -1547,6 +1565,77 @@
             } catch (error) {
                 console.error('Delete error:', error);
                 alert(`❌ Error deleting signal: ${error.message}`);
+            }
+        }
+
+        // Batch Delete Functions
+        function updateSelectedCount() {
+            const checkboxes = document.querySelectorAll('.trade-checkbox:checked');
+            const count = checkboxes.length;
+            document.getElementById('selectedCount').textContent = count;
+            document.getElementById('batchDeleteBtn').style.display = count > 0 ? 'block' : 'none';
+        }
+
+        function toggleSelectAll(checkbox) {
+            const tradeCheckboxes = document.querySelectorAll('.trade-checkbox');
+            tradeCheckboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+            });
+            updateSelectedCount();
+        }
+
+        function selectAllTrades() {
+            document.getElementById('selectAllCheckbox').checked = true;
+            toggleSelectAll(document.getElementById('selectAllCheckbox'));
+        }
+
+        function deselectAllTrades() {
+            document.getElementById('selectAllCheckbox').checked = false;
+            toggleSelectAll(document.getElementById('selectAllCheckbox'));
+        }
+
+        async function batchDeleteSelected() {
+            const checkboxes = document.querySelectorAll('.trade-checkbox:checked');
+            const tradeIds = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (tradeIds.length === 0) {
+                alert('No trades selected');
+                return;
+            }
+
+            if (!confirm(`Delete ${tradeIds.length} selected signals?\n\nThis will remove ALL events for these trades from the database.\n\nThis action cannot be undone!`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/automated-signals/batch-delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ trade_ids: tradeIds })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Remove from signals array
+                    signals = signals.filter(s => !tradeIds.includes(s.trade_id));
+                    
+                    // Update dashboard
+                    updateDashboard();
+                    
+                    // Reset checkboxes
+                    document.getElementById('selectAllCheckbox').checked = false;
+                    updateSelectedCount();
+                    
+                    alert(`✅ Successfully deleted ${tradeIds.length} signals!\n\nRemoved ${result.deleted_count} database rows.`);
+                } else {
+                    alert(`❌ Failed to delete signals: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Batch delete error:', error);
+                alert(`❌ Error deleting signals: ${error.message}`);
             }
         }
 

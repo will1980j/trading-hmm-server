@@ -12,6 +12,47 @@ import os
 def register_diagnostics_api(app):
     """Register diagnostic endpoints"""
     
+    @app.route('/api/automated-signals/batch-delete', methods=['POST'])
+    def batch_delete_signals():
+        """
+        Batch delete signals by trade_ids
+        Expects JSON: {"trade_ids": ["id1", "id2", ...]}
+        """
+        from flask import request
+        
+        try:
+            data = request.get_json()
+            trade_ids = data.get('trade_ids', [])
+            
+            if not trade_ids:
+                return jsonify({'success': False, 'error': 'No trade_ids provided'}), 400
+            
+            DATABASE_URL = os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cur = conn.cursor()
+            
+            # Delete all events for these trade_ids
+            placeholders = ','.join(['%s'] * len(trade_ids))
+            query = f"DELETE FROM automated_signals WHERE trade_id IN ({placeholders})"
+            cur.execute(query, trade_ids)
+            deleted_count = cur.rowcount
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'deleted_count': deleted_count,
+                'trade_ids': trade_ids
+            }), 200
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
     @app.route('/api/automated-signals/diagnostics/run')
     def run_full_diagnostics():
         """
