@@ -109,7 +109,8 @@ def register_automated_signals_api_robust(app, db):
             cursor.close()
             conn.close()
             
-            return jsonify({
+            # Create response with cache-busting headers
+            response = jsonify({
                 'success': True,
                 'active_trades': active_trades,
                 'completed_trades': completed_trades,
@@ -123,7 +124,14 @@ def register_automated_signals_api_robust(app, db):
                     'active_count': len(active_trades),
                     'completed_count': len(completed_trades)
                 }
-            }), 200
+            })
+            
+            # CRITICAL: Add cache-busting headers to prevent stale data
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            
+            return response, 200
             
         except Exception as e:
             error_msg = f"{type(e).__name__}: {str(e)}"

@@ -1,0 +1,442 @@
+//@version=5
+indicator("Automated Signals - Webhook System", overlay=true, max_labels_count=500, max_lines_count=500)
+
+// ============================================================================
+// WEBHOOK CONFIGURATION
+// ============================================================================
+
+webhook_url = input.string("https://web-production-cd33.up.railway.app/api/automated-signals/webhook", "Webhook URL", group="Webhook Settings")
+
+// ============================================================================
+// ACCOUNT & RISK SETTINGS
+// ============================================================================
+
+account_size = input.float(100000, "Account Size ($)", group="Risk Management")
+risk_percent = input.float(1.0, "Risk Per Trade (%)", minval=0.1, maxval=100, step=0.1, group="Risk Management")
+buffer_points = input.float(25.0, "Stop Loss Buffer (Points)", minval=0.01, step=0.01, group="Risk Management")
+point_value = input.float(20.0, "Point Value ($)", minval=0.1, group="Risk Management")
+
+// ============================================================================
+// FVG INDICATOR SETTINGS
+// ============================================================================
+
+lookback = input.int(50, "FVG Lookback", minval=1, group="FVG Settings")
+show_fvg_boxes = input.bool(true, "Show FVG Boxes", group="FVG Settings")
+
+// HTF Bias Filters
+use_daily = input.bool(false, "Use Daily Bias", group="HTF Bias Filters")
+use_4h = input.bool(false, "Use 4H Bias", group="HTF Bias Filters")
+use_1h = input.bool(true, "Use 1H Bias", group="HTF Bias Filters")
+use_15m = input.bool(true, "Use 15M Bias", group="HTF Bias Filters")
+use_5m = input.bool(true, "Use 5M Bias", group="HTF Bias Filters")
+
+// Signal Filters
+require_engulfing = input.bool(false, "FVG + Engulfing Only", group="Signal Filters")
+require_sweep_engulfing = input.bool(false, "FVG + Sweep Engulfing Only", group="Signal Filters")
+htf_aligned_only = input.bool(true, "HTF Aligned Triangles Only", group="Signal Filters")
+
+// Display Settings
+show_htf_status = input.bool(true, "Show HTF Status Table", group="Display")
+triangle_size = input.string("Small", "Triangle Size", options=["Tiny", "Small", "Normal", "Large"], group="Display")
+
+// Colors
+bull_color = input.color(color.new(color.blue, 0), "Bullish Color", group="Colors")
+bear_color = input.color(color.new(#FF1493, 0), "Bearish Color", group="Colors")
+neutral_color = input.color(color.new(color.gray, 0), "Neutral Color", group="Colors")
+
+// ============================================================================
+// SESSION DETECTION (EASTERN TIME)
+// ============================================================================
+
+get_session_name() =>
+    var string session = "Other"
+    
+    // Get current time in Eastern timezone
+    int et_hour = hour(time, "America/New_York")
+    int et_minute = minute(time, "America/New_York")
+    
+    // Session classification (Eastern Time - matches TradingView)
+    if et_hour >= 20 or et_hour <= 23
+        session := "ASIA"
+    else if et_hour >= 0 and et_hour <= 5
+        session := "LONDON"
+    else if et_hour == 6 or (et_hour == 7) or (et_hour == 8 and et_minute < 30)
+        session := "NY PRE"
+    else if (et_hour == 8 and et_minute >= 30) or (et_hour >= 9 and et_hour <= 11)
+        session := "NY AM"
+    else if et_hour == 12
+        session := "NY LUNCH"
+    else if et_hour >= 13 and et_hour <= 15
+        session := "NY PM"
+    else
+        session := "Other"
+    
+    session
+
+session_name = get_session_name()
+
+// ============================================================================
+// FVG DETECTION
+// ============================================================================
+
+// Bullish FVG: Gap between candle[2] high and current low
+bullish_fvg = low > high[2]
+bullish_fvg_top = low
+bullish_fvg_bottom = high[2]
+
+// Bearish FVG: Gap between candle[2] low and current high
+bearish_fvg = high < low[2]
+bearish_fvg_top = low[2]
+bearish_fvg_bottom = high
+
+// ============================================================================
+// HTF BIAS DETECTION
+// ============================================================================
+
+[m5_bias, m5_bull_ok, m5_bear_ok] = request.security(syminfo.tickerid, "5", [bias, bias == "Bullish", bias == "Bearish"], lookahead=barmerge.lookahead_off) if use_5m else ["Neutral", false, false]
+[m15_bias, m15_bull_ok, m15_bear_ok] = request.security(syminfo.tickerid, "15", [bias, bias == "Bullish", bias == "Bearish"], lookahead=barmerge.lookahead_off) if use_15m else ["Neutral", false, false]
+[h1_bias, h1_bull_ok, h1_bear_ok] = request.security(syminfo.tickerid, "60", [bias, bias == "Bullish", bias == "Bearish"], lookahead=barmerge.lookahead_off) if use_1h else ["Neutral", false, false]
+[h4_bias, h4_bull_ok, h4_bear_ok] = request.security(syminfo.tickerid, "240", [bias, bias == "Bullish", bias == "Bearish"], lookahead=barmerge.lookahead_off) if use_4h else ["Neutral", false, false]
+[d1_bias, d1_bull_ok, d1_bear_ok] = request.security(syminfo.tickerid, "D", [bias, bias == "Bullish", bias == "Bearish"], lookahead=barmerge.lookahead_off) if use_daily else ["Neutral", false, false]
+
+// HTF alignment check
+htf_bullish = (not use_5m or m5_bull_ok) and (not use_15m or m15_bull_ok) and (not use_1h or h1_bull_ok) and (not use_4h or h4_bull_ok) and (not use_daily or d1_bull_ok)
+htf_bearish = (not use_5m or m5_bear_ok) and (not use_15m or m15_bear_ok) and (not use_1h or h1_bear_ok) and (not use_4h or h4_bear_ok) and (not use_daily or d1_bear_ok)
+
+// HTF bias text
+htf_bias_text = ""
+if use_daily
+    htf_bias_text := htf_bias_text + "D:" + d1_bias + " "
+if use_4h
+    htf_bias_text := htf_bias_text + "4H:" + h4_bias + " "
+if use_1h
+    htf_bias_text := htf_bias_text + "1H:" + h1_bias + " "
+if use_15m
+    htf_bias_text := htf_bias_text + "15M:" + m15_bias + " "
+if use_5m
+    htf_bias_text := htf_bias_text + "5M:" + m5_bias
+
+// ============================================================================
+// BIAS TRACKING
+// ============================================================================
+
+var string bias = "Neutral"
+var string prev_bias = "Neutral"
+
+// Update bias based on FVG
+if bullish_fvg
+    prev_bias := bias
+    bias := "Bullish"
+else if bearish_fvg
+    prev_bias := bias
+    bias := "Bearish"
+
+// ============================================================================
+// ENGULFING PATTERNS
+// ============================================================================
+
+// Regular engulfing
+bullish_engulfing = close > open and close[1] < open[1] and close > open[1] and open < close[1]
+bearish_engulfing = close < open and close[1] > open[1] and close < open[1] and open > close[1]
+
+// Sweep engulfing (engulfing + sweep of previous high/low)
+bullish_sweep_engulfing = bullish_engulfing and low < low[1]
+bearish_sweep_engulfing = bearish_engulfing and high > high[1]
+
+// ============================================================================
+// SIGNAL GENERATION
+// ============================================================================
+
+// Bias change signals
+fvg_bull_signal = bias != bias[1] and bias == "Bullish" and (not htf_aligned_only or htf_bullish)
+fvg_bear_signal = bias != bias[1] and bias == "Bearish" and (not htf_aligned_only or htf_bearish)
+
+// Apply engulfing filters
+show_bull_triangle = require_sweep_engulfing ? (fvg_bull_signal and bullish_sweep_engulfing) : 
+                    require_engulfing ? (fvg_bull_signal and bullish_engulfing) : 
+                    fvg_bull_signal
+
+show_bear_triangle = require_sweep_engulfing ? (fvg_bear_signal and bearish_sweep_engulfing) : 
+                    require_engulfing ? (fvg_bear_signal and bearish_engulfing) : 
+                    fvg_bear_signal
+
+// ============================================================================
+// CONFIRMATION MONITORING
+// ============================================================================
+
+var bool waiting_for_confirmation = false
+var string pending_direction = na
+var float signal_candle_high = na
+var float signal_candle_low = na
+var int signal_bar_index = na
+
+// New signal detected
+if show_bull_triangle
+    waiting_for_confirmation := true
+    pending_direction := "BULLISH"
+    signal_candle_high := high
+    signal_candle_low := low
+    signal_bar_index := bar_index
+
+if show_bear_triangle
+    waiting_for_confirmation := true
+    pending_direction := "BEARISH"
+    signal_candle_high := high
+    signal_candle_low := low
+    signal_bar_index := bar_index
+
+// Check for confirmation
+var bool confirmed_bullish_signal = false
+var bool confirmed_bearish_signal = false
+
+confirmed_bullish_signal := false
+confirmed_bearish_signal := false
+
+if waiting_for_confirmation and not na(pending_direction)
+    if pending_direction == "BULLISH"
+        // Bullish confirmation: close above signal candle high
+        if close > signal_candle_high
+            confirmed_bullish_signal := true
+            waiting_for_confirmation := false
+            pending_direction := na
+        // Cancellation: opposite signal
+        else if show_bear_triangle
+            waiting_for_confirmation := false
+            pending_direction := na
+    
+    else if pending_direction == "BEARISH"
+        // Bearish confirmation: close below signal candle low
+        if close < signal_candle_low
+            confirmed_bearish_signal := true
+            waiting_for_confirmation := false
+            pending_direction := na
+        // Cancellation: opposite signal
+        else if show_bull_triangle
+            waiting_for_confirmation := false
+            pending_direction := na
+
+// ============================================================================
+// STOP LOSS CALCULATION
+// ============================================================================
+
+var float entry_price = na
+var float stop_loss = na
+var float risk_distance = na
+
+if confirmed_bullish_signal
+    entry_price := open  // Entry at next bar open
+    
+    // Find lowest point from signal candle to confirmation
+    float lowest_low = low
+    for i = 0 to (bar_index - signal_bar_index)
+        if not na(low[i])
+            lowest_low := math.min(lowest_low, low[i])
+    
+    // Stop loss = lowest low - buffer
+    stop_loss := lowest_low - buffer_points
+    risk_distance := entry_price - stop_loss
+
+if confirmed_bearish_signal
+    entry_price := open  // Entry at next bar open
+    
+    // Find highest point from signal candle to confirmation
+    float highest_high = high
+    for i = 0 to (bar_index - signal_bar_index)
+        if not na(high[i])
+            highest_high := math.max(highest_high, high[i])
+    
+    // Stop loss = highest high + buffer
+    stop_loss := highest_high + buffer_points
+    risk_distance := stop_loss - entry_price
+
+// ============================================================================
+// POSITION SIZING
+// ============================================================================
+
+var int contracts = na
+
+if confirmed_bullish_signal or confirmed_bearish_signal
+    // Calculate position size
+    float risk_amount = account_size * (risk_percent / 100)
+    float risk_per_contract = risk_distance * point_value
+    contracts := math.floor(risk_amount / risk_per_contract)
+
+// ============================================================================
+// SINGLE-SIGNAL TRACKING
+// ============================================================================
+
+var string active_trade_id = na
+var string active_direction = na
+var float active_entry_price = na
+var float active_stop_loss = na
+var float active_risk_distance = na
+var int active_entry_bar = na
+var float active_extreme_price = na
+var bool active_be_triggered = false
+var int active_contracts = na
+
+// ============================================================================
+// WEBHOOK PAYLOAD CREATION
+// ============================================================================
+
+create_webhook_payload(string trade_id, string event_type, string direction, float entry, float sl, float risk_dist, float mfe, float be_mfe_val, float no_be_mfe_val, int num_contracts, string session, string htf_bias) =>
+    // Get Eastern Time components
+    int et_year = year(time, "America/New_York")
+    int et_month = month(time, "America/New_York")
+    int et_day = dayofmonth(time, "America/New_York")
+    int et_hour = hour(time, "America/New_York")
+    int et_minute = minute(time, "America/New_York")
+    int et_second = second(time, "America/New_York")
+    
+    // Format date and time strings
+    string signal_date = str.format("{0,number,0000}-{1,number,00}-{2,number,00}", et_year, et_month, et_day)
+    string signal_time = str.format("{0,number,00}:{1,number,00}:{2,number,00}", et_hour, et_minute, et_second)
+    
+    // Build JSON payload
+    string payload = '{'
+    payload := payload + '"trade_id":"' + trade_id + '",'
+    payload := payload + '"event_type":"' + event_type + '",'
+    payload := payload + '"direction":"' + direction + '",'
+    payload := payload + '"entry_price":' + str.tostring(entry) + ','
+    payload := payload + '"stop_loss":' + str.tostring(sl) + ','
+    payload := payload + '"risk_distance":' + str.tostring(risk_dist) + ','
+    payload := payload + '"mfe":' + str.tostring(mfe) + ','
+    payload := payload + '"be_mfe":' + str.tostring(be_mfe_val) + ','
+    payload := payload + '"no_be_mfe":' + str.tostring(no_be_mfe_val) + ','
+    payload := payload + '"contracts":' + str.tostring(num_contracts) + ','
+    payload := payload + '"session":"' + session + '",'
+    payload := payload + '"bias":"' + htf_bias + '",'
+    payload := payload + '"signal_date":"' + signal_date + '",'
+    payload := payload + '"signal_time":"' + signal_time + '"'
+    payload := payload + '}'
+    
+    payload
+
+// ============================================================================
+// SIGNAL CREATION - When confirmation happens
+// ============================================================================
+
+var string webhook_payload = na
+
+if confirmed_bullish_signal
+    // Create new trade ID
+    string trade_id = str.format("{0,date,yyyyMMdd}_{0,time,HHmmss}_BULLISH", time)
+    
+    // Set active signal variables
+    active_trade_id := trade_id
+    active_direction := "LONG"
+    active_entry_price := entry_price
+    active_stop_loss := stop_loss
+    active_risk_distance := risk_distance
+    active_entry_bar := bar_index
+    active_extreme_price := entry_price
+    active_be_triggered := false
+    active_contracts := contracts
+    
+    // Send ENTRY webhook
+    webhook_payload := create_webhook_payload(trade_id, "ENTRY", "LONG", entry_price, stop_loss, risk_distance, 0.0, 0.0, 0.0, contracts, session_name, htf_bias_text)
+    alert(webhook_payload, alert.freq_once_per_bar)
+
+if confirmed_bearish_signal
+    // Create new trade ID
+    string trade_id = str.format("{0,date,yyyyMMdd}_{0,time,HHmmss}_BEARISH", time)
+    
+    // Set active signal variables
+    active_trade_id := trade_id
+    active_direction := "SHORT"
+    active_entry_price := entry_price
+    active_stop_loss := stop_loss
+    active_risk_distance := risk_distance
+    active_entry_bar := bar_index
+    active_extreme_price := entry_price
+    active_be_triggered := false
+    active_contracts := contracts
+    
+    // Send ENTRY webhook
+    webhook_payload := create_webhook_payload(trade_id, "ENTRY", "SHORT", entry_price, stop_loss, risk_distance, 0.0, 0.0, 0.0, contracts, session_name, htf_bias_text)
+    alert(webhook_payload, alert.freq_once_per_bar)
+
+// ============================================================================
+// MFE TRACKING & WEBHOOKS
+// ============================================================================
+
+var float be_mfe = 0.0
+var float no_be_mfe = 0.0
+
+// Only track if we have an active signal
+if not na(active_trade_id) and bar_index > active_entry_bar
+    // Check for stop loss hit BEFORE updating extreme prices
+    bool stop_hit_this_bar = false
+    
+    if active_direction == "LONG"
+        stop_hit_this_bar := low <= active_stop_loss
+    else if active_direction == "SHORT"
+        stop_hit_this_bar := high >= active_stop_loss
+    
+    // Only update extreme prices if stop NOT hit this bar
+    if not stop_hit_this_bar
+        if active_direction == "LONG"
+            active_extreme_price := math.max(active_extreme_price, high)
+        else if active_direction == "SHORT"
+            active_extreme_price := math.min(active_extreme_price, low)
+    
+    // Calculate MFE values
+    if active_direction == "LONG"
+        be_mfe := (active_extreme_price - active_entry_price) / active_risk_distance
+        no_be_mfe := (active_extreme_price - active_entry_price) / active_risk_distance
+    else if active_direction == "SHORT"
+        be_mfe := (active_entry_price - active_extreme_price) / active_risk_distance
+        no_be_mfe := (active_entry_price - active_extreme_price) / active_risk_distance
+    
+    // Check for BE trigger (+1R achieved)
+    if not active_be_triggered and be_mfe >= 1.0
+        active_be_triggered := true
+        
+        // Send BE_TRIGGERED webhook
+        webhook_payload := create_webhook_payload(active_trade_id, "BE_TRIGGERED", active_direction, active_entry_price, active_stop_loss, active_risk_distance, be_mfe, be_mfe, no_be_mfe, active_contracts, session_name, htf_bias_text)
+        alert(webhook_payload, alert.freq_once_per_bar)
+    
+    // Check for stop loss hit (exit)
+    if stop_hit_this_bar
+        // Send EXIT webhook
+        string exit_event = active_be_triggered ? "EXIT_BREAK_EVEN" : "EXIT_SL"
+        webhook_payload := create_webhook_payload(active_trade_id, exit_event, active_direction, active_entry_price, active_stop_loss, active_risk_distance, be_mfe, be_mfe, no_be_mfe, active_contracts, session_name, htf_bias_text)
+        alert(webhook_payload, alert.freq_once_per_bar)
+        
+        // Clear active signal
+        active_trade_id := na
+        active_direction := na
+        active_entry_price := na
+        active_stop_loss := na
+        active_risk_distance := na
+        active_entry_bar := na
+        active_extreme_price := na
+        active_be_triggered := false
+        active_contracts := na
+    else
+        // Send MFE_UPDATE webhook (only if not stopped out)
+        webhook_payload := create_webhook_payload(active_trade_id, "MFE_UPDATE", active_direction, active_entry_price, active_stop_loss, active_risk_distance, be_mfe, be_mfe, no_be_mfe, active_contracts, session_name, htf_bias_text)
+        alert(webhook_payload, alert.freq_once_per_bar)
+
+// ============================================================================
+// VISUAL SIGNALS
+// ============================================================================
+
+// Triangle size mapping
+string triangle_shape = triangle_size == "Tiny" ? shape.triangleup : 
+                       triangle_size == "Small" ? shape.triangleup : 
+                       triangle_size == "Normal" ? shape.triangleup : 
+                       shape.triangleup
+
+string triangle_size_setting = triangle_size == "Tiny" ? size.tiny : 
+                              triangle_size == "Small" ? size.small : 
+                              triangle_size == "Normal" ? size.normal : 
+                              size.large
+
+// Plot triangles
+plotshape(show_bull_triangle, "Bullish Signal", triangle_shape, location.belowbar, bull_color, size=triangle_size_setting)
+plotshape(show_bear_triangle, "Bearish Signal", shape.triangledown, location.abovebar, bear_color, size=triangle_size_setting)
+
+// Plot confirmation markers
+plotshape(confirmed_bullish_signal, "Confirmed Bullish", shape.circle, location.belowbar, color.new(color.green, 0), size=size.tiny)
+plotshape(confirmed_bearish_signal, "Confirmed Bearish", shape.circle, location.abovebar, color.new(color.red, 0), size=size.tiny)
