@@ -268,6 +268,11 @@ def _get_active_trades_robust(cursor, has_signal_time):
                 trade['date'] = created.strftime('%Y-%m-%d')
                 # Convert created_at to string
                 trade['created_at'] = created.isoformat()
+                
+                # Mark trades as STALE if they're more than 2 hours old
+                # (likely missing completion webhook)
+                if duration.total_seconds() > 7200:  # 2 hours
+                    trade['trade_status'] = 'STALE'
             
             active_trades.append(trade)
         
@@ -291,6 +296,8 @@ def _get_completed_trades_robust(cursor, has_signal_time):
                 CAST(e.entry_price AS FLOAT) as entry_price,
                 CAST(e.stop_loss AS FLOAT) as stop_loss_price,
                 CAST(COALESCE(ex.final_mfe, e.mfe, 0) AS FLOAT) as final_mfe,
+                CAST(COALESCE(ex.be_mfe, ex.final_mfe, e.be_mfe, 0) AS FLOAT) as be_mfe,
+                CAST(COALESCE(ex.no_be_mfe, ex.final_mfe, e.no_be_mfe, 0) AS FLOAT) as no_be_mfe,
                 ex.exit_type,
                 ex.exit_price,
                 e.session,
@@ -304,6 +311,8 @@ def _get_completed_trades_robust(cursor, has_signal_time):
                     event_type as exit_type,
                     CAST(exit_price AS FLOAT) as exit_price,
                     CAST(mfe AS FLOAT) as final_mfe,
+                    CAST(be_mfe AS FLOAT) as be_mfe,
+                    CAST(no_be_mfe AS FLOAT) as no_be_mfe,
                     timestamp
                 FROM automated_signals
                 WHERE trade_id = e.trade_id

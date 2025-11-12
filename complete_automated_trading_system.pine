@@ -922,18 +922,30 @@ if show_htf_status
 
 // Helper function to determine session
 get_session() =>
-    hour_val = hour(time)
+    // CRITICAL: Use America/New_York timezone to match session definitions
+    hour_val = hour(time, "America/New_York")
+    minute_val = minute(time, "America/New_York")
     session_name = "Other"
-    if hour_val >= 20 or hour_val < 6
+    
+    // ASIA: 20:00-23:59 Eastern
+    if hour_val >= 20 and hour_val <= 23
         session_name := "ASIA"
-    else if hour_val >= 6 and hour_val < 9
+    // LONDON: 00:00-05:59 Eastern
+    else if hour_val >= 0 and hour_val <= 5
+        session_name := "LONDON"
+    // NY PRE: 06:00-08:29 Eastern
+    else if hour_val >= 6 and (hour_val < 8 or (hour_val == 8 and minute_val < 30))
         session_name := "NY PRE"
-    else if hour_val >= 9 and hour_val < 12
+    // NY AM: 08:30-11:59 Eastern
+    else if (hour_val == 8 and minute_val >= 30) or (hour_val >= 9 and hour_val < 12)
         session_name := "NY AM"
-    else if hour_val >= 12 and hour_val < 13
+    // NY LUNCH: 12:00-12:59 Eastern
+    else if hour_val == 12
         session_name := "NY LUNCH"
+    // NY PM: 13:00-15:59 Eastern
     else if hour_val >= 13 and hour_val < 16
         session_name := "NY PM"
+    // Everything else (16:00-19:59) is "Other"
     session_name
 
 // Helper function to create signal ID
@@ -942,11 +954,21 @@ create_signal_id(signal_direction) =>
     time_str = str.format("{0,number,00}{1,number,00}{2,number,00}", hour, minute, second)
     str.format("{0}_{1}_{2}", date_str, time_str, str.upper(signal_direction))
 
-// Variables to track webhook sending
-var string last_signal_id = na
+// Variables to track webhook sending for MULTIPLE signals
+var array<string> active_signal_ids = array.new_string(0)
+var array<bool> be_trigger_sent_flags = array.new_bool(0)
+var array<bool> completion_sent_flags = array.new_bool(0)
 var bool webhook_sent_this_bar = false
-var bool be_trigger_sent = false
-var bool completion_sent = false
+
+// Helper function to find signal index by ID
+find_signal_index(signal_id) =>
+    int found_index = -1
+    if array.size(active_signal_ids) > 0
+        for i = 0 to array.size(active_signal_ids) - 1
+            if array.get(active_signal_ids, i) == signal_id
+                found_index := i
+                break
+    found_index
 
 // Reset webhook flag on new bar
 if barstate.isconfirmed
@@ -978,11 +1000,11 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
     // Send webhook
     alert(signal_created_payload, alert.freq_once_per_bar)
     
-    // Store signal ID and mark webhook as sent
-    last_signal_id := signal_id
+    // Add signal to tracking arrays
+    array.push(active_signal_ids, signal_id)
+    array.push(be_trigger_sent_flags, false)
+    array.push(completion_sent_flags, false)
     webhook_sent_this_bar := true
-    be_trigger_sent := false
-    completion_sent := false
     
     // NOW reset state for next signal (AFTER webhook sent)
     active_signal := "None"
@@ -990,59 +1012,77 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
     trade_ready := false
 
 // 2. MFE UPDATE WEBHOOK
-// Send once per bar for active signals (not on every tick)
-if not na(last_signal_id) and barstate.isconfirmed and array.size(signal_entries) > 0
-    // Get the most recent signal data
-    last_index = array.size(signal_entries) - 1
-    current_mfe_be = array.get(signal_be_mfes, last_index)
-    current_mfe_none = array.get(signal_mfes, last_index)
-    current_lowest_low = array.get(signal_lowest_lows, last_index)
-    current_highest_high = array.get(signal_highest_highs, last_index)
-    
-    // Create MFE update payload
-    mfe_update_payload = '{"type":"mfe_update","signal_id":"' + last_signal_id + '","current_price":' + str.tostring(close) + ',"be_mfe":' + str.tostring(current_mfe_be) + ',"no_be_mfe":' + str.tostring(current_mfe_none) + ',"lowest_low":' + str.tostring(current_lowest_low) + ',"highest_high":' + str.tostring(current_highest_high) + ',"status":"active","timestamp":' + str.tostring(time) + '}'
-    
-    // Send MFE update once per bar (not every tick)
-    alert(mfe_update_payload, alert.freq_once_per_bar)
+// Send once per bar for ALL active signals (not just the last one)
+if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active_signal_ids) > 0
+    // Loop through all active signals and send MFE updates
+    for sig_idx = 0 to array.size(active_signal_ids) - 1
+        signal_id_to_update = array.get(active_signal_ids, sig_idx)
+        
+        // Get MFE data for this signal (arrays are parallel, same index)
+        if sig_idx < array.size(signal_entries)
+            current_mfe_be = array.get(signal_be_mfes, sig_idx)
+            current_mfe_none = array.get(signal_mfes, sig_idx)
+            current_lowest_low = array.get(signal_lowest_lows, sig_idx)
+            current_highest_high = array.get(signal_highest_highs, sig_idx)
+            
+            // Create MFE update payload
+            mfe_update_payload = '{"type":"mfe_update","signal_id":"' + signal_id_to_update + '","current_price":' + str.tostring(close) + ',"be_mfe":' + str.tostring(current_mfe_be) + ',"no_be_mfe":' + str.tostring(current_mfe_none) + ',"lowest_low":' + str.tostring(current_lowest_low) + ',"highest_high":' + str.tostring(current_highest_high) + ',"status":"active","timestamp":' + str.tostring(time) + '}'
+            
+            // Send MFE update once per bar (not every tick)
+            alert(mfe_update_payload, alert.freq_once_per_bar)
 
 // 3. BE TRIGGER WEBHOOK
-// Send when BE=1 is triggered (price reaches +1R)
-if not na(last_signal_id) and not be_trigger_sent and barstate.isconfirmed and array.size(signal_be_triggered) > 0
-    last_index = array.size(signal_be_triggered) - 1
-    be_was_triggered = array.get(signal_be_triggered, last_index)
-    
-    if be_was_triggered
-        current_be_mfe = array.get(signal_be_mfes, last_index)
-        current_no_be_mfe = array.get(signal_mfes, last_index)
-        
-        // Create BE trigger payload
-        be_trigger_payload = '{"type":"be_triggered","signal_id":"' + last_signal_id + '","be_hit":true,"be_mfe":' + str.tostring(current_be_mfe) + ',"no_be_mfe":' + str.tostring(current_no_be_mfe) + ',"timestamp":' + str.tostring(time) + '}'
-        
-        // Send BE trigger webhook
-        alert(be_trigger_payload, alert.freq_once_per_bar)
-        be_trigger_sent := true
+// Send when BE=1 is triggered for any active signal
+if barstate.isconfirmed and array.size(signal_be_triggered) > 0 and array.size(active_signal_ids) > 0
+    // Loop through all active signals
+    for sig_idx = 0 to array.size(active_signal_ids) - 1
+        if sig_idx < array.size(be_trigger_sent_flags)
+            signal_id_for_be = array.get(active_signal_ids, sig_idx)
+            be_sent_flag = array.get(be_trigger_sent_flags, sig_idx)
+            
+            // Only send if not already sent for this signal
+            if not be_sent_flag and sig_idx < array.size(signal_be_triggered)
+                be_was_triggered = array.get(signal_be_triggered, sig_idx)
+                
+                if be_was_triggered
+                    current_be_mfe = array.get(signal_be_mfes, sig_idx)
+                    current_no_be_mfe = array.get(signal_mfes, sig_idx)
+                    
+                    // Create BE trigger payload
+                    be_trigger_payload = '{"type":"be_triggered","signal_id":"' + signal_id_for_be + '","be_hit":true,"be_mfe":' + str.tostring(current_be_mfe) + ',"no_be_mfe":' + str.tostring(current_no_be_mfe) + ',"timestamp":' + str.tostring(time) + '}'
+                    
+                    // Send BE trigger webhook
+                    alert(be_trigger_payload, alert.freq_once_per_bar)
+                    array.set(be_trigger_sent_flags, sig_idx, true)
 
 // 4. COMPLETION WEBHOOK
-// Send when signal is completed (stop loss hit)
-if not na(last_signal_id) and not completion_sent and barstate.isconfirmed and array.size(signal_be_stopped) > 0 and array.size(signal_no_be_stopped) > 0
-    last_index = array.size(signal_be_stopped) - 1
-    be_stopped = array.get(signal_be_stopped, last_index)
-    no_be_stopped = array.get(signal_no_be_stopped, last_index)
-    
-    // Check if either strategy was stopped out
-    if be_stopped or no_be_stopped
-        final_be_mfe = array.get(signal_be_mfes, last_index)
-        final_no_be_mfe = array.get(signal_mfes, last_index)
-        completion_reason = be_stopped ? "be_stop_loss_hit" : "original_stop_loss_hit"
-        
-        // Create completion payload
-        completion_payload = '{"type":"signal_completed","signal_id":"' + last_signal_id + '","completion_reason":"' + completion_reason + '","final_be_mfe":' + str.tostring(final_be_mfe) + ',"final_no_be_mfe":' + str.tostring(final_no_be_mfe) + ',"status":"completed","timestamp":' + str.tostring(time) + '}'
-        
-        // Send completion webhook
-        alert(completion_payload, alert.freq_once_per_bar)
-        completion_sent := true
-        
-        // Reset for next signal
-        last_signal_id := na
-        be_trigger_sent := false
-        completion_sent := false
+// Send when any signal is completed (stop loss hit)
+if barstate.isconfirmed and array.size(signal_be_stopped) > 0 and array.size(signal_no_be_stopped) > 0 and array.size(active_signal_ids) > 0
+    // Loop through all active signals
+    for sig_idx = 0 to array.size(active_signal_ids) - 1
+        if sig_idx < array.size(completion_sent_flags)
+            signal_id_for_completion = array.get(active_signal_ids, sig_idx)
+            completion_sent_flag = array.get(completion_sent_flags, sig_idx)
+            
+            // Only send if not already sent for this signal
+            if not completion_sent_flag and sig_idx < array.size(signal_be_stopped)
+                be_stopped = array.get(signal_be_stopped, sig_idx)
+                no_be_stopped = array.get(signal_no_be_stopped, sig_idx)
+                
+                // Check if either strategy was stopped out
+                if be_stopped or no_be_stopped
+                    final_be_mfe = array.get(signal_be_mfes, sig_idx)
+                    final_no_be_mfe = array.get(signal_mfes, sig_idx)
+                    completion_reason = be_stopped ? "be_stop_loss_hit" : "original_stop_loss_hit"
+                    
+                    // Create completion payload
+                    completion_payload = '{"type":"signal_completed","signal_id":"' + signal_id_for_completion + '","completion_reason":"' + completion_reason + '","final_be_mfe":' + str.tostring(final_be_mfe) + ',"final_no_be_mfe":' + str.tostring(final_no_be_mfe) + ',"status":"completed","timestamp":' + str.tostring(time) + '}'
+                    
+                    // Send completion webhook
+                    alert(completion_payload, alert.freq_once_per_bar)
+                    array.set(completion_sent_flags, sig_idx, true)
+                    
+                    // Remove this signal from active tracking
+                    array.remove(active_signal_ids, sig_idx)
+                    array.remove(be_trigger_sent_flags, sig_idx)
+                    array.remove(completion_sent_flags, sig_idx)
