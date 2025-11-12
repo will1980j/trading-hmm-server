@@ -369,6 +369,40 @@
             background: rgba(139, 92, 246, 0.2);
             color: #8b5cf6;
         }
+        
+        /* Active Trade Highlighting */
+        .active-trade-row {
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.02) 100%);
+            border-left: 3px solid #10b981;
+            animation: subtlePulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes subtlePulse {
+            0%, 100% { 
+                background: linear-gradient(90deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.02) 100%);
+            }
+            50% { 
+                background: linear-gradient(90deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.03) 100%);
+            }
+        }
+        
+        .live-indicator {
+            display: inline-block;
+            animation: livePulse 2s ease-in-out infinite;
+            font-size: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(0.9); }
+        }
+        
+        .active-trade-row:hover {
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.04) 100%);
+            transform: translateX(2px);
+            transition: all 0.2s ease;
+        }
 
         /* Delete Button */
         .delete-btn {
@@ -1308,12 +1342,15 @@
                 // Use signal_time (signal candle time) if available, otherwise fall back to timestamp
                 const displayTime = signal.signal_time || signal.time || (timestamp ? formatTime(timestamp) : '-');
                 
+                const isActive = status.toLowerCase() === 'active';
+                const rowClass = isActive ? 'active-trade-row' : '';
+                
                 return `
-                    <tr data-trade-id="${tradeId}">
+                    <tr data-trade-id="${tradeId}" class="${rowClass}">
                         <td>
                             <input type="checkbox" class="trade-checkbox" value="${tradeId}" onchange="updateSelectedCount()" style="cursor: pointer;">
                         </td>
-                        <td>${displayTime}</td>
+                        <td>${isActive ? '<span class="live-indicator">🔴</span> ' : ''}${displayTime}</td>
                         <td>
                             <span class="direction-badge ${direction ? direction.toLowerCase() : 'neutral'}">
                                 ${direction || '-'}

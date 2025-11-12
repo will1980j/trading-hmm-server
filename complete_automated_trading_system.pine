@@ -961,7 +961,6 @@ var array<string> active_signal_ids = array.new_string(0)
 var array<bool> be_trigger_sent_flags = array.new_bool(0)
 var array<bool> completion_sent_flags = array.new_bool(0)
 var bool webhook_sent_this_bar = false
-var bool indicator_initialized = false  // Track if indicator has processed historical bars
 
 // Helper function to find signal index by ID
 find_signal_index(signal_id) =>
@@ -973,18 +972,13 @@ find_signal_index(signal_id) =>
                 break
     found_index
 
-// Mark indicator as initialized after first real-time bar
-if barstate.isrealtime and not indicator_initialized
-    indicator_initialized := true
-
 // Reset webhook flag on new bar
 if barstate.isconfirmed
     webhook_sent_this_bar := false
 
 // 1. SIGNAL CREATION WEBHOOK
 // Send when new trade is ready (entry conditions met)
-// CRITICAL: Only send webhooks AFTER indicator has processed all historical bars
-if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and indicator_initialized and array.size(signal_entries) > 0
+if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and array.size(signal_entries) > 0
     // Get the most recent signal (just added)
     int last_index = array.size(signal_entries) - 1
     float sig_entry = array.get(signal_entries, last_index)
@@ -1022,8 +1016,7 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
 
 // 2. MFE UPDATE WEBHOOK
 // Send once per bar for ALL active signals (not just the last one)
-// CRITICAL: Only send webhooks AFTER indicator has processed all historical bars
-if barstate.isconfirmed and indicator_initialized and array.size(signal_entries) > 0 and array.size(active_signal_ids) > 0
+if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active_signal_ids) > 0
     // Loop through all active signals and send MFE updates
     for sig_idx = 0 to array.size(active_signal_ids) - 1
         signal_id_to_update = array.get(active_signal_ids, sig_idx)
@@ -1044,8 +1037,7 @@ if barstate.isconfirmed and indicator_initialized and array.size(signal_entries)
 
 // 3. BE TRIGGER WEBHOOK
 // Send when BE=1 is triggered for any active signal
-// CRITICAL: Only send webhooks AFTER indicator has processed all historical bars
-if barstate.isconfirmed and indicator_initialized and array.size(signal_be_triggered) > 0 and array.size(active_signal_ids) > 0
+if barstate.isconfirmed and array.size(signal_be_triggered) > 0 and array.size(active_signal_ids) > 0
     // Loop through all active signals
     for sig_idx = 0 to array.size(active_signal_ids) - 1
         if sig_idx < array.size(be_trigger_sent_flags)
@@ -1070,8 +1062,7 @@ if barstate.isconfirmed and indicator_initialized and array.size(signal_be_trigg
 
 // 4. COMPLETION WEBHOOK
 // Send when any signal is completed (stop loss hit)
-// CRITICAL: Only send webhooks AFTER indicator has processed all historical bars
-if barstate.isconfirmed and indicator_initialized and array.size(signal_be_stopped) > 0 and array.size(signal_no_be_stopped) > 0 and array.size(active_signal_ids) > 0
+if barstate.isconfirmed and array.size(signal_be_stopped) > 0 and array.size(signal_no_be_stopped) > 0 and array.size(active_signal_ids) > 0
     // Loop through all active signals
     for sig_idx = 0 to array.size(active_signal_ids) - 1
         if sig_idx < array.size(completion_sent_flags)
