@@ -456,15 +456,15 @@
 
         /* Diagnostic Terminal Styles */
         .diagnostic-terminal {
-            background: #0a0e27;
+            background: rgba(26, 31, 58, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 8px;
             padding: 20px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            color: #00ff00;
+            color: #e0e0e0;
             min-height: 750px;
             height: auto;
             overflow-y: auto;
-            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
             position: relative;
         }
         
@@ -474,14 +474,13 @@
             align-items: center;
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 1px solid #00ff00;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .terminal-title {
             font-size: 16px;
             font-weight: bold;
-            color: #00ff00;
-            text-shadow: 0 0 10px #00ff00;
+            color: #e0e0e0;
         }
         
         .terminal-status {
@@ -497,14 +496,14 @@
             animation: pulse 2s infinite;
         }
         
-        .status-healthy { background: #00ff00; box-shadow: 0 0 10px #00ff00; }
-        .status-warning { background: #ffaa00; box-shadow: 0 0 10px #ffaa00; }
-        .status-critical { background: #ff0000; box-shadow: 0 0 10px #ff0000; }
-        .status-running { background: #00aaff; box-shadow: 0 0 10px #00aaff; }
+        .status-healthy { background: #10b981; }
+        .status-warning { background: #f59e0b; }
+        .status-critical { background: #ef4444; }
+        .status-running { background: #3b82f6; }
         
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.7; }
         }
         
         .terminal-output {
@@ -522,10 +521,10 @@
             to { opacity: 1; }
         }
         
-        .check-pass { color: #00ff00; }
-        .check-warn { color: #ffaa00; }
-        .check-fail { color: #ff0000; }
-        .check-info { color: #00aaff; }
+        .check-pass { color: #10b981; }
+        .check-warn { color: #f59e0b; }
+        .check-fail { color: #ef4444; }
+        .check-info { color: #3b82f6; }
         
         .check-line {
             display: flex;
@@ -676,19 +675,7 @@
         }
         
         .scan-animation {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #00ff00, transparent);
-            animation: scan 2s linear infinite;
-            pointer-events: none;
-        }
-        
-        @keyframes scan {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(600px); }
+            display: none;
         }
 
         /* Scrollbar Styling */
