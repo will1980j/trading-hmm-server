@@ -688,7 +688,9 @@ if array.size(signal_entries) > 0
         if track_be_mfe
             // BE MFE uses SAME current_mfe calculation, just different stop condition
             // Update as long as BE=1 strategy is still active (not stopped at entry after +1R)
-            bool be_mfe_changed = current_mfe > sig_be_mfe
+            // CRITICAL: Compare against THIS trade's BE MFE from array, not the variable from previous iteration
+            float this_trade_be_mfe = array.get(signal_be_mfes, i)
+            bool be_mfe_changed = current_mfe > this_trade_be_mfe
             if be_mfe_changed and is_recent and not sig_be_stopped
                 array.set(signal_be_mfes, i, current_mfe)
                 sig_be_mfe := current_mfe
@@ -976,7 +978,7 @@ if barstate.isconfirmed
 
 // 1. SIGNAL CREATION WEBHOOK
 // Send when new trade is ready (entry conditions met)
-if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and array.size(signal_entries) > 0
+if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and not barstate.ishistory and array.size(signal_entries) > 0
     // Get the most recent signal (just added)
     int last_index = array.size(signal_entries) - 1
     float sig_entry = array.get(signal_entries, last_index)
@@ -1013,7 +1015,7 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
 
 // 2. MFE UPDATE WEBHOOK
 // Send once per bar for ALL active signals (not just the last one)
-if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active_signal_ids) > 0
+if barstate.isconfirmed and not barstate.ishistory and array.size(signal_entries) > 0 and array.size(active_signal_ids) > 0
     // Loop through all active signals and send MFE updates
     for sig_idx = 0 to array.size(active_signal_ids) - 1
         signal_id_to_update = array.get(active_signal_ids, sig_idx)
@@ -1033,7 +1035,7 @@ if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active
 
 // 3. BE TRIGGER WEBHOOK
 // Send when BE=1 is triggered for any active signal
-if barstate.isconfirmed and array.size(signal_be_triggered) > 0 and array.size(active_signal_ids) > 0
+if barstate.isconfirmed and not barstate.ishistory and array.size(signal_be_triggered) > 0 and array.size(active_signal_ids) > 0
     // Loop through all active signals
     for sig_idx = 0 to array.size(active_signal_ids) - 1
         if sig_idx < array.size(be_trigger_sent_flags)
@@ -1057,7 +1059,7 @@ if barstate.isconfirmed and array.size(signal_be_triggered) > 0 and array.size(a
 
 // 4. COMPLETION WEBHOOK
 // Send when any signal is completed (stop loss hit)
-if barstate.isconfirmed and array.size(signal_be_stopped) > 0 and array.size(signal_no_be_stopped) > 0 and array.size(active_signal_ids) > 0
+if barstate.isconfirmed and not barstate.ishistory and array.size(signal_be_stopped) > 0 and array.size(signal_no_be_stopped) > 0 and array.size(active_signal_ids) > 0
     // Loop through all active signals
     for sig_idx = 0 to array.size(active_signal_ids) - 1
         if sig_idx < array.size(completion_sent_flags)

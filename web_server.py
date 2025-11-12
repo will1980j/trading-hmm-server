@@ -10791,27 +10791,28 @@ def handle_exit_signal(data, exit_type):
             # Strategy doesn't send exit_price, indicator does
             exit_price = float(data.get('exit_price', 0)) if data.get('exit_price') else 0
             # Strategy sends final_be_mfe and final_no_be_mfe, indicator sends final_mfe
-            final_mfe = float(data.get('final_no_be_mfe') or data.get('final_mfe', 0))
+            final_be_mfe = float(data.get('final_be_mfe', 0))
+            final_no_be_mfe = float(data.get('final_no_be_mfe') or data.get('final_mfe', 0))
         except (ValueError, TypeError) as conv_error:
             return {"success": False, "error": f"Invalid exit data: {str(conv_error)}"}
         
-        # Store exit signal
+        # Store exit signal with BOTH MFE values
         cursor = conn.cursor()
         if exit_price > 0:
             cursor.execute("""
                 INSERT INTO automated_signals (
-                    trade_id, event_type, exit_price, final_mfe
-                ) VALUES (%s, %s, %s, %s)
+                    trade_id, event_type, exit_price, be_mfe, no_be_mfe
+                ) VALUES (%s, %s, %s, %s, %s)
                 RETURNING id
-            """, (trade_id, f'EXIT_{exit_type}', exit_price, final_mfe))
+            """, (trade_id, f'EXIT_{exit_type}', exit_price, final_be_mfe, final_no_be_mfe))
         else:
             # No exit price (strategy format)
             cursor.execute("""
                 INSERT INTO automated_signals (
-                    trade_id, event_type, final_mfe
-                ) VALUES (%s, %s, %s)
+                    trade_id, event_type, be_mfe, no_be_mfe
+                ) VALUES (%s, %s, %s, %s)
                 RETURNING id
-            """, (trade_id, f'EXIT_{exit_type}', final_mfe))
+            """, (trade_id, f'EXIT_{exit_type}', final_be_mfe, final_no_be_mfe))
         
         result = cursor.fetchone()
         if not result:
@@ -10820,14 +10821,15 @@ def handle_exit_signal(data, exit_type):
         signal_id = result[0]
         conn.commit()
         
-        logger.info(f"✅ Exit signal stored: Trade {trade_id}, Type {exit_type}, Final MFE {final_mfe}R")
+        logger.info(f"✅ Exit signal stored: Trade {trade_id}, Type {exit_type}, BE MFE {final_be_mfe}R, No BE MFE {final_no_be_mfe}R")
         
         # Broadcast to WebSocket clients for Activity Feed
         try:
             socketio.emit('signal_resolved', {
                 'trade_id': trade_id,
                 'exit_type': exit_type,
-                'final_mfe': final_mfe,
+                'be_mfe': final_be_mfe,
+                'no_be_mfe': final_no_be_mfe,
                 'exit_price': exit_price if exit_price > 0 else None,
                 'timestamp': datetime.now().isoformat()
             })
@@ -10840,7 +10842,8 @@ def handle_exit_signal(data, exit_type):
             "signal_id": signal_id,
             "trade_id": trade_id,
             "exit_type": exit_type,
-            "final_mfe": final_mfe
+            "be_mfe": final_be_mfe,
+            "no_be_mfe": final_no_be_mfe
         }
         
     except Exception as e:

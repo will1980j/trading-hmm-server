@@ -133,7 +133,69 @@ def register_diagnostics_api(app):
                 }
             results['checks'].append(check3)
             
-            # CHECK 4: Stale Active Trades
+            # CHECK 4: TradingView Alert Status
+            # Check if we're receiving signals regularly (indicates alert is active)
+            cur.execute("""
+                SELECT 
+                    COUNT(*) as signals_last_hour,
+                    COUNT(DISTINCT DATE_TRUNC('minute', timestamp)) as active_minutes
+                FROM automated_signals
+                WHERE event_type = 'ENTRY'
+                AND timestamp > NOW() - INTERVAL '1 hour'
+            """)
+            signals_last_hour, active_minutes = cur.fetchone()
+            
+            # Also check the time gap between last 2 signals
+            cur.execute("""
+                SELECT timestamp
+                FROM automated_signals
+                WHERE event_type = 'ENTRY'
+                ORDER BY timestamp DESC
+                LIMIT 2
+            """)
+            recent_signals = cur.fetchall()
+            
+            alert_status = 'UNKNOWN'
+            alert_message = 'Unable to determine alert status'
+            
+            if len(recent_signals) >= 2:
+                time_gap = (recent_signals[0][0] - recent_signals[1][0]).total_seconds() / 60
+                
+                if minutes_ago and minutes_ago < 15:
+                    alert_status = 'PASS'
+                    alert_message = f'TradingView alert is ACTIVE - {signals_last_hour} signals in last hour'
+                elif minutes_ago and minutes_ago < 60:
+                    alert_status = 'WARN'
+                    alert_message = f'TradingView alert may be IDLE - last signal {minutes_ago:.0f} min ago'
+                else:
+                    alert_status = 'FAIL'
+                    alert_message = f'TradingView alert appears STOPPED - no signals for {minutes_ago/60:.1f} hours'
+                    results['critical_issues'].append('TradingView alert not sending signals')
+            elif len(recent_signals) == 1:
+                alert_status = 'WARN'
+                alert_message = 'Only 1 signal in database - cannot verify alert continuity'
+            else:
+                alert_status = 'FAIL'
+                alert_message = 'No signals in database - TradingView alert not configured'
+                results['critical_issues'].append('TradingView alert not configured')
+            
+            check4 = {
+                'name': 'TradingView Alert Status',
+                'status': alert_status,
+                'message': alert_message,
+                'duration_ms': 0,
+                'data': {
+                    'signals_last_hour': signals_last_hour,
+                    'active_minutes': active_minutes,
+                    'minutes_since_last': minutes_ago
+                }
+            }
+            results['checks'].append(check4)
+            
+            if alert_status == 'WARN':
+                results['warnings'].append(f'TradingView alert status: {alert_message}')
+            
+            # CHECK 5: Stale Active Trades
             cur.execute("""
                 SELECT COUNT(*) as stale_count
                 FROM automated_signals e
@@ -146,7 +208,7 @@ def register_diagnostics_api(app):
             stale_count = cur.fetchone()[0]
             
             if stale_count > 0:
-                check4 = {
+                check5 = {
                     'name': 'Stale Active Trades',
                     'status': 'WARN',
                     'message': f'{stale_count} trades missing EXIT events (>2 hours old)',
@@ -155,15 +217,15 @@ def register_diagnostics_api(app):
                 }
                 results['warnings'].append(f'{stale_count} stale trades detected')
             else:
-                check4 = {
+                check5 = {
                     'name': 'Stale Active Trades',
                     'status': 'PASS',
                     'message': 'No stale trades detected',
                     'duration_ms': 0
                 }
-            results['checks'].append(check4)
+            results['checks'].append(check5)
             
-            # CHECK 5: Event Type Distribution
+            # CHECK 6: Event Type Distribution
             cur.execute("""
                 SELECT event_type, COUNT(*) as count
                 FROM automated_signals
@@ -173,16 +235,16 @@ def register_diagnostics_api(app):
             """)
             event_dist = cur.fetchall()
             
-            check5 = {
+            check6 = {
                 'name': 'Event Distribution (24h)',
                 'status': 'PASS',
                 'message': f'{len(event_dist)} event types in last 24 hours',
                 'duration_ms': 0,
                 'data': {row[0]: row[1] for row in event_dist}
             }
-            results['checks'].append(check5)
+            results['checks'].append(check6)
             
-            # CHECK 6: MFE Update Frequency
+            # CHECK 7: MFE Update Frequency
             cur.execute("""
                 SELECT 
                     COUNT(*) as mfe_updates,
@@ -193,16 +255,16 @@ def register_diagnostics_api(app):
             """)
             mfe_updates, unique_trades = cur.fetchone()
             
-            check6 = {
+            check7 = {
                 'name': 'MFE Update Frequency',
                 'status': 'PASS',
                 'message': f'{mfe_updates} MFE updates for {unique_trades} trades in last hour',
                 'duration_ms': 0,
                 'data': {'mfe_updates': mfe_updates, 'unique_trades': unique_trades}
             }
-            results['checks'].append(check6)
+            results['checks'].append(check7)
             
-            # CHECK 7: Completion Rate
+            # CHECK 8: Completion Rate
             cur.execute("""
                 SELECT 
                     COUNT(DISTINCT CASE WHEN event_type = 'ENTRY' THEN trade_id END) as entries,
@@ -214,7 +276,7 @@ def register_diagnostics_api(app):
             completion_rate = (exits / entries * 100) if entries > 0 else 0
             
             if completion_rate < 50:
-                check7 = {
+                check8 = {
                     'name': 'Completion Rate (24h)',
                     'status': 'WARN',
                     'message': f'{completion_rate:.1f}% completion rate - many trades missing EXIT events',
@@ -223,38 +285,38 @@ def register_diagnostics_api(app):
                 }
                 results['warnings'].append(f'Low completion rate: {completion_rate:.1f}%')
             else:
-                check7 = {
+                check8 = {
                     'name': 'Completion Rate (24h)',
                     'status': 'PASS',
                     'message': f'{completion_rate:.1f}% completion rate ({exits}/{entries} trades)',
                     'duration_ms': 0,
                     'data': {'entries': entries, 'exits': exits, 'completion_rate': completion_rate}
                 }
-            results['checks'].append(check7)
+            results['checks'].append(check8)
             
-            # CHECK 8: Database Size
+            # CHECK 9: Database Size
             cur.execute("SELECT COUNT(*) FROM automated_signals;")
             total_records = cur.fetchone()[0]
             
-            check8 = {
+            check9 = {
                 'name': 'Database Size',
                 'status': 'PASS',
                 'message': f'{total_records:,} total records',
                 'duration_ms': 0,
                 'data': {'total_records': total_records}
             }
-            results['checks'].append(check8)
+            results['checks'].append(check9)
             
-            # CHECK 9: Webhook Endpoint Health
-            check9 = {
+            # CHECK 10: Webhook Endpoint Health
+            check10 = {
                 'name': 'Webhook Endpoint',
                 'status': 'PASS',
                 'message': '/api/automated-signals/webhook is accessible',
                 'duration_ms': 0
             }
-            results['checks'].append(check9)
+            results['checks'].append(check10)
             
-            # CHECK 10: Session Distribution
+            # CHECK 11: Session Distribution
             cur.execute("""
                 SELECT 
                     session,
@@ -267,14 +329,14 @@ def register_diagnostics_api(app):
             """)
             session_dist = cur.fetchall()
             
-            check10 = {
+            check11 = {
                 'name': 'Session Distribution (24h)',
                 'status': 'PASS',
                 'message': f'{len(session_dist)} sessions active',
                 'duration_ms': 0,
                 'data': {row[0] if row[0] else 'Unknown': row[1] for row in session_dist}
             }
-            results['checks'].append(check10)
+            results['checks'].append(check11)
             
             cur.close()
             conn.close()
