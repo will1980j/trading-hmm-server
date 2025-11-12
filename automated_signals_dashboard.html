@@ -1794,7 +1794,7 @@
                     const progress = ((i + 1) / totalChecks) * 100;
                     this.progressBar.style.width = `${progress}%`;
                     
-                    const icon = check.status === 'PASS' ? '✓' : check.status === 'WARN' ? '⚠' : check.status === 'FAIL' ? '✗' : 'ℹ';
+                    const icon = check.status === 'PASS' ? '✅' : check.status === 'WARN' ? '⚠️' : check.status === 'FAIL' ? '❌' : 'ℹ️';
                     const statusClass = check.status === 'PASS' ? 'pass' : check.status === 'WARN' ? 'warn' : check.status === 'FAIL' ? 'fail' : 'info';
                     
                     this.addCheckLine(icon, check.name, check.message, statusClass);
@@ -1829,13 +1829,13 @@
                 
                 if (data.warnings.length > 0) {
                     this.addLine('', 'info');
-                    this.addLine('⚠ WARNINGS:', 'warn');
+                    this.addLine('⚠️ WARNINGS:', 'warn');
                     data.warnings.forEach(w => this.addLine(`  • ${w}`, 'warn'));
                 }
                 
                 if (data.critical_issues.length > 0) {
                     this.addLine('', 'info');
-                    this.addLine('✗ CRITICAL ISSUES:', 'fail');
+                    this.addLine('❌ CRITICAL ISSUES:', 'fail');
                     data.critical_issues.forEach(i => this.addLine(`  • ${i}`, 'fail'));
                 }
                 
@@ -1866,7 +1866,7 @@
                 const passCount = data.checks.filter(c => c.status === 'PASS').length;
                 const warnCount = data.checks.filter(c => c.status === 'WARN').length;
                 const failCount = data.checks.filter(c => c.status === 'FAIL').length;
-                box.innerHTML = `<div class="summary-title">System Health Metrics</div><div class="summary-grid"><div class="summary-item"><span class="summary-label">Total Checks:</span><span class="summary-value">${data.checks.length}</span></div><div class="summary-item"><span class="summary-label">Passed:</span><span class="summary-value" style="color: #00ff00;">${passCount}</span></div><div class="summary-item"><span class="summary-label">Warnings:</span><span class="summary-value" style="color: #ffaa00;">${warnCount}</span></div><div class="summary-item"><span class="summary-label">Failed:</span><span class="summary-value" style="color: #ff0000;">${failCount}</span></div></div>`;
+                box.innerHTML = `<div class="summary-title">📊 System Health Metrics</div><div class="summary-grid"><div class="summary-item"><span class="summary-label">🔍 Total Checks:</span><span class="summary-value">${data.checks.length}</span></div><div class="summary-item"><span class="summary-label">✅ Passed:</span><span class="summary-value" style="color: #10b981;">${passCount}</span></div><div class="summary-item"><span class="summary-label">⚠️ Warnings:</span><span class="summary-value" style="color: #f59e0b;">${warnCount}</span></div><div class="summary-item"><span class="summary-label">❌ Failed:</span><span class="summary-value" style="color: #ef4444;">${failCount}</span></div></div>`;
                 this.output.appendChild(box);
                 this.scrollToBottom();
             }
