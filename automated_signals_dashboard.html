@@ -453,6 +453,242 @@
             opacity: 0.5;
         }
 
+        /* Diagnostic Terminal Styles */
+        .diagnostic-terminal {
+            background: #0a0e27;
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            color: #00ff00;
+            height: 600px;
+            overflow-y: auto;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            position: relative;
+        }
+        
+        .terminal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #00ff00;
+        }
+        
+        .terminal-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        
+        .terminal-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-healthy { background: #00ff00; box-shadow: 0 0 10px #00ff00; }
+        .status-warning { background: #ffaa00; box-shadow: 0 0 10px #ffaa00; }
+        .status-critical { background: #ff0000; box-shadow: 0 0 10px #ff0000; }
+        .status-running { background: #00aaff; box-shadow: 0 0 10px #00aaff; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .terminal-output {
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .terminal-line {
+            margin: 5px 0;
+            opacity: 0;
+            animation: fadeIn 0.3s forwards;
+        }
+        
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+        
+        .check-pass { color: #00ff00; }
+        .check-warn { color: #ffaa00; }
+        .check-fail { color: #ff0000; }
+        .check-info { color: #00aaff; }
+        
+        .check-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 0;
+        }
+        
+        .check-icon {
+            font-size: 16px;
+            min-width: 20px;
+        }
+        
+        .check-name {
+            font-weight: bold;
+            min-width: 200px;
+        }
+        
+        .check-message {
+            color: #aaa;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #1a1f3a;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #00aaff);
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        
+        .diagnostic-chart {
+            margin: 15px 0;
+            padding: 15px;
+            background: #0f1429;
+            border-radius: 5px;
+            border: 1px solid #00ff00;
+        }
+        
+        .chart-title {
+            color: #00aaff;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        
+        .bar-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .bar-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .bar-label {
+            min-width: 120px;
+            color: #aaa;
+            font-size: 12px;
+        }
+        
+        .bar-visual {
+            flex: 1;
+            height: 20px;
+            background: #1a1f3a;
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #00aaff);
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        .bar-value {
+            min-width: 50px;
+            text-align: right;
+            color: #00ff00;
+            font-size: 12px;
+        }
+        
+        .summary-box {
+            background: #0f1429;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .summary-title {
+            color: #00aaff;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px;
+            background: #1a1f3a;
+            border-radius: 3px;
+        }
+        
+        .summary-label {
+            color: #aaa;
+            font-size: 12px;
+        }
+        
+        .summary-value {
+            color: #00ff00;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .typing-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 14px;
+            background: #00ff00;
+            margin-left: 2px;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+        
+        .scan-animation {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ff00, transparent);
+            animation: scan 2s linear infinite;
+            pointer-events: none;
+        }
+        
+        @keyframes scan {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(600px); }
+        }
+
         /* Scrollbar Styling */
         ::-webkit-scrollbar {
             width: 8px;
@@ -799,15 +1035,32 @@
                 </div>
             </div>
 
-            <!-- Activity Feed -->
+            <!-- Live System Diagnostics Terminal -->
             <div class="activity-panel">
-                <div class="panel-header">
-                    <h2 class="panel-title">Activity Feed</h2>
-                </div>
-                <div id="activityFeed">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">🔔</div>
-                        <div>No activity yet</div>
+                <div class="diagnostic-terminal" id="diagnosticTerminal">
+                    <div class="scan-animation"></div>
+                    
+                    <div class="terminal-header">
+                        <div class="terminal-title">
+                            🔍 LIVE SYSTEM DIAGNOSTICS
+                        </div>
+                        <div class="terminal-status">
+                            <div class="status-indicator status-running" id="statusIndicator"></div>
+                            <span id="statusText">INITIALIZING...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressBar"></div>
+                    </div>
+                    
+                    <div class="terminal-output" id="terminalOutput">
+                        <div class="terminal-line check-info">
+                            > System Diagnostics Engine v2.0<span class="typing-cursor"></span>
+                        </div>
+                        <div class="terminal-line check-info">
+                            > Initializing comprehensive health checks...
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1415,6 +1668,181 @@
         
         // Run initial health check after 2 seconds
         setTimeout(checkSystemHealth, 2000);
+
+        // Diagnostic Terminal Class
+        class DiagnosticTerminal {
+            constructor() {
+                this.output = document.getElementById('terminalOutput');
+                this.progressBar = document.getElementById('progressBar');
+                this.statusIndicator = document.getElementById('statusIndicator');
+                this.statusText = document.getElementById('statusText');
+                this.checkDelay = 300;
+                this.autoRunInterval = 30000;
+                this.isRunning = false;
+            }
+            
+            async start() {
+                if (this.isRunning) return;
+                this.isRunning = true;
+                
+                this.clear();
+                this.addLine('> Starting diagnostic scan...', 'info');
+                this.addLine('> Connecting to Railway database...', 'info');
+                
+                await this.sleep(500);
+                
+                try {
+                    const response = await fetch('/api/automated-signals/diagnostics/run');
+                    const data = await response.json();
+                    
+                    await this.displayResults(data);
+                    
+                    setTimeout(() => {
+                        this.isRunning = false;
+                        this.start();
+                    }, this.autoRunInterval);
+                    
+                } catch (error) {
+                    this.addLine(`✗ ERROR: ${error.message}`, 'fail');
+                    this.updateStatus('critical', 'ERROR');
+                    this.isRunning = false;
+                }
+            }
+            
+            async displayResults(data) {
+                const totalChecks = data.checks.length;
+                
+                for (let i = 0; i < data.checks.length; i++) {
+                    const check = data.checks[i];
+                    const progress = ((i + 1) / totalChecks) * 100;
+                    this.progressBar.style.width = `${progress}%`;
+                    
+                    const icon = check.status === 'PASS' ? '✓' : check.status === 'WARN' ? '⚠' : check.status === 'FAIL' ? '✗' : 'ℹ';
+                    const statusClass = check.status === 'PASS' ? 'pass' : check.status === 'WARN' ? 'warn' : check.status === 'FAIL' ? 'fail' : 'info';
+                    
+                    this.addCheckLine(icon, check.name, check.message, statusClass);
+                    await this.sleep(this.checkDelay);
+                }
+                
+                await this.sleep(500);
+                this.addLine('', 'info');
+                this.addLine('═══════════════════════════════════════════════════════', 'info');
+                this.addLine('> DIAGNOSTIC SUMMARY', 'info');
+                this.addLine('═══════════════════════════════════════════════════════', 'info');
+                
+                this.addSummaryBox(data);
+                
+                if (data.checks.length > 4 && data.checks[4].data) {
+                    this.addEventDistributionChart(data.checks[4].data);
+                }
+                
+                if (data.checks.length > 9 && data.checks[9].data) {
+                    this.addSessionDistributionChart(data.checks[9].data);
+                }
+                
+                const statusMap = {
+                    'HEALTHY': { class: 'healthy', text: 'ALL SYSTEMS OPERATIONAL' },
+                    'WARNING': { class: 'warning', text: `${data.warnings.length} WARNING(S) DETECTED` },
+                    'CRITICAL': { class: 'critical', text: `${data.critical_issues.length} CRITICAL ISSUE(S)` },
+                    'ERROR': { class: 'critical', text: 'SYSTEM ERROR' }
+                };
+                
+                const status = statusMap[data.overall_status] || statusMap['ERROR'];
+                this.updateStatus(status.class, status.text);
+                
+                if (data.warnings.length > 0) {
+                    this.addLine('', 'info');
+                    this.addLine('⚠ WARNINGS:', 'warn');
+                    data.warnings.forEach(w => this.addLine(`  • ${w}`, 'warn'));
+                }
+                
+                if (data.critical_issues.length > 0) {
+                    this.addLine('', 'info');
+                    this.addLine('✗ CRITICAL ISSUES:', 'fail');
+                    data.critical_issues.forEach(i => this.addLine(`  • ${i}`, 'fail'));
+                }
+                
+                this.addLine('', 'info');
+                this.addLine(`> Scan completed at ${new Date().toLocaleTimeString()}`, 'info');
+                this.addLine(`> Next scan in ${this.autoRunInterval/1000} seconds...`, 'info');
+            }
+            
+            addCheckLine(icon, name, message, statusClass) {
+                const line = document.createElement('div');
+                line.className = `terminal-line check-line check-${statusClass}`;
+                line.innerHTML = `<span class="check-icon">${icon}</span><span class="check-name">${name}</span><span class="check-message">${message}</span>`;
+                this.output.appendChild(line);
+                this.scrollToBottom();
+            }
+            
+            addLine(text, type = 'info') {
+                const line = document.createElement('div');
+                line.className = `terminal-line check-${type}`;
+                line.textContent = text;
+                this.output.appendChild(line);
+                this.scrollToBottom();
+            }
+            
+            addSummaryBox(data) {
+                const box = document.createElement('div');
+                box.className = 'summary-box';
+                const passCount = data.checks.filter(c => c.status === 'PASS').length;
+                const warnCount = data.checks.filter(c => c.status === 'WARN').length;
+                const failCount = data.checks.filter(c => c.status === 'FAIL').length;
+                box.innerHTML = `<div class="summary-title">System Health Metrics</div><div class="summary-grid"><div class="summary-item"><span class="summary-label">Total Checks:</span><span class="summary-value">${data.checks.length}</span></div><div class="summary-item"><span class="summary-label">Passed:</span><span class="summary-value" style="color: #00ff00;">${passCount}</span></div><div class="summary-item"><span class="summary-label">Warnings:</span><span class="summary-value" style="color: #ffaa00;">${warnCount}</span></div><div class="summary-item"><span class="summary-label">Failed:</span><span class="summary-value" style="color: #ff0000;">${failCount}</span></div></div>`;
+                this.output.appendChild(box);
+                this.scrollToBottom();
+            }
+            
+            addEventDistributionChart(data) {
+                const chart = document.createElement('div');
+                chart.className = 'diagnostic-chart';
+                const maxValue = Math.max(...Object.values(data));
+                const bars = Object.entries(data).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([label, value]) => {
+                    const percentage = (value / maxValue) * 100;
+                    return `<div class="bar-item"><div class="bar-label">${label}</div><div class="bar-visual"><div class="bar-fill" style="width: ${percentage}%"></div></div><div class="bar-value">${value}</div></div>`;
+                }).join('');
+                chart.innerHTML = `<div class="chart-title">Event Distribution (24h)</div><div class="bar-chart">${bars}</div>`;
+                this.output.appendChild(chart);
+                this.scrollToBottom();
+            }
+            
+            addSessionDistributionChart(data) {
+                const chart = document.createElement('div');
+                chart.className = 'diagnostic-chart';
+                const maxValue = Math.max(...Object.values(data));
+                const bars = Object.entries(data).sort((a, b) => b[1] - a[1]).map(([label, value]) => {
+                    const percentage = (value / maxValue) * 100;
+                    return `<div class="bar-item"><div class="bar-label">${label}</div><div class="bar-visual"><div class="bar-fill" style="width: ${percentage}%"></div></div><div class="bar-value">${value}</div></div>`;
+                }).join('');
+                chart.innerHTML = `<div class="chart-title">Session Distribution (24h)</div><div class="bar-chart">${bars}</div>`;
+                this.output.appendChild(chart);
+                this.scrollToBottom();
+            }
+            
+            updateStatus(statusClass, text) {
+                this.statusIndicator.className = `status-indicator status-${statusClass}`;
+                this.statusText.textContent = text;
+            }
+            
+            clear() {
+                this.output.innerHTML = '';
+                this.progressBar.style.width = '0%';
+            }
+            
+            scrollToBottom() {
+                const terminal = document.getElementById('diagnosticTerminal');
+                if (terminal) terminal.scrollTop = terminal.scrollHeight;
+            }
+            
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // Initialize diagnostic terminal
+        const diagnosticTerminal = new DiagnosticTerminal();
+        diagnosticTerminal.start();
     </script>
 </body>
 </html>

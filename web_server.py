@@ -425,6 +425,7 @@ if db_enabled and db:
 # Initialize robust WebSocket and API handlers
 from websocket_handler_robust import RobustWebSocketHandler, register_websocket_handlers
 from automated_signals_api_robust import register_automated_signals_api_robust
+from system_diagnostics_api import register_diagnostics_api
 
 # Initialize robust WebSocket handler
 robust_ws_handler = RobustWebSocketHandler(socketio, db) if db_enabled else None
@@ -436,7 +437,9 @@ if robust_ws_handler:
 # Register robust automated signals API endpoints
 if db_enabled:
     register_automated_signals_api_robust(app, db)
+    register_diagnostics_api(app)
     logger.info("✅ Robust API endpoints registered")
+    logger.info("✅ Diagnostics API registered")
 
 # Keep legacy handler for backward compatibility
 from realtime_signal_handler import RealtimeSignalHandler
