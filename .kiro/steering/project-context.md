@@ -161,6 +161,220 @@ I have a comprehensive cloud-based NASDAQ day trading analytics platform built w
 
 **Complete specification available in: `WEBAPP_STRUCTURE_SPECIFICATION.md`**
 
+---
+
+## 🎯 **AUTOMATED SIGNALS SYSTEM ARCHITECTURE**
+
+### **System Overview:**
+The Automated Signals system represents a complete end-to-end automation pipeline from TradingView signal generation to real-time dashboard analytics. This system took significant development effort to architect correctly and is now largely functional with only cosmetic improvements needed.
+
+### **🏗️ CORE ARCHITECTURE COMPONENTS:**
+
+#### **1. TradingView Indicator (`complete_automated_trading_system.pine`)**
+**Purpose:** Comprehensive signal generation, confirmation tracking, and MFE calculation
+
+**Key Features:**
+- **Signal Detection:** FVG/IFVG bias changes with HTF alignment
+- **Confirmation Monitoring:** Tracks pending signals until confirmation or cancellation
+- **Exact Methodology:** Implements precise pivot detection and stop loss calculation
+- **Dual MFE Tracking:** Separate tracking for BE=1 and No BE strategies
+- **Real-time Updates:** Sends webhooks for signal creation, MFE updates, BE triggers, and completions
+- **Position Sizing:** Automated contract calculation based on risk parameters
+
+**Webhook Events:**
+1. `signal_created` - When confirmation happens (entry ready)
+2. `mfe_update` - Every bar while trade is active
+3. `be_triggered` - When +1R achieved (BE=1 strategy)
+4. `signal_completed` - When stop loss hit (either strategy)
+
+**Critical Implementation Details:**
+- Entry happens at OPEN of bar AFTER confirmation
+- MFE tracking starts from entry bar, not confirmation bar
+- Extreme prices (highest_high/lowest_low) only update while trade is active
+- Stop loss detection prevents extreme price updates on the stop bar
+- Dual MFE values calculated: `be_mfe` (with BE) and `no_be_mfe` (without BE)
+
+#### **2. Backend API (`web_server.py` + `automated_signals_api_robust.py`)**
+**Purpose:** Webhook reception, data processing, and API endpoints
+
+**Webhook Handler (`/api/automated-signals/webhook`):**
+- Receives all 4 webhook event types from TradingView
+- Validates payload structure and required fields
+- Inserts events into `automated_signals` table
+- Broadcasts updates via WebSocket to connected clients
+- Handles timezone conversion (TradingView → Database)
+
+**API Endpoints:**
+- `/api/automated-signals/dashboard-data` - Complete dashboard data
+- `/api/automated-signals/stats` - Summary statistics
+- `/api/automated-signals/stats-live` - Non-cached stats (cache-busting)
+- `/api/automated-signals/delete/<trade_id>` - Delete signal
+
+**Robust Error Handling:**
+- Fresh database connections (not stale `db.conn`)
+- Graceful fallbacks for missing data
+- Comprehensive logging for debugging
+- JSON serialization handling for Decimal types
+
+#### **3. Database Schema (`automated_signals` table)**
+**Purpose:** Event-based storage of all signal lifecycle events
+
+**Key Columns:**
+- `trade_id` - Unique identifier (format: `YYYYMMDD_HHMMSS_DIRECTION`)
+- `event_type` - SIGNAL_CREATED, MFE_UPDATE, BE_TRIGGERED, EXIT_SL
+- `direction` - Bullish or Bearish
+- `entry_price` - Calculated entry price
+- `stop_loss` - Calculated stop loss price
+- `risk_distance` - Entry to stop distance
+- `mfe` - Legacy MFE column
+- `be_mfe` - MFE for BE=1 strategy
+- `no_be_mfe` - MFE for No BE strategy
+- `session` - Trading session (ASIA, LONDON, NY PRE, NY AM, NY LUNCH, NY PM)
+- `bias` - HTF bias alignment
+- `signal_date` - Date of signal (Eastern Time)
+- `signal_time` - Time of signal (Eastern Time)
+- `timestamp` - Event timestamp
+
+**Event-Based Architecture:**
+- Each webhook creates a NEW row (not updates)
+- Multiple rows per trade_id (one per event)
+- Dashboard queries aggregate by trade_id
+- Latest MFE_UPDATE provides current MFE values
+- EXIT_SL event marks trade completion
+
+#### **4. Frontend Dashboard (`automated_signals_dashboard.html`)**
+**Purpose:** Real-time visualization and trade management
+
+**Dashboard Sections:**
+1. **Summary Stats** - Win rate, avg MFE, active/completed counts
+2. **Active Trades** - Currently running signals with live MFE
+3. **Completed Trades** - Historical signals with final outcomes
+4. **Activity Feed** - Real-time event stream (WebSocket)
+
+**Real-Time Features:**
+- WebSocket connection for live updates
+- Auto-refresh on new signals
+- Live MFE value updates
+- Session-based color coding
+- Delete functionality for bad signals
+
+**Data Flow:**
+```
+TradingView Indicator
+    ↓ (webhook)
+Backend API Handler
+    ↓ (database insert)
+PostgreSQL Database
+    ↓ (query)
+API Endpoints
+    ↓ (JSON response)
+Frontend Dashboard
+    ↓ (WebSocket)
+Live Updates
+```
+
+### **🔧 CRITICAL IMPLEMENTATION LESSONS:**
+
+#### **MFE Calculation Challenges:**
+**Problem:** Stopped-out trades showing inflated MFE values
+**Root Cause:** Extreme prices updated on the bar where stop was hit
+**Solution:** Check if stop will be hit BEFORE updating extreme prices
+**Implementation:** `stop_hit_this_bar` flag prevents extreme updates on stop bar
+
+#### **Timezone Handling:**
+**Problem:** Signal times not matching between TradingView and database
+**Root Cause:** TradingView uses `time` (UTC), database expects Eastern Time
+**Solution:** Indicator uses `America/New_York` timezone for all timestamps
+**Implementation:** `timestamp.new()` with timezone parameter
+
+#### **Database Connection Issues:**
+**Problem:** Stale `db.conn` causing query failures
+**Root Cause:** Flask app's db object connection can become stale
+**Solution:** Create fresh connections in API endpoints
+**Implementation:** `psycopg2.connect(DATABASE_URL)` in each endpoint
+
+#### **Caching Issues:**
+**Problem:** Stats endpoint returning stale data
+**Root Cause:** Flask or browser caching GET requests
+**Solution:** Created `/stats-live` endpoint with cache-busting headers
+**Implementation:** `Cache-Control: no-cache, no-store, must-revalidate`
+
+#### **Dual MFE Tracking:**
+**Problem:** Need separate MFE for BE=1 vs No BE strategies
+**Root Cause:** BE=1 stops at entry (+1R), No BE continues to original stop
+**Solution:** Track both MFE values simultaneously
+**Implementation:** `be_mfe` and `no_be_mfe` columns, separate tracking logic
+
+### **📋 CURRENT STATUS:**
+
+**✅ Working Features:**
+- Signal detection and confirmation tracking
+- Webhook reception and database storage
+- Real-time MFE calculation and updates
+- Dual MFE tracking (BE=1 and No BE)
+- Dashboard data display and refresh
+- WebSocket live updates
+- Delete functionality
+- Session filtering and timezone handling
+
+**🎨 Cosmetic Improvements Needed:**
+- Dashboard styling and layout refinements
+- Chart visualizations for MFE trends
+- Enhanced filtering and sorting options
+- Mobile responsiveness improvements
+- Performance metrics displays
+
+**🚫 Known Issues:**
+- Historical MFE values may be inflated (pre-fix data)
+- Need to clear old test data periodically
+- WebSocket reconnection could be more robust
+
+### **🎯 FUTURE ENHANCEMENTS:**
+
+1. **Advanced Analytics:**
+   - MFE distribution charts
+   - Session performance comparison
+   - Win rate by time of day
+   - Correlation analysis
+
+2. **Trade Management:**
+   - Manual exit functionality
+   - Partial position closing
+   - Stop loss adjustment
+   - Target management
+
+3. **Performance Optimization:**
+   - Database indexing improvements
+   - Query optimization for large datasets
+   - Caching strategy for stats
+   - Pagination for trade lists
+
+4. **Integration:**
+   - Connect to Strategy Optimizer
+   - Feed ML Dashboard with automated data
+   - Sync with Signal Lab for comparison
+   - Export to reporting tools
+
+### **⚠️ CRITICAL MAINTENANCE NOTES:**
+
+**DO NOT:**
+- Change the event-based database architecture (multiple rows per trade)
+- Modify the webhook payload structure without updating indicator
+- Simplify the MFE calculation logic
+- Remove the dual MFE tracking system
+- Change timezone handling (must stay America/New_York)
+
+**ALWAYS:**
+- Test webhook changes on production Railway deployment
+- Verify MFE calculations with real market data
+- Maintain backward compatibility with existing data
+- Document any schema changes thoroughly
+- Keep indicator and backend in sync
+
+**This system represents months of development and debugging. Treat it with respect and maintain its architectural integrity.**
+
+---
+
 ## 🚨 **CRITICAL NO FAKE DATA RULE** 🚨
 
 **⚠️ NEVER USE FALLBACK, SAMPLE, OR SIMULATION DATA ⚠️**

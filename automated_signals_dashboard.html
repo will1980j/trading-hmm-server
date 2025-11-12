@@ -1406,6 +1406,9 @@
 
         // Auto-check health every 30 seconds
         setInterval(checkSystemHealth, 30000);
+        
+        // Auto-refresh dashboard data every 60 seconds to catch MFE updates
+        setInterval(loadInitialData, 60000);
 
         // Initialize
         loadInitialData();

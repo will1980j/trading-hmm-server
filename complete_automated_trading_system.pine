@@ -270,6 +270,7 @@ var array<label> signal_labels = array.new<label>()
 var array<int> signal_entry_times = array.new<int>()
 var array<float> signal_lowest_lows = array.new<float>()  // Track lowest low since signal (for bullish)
 var array<float> signal_highest_highs = array.new<float>()  // Track highest high since signal (for bearish)
+var array<bool> signal_has_entered = array.new<bool>()  // Track if trade has actually entered (after confirmation)
 
 // Store line references to manage them like MFE labels
 var array<line> entry_lines = array.new<line>()
@@ -317,7 +318,9 @@ if show_bear_triangle and active_signal == "Bullish"
 if waiting_for_confirmation and active_signal == "Bullish"
     if close > signal_candle_high
         waiting_for_confirmation := false
-        entry_price := close
+        // Entry happens at OPEN of NEXT bar, not close of confirmation bar
+        // But we don't know next bar's open yet, so we'll update it on the next bar
+        entry_price := close  // Temporary - will be updated to next bar's open
         
         // Find lowest point from signal candle to current (confirmation) candle
         int bars_since_signal = bar_index - signal_bar_index
@@ -396,9 +399,10 @@ if waiting_for_confirmation and active_signal == "Bullish"
         array.push(signal_no_be_stopped, false)  // No BE strategy starts active
         array.push(signal_completes, false)
         array.push(signal_labels, label(na))
-        array.push(signal_entry_times, signal_candle_time)  // Use SIGNAL candle time, not entry time
+        array.push(signal_entry_times, time)  // Use CURRENT time (confirmation bar) for MFE tracking
         array.push(signal_lowest_lows, entry_price)  // Initialize with entry price for accurate MFE tracking
         array.push(signal_highest_highs, entry_price)  // Initialize with entry price for accurate MFE tracking
+        array.push(signal_has_entered, false)  // Will be set to true on NEXT bar (after entry)
         
         // CRITICAL FIX: Mark as confirmed but DON'T reset trade_ready yet
         // Let webhook code execute first, then reset on next bar
@@ -490,9 +494,10 @@ if waiting_for_confirmation and active_signal == "Bearish"
         array.push(signal_no_be_stopped, false)  // No BE strategy starts active
         array.push(signal_completes, false)
         array.push(signal_labels, label(na))
-        array.push(signal_entry_times, signal_candle_time)  // Use SIGNAL candle time, not entry time
+        array.push(signal_entry_times, time)  // Use CURRENT time (confirmation bar) for MFE tracking
         array.push(signal_lowest_lows, entry_price)  // Initialize with entry price for accurate MFE tracking
         array.push(signal_highest_highs, entry_price)  // Initialize with entry price for accurate MFE tracking
+        array.push(signal_has_entered, false)  // Will be set to true on NEXT bar (after entry)
         
         // CRITICAL FIX: Mark as confirmed but DON'T reset trade_ready yet
         // Let webhook code execute first, then reset on next bar
@@ -539,24 +544,56 @@ if array.size(signal_entries) > 0
         bool sig_no_be_stopped = array.get(signal_no_be_stopped, i)
         float sig_lowest_low = array.get(signal_lowest_lows, i)
         float sig_highest_high = array.get(signal_highest_highs, i)
+        int sig_entry_time = array.get(signal_entry_times, i)
         
-        // Update extreme prices on EVERY bar (not just recent)
+        // Mark signal as entered on the bar AFTER it was added (entry happens at open of next bar)
+        bool sig_has_entered = array.get(signal_has_entered, i)
+        if not sig_has_entered and time > sig_entry_time
+            // FIRST bar after confirmation - initialize extremes with THIS bar's OPEN (actual entry price)
+            // This ensures MFE tracking starts from actual entry, not confirmation close
+            array.set(signal_lowest_lows, i, open)
+            array.set(signal_highest_highs, i, open)
+            array.set(signal_has_entered, i, true)
+            sig_has_entered := true
+            sig_lowest_low := open
+            sig_highest_high := open
+        
+        // CRITICAL: Check if stop loss is hit on THIS bar BEFORE updating extremes
+        // This prevents capturing price movement on the bar where the trade is closed
+        bool stop_hit_this_bar = false
         if sig_dir == "Bullish"
-            // For bullish: track HIGHEST high (favorable) and LOWEST low (for stop check)
-            if high > sig_highest_high
-                array.set(signal_highest_highs, i, high)
-                sig_highest_high := high
-            if low < sig_lowest_low
-                array.set(signal_lowest_lows, i, low)
-                sig_lowest_low := low
+            // Check if No BE stop loss is hit on this bar
+            if not sig_no_be_stopped and low <= sig_stop
+                stop_hit_this_bar := true
+            // Check if BE=1 stop (entry) is hit on this bar
+            if track_be_mfe and sig_be_triggered and not sig_be_stopped and low <= sig_entry
+                stop_hit_this_bar := true
         else  // Bearish
-            // For bearish: track LOWEST low (favorable) and HIGHEST high (for stop check)
-            if low < sig_lowest_low
-                array.set(signal_lowest_lows, i, low)
-                sig_lowest_low := low
-            if high > sig_highest_high
-                array.set(signal_highest_highs, i, high)
-                sig_highest_high := high
+            // Check if No BE stop loss is hit on this bar
+            if not sig_no_be_stopped and high >= sig_stop
+                stop_hit_this_bar := true
+            // Check if BE=1 stop (entry) is hit on this bar
+            if track_be_mfe and sig_be_triggered and not sig_be_stopped and high >= sig_entry
+                stop_hit_this_bar := true
+        
+        // Update extreme prices ONLY if trade has entered AND stop is NOT hit on this bar
+        if sig_has_entered and not stop_hit_this_bar
+            if sig_dir == "Bullish"
+                // For bullish: track HIGHEST high (favorable) and LOWEST low (for stop check)
+                if high > sig_highest_high
+                    array.set(signal_highest_highs, i, high)
+                    sig_highest_high := high
+                if low < sig_lowest_low
+                    array.set(signal_lowest_lows, i, low)
+                    sig_lowest_low := low
+            else  // Bearish
+                // For bearish: track LOWEST low (favorable) and HIGHEST high (for stop check)
+                if low < sig_lowest_low
+                    array.set(signal_lowest_lows, i, low)
+                    sig_lowest_low := low
+                if high > sig_highest_high
+                    array.set(signal_highest_highs, i, high)
+                    sig_highest_high := high
         
         // Calculate current MFE for all signals (to capture maximum even after completion)
         float current_mfe = 0.0
@@ -564,7 +601,6 @@ if array.size(signal_entries) > 0
         bool be_just_triggered = false
         
         // Only process signals from last 7 days for performance
-        int sig_entry_time = array.get(signal_entry_times, i)
         bool is_recent = (time - sig_entry_time) < 604800000  // 7 days in milliseconds
         
         // Calculate MFE using MAXIMUM favorable price movement (not current bar)
