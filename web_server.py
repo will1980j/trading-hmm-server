@@ -11002,13 +11002,28 @@ def get_automated_signals_dashboard_data():
         conn = psycopg2.connect(database_url)
         cursor = conn.cursor()
         
-        # Get all ENTRY signals (active trades)
+        # Get all ENTRY signals with latest MFE values (active trades)
         cursor.execute("""
-            SELECT id, trade_id, event_type, direction, entry_price, stop_loss,
-                   session, bias, timestamp, signal_date, signal_time
-            FROM automated_signals
-            WHERE event_type = 'ENTRY'
-            ORDER BY timestamp DESC
+            WITH latest_mfe AS (
+                SELECT DISTINCT ON (trade_id) 
+                    trade_id, be_mfe, no_be_mfe
+                FROM automated_signals
+                WHERE event_type = 'MFE_UPDATE'
+                ORDER BY trade_id, timestamp DESC
+            )
+            SELECT e.id, e.trade_id, e.event_type, e.direction, e.entry_price, e.stop_loss,
+                   e.session, e.bias, e.timestamp, e.signal_date, e.signal_time,
+                   COALESCE(m.be_mfe, 0.0) as be_mfe,
+                   COALESCE(m.no_be_mfe, 0.0) as no_be_mfe
+            FROM automated_signals e
+            LEFT JOIN latest_mfe m ON e.trade_id = m.trade_id
+            WHERE e.event_type = 'ENTRY'
+            AND NOT EXISTS (
+                SELECT 1 FROM automated_signals ex
+                WHERE ex.trade_id = e.trade_id
+                AND ex.event_type LIKE 'EXIT_%'
+            )
+            ORDER BY e.timestamp DESC
             LIMIT 100
         """)
         
@@ -11026,17 +11041,21 @@ def get_automated_signals_dashboard_data():
                 "timestamp": row[8].isoformat() if row[8] else None,
                 "date": row[9].isoformat() if row[9] else None,
                 "time": row[10].isoformat() if row[10] else None,
+                "be_mfe": float(row[11]) if row[11] is not None else 0.0,
+                "no_be_mfe": float(row[12]) if row[12] is not None else 0.0,
                 "status": "ACTIVE",
                 "trade_status": "ACTIVE"
             })
         
-        # Get all EXIT signals (completed trades)
+        # Get all EXIT signals (completed trades) with MFE values
         cursor.execute("""
-            SELECT id, trade_id, event_type, direction, entry_price, stop_loss,
-                   session, bias, timestamp, final_mfe
-            FROM automated_signals
-            WHERE event_type LIKE 'EXIT_%'
-            ORDER BY timestamp DESC
+            SELECT e.id, e.trade_id, e.event_type, e.direction, e.entry_price, e.stop_loss,
+                   e.session, e.bias, e.timestamp, 
+                   COALESCE(e.be_mfe, 0.0) as be_mfe,
+                   COALESCE(e.no_be_mfe, 0.0) as no_be_mfe
+            FROM automated_signals e
+            WHERE e.event_type LIKE 'EXIT_%'
+            ORDER BY e.timestamp DESC
             LIMIT 100
         """)
         
@@ -11052,7 +11071,8 @@ def get_automated_signals_dashboard_data():
                 "session": row[6],
                 "bias": row[7],
                 "timestamp": row[8].isoformat() if row[8] else None,
-                "final_mfe": float(row[9]) if row[9] else None,
+                "be_mfe": float(row[9]) if row[9] is not None else 0.0,
+                "no_be_mfe": float(row[10]) if row[10] is not None else 0.0,
                 "status": "COMPLETED",
                 "trade_status": "COMPLETED"
             })
