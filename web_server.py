@@ -10350,6 +10350,12 @@ def create_automated_signals_table():
 
 
 @app.route('/api/automated-signals', methods=['POST'])
+
+@app.route('/api/automated-signals/webhook', methods=['POST'])
+def automated_signals_webhook_alias():
+    """Alias for backward compatibility with /webhook suffix"""
+    return automated_signals_webhook()
+
 def automated_signals_webhook():
     """
     Webhook endpoint for automated trading signals from TradingView
@@ -10370,11 +10376,18 @@ def automated_signals_webhook():
         # Determine event type from either format
         if message_type:
             # STRATEGY FORMAT (complete_automated_trading_system.pine)
+            # Support BOTH old format (signal_created) and new format (ENTRY)
             type_to_event = {
                 'signal_created': 'ENTRY',
+                'ENTRY': 'ENTRY',  # Direct format from indicator
                 'mfe_update': 'MFE_UPDATE',
+                'MFE_UPDATE': 'MFE_UPDATE',  # Direct format from indicator
                 'be_triggered': 'BE_TRIGGERED',
-                'signal_completed': 'EXIT_SL'
+                'BE_TRIGGERED': 'BE_TRIGGERED',  # Direct format from indicator
+                'signal_completed': 'EXIT_SL',
+                'EXIT_SL': 'EXIT_SL',  # Direct format from indicator
+                'EXIT_STOP_LOSS': 'EXIT_SL',  # Alternative format
+                'EXIT_BREAK_EVEN': 'EXIT_BE'  # Alternative format
             }
             event_type = type_to_event.get(message_type)
             trade_id = data.get('signal_id')
