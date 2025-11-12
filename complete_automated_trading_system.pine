@@ -961,6 +961,7 @@ var array<string> active_signal_ids = array.new_string(0)
 var array<bool> be_trigger_sent_flags = array.new_bool(0)
 var array<bool> completion_sent_flags = array.new_bool(0)
 var bool webhook_sent_this_bar = false
+var bool indicator_initialized = false  // Track if indicator has processed historical bars
 
 // Helper function to find signal index by ID
 find_signal_index(signal_id) =>
@@ -972,13 +973,18 @@ find_signal_index(signal_id) =>
                 break
     found_index
 
+// Mark indicator as initialized after first real-time bar
+if barstate.isrealtime and not indicator_initialized
+    indicator_initialized := true
+
 // Reset webhook flag on new bar
 if barstate.isconfirmed
     webhook_sent_this_bar := false
 
 // 1. SIGNAL CREATION WEBHOOK
 // Send when new trade is ready (entry conditions met)
-if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and not barstate.ishistory and array.size(signal_entries) > 0
+// CRITICAL: Only send webhooks AFTER indicator has processed all historical bars
+if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and indicator_initialized and array.size(signal_entries) > 0
     // Get the most recent signal (just added)
     int last_index = array.size(signal_entries) - 1
     float sig_entry = array.get(signal_entries, last_index)
@@ -997,7 +1003,8 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
     
     // Create JSON payload using SIGNAL CANDLE time (not current bar time)
     // Force US/Eastern timezone for consistency with session validation
-    signal_created_payload = '{"type":"signal_created","signal_id":"' + signal_id + '","date":"' + str.format_time(signal_candle_time, "yyyy-MM-dd", "America/New_York") + '","time":"' + str.format_time(signal_candle_time, "HH:mm:ss", "America/New_York") + '","bias":"' + signal_direction + '","session":"' + current_session + '","entry_price":' + str.tostring(sig_entry) + ',"sl_price":' + str.tostring(sig_stop) + ',"risk_distance":' + str.tostring(sig_risk) + ',"be_price":' + str.tostring(sig_entry) + ',"target_1r":' + str.tostring(target_1r) + ',"target_2r":' + str.tostring(target_2r) + ',"target_3r":' + str.tostring(target_3r) + ',"be_hit":false,"be_mfe":0.00,"no_be_mfe":0.00,"status":"active","timestamp":' + str.tostring(signal_candle_time) + '}'
+    // CRITICAL: Backend expects event_type "ENTRY" not "signal_created"
+    signal_created_payload = '{"type":"ENTRY","signal_id":"' + signal_id + '","date":"' + str.format_time(signal_candle_time, "yyyy-MM-dd", "America/New_York") + '","time":"' + str.format_time(signal_candle_time, "HH:mm:ss", "America/New_York") + '","bias":"' + signal_direction + '","session":"' + current_session + '","entry_price":' + str.tostring(sig_entry) + ',"sl_price":' + str.tostring(sig_stop) + ',"risk_distance":' + str.tostring(sig_risk) + ',"be_price":' + str.tostring(sig_entry) + ',"target_1r":' + str.tostring(target_1r) + ',"target_2r":' + str.tostring(target_2r) + ',"target_3r":' + str.tostring(target_3r) + ',"be_hit":false,"be_mfe":0.00,"no_be_mfe":0.00,"status":"active","timestamp":' + str.tostring(signal_candle_time) + '}'
     
     // Send webhook
     alert(signal_created_payload, alert.freq_once_per_bar)
@@ -1015,7 +1022,8 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
 
 // 2. MFE UPDATE WEBHOOK
 // Send once per bar for ALL active signals (not just the last one)
-if barstate.isconfirmed and not barstate.ishistory and array.size(signal_entries) > 0 and array.size(active_signal_ids) > 0
+// CRITICAL: Only send webhooks AFTER indicator has processed all historical bars
+if barstate.isconfirmed and indicator_initialized and array.size(signal_entries) > 0 and array.size(active_signal_ids) > 0
     // Loop through all active signals and send MFE updates
     for sig_idx = 0 to array.size(active_signal_ids) - 1
         signal_id_to_update = array.get(active_signal_ids, sig_idx)
@@ -1028,14 +1036,16 @@ if barstate.isconfirmed and not barstate.ishistory and array.size(signal_entries
             current_highest_high = array.get(signal_highest_highs, sig_idx)
             
             // Create MFE update payload
-            mfe_update_payload = '{"type":"mfe_update","signal_id":"' + signal_id_to_update + '","current_price":' + str.tostring(close) + ',"be_mfe":' + str.tostring(current_mfe_be) + ',"no_be_mfe":' + str.tostring(current_mfe_none) + ',"lowest_low":' + str.tostring(current_lowest_low) + ',"highest_high":' + str.tostring(current_highest_high) + ',"status":"active","timestamp":' + str.tostring(time) + '}'
+            // CRITICAL: Backend expects event_type "MFE_UPDATE" not "mfe_update"
+            mfe_update_payload = '{"type":"MFE_UPDATE","signal_id":"' + signal_id_to_update + '","current_price":' + str.tostring(close) + ',"be_mfe":' + str.tostring(current_mfe_be) + ',"no_be_mfe":' + str.tostring(current_mfe_none) + ',"lowest_low":' + str.tostring(current_lowest_low) + ',"highest_high":' + str.tostring(current_highest_high) + ',"status":"active","timestamp":' + str.tostring(time) + '}'
             
             // Send MFE update once per bar (not every tick)
             alert(mfe_update_payload, alert.freq_once_per_bar)
 
 // 3. BE TRIGGER WEBHOOK
 // Send when BE=1 is triggered for any active signal
-if barstate.isconfirmed and not barstate.ishistory and array.size(signal_be_triggered) > 0 and array.size(active_signal_ids) > 0
+// CRITICAL: Only send webhooks AFTER indicator has processed all historical bars
+if barstate.isconfirmed and indicator_initialized and array.size(signal_be_triggered) > 0 and array.size(active_signal_ids) > 0
     // Loop through all active signals
     for sig_idx = 0 to array.size(active_signal_ids) - 1
         if sig_idx < array.size(be_trigger_sent_flags)
@@ -1051,7 +1061,8 @@ if barstate.isconfirmed and not barstate.ishistory and array.size(signal_be_trig
                     current_no_be_mfe = array.get(signal_mfes, sig_idx)
                     
                     // Create BE trigger payload
-                    be_trigger_payload = '{"type":"be_triggered","signal_id":"' + signal_id_for_be + '","be_hit":true,"be_mfe":' + str.tostring(current_be_mfe) + ',"no_be_mfe":' + str.tostring(current_no_be_mfe) + ',"timestamp":' + str.tostring(time) + '}'
+                    // CRITICAL: Backend expects event_type "BE_TRIGGERED" not "be_triggered"
+                    be_trigger_payload = '{"type":"BE_TRIGGERED","signal_id":"' + signal_id_for_be + '","be_hit":true,"be_mfe":' + str.tostring(current_be_mfe) + ',"no_be_mfe":' + str.tostring(current_no_be_mfe) + ',"timestamp":' + str.tostring(time) + '}'
                     
                     // Send BE trigger webhook
                     alert(be_trigger_payload, alert.freq_once_per_bar)
@@ -1059,7 +1070,8 @@ if barstate.isconfirmed and not barstate.ishistory and array.size(signal_be_trig
 
 // 4. COMPLETION WEBHOOK
 // Send when any signal is completed (stop loss hit)
-if barstate.isconfirmed and not barstate.ishistory and array.size(signal_be_stopped) > 0 and array.size(signal_no_be_stopped) > 0 and array.size(active_signal_ids) > 0
+// CRITICAL: Only send webhooks AFTER indicator has processed all historical bars
+if barstate.isconfirmed and indicator_initialized and array.size(signal_be_stopped) > 0 and array.size(signal_no_be_stopped) > 0 and array.size(active_signal_ids) > 0
     // Loop through all active signals
     for sig_idx = 0 to array.size(active_signal_ids) - 1
         if sig_idx < array.size(completion_sent_flags)
@@ -1078,7 +1090,9 @@ if barstate.isconfirmed and not barstate.ishistory and array.size(signal_be_stop
                     completion_reason = be_stopped ? "be_stop_loss_hit" : "original_stop_loss_hit"
                     
                     // Create completion payload
-                    completion_payload = '{"type":"signal_completed","signal_id":"' + signal_id_for_completion + '","completion_reason":"' + completion_reason + '","final_be_mfe":' + str.tostring(final_be_mfe) + ',"final_no_be_mfe":' + str.tostring(final_no_be_mfe) + ',"status":"completed","timestamp":' + str.tostring(time) + '}'
+                    // CRITICAL: Backend expects "EXIT_STOP_LOSS" or "EXIT_BREAK_EVEN" not "signal_completed"
+                    exit_event_type = be_stopped ? "EXIT_BREAK_EVEN" : "EXIT_STOP_LOSS"
+                    completion_payload = '{"type":"' + exit_event_type + '","signal_id":"' + signal_id_for_completion + '","completion_reason":"' + completion_reason + '","final_be_mfe":' + str.tostring(final_be_mfe) + ',"final_no_be_mfe":' + str.tostring(final_no_be_mfe) + ',"status":"completed","timestamp":' + str.tostring(time) + '}'
                     
                     // Send completion webhook
                     alert(completion_payload, alert.freq_once_per_bar)
