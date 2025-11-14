@@ -567,17 +567,23 @@
             <div class="signals-panel">
                 <div class="panel-header">
                     <h2 class="panel-title">Live Signals</h2>
-                    <div class="filter-tabs">
-                        <div class="filter-tab active" data-filter="all">All</div>
-                        <div class="filter-tab" data-filter="pending">Pending</div>
-                        <div class="filter-tab" data-filter="confirmed">Confirmed</div>
-                        <div class="filter-tab" data-filter="resolved">Resolved</div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <div class="filter-tabs">
+                            <div class="filter-tab active" data-filter="all">All</div>
+                            <div class="filter-tab" data-filter="pending">Pending</div>
+                            <div class="filter-tab" data-filter="confirmed">Confirmed</div>
+                            <div class="filter-tab" data-filter="resolved">Resolved</div>
+                        </div>
+                        <button id="deleteSelectedBtn" style="display: none; padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                            Delete Selected (<span id="selectedCount">0</span>)
+                        </button>
                     </div>
                 </div>
                 <div id="signalsTableContainer">
                     <table class="signals-table">
                         <thead>
                             <tr>
+                                <th><input type="checkbox" id="selectAll" title="Select All"></th>
                                 <th>●</th>
                                 <th>Date</th>
                                 <th>Time</th>
@@ -592,7 +598,7 @@
                         </thead>
                         <tbody id="signalsTableBody">
                             <tr>
-                                <td colspan="10">
+                                <td colspan="11">
                                     <div class="empty-state">
                                         <div class="empty-state-icon">📊</div>
                                         <div>Waiting for automated signals...</div>
@@ -756,6 +762,7 @@
                 
                 return `
                     <tr>
+                        <td><input type="checkbox" class="trade-checkbox" data-trade-id="${signal.trade_id}"></td>
                         <td style="text-align: center;">${indicatorHtml}</td>
                         <td>${signalDate}</td>
                         <td>${signalTime}</td>
@@ -777,6 +784,9 @@
                     </tr>
                 `;
             }).join('');
+            
+            // Update checkbox listeners
+            updateCheckboxListeners();
         }
 
         function updateSignalStatus(tradeId, newStatus) {
@@ -959,6 +969,81 @@
                 second: '2-digit'
             });
         }
+
+        // Checkbox Selection Management
+        let selectedTrades = new Set();
+        
+        function updateCheckboxListeners() {
+            document.querySelectorAll('.trade-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', handleCheckboxChange);
+            });
+        }
+        
+        function handleCheckboxChange(e) {
+            const tradeId = e.target.dataset.tradeId;
+            if (e.target.checked) {
+                selectedTrades.add(tradeId);
+            } else {
+                selectedTrades.delete(tradeId);
+            }
+            updateDeleteButton();
+        }
+        
+        function updateDeleteButton() {
+            const btn = document.getElementById('deleteSelectedBtn');
+            const count = document.getElementById('selectedCount');
+            count.textContent = selectedTrades.size;
+            btn.style.display = selectedTrades.size > 0 ? 'block' : 'none';
+        }
+        
+        // Select All checkbox
+        document.getElementById('selectAll').addEventListener('change', function(e) {
+            const checkboxes = document.querySelectorAll('.trade-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = e.target.checked;
+                const tradeId = cb.dataset.tradeId;
+                if (e.target.checked) {
+                    selectedTrades.add(tradeId);
+                } else {
+                    selectedTrades.delete(tradeId);
+                }
+            });
+            updateDeleteButton();
+        });
+        
+        // Delete Selected button
+        document.getElementById('deleteSelectedBtn').addEventListener('click', async function() {
+            if (selectedTrades.size === 0) return;
+            
+            if (!confirm(`Delete ${selectedTrades.size} trade(s)? This will remove ALL events for these trades.`)) {
+                return;
+            }
+            
+            const tradeIds = Array.from(selectedTrades);
+            let successCount = 0;
+            let failCount = 0;
+            
+            for (const tradeId of tradeIds) {
+                try {
+                    const response = await fetch(`/api/automated-signals/delete/${tradeId}`, {
+                        method: 'DELETE'
+                    });
+                    if (response.ok) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                    }
+                } catch (error) {
+                    failCount++;
+                }
+            }
+            
+            alert(`Deleted ${successCount} trade(s). Failed: ${failCount}`);
+            selectedTrades.clear();
+            document.getElementById('selectAll').checked = false;
+            updateDeleteButton();
+            loadInitialData();
+        });
 
         // Initialize
         loadInitialData();
