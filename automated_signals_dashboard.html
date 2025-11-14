@@ -5,42 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Automated Signals Dashboard | Trading Platform</title> 
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <script src="/static/websocket_client_robust.js"></script>
     <style>
-        /* Navigation Bar */
-        .top-nav {
-            background: #141b3d;
-            padding: 12px 20px;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #2d3a5f;
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .top-nav a {
-            padding: 8px 12px;
-            background: #1a2142;
-            color: #f8fafc;
-            text-decoration: none;
-            border-radius: 6px;
-            font-size: 14px;
-            white-space: nowrap;
-            transition: all 0.2s;
-        }
-        
-        .top-nav a:hover {
-            background: #2d3a5f;
-        }
-        
-        .top-nav a.active {
-            background: #3b82f6;
-            color: white;
-        }
-        
-    
         * {
             margin: 0;
             padding: 0;
@@ -60,7 +25,7 @@
             margin: 0 auto;
         }
 
-        /* Header n */
+        /* Header */
         .header {
             background: rgba(0, 212, 255, 0.1);
             border: 1px solid rgba(0, 212, 255, 0.3);
@@ -145,108 +110,6 @@
 
         .stat-value.negative {
             color: #ef4444;
-        }
-
-        /* System Health Monitor */
-        .health-monitor {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .health-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .health-item {
-            background: rgba(255, 255, 255, 0.03);
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .health-item:hover {
-            transform: translateY(-2px);
-            border-color: rgba(0, 212, 255, 0.3);
-        }
-
-        .health-label {
-            font-size: 12px;
-            color: #94a3b8;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .health-icon {
-            font-size: 16px;
-        }
-
-        .health-status {
-            font-size: 14px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .health-status.online {
-            color: #4ade80;
-        }
-
-        .health-status.offline {
-            color: #ef4444;
-        }
-
-        .health-status.checking {
-            color: #fbbf24;
-        }
-
-        .health-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .health-indicator.online {
-            background: #4ade80;
-            box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
-            animation: pulse 2s infinite;
-        }
-
-        .health-indicator.offline {
-            background: #ef4444;
-        }
-
-        .health-indicator.checking {
-            background: #fbbf24;
-            animation: blink 1s infinite;
-        }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-
-        .health-details {
-            font-size: 11px;
-            color: #64748b;
-            margin-top: 4px;
-        }
-
-        .last-check {
-            font-size: 11px;
-            color: #64748b;
-            text-align: right;
-            margin-top: 10px;
         }
 
         /* Main Content Grid */
@@ -369,62 +232,6 @@
             background: rgba(139, 92, 246, 0.2);
             color: #8b5cf6;
         }
-        
-        /* Active Trade Highlighting */
-        .active-trade-row {
-            background: linear-gradient(90deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.02) 100%);
-            border-left: 3px solid #10b981;
-            animation: subtlePulse 3s ease-in-out infinite;
-        }
-        
-        @keyframes subtlePulse {
-            0%, 100% { 
-                background: linear-gradient(90deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.02) 100%);
-            }
-            50% { 
-                background: linear-gradient(90deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.03) 100%);
-            }
-        }
-        
-        .live-indicator {
-            display: inline-block;
-            animation: livePulse 2s ease-in-out infinite;
-            font-size: 10px;
-            vertical-align: middle;
-        }
-        
-        @keyframes livePulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.6; transform: scale(0.9); }
-        }
-        
-        .active-trade-row:hover {
-            background: linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.04) 100%);
-            transform: translateX(2px);
-            transition: all 0.2s ease;
-        }
-
-        /* Delete Button */
-        .delete-btn {
-            background: rgba(239, 68, 68, 0.2);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #ef4444;
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.2s;
-        }
-
-        .delete-btn:hover {
-            background: rgba(239, 68, 68, 0.3);
-            border-color: #ef4444;
-            transform: scale(1.05);
-        }
-
-        .delete-btn:active {
-            transform: scale(0.95);
-        }
 
         /* Activity Feed */
         .activity-panel {
@@ -432,8 +239,7 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
             padding: 20px;
-            min-height: 800px;
-            max-height: none;
+            max-height: 600px;
             overflow-y: auto;
         }
 
@@ -486,230 +292,6 @@
             font-size: 48px;
             margin-bottom: 16px;
             opacity: 0.5;
-        }
-
-        /* Diagnostic Terminal Styles */
-        .diagnostic-terminal {
-            background: rgba(26, 31, 58, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 20px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            color: #e0e0e0;
-            min-height: 750px;
-            height: auto;
-            overflow-y: auto;
-            position: relative;
-        }
-        
-        .terminal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .terminal-title {
-            font-size: 16px;
-            font-weight: bold;
-            color: #e0e0e0;
-        }
-        
-        .terminal-status {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-        
-        .status-healthy { background: #10b981; }
-        .status-warning { background: #f59e0b; }
-        .status-critical { background: #ef4444; }
-        .status-running { background: #3b82f6; }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-        
-        .terminal-output {
-            font-size: 13px;
-            line-height: 1.6;
-        }
-        
-        .terminal-line {
-            margin: 5px 0;
-            opacity: 0;
-            animation: fadeIn 0.3s forwards;
-        }
-        
-        @keyframes fadeIn {
-            to { opacity: 1; }
-        }
-        
-        .check-pass { color: #10b981; }
-        .check-warn { color: #f59e0b; }
-        .check-fail { color: #ef4444; }
-        .check-info { color: #3b82f6; }
-        
-        .check-line {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 5px 0;
-        }
-        
-        .check-icon {
-            font-size: 16px;
-            min-width: 20px;
-        }
-        
-        .check-name {
-            font-weight: bold;
-            min-width: 200px;
-        }
-        
-        .check-message {
-            color: #aaa;
-        }
-        
-        .progress-bar {
-            width: 100%;
-            height: 4px;
-            background: #1a1f3a;
-            border-radius: 2px;
-            overflow: hidden;
-            margin: 10px 0;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #00ff00, #00aaff);
-            width: 0%;
-            transition: width 0.3s ease;
-            box-shadow: 0 0 10px #00ff00;
-        }
-        
-        .diagnostic-chart {
-            margin: 15px 0;
-            padding: 15px;
-            background: #0f1429;
-            border-radius: 5px;
-            border: 1px solid #00ff00;
-        }
-        
-        .chart-title {
-            color: #00aaff;
-            font-size: 14px;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-        }
-        
-        .bar-chart {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        
-        .bar-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .bar-label {
-            min-width: 120px;
-            color: #aaa;
-            font-size: 12px;
-        }
-        
-        .bar-visual {
-            flex: 1;
-            height: 20px;
-            background: #1a1f3a;
-            border-radius: 3px;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        .bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #00ff00, #00aaff);
-            transition: width 0.5s ease;
-            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
-        }
-        
-        .bar-value {
-            min-width: 50px;
-            text-align: right;
-            color: #00ff00;
-            font-size: 12px;
-        }
-        
-        .summary-box {
-            background: #0f1429;
-            border: 1px solid #00ff00;
-            border-radius: 5px;
-            padding: 15px;
-            margin: 15px 0;
-        }
-        
-        .summary-title {
-            color: #00aaff;
-            font-size: 14px;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-        }
-        
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-        
-        .summary-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px;
-            background: #1a1f3a;
-            border-radius: 3px;
-        }
-        
-        .summary-label {
-            color: #aaa;
-            font-size: 12px;
-        }
-        
-        .summary-value {
-            color: #00ff00;
-            font-weight: bold;
-            font-size: 12px;
-        }
-        
-        .typing-cursor {
-            display: inline-block;
-            width: 8px;
-            height: 14px;
-            background: #00ff00;
-            margin-left: 2px;
-            animation: blink 1s infinite;
-        }
-        
-        @keyframes blink {
-            0%, 49% { opacity: 1; }
-            50%, 100% { opacity: 0; }
-        }
-        
-        .scan-animation {
-            display: none;
         }
 
         /* Scrollbar Styling */
@@ -900,71 +482,38 @@
                 font-size: 20px;
             }
         }
+    
+        /* Trade Status Indicators */
+        .trade-status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .trade-status-indicator.both-active {
+            background-color: #10b981; /* Green - both strategies active */
+        }
+        
+        .trade-status-indicator.be-triggered {
+            background-color: #3b82f6; /* Blue - BE triggered, No BE still active */
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
     </style>
 </head>
 <body>
-    <!-- Navigation Bar -->
-    <nav class="top-nav">
-        <a href="/homepage">🏠 Home</a>
-        <a href="/ml-dashboard">🤖 ML</a>
-        <a href="/signal-lab-dashboard">📊 Dashboard</a>
-        <a href="/signal-analysis-lab">🧪 Signal Lab</a>
-        <a href="/signal-lab-v2">🧪 Signal Lab V2</a>
-        <a href="/automated-signals" class="active">📡 Automated Signals</a>
-        <a href="/time-analysis">⏰ Time</a>
-        <a href="/strategy-optimizer">� Opotimizer</a>
-        <a href="/strategy-comparison">🏆 Compare</a>
-        <a href="/ai-business-advisor">🧠 AI Advisor</a>
-        <a href="/prop-portfolio">�T Prop</a>
-        <a href="/trade-manager">📋 Trades</a>
-        <a href="/financial-summary">💰 Finance</a>
-        <a href="/reporting-hub">📊 Reports</a>
-    </nav>
-
     <div class="dashboard-container">
         <!-- Header -->
         <div class="header">
-            <h1>🤖 Automated Signals Dashboard <span style="font-size: 0.6em; color: #64b5f6; font-weight: normal;">(US Eastern Time)</span></h1>
+            <h1>🤖 Automated Signals Dashboard</h1>
             <div class="connection-status">
                 <div class="status-dot" id="statusDot"></div>
                 <span id="statusText">Connected</span>
-            </div>
-        </div>
-
-        <!-- System Health Monitor -->
-        <div class="signals-panel" style="margin-bottom: 20px;">
-            <div class="panel-header">
-                <h2 class="panel-title">🔧 System Health Monitor</h2>
-                <button onclick="checkSystemHealth()" style="padding: 6px 12px; background: rgba(0,212,255,0.2); border: 1px solid rgba(0,212,255,0.3); color: white; border-radius: 6px; cursor: pointer; font-size: 12px;">Refresh Status</button>
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                <div class="health-item">
-                    <div class="health-label">🌐 Railway Server</div>
-                    <div class="health-status" id="serverStatus">Checking...</div>
-                </div>
-                <div class="health-item">
-                    <div class="health-label">📡 Webhook Endpoint</div>
-                    <div class="health-status" id="webhookStatus">Checking...</div>
-                </div>
-                <div class="health-item">
-                    <div class="health-label">💾 Database</div>
-                    <div class="health-status" id="databaseStatus">Checking...</div>
-                </div>
-                <div class="health-item">
-                    <div class="health-label">📊 API Endpoints</div>
-                    <div class="health-status" id="apiStatus">Checking...</div>
-                </div>
-                <div class="health-item">
-                    <div class="health-label">🔌 WebSocket</div>
-                    <div class="health-status" id="websocketStatus">Checking...</div>
-                </div>
-                <div class="health-item">
-                    <div class="health-label">📅 Calendar System</div>
-                    <div class="health-status" id="calendarStatus">Checking...</div>
-                </div>
-            </div>
-            <div style="margin-top: 15px; padding: 12px; background: rgba(0,212,255,0.05); border-radius: 8px; font-size: 13px; color: #94a3b8;">
-                <strong style="color: #00d4ff;">💡 Automation Status:</strong> <span id="automationMessage">System is fully operational and ready to receive signals 24/7</span>
             </div>
         </div>
 
@@ -983,12 +532,8 @@
                 <div class="stat-value positive" id="confirmedTrades">0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Avg MFE (BE=1)</div>
-                <div class="stat-value" id="avgMFE_BE">0.00R</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Avg MFE (No BE)</div>
-                <div class="stat-value" id="avgMFE_NoBE">0.00R</div>
+                <div class="stat-label">Avg MFE</div>
+                <div class="stat-value" id="avgMFE">0.00R</div>
             </div>
         </div>
 
@@ -1029,25 +574,12 @@
                         <div class="filter-tab" data-filter="resolved">Resolved</div>
                     </div>
                 </div>
-                <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
-                    <button id="batchDeleteBtn" onclick="batchDeleteSelected()" style="background: #ff4444; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; display: none;">
-                        🗑️ Delete Selected (<span id="selectedCount">0</span>)
-                    </button>
-                    <button onclick="selectAllTrades()" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 6px; cursor: pointer;">
-                        Select All
-                    </button>
-                    <button onclick="deselectAllTrades()" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 6px; cursor: pointer;">
-                        Deselect All
-                    </button>
-                </div>
                 <div id="signalsTableContainer">
                     <table class="signals-table">
                         <thead>
                             <tr>
-                                <th style="width: 40px;">
-                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" style="cursor: pointer;">
-                                </th>
-                                <th>Time (ET)</th>
+                                <th>●</th>
+                                <th>Time</th>
                                 <th>Direction</th>
                                 <th>Entry</th>
                                 <th>Stop Loss</th>
@@ -1055,7 +587,6 @@
                                 <th>MFE (BE=1)</th>
                                 <th>MFE (No BE)</th>
                                 <th>Status</th>
-                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="signalsTableBody">
@@ -1072,32 +603,15 @@
                 </div>
             </div>
 
-            <!-- Live System Diagnostics Terminal -->
+            <!-- Activity Feed -->
             <div class="activity-panel">
-                <div class="diagnostic-terminal" id="diagnosticTerminal">
-                    <div class="scan-animation"></div>
-                    
-                    <div class="terminal-header">
-                        <div class="terminal-title">
-                            🔍 LIVE SYSTEM DIAGNOSTICS
-                        </div>
-                        <div class="terminal-status">
-                            <div class="status-indicator status-running" id="statusIndicator"></div>
-                            <span id="statusText">INITIALIZING...</span>
-                        </div>
-                    </div>
-                    
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progressBar"></div>
-                    </div>
-                    
-                    <div class="terminal-output" id="terminalOutput">
-                        <div class="terminal-line check-info">
-                            > System Diagnostics Engine v2.0<span class="typing-cursor"></span>
-                        </div>
-                        <div class="terminal-line check-info">
-                            > Initializing comprehensive health checks...
-                        </div>
+                <div class="panel-header">
+                    <h2 class="panel-title">Activity Feed</h2>
+                </div>
+                <div id="activityFeed">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔔</div>
+                        <div>No activity yet</div>
                     </div>
                 </div>
             </div>
@@ -1107,106 +621,34 @@
     <script>
         // Calendar implementation updated: 2025-11-09 23:25:25
 
-        // Robust WebSocket Connection
-        const wsClient = new RobustWebSocketClient({
-            reconnectDelay: 1000,
-            maxReconnectDelay: 30000,
-            maxReconnectAttempts: 10,
-            pollingFallbackDelay: 60000
-        });
-        
+        // WebSocket Connection
+        const socket = io();
         let signals = [];
         let currentFilter = 'all';
         let selectedDate = null;
         let currentMonth = new Date().getMonth();
         let currentYear = new Date().getFullYear();
 
-        // Register WebSocket event handlers
-        wsClient.on('connected', () => {
-            console.log('[Dashboard] WebSocket connected');
+        // Connection Status
+        socket.on('connect', () => {
+            updateConnectionStatus(true);
             loadInitialData();
         });
 
-        wsClient.on('disconnected', (reason) => {
-            console.warn('[Dashboard] WebSocket disconnected:', reason);
+        socket.on('disconnect', () => {
+            updateConnectionStatus(false);
         });
 
-        wsClient.on('signal_update', (data) => {
-            console.log('[Dashboard] Signal update received:', data);
-            handleSignalUpdate(data);
-        });
-
-        wsClient.on('mfe_update', (data) => {
-            console.log('[Dashboard] MFE update received:', data);
-            handleMFEUpdate(data);
-        });
-
-        wsClient.on('trade_completed', (data) => {
-            console.log('[Dashboard] Trade completed:', data);
-            handleTradeCompletion(data);
-        });
-
-        wsClient.on('polling_update', (data) => {
-            console.log('[Dashboard] Polling update received');
-            if (data.success) {
-                updateDashboardFromPolling(data);
-            }
-        });
-
-        wsClient.on('connection_status', (status) => {
-            updateConnectionStatus(status.connected, status.message);
-        });
-
-        function updateConnectionStatus(connected, message = null) {
+        function updateConnectionStatus(connected) {
             const dot = document.getElementById('statusDot');
             const text = document.getElementById('statusText');
             
             if (connected) {
                 dot.classList.remove('disconnected');
                 text.textContent = 'Connected';
-                text.style.color = '#10b981';
             } else {
                 dot.classList.add('disconnected');
-                text.textContent = message || 'Disconnected';
-                text.style.color = '#ef4444';
-            }
-        }
-
-        // Handler functions for WebSocket events
-        function handleSignalUpdate(data) {
-            // Reload dashboard data when new signal arrives
-            loadInitialData();
-        }
-
-        function handleMFEUpdate(data) {
-            // Update specific trade's MFE in the UI
-            const tradeElement = document.querySelector(`[data-trade-id="${data.trade_id}"]`);
-            if (tradeElement) {
-                const mfeElement = tradeElement.querySelector('.mfe-value');
-                if (mfeElement && data.data.mfe) {
-                    mfeElement.textContent = data.data.mfe.toFixed(2) + 'R';
-                }
-            }
-        }
-
-        function handleTradeCompletion(data) {
-            // Reload dashboard when trade completes
-            loadInitialData();
-        }
-
-        function updateDashboardFromPolling(data) {
-            // Update dashboard from HTTP polling fallback
-            if (data.active_trades || data.completed_trades) {
-                signals = [...(data.active_trades || []), ...(data.completed_trades || [])].map(signal => {
-                    const timestamp = signal.created_at || signal.timestamp;
-                    if (timestamp && !signal.date) {
-                        const date = new Date(timestamp);
-                        signal.date = date.toISOString().split('T')[0];
-                    }
-                    return signal;
-                });
-                updateDashboard();
-                updateCalendar();
+                text.textContent = 'Disconnected';
             }
         }
 
@@ -1217,16 +659,8 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Combine active and completed trades and add date field
-                    signals = [...(data.active_trades || []), ...(data.completed_trades || [])].map(signal => {
-                        // Add date field from timestamp or created_at
-                        const timestamp = signal.created_at || signal.timestamp;
-                        if (timestamp && !signal.date) {
-                            const date = new Date(timestamp);
-                            signal.date = date.toISOString().split('T')[0]; // YYYY-MM-DD format
-                        }
-                        return signal;
-                    });
+                    // Combine active and completed trades
+                    signals = [...(data.active_trades || []), ...(data.completed_trades || [])];
                     updateDashboard();
                     updateCalendar();
                 }
@@ -1235,19 +669,19 @@
             }
         }
 
-        // Listen for New Signals (using wsClient from robust WebSocket)
-        wsClient.on('new_automated_signal', (data) => {
+        // Listen for New Signals
+        socket.on('new_automated_signal', (data) => {
             signals.unshift(data);
             updateDashboard();
             addActivityItem('New signal received', data);
         });
 
-        wsClient.on('signal_confirmed', (data) => {
+        socket.on('signal_confirmed', (data) => {
             updateSignalStatus(data.trade_id, 'confirmed');
             addActivityItem('Signal confirmed', data);
         });
 
-        wsClient.on('signal_resolved', (data) => {
+        socket.on('signal_resolved', (data) => {
             updateSignalStatus(data.trade_id, 'resolved');
             addActivityItem('Trade resolved', data);
         });
@@ -1260,39 +694,22 @@
 
         function updateStats() {
             const today = new Date().toDateString();
-            const todaySignals = signals.filter(s => {
-                const signalDate = s.created_at || s.timestamp;
-                return signalDate && new Date(signalDate).toDateString() === today;
-            });
+            const todaySignals = signals.filter(s => 
+                new Date(s.timestamp).toDateString() === today
+            );
 
             document.getElementById('totalSignals').textContent = todaySignals.length;
             document.getElementById('pendingSignals').textContent = 
-                todaySignals.filter(s => (s.trade_status || s.status) === 'PENDING').length;
+                todaySignals.filter(s => s.status === 'pending').length;
             document.getElementById('confirmedTrades').textContent = 
-                todaySignals.filter(s => {
-                    const status = s.trade_status || s.status;
-                    return status === 'CONFIRMED' || status === 'ACTIVE';
-                }).length;
+                todaySignals.filter(s => s.status === 'confirmed').length;
 
-            // Calculate both MFE averages
-            const mfeBEValues = todaySignals
-                .map(s => s.be_mfe || s.mfe_be || 0)
-                .filter(mfe => mfe > 0);
+            const avgMFE = todaySignals
+                .filter(s => s.mfe !== null)
+                .reduce((sum, s) => sum + (s.mfe || 0), 0) / 
+                (todaySignals.filter(s => s.mfe !== null).length || 1);
             
-            const mfeNoBEValues = todaySignals
-                .map(s => s.no_be_mfe || s.mfe_no_be || s.final_mfe || s.current_mfe || s.mfe || 0)
-                .filter(mfe => mfe > 0);
-            
-            const avgMFE_BE = mfeBEValues.length > 0 
-                ? mfeBEValues.reduce((sum, mfe) => sum + mfe, 0) / mfeBEValues.length 
-                : 0;
-            
-            const avgMFE_NoBE = mfeNoBEValues.length > 0 
-                ? mfeNoBEValues.reduce((sum, mfe) => sum + mfe, 0) / mfeNoBEValues.length 
-                : 0;
-            
-            document.getElementById('avgMFE_BE').textContent = avgMFE_BE.toFixed(2) + 'R';
-            document.getElementById('avgMFE_NoBE').textContent = avgMFE_NoBE.toFixed(2) + 'R';
+            document.getElementById('avgMFE').textContent = avgMFE.toFixed(2) + 'R';
         }
 
         function updateSignalsTable() {
@@ -1320,7 +737,7 @@
             if (filteredSignals.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="10">
+                        <td colspan="9">
                             <div class="empty-state">
                                 <div class="empty-state-icon">📊</div>
                                 <div>No ${selectedDate ? 'signals for selected date' : currentFilter + ' signals'}</div>
@@ -1334,23 +751,21 @@
             tbody.innerHTML = filteredSignals.slice(0, 50).map(signal => {
                 const direction = signal.bias || signal.direction;
                 const status = signal.trade_status || signal.status || 'pending';
-                // Get both MFE values from webhook data
-                const mfe_be = signal.be_mfe || signal.mfe_be || 0;
-                const mfe_no_be = signal.no_be_mfe || signal.mfe_no_be || signal.final_mfe || signal.current_mfe || signal.mfe || 0;
+                // Use the dual MFE values from API (be_mfe and no_be_mfe)
+                const be_mfe = signal.be_mfe || 0;
+                const no_be_mfe = signal.no_be_mfe || 0;
                 const timestamp = signal.created_at || signal.timestamp;
-                const tradeId = signal.trade_id;
-                // Use signal_time (signal candle time) if available, otherwise fall back to timestamp
-                const displayTime = signal.signal_time || signal.time || (timestamp ? formatTime(timestamp) : '-');
                 
-                const isActive = status.toLowerCase() === 'active';
-                const rowClass = isActive ? 'active-trade-row' : '';
+                // Determine status indicator color
+                const beTriggered = signal.be_triggered || false;
+                const isActive = status === 'CONFIRMED' || status === 'ACTIVE';
+                const indicatorClass = isActive ? (beTriggered ? 'be-triggered' : 'both-active') : '';
+                const indicatorHtml = isActive ? `<span class="trade-status-indicator ${indicatorClass}"></span>` : '';
                 
                 return `
-                    <tr data-trade-id="${tradeId}" class="${rowClass}">
-                        <td>
-                            <input type="checkbox" class="trade-checkbox" value="${tradeId}" onchange="updateSelectedCount()" style="cursor: pointer;">
-                        </td>
-                        <td>${isActive ? '<span class="live-indicator">🔴</span> ' : ''}${displayTime}</td>
+                    <tr>
+                        <td style="text-align: center;">${indicatorHtml}</td>
+                        <td>${signal.time || (timestamp ? formatTime(timestamp) : '-')}</td>
                         <td>
                             <span class="direction-badge ${direction ? direction.toLowerCase() : 'neutral'}">
                                 ${direction || '-'}
@@ -1359,17 +774,12 @@
                         <td>${signal.entry_price ? signal.entry_price.toFixed(2) : '-'}</td>
                         <td>${signal.stop_loss_price || signal.stop_loss ? (signal.stop_loss_price || signal.stop_loss).toFixed(2) : '-'}</td>
                         <td>${signal.session || '-'}</td>
-                        <td>${mfe_be > 0 ? mfe_be.toFixed(2) + 'R' : '-'}</td>
-                        <td>${mfe_no_be > 0 ? mfe_no_be.toFixed(2) + 'R' : '-'}</td>
+                        <td>${be_mfe ? be_mfe.toFixed(2) + 'R' : '-'}</td>
+                        <td>${no_be_mfe ? no_be_mfe.toFixed(2) + 'R' : '-'}</td>
                         <td>
                             <span class="status-badge ${status.toLowerCase()}">
                                 ${status}
                             </span>
-                        </td>
-                        <td>
-                            <button class="delete-btn" onclick="deleteSignal('${tradeId}')" title="Delete signal">
-                                🗑️
-                            </button>
                         </td>
                     </tr>
                 `;
@@ -1550,413 +960,15 @@
         // Utility Functions
         function formatTime(timestamp) {
             const date = new Date(timestamp);
-            // Display in US Eastern Time (matches TradingView)
             return date.toLocaleTimeString('en-US', { 
                 hour: '2-digit', 
                 minute: '2-digit',
-                second: '2-digit',
-                timeZone: 'America/New_York',
-                hour12: false
+                second: '2-digit'
             });
         }
-
-        // Delete Signal Function
-        async function deleteSignal(tradeId) {
-            if (!confirm(`Delete signal ${tradeId}?\n\nThis will remove ALL events for this trade (entry, MFE updates, completion).`)) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/automated-signals/delete/${tradeId}`, {
-                    method: 'DELETE'
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    // Remove from signals array
-                    signals = signals.filter(s => s.trade_id !== tradeId);
-                    
-                    // Update dashboard
-                    updateDashboard();
-                    
-                    // Show success message
-                    addActivityItem('Signal deleted', { trade_id: tradeId, direction: 'DELETED' });
-                    
-                    alert(`✅ Signal ${tradeId} deleted successfully!\n\nRemoved ${result.rows_deleted} database rows.`);
-                } else {
-                    alert(`❌ Failed to delete signal: ${result.error}`);
-                }
-            } catch (error) {
-                console.error('Delete error:', error);
-                alert(`❌ Error deleting signal: ${error.message}`);
-            }
-        }
-
-        // Batch Delete Functions
-        function updateSelectedCount() {
-            const checkboxes = document.querySelectorAll('.trade-checkbox:checked');
-            const count = checkboxes.length;
-            document.getElementById('selectedCount').textContent = count;
-            document.getElementById('batchDeleteBtn').style.display = count > 0 ? 'block' : 'none';
-        }
-
-        function toggleSelectAll(checkbox) {
-            const tradeCheckboxes = document.querySelectorAll('.trade-checkbox');
-            tradeCheckboxes.forEach(cb => {
-                cb.checked = checkbox.checked;
-            });
-            updateSelectedCount();
-        }
-
-        function selectAllTrades() {
-            document.getElementById('selectAllCheckbox').checked = true;
-            toggleSelectAll(document.getElementById('selectAllCheckbox'));
-        }
-
-        function deselectAllTrades() {
-            document.getElementById('selectAllCheckbox').checked = false;
-            toggleSelectAll(document.getElementById('selectAllCheckbox'));
-        }
-
-        async function batchDeleteSelected() {
-            const checkboxes = document.querySelectorAll('.trade-checkbox:checked');
-            const tradeIds = Array.from(checkboxes).map(cb => cb.value);
-            
-            if (tradeIds.length === 0) {
-                alert('No trades selected');
-                return;
-            }
-
-            if (!confirm(`Delete ${tradeIds.length} selected signals?\n\nThis will remove ALL events for these trades from the database.\n\nThis action cannot be undone!`)) {
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/automated-signals/batch-delete', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ trade_ids: tradeIds })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    // Remove from signals array
-                    signals = signals.filter(s => !tradeIds.includes(s.trade_id));
-                    
-                    // Update dashboard
-                    updateDashboard();
-                    
-                    // Reset checkboxes
-                    document.getElementById('selectAllCheckbox').checked = false;
-                    updateSelectedCount();
-                    
-                    alert(`✅ Successfully deleted ${tradeIds.length} signals!\n\nRemoved ${result.deleted_count} database rows.`);
-                } else {
-                    alert(`❌ Failed to delete signals: ${result.error}`);
-                }
-            } catch (error) {
-                console.error('Batch delete error:', error);
-                alert(`❌ Error deleting signals: ${error.message}`);
-            }
-        }
-
-        // System Health Check
-        async function checkSystemHealth() {
-            const checks = {
-                server: { element: 'serverStatus', name: 'Railway Server' },
-                webhook: { element: 'webhookStatus', name: 'Webhook Endpoint' },
-                database: { element: 'databaseStatus', name: 'Database' },
-                api: { element: 'apiStatus', name: 'API Endpoints' },
-                websocket: { element: 'websocketStatus', name: 'WebSocket' },
-                calendar: { element: 'calendarStatus', name: 'Calendar System' }
-            };
-
-            // Set all to checking
-            Object.values(checks).forEach(check => {
-                const el = document.getElementById(check.element);
-                el.className = 'health-status checking';
-                el.innerHTML = '<span class="health-indicator checking"></span> Checking...';
-            });
-
-            let allHealthy = true;
-
-            // 1. Check Server (basic connectivity)
-            try {
-                const serverCheck = await fetch('/api/automated-signals/dashboard-data');
-                if (serverCheck.ok) {
-                    updateHealthStatus('serverStatus', true, 'Online');
-                } else {
-                    updateHealthStatus('serverStatus', false, 'Error');
-                    allHealthy = false;
-                }
-            } catch (error) {
-                updateHealthStatus('serverStatus', false, 'Offline');
-                allHealthy = false;
-            }
-
-            // 2. Check Webhook Endpoint
-            try {
-                const webhookCheck = await fetch('/api/automated-signals', {
-                    method: 'OPTIONS'
-                });
-                updateHealthStatus('webhookStatus', true, 'Ready');
-            } catch (error) {
-                updateHealthStatus('webhookStatus', false, 'Error');
-                allHealthy = false;
-            }
-
-            // 3. Check Database
-            try {
-                const dbCheck = await fetch('/api/automated-signals/stats-live');
-                if (dbCheck.ok) {
-                    updateHealthStatus('databaseStatus', true, 'Connected');
-                } else {
-                    updateHealthStatus('databaseStatus', false, 'Error');
-                    allHealthy = false;
-                }
-            } catch (error) {
-                updateHealthStatus('databaseStatus', false, 'Offline');
-                allHealthy = false;
-            }
-
-            // 4. Check API Endpoints
-            try {
-                const apiCheck = await fetch('/api/automated-signals/stats-live');
-                if (apiCheck.ok) {
-                    updateHealthStatus('apiStatus', true, 'Operational');
-                } else {
-                    updateHealthStatus('apiStatus', false, 'Error');
-                    allHealthy = false;
-                }
-            } catch (error) {
-                updateHealthStatus('apiStatus', false, 'Failed');
-                allHealthy = false;
-            }
-
-            // 5. Check WebSocket
-            if (wsClient && wsClient.isConnected) {
-                updateHealthStatus('websocketStatus', true, 'Connected');
-            } else {
-                updateHealthStatus('websocketStatus', false, 'Disconnected');
-                allHealthy = false;
-            }
-
-            // 6. Check Calendar System
-            const calendarGrid = document.querySelector('.calendar-grid');
-            if (calendarGrid && calendarGrid.children.length > 0) {
-                updateHealthStatus('calendarStatus', true, 'Loaded');
-            } else {
-                updateHealthStatus('calendarStatus', false, 'Error');
-                allHealthy = false;
-            }
-
-            // Update automation message
-            const automationMsg = document.getElementById('automationMessage');
-            if (allHealthy) {
-                automationMsg.innerHTML = '✅ <strong>All systems operational!</strong> Ready to receive TradingView signals 24/7. Your laptop can be off - everything runs in the cloud.';
-                automationMsg.style.color = '#4ade80';
-            } else {
-                automationMsg.innerHTML = '⚠️ <strong>Some systems need attention.</strong> Check the status indicators above for details.';
-                automationMsg.style.color = '#fbbf24';
-            }
-        }
-
-        function updateHealthStatus(elementId, isHealthy, statusText) {
-            const el = document.getElementById(elementId);
-            el.className = `health-status ${isHealthy ? 'online' : 'offline'}`;
-            el.innerHTML = `<span class="health-indicator ${isHealthy ? 'online' : 'offline'}"></span> ${statusText}`;
-        }
-
-        // Auto-check health every 30 seconds
-        setInterval(checkSystemHealth, 30000);
-        
-        // Auto-refresh dashboard data every 60 seconds to catch MFE updates
-        setInterval(loadInitialData, 60000);
 
         // Initialize
         loadInitialData();
-        
-        // Run initial health check after 2 seconds
-        setTimeout(checkSystemHealth, 2000);
-
-        // Diagnostic Terminal Class
-        class DiagnosticTerminal {
-            constructor() {
-                this.output = document.getElementById('terminalOutput');
-                this.progressBar = document.getElementById('progressBar');
-                this.statusIndicator = document.getElementById('statusIndicator');
-                this.statusText = document.getElementById('statusText');
-                this.checkDelay = 300;
-                this.autoRunInterval = 30000;
-                this.isRunning = false;
-            }
-            
-            async start() {
-                if (this.isRunning) return;
-                this.isRunning = true;
-                
-                this.clear();
-                this.addLine('> Starting diagnostic scan...', 'info');
-                this.addLine('> Connecting to Railway database...', 'info');
-                
-                await this.sleep(500);
-                
-                try {
-                    const response = await fetch('/api/automated-signals/diagnostics/run');
-                    const data = await response.json();
-                    
-                    await this.displayResults(data);
-                    
-                    setTimeout(() => {
-                        this.isRunning = false;
-                        this.start();
-                    }, this.autoRunInterval);
-                    
-                } catch (error) {
-                    this.addLine(`✗ ERROR: ${error.message}`, 'fail');
-                    this.updateStatus('critical', 'ERROR');
-                    this.isRunning = false;
-                }
-            }
-            
-            async displayResults(data) {
-                const totalChecks = data.checks.length;
-                
-                for (let i = 0; i < data.checks.length; i++) {
-                    const check = data.checks[i];
-                    const progress = ((i + 1) / totalChecks) * 100;
-                    this.progressBar.style.width = `${progress}%`;
-                    
-                    const icon = check.status === 'PASS' ? '✅' : check.status === 'WARN' ? '⚠️' : check.status === 'FAIL' ? '❌' : 'ℹ️';
-                    const statusClass = check.status === 'PASS' ? 'pass' : check.status === 'WARN' ? 'warn' : check.status === 'FAIL' ? 'fail' : 'info';
-                    
-                    this.addCheckLine(icon, check.name, check.message, statusClass);
-                    await this.sleep(this.checkDelay);
-                }
-                
-                await this.sleep(500);
-                this.addLine('', 'info');
-                this.addLine('═══════════════════════════════════════════════════════', 'info');
-                this.addLine('> DIAGNOSTIC SUMMARY', 'info');
-                this.addLine('═══════════════════════════════════════════════════════', 'info');
-                
-                this.addSummaryBox(data);
-                
-                if (data.checks.length > 4 && data.checks[4].data) {
-                    this.addEventDistributionChart(data.checks[4].data);
-                }
-                
-                if (data.checks.length > 9 && data.checks[9].data) {
-                    this.addSessionDistributionChart(data.checks[9].data);
-                }
-                
-                const statusMap = {
-                    'HEALTHY': { class: 'healthy', text: 'ALL SYSTEMS OPERATIONAL' },
-                    'WARNING': { class: 'warning', text: `${data.warnings.length} WARNING(S) DETECTED` },
-                    'CRITICAL': { class: 'critical', text: `${data.critical_issues.length} CRITICAL ISSUE(S)` },
-                    'ERROR': { class: 'critical', text: 'SYSTEM ERROR' }
-                };
-                
-                const status = statusMap[data.overall_status] || statusMap['ERROR'];
-                this.updateStatus(status.class, status.text);
-                
-                if (data.warnings.length > 0) {
-                    this.addLine('', 'info');
-                    this.addLine('⚠️ WARNINGS:', 'warn');
-                    data.warnings.forEach(w => this.addLine(`  • ${w}`, 'warn'));
-                }
-                
-                if (data.critical_issues.length > 0) {
-                    this.addLine('', 'info');
-                    this.addLine('❌ CRITICAL ISSUES:', 'fail');
-                    data.critical_issues.forEach(i => this.addLine(`  • ${i}`, 'fail'));
-                }
-                
-                this.addLine('', 'info');
-                this.addLine(`> Scan completed at ${new Date().toLocaleTimeString()}`, 'info');
-                this.addLine(`> Next scan in ${this.autoRunInterval/1000} seconds...`, 'info');
-            }
-            
-            addCheckLine(icon, name, message, statusClass) {
-                const line = document.createElement('div');
-                line.className = `terminal-line check-line check-${statusClass}`;
-                line.innerHTML = `<span class="check-icon">${icon}</span><span class="check-name">${name}</span><span class="check-message">${message}</span>`;
-                this.output.appendChild(line);
-                this.scrollToBottom();
-            }
-            
-            addLine(text, type = 'info') {
-                const line = document.createElement('div');
-                line.className = `terminal-line check-${type}`;
-                line.textContent = text;
-                this.output.appendChild(line);
-                this.scrollToBottom();
-            }
-            
-            addSummaryBox(data) {
-                const box = document.createElement('div');
-                box.className = 'summary-box';
-                const passCount = data.checks.filter(c => c.status === 'PASS').length;
-                const warnCount = data.checks.filter(c => c.status === 'WARN').length;
-                const failCount = data.checks.filter(c => c.status === 'FAIL').length;
-                box.innerHTML = `<div class="summary-title">📊 System Health Metrics</div><div class="summary-grid"><div class="summary-item"><span class="summary-label">🔍 Total Checks:</span><span class="summary-value">${data.checks.length}</span></div><div class="summary-item"><span class="summary-label">✅ Passed:</span><span class="summary-value" style="color: #10b981;">${passCount}</span></div><div class="summary-item"><span class="summary-label">⚠️ Warnings:</span><span class="summary-value" style="color: #f59e0b;">${warnCount}</span></div><div class="summary-item"><span class="summary-label">❌ Failed:</span><span class="summary-value" style="color: #ef4444;">${failCount}</span></div></div>`;
-                this.output.appendChild(box);
-                this.scrollToBottom();
-            }
-            
-            addEventDistributionChart(data) {
-                const chart = document.createElement('div');
-                chart.className = 'diagnostic-chart';
-                const maxValue = Math.max(...Object.values(data));
-                const bars = Object.entries(data).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([label, value]) => {
-                    const percentage = (value / maxValue) * 100;
-                    return `<div class="bar-item"><div class="bar-label">${label}</div><div class="bar-visual"><div class="bar-fill" style="width: ${percentage}%"></div></div><div class="bar-value">${value}</div></div>`;
-                }).join('');
-                chart.innerHTML = `<div class="chart-title">Event Distribution (24h)</div><div class="bar-chart">${bars}</div>`;
-                this.output.appendChild(chart);
-                this.scrollToBottom();
-            }
-            
-            addSessionDistributionChart(data) {
-                const chart = document.createElement('div');
-                chart.className = 'diagnostic-chart';
-                const maxValue = Math.max(...Object.values(data));
-                const bars = Object.entries(data).sort((a, b) => b[1] - a[1]).map(([label, value]) => {
-                    const percentage = (value / maxValue) * 100;
-                    return `<div class="bar-item"><div class="bar-label">${label}</div><div class="bar-visual"><div class="bar-fill" style="width: ${percentage}%"></div></div><div class="bar-value">${value}</div></div>`;
-                }).join('');
-                chart.innerHTML = `<div class="chart-title">Session Distribution (24h)</div><div class="bar-chart">${bars}</div>`;
-                this.output.appendChild(chart);
-                this.scrollToBottom();
-            }
-            
-            updateStatus(statusClass, text) {
-                this.statusIndicator.className = `status-indicator status-${statusClass}`;
-                this.statusText.textContent = text;
-            }
-            
-            clear() {
-                this.output.innerHTML = '';
-                this.progressBar.style.width = '0%';
-            }
-            
-            scrollToBottom() {
-                const terminal = document.getElementById('diagnosticTerminal');
-                if (terminal) terminal.scrollTop = terminal.scrollHeight;
-            }
-            
-            sleep(ms) {
-                return new Promise(resolve => setTimeout(resolve, ms));
-            }
-        }
-
-        // Initialize diagnostic terminal
-        const diagnosticTerminal = new DiagnosticTerminal();
-        diagnosticTerminal.start();
     </script>
 </body>
 </html>
