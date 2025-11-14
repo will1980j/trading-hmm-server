@@ -44,14 +44,15 @@ def register_automated_signals_api(app, db):
                     e.direction as bias,
                     CAST(e.entry_price AS FLOAT) as entry_price,
                     CAST(e.stop_loss AS FLOAT) as stop_loss_price,
-                    CAST(COALESCE(m.mfe, e.mfe, 0) AS FLOAT) as current_mfe,
+                    CAST(COALESCE(m.be_mfe, e.be_mfe, 0) AS FLOAT) as be_mfe,
+                    CAST(COALESCE(m.no_be_mfe, e.no_be_mfe, 0) AS FLOAT) as no_be_mfe,
                     e.session,
                     {time_columns}
                     e.timestamp as created_at,
                     'ACTIVE' as trade_status
                 FROM automated_signals e
                 LEFT JOIN LATERAL (
-                    SELECT mfe, current_price
+                    SELECT be_mfe, no_be_mfe, current_price
                     FROM automated_signals
                     WHERE trade_id = e.trade_id
                     AND event_type = 'MFE_UPDATE'
@@ -73,8 +74,10 @@ def register_automated_signals_api(app, db):
                     trade['entry_price'] = float(trade['entry_price'])
                 if trade.get('stop_loss_price'):
                     trade['stop_loss_price'] = float(trade['stop_loss_price'])
-                if trade.get('current_mfe'):
-                    trade['current_mfe'] = float(trade['current_mfe'])
+                if trade.get('be_mfe'):
+                    trade['be_mfe'] = float(trade['be_mfe'])
+                if trade.get('no_be_mfe'):
+                    trade['no_be_mfe'] = float(trade['no_be_mfe'])
                 active_trades.append(trade)
             
             # Calculate duration for active trades
