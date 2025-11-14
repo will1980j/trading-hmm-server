@@ -482,6 +482,28 @@
                 font-size: 20px;
             }
         }
+    
+        /* Trade Status Indicators */
+        .trade-status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .trade-status-indicator.both-active {
+            background-color: #10b981; /* Green - both strategies active */
+        }
+        
+        .trade-status-indicator.be-triggered {
+            background-color: #3b82f6; /* Blue - BE triggered, No BE still active */
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
     </style>
 </head>
 <body>
@@ -556,18 +578,20 @@
                     <table class="signals-table">
                         <thead>
                             <tr>
+                                <th>●</th>
                                 <th>Time</th>
                                 <th>Direction</th>
                                 <th>Entry</th>
                                 <th>Stop Loss</th>
                                 <th>Session</th>
-                                <th>MFE</th>
+                                <th>MFE (BE=1)</th>
+                                <th>MFE (No BE)</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody id="signalsTableBody">
                             <tr>
-                                <td colspan="7">
+                                <td colspan="9">
                                     <div class="empty-state">
                                         <div class="empty-state-icon">📊</div>
                                         <div>Waiting for automated signals...</div>
@@ -713,7 +737,7 @@
             if (filteredSignals.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7">
+                        <td colspan="9">
                             <div class="empty-state">
                                 <div class="empty-state-icon">📊</div>
                                 <div>No ${selectedDate ? 'signals for selected date' : currentFilter + ' signals'}</div>
@@ -727,11 +751,20 @@
             tbody.innerHTML = filteredSignals.slice(0, 50).map(signal => {
                 const direction = signal.bias || signal.direction;
                 const status = signal.trade_status || signal.status || 'pending';
-                const mfe = signal.final_mfe || signal.current_mfe || signal.mfe;
+                // Use the dual MFE values from API (be_mfe and no_be_mfe)
+                const be_mfe = signal.be_mfe || 0;
+                const no_be_mfe = signal.no_be_mfe || 0;
                 const timestamp = signal.created_at || signal.timestamp;
+                
+                // Determine status indicator color
+                const beTriggered = signal.be_triggered || false;
+                const isActive = status === 'CONFIRMED' || status === 'ACTIVE';
+                const indicatorClass = isActive ? (beTriggered ? 'be-triggered' : 'both-active') : '';
+                const indicatorHtml = isActive ? `<span class="trade-status-indicator ${indicatorClass}"></span>` : '';
                 
                 return `
                     <tr>
+                        <td style="text-align: center;">${indicatorHtml}</td>
                         <td>${signal.time || (timestamp ? formatTime(timestamp) : '-')}</td>
                         <td>
                             <span class="direction-badge ${direction ? direction.toLowerCase() : 'neutral'}">
@@ -741,7 +774,8 @@
                         <td>${signal.entry_price ? signal.entry_price.toFixed(2) : '-'}</td>
                         <td>${signal.stop_loss_price || signal.stop_loss ? (signal.stop_loss_price || signal.stop_loss).toFixed(2) : '-'}</td>
                         <td>${signal.session || '-'}</td>
-                        <td>${mfe ? mfe.toFixed(2) + 'R' : '-'}</td>
+                        <td>${be_mfe ? be_mfe.toFixed(2) + 'R' : '-'}</td>
+                        <td>${no_be_mfe ? no_be_mfe.toFixed(2) + 'R' : '-'}</td>
                         <td>
                             <span class="status-badge ${status.toLowerCase()}">
                                 ${status}
