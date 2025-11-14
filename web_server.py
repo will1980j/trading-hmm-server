@@ -10465,12 +10465,21 @@ def handle_entry_signal(data):
                 targets JSONB,
                 current_price DECIMAL(10,2),
                 mfe DECIMAL(10,4),
+                be_mfe DECIMAL(10,4),
+                no_be_mfe DECIMAL(10,4),
                 exit_price DECIMAL(10,2),
                 final_mfe DECIMAL(10,4),
                 signal_date DATE,
                 signal_time TIME,
                 timestamp TIMESTAMP DEFAULT NOW()
             )
+        """)
+        
+        # Ensure be_mfe and no_be_mfe columns exist (for existing tables)
+        cursor.execute("""
+            ALTER TABLE automated_signals 
+            ADD COLUMN IF NOT EXISTS be_mfe DECIMAL(10,4),
+            ADD COLUMN IF NOT EXISTS no_be_mfe DECIMAL(10,4)
         """)
         conn.commit()
         logger.info("✅ Table automated_signals ready")
