@@ -1,0 +1,12 @@
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║  🚨 AFTER CHANGING THE INDICATOR, RUN THIS:                   ║
+║                                                                ║
+║     python update_indicator_docs.py "What you changed"        ║
+║                                                                ║
+║  This keeps INDICATOR_SESSION_STARTER.md current for          ║
+║  future sessions when you need to transfer context.           ║
+║                                                                ║
+║  Takes 10 seconds now, saves 20 minutes later!                ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
