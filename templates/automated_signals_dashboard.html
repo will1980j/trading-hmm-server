@@ -763,9 +763,14 @@
             }
         }
 
-        // Activity Feed
+        // Activity Feed (removed from UI but keeping function for compatibility)
         function addActivityItem(message, data) {
             const feed = document.getElementById('activityFeed');
+            
+            // Activity Feed removed - function is now a no-op
+            if (!feed) {
+                return;
+            }
             
             // Remove empty state if present
             const emptyState = feed.querySelector('.empty-state');
