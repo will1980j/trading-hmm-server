@@ -24,13 +24,19 @@ function renderPriceChartJourney(trade) {
     const isActive = !trade.latest_event_type || !trade.latest_event_type.startsWith('EXIT_');
     const isBullish = direction === 'Bullish';
     
+    console.log('Trade direction:', direction, 'isBullish:', isBullish);
+    console.log('Entry:', entryPrice, 'Stop:', stopLoss, 'Risk:', riskDistance);
+    console.log('MFE:', noBeRR);
+    
     // Ensure riskDistance is always positive (distance, not direction)
     if (riskDistance < 0) {
+        console.log('Risk distance was negative, converting to positive');
         riskDistance = Math.abs(riskDistance);
     }
     // If risk distance is missing or zero, calculate it
     if (!riskDistance || riskDistance === 0) {
         riskDistance = Math.abs(entryPrice - stopLoss);
+        console.log('Calculated risk distance:', riskDistance);
     }
     
     // If incomplete data, show simple MFE bars
@@ -60,15 +66,11 @@ function renderPriceChartJourney(trade) {
     const mfeUpdates = trade.events.filter(e => e.event_type === 'MFE_UPDATE');
     if (mfeUpdates.length > 0) {
         const firstMFE = mfeUpdates[0];
-        const firstMFEPrice = isBullish ? 
-            entryPrice + (firstMFE.no_be_mfe || 0) * riskDistance :
-            entryPrice - (firstMFE.no_be_mfe || 0) * riskDistance;
         
         keyEvents.push({
             type: 'FIRST_MFE',
             event: firstMFE,
             mfe: firstMFE.no_be_mfe || 0,
-            price: firstMFEPrice,
             label: 'First Move',
             icon: '📊',
             color: '#3b82f6'
@@ -78,12 +80,10 @@ function renderPriceChartJourney(trade) {
     // 3. Find BE_TRIGGERED event (if exists)
     const beEvent = trade.events.find(e => e.event_type === 'BE_TRIGGERED');
     if (beEvent) {
-        const bePrice = isBullish ? entryPrice + riskDistance : entryPrice - riskDistance;
         keyEvents.push({
             type: 'BE_TRIGGERED',
             event: beEvent,
             mfe: 1.0,
-            price: bePrice,
             label: 'Break Even',
             icon: '⚡',
             color: '#fbbf24'
@@ -101,15 +101,10 @@ function renderPriceChartJourney(trade) {
         
         // Only add if different from first and not the last
         if (peakMFE !== mfeUpdates[0] && peakMFE !== mfeUpdates[mfeUpdates.length - 1]) {
-            const peakPrice = isBullish ?
-                entryPrice + (peakMFE.no_be_mfe || 0) * riskDistance :
-                entryPrice - (peakMFE.no_be_mfe || 0) * riskDistance;
-            
             keyEvents.push({
                 type: 'PEAK_MFE',
                 event: peakMFE,
                 mfe: peakMFE.no_be_mfe || 0,
-                price: peakPrice,
                 label: 'Peak MFE',
                 icon: '🎯',
                 color: '#10b981'
@@ -120,12 +115,10 @@ function renderPriceChartJourney(trade) {
     // 5. Find EXIT event (if exists)
     const exitEvent = trade.events.find(e => e.event_type.startsWith('EXIT_'));
     if (exitEvent) {
-        const exitPrice = exitEvent.event_type === 'EXIT_STOP_LOSS' ? stopLoss : entryPrice;
         keyEvents.push({
             type: exitEvent.event_type,
             event: exitEvent,
             mfe: exitEvent.no_be_mfe || 0,
-            price: exitPrice,
             label: exitEvent.event_type === 'EXIT_STOP_LOSS' ? 'Stop Loss' : 'BE Exit',
             icon: '🛑',
             color: exitEvent.event_type === 'EXIT_STOP_LOSS' ? '#ef4444' : '#8b5cf6'
@@ -133,15 +126,11 @@ function renderPriceChartJourney(trade) {
     } else if (mfeUpdates.length > 0) {
         // If active, add current MFE as last point
         const currentMFE = mfeUpdates[mfeUpdates.length - 1];
-        const currentPrice = isBullish ?
-            entryPrice + (currentMFE.no_be_mfe || 0) * riskDistance :
-            entryPrice - (currentMFE.no_be_mfe || 0) * riskDistance;
         
         keyEvents.push({
             type: 'CURRENT',
             event: currentMFE,
             mfe: currentMFE.no_be_mfe || 0,
-            price: currentPrice,
             label: 'Current',
             icon: '📈',
             color: '#4ade80'
@@ -165,12 +154,15 @@ function renderPriceChartJourney(trade) {
     const chart = svg.append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`);
     
-    // Calculate price range
-    const prices = keyEvents.map(e => e.price);
-    const minPrice = Math.min(...prices, stopLoss);
-    const maxPrice = Math.max(...prices, entryPrice + 3 * riskDistance);
-    const priceRange = maxPrice - minPrice;
-    const pricePadding = priceRange * 0.1;
+    // Calculate R-multiple range
+    const mfeValues = keyEvents.map(e => e.mfe);
+    const minMFE = Math.min(...mfeValues, -1); // At least show -1R (stop loss)
+    const maxMFE = Math.max(...mfeValues, 1); // At least show +1R
+    const mfeRange = maxMFE - minMFE;
+    const mfePadding = mfeRange * 0.15;
+    
+    console.log('MFE range:', minMFE, 'to', maxMFE);
+    console.log('Key events MFE values:', mfeValues);
     
     // Scales
     const xScale = d3.scaleLinear()
@@ -178,8 +170,8 @@ function renderPriceChartJourney(trade) {
         .range([0, chartWidth]);
     
     const yScale = d3.scaleLinear()
-        .domain([minPrice - pricePadding, maxPrice + pricePadding])
-        .range([chartHeight, 0]);
+        .domain([minMFE - mfePadding, maxMFE + mfePadding])
+        .range([chartHeight, 0]); // Higher MFE at top
     
     // Background gradient (profit/loss zones)
     const gradient = svg.append('defs')
@@ -210,13 +202,13 @@ function renderPriceChartJourney(trade) {
         .attr('height', chartHeight)
         .attr('fill', 'url(#profitGradient)');
     
-    // Draw horizontal reference lines
-    // Entry line
+    // Draw horizontal reference lines (R-multiples)
+    // Entry line (0R)
     chart.append('line')
         .attr('x1', 0)
         .attr('x2', chartWidth)
-        .attr('y1', yScale(entryPrice))
-        .attr('y2', yScale(entryPrice))
+        .attr('y1', yScale(0))
+        .attr('y2', yScale(0))
         .attr('stroke', '#00d4ff')
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', '5,5')
@@ -224,19 +216,19 @@ function renderPriceChartJourney(trade) {
     
     chart.append('text')
         .attr('x', -10)
-        .attr('y', yScale(entryPrice))
+        .attr('y', yScale(0))
         .attr('text-anchor', 'end')
         .attr('alignment-baseline', 'middle')
         .attr('fill', '#00d4ff')
         .attr('font-size', '11px')
-        .text(`Entry: ${entryPrice.toFixed(2)}`);
+        .text('Entry (0R)');
     
-    // Stop loss line
+    // Stop loss line (-1R)
     chart.append('line')
         .attr('x1', 0)
         .attr('x2', chartWidth)
-        .attr('y1', yScale(stopLoss))
-        .attr('y2', yScale(stopLoss))
+        .attr('y1', yScale(-1))
+        .attr('y2', yScale(-1))
         .attr('stroke', '#ef4444')
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', '3,3')
@@ -244,20 +236,19 @@ function renderPriceChartJourney(trade) {
     
     chart.append('text')
         .attr('x', -10)
-        .attr('y', yScale(stopLoss))
+        .attr('y', yScale(-1))
         .attr('text-anchor', 'end')
         .attr('alignment-baseline', 'middle')
         .attr('fill', '#ef4444')
         .attr('font-size', '11px')
-        .text(`SL: ${stopLoss.toFixed(2)}`);
+        .text('Stop (-1R)');
     
     // +1R line (BE trigger)
-    const bePrice = isBullish ? entryPrice + riskDistance : entryPrice - riskDistance;
     chart.append('line')
         .attr('x1', 0)
         .attr('x2', chartWidth)
-        .attr('y1', yScale(bePrice))
-        .attr('y2', yScale(bePrice))
+        .attr('y1', yScale(1))
+        .attr('y2', yScale(1))
         .attr('stroke', '#fbbf24')
         .attr('stroke-width', 1)
         .attr('stroke-dasharray', '2,2')
@@ -265,25 +256,25 @@ function renderPriceChartJourney(trade) {
     
     chart.append('text')
         .attr('x', -10)
-        .attr('y', yScale(bePrice))
+        .attr('y', yScale(1))
         .attr('text-anchor', 'end')
         .attr('alignment-baseline', 'middle')
         .attr('fill', '#fbbf24')
         .attr('font-size', '10px')
-        .text('+1R');
+        .text('+1R (BE)');
     
-    // Draw price line
+    // Draw MFE line
     const line = d3.line()
         .x((d, i) => xScale(i))
-        .y(d => yScale(d.price))
+        .y(d => yScale(d.mfe))
         .curve(d3.curveMonotoneX);
     
-    const priceColor = noBeRR >= 0 ? '#4ade80' : '#ef4444';
+    const lineColor = noBeRR >= 0 ? '#4ade80' : '#ef4444';
     
     chart.append('path')
         .datum(keyEvents)
         .attr('fill', 'none')
-        .attr('stroke', priceColor)
+        .attr('stroke', lineColor)
         .attr('stroke-width', 3)
         .attr('d', line)
         .attr('opacity', 0.8);
@@ -291,7 +282,7 @@ function renderPriceChartJourney(trade) {
     // Draw event markers
     keyEvents.forEach((event, i) => {
         const group = chart.append('g')
-            .attr('transform', `translate(${xScale(i)},${yScale(event.price)})`);
+            .attr('transform', `translate(${xScale(i)},${yScale(event.mfe)})`);
         
         // Event circle
         group.append('circle')
