@@ -1211,13 +1211,9 @@ function showHealthError() {
             tbody.innerHTML = filteredSignals.slice(0, 50).map(signal => {
                 const direction = signal.bias || signal.direction;
                 const status = signal.trade_status || signal.status || 'pending';
-<<<<<<< HEAD
                 // Use the dual MFE values from API
                 const be_mfe = signal.be_mfe || 0;
                 const no_be_mfe = signal.no_be_mfe || 0;
-=======
-                const mfe = signal.final_mfe || signal.current_mfe || signal.mfe;
->>>>>>> parent of 309257e (s)
                 const timestamp = signal.created_at || signal.timestamp;
                 
                 return `
@@ -1231,12 +1227,7 @@ function showHealthError() {
                         <td>${signal.entry_price ? signal.entry_price.toFixed(2) : '-'}</td>
                         <td>${signal.stop_loss_price || signal.stop_loss ? (signal.stop_loss_price || signal.stop_loss).toFixed(2) : '-'}</td>
                         <td>${signal.session || '-'}</td>
-<<<<<<< HEAD
-                        <td>${be_mfe > 0 ? be_mfe.toFixed(2) + 'R' : '-'}</td>
-                        <td>${no_be_mfe > 0 ? no_be_mfe.toFixed(2) + 'R' : '-'}</td>
-=======
-                        <td>${mfe ? mfe.toFixed(2) + 'R' : '-'}</td>
->>>>>>> parent of 309257e (s)
+                        <td>${be_mfe > 0 ? be_mfe.toFixed(2) + 'R' : '-'} / ${no_be_mfe > 0 ? no_be_mfe.toFixed(2) + 'R' : '-'}</td>
                         <td>
                             <span class="status-badge ${status.toLowerCase()}">
                                 ${status}
