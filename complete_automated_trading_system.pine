@@ -1098,29 +1098,28 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
         
         // Validate that signal_array_idx is within bounds
         if signal_array_idx >= 0 and signal_array_idx < array.size(signal_entries)
-            // CRITICAL: Only send webhooks for signals that occurred in real-time
-            bool sig_is_realtime = array.get(signal_is_realtime, signal_array_idx)
-            bool entry_sent = array.get(signal_entry_webhook_sent, signal_array_idx)  // CRITICAL: Verify ENTRY was sent
+            // MODIFIED: Send MFE_UPDATE for ALL active signals, regardless of when they were created
+            // This allows the indicator to track trades even after restart/reload
+            int entry_bar = array.get(signal_entry_bar_index, signal_array_idx)
+            int bars_since_entry = bar_index - entry_bar
             
-            if sig_is_realtime and entry_sent  // Only send MFE_UPDATE after ENTRY webhook
-                entry_bar = array.get(signal_entry_bar_index, signal_array_idx)
-                bars_since_entry = bar_index - entry_bar
+            // Only send MFE_UPDATE if trade has been active for at least 1 bar
+            // This prevents sending MFE on the same bar as ENTRY
+            if bars_since_entry >= 1
+                float current_mfe_be = array.get(signal_be_mfes, signal_array_idx)
+                float current_mfe_none = array.get(signal_mfes, signal_array_idx)
+                // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
+                current_mfe_be := math.min(current_mfe_be, current_mfe_none)
+                float current_lowest_low = array.get(signal_lowest_lows, signal_array_idx)
+                float current_highest_high = array.get(signal_highest_highs, signal_array_idx)
                 
-                // CRITICAL: Only send MFE_UPDATE if trade has been active for at least 1 bar
-                // This prevents sending MFE on the same bar as ENTRY
-                if bars_since_entry >= 1
-                    current_mfe_be = array.get(signal_be_mfes, signal_array_idx)
-                    current_mfe_none = array.get(signal_mfes, signal_array_idx)
-                    // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
-                    current_mfe_be := math.min(current_mfe_be, current_mfe_none)
-                    current_lowest_low = array.get(signal_lowest_lows, signal_array_idx)
-                    current_highest_high = array.get(signal_highest_highs, signal_array_idx)
-                    
-                    // Create MFE update payload
-                    // CRITICAL: Backend expects event_type "MFE_UPDATE" not "mfe_update"
-                    mfe_update_payload = '{"type":"MFE_UPDATE","signal_id":"' + signal_id_to_update + '","current_price":' + str.tostring(close) + ',"be_mfe":' + str.tostring(current_mfe_be) + ',"no_be_mfe":' + str.tostring(current_mfe_none) + ',"lowest_low":' + str.tostring(current_lowest_low) + ',"highest_high":' + str.tostring(current_highest_high) + ',"status":"active","timestamp":' + str.tostring(time) + '}'
-                    
-                    // Send MFE update once per bar (not every tick)
+                // Create MFE update payload
+                // CRITICAL: Backend expects event_type "MFE_UPDATE" not "mfe_update"
+                string mfe_update_payload = '{"type":"MFE_UPDATE","signal_id":"' + signal_id_to_update + '","current_price":' + str.tostring(close) + ',"be_mfe":' + str.tostring(current_mfe_be) + ',"no_be_mfe":' + str.tostring(current_mfe_none) + ',"lowest_low":' + str.tostring(current_lowest_low) + ',"highest_high":' + str.tostring(current_highest_high) + ',"status":"active","timestamp":' + str.tostring(time) + '}'
+                
+                // Send MFE update once per bar (not every tick)
+                // MODIFIED: Send for ALL active signals on real-time bars only
+                if barstate.isrealtime
                     alert(mfe_update_payload, alert.freq_once_per_bar)
 
 // 3. BE TRIGGER WEBHOOK
@@ -1137,22 +1136,19 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_trigger
         
         // Validate that signal_array_idx is within bounds
         if signal_array_idx >= 0 and signal_array_idx < array.size(signal_be_triggered)
-            // CRITICAL: Only send webhooks for signals that occurred in real-time
-            bool sig_is_realtime = array.get(signal_is_realtime, signal_array_idx)
-            bool entry_sent = array.get(signal_entry_webhook_sent, signal_array_idx)  // CRITICAL: Verify ENTRY was sent
-            
-            if sig_is_realtime and not be_sent_flag and entry_sent  // Only send BE_TRIGGERED after ENTRY webhook
-                be_was_triggered = array.get(signal_be_triggered, signal_array_idx)
+            // MODIFIED: Send BE_TRIGGERED for ALL active signals that hit +1R
+            if not be_sent_flag
+                bool be_was_triggered = array.get(signal_be_triggered, signal_array_idx)
                 
                 if be_was_triggered
-                    current_be_mfe = array.get(signal_be_mfes, signal_array_idx)
-                    current_no_be_mfe = array.get(signal_mfes, signal_array_idx)
+                    float current_be_mfe = array.get(signal_be_mfes, signal_array_idx)
+                    float current_no_be_mfe = array.get(signal_mfes, signal_array_idx)
                     // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
                     current_be_mfe := math.min(current_be_mfe, current_no_be_mfe)
                     
                     // Create BE trigger payload
                     // CRITICAL: Backend expects event_type "BE_TRIGGERED" not "be_triggered"
-                    be_trigger_payload = '{"type":"BE_TRIGGERED","signal_id":"' + signal_id_for_be + '","be_hit":true,"be_mfe":' + str.tostring(current_be_mfe) + ',"no_be_mfe":' + str.tostring(current_no_be_mfe) + ',"timestamp":' + str.tostring(time) + '}'
+                    string be_trigger_payload = '{"type":"BE_TRIGGERED","signal_id":"' + signal_id_for_be + '","be_hit":true,"be_mfe":' + str.tostring(current_be_mfe) + ',"no_be_mfe":' + str.tostring(current_no_be_mfe) + ',"timestamp":' + str.tostring(time) + '}'
                     
                     // Send BE trigger webhook
                     alert(be_trigger_payload, alert.freq_once_per_bar)
@@ -1172,36 +1168,32 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped
         
         // Validate that signal_array_idx is within bounds
         if signal_array_idx >= 0 and signal_array_idx < array.size(signal_be_stopped) and not completion_sent_flag
-            // CRITICAL: Only send webhooks for signals that occurred in real-time
-            bool sig_is_realtime = array.get(signal_is_realtime, signal_array_idx)
-            bool entry_sent = array.get(signal_entry_webhook_sent, signal_array_idx)  // CRITICAL: Verify ENTRY was sent
+            // MODIFIED: Send EXIT for ALL active signals that hit stop loss
+            bool be_stopped = array.get(signal_be_stopped, signal_array_idx)
+            bool no_be_stopped = array.get(signal_no_be_stopped, signal_array_idx)
+            int entry_bar = array.get(signal_entry_bar_index, signal_array_idx)
+            int bars_since_entry = bar_index - entry_bar
             
-            if sig_is_realtime and entry_sent  // Only send EXIT after ENTRY webhook
-                be_stopped = array.get(signal_be_stopped, signal_array_idx)
-                no_be_stopped = array.get(signal_no_be_stopped, signal_array_idx)
-                entry_bar = array.get(signal_entry_bar_index, signal_array_idx)
-                bars_since_entry = bar_index - entry_bar
+            // CRITICAL: Only send EXIT if trade has been active for at least 1 bar
+            // This prevents immediate completion on historical replay
+            if (be_stopped or no_be_stopped) and bars_since_entry >= 1
+                float final_be_mfe = array.get(signal_be_mfes, signal_array_idx)
+                float final_no_be_mfe = array.get(signal_mfes, signal_array_idx)
+                // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
+                final_be_mfe := math.min(final_be_mfe, final_no_be_mfe)
                 
-                // CRITICAL: Only send EXIT if trade has been active for at least 1 bar
-                // This prevents immediate completion on historical replay
-                if (be_stopped or no_be_stopped) and bars_since_entry >= 1
-                    final_be_mfe = array.get(signal_be_mfes, signal_array_idx)
-                    final_no_be_mfe = array.get(signal_mfes, signal_array_idx)
-                    // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
-                    final_be_mfe := math.min(final_be_mfe, final_no_be_mfe)
-                    
-                    completion_reason = be_stopped ? "be_stop_loss_hit" : "original_stop_loss_hit"
-                    // Create completion payload
-                    // CRITICAL: Backend expects "EXIT_STOP_LOSS" or "EXIT_BREAK_EVEN" not "signal_completed"
-                    exit_event_type = be_stopped ? "EXIT_BREAK_EVEN" : "EXIT_STOP_LOSS"
-                    completion_payload = '{"type":"' + exit_event_type + '","signal_id":"' + signal_id_for_completion + '","completion_reason":"' + completion_reason + '","final_be_mfe":' + str.tostring(final_be_mfe) + ',"final_no_be_mfe":' + str.tostring(final_no_be_mfe) + ',"status":"completed","timestamp":' + str.tostring(time) + '}'
-                    
-                    // Send completion webhook
-                    alert(completion_payload, alert.freq_once_per_bar)
-                    array.set(completion_sent_flags, sig_idx, true)
-                    
-                    // BULLETPROOF: Remove this signal from active tracking (all parallel arrays)
-                    array.remove(active_signal_ids, sig_idx)
-                    array.remove(active_signal_indices, sig_idx)  // Remove from indices array too
-                    array.remove(be_trigger_sent_flags, sig_idx)
-                    array.remove(completion_sent_flags, sig_idx)
+                string completion_reason = be_stopped ? "be_stop_loss_hit" : "original_stop_loss_hit"
+                // Create completion payload
+                // CRITICAL: Backend expects "EXIT_STOP_LOSS" or "EXIT_BREAK_EVEN" not "signal_completed"
+                string exit_event_type = be_stopped ? "EXIT_BREAK_EVEN" : "EXIT_STOP_LOSS"
+                string completion_payload = '{"type":"' + exit_event_type + '","signal_id":"' + signal_id_for_completion + '","completion_reason":"' + completion_reason + '","final_be_mfe":' + str.tostring(final_be_mfe) + ',"final_no_be_mfe":' + str.tostring(final_no_be_mfe) + ',"status":"completed","timestamp":' + str.tostring(time) + '}'
+                
+                // Send completion webhook
+                alert(completion_payload, alert.freq_once_per_bar)
+                array.set(completion_sent_flags, sig_idx, true)
+                
+                // BULLETPROOF: Remove this signal from active tracking (all parallel arrays)
+                array.remove(active_signal_ids, sig_idx)
+                array.remove(active_signal_indices, sig_idx)  // Remove from indices array too
+                array.remove(be_trigger_sent_flags, sig_idx)
+                array.remove(completion_sent_flags, sig_idx)

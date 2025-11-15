@@ -438,12 +438,14 @@ if robust_ws_handler:
 if db_enabled:
     register_automated_signals_api_robust(app, db)
     register_diagnostics_api(app)
+    register_system_health_api(app, db)
     logger.info("✅ Robust API endpoints registered")
     logger.info("✅ Diagnostics API registered")
 
 # Keep legacy handler for backward compatibility
 from realtime_signal_handler import RealtimeSignalHandler
 from automated_signals_api import register_automated_signals_api
+from system_health_api import register_system_health_api
 realtime_handler = RealtimeSignalHandler(socketio, db) if db_enabled else None
 
 # Initialize prediction accuracy tracker
