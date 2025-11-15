@@ -2514,30 +2514,6 @@ function showHealthError() {
         .text(isActive ? '● ACTIVE' : '● COMPLETED');
 }
             
-            // Clear existing visualization
-            d3.select('#journeyViz').selectAll('*').remove();
-            
-            const events = trade.events || [];
-            
-            // If no events, show message
-            if (events.length === 0) {
-                console.warn('No events found for trade');
-                document.getElementById('journeyViz').innerHTML = '<div style="color: #fbbf24; text-align: center; padding: 40px;">No event data available for this trade</div>';
-                return;
-            }
-            
-            // If only ENTRY event, create a minimal journey showing current state
-            if (events.length === 1 && events[0].event_type === 'ENTRY') {
-                console.log('Only ENTRY event found, creating minimal journey');
-                renderMinimalJourney(trade, events[0]);
-                return;
-            }
-            
-            const latestEvent = events[events.length - 1];
-            const isActive = !latestEvent.event_type.startsWith('EXIT_');
-            
-            console.log(`Trade has ${events.length} events, isActive: ${isActive}`);
-            
             // Build journey path based on actual events
             const journeyPath = [];
             const eventsByType = {};
