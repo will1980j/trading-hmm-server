@@ -1720,9 +1720,17 @@ function showHealthError() {
                     </div>
                 </div>
                 <div id="signalsTableContainer">
+                    <div style="margin-bottom: 10px; display: flex; justify-content: flex-end;">
+                        <button id="bulkDeleteBtn" onclick="bulkDeleteTrades()" style="padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; display: none;">
+                            Delete Selected (0)
+                        </button>
+                    </div>
                     <table class="signals-table">
                         <thead>
                             <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" style="cursor: pointer;">
+                                </th>
                                 <th>Status</th>
                                 <th>#</th>
                                 <th>Time</th>
@@ -1929,21 +1937,24 @@ function showHealthError() {
                 const statusText = isActive ? 'Active' : 'Completed';
                 
                 return `
-                    <tr class="clickable-row" onclick="showTradeDetail('${signal.trade_id}')">
-                        <td>${statusDot}</td>
-                        <td><span class="trade-number">${index + 1}</span></td>
-                        <td>${displayTime}</td>
-                        <td>
+                    <tr class="signal-row">
+                        <td onclick="event.stopPropagation()">
+                            <input type="checkbox" class="trade-checkbox" data-trade-id="${signal.trade_id}" onchange="toggleTradeSelection('${signal.trade_id}')" style="cursor: pointer;">
+                        </td>
+                        <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;">${statusDot}</td>
+                        <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;"><span class="trade-number">${index + 1}</span></td>
+                        <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;">${displayTime}</td>
+                        <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;">
                             <span class="direction-badge ${direction ? direction.toLowerCase() : 'neutral'}">
                                 ${direction || '-'}
                             </span>
                         </td>
-                        <td>${signal.entry_price ? signal.entry_price.toFixed(2) : '-'}</td>
-                        <td>${signal.stop_loss_price || signal.stop_loss ? (signal.stop_loss_price || signal.stop_loss).toFixed(2) : '-'}</td>
-                        <td>${signal.session || '-'}</td>
-                        <td><strong>${be_mfe > 0 ? be_mfe.toFixed(2) + 'R' : '-'}</strong></td>
-                        <td><strong>${no_be_mfe > 0 ? no_be_mfe.toFixed(2) + 'R' : '-'}</strong></td>
-                        <td>
+                        <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;">${signal.entry_price ? signal.entry_price.toFixed(2) : '-'}</td>
+                        <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;">${signal.stop_loss_price || signal.stop_loss ? (signal.stop_loss_price || signal.stop_loss).toFixed(2) : '-'}</td>
+                        <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;">${signal.session || '-'}</td>
+                        <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;"><strong>${be_mfe > 0 ? be_mfe.toFixed(2) + 'R' : '-'}</strong></td>
+                        <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;"><strong>${no_be_mfe > 0 ? no_be_mfe.toFixed(2) + 'R' : '-'}</strong></td>
+                        <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;">
                             <span class="status-badge ${statusBadgeClass}">
                                 ${statusText}
                             </span>
@@ -2849,6 +2860,79 @@ function renderSimpleMFEBars(container, trade, noBeRR, beRR, isActive) {
             const modal = document.getElementById('tradeDetailModal');
             if (event.target == modal) {
                 closeTradeDetail();
+            }
+        }
+
+        // Bulk Delete Functionality
+        let selectedTrades = new Set();
+        
+        function toggleTradeSelection(tradeId) {
+            const checkbox = document.querySelector(`.trade-checkbox[data-trade-id="${tradeId}"]`);
+            if (checkbox && checkbox.checked) {
+                selectedTrades.add(tradeId);
+            } else {
+                selectedTrades.delete(tradeId);
+            }
+            updateBulkDeleteButton();
+        }
+        
+        function toggleSelectAll() {
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            const checkboxes = document.querySelectorAll('.trade-checkbox');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+                const tradeId = checkbox.getAttribute('data-trade-id');
+                if (selectAllCheckbox.checked) {
+                    selectedTrades.add(tradeId);
+                } else {
+                    selectedTrades.delete(tradeId);
+                }
+            });
+            
+            updateBulkDeleteButton();
+        }
+        
+        function updateBulkDeleteButton() {
+            const button = document.getElementById('bulkDeleteBtn');
+            if (button) {
+                button.textContent = `Delete Selected (${selectedTrades.size})`;
+                button.style.display = selectedTrades.size > 0 ? 'block' : 'none';
+            }
+        }
+        
+        async function bulkDeleteTrades() {
+            if (selectedTrades.size === 0) {
+                alert('No trades selected');
+                return;
+            }
+            
+            const confirmation = confirm(`Are you sure you want to delete ${selectedTrades.size} selected trade(s)? This action cannot be undone.`);
+            if (!confirmation) return;
+            
+            try {
+                const tradeIds = Array.from(selectedTrades);
+                const response = await fetch('/api/automated-signals/bulk-delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ trade_ids: tradeIds })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(`Successfully deleted ${result.deleted_count} trade(s)`);
+                    selectedTrades.clear();
+                    document.getElementById('selectAllCheckbox').checked = false;
+                    loadInitialData(); // Refresh the data
+                } else {
+                    alert(`Error: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Bulk delete error:', error);
+                alert('Error deleting trades. Please try again.');
             }
         }
 

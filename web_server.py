@@ -11238,6 +11238,50 @@ def get_trade_detail(trade_id):
         }), 500
 
 
+@app.route('/api/automated-signals/bulk-delete', methods=['POST'])
+def bulk_delete_automated_signals():
+    """Delete multiple trades by trade_id"""
+    try:
+        data = request.get_json()
+        trade_ids = data.get('trade_ids', [])
+        
+        if not trade_ids:
+            return jsonify({"success": False, "error": "No trade IDs provided"}), 400
+        
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({"success": False, "error": "DATABASE_URL not configured"}), 500
+        
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        
+        # Delete all events for the specified trade_ids
+        cursor.execute("""
+            DELETE FROM automated_signals
+            WHERE trade_id = ANY(%s)
+        """, (trade_ids,))
+        
+        deleted_count = cursor.rowcount
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        logger.info(f"Bulk deleted {deleted_count} events for {len(trade_ids)} trades")
+        
+        return jsonify({
+            "success": True,
+            "deleted_count": deleted_count,
+            "trade_count": len(trade_ids)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Bulk delete error: {str(e)}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
 @app.route('/api/automated-signals/stats-live', methods=['GET'])
 @app.route('/api/automated-signals/stats', methods=['GET'])
 def get_automated_signals_stats():
