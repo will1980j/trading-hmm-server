@@ -18,11 +18,20 @@ function renderPriceChartJourney(trade) {
     const direction = trade.direction;
     const entryPrice = trade.entry_price;
     const stopLoss = trade.stop_loss;
-    const riskDistance = trade.risk_distance;
+    let riskDistance = trade.risk_distance;
     const noBeRR = trade.no_be_mfe || 0;
     const beRR = trade.be_mfe || 0;
     const isActive = !trade.latest_event_type || !trade.latest_event_type.startsWith('EXIT_');
     const isBullish = direction === 'Bullish';
+    
+    // Ensure riskDistance is always positive (distance, not direction)
+    if (riskDistance < 0) {
+        riskDistance = Math.abs(riskDistance);
+    }
+    // If risk distance is missing or zero, calculate it
+    if (!riskDistance || riskDistance === 0) {
+        riskDistance = Math.abs(entryPrice - stopLoss);
+    }
     
     // If incomplete data, show simple MFE bars
     if (!direction || !entryPrice || !stopLoss || !riskDistance) {

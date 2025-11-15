@@ -10,8 +10,8 @@ with open('automated_signals_dashboard.html', 'r', encoding='utf-8') as f:
     html_content = f.read()
 
 # Find the start and end of the function
-start_marker = "        function renderPriceChartJourney(trade) {"
-end_marker = "        .text(isActive ? '● ACTIVE' : '● COMPLETED');\n}"
+start_marker = "// Option 1: Clean Price Line Chart with Event Markers\nfunction renderPriceChartJourney(trade) {"
+end_marker = "        .text(`${trade.events ? trade.events.length : 0} events • ${trade.direction || 'Direction unknown'}`);\n}"
 
 start_idx = html_content.find(start_marker)
 end_idx = html_content.find(end_marker, start_idx)
