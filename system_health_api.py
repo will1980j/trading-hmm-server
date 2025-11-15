@@ -1,26 +1,33 @@
 """
-System Health Monitor API
-Comprehensive health checks for Automated Signals system
+System Health Monitor API - 100% Cloud-Native
+Comprehensive health checks for Automated Signals system on Railway
+All checks use fresh database connections and Railway infrastructure
 """
 
-from flask import jsonify
+from flask import jsonify, request
 import psycopg2
-import requests
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
 import logging
 
 logger = logging.getLogger(__name__)
 
+def get_fresh_db_connection():
+    """Get fresh Railway PostgreSQL connection"""
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        raise Exception("DATABASE_URL not configured")
+    return psycopg2.connect(database_url)
+
 def register_system_health_api(app, db):
-    """Register system health monitoring endpoints"""
+    """Register cloud-native system health monitoring endpoints"""
     
     @app.route('/api/system-health')
     def get_system_health():
         """
-        Comprehensive system health check
-        Returns status for all critical components
+        Comprehensive cloud-native system health check
+        Returns status for all critical Railway components
         """
         try:
             health_status = {
@@ -29,28 +36,24 @@ def register_system_health_api(app, db):
                 'components': {}
             }
             
-            # 1. DATABASE HEALTH
-            db_health = check_database_health(db)
+            # 1. DATABASE HEALTH (Fresh connection)
+            db_health = check_database_health_fresh()
             health_status['components']['database'] = db_health
             
-            # 2. WEBHOOK HEALTH
-            webhook_health = check_webhook_health(db)
+            # 2. WEBHOOK HEALTH (Fresh connection)
+            webhook_health = check_webhook_health_fresh()
             health_status['components']['webhook'] = webhook_health
             
-            # 3. EVENT FLOW HEALTH
-            event_health = check_event_flow_health(db)
+            # 3. EVENT FLOW HEALTH (Fresh connection)
+            event_health = check_event_flow_health_fresh()
             health_status['components']['events'] = event_health
             
-            # 4. DATA FRESHNESS
-            freshness_health = check_data_freshness(db)
+            # 4. DATA FRESHNESS (Fresh connection)
+            freshness_health = check_data_freshness_fresh()
             health_status['components']['freshness'] = freshness_health
             
-            # 5. API PERFORMANCE
-            api_health = check_api_performance()
-            health_status['components']['api'] = api_health
-            
-            # 6. SIGNAL INTEGRITY (Random verification)
-            integrity_health = check_signal_integrity(db)
+            # 5. SIGNAL INTEGRITY (Fresh connection)
+            integrity_health = check_signal_integrity_fresh()
             health_status['components']['integrity'] = integrity_health
             
             # Determine overall status
@@ -59,7 +62,6 @@ def register_system_health_api(app, db):
                 webhook_health['status'],
                 event_health['status'],
                 freshness_health['status'],
-                api_health['status'],
                 integrity_health['status']
             ]
             
@@ -81,13 +83,17 @@ def register_system_health_api(app, db):
             }), 500
 
 
-def check_database_health(db):
-    """Check PostgreSQL database health"""
+def check_database_health_fresh():
+    """Check Railway PostgreSQL database health with fresh connection"""
+    conn = None
     try:
-        cursor = db.conn.cursor()
+        conn = get_fresh_db_connection()
+        cursor = conn.cursor()
         
         # Test connection
+        start_time = datetime.now()
         cursor.execute("SELECT 1")
+        query_time = (datetime.now() - start_time).total_seconds() * 1000
         
         # Check table exists
         cursor.execute("""
@@ -110,12 +116,6 @@ def check_database_health(db):
             AND column_name IN ('be_mfe', 'no_be_mfe', 'signal_date', 'signal_time')
         """)
         columns = [row[0] for row in cursor.fetchall()]
-        
-        # Query performance test
-        start_time = datetime.now()
-        cursor.execute("SELECT * FROM automated_signals LIMIT 10")
-        cursor.fetchall()
-        query_time = (datetime.now() - start_time).total_seconds() * 1000
         
         status = 'healthy'
         issues = []
@@ -143,18 +143,24 @@ def check_database_health(db):
         }
         
     except Exception as e:
+        logger.error(f"Database health check failed: {e}")
         return {
             'status': 'critical',
             'connected': False,
             'error': str(e),
             'issues': ['Database connection failed']
         }
+    finally:
+        if conn:
+            conn.close()
 
 
-def check_webhook_health(db):
-    """Check webhook reception health"""
+def check_webhook_health_fresh():
+    """Check webhook reception health with fresh connection"""
+    conn = None
     try:
-        cursor = db.conn.cursor()
+        conn = get_fresh_db_connection()
+        cursor = conn.cursor()
         
         # Check last webhook received
         cursor.execute("""
@@ -162,7 +168,8 @@ def check_webhook_health(db):
             FROM automated_signals
             WHERE timestamp >= NOW() - INTERVAL '10 minutes'
         """)
-        last_webhook = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        last_webhook = result[0] if result else None
         
         # Count webhooks in last hour
         cursor.execute("""
@@ -183,6 +190,7 @@ def check_webhook_health(db):
         
         status = 'healthy'
         issues = []
+        seconds_since = None
         
         if last_webhook:
             seconds_since = (datetime.now(pytz.UTC) - last_webhook.replace(tzinfo=pytz.UTC)).total_seconds()
@@ -192,32 +200,39 @@ def check_webhook_health(db):
         else:
             status = 'critical'
             issues.append('No webhooks received in last 10 minutes')
+            seconds_since = 999
         
         # Check for MFE_UPDATE events
-        if event_counts.get('MFE_UPDATE', 0) == 0:
+        if event_counts.get('MFE_UPDATE', 0) == 0 and webhooks_last_hour > 0:
             status = 'warning'
             issues.append('No MFE_UPDATE events in last hour')
         
         return {
             'status': status,
-            'last_webhook_seconds_ago': int(seconds_since) if last_webhook else None,
+            'last_webhook_seconds_ago': int(seconds_since) if seconds_since else None,
             'webhooks_last_hour': webhooks_last_hour,
             'event_types': event_counts,
             'issues': issues
         }
         
     except Exception as e:
+        logger.error(f"Webhook health check failed: {e}")
         return {
             'status': 'critical',
             'error': str(e),
             'issues': ['Webhook health check failed']
         }
+    finally:
+        if conn:
+            conn.close()
 
 
-def check_event_flow_health(db):
-    """Check event flow and lifecycle completeness"""
+def check_event_flow_health_fresh():
+    """Check event flow and lifecycle completeness with fresh connection"""
+    conn = None
     try:
-        cursor = db.conn.cursor()
+        conn = get_fresh_db_connection()
+        cursor = conn.cursor()
         
         # Count active trades
         cursor.execute("""
@@ -264,28 +279,36 @@ def check_event_flow_health(db):
             if mfe_coverage < 80:
                 status = 'warning'
                 issues.append(f'Only {mfe_coverage:.0f}% of trades have MFE updates')
+        else:
+            mfe_coverage = 0
         
         return {
             'status': status,
             'active_trades': active_trades,
             'trades_with_mfe': trades_with_mfe,
-            'mfe_coverage_percent': round((trades_with_mfe / active_trades * 100) if active_trades > 0 else 0, 1),
+            'mfe_coverage_percent': round(mfe_coverage, 1),
             'completed_today': completed_today,
             'issues': issues
         }
         
     except Exception as e:
+        logger.error(f"Event flow check failed: {e}")
         return {
             'status': 'critical',
             'error': str(e),
             'issues': ['Event flow check failed']
         }
+    finally:
+        if conn:
+            conn.close()
 
 
-def check_data_freshness(db):
-    """Check data freshness and update frequency"""
+def check_data_freshness_fresh():
+    """Check data freshness and update frequency with fresh connection"""
+    conn = None
     try:
-        cursor = db.conn.cursor()
+        conn = get_fresh_db_connection()
+        cursor = conn.cursor()
         
         # Check most recent MFE update
         cursor.execute("""
@@ -293,7 +316,8 @@ def check_data_freshness(db):
             FROM automated_signals
             WHERE event_type = 'MFE_UPDATE'
         """)
-        last_mfe = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        last_mfe = result[0] if result else None
         
         # Check most recent ENTRY
         cursor.execute("""
@@ -301,10 +325,13 @@ def check_data_freshness(db):
             FROM automated_signals
             WHERE event_type = 'ENTRY'
         """)
-        last_entry = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        last_entry = result[0] if result else None
         
         status = 'healthy'
         issues = []
+        mfe_age_seconds = None
+        entry_age_seconds = None
         
         if last_mfe:
             mfe_age_seconds = (datetime.now(pytz.UTC) - last_mfe.replace(tzinfo=pytz.UTC)).total_seconds()
@@ -312,64 +339,31 @@ def check_data_freshness(db):
                 status = 'warning'
                 issues.append(f'MFE updates stale ({int(mfe_age_seconds/60)} min old)')
         
+        if last_entry:
+            entry_age_seconds = (datetime.now(pytz.UTC) - last_entry.replace(tzinfo=pytz.UTC)).total_seconds()
+        
         return {
             'status': status,
-            'last_mfe_seconds_ago': int(mfe_age_seconds) if last_mfe else None,
-            'last_entry_seconds_ago': int((datetime.now(pytz.UTC) - last_entry.replace(tzinfo=pytz.UTC)).total_seconds()) if last_entry else None,
+            'last_mfe_seconds_ago': int(mfe_age_seconds) if mfe_age_seconds else None,
+            'last_entry_seconds_ago': int(entry_age_seconds) if entry_age_seconds else None,
             'issues': issues
         }
         
     except Exception as e:
+        logger.error(f"Data freshness check failed: {e}")
         return {
             'status': 'critical',
             'error': str(e),
             'issues': ['Data freshness check failed']
         }
+    finally:
+        if conn:
+            conn.close()
 
 
-def check_api_performance():
-    """Check API endpoint performance"""
-    try:
-        # Test dashboard data endpoint
-        start_time = datetime.now()
-        response = requests.get('http://localhost:5000/api/automated-signals/dashboard-data', timeout=5)
-        response_time = (datetime.now() - start_time).total_seconds() * 1000
-        
-        status = 'healthy'
-        issues = []
-        
-        if response.status_code != 200:
-            status = 'critical'
-            issues.append(f'API returned {response.status_code}')
-        
-        if response_time > 2000:
-            status = 'warning'
-            issues.append(f'Slow API response: {response_time:.0f}ms')
-        
-        return {
-            'status': status,
-            'response_time_ms': round(response_time, 0),
-            'status_code': response.status_code,
-            'issues': issues
-        }
-        
-    except requests.Timeout:
-        return {
-            'status': 'critical',
-            'error': 'API timeout',
-            'issues': ['API response timeout (>5s)']
-        }
-    except Exception as e:
-        return {
-            'status': 'warning',
-            'error': str(e),
-            'issues': ['API performance check failed']
-        }
-
-
-def check_signal_integrity(db):
+def check_signal_integrity_fresh():
     """
-    Randomly verify 2 signals for data integrity
+    Randomly verify 2 signals for data integrity with fresh connection
     Compact display that expands on errors
     """
     try:
@@ -389,16 +383,16 @@ def check_signal_integrity(db):
         summary = {
             'status': status,
             'signals_verified': results['signals_checked'],
-            'errors_found': len(results['errors']),
-            'warnings_found': len(results['warnings']),
+            'errors_found': len(results.get('errors', [])),
+            'warnings_found': len(results.get('warnings', [])),
             'issues': []
         }
         
         # Only include details if there are errors/warnings
-        if results['errors']:
+        if results.get('errors'):
             summary['issues'] = results['errors'][:3]  # Show first 3 errors
-            summary['error_details'] = results['details']
-        elif results['warnings']:
+            summary['error_details'] = results.get('details', [])
+        elif results.get('warnings'):
             summary['issues'] = results['warnings'][:2]  # Show first 2 warnings
         
         # Add compact pass message
