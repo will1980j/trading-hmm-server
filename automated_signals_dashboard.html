@@ -1121,6 +1121,7 @@ function showHealthError() {
                                 <th>Session</th>
                                 <th>BE=1 MFE</th>
                                 <th>No BE MFE</th>
+                                <th>Trade Status</th>
                             </tr>
                         </thead>
                         <tbody id="signalsTableBody">
@@ -1275,7 +1276,7 @@ function showHealthError() {
             if (filteredSignals.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="9">
+                        <td colspan="10">
                             <div class="empty-state">
                                 <div class="empty-state-icon">📊</div>
                                 <div>No ${selectedDate ? 'signals for selected date' : currentFilter + ' signals'}</div>
@@ -1312,6 +1313,10 @@ function showHealthError() {
                 // Use exact time from TradingView (signal_time or time field)
                 const displayTime = signal.signal_time || signal.time || (timestamp ? formatTime(timestamp) : '-');
                 
+                // Display status badge
+                const statusBadgeClass = isActive ? 'active' : 'completed';
+                const statusText = isActive ? 'Active' : 'Completed';
+                
                 return `
                     <tr>
                         <td>${statusDot}</td>
@@ -1327,6 +1332,11 @@ function showHealthError() {
                         <td>${signal.session || '-'}</td>
                         <td><strong>${be_mfe > 0 ? be_mfe.toFixed(2) + 'R' : '-'}</strong></td>
                         <td><strong>${no_be_mfe > 0 ? no_be_mfe.toFixed(2) + 'R' : '-'}</strong></td>
+                        <td>
+                            <span class="status-badge ${statusBadgeClass}">
+                                ${statusText}
+                            </span>
+                        </td>
                     </tr>
                 `;
             }).join('');
