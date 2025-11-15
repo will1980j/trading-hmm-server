@@ -691,11 +691,12 @@
 
         .journey-node {
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: filter 0.2s ease;
         }
 
         .journey-node:hover {
-            transform: scale(1.1);
+            /* Removed scale transform to prevent vibration */
+            filter: brightness(1.2);
         }
 
         .journey-link {
@@ -735,11 +736,11 @@
 
         .node-circle {
             filter: drop-shadow(0 0 10px currentColor);
-            transition: all 0.3s ease;
+            transition: filter 0.2s ease;
         }
 
         .journey-node:hover .node-circle {
-            filter: drop-shadow(0 0 20px currentColor);
+            filter: drop-shadow(0 0 20px currentColor) brightness(1.2);
         }
 
         .node-label {
@@ -1237,11 +1238,12 @@
 
         .journey-node {
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: filter 0.2s ease;
         }
 
         .journey-node:hover {
-            transform: scale(1.1);
+            /* Removed scale transform to prevent vibration */
+            filter: brightness(1.2);
         }
 
         .journey-link {
@@ -1281,11 +1283,11 @@
 
         .node-circle {
             filter: drop-shadow(0 0 10px currentColor);
-            transition: all 0.3s ease;
+            transition: filter 0.2s ease;
         }
 
         .journey-node:hover .node-circle {
-            filter: drop-shadow(0 0 20px currentColor);
+            filter: drop-shadow(0 0 20px currentColor) brightness(1.2);
         }
 
         .node-label {
