@@ -11155,6 +11155,7 @@ def get_trade_detail(trade_id):
         
         events = []
         trade_info = None
+        entry_event = None
         
         for row in cursor.fetchall():
             event = {
@@ -11175,9 +11176,9 @@ def get_trade_detail(trade_id):
             }
             events.append(event)
             
-            # Use first event for trade info
-            if not trade_info:
-                trade_info = event.copy()
+            # Find the ENTRY or SIGNAL_CREATED event for trade info
+            if event['event_type'] in ['ENTRY', 'SIGNAL_CREATED'] and event['direction']:
+                entry_event = event.copy()
         
         cursor.close()
         conn.close()
@@ -11188,10 +11189,14 @@ def get_trade_detail(trade_id):
                 "error": f"No events found for trade_id: {trade_id}"
             }), 404
         
+        # Use entry event for trade info, or first event if no entry found
+        trade_info = entry_event if entry_event else events[0].copy()
+        
         # Get latest MFE values from last event
         latest_event = events[-1]
         trade_info['be_mfe'] = latest_event['be_mfe']
         trade_info['no_be_mfe'] = latest_event['no_be_mfe']
+        trade_info['latest_event_type'] = latest_event['event_type']
         trade_info['events'] = events
         
         return jsonify({

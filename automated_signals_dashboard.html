@@ -2237,6 +2237,25 @@ function showHealthError() {
     const stopLoss = trade.stop_loss;
     const riskDistance = trade.risk_distance;
     
+    // Check if we have the minimum required data
+    if (!direction || !entryPrice || !stopLoss || !riskDistance) {
+        container.append('div')
+            .style('text-align', 'center')
+            .style('padding', '40px')
+            .style('color', '#fbbf24')
+            .html(`
+                <div style="font-size: 16px; margin-bottom: 10px;">⚠️ Incomplete Trade Data</div>
+                <div style="font-size: 12px; color: #94a3b8;">
+                    Trade ID: ${trade.trade_id || 'Unknown'}<br>
+                    This trade is missing essential data fields.<br>
+                    Events: ${trade.events.length}<br>
+                    <br>
+                    Missing: ${!direction ? 'Direction ' : ''}${!entryPrice ? 'Entry Price ' : ''}${!stopLoss ? 'Stop Loss ' : ''}${!riskDistance ? 'Risk Distance' : ''}
+                </div>
+            `);
+        return;
+    }
+    
     // Calculate price levels
     const isBullish = direction === 'Bullish';
     const target1R = isBullish ? entryPrice + riskDistance : entryPrice - riskDistance;
@@ -2758,9 +2777,15 @@ function showHealthError() {
         function renderTradeDetail(trade) {
             const body = document.getElementById('tradeDetailBody');
             
+            // Validate trade data
+            if (!trade || !trade.events || trade.events.length === 0) {
+                body.innerHTML = '<div style="color: #fbbf24; text-align: center; padding: 40px;">No event data available for this trade</div>';
+                return;
+            }
+            
             // Determine current status from latest event
             const latestEvent = trade.events[trade.events.length - 1];
-            const isActive = !latestEvent.event_type.startsWith('EXIT_');
+            const isActive = !latestEvent.event_type || !latestEvent.event_type.startsWith('EXIT_');
             const statusText = isActive ? 'ACTIVE' : 'COMPLETED';
             const statusColor = isActive ? '#4ade80' : '#8b5cf6';
             
@@ -2873,7 +2898,8 @@ function showHealthError() {
                 closeTradeDetail();
             }
         }
-
+    }
+    }
 
         // Initialize
         loadInitialData();
