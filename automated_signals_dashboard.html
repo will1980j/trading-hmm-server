@@ -789,39 +789,45 @@ function updateHealthDisplay() {
     
     // Database
     if (components.database) {
+        const queryTime = components.database.query_time_ms || 0;
         componentsDiv.appendChild(createComponentBadge(
             'Database',
-            components.database.status,
-            `${components.database.query_time_ms}ms`
+            components.database.status || 'unknown',
+            `${queryTime}ms`
         ));
     }
     
     // Webhook
     if (components.webhook) {
         const lastWebhook = components.webhook.last_webhook_seconds_ago;
+        const webhookValue = (lastWebhook !== null && lastWebhook !== undefined) ? 
+                            `${lastWebhook}s ago` : 'No data';
         componentsDiv.appendChild(createComponentBadge(
             'Webhooks',
-            components.webhook.status,
-            lastWebhook ? `${lastWebhook}s ago` : 'No data'
+            components.webhook.status || 'unknown',
+            webhookValue
         ));
     }
     
     // Events
     if (components.events) {
+        const mfeCoverage = components.events.mfe_coverage_percent || 0;
         componentsDiv.appendChild(createComponentBadge(
             'Events',
-            components.events.status,
-            `${components.events.mfe_coverage_percent}% MFE`
+            components.events.status || 'unknown',
+            `${mfeCoverage}% MFE`
         ));
     }
     
     // Freshness
     if (components.freshness) {
         const mfeAge = components.freshness.last_mfe_seconds_ago;
+        const freshnessValue = (mfeAge !== null && mfeAge !== undefined) ? 
+                              `${Math.floor(mfeAge/60)}m old` : 'No data';
         componentsDiv.appendChild(createComponentBadge(
             'Data',
-            components.freshness.status,
-            mfeAge ? `${Math.floor(mfeAge/60)}m old` : 'No data'
+            components.freshness.status || 'unknown',
+            freshnessValue
         ));
     }
     
@@ -831,6 +837,17 @@ function updateHealthDisplay() {
             'API',
             components.api.status,
             `${components.api.response_time_ms}ms`
+        ));
+    }
+    
+    // Signal Integrity
+    if (components.integrity) {
+        const integrityMsg = components.integrity.message || 
+                            `${components.integrity.signals_verified} signals`;
+        componentsDiv.appendChild(createComponentBadge(
+            'Integrity',
+            components.integrity.status,
+            integrityMsg
         ));
     }
     
@@ -932,6 +949,22 @@ function updateHealthDetails() {
             { label: 'Response Time', value: `${components.api.response_time_ms}ms` },
             { label: 'Status Code', value: components.api.status_code }
         ]));
+    }
+    
+    // Signal Integrity details
+    if (components.integrity) {
+        const metrics = [
+            { label: 'Signals Verified', value: components.integrity.signals_verified || 0 },
+            { label: 'Errors Found', value: components.integrity.errors_found || 0 },
+            { label: 'Warnings Found', value: components.integrity.warnings_found || 0 }
+        ];
+        
+        // Add message if present
+        if (components.integrity.message) {
+            metrics.push({ label: 'Status', value: components.integrity.message });
+        }
+        
+        grid.appendChild(createDetailCard('Signal Integrity', components.integrity, metrics));
     }
 }
 

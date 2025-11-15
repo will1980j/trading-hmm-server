@@ -24,18 +24,19 @@ def verify_random_signals(num_signals=2):
     cursor = conn.cursor()
     
     try:
-        # Get random signal IDs from last 7 days
+        # Get random trade IDs from last 7 days
         cursor.execute("""
-            SELECT DISTINCT signal_id 
+            SELECT DISTINCT trade_id 
             FROM automated_signals 
             WHERE timestamp > NOW() - INTERVAL '7 days'
+            AND trade_id IS NOT NULL
             ORDER BY RANDOM()
             LIMIT %s
         """, (num_signals,))
         
-        signal_ids = [row[0] for row in cursor.fetchall()]
+        trade_ids = [row[0] for row in cursor.fetchall()]
         
-        if not signal_ids:
+        if not trade_ids:
             return {
                 "status": "NO_DATA",
                 "message": "No signals found in last 7 days",
@@ -45,14 +46,14 @@ def verify_random_signals(num_signals=2):
         
         results = {
             "status": "PASS",
-            "signals_checked": len(signal_ids),
+            "signals_checked": len(trade_ids),
             "errors": [],
             "warnings": [],
             "details": []
         }
         
-        for signal_id in signal_ids:
-            signal_result = verify_single_signal(cursor, signal_id)
+        for trade_id in trade_ids:
+            signal_result = verify_single_signal(cursor, trade_id)
             results["details"].append(signal_result)
             
             # Collect errors and warnings
@@ -70,7 +71,7 @@ def verify_random_signals(num_signals=2):
         cursor.close()
         conn.close()
 
-def verify_single_signal(cursor, signal_id):
+def verify_single_signal(cursor, trade_id):
     """Run all verification checks on a single signal"""
     
     # Get all events for this signal
@@ -79,17 +80,17 @@ def verify_single_signal(cursor, signal_id):
                be_mfe, no_be_mfe, session, signal_date, signal_time,
                timestamp, status, target_1r, target_2r, target_3r
         FROM automated_signals
-        WHERE signal_id = %s
+        WHERE trade_id = %s
         ORDER BY timestamp ASC
-    """, (signal_id,))
+    """, (trade_id,))
     
     events = cursor.fetchall()
     
     if not events:
         return {
-            "signal_id": signal_id,
+            "trade_id": trade_id,
             "status": "ERROR",
-            "errors": [f"No events found for signal {signal_id}"],
+            "errors": [f"No events found for trade {trade_id}"],
             "warnings": [],
             "checks": []
         }
@@ -113,7 +114,7 @@ def verify_single_signal(cursor, signal_id):
     
     # Run verification checks
     result = {
-        "signal_id": signal_id,
+        "trade_id": trade_id,
         "status": "PASS",
         "errors": [],
         "warnings": [],
