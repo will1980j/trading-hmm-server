@@ -218,19 +218,51 @@
             font-weight: 600;
         }
 
-        .status-badge.pending {
-            background: rgba(251, 191, 36, 0.2);
-            color: #fbbf24;
+        .status-badge.active {
+            background: rgba(74, 222, 128, 0.2);
+            color: #4ade80;
         }
 
-        .status-badge.confirmed {
-            background: rgba(59, 130, 246, 0.2);
-            color: #3b82f6;
-        }
-
-        .status-badge.resolved {
+        .status-badge.completed {
             background: rgba(139, 92, 246, 0.2);
             color: #8b5cf6;
+        }
+
+        /* Status Dots */
+        .trade-status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .trade-status-dot.active-both {
+            background: #4ade80;
+            animation: pulse-green 2s infinite;
+            box-shadow: 0 0 8px #4ade80;
+        }
+
+        .trade-status-dot.active-no-be {
+            background: #3b82f6;
+            animation: pulse-blue 2s infinite;
+            box-shadow: 0 0 8px #3b82f6;
+        }
+
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.15); }
+        }
+
+        @keyframes pulse-blue {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.15); }
+        }
+
+        .trade-number {
+            font-weight: 700;
+            color: #00d4ff;
+            font-size: 14px;
         }
 
         /* Activity Feed */
@@ -1023,20 +1055,20 @@ function showHealthError() {
         <!-- Stats Grid -->
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-label">Total Signals Today</div>
-                <div class="stat-value" id="totalSignals">0</div>
+                <div class="stat-label">Completed Signals Today</div>
+                <div class="stat-value" id="completedSignals">0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Pending Confirmation</div>
-                <div class="stat-value" id="pendingSignals">0</div>
+                <div class="stat-label">Current Active Trades</div>
+                <div class="stat-value positive" id="activeTrades">0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Confirmed Trades</div>
-                <div class="stat-value positive" id="confirmedTrades">0</div>
+                <div class="stat-label">Avg BE=1 MFE</div>
+                <div class="stat-value" id="avgBeMFE">0.00R</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Avg MFE</div>
-                <div class="stat-value" id="avgMFE">0.00R</div>
+                <div class="stat-label">Avg No BE MFE</div>
+                <div class="stat-value" id="avgNoBeMFE">0.00R</div>
             </div>
         </div>
 
@@ -1072,22 +1104,23 @@ function showHealthError() {
                     <h2 class="panel-title">Live Signals</h2>
                     <div class="filter-tabs">
                         <div class="filter-tab active" data-filter="all">All</div>
-                        <div class="filter-tab" data-filter="pending">Pending</div>
-                        <div class="filter-tab" data-filter="confirmed">Confirmed</div>
-                        <div class="filter-tab" data-filter="resolved">Resolved</div>
+                        <div class="filter-tab" data-filter="active">Active</div>
+                        <div class="filter-tab" data-filter="completed">Completed</div>
                     </div>
                 </div>
                 <div id="signalsTableContainer">
                     <table class="signals-table">
                         <thead>
                             <tr>
+                                <th>Status</th>
+                                <th>#</th>
                                 <th>Time</th>
                                 <th>Direction</th>
                                 <th>Entry</th>
                                 <th>Stop Loss</th>
                                 <th>Session</th>
-                                <th>MFE</th>
-                                <th>Status</th>
+                                <th>BE=1 MFE</th>
+                                <th>No BE MFE</th>
                             </tr>
                         </thead>
                         <tbody id="signalsTableBody">
@@ -1181,21 +1214,37 @@ function showHealthError() {
         function updateStats() {
             const today = new Date().toDateString();
             const todaySignals = signals.filter(s => 
-                new Date(s.timestamp).toDateString() === today
+                new Date(s.timestamp || s.created_at).toDateString() === today
             );
 
-            document.getElementById('totalSignals').textContent = todaySignals.length;
-            document.getElementById('pendingSignals').textContent = 
-                todaySignals.filter(s => s.status === 'pending').length;
-            document.getElementById('confirmedTrades').textContent = 
-                todaySignals.filter(s => s.status === 'confirmed').length;
-
-            const avgMFE = todaySignals
-                .filter(s => s.mfe !== null)
-                .reduce((sum, s) => sum + (s.mfe || 0), 0) / 
-                (todaySignals.filter(s => s.mfe !== null).length || 1);
+            // Count completed and active trades
+            const completedToday = todaySignals.filter(s => {
+                const status = (s.trade_status || s.status || '').toUpperCase();
+                return status === 'RESOLVED' || status === 'COMPLETED' || status === 'EXIT_STOP_LOSS' || status === 'EXIT_BREAK_EVEN';
+            }).length;
             
-            document.getElementById('avgMFE').textContent = avgMFE.toFixed(2) + 'R';
+            const activeToday = todaySignals.filter(s => {
+                const status = (s.trade_status || s.status || '').toUpperCase();
+                return status === 'ACTIVE' || status === 'CONFIRMED' || status === 'ENTRY';
+            }).length;
+
+            document.getElementById('completedSignals').textContent = completedToday;
+            document.getElementById('activeTrades').textContent = activeToday;
+
+            // Calculate average BE=1 MFE
+            const beMfeSignals = todaySignals.filter(s => s.be_mfe && s.be_mfe > 0);
+            const avgBeMFE = beMfeSignals.length > 0 
+                ? beMfeSignals.reduce((sum, s) => sum + s.be_mfe, 0) / beMfeSignals.length
+                : 0;
+            
+            // Calculate average No BE MFE
+            const noBeMfeSignals = todaySignals.filter(s => s.no_be_mfe && s.no_be_mfe > 0);
+            const avgNoBeMFE = noBeMfeSignals.length > 0
+                ? noBeMfeSignals.reduce((sum, s) => sum + s.no_be_mfe, 0) / noBeMfeSignals.length
+                : 0;
+            
+            document.getElementById('avgBeMFE').textContent = avgBeMFE.toFixed(2) + 'R';
+            document.getElementById('avgNoBeMFE').textContent = avgNoBeMFE.toFixed(2) + 'R';
         }
 
         function updateSignalsTable() {
@@ -1212,10 +1261,13 @@ function showHealthError() {
             // Status filter
             if (currentFilter !== 'all') {
                 filteredSignals = filteredSignals.filter(s => {
-                    const status = s.trade_status || s.status;
-                    if (currentFilter === 'pending') return status === 'PENDING';
-                    if (currentFilter === 'confirmed') return status === 'CONFIRMED' || status === 'ACTIVE';
-                    if (currentFilter === 'resolved') return status === 'RESOLVED';
+                    const status = (s.trade_status || s.status || '').toUpperCase();
+                    if (currentFilter === 'active') {
+                        return status === 'ACTIVE' || status === 'CONFIRMED' || status === 'ENTRY';
+                    }
+                    if (currentFilter === 'completed') {
+                        return status === 'RESOLVED' || status === 'COMPLETED' || status === 'EXIT_STOP_LOSS' || status === 'EXIT_BREAK_EVEN';
+                    }
                     return true;
                 });
             }
@@ -1223,7 +1275,7 @@ function showHealthError() {
             if (filteredSignals.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7">
+                        <td colspan="9">
                             <div class="empty-state">
                                 <div class="empty-state-icon">📊</div>
                                 <div>No ${selectedDate ? 'signals for selected date' : currentFilter + ' signals'}</div>
@@ -1234,12 +1286,27 @@ function showHealthError() {
                 return;
             }
 
-            tbody.innerHTML = filteredSignals.slice(0, 50).map(signal => {
+            tbody.innerHTML = filteredSignals.slice(0, 50).map((signal, index) => {
                 const direction = signal.bias || signal.direction;
-                const status = signal.trade_status || signal.status || 'pending';
+                const status = (signal.trade_status || signal.status || 'unknown').toUpperCase();
+                
+                // Determine if trade is active
+                const isActive = status === 'ACTIVE' || status === 'CONFIRMED' || status === 'ENTRY';
+                
                 // Use the dual MFE values from API
                 const be_mfe = signal.be_mfe || 0;
                 const no_be_mfe = signal.no_be_mfe || 0;
+                
+                // Determine status dot
+                let statusDot = '';
+                if (isActive) {
+                    // Green pulsating dot if both MFEs are active (no_be_mfe > be_mfe means BE hasn't stopped out)
+                    // Blue dot if BE=1 has stopped out (be_mfe exists but no_be_mfe is still running)
+                    const beStoppedOut = be_mfe > 0 && no_be_mfe > be_mfe;
+                    const dotClass = beStoppedOut ? 'active-no-be' : 'active-both';
+                    statusDot = `<span class="trade-status-dot ${dotClass}"></span>`;
+                }
+                
                 const timestamp = signal.created_at || signal.timestamp;
                 
                 // Use exact time from TradingView (signal_time or time field)
@@ -1247,6 +1314,8 @@ function showHealthError() {
                 
                 return `
                     <tr>
+                        <td>${statusDot}</td>
+                        <td><span class="trade-number">${index + 1}</span></td>
                         <td>${displayTime}</td>
                         <td>
                             <span class="direction-badge ${direction ? direction.toLowerCase() : 'neutral'}">
@@ -1256,12 +1325,8 @@ function showHealthError() {
                         <td>${signal.entry_price ? signal.entry_price.toFixed(2) : '-'}</td>
                         <td>${signal.stop_loss_price || signal.stop_loss ? (signal.stop_loss_price || signal.stop_loss).toFixed(2) : '-'}</td>
                         <td>${signal.session || '-'}</td>
-                        <td>${be_mfe > 0 ? be_mfe.toFixed(2) + 'R' : '-'} / ${no_be_mfe > 0 ? no_be_mfe.toFixed(2) + 'R' : '-'}</td>
-                        <td>
-                            <span class="status-badge ${status.toLowerCase()}">
-                                ${status}
-                            </span>
-                        </td>
+                        <td><strong>${be_mfe > 0 ? be_mfe.toFixed(2) + 'R' : '-'}</strong></td>
+                        <td><strong>${no_be_mfe > 0 ? no_be_mfe.toFixed(2) + 'R' : '-'}</strong></td>
                     </tr>
                 `;
             }).join('');
