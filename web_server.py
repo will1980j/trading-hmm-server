@@ -426,6 +426,11 @@ if db_enabled and db:
 from websocket_handler_robust import RobustWebSocketHandler, register_websocket_handlers
 from automated_signals_api_robust import register_automated_signals_api_robust
 from system_diagnostics_api import register_diagnostics_api
+from system_health_api import register_system_health_api
+
+# Keep legacy handler imports for backward compatibility
+from realtime_signal_handler import RealtimeSignalHandler
+from automated_signals_api import register_automated_signals_api
 
 # Initialize robust WebSocket handler
 robust_ws_handler = RobustWebSocketHandler(socketio, db) if db_enabled else None
@@ -442,10 +447,7 @@ if db_enabled:
     logger.info("✅ Robust API endpoints registered")
     logger.info("✅ Diagnostics API registered")
 
-# Keep legacy handler for backward compatibility
-from realtime_signal_handler import RealtimeSignalHandler
-from automated_signals_api import register_automated_signals_api
-from system_health_api import register_system_health_api
+# Initialize legacy handler
 realtime_handler = RealtimeSignalHandler(socketio, db) if db_enabled else None
 
 # Initialize prediction accuracy tracker
