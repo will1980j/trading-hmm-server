@@ -2,6 +2,7 @@
 System Health Monitor API - 100% Cloud-Native
 Comprehensive health checks for Automated Signals system on Railway
 All checks use fresh database connections and Railway infrastructure
+Weekend-aware to prevent false alarms when markets are closed
 """
 
 from flask import jsonify, request
@@ -19,6 +20,25 @@ def get_fresh_db_connection():
     if not database_url:
         raise Exception("DATABASE_URL not configured")
     return psycopg2.connect(database_url)
+
+def is_weekend_or_market_closed():
+    """
+    Check if it's currently weekend or outside market hours
+    Markets: Mon-Fri, roughly 6:00 AM - 4:00 PM ET
+    """
+    eastern = pytz.timezone('US/Eastern')
+    now_et = datetime.now(eastern)
+    
+    # Check if weekend (Saturday=5, Sunday=6)
+    if now_et.weekday() >= 5:
+        return True, "Weekend - Markets Closed"
+    
+    # Check if outside market hours (before 6 AM or after 4 PM ET)
+    hour = now_et.hour
+    if hour < 6 or hour >= 16:
+        return True, "Outside Market Hours"
+    
+    return False, "Market Hours"
 
 def register_system_health_api(app, db):
     """Register cloud-native system health monitoring endpoints"""
@@ -192,18 +212,27 @@ def check_webhook_health_fresh():
         issues = []
         seconds_since = None
         
+        # Weekend-aware thresholds
+        is_closed, market_status = is_weekend_or_market_closed()
+        webhook_threshold = 86400 if is_closed else 300  # 24 hours on weekend, 5 min during market
+        
         if last_webhook:
             seconds_since = (datetime.now(pytz.UTC) - last_webhook.replace(tzinfo=pytz.UTC)).total_seconds()
-            if seconds_since > 300:  # 5 minutes
-                status = 'warning'
-                issues.append(f'No webhooks for {int(seconds_since/60)} minutes')
+            if seconds_since > webhook_threshold:
+                if is_closed:
+                    # Don't warn on weekends - this is expected
+                    issues.append(f'{market_status} - Last webhook {int(seconds_since/3600)}h ago')
+                else:
+                    status = 'warning'
+                    issues.append(f'No webhooks for {int(seconds_since/60)} minutes')
         else:
-            status = 'critical'
-            issues.append('No webhooks received in last 10 minutes')
+            if not is_closed:
+                status = 'critical'
+                issues.append('No webhooks received in last 10 minutes')
             seconds_since = 999
         
-        # Check for MFE_UPDATE events
-        if event_counts.get('MFE_UPDATE', 0) == 0 and webhooks_last_hour > 0:
+        # Check for MFE_UPDATE events (only during market hours)
+        if not is_closed and event_counts.get('MFE_UPDATE', 0) == 0 and webhooks_last_hour > 0:
             status = 'warning'
             issues.append('No MFE_UPDATE events in last hour')
         
@@ -274,11 +303,18 @@ def check_event_flow_health_fresh():
         status = 'healthy'
         issues = []
         
+        # Weekend-aware MFE coverage check
+        is_closed, market_status = is_weekend_or_market_closed()
+        
         if active_trades > 0:
             mfe_coverage = (trades_with_mfe / active_trades) * 100
             if mfe_coverage < 80:
-                status = 'warning'
-                issues.append(f'Only {mfe_coverage:.0f}% of trades have MFE updates')
+                if is_closed:
+                    # Don't warn on weekends - active trades won't get MFE updates
+                    issues.append(f'{market_status} - {active_trades} trades awaiting market open')
+                else:
+                    status = 'warning'
+                    issues.append(f'Only {mfe_coverage:.0f}% of trades have MFE updates')
         else:
             mfe_coverage = 0
         
@@ -333,11 +369,19 @@ def check_data_freshness_fresh():
         mfe_age_seconds = None
         entry_age_seconds = None
         
+        # Weekend-aware thresholds
+        is_closed, market_status = is_weekend_or_market_closed()
+        freshness_threshold = 86400 if is_closed else 120  # 24 hours on weekend, 2 min during market
+        
         if last_mfe:
             mfe_age_seconds = (datetime.now(pytz.UTC) - last_mfe.replace(tzinfo=pytz.UTC)).total_seconds()
-            if mfe_age_seconds > 120:  # 2 minutes
-                status = 'warning'
-                issues.append(f'MFE updates stale ({int(mfe_age_seconds/60)} min old)')
+            if mfe_age_seconds > freshness_threshold:
+                if is_closed:
+                    # Don't warn on weekends - this is expected
+                    issues.append(f'{market_status} - Last MFE {int(mfe_age_seconds/3600)}h ago')
+                else:
+                    status = 'warning'
+                    issues.append(f'MFE updates stale ({int(mfe_age_seconds/60)} min old)')
         
         if last_entry:
             entry_age_seconds = (datetime.now(pytz.UTC) - last_entry.replace(tzinfo=pytz.UTC)).total_seconds()
@@ -371,12 +415,13 @@ def check_signal_integrity_fresh():
         conn = get_fresh_db_connection()
         cursor = conn.cursor()
         
-        # Get 2 random trade IDs from last 7 days
+        # Get 2 random trade IDs from last 30 days (covers weekends and holidays)
         cursor.execute("""
             SELECT DISTINCT trade_id 
             FROM automated_signals 
-            WHERE timestamp > NOW() - INTERVAL '7 days'
+            WHERE timestamp > NOW() - INTERVAL '30 days'
             AND trade_id IS NOT NULL
+            AND event_type = 'ENTRY'
             ORDER BY RANDOM()
             LIMIT 2
         """)
@@ -384,13 +429,17 @@ def check_signal_integrity_fresh():
         trade_ids = [row[0] for row in cursor.fetchall()]
         
         if not trade_ids:
+            # Check if we have ANY data at all
+            cursor.execute("SELECT COUNT(*) FROM automated_signals")
+            total_count = cursor.fetchone()[0]
+            
             return {
-                'status': 'warning',
+                'status': 'warning' if total_count > 0 else 'critical',
                 'signals_verified': 0,
                 'errors_found': 0,
                 'warnings_found': 0,
-                'message': 'No signals in last 7 days',
-                'issues': []
+                'message': f'No recent signals (total: {total_count})',
+                'issues': ['No signals in last 30 days' if total_count > 0 else 'No data in database']
             }
         
         # Quick integrity checks on each signal
