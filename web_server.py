@@ -939,6 +939,12 @@ def automated_signals_dashboard():
     """Automated Signals Dashboard - Real-time signal monitoring with calendar"""
     return read_html_file('automated_signals_dashboard.html')
 
+@app.route('/live-diagnostics-terminal')
+@login_required
+def live_diagnostics_terminal():
+    """Live Diagnostics Terminal - Real-time system health monitoring"""
+    return read_html_file('live_diagnostics_terminal.html')
+
 @app.route('/automated-signals-analytics')
 @login_required
 def automated_signals_analytics():
