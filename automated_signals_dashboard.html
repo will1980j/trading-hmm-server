@@ -514,7 +514,311 @@
                 font-size: 20px;
             }
         }
+    
+        /* Trade Detail Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1f3a 0%, #0a0e27 100%);
+            margin: 5% auto;
+            padding: 0;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1200px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 212, 255, 0.3);
+        }
+
+        .modal-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            color: #00d4ff;
+            margin: 0;
+        }
+
+        .close-modal {
+            color: #aaa;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close-modal:hover {
+            color: #00d4ff;
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .detail-section {
+            margin-bottom: 30px;
+        }
+
+        .detail-section h3 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .detail-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .detail-label {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            color: #e0e6ed;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .event-timeline {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .event-item {
+            padding: 15px;
+            border-left: 3px solid #00d4ff;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .event-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .event-type {
+            font-weight: 600;
+            color: #00d4ff;
+            font-size: 14px;
+        }
+
+        .event-time {
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .event-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .event-detail {
+            color: #94a3b8;
+        }
+
+        .event-detail strong {
+            color: #e0e6ed;
+        }
+
+        .clickable-row {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+
+        /* Trade Journey Visualization */
+        .journey-container {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .journey-title {
+            color: #00d4ff;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 25px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #journeyViz {
+            width: 100%;
+            height: 400px;
+            position: relative;
+        }
+
+        .journey-node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .journey-node:hover {
+            transform: scale(1.1);
+        }
+
+        .journey-link {
+            fill: none;
+            stroke-width: 4px;
+            opacity: 0.6;
+            transition: all 0.3s ease;
+        }
+
+        .journey-link.completed {
+            stroke: #4ade80;
+            opacity: 0.8;
+        }
+
+        .journey-link.active {
+            stroke: #00d4ff;
+            opacity: 1;
+            animation: pulse-line 2s infinite;
+        }
+
+        .journey-link.potential {
+            stroke: #94a3b8;
+            stroke-dasharray: 8,8;
+            opacity: 0.3;
+        }
+
+        @keyframes pulse-line {
+            0%, 100% { 
+                opacity: 1;
+                stroke-width: 4px;
+            }
+            50% { 
+                opacity: 0.6;
+                stroke-width: 6px;
+            }
+        }
+
+        .node-circle {
+            filter: drop-shadow(0 0 10px currentColor);
+            transition: all 0.3s ease;
+        }
+
+        .journey-node:hover .node-circle {
+            filter: drop-shadow(0 0 20px currentColor);
+        }
+
+        .node-label {
+            font-size: 12px;
+            font-weight: 600;
+            fill: #e0e6ed;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .node-time {
+            font-size: 10px;
+            fill: #94a3b8;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .node-value {
+            font-size: 13px;
+            font-weight: 700;
+            fill: #00d4ff;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .current-indicator {
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                filter: drop-shadow(0 0 12px #00d4ff) drop-shadow(0 0 20px #00d4ff);
+            }
+            50% {
+                filter: drop-shadow(0 0 20px #00d4ff) drop-shadow(0 0 30px #00d4ff);
+            }
+        }
+
+        .journey-legend {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 25px;
+            font-size: 12px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #94a3b8;
+        }
+
+        .legend-line {
+            width: 35px;
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        .legend-line.completed { background: #4ade80; }
+        .legend-line.active { 
+            background: #00d4ff;
+            animation: pulse-legend 2s infinite;
+        }
+        .legend-line.potential { 
+            background: #94a3b8; 
+            opacity: 0.3;
+        }
+
+        @keyframes pulse-legend {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .clickable-row:hover {
+            background: rgba(0, 212, 255, 0.15) !important;
+        }
     </style>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
     
@@ -756,7 +1060,310 @@
     color: #666;
     text-align: right;
 }
-</style>
+
+        /* Trade Detail Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1f3a 0%, #0a0e27 100%);
+            margin: 5% auto;
+            padding: 0;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1200px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 212, 255, 0.3);
+        }
+
+        .modal-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            color: #00d4ff;
+            margin: 0;
+        }
+
+        .close-modal {
+            color: #aaa;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close-modal:hover {
+            color: #00d4ff;
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .detail-section {
+            margin-bottom: 30px;
+        }
+
+        .detail-section h3 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .detail-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .detail-label {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            color: #e0e6ed;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .event-timeline {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .event-item {
+            padding: 15px;
+            border-left: 3px solid #00d4ff;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .event-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .event-type {
+            font-weight: 600;
+            color: #00d4ff;
+            font-size: 14px;
+        }
+
+        .event-time {
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .event-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .event-detail {
+            color: #94a3b8;
+        }
+
+        .event-detail strong {
+            color: #e0e6ed;
+        }
+
+        .clickable-row {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+
+        /* Trade Journey Visualization */
+        .journey-container {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .journey-title {
+            color: #00d4ff;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 25px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #journeyViz {
+            width: 100%;
+            height: 400px;
+            position: relative;
+        }
+
+        .journey-node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .journey-node:hover {
+            transform: scale(1.1);
+        }
+
+        .journey-link {
+            fill: none;
+            stroke-width: 4px;
+            opacity: 0.6;
+            transition: all 0.3s ease;
+        }
+
+        .journey-link.completed {
+            stroke: #4ade80;
+            opacity: 0.8;
+        }
+
+        .journey-link.active {
+            stroke: #00d4ff;
+            opacity: 1;
+            animation: pulse-line 2s infinite;
+        }
+
+        .journey-link.potential {
+            stroke: #94a3b8;
+            stroke-dasharray: 8,8;
+            opacity: 0.3;
+        }
+
+        @keyframes pulse-line {
+            0%, 100% { 
+                opacity: 1;
+                stroke-width: 4px;
+            }
+            50% { 
+                opacity: 0.6;
+                stroke-width: 6px;
+            }
+        }
+
+        .node-circle {
+            filter: drop-shadow(0 0 10px currentColor);
+            transition: all 0.3s ease;
+        }
+
+        .journey-node:hover .node-circle {
+            filter: drop-shadow(0 0 20px currentColor);
+        }
+
+        .node-label {
+            font-size: 12px;
+            font-weight: 600;
+            fill: #e0e6ed;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .node-time {
+            font-size: 10px;
+            fill: #94a3b8;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .node-value {
+            font-size: 13px;
+            font-weight: 700;
+            fill: #00d4ff;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .current-indicator {
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                filter: drop-shadow(0 0 12px #00d4ff) drop-shadow(0 0 20px #00d4ff);
+            }
+            50% {
+                filter: drop-shadow(0 0 20px #00d4ff) drop-shadow(0 0 30px #00d4ff);
+            }
+        }
+
+        .journey-legend {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 25px;
+            font-size: 12px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #94a3b8;
+        }
+
+        .legend-line {
+            width: 35px;
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        .legend-line.completed { background: #4ade80; }
+        .legend-line.active { 
+            background: #00d4ff;
+            animation: pulse-legend 2s infinite;
+        }
+        .legend-line.potential { 
+            background: #94a3b8; 
+            opacity: 0.3;
+        }
+
+        @keyframes pulse-legend {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .clickable-row:hover {
+            background: rgba(0, 212, 255, 0.15) !important;
+        }
+    </style>
 
 <div class="health-monitor">
     <div class="health-status-bar">
@@ -1018,6 +1625,9 @@ function createDetailCard(title, data, metrics) {
                 ${data.issues.map(issue => `<div class="health-issue">${issue}</div>`).join('')}
             </div>
         `;
+        
+        // Render the journey visualization
+        setTimeout(() => renderTradeJourney(trade), 100);
     }
     
     card.innerHTML = `
@@ -1318,7 +1928,7 @@ function showHealthError() {
                 const statusText = isActive ? 'Active' : 'Completed';
                 
                 return `
-                    <tr>
+                    <tr class="clickable-row" onclick="showTradeDetail('${signal.trade_id}')">
                         <td>${statusDot}</td>
                         <td><span class="trade-number">${index + 1}</span></td>
                         <td>${displayTime}</td>
@@ -1531,9 +2141,393 @@ function showHealthError() {
             });
         }
 
+
+
+        // Trade Journey Visualization with D3.js
+        function renderTradeJourney(trade) {
+            // Clear existing visualization
+            d3.select('#journeyViz').selectAll('*').remove();
+            
+            const events = trade.events;
+            const latestEvent = events[events.length - 1];
+            const isActive = !latestEvent.event_type.startsWith('EXIT_');
+            
+            // Build journey path based on actual events
+            const journeyPath = [];
+            const eventsByType = {};
+            
+            events.forEach(event => {
+                if (!eventsByType[event.event_type]) {
+                    eventsByType[event.event_type] = [];
+                }
+                eventsByType[event.event_type].push(event);
+            });
+            
+            // Add ENTRY
+            if (eventsByType['ENTRY']) {
+                journeyPath.push({
+                    stage: 'ENTRY',
+                    event: eventsByType['ENTRY'][0],
+                    status: 'completed',
+                    label: 'Entry',
+                    color: '#4ade80',
+                    icon: '▶'
+                });
+            }
+            
+            // Add MFE_UPDATE nodes (show first, peak, and latest)
+            if (eventsByType['MFE_UPDATE']) {
+                const mfeEvents = eventsByType['MFE_UPDATE'];
+                
+                // Find peak MFE
+                let peakMfe = mfeEvents[0];
+                mfeEvents.forEach(e => {
+                    if ((e.no_be_mfe || 0) > (peakMfe.no_be_mfe || 0)) {
+                        peakMfe = e;
+                    }
+                });
+                
+                // Add first MFE
+                journeyPath.push({
+                    stage: 'MFE_UPDATE',
+                    event: mfeEvents[0],
+                    status: 'completed',
+                    label: 'First MFE',
+                    sublabel: `${(mfeEvents[0].no_be_mfe || 0).toFixed(2)}R`,
+                    color: '#00d4ff',
+                    icon: '📊'
+                });
+                
+                // Add peak MFE if different
+                if (peakMfe !== mfeEvents[0] && peakMfe !== mfeEvents[mfeEvents.length - 1]) {
+                    journeyPath.push({
+                        stage: 'MFE_UPDATE',
+                        event: peakMfe,
+                        status: 'completed',
+                        label: 'Peak MFE',
+                        sublabel: `${(peakMfe.no_be_mfe || 0).toFixed(2)}R`,
+                        color: '#10b981',
+                        icon: '🎯'
+                    });
+                }
+                
+                // Add latest MFE if active
+                if (isActive && mfeEvents.length > 1) {
+                    journeyPath.push({
+                        stage: 'MFE_UPDATE',
+                        event: mfeEvents[mfeEvents.length - 1],
+                        status: 'current',
+                        label: 'Current MFE',
+                        sublabel: `${(mfeEvents[mfeEvents.length - 1].no_be_mfe || 0).toFixed(2)}R`,
+                        color: '#00d4ff',
+                        icon: '📈'
+                    });
+                }
+            }
+            
+            // Add BE_TRIGGERED if exists
+            if (eventsByType['BE_TRIGGERED']) {
+                journeyPath.push({
+                    stage: 'BE_TRIGGERED',
+                    event: eventsByType['BE_TRIGGERED'][0],
+                    status: 'completed',
+                    label: 'Break Even',
+                    sublabel: '+1R Achieved',
+                    color: '#fbbf24',
+                    icon: '⚡'
+                });
+            }
+            
+            // Add EXIT if exists
+            if (eventsByType['EXIT_STOP_LOSS']) {
+                journeyPath.push({
+                    stage: 'EXIT_STOP_LOSS',
+                    event: eventsByType['EXIT_STOP_LOSS'][0],
+                    status: 'completed',
+                    label: 'Stop Loss Hit',
+                    sublabel: `Final: ${(eventsByType['EXIT_STOP_LOSS'][0].no_be_mfe || 0).toFixed(2)}R`,
+                    color: '#ef4444',
+                    icon: '🛑'
+                });
+            } else if (eventsByType['EXIT_BREAK_EVEN']) {
+                journeyPath.push({
+                    stage: 'EXIT_BREAK_EVEN',
+                    event: eventsByType['EXIT_BREAK_EVEN'][0],
+                    status: 'completed',
+                    label: 'BE Exit',
+                    sublabel: `Final: ${(eventsByType['EXIT_BREAK_EVEN'][0].be_mfe || 0).toFixed(2)}R`,
+                    color: '#8b5cf6',
+                    icon: '↩'
+                });
+            }
+            
+            // Add potential next states if active
+            if (isActive) {
+                if (!eventsByType['BE_TRIGGERED']) {
+                    journeyPath.push({
+                        stage: 'BE_TRIGGERED',
+                        status: 'potential',
+                        label: 'Potential BE',
+                        sublabel: 'If +1R reached',
+                        color: '#94a3b8',
+                        icon: '⚡'
+                    });
+                }
+                
+                journeyPath.push({
+                    stage: 'EXIT',
+                    status: 'potential',
+                    label: 'Potential Exit',
+                    sublabel: 'Stop or Target',
+                    color: '#94a3b8',
+                    icon: '🏁'
+                });
+            }
+            
+            // Set up SVG
+            const container = d3.select('#journeyViz');
+            const width = container.node().getBoundingClientRect().width;
+            const height = 400;
+            
+            const svg = container.append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Calculate positions
+            const nodeSpacing = width / (journeyPath.length + 1);
+            const centerY = height / 2;
+            
+            journeyPath.forEach((node, i) => {
+                node.x = nodeSpacing * (i + 1);
+                node.y = centerY;
+            });
+            
+            // Draw connecting lines
+            for (let i = 0; i < journeyPath.length - 1; i++) {
+                const source = journeyPath[i];
+                const target = journeyPath[i + 1];
+                
+                let linkClass = 'journey-link ';
+                if (source.status === 'completed' && target.status === 'completed') {
+                    linkClass += 'completed';
+                } else if (source.status === 'current' || target.status === 'current') {
+                    linkClass += 'active';
+                } else {
+                    linkClass += 'potential';
+                }
+                
+                svg.append('path')
+                    .attr('class', linkClass)
+                    .attr('d', `M ${source.x},${source.y} L ${target.x},${target.y}`);
+            }
+            
+            // Draw nodes
+            const nodes = svg.selectAll('.journey-node')
+                .data(journeyPath)
+                .enter()
+                .append('g')
+                .attr('class', 'journey-node')
+                .attr('transform', d => `translate(${d.x},${d.y})`);
+            
+            // Node circles
+            nodes.append('circle')
+                .attr('class', d => d.status === 'current' ? 'node-circle current-indicator' : 'node-circle')
+                .attr('r', d => d.status === 'current' ? 40 : d.status === 'potential' ? 28 : 32)
+                .attr('fill', d => d.color)
+                .attr('opacity', d => d.status === 'potential' ? 0.3 : 0.9);
+            
+            // Node icons
+            nodes.append('text')
+                .attr('class', 'node-label')
+                .attr('y', 6)
+                .style('font-size', d => d.status === 'current' ? '24px' : '18px')
+                .text(d => d.icon);
+            
+            // Node labels
+            nodes.append('text')
+                .attr('class', 'node-label')
+                .attr('y', -50)
+                .text(d => d.label);
+            
+            // Node sublabels (MFE values, etc.)
+            nodes.filter(d => d.sublabel)
+                .append('text')
+                .attr('class', 'node-value')
+                .attr('y', 55)
+                .text(d => d.sublabel);
+            
+            // Node times
+            nodes.filter(d => d.event)
+                .append('text')
+                .attr('class', 'node-time')
+                .attr('y', 72)
+                .text(d => {
+                    if (d.event.signal_time) {
+                        const time = d.event.signal_time.split('T')[1];
+                        return time ? time.substring(0, 8) : '';
+                    }
+                    return '';
+                });
+        }
+
+
+        // Trade Detail Modal Functions
+        async function showTradeDetail(tradeId) {
+            const modal = document.getElementById('tradeDetailModal');
+            const body = document.getElementById('tradeDetailBody');
+            
+            body.innerHTML = '<div style="text-align: center; padding: 40px; color: #00d4ff;">Loading trade details...</div>';
+            modal.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/automated-signals/trade-detail/${tradeId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderTradeDetail(data.trade);
+                } else {
+                    body.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 40px;">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                console.error('Error loading trade detail:', error);
+                body.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 40px;">Error loading trade details</div>`;
+            }
+        }
+
+        function renderTradeDetail(trade) {
+            const body = document.getElementById('tradeDetailBody');
+            
+            // Determine current status from latest event
+            const latestEvent = trade.events[trade.events.length - 1];
+            const isActive = !latestEvent.event_type.startsWith('EXIT_');
+            const statusText = isActive ? 'ACTIVE' : 'COMPLETED';
+            const statusColor = isActive ? '#4ade80' : '#8b5cf6';
+            
+            body.innerHTML = `
+                <div class="journey-container">
+                    <div class="journey-title">📍 Trade Journey Map</div>
+                    <div id="journeyViz"></div>
+                    <div class="journey-legend">
+                        <div class="legend-item">
+                            <div class="legend-line completed"></div>
+                            <span>Completed</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-line active"></div>
+                            <span>Current</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-line potential"></div>
+                            <span>Potential Next</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>Trade Summary</h3>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">Trade ID</div>
+                            <div class="detail-value">${trade.trade_id}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Current Status</div>
+                            <div class="detail-value" style="color: ${statusColor}">${statusText}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Latest Event</div>
+                            <div class="detail-value">${latestEvent.event_type}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Direction</div>
+                            <div class="detail-value">${trade.direction}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Session</div>
+                            <div class="detail-value">${trade.session || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Entry Price</div>
+                            <div class="detail-value">${trade.entry_price ? trade.entry_price.toFixed(2) : 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Stop Loss</div>
+                            <div class="detail-value">${trade.stop_loss ? trade.stop_loss.toFixed(2) : 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Risk Distance</div>
+                            <div class="detail-value">${trade.risk_distance ? trade.risk_distance.toFixed(2) : 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">BE=1 MFE</div>
+                            <div class="detail-value">${trade.be_mfe ? trade.be_mfe.toFixed(2) + 'R' : 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">No BE MFE</div>
+                            <div class="detail-value">${trade.no_be_mfe ? trade.no_be_mfe.toFixed(2) + 'R' : 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>Event Timeline (${trade.events.length} events)</h3>
+                    <div class="event-timeline">
+                        ${trade.events.map(event => `
+                            <div class="event-item">
+                                <div class="event-header">
+                                    <span class="event-type">${event.event_type}</span>
+                                    <span class="event-time">${event.signal_time || formatTime(event.timestamp)}</span>
+                                </div>
+                                <div class="event-details">
+                                    ${event.be_mfe !== null && event.be_mfe !== undefined ? `<div class="event-detail">BE MFE: <strong>${event.be_mfe.toFixed(2)}R</strong></div>` : ''}
+                                    ${event.no_be_mfe !== null && event.no_be_mfe !== undefined ? `<div class="event-detail">No BE MFE: <strong>${event.no_be_mfe.toFixed(2)}R</strong></div>` : ''}
+                                    ${event.entry_price ? `<div class="event-detail">Entry: <strong>${event.entry_price.toFixed(2)}</strong></div>` : ''}
+                                    ${event.stop_loss ? `<div class="event-detail">Stop: <strong>${event.stop_loss.toFixed(2)}</strong></div>` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>Latest Alert Payload</h3>
+                    <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px; color: #e0e6ed; overflow-x: auto;">
+                        <pre>${JSON.stringify(latestEvent, null, 2)}</pre>
+                    </div>
+                </div>
+            `;
+        }
+
+        function closeTradeDetail() {
+            document.getElementById('tradeDetailModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('tradeDetailModal');
+            if (event.target == modal) {
+                closeTradeDetail();
+            }
+        }
+
+
         // Initialize
         loadInitialData();
     </script>
+
+<!-- Trade Detail Modal -->
+<div id="tradeDetailModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Trade Details</h2>
+            <span class="close-modal" onclick="closeTradeDetail()">&times;</span>
+        </div>
+        <div class="modal-body" id="tradeDetailBody">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
 
