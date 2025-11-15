@@ -1627,9 +1627,6 @@ function createDetailCard(title, data, metrics) {
                 ${data.issues.map(issue => `<div class="health-issue">${issue}</div>`).join('')}
             </div>
         `;
-        
-        // Render the journey visualization
-        setTimeout(() => renderTradeJourney(trade), 100);
     }
     
     card.innerHTML = `
@@ -2595,6 +2592,9 @@ function showHealthError() {
                     </div>
                 </div>
             `;
+            
+            // Render the journey visualization after DOM is updated
+            setTimeout(() => renderTradeJourney(trade), 100);
         }
 
         function closeTradeDetail() {
