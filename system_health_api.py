@@ -49,13 +49,18 @@ def register_system_health_api(app, db):
             api_health = check_api_performance()
             health_status['components']['api'] = api_health
             
+            # 6. SIGNAL INTEGRITY (Random verification)
+            integrity_health = check_signal_integrity(db)
+            health_status['components']['integrity'] = integrity_health
+            
             # Determine overall status
             all_statuses = [
                 db_health['status'],
                 webhook_health['status'],
                 event_health['status'],
                 freshness_health['status'],
-                api_health['status']
+                api_health['status'],
+                integrity_health['status']
             ]
             
             if 'critical' in all_statuses:
@@ -359,4 +364,53 @@ def check_api_performance():
             'status': 'warning',
             'error': str(e),
             'issues': ['API performance check failed']
+        }
+
+
+def check_signal_integrity(db):
+    """
+    Randomly verify 2 signals for data integrity
+    Compact display that expands on errors
+    """
+    try:
+        from signal_integrity_verifier import verify_random_signals
+        
+        results = verify_random_signals(num_signals=2)
+        
+        status = 'healthy'
+        if results['status'] == 'FAIL':
+            status = 'critical'
+        elif results['status'] == 'WARNING':
+            status = 'warning'
+        elif results['status'] == 'NO_DATA':
+            status = 'warning'
+        
+        # Compact summary
+        summary = {
+            'status': status,
+            'signals_verified': results['signals_checked'],
+            'errors_found': len(results['errors']),
+            'warnings_found': len(results['warnings']),
+            'issues': []
+        }
+        
+        # Only include details if there are errors/warnings
+        if results['errors']:
+            summary['issues'] = results['errors'][:3]  # Show first 3 errors
+            summary['error_details'] = results['details']
+        elif results['warnings']:
+            summary['issues'] = results['warnings'][:2]  # Show first 2 warnings
+        
+        # Add compact pass message
+        if status == 'healthy':
+            summary['message'] = f"✓ {results['signals_checked']} signals verified"
+        
+        return summary
+        
+    except Exception as e:
+        logger.error(f"Signal integrity check failed: {e}")
+        return {
+            'status': 'warning',
+            'error': str(e),
+            'issues': ['Integrity check unavailable']
         }

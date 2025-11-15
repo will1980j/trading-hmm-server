@@ -427,6 +427,7 @@ from websocket_handler_robust import RobustWebSocketHandler, register_websocket_
 from automated_signals_api_robust import register_automated_signals_api_robust
 from system_diagnostics_api import register_diagnostics_api
 from system_health_api import register_system_health_api
+from signal_integrity_verifier import register_signal_integrity_api
 
 # Keep legacy handler imports for backward compatibility
 from realtime_signal_handler import RealtimeSignalHandler
@@ -444,8 +445,10 @@ if db_enabled:
     register_automated_signals_api_robust(app, db)
     register_diagnostics_api(app)
     register_system_health_api(app, db)
+    register_signal_integrity_api(app)
     logger.info("✅ Robust API endpoints registered")
     logger.info("✅ Diagnostics API registered")
+    logger.info("✅ Signal Integrity API registered")
 
 # Initialize legacy handler
 realtime_handler = RealtimeSignalHandler(socketio, db) if db_enabled else None
