@@ -643,18 +643,20 @@ if array.size(signal_entries) > 0
         // CRITICAL: Flag updates run regardless of is_recent to ensure historical completion detection
         // CRITICAL FIX: Only check stops AFTER trade has entered (not on confirmation bar)
         if sig_has_entered and sig_dir == "Bullish"
-            // Check if No BE strategy should be stopped out (original SL hit)
-            if track_be_mfe and not sig_no_be_stopped
+            // ALWAYS check if No BE strategy should be stopped out (original SL hit)
+            // This runs regardless of track_be_mfe setting
+            if not sig_no_be_stopped
                 if low <= sig_stop
                     array.set(signal_no_be_stopped, i, true)
                     sig_no_be_stopped := true
                     // CRITICAL: If original SL hit BEFORE BE triggered, BE=1 also stops
                     // Both strategies have same stop until +1R is achieved
-                    if not sig_be_triggered
+                    if track_be_mfe and not sig_be_triggered
                         array.set(signal_be_stopped, i, true)
                         sig_be_stopped := true
             
             // Check if BE=1 strategy should be stopped out (entry hit after BE trigger)
+            // This only runs when BE tracking is enabled
             if track_be_mfe and sig_be_triggered and not sig_be_stopped
                 if low <= sig_entry
                     array.set(signal_be_stopped, i, true)
@@ -671,19 +673,21 @@ if array.size(signal_entries) > 0
                 sig_be_mfe := capped_be_mfe_bull
                 be_just_triggered := true
         else  // Bearish
-            // Check if No BE strategy should be stopped out (original SL hit)
+            // ALWAYS check if No BE strategy should be stopped out (original SL hit)
+            // This runs regardless of track_be_mfe setting
             // CRITICAL FIX: Only check stops AFTER trade has entered (not on confirmation bar)
-            if sig_has_entered and track_be_mfe and not sig_no_be_stopped
+            if sig_has_entered and not sig_no_be_stopped
                 if high >= sig_stop
                     array.set(signal_no_be_stopped, i, true)
                     sig_no_be_stopped := true
                     // CRITICAL: If original SL hit BEFORE BE triggered, BE=1 also stops
                     // Both strategies have same stop until +1R is achieved
-                    if not sig_be_triggered
+                    if track_be_mfe and not sig_be_triggered
                         array.set(signal_be_stopped, i, true)
                         sig_be_stopped := true
             
             // Check if BE=1 strategy should be stopped out (entry hit after BE trigger)
+            // This only runs when BE tracking is enabled
             if sig_has_entered and track_be_mfe and sig_be_triggered and not sig_be_stopped
                 if high >= sig_entry
                     array.set(signal_be_stopped, i, true)
@@ -707,11 +711,9 @@ if array.size(signal_entries) > 0
                 // With BE tracking: complete if EITHER strategy stopped
                 trade_stopped_out := sig_be_stopped or sig_no_be_stopped
             else
-                // Without BE tracking: complete if original SL hit
-                if sig_dir == "Bullish"
-                    trade_stopped_out := low <= sig_stop
-                else
-                    trade_stopped_out := high >= sig_stop
+                // Without BE tracking: complete if No BE strategy stopped
+                // (sig_no_be_stopped is now always tracked regardless of track_be_mfe)
+                trade_stopped_out := sig_no_be_stopped
             
             // Mark as complete if not already complete
             if trade_stopped_out and not sig_was_complete
@@ -720,6 +722,10 @@ if array.size(signal_entries) > 0
         
         // Calculate if MFE changed (used by both strategies)
         bool mfe_changed = current_mfe > sig_mfe
+        
+        // CRITICAL FIX: Save previous No BE MFE BEFORE updating
+        // This is needed for proper BE MFE capping
+        float previous_no_be_mfe = sig_mfe
         
         // Update No BE MFE - only if not stopped out yet
         if mfe_changed and is_recent and not sig_no_be_stopped
@@ -733,18 +739,17 @@ if array.size(signal_entries) > 0
         // - BE=1 MFE stops when: price hits entry (after +1R) OR original stop loss (before +1R)
         if track_be_mfe
             // BE MFE continues to update as long as BE=1 strategy hasn't been stopped out
-            // It tracks the SAME current_mfe value, just with different stop condition
+            // CRITICAL FIX: Cap to PREVIOUS No BE MFE, not current (which was just updated)
+            // This allows BE MFE to track independently when BE stops first
             if mfe_changed and is_recent and not sig_be_stopped
-                // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
-                float capped_be_mfe = math.min(current_mfe, sig_mfe)
-                array.set(signal_be_mfes, i, capped_be_mfe)
-                sig_be_mfe := capped_be_mfe
+                // Use current_mfe directly (don't cap to just-updated sig_mfe)
+                array.set(signal_be_mfes, i, current_mfe)
+                sig_be_mfe := current_mfe
         
         // Re-read final values from arrays to ensure label shows latest data
         float final_mfe = array.get(signal_mfes, i)
         float final_be_mfe = track_be_mfe ? array.get(signal_be_mfes, i) : 0.0
-        // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
-        final_be_mfe := math.min(final_be_mfe, final_mfe)
+        // Note: BE MFE may exceed No BE MFE temporarily, but will be corrected when BE stops
         
         // ONLY CREATE LABELS ON THE LAST BAR (current bar) to avoid performance issues
         if barstate.islast and show_mfe_labels
