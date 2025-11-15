@@ -366,38 +366,89 @@ def check_signal_integrity_fresh():
     Randomly verify 2 signals for data integrity with fresh connection
     Compact display that expands on errors
     """
+    conn = None
     try:
-        from signal_integrity_verifier import verify_random_signals
+        conn = get_fresh_db_connection()
+        cursor = conn.cursor()
         
-        results = verify_random_signals(num_signals=2)
+        # Get 2 random trade IDs from last 7 days
+        cursor.execute("""
+            SELECT DISTINCT trade_id 
+            FROM automated_signals 
+            WHERE timestamp > NOW() - INTERVAL '7 days'
+            AND trade_id IS NOT NULL
+            ORDER BY RANDOM()
+            LIMIT 2
+        """)
         
-        status = 'healthy'
-        if results['status'] == 'FAIL':
+        trade_ids = [row[0] for row in cursor.fetchall()]
+        
+        if not trade_ids:
+            return {
+                'status': 'warning',
+                'signals_verified': 0,
+                'errors_found': 0,
+                'warnings_found': 0,
+                'message': 'No signals in last 7 days',
+                'issues': []
+            }
+        
+        # Quick integrity checks on each signal
+        errors = []
+        warnings = []
+        
+        for trade_id in trade_ids:
+            # Get all events for this trade
+            cursor.execute("""
+                SELECT event_type, be_mfe, no_be_mfe, entry_price, sl_price
+                FROM automated_signals
+                WHERE trade_id = %s
+                ORDER BY timestamp ASC
+            """, (trade_id,))
+            
+            events = cursor.fetchall()
+            
+            if not events:
+                errors.append(f"Trade {trade_id}: No events found")
+                continue
+            
+            # Check 1: First event should be ENTRY
+            if events[0][0] != 'ENTRY':
+                errors.append(f"Trade {trade_id}: First event is {events[0][0]}, not ENTRY")
+            
+            # Check 2: MFE values should not decrease
+            prev_be_mfe = 0
+            prev_no_be_mfe = 0
+            for event in events:
+                be_mfe = float(event[1]) if event[1] else 0
+                no_be_mfe = float(event[2]) if event[2] else 0
+                
+                if be_mfe < prev_be_mfe - 0.01:
+                    warnings.append(f"Trade {trade_id}: BE MFE decreased")
+                if no_be_mfe < prev_no_be_mfe - 0.01:
+                    warnings.append(f"Trade {trade_id}: No-BE MFE decreased")
+                
+                prev_be_mfe = max(prev_be_mfe, be_mfe)
+                prev_no_be_mfe = max(prev_no_be_mfe, no_be_mfe)
+        
+        # Determine status
+        if errors:
             status = 'critical'
-        elif results['status'] == 'WARNING':
+        elif warnings:
             status = 'warning'
-        elif results['status'] == 'NO_DATA':
-            status = 'warning'
+        else:
+            status = 'healthy'
         
-        # Compact summary
         summary = {
             'status': status,
-            'signals_verified': results['signals_checked'],
-            'errors_found': len(results.get('errors', [])),
-            'warnings_found': len(results.get('warnings', [])),
-            'issues': []
+            'signals_verified': len(trade_ids),
+            'errors_found': len(errors),
+            'warnings_found': len(warnings),
+            'issues': (errors + warnings)[:3]  # Show first 3 issues
         }
         
-        # Only include details if there are errors/warnings
-        if results.get('errors'):
-            summary['issues'] = results['errors'][:3]  # Show first 3 errors
-            summary['error_details'] = results.get('details', [])
-        elif results.get('warnings'):
-            summary['issues'] = results['warnings'][:2]  # Show first 2 warnings
-        
-        # Add compact pass message
         if status == 'healthy':
-            summary['message'] = f"✓ {results['signals_checked']} signals verified"
+            summary['message'] = f"✓ {len(trade_ids)} signals verified"
         
         return summary
         
@@ -405,6 +456,12 @@ def check_signal_integrity_fresh():
         logger.error(f"Signal integrity check failed: {e}")
         return {
             'status': 'warning',
+            'signals_verified': 0,
+            'errors_found': 0,
+            'warnings_found': 0,
             'error': str(e),
-            'issues': ['Integrity check unavailable']
+            'issues': ['Integrity check failed']
         }
+    finally:
+        if conn:
+            conn.close()
