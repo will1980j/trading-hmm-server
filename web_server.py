@@ -11045,13 +11045,26 @@ def get_automated_signals_dashboard_data():
                 FROM automated_signals
                 WHERE event_type = 'MFE_UPDATE'
                 ORDER BY trade_id, timestamp DESC
+            ),
+            trade_direction AS (
+                SELECT DISTINCT ON (trade_id)
+                    trade_id, direction, entry_price, stop_loss, session, bias
+                FROM automated_signals
+                WHERE direction IS NOT NULL
+                ORDER BY trade_id, timestamp ASC
             )
-            SELECT e.id, e.trade_id, e.event_type, e.direction, e.entry_price, e.stop_loss,
-                   e.session, e.bias, e.timestamp, e.signal_date, e.signal_time,
+            SELECT e.id, e.trade_id, e.event_type, 
+                   COALESCE(e.direction, d.direction) as direction,
+                   COALESCE(e.entry_price, d.entry_price) as entry_price,
+                   COALESCE(e.stop_loss, d.stop_loss) as stop_loss,
+                   COALESCE(e.session, d.session) as session,
+                   COALESCE(e.bias, d.bias) as bias,
+                   e.timestamp, e.signal_date, e.signal_time,
                    COALESCE(m.be_mfe, 0.0) as be_mfe,
                    COALESCE(m.no_be_mfe, 0.0) as no_be_mfe
             FROM automated_signals e
             LEFT JOIN latest_mfe m ON e.trade_id = m.trade_id
+            LEFT JOIN trade_direction d ON e.trade_id = d.trade_id
             WHERE e.event_type = 'ENTRY'
             AND NOT EXISTS (
                 SELECT 1 FROM automated_signals ex
@@ -11084,11 +11097,24 @@ def get_automated_signals_dashboard_data():
         
         # Get all EXIT signals (completed trades) with MFE values
         cursor.execute("""
-            SELECT e.id, e.trade_id, e.event_type, e.direction, e.entry_price, e.stop_loss,
-                   e.session, e.bias, e.timestamp, 
+            WITH trade_direction AS (
+                SELECT DISTINCT ON (trade_id)
+                    trade_id, direction, entry_price, stop_loss, session, bias
+                FROM automated_signals
+                WHERE direction IS NOT NULL
+                ORDER BY trade_id, timestamp ASC
+            )
+            SELECT e.id, e.trade_id, e.event_type,
+                   COALESCE(e.direction, d.direction) as direction,
+                   COALESCE(e.entry_price, d.entry_price) as entry_price,
+                   COALESCE(e.stop_loss, d.stop_loss) as stop_loss,
+                   COALESCE(e.session, d.session) as session,
+                   COALESCE(e.bias, d.bias) as bias,
+                   e.timestamp, 
                    COALESCE(e.be_mfe, 0.0) as be_mfe,
                    COALESCE(e.no_be_mfe, 0.0) as no_be_mfe
             FROM automated_signals e
+            LEFT JOIN trade_direction d ON e.trade_id = d.trade_id
             WHERE e.event_type LIKE 'EXIT_%'
             ORDER BY e.timestamp DESC
             LIMIT 100
