@@ -25,6 +25,75 @@ inclusion: always
 
 ---
 
+## 🚨 **MANDATORY WORK VALIDATION RULE** 🚨
+
+**⚠️ NEVER CLAIM WORK IS COMPLETE WITHOUT VERIFICATION ⚠️**
+
+### **MANDATORY VALIDATION CHECKLIST - EVERY SINGLE TIME:**
+
+**Before saying ANY work is complete, you MUST verify:**
+
+1. **✅ DEPENDENCY CHECK**
+   - All required libraries/imports are included
+   - All CDN scripts are present (D3.js, Chart.js, etc.)
+   - All CSS frameworks are loaded (Bootstrap, Tailwind, etc.)
+   - All external resources are accessible
+
+2. **✅ SYNTAX VALIDATION**
+   - Code has no syntax errors
+   - All brackets/parentheses are closed
+   - All quotes are matched
+   - Indentation is correct
+
+3. **✅ INTEGRATION VERIFICATION**
+   - New code integrates with existing systems
+   - API endpoints are correctly referenced
+   - Database queries use correct table/column names
+   - WebSocket connections use correct event names
+
+4. **✅ COMPLETENESS CHECK**
+   - All promised features are implemented
+   - No placeholder code or TODOs left
+   - All edge cases are handled
+   - Error handling is in place
+
+5. **✅ DEPLOYMENT READINESS**
+   - Code works in production environment (Railway)
+   - No local-only dependencies
+   - Environment variables are used correctly
+   - Cloud resources are properly configured
+
+### **VALIDATION WORKFLOW:**
+
+**Step 1:** Write the code
+**Step 2:** Check EVERY item on the validation checklist above
+**Step 3:** Create a test script to verify functionality
+**Step 4:** Run the test and confirm it passes
+**Step 5:** ONLY THEN claim the work is complete
+
+### **CONSEQUENCES OF SKIPPING VALIDATION:**
+
+- ❌ Wastes user's time with broken implementations
+- ❌ Destroys trust and credibility
+- ❌ Forces user to debug YOUR mistakes
+- ❌ Creates frustration and delays progress
+- ❌ Makes you look incompetent
+
+### **EXAMPLES OF VALIDATION FAILURES:**
+
+**BAD:** "I added D3.js visualization code" (but forgot to include D3.js library)
+**GOOD:** "I added D3.js visualization code AND verified the D3.js library is loaded in the HTML"
+
+**BAD:** "The API endpoint is ready" (but didn't test if it actually works)
+**GOOD:** "The API endpoint is ready AND I tested it returns the correct data"
+
+**BAD:** "The feature is deployed" (but didn't check if it works on Railway)
+**GOOD:** "The feature is deployed AND I verified it works on the live Railway instance"
+
+### **RULE: CHECK YOUR WORK BEFORE CLAIMING IT'S DONE - NO EXCEPTIONS!**
+
+---
+
 ## 🚨 **CRITICAL FILE OPERATION SAFETY RULES** 🚨
 
 **⚠️ ALWAYS VERIFY BEFORE DESTRUCTIVE FILE OPERATIONS ⚠️**
