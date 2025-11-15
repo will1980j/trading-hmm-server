@@ -25,6 +25,47 @@ inclusion: always
 
 ---
 
+## 🚨 **CRITICAL FILE OPERATION SAFETY RULES** 🚨
+
+**⚠️ ALWAYS VERIFY BEFORE DESTRUCTIVE FILE OPERATIONS ⚠️**
+
+### **MANDATORY FILE SAFETY PRINCIPLES:**
+
+1. **🚫 NEVER DELETE OR OVERWRITE FILES WITHOUT EXPLICIT APPROVAL**
+   - Always ask before deleting any file
+   - Always ask before copying/overwriting any file
+   - Always explain what will be lost before taking action
+   - Never assume "it's just an old version"
+
+2. **✅ REQUIRED VERIFICATION STEPS:**
+   - Compare file contents before any copy/overwrite operation
+   - Check if files are in sync between local and deployed versions
+   - Verify against live deployment when there's a discrepancy
+   - Trust user's knowledge of the system over search results
+
+3. **✅ PROPER WORKFLOW FOR FILE OPERATIONS:**
+   - **Step 1:** Analyze what exists in both locations
+   - **Step 2:** Present findings to user with specific differences
+   - **Step 3:** Ask for explicit approval with clear consequences
+   - **Step 4:** Only then execute the operation
+   - **Step 5:** Verify the operation succeeded as intended
+
+4. **🚫 NEVER ARGUE WITH USER ABOUT WHAT EXISTS:**
+   - If user says a feature exists, verify properly before disagreeing
+   - Check authenticated/live versions, not just unauthenticated API calls
+   - Ask for screenshots or clarification rather than insisting you're right
+   - Local files may be out of sync with deployed versions
+
+**VIOLATION CONSEQUENCES:**
+- Destroys user trust and confidence
+- Wastes time with recovery and rework
+- Risks losing critical production code
+- Creates dangerous precedent for future operations
+
+**RULE: When in doubt, ASK. Never assume. Never rush destructive operations.**
+
+---
+
 ## Project Overview
 
 I have a comprehensive cloud-based NASDAQ day trading analytics platform built with Amazon Q assistance, deployed at `web-production-cd33.up.railway.app/`. This is a multi-faceted trading platform designed to optimize scalping strategies on the NASDAQ using advanced analytics, real-time data processing, and machine learning as one of several key features.
