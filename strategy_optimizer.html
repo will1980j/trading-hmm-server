@@ -7,56 +7,75 @@
     <link rel="stylesheet" href="/style_preload.css">
         <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
-        .header { text-align: center; padding: 40px; background: rgba(255,255,255,0.08); border-radius: 20px; margin-bottom: 30px; border: 1px solid rgba(255,255,255,0.1); }
-        .header h1 { font-size: 3em; font-weight: 800; margin-bottom: 10px; background: linear-gradient(45deg, #00ff88, #00d4aa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .controls { background: rgba(255,255,255,0.08); border-radius: 20px; padding: 25px; margin-bottom: 30px; border: 1px solid rgba(255,255,255,0.1); }
-        .control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
-        .control-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #00ff88; }
-        input[type="number"], select { width: 100%; padding: 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; background: rgba(255,255,255,0.1); color: white; font-size: 14px; }
-        .session-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
-        .session-item { display: flex; align-items: center; gap: 8px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; cursor: pointer; }
-        .session-item input { width: 16px; height: 16px; accent-color: #00ff88; }
-        .btn { background: linear-gradient(45deg, #00ff88, #00d4aa); border: none; padding: 15px 40px; border-radius: 12px; color: white; font-weight: 700; cursor: pointer; font-size: 16px; box-shadow: 0 4px 15px rgba(0,255,136,0.3); transition: all 0.3s; }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,255,136,0.4); }
-        .section { background: rgba(255,255,255,0.08); border-radius: 20px; padding: 30px; margin-bottom: 30px; border: 1px solid rgba(255,255,255,0.1); }
-        .section-title { font-size: 24px; font-weight: 800; color: #00ff88; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 25px; }
-        .metric-card { background: rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; text-align: center; }
-        .metric-value { font-size: 32px; font-weight: 700; margin: 10px 0; background: linear-gradient(45deg, #00ff88, #00d4aa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .metric-label { font-size: 12px; text-transform: uppercase; opacity: 0.8; font-weight: 600; }
-        .strategy-box { background: rgba(0,0,0,0.2); border-radius: 15px; padding: 20px; margin-bottom: 20px; border-left: 4px solid #00ff88; }
-        .detail-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .detail-label { opacity: 0.8; }
-        .detail-value { font-weight: 600; color: #00ff88; }
-        .warning-box { background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.3); border-radius: 12px; padding: 15px; margin-top: 20px; color: #ff4757; }
-        .success-box { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); border-radius: 12px; padding: 15px; margin-top: 20px; color: #00ff88; }
-        .comparison-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        .comparison-table th { background: rgba(0,255,136,0.1); padding: 12px; text-align: left; font-weight: 600; color: #00ff88; border-bottom: 2px solid rgba(0,255,136,0.3); }
-        .comparison-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .comparison-table tr:hover { background: rgba(255,255,255,0.05); cursor: pointer; }
-        .loading { text-align: center; padding: 60px; font-size: 18px; color: rgba(255,255,255,0.7); }
-        .time-window { background: rgba(58,123,213,0.1); border: 1px solid rgba(58,123,213,0.3); border-radius: 10px; padding: 15px; margin: 10px 0; }
-        .ml-insight { background: rgba(102,126,234,0.1); border: 1px solid rgba(102,126,234,0.3); border-radius: 10px; padding: 15px; margin: 10px 0; }
-        .gpt-insight { background: rgba(255,165,2,0.1); border: 1px solid rgba(255,165,2,0.3); border-radius: 10px; padding: 15px; margin: 10px 0; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
+        
+    
+        
+    
+        
+    
+        /* Navigation */
+        .nav-container {
+            background: #141b3d;
+            padding: 12px 20px;
+            border-bottom: 1px solid #2d3a5f;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            overflow-x: auto;
+        }
+
+        .nav-link {
+            padding: 8px 12px;
+            background: #1a2142;
+            color: #f8fafc;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+
+        .nav-link:hover {
+            background: #3b82f6;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
-    <nav style="background: #141b3d; padding: 12px 20px; margin-bottom: 20px; border-bottom: 1px solid #2d3a5f; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-        <a href="/homepage">🏠 Home</a>
-        <a href="/ml-dashboard" data-page="ml" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🤖 ML</a>
-
-        <a href="/signal-lab-dashboard" data-page="dashboard" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🏠 Dashboard</a>
-        <a href="/signal-analysis-lab" data-page="lab" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🧪 Signal Lab</a>
-        <a href="/time-analysis" data-page="time" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">⏰ Time</a>
-        <a href="/strategy-optimizer" data-page="optimizer" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🎯 Optimizer</a>
-        <a href="/strategy-comparison" data-page="compare" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🏆 Compare</a>
-        <a href="/ai-business-advisor" data-page="advisor" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🧠 AI Advisor</a>
-        <a href="/prop-portfolio" data-page="prop" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">💼 Prop</a>
-        <a href="/trade-manager" data-page="trades" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">📋 Trades</a>
-        <a href="/financial-summary" data-page="finance" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">💰 Finance</a>
-        <a href="/reporting-hub" data-page="reports" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">📊 Reports</a>
+    <!-- Navigation -->
+        <!-- Navigation -->
+    <nav class="nav-container">
+        <a href="/homepage" class="nav-link">🏠 Home</a>
+        <a href="/ml-dashboard" class="nav-link">🤖 ML</a>
+        <a href="/signal-lab-dashboard" class="nav-link">📊 Dashboard</a>
+        <a href="/signal-analysis-lab" class="nav-link">🧪 Signal Lab</a>
+        <a href="/automated-signals" class="nav-link">📡 Automated Signals</a>
+        <a href="/time-analysis" class="nav-link">⏰ Time</a>
+        <a href="/strategy-optimizer" class="nav-link">🎯 Optimizer</a>
+        <a href="/strategy-comparison" class="nav-link">🏆 Compare</a>
+        <a href="/ai-business-advisor" class="nav-link">🧠 AI Advisor</a>
+        <a href="/prop-portfolio" class="nav-link">💼 Prop</a>
+        <a href="/trade-manager" class="nav-link">📋 Trades</a>
+        <a href="/financial-summary" class="nav-link">💰 Finance</a>
+        <a href="/reporting-hub" class="nav-link">📊 Reports</a>
     </nav>
-    <script>
+
+<script>
     (function() {
         const currentPath = window.location.pathname;
         const navLinks = document.querySelectorAll('nav a[data-page]');
@@ -70,31 +89,7 @@
     </script>
     
     <div class="container">
-        <div class="header">
-            <h1>🎯 Strategy Optimizer</h1>
-            <p>Unified analysis: TIME + ML + GPT-4 + Prop Firm Constraints</p>
-        </div>
         
-        <div class="card">
-            <h3 style="color: #00ff88; margin-bottom: 20px;">🚨 Prop Firm Constraints</h3>
-            <div class="control-grid">
-                <div class="control-group">
-                    <label>Max Daily Loss (%)</label>
-                    <input type="number" id="maxDailyLoss" value="5" min="1" max="10" step="0.5">
-                </div>
-                <div class="control-group">
-                    <label>Max Total Drawdown (%)</label>
-                    <input type="number" id="maxDrawdown" value="10" min="5" max="20" step="1">
-                </div>
-                <div class="control-group">
-                    <label>Min Win Rate (%)</label>
-                    <input type="number" id="minWinRate" value="40" min="0" max="100" step="5">
-                </div>
-                <div class="control-group">
-                    <label>Broker Fee (R per trade)</label>
-                    <input type="number" id="brokerFee" value="0.125" min="0" max="1" step="0.025">
-                </div>
-            </div>
             
             <h3 style="color: #00ff88; margin: 20px 0;">⏰ Session Selection</h3>
             <div class="session-grid">
@@ -748,6 +743,7 @@
         
         document.addEventListener('DOMContentLoaded', () => { loadSignals(); });
     </script>
+</div><!-- container -->
 </body>
 </html>
 

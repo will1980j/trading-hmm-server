@@ -17,6 +17,8 @@
             color: #ffffff;
             overflow-x: hidden;
             position: relative;
+            /* Loading placeholder gradient */
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #2d1b69 100%);
         }
 
         .video-container {
@@ -192,7 +194,7 @@
 
 <body>
     <div class="video-container">
-        <video id="backgroundVideo" autoplay muted loop class="video-background" playsinline>
+        <video id="backgroundVideo" autoplay muted loop class="video-background" playsinline preload="auto">
         </video>
     </div>
 
@@ -398,106 +400,136 @@ const videoSources = [
     '/proxy-video/1LQyC24BsWyBs84kdCu1TViaih7irBsEd'
 ];
 
-// Video cycling system
+// ⚡ OPTIMIZED VIDEO LOADING SYSTEM ⚡
+// Shuffle playlist once at start
 let videoPlaylist = [...Array(videoSources.length).keys()];
-let currentPlaylistIndex = 0;
-const video = document.getElementById('backgroundVideo');
-let isTransitioning = false;
-
-function shufflePlaylist() {
-    for (let i = videoPlaylist.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [videoPlaylist[i], videoPlaylist[j]] = [videoPlaylist[j], videoPlaylist[i]];
-    }
-    currentPlaylistIndex = 0;
+for (let i = videoPlaylist.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [videoPlaylist[i], videoPlaylist[j]] = [videoPlaylist[j], videoPlaylist[i]];
 }
 
-shufflePlaylist();
+let currentPlaylistIndex = 0;
+let failedAttempts = 0;
+const video = document.getElementById('backgroundVideo');
+let nextVideoElement = null;
 
-function loadVideo(playlistIndex) {
-    if (isTransitioning) return;
+// OPTIMIZATION: Preload next video in background
+function preloadNextVideo() {
+    const nextIndex = (currentPlaylistIndex + 1) % videoPlaylist.length;
+    const nextVideoIndex = videoPlaylist[nextIndex];
+    const nextVideoUrl = videoSources[nextVideoIndex];
     
+    // Remove old preload
+    if (nextVideoElement) {
+        nextVideoElement.remove();
+    }
+    
+    // Create hidden video to preload
+    nextVideoElement = document.createElement('video');
+    nextVideoElement.preload = 'auto';
+    nextVideoElement.src = nextVideoUrl;
+    nextVideoElement.style.display = 'none';
+    nextVideoElement.muted = true;
+    document.body.appendChild(nextVideoElement);
+    
+    console.log(`⏳ Preloading next video ${nextVideoIndex + 1}/${videoSources.length}`);
+}
+
+// OPTIMIZATION: Fast transition using preloaded video
+function transitionToVideo(playlistIndex) {
     const videoIndex = videoPlaylist[playlistIndex];
     const videoUrl = videoSources[videoIndex];
-    console.log(`Loading nature video ${videoIndex + 1}/${videoSources.length}: ${videoUrl}`);
+    console.log(`🎬 Loading video ${videoIndex + 1}/${videoSources.length}`);
     
-    const newVideo = document.createElement('video');
-    newVideo.autoplay = true;
-    newVideo.muted = true;
-    newVideo.loop = true;
-    newVideo.playsInline = true;
-    newVideo.className = 'video-background';
-    newVideo.style.opacity = '0';
-    
-    newVideo.addEventListener('loadeddata', function () {
-        isTransitioning = true;
-        video.style.transition = 'opacity 2s ease-in-out';
-        newVideo.style.transition = 'opacity 2s ease-in-out';
+    // Check if we have this video preloaded
+    if (nextVideoElement && nextVideoElement.src.includes(videoUrl)) {
+        const container = document.querySelector('.video-container');
+        const oldVideo = video;
         
-        video.style.opacity = '0';
-        newVideo.style.opacity = '1';
+        // Setup preloaded video
+        nextVideoElement.style.display = 'block';
+        nextVideoElement.className = 'video-background';
+        nextVideoElement.autoplay = true;
+        nextVideoElement.loop = true;
+        nextVideoElement.playsInline = true;
+        nextVideoElement.style.opacity = '0';
         
+        container.appendChild(nextVideoElement);
+        
+        // Smooth fade transition
         setTimeout(() => {
-            video.src = videoUrl;
-            video.style.opacity = '1';
-            video.style.transition = '';
+            nextVideoElement.style.transition = 'opacity 1s ease-in-out';
+            nextVideoElement.style.opacity = '1';
+            oldVideo.style.transition = 'opacity 1s ease-in-out';
+            oldVideo.style.opacity = '0';
             
-            if (newVideo.parentNode) {
-                newVideo.parentNode.removeChild(newVideo);
-            }
-            
-            isTransitioning = false;
-        }, 2000);
-    });
-    
-    newVideo.addEventListener('error', function () {
-        console.log(`Video ${videoIndex + 1} failed to load, trying next...`);
-        cycleToNextVideo();
-    });
-    
-    document.querySelector('.video-container').appendChild(newVideo);
-    newVideo.src = videoUrl;
-}
-
-function cycleToNextVideo() {
-    if (isTransitioning) return;
-    
-    currentPlaylistIndex = (currentPlaylistIndex + 1) % videoPlaylist.length;
-    
-    if (currentPlaylistIndex === 0) {
-        console.log('🔄 Reshuffling video playlist for variety!');
-        shufflePlaylist();
+            setTimeout(() => {
+                if (oldVideo !== video) {
+                    oldVideo.remove();
+                }
+                nextVideoElement = null;
+                
+                // Preload next video
+                setTimeout(preloadNextVideo, 1000);
+            }, 1000);
+        }, 50);
+        
+        nextVideoElement.play().catch(e => console.log('Playback error:', e));
+    } else {
+        // Fallback: direct loading
+        video.src = videoUrl;
+        video.play().catch(e => console.log('Playback error:', e));
+        
+        // Preload next video after 2 seconds
+        setTimeout(preloadNextVideo, 2000);
     }
-    
-    loadVideo(currentPlaylistIndex);
 }
 
 // Initialize with first video
 const firstVideoIndex = videoPlaylist[0];
 video.src = videoSources[firstVideoIndex];
-console.log(`🎬 Starting with random nature video ${firstVideoIndex + 1}/${videoSources.length} from your Google Drive collection`);
+video.preload = 'auto';
+console.log(`🎬 Starting with video ${firstVideoIndex + 1}/${videoSources.length}`);
 
-// Handle video errors
-video.addEventListener('error', function () {
-    console.log('Current video failed, trying next nature video...');
-    cycleToNextVideo();
+// Start preloading next video after 2 seconds
+setTimeout(preloadNextVideo, 2000);
+
+// Handle video end
+video.addEventListener('ended', function () {
+    currentPlaylistIndex = (currentPlaylistIndex + 1) % videoPlaylist.length;
+    
+    if (currentPlaylistIndex === 0) {
+        // Reshuffle when playlist completes
+        for (let i = videoPlaylist.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [videoPlaylist[i], videoPlaylist[j]] = [videoPlaylist[j], videoPlaylist[i]];
+        }
+        console.log('🔄 Playlist complete - reshuffled');
+    }
+    
+    transitionToVideo(currentPlaylistIndex);
 });
 
-// Cycle through videos every 10 seconds (same as login)
-setInterval(cycleToNextVideo, 10000);
-
-// Fallback to gradient if all videos fail
-let failedAttempts = 0;
+// Handle video errors
 video.addEventListener('error', function () {
     failedAttempts++;
     if (failedAttempts >= videoSources.length) {
         console.log('All videos failed, using gradient fallback');
-        document.body.style.background = `
-            linear-gradient(135deg, #0a0e27 0%, #1a1f3a 25%, #2d1b69 50%, #3b82f6 75%, #8b5cf6 100%)
-        `;
-        document.body.style.backgroundSize = '400% 400%';
-        document.body.style.animation = 'gradientShift 20s ease infinite';
+        document.body.style.background = 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%)';
         document.querySelector('.video-container').style.display = 'none';
+        return;
     }
+    
+    console.log(`Video failed, trying next (attempt ${failedAttempts})`);
+    currentPlaylistIndex = (currentPlaylistIndex + 1) % videoPlaylist.length;
+    transitionToVideo(currentPlaylistIndex);
+});
+
+// Ensure video plays on page load
+video.play().catch(e => {
+    console.log('Autoplay blocked, will play on user interaction');
+    document.addEventListener('click', () => {
+        video.play().catch(err => console.log('Play error:', err));
+    }, { once: true });
 });
 </script>

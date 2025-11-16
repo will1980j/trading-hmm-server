@@ -7,134 +7,75 @@
     <link rel="stylesheet" href="/style_preload.css">
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
+        
+    
+        
+    
+        
+    
+        /* Navigation */
+        .nav-container {
+            background: #141b3d;
+            padding: 12px 20px;
+            border-bottom: 1px solid #2d3a5f;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            overflow-x: auto;
+        }
+
+        .nav-link {
+            padding: 8px 12px;
+            background: #1a2142;
+            color: #f8fafc;
             text-decoration: none;
-            padding: 10px 18px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            transition: all 0.3s ease;
-            font-weight: 500;
-            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            font-size: 14px;
+            white-space: nowrap;
+            transition: all 0.3s;
         }
-        
-        .nav-link:hover { background: rgba(255,255,255,0.15); }
-        .nav-link.active { color: #00ff88; background: rgba(0,255,136,0.15); }
-        
-        .header {
-            text-align: center;
-            padding: 30px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 20px;
-            margin-bottom: 30px;
+
+        .nav-link:hover {
+            background: #3b82f6;
+            transform: translateY(-2px);
         }
-        
-        .header h1 {
-            font-size: 2.5em;
-            background: linear-gradient(45deg, #00ff88, #00d4aa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-        
-        .stat-card {
-            background: rgba(255,255,255,0.08);
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .stat-value {
-            font-size: 2em;
-            font-weight: 700;
-            color: #00ff88;
-        }
-        
-        .stat-label {
-            font-size: 0.9em;
-            opacity: 0.8;
-            margin-top: 5px;
-        }
-        
-        .analysis-section {
-            background: rgba(255,255,255,0.08);
-            border-radius: 20px;
-            padding: 25px;
-            margin-bottom: 20px;
-        }
-        
-        .section-title {
-            font-size: 1.5em;
-            color: #00ff88;
-            margin-bottom: 20px;
-        }
-        
-        .chart-container {
-            position: relative;
-            height: 400px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 10px;
-            padding: 15px;
-        }
-        
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        
-        .data-table th,
-        .data-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .data-table th {
-            background: rgba(255,255,255,0.1);
-            font-weight: 600;
-        }
-        
-        .positive { color: #00ff88; }
-        .negative { color: #ff4757; }
-        
-        .btn {
-            background: linear-gradient(45deg, #00ff88, #00d4aa);
-            border: none;
-            padding: 12px 24px;
-            border-radius: 12px;
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            margin: 5px;
-        }
-        
-        .btn:hover { transform: translateY(-2px); }
     </style>
 </head>
 <body>
-    <nav style="background: #141b3d; padding: 10px 15px; margin-bottom: 20px; border-bottom: 1px solid #2d3a5f; display: flex; gap: 4px; flex-wrap: wrap; align-items: center; justify-content: center;">
-        <a href="/homepage" data-page="home" style="padding: 6px 10px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 5px; font-size: 12px; white-space: nowrap;">🏠 Home</a>
-        <a href="/signal-lab-dashboard" data-page="dashboard" style="padding: 6px 10px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 5px; font-size: 12px; white-space: nowrap;">📊 Dashboard</a>
-        <a href="/signal-analysis-lab" data-page="lab" style="padding: 6px 10px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 5px; font-size: 12px; white-space: nowrap;">🧪 Lab</a>
-        <a href="/ml-dashboard" data-page="ml" style="padding: 6px 10px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 5px; font-size: 12px; white-space: nowrap;">🤖 ML</a>
-
-        <a href="/signal-lab-v2" data-page="v2" style="padding: 6px 10px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 5px; font-size: 12px; white-space: nowrap;">🤖 V2</a>
-        <a href="/time-analysis" data-page="time" style="padding: 6px 10px; background: #3b82f6; color: white; text-decoration: none; border-radius: 5px; font-size: 12px; white-space: nowrap;">⏰ Time</a>
-        <a href="/strategy-optimizer" data-page="strategy" style="padding: 6px 10px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 5px; font-size: 12px; white-space: nowrap;">🎯 Strategy</a>
-        <a href="/strategy-comparison" data-page="compare" style="padding: 6px 10px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 5px; font-size: 12px; white-space: nowrap;">🏆 Compare</a>
-        <a href="/ai-business-advisor" data-page="advisor" style="padding: 6px 10px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 5px; font-size: 12px; white-space: nowrap;">🧠 AI</a>
-        <a href="/prop-portfolio" data-page="portfolio" style="padding: 6px 10px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 5px; font-size: 12px; white-space: nowrap;">💼 Portfolio</a>
-        <a href="/trade-manager" data-page="trades" style="padding: 6px 10px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 5px; font-size: 12px; white-space: nowrap;">📋 Trades</a>
-        <a href="/financial-summary" data-page="finance" style="padding: 6px 10px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 5px; font-size: 12px; white-space: nowrap;">💰 Finance</a>
-        <a href="/reporting-hub" data-page="reports" style="padding: 6px 10px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 5px; font-size: 12px; white-space: nowrap;">📊 Reports</a>
-        <a href="/logout" data-page="logout" style="padding: 6px 10px; background: #dc2626; color: #f8fafc; text-decoration: none; border-radius: 5px; font-size: 12px; white-space: nowrap;">🚪 Logout</a>
+    <!-- Navigation -->
+        <!-- Navigation -->
+    <nav class="nav-container">
+        <a href="/homepage" class="nav-link">🏠 Home</a>
+        <a href="/ml-dashboard" class="nav-link">🤖 ML</a>
+        <a href="/signal-lab-dashboard" class="nav-link">📊 Dashboard</a>
+        <a href="/signal-analysis-lab" class="nav-link">🧪 Signal Lab</a>
+        <a href="/automated-signals" class="nav-link">📡 Automated Signals</a>
+        <a href="/time-analysis" class="nav-link">⏰ Time</a>
+        <a href="/strategy-optimizer" class="nav-link">🎯 Optimizer</a>
+        <a href="/strategy-comparison" class="nav-link">🏆 Compare</a>
+        <a href="/ai-business-advisor" class="nav-link">🧠 AI Advisor</a>
+        <a href="/prop-portfolio" class="nav-link">💼 Prop</a>
+        <a href="/trade-manager" class="nav-link">📋 Trades</a>
+        <a href="/financial-summary" class="nav-link">💰 Finance</a>
+        <a href="/reporting-hub" class="nav-link">📊 Reports</a>
     </nav>
-    <script>
+
+<script>
     (function() {
         const currentPath = window.location.pathname;
         const navLinks = document.querySelectorAll('nav a[data-page]');
@@ -148,11 +89,7 @@
     </script>
     
     <div class="container">
-        <div class="header">
-            <h1>⏰ Time-Based Performance Analysis</h1>
-            <p>R-Value Distribution Across Time Windows</p>
-            <div id="sessionTimes" style="margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 10px; font-size: 14px;"></div>
-        </div>
+        
         
         <div class="stats-grid">
             <div class="stat-card">
@@ -592,6 +529,7 @@
         
         document.addEventListener('DOMContentLoaded', loadTimeAnalysis);
     </script>
+</div><!-- container -->
 </body>
 </html>
 

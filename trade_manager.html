@@ -6,193 +6,75 @@
     <title>Trade Manager - Trading Analytics</title>
     <link rel="stylesheet" href="/style_preload.css">
         <style>
-            font-weight: 500;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        
-        
-        .theme-select {
-            padding: 8px 12px;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 8px;
-            background: rgba(255,255,255,0.1);
-            color: white;
-            font-size: 14px;
-            backdrop-filter: blur(10px);
-        }
-        
-        
-        
-        .data-input {
-            background: rgba(255,255,255,0.08);
-            border-radius: 20px;
-            padding: 25px;
-            backdrop-filter: blur(20px);
-            margin-bottom: 30px;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-        
-        .trades-container {
-            max-height: 600px;
-            overflow-y: auto;
-        }
-        
-        .input-labels {
-            display: grid;
-            grid-template-columns: repeat(14, 1fr);
-            gap: 8px;
-            margin-bottom: 5px;
-        }
-        
-        .input-labels span {
-            font-size: 12px;
-            opacity: 0.8;
-            text-align: center;
-        }
-        
-        .input-grid {
-            display: grid;
-            grid-template-columns: repeat(14, 1fr);
-            gap: 8px;
-            margin: 5px 0 15px 0;
-        }
-        
-        .trades-table {
-            font-size: 11px;
-        }
-        
-        .trades-table th,
-        .trades-table td {
-            padding: 6px 4px;
-            white-space: nowrap;
-        }
-        
-        select, input {
-            padding: 6px 8px;
-            border: none;
-            border-radius: 6px;
-            background: white !important;
-            color: #333;
-            font-size: 12px;
-            width: 100%;
+        * {
+            margin: 0;
+            padding: 0;
             box-sizing: border-box;
         }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
         
-        .btn {
-            background: linear-gradient(45deg, var(--accent-color), #00d4aa);
-            border: none;
-            padding: 12px 24px;
-            border-radius: 12px;
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+        
+    
+        
+    
+        /* Navigation */
+        .nav-container {
+            background: #141b3d;
+            padding: 12px 20px;
+            border-bottom: 1px solid #2d3a5f;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            overflow-x: auto;
+        }
+
+        .nav-link {
+            padding: 8px 12px;
+            background: #1a2142;
+            color: #f8fafc;
+            text-decoration: none;
+            border-radius: 6px;
             font-size: 14px;
-            letter-spacing: 0.5px;
-            box-shadow: 0 4px 15px rgba(0,255,136,0.2);
+            white-space: nowrap;
+            transition: all 0.3s;
         }
-        
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0,255,136,0.4);
-            background: linear-gradient(45deg, #00d4aa, var(--accent-color));
-        }
-        
-        .btn:active {
-            transform: translateY(-1px);
-        }
-        
-        .trades-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        
-        .trades-table th,
-        .trades-table td {
-            padding: 6px 4px;
-            text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .trades-table th {
-            background: rgba(255,255,255,0.1);
-            font-weight: bold;
-        }
-        
-        .positive { color: #00ff88; }
-        .negative { color: #ff4757; }
-        .neutral { color: #ffa502; }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .stat-card {
-            background: rgba(255,255,255,0.08);
-            border-radius: 18px;
-            padding: 20px;
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.1);
-            text-align: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-            background: rgba(255,255,255,0.12);
-        }
-        
-        .stat-value {
-            font-size: 1.8em;
-            font-weight: 700;
-            margin: 8px 0;
-            background: linear-gradient(45deg, var(--accent-color), #00d4aa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .stat-label {
-            font-size: 0.8em;
-            opacity: 0.8;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-        
-        .theme-select option {
-            background: #2a2a2a;
-            color: white;
+
+        .nav-link:hover {
+            background: #3b82f6;
+            transform: translateY(-2px);
         }
     </style>
 </head>
 <body>
-    <nav style="background: #141b3d; padding: 12px 20px; margin-bottom: 20px; border-bottom: 1px solid #2d3a5f; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-        <a href="/homepage">🏠 Home</a>
-        <a href="/ml-dashboard" data-page="ml" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🤖 ML</a>
-
-        <a href="/signal-lab-dashboard" data-page="dashboard" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🏠 Dashboard</a>
-        <a href="/signal-analysis-lab" data-page="lab" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🧪 Signal Lab</a>
-        <a href="/time-analysis" data-page="time" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">⏰ Time</a>
-        <a href="/strategy-optimizer" data-page="optimizer" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🎯 Optimizer</a>
-        <a href="/strategy-comparison" data-page="compare" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🏆 Compare</a>
-        <a href="/ai-business-advisor" data-page="advisor" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🧠 AI Advisor</a>
-        <a href="/prop-portfolio" data-page="prop" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">💼 Prop</a>
-        <a href="/trade-manager" data-page="trades" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">📋 Trades</a>
-        <a href="/financial-summary" data-page="finance" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">💰 Finance</a>
-        <a href="/reporting-hub" data-page="reports" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">📊 Reports</a>
+    <!-- Navigation -->
+        <!-- Navigation -->
+    <nav class="nav-container">
+        <a href="/homepage" class="nav-link">🏠 Home</a>
+        <a href="/ml-dashboard" class="nav-link">🤖 ML</a>
+        <a href="/signal-lab-dashboard" class="nav-link">📊 Dashboard</a>
+        <a href="/signal-analysis-lab" class="nav-link">🧪 Signal Lab</a>
+        <a href="/automated-signals" class="nav-link">📡 Automated Signals</a>
+        <a href="/time-analysis" class="nav-link">⏰ Time</a>
+        <a href="/strategy-optimizer" class="nav-link">🎯 Optimizer</a>
+        <a href="/strategy-comparison" class="nav-link">🏆 Compare</a>
+        <a href="/ai-business-advisor" class="nav-link">🧠 AI Advisor</a>
+        <a href="/prop-portfolio" class="nav-link">💼 Prop</a>
+        <a href="/trade-manager" class="nav-link">📋 Trades</a>
+        <a href="/financial-summary" class="nav-link">💰 Finance</a>
+        <a href="/reporting-hub" class="nav-link">📊 Reports</a>
     </nav>
-    <script>
+
+<script>
     (function() {
         const currentPath = window.location.pathname;
         const navLinks = document.querySelectorAll('nav a[data-page]');
@@ -208,13 +90,7 @@
     
     
     <div class="container">
-        <div class="header">
-            <h1>Trade Manager</h1>
-            <p>Add, Edit, and Manage Your Trading Data</p>
-            <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; text-align: center;">
-                <div style="font-size: 12px; opacity: 0.8;">Session Time</div>
-                <div id="currentDateTime" style="font-size: 14px; font-weight: 600;">Loading...</div>
-            </div>
+        
         </div>
         
         <div class="stats-grid">
@@ -1041,6 +917,7 @@
     <script src="d3_charts.js"></script>
     <script src="professional_styles.js"></script>
     <script src="chatbot.js"></script>
+</div><!-- container -->
 </body>
 </html>
 
