@@ -19,316 +19,19 @@
             min-height: 100vh;
         }
 
-        /* Header */
-        .header {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .logo {
-            font-size: 2rem;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .platform-info h1 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
-        }
-
-        .platform-info p {
-            color: #94a3b8;
-            font-size: 0.9rem;
-        }
-
-        .user-section {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .user-info {
-            text-align: right;
-        }
-
-        .user-name {
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-        }
-
-        .user-status {
-            color: #22c55e;
-            font-size: 0.8rem;
-        }
-
-        .logout-btn {
-            background: rgba(239, 68, 68, 0.2);
-            border: 1px solid #ef4444;
-            color: #fca5a5;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: all 0.3s;
-        }
-
-        .logout-btn:hover {
-            background: rgba(239, 68, 68, 0.3);
-            transform: translateY(-2px);
-        }
-
-        
-
-        /* Dashboard Specific Styles Below */
-
-
-        :root {
-            --bg: #0b0f14;
-            --fg: #e6edf3;
-            --muted: #9aa7b4;
-            --accent: #54b6ff;
-            --card: #11161d;
-            --border: #1c2430;
-            --good: #37d67a;
-            --warn: #ffae42;
-            --bad: #ff6b6b;
-        }
-
-        
-
-        
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        
-
-        .header h1 {
-            font-size: 2.5em;
-            font-weight: 700;
-            margin-bottom: 10px;
-            background: linear-gradient(45deg, #54b6ff, #37d67a);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 30px;
-            background: var(--card);
-            padding: 10px;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-        }
-
-        .tab {
-            padding: 12px 24px;
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--muted);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .tab.active {
-            background: var(--accent);
-            color: white;
-            border-color: var(--accent);
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .grid {
-            display: grid;
-            gap: 20px;
-        }
-
-        .grid-2 { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
-        .grid-3 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-        .grid-4 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--accent);
-            font-weight: 600;
-        }
-
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 10px;
-            background: rgba(255,255,255,0.1);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--fg);
-        }
-
-        .btn {
-            padding: 12px 24px;
-            background: var(--accent);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .btn:hover {
-            background: #4a9de8;
-            transform: translateY(-2px);
-        }
-
-        .btn-success { background: var(--good); }
-        .btn-warning { background: var(--warn); }
-        .btn-danger { background: var(--bad); }
-
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .status-active { background: var(--good); color: white; }
-        .status-evaluation { background: var(--warn); color: white; }
-        .status-violation { background: var(--bad); color: white; }
-        .status-paused { background: var(--muted); color: white; }
-
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-
-        .table th, .table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .table th {
-            background: rgba(255,255,255,0.05);
-            font-weight: 600;
-            color: var(--accent);
-        }
-
-        .metric-card {
-            text-align: center;
-            padding: 20px;
-        }
-
-        .metric-value {
-            font-size: 2em;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-
-        .metric-label {
-            color: var(--muted);
-            font-size: 0.9em;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: var(--muted);
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            z-index: 1000;
-        }
-
-        .modal-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 15px;
-            padding: 30px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        .close {
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            font-size: 24px;
-            cursor: pointer;
-            color: var(--muted);
-        }
-
-        .navbar {
-            background: rgba(255,255,255,0.1);
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 15px;
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-
-        
-
-        
-
         
     
         
-                /* Navigation */
+    
+        
+    
+        /* Navigation */
         .nav-container {
             background: #141b3d;
             padding: 12px 20px;
             border-bottom: 1px solid #2d3a5f;
             display: flex;
+            justify-content: center;
             gap: 8px;
             flex-wrap: wrap;
             align-items: center;
@@ -354,10 +57,11 @@
 </head>
 <body>
     <!-- Navigation -->
+        <!-- Navigation -->
     <nav class="nav-container">
+        <a href="/homepage" class="nav-link">🏠 Home</a>
         <a href="/ml-dashboard" class="nav-link">🤖 ML</a>
-
-        <a href="/signal-lab-dashboard" class="nav-link">🏠 Dashboard</a>
+        <a href="/signal-lab-dashboard" class="nav-link">📊 Dashboard</a>
         <a href="/signal-analysis-lab" class="nav-link">🧪 Signal Lab</a>
         <a href="/automated-signals" class="nav-link">📡 Automated Signals</a>
         <a href="/time-analysis" class="nav-link">⏰ Time</a>
@@ -370,32 +74,7 @@
         <a href="/reporting-hub" class="nav-link">📊 Reports</a>
     </nav>
 
-<body>
-    <!-- Header -->
-    <div class="header">
-        <div class="logo-section">
-            <div class="logo">📈</div>
-            <div class="platform-info">
-                <h1>NASDAQ Trading Analytics</h1>
-                <p>Professional Day Trading Platform</p>
-            </div>
-        </div>
-        <div class="user-section">
-            <div class="user-info">
-                <div class="user-name">Trading Professional</div>
-                <div class="user-status">● Online</div>
-            </div>
-            <a href="/logout" class="logout-btn">Logout</a>
-        </div>
-    </div>
-    <!-- Navigation -->
-    
-
-
-    
-
-
-    <div class="container">
+<div class="container">
     <!-- Navigation -->
     
 

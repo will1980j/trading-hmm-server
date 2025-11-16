@@ -28,267 +28,19 @@
             min-height: 100vh;
         }
 
-        /* Header */
-        .header {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .logo {
-            font-size: 2rem;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .platform-info h1 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
-        }
-
-        .platform-info p {
-            color: #94a3b8;
-            font-size: 0.9rem;
-        }
-
-        .user-section {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .user-info {
-            text-align: right;
-        }
-
-        .user-name {
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-        }
-
-        .user-status {
-            color: #22c55e;
-            font-size: 0.8rem;
-        }
-
-        .logout-btn {
-            background: rgba(239, 68, 68, 0.2);
-            border: 1px solid #ef4444;
-            color: #fca5a5;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: all 0.3s;
-        }
-
-        .logout-btn:hover {
-            background: rgba(239, 68, 68, 0.3);
-            transform: translateY(-2px);
-        }
-
         
-
-        /* Dashboard Specific Styles Below */
-
-
-        
-        
-        
-        
-        
-        .container {
-            max-width: 1800px;
-            margin: 0 auto;
-        }
-        
-        .navbar {
-            background: rgba(255,255,255,0.1);
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 15px;
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        .header h1 {
-            font-size: 2.5em;
-            font-weight: 700;
-            margin-bottom: 10px;
-            background: linear-gradient(45deg, #00ff88, #00d4aa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .financial-grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-        
-        .financial-card {
-            background: rgba(255,255,255,0.08);
-            border-radius: 18px;
-            padding: 20px;
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-        
-        .financial-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-        }
-        
-        .financial-value {
-            font-size: 2em;
-            font-weight: 700;
-            margin: 10px 0;
-            background: linear-gradient(45deg, var(--accent-color), #00d4aa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .financial-label {
-            font-size: 0.9em;
-            opacity: 0.8;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-        
-        .chart-container {
-            background: rgba(255,255,255,0.08);
-            border-radius: 20px;
-            padding: 25px;
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 20px;
-            height: 400px;
-        }
-        
-        .positive { color: #00ff88; }
-        .negative { color: #ff4757; }
-        .neutral { color: #ffa502; }
-        
-        .theme-select {
-            padding: 8px 12px;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 8px;
-            background: rgba(255,255,255,0.1);
-            color: white;
-            font-size: 14px;
-            backdrop-filter: blur(10px);
-        }
-        
-        .theme-select option {
-            background: #2a2a2a;
-            color: white;
-        }
-        
-        /* Theme Styles */
-        .theme-gradient {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: #fff;
-        }
-        
-        .theme-dark {
-            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
-            color: #e0e0e0;
-        }
-        
-        .theme-minimal {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            color: #212529;
-        }
-        
-        .theme-neon {
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a0a1a 100%);
-            color: #00ff88;
-        }
-        
-        .theme-gold {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2416 100%);
-            color: #f4e4bc;
-        }
-        
-        .theme-minimal .navbar,
-        .theme-minimal .header,
-        .theme-minimal .financial-card,
-        .theme-minimal .chart-container {
-            background: rgba(255,255,255,0.8);
-            border: 1px solid rgba(0,0,0,0.1);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            color: #212529;
-        }
-        
-        .theme-minimal 
-        
-        .theme-minimal 
-        
-        .theme-minimal 
-        
-        .theme-minimal .header h1 {
-            background: linear-gradient(45deg, #007bff, #0056b3);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .theme-minimal .financial-value {
-            background: linear-gradient(45deg, #007bff, #0056b3);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .theme-minimal .theme-select {
-            background: rgba(255,255,255,0.9);
-            color: #495057;
-            border: 1px solid rgba(0,0,0,0.2);
-        }
-        
-        .theme-minimal .theme-select option {
-            background: white;
-            color: #495057;
-        }
-        
-        .theme-minimal .positive { color: #28a745; }
-        .theme-minimal .negative { color: #dc3545; }
-        .theme-minimal .neutral { color: #ffc107; }
     
         
-                /* Navigation */
+    
+        
+    
+        /* Navigation */
         .nav-container {
             background: #141b3d;
             padding: 12px 20px;
             border-bottom: 1px solid #2d3a5f;
             display: flex;
+            justify-content: center;
             gap: 8px;
             flex-wrap: wrap;
             align-items: center;
@@ -314,10 +66,11 @@
 </head>
 <body>
     <!-- Navigation -->
+        <!-- Navigation -->
     <nav class="nav-container">
+        <a href="/homepage" class="nav-link">🏠 Home</a>
         <a href="/ml-dashboard" class="nav-link">🤖 ML</a>
-
-        <a href="/signal-lab-dashboard" class="nav-link">🏠 Dashboard</a>
+        <a href="/signal-lab-dashboard" class="nav-link">📊 Dashboard</a>
         <a href="/signal-analysis-lab" class="nav-link">🧪 Signal Lab</a>
         <a href="/automated-signals" class="nav-link">📡 Automated Signals</a>
         <a href="/time-analysis" class="nav-link">⏰ Time</a>
@@ -330,35 +83,7 @@
         <a href="/reporting-hub" class="nav-link">📊 Reports</a>
     </nav>
 
-<body>
-    <!-- Header -->
-    <div class="header">
-        <div class="logo-section">
-            <div class="logo">📈</div>
-            <div class="platform-info">
-                <h1>NASDAQ Trading Analytics</h1>
-                <p>Professional Day Trading Platform</p>
-            </div>
-        </div>
-        <div class="user-section">
-            <div class="user-info">
-                <div class="user-name">Trading Professional</div>
-                <div class="user-status">● Online</div>
-            </div>
-            <a href="/logout" class="logout-btn">Logout</a>
-        </div>
-    </div>
-    <!-- Navigation -->
-    
-
-
-    
-
-
-    <!-- Navigation -->
-    <!-- Navigation -->
-    
-    <script>
+<script>
     (function() {
         const currentPath = window.location.pathname;
         const navLinks = document.querySelectorAll('nav a[data-page]');
