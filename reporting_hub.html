@@ -90,33 +90,7 @@
             transform: translateY(-2px);
         }
 
-        /* Navigation */
-        .nav-container {
-            background: #141b3d;
-            padding: 12px 20px;
-            border-bottom: 1px solid #2d3a5f;
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            align-items: center;
-            overflow-x: auto;
-        }
-
-        .nav-link {
-            padding: 8px 12px;
-            background: #1a2142;
-            color: #f8fafc;
-            text-decoration: none;
-            border-radius: 6px;
-            font-size: 14px;
-            white-space: nowrap;
-            transition: all 0.3s;
-        }
-
-        .nav-link:hover {
-            background: #3b82f6;
-            transform: translateY(-2px);
-        }
+        
 
         /* Dashboard Specific Styles Below */
 
@@ -269,8 +243,53 @@
         }
     
         
-        </style>
+                /* Navigation */
+        .nav-container {
+            background: #141b3d;
+            padding: 12px 20px;
+            border-bottom: 1px solid #2d3a5f;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            overflow-x: auto;
+        }
+
+        .nav-link {
+            padding: 8px 12px;
+            background: #1a2142;
+            color: #f8fafc;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+
+        .nav-link:hover {
+            background: #3b82f6;
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav-container">
+        <a href="/ml-dashboard" class="nav-link">🤖 ML</a>
+
+        <a href="/signal-lab-dashboard" class="nav-link">🏠 Dashboard</a>
+        <a href="/signal-analysis-lab" class="nav-link">🧪 Signal Lab</a>
+        <a href="/automated-signals" class="nav-link">📡 Automated Signals</a>
+        <a href="/time-analysis" class="nav-link">⏰ Time</a>
+        <a href="/strategy-optimizer" class="nav-link">🎯 Optimizer</a>
+        <a href="/strategy-comparison" class="nav-link">🏆 Compare</a>
+        <a href="/ai-business-advisor" class="nav-link">🧠 AI Advisor</a>
+        <a href="/prop-portfolio" class="nav-link">💼 Prop</a>
+        <a href="/trade-manager" class="nav-link">📋 Trades</a>
+        <a href="/financial-summary" class="nav-link">💰 Finance</a>
+        <a href="/reporting-hub" class="nav-link">📊 Reports</a>
+    </nav>
+
 <body>
     <!-- Header -->
     <div class="header">
@@ -289,22 +308,11 @@
             <a href="/logout" class="logout-btn">Logout</a>
         </div>
     </div>
-
     <!-- Navigation -->
-    <nav class="nav-container">
-        <a href="/ml-dashboard" class="nav-link">🤖 ML</a>
-        <a href="/signal-lab-dashboard" class="nav-link">🏠 Dashboard</a>
-        <a href="/signal-analysis-lab" class="nav-link">🧪 Signal Lab</a>
-        <a href="/automated-signals" class="nav-link">📡 Automated Signals</a>
-        <a href="/time-analysis" class="nav-link">⏰ Time</a>
-        <a href="/strategy-optimizer" class="nav-link">🎯 Optimizer</a>
-        <a href="/strategy-comparison" class="nav-link">🏆 Compare</a>
-        <a href="/ai-business-advisor" class="nav-link">🧠 AI Advisor</a>
-        <a href="/prop-portfolio" class="nav-link">💼 Prop</a>
-        <a href="/trade-manager" class="nav-link">📋 Trades</a>
-        <a href="/financial-summary" class="nav-link">💰 Finance</a>
-        <a href="/reporting-hub" class="nav-link">📊 Reports</a>
-    </nav>
+    
+
+
+    
 
 
     <!-- Navigation -->
