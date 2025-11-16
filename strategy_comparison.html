@@ -30,7 +30,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg-primary); color: var(--text-primary); padding: var(--spacing-lg); line-height: 1.6; }
         .container { max-width: 1600px; margin: 0 auto; }
-        .header { text-align: center; padding: var(--spacing-xl); background: var(--bg-secondary); border-radius: var(--radius-lg); margin-bottom: var(--spacing-xl); border: 1px solid var(--border-color); box-shadow: var(--shadow-md); }
+        
         .header h1 { font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: var(--spacing-sm); letter-spacing: -0.02em; }
         .header p { color: var(--text-secondary); font-size: 1rem; font-weight: 500; }
         .settings-card { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: var(--spacing-xl); margin-bottom: var(--spacing-xl); border: 1px solid var(--border-color); box-shadow: var(--shadow-md); }
@@ -133,6 +133,78 @@
             .risk-analysis-container { padding: var(--spacing-sm); }
         }
     
+        
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .platform-info h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .platform-info p {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .user-status {
+            color: #22c55e;
+            font-size: 0.8rem;
+        }
+
+        .logout-btn {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+            transform: translateY(-2px);
+        }
+
         /* Navigation */
         .nav-container {
             background: #141b3d;
@@ -160,10 +232,28 @@
             background: #3b82f6;
             transform: translateY(-2px);
         }
+
     </style>
 </head>
 <body>
-    <!-- Navigation -->
+    <!-- Header -->
+    <div class="header">
+        <div class="logo-section">
+            <div class="logo">📈</div>
+            <div class="platform-info">
+                <h1>NASDAQ Trading Analytics</h1>
+                <p>Professional Day Trading Platform</p>
+            </div>
+        </div>
+        <div class="user-section">
+            <div class="user-info">
+                <div class="user-name">Trading Professional</div>
+                <div class="user-status">● Online</div>
+            </div>
+            <a href="/logout" class="logout-btn">Logout</a>
+        </div>
+    </div>
+
     <!-- Navigation -->
     <nav class="nav-container">
         <a href="/ml-dashboard" class="nav-link">🤖 ML</a>
@@ -179,6 +269,11 @@
         <a href="/financial-summary" class="nav-link">💰 Finance</a>
         <a href="/reporting-hub" class="nav-link">📊 Reports</a>
     </nav>
+
+
+    <!-- Navigation -->
+    <!-- Navigation -->
+    
     <script>
     (function() {
         const currentPath = window.location.pathname;
@@ -193,48 +288,7 @@
     </script>
     
     <div class="container">
-        <div class="header">
-            <h1>🏆 Strategy Comparison</h1>
-            <p>Compare strategies by Expected Total Return</p>
-        </div>
         
-        <div class="settings-card">
-            <div class="settings-header">
-                <span style="font-size: 1.5rem;">⚙️</span>
-                <h3>Comparison Settings</h3>
-            </div>
-            
-            <!-- Time Filter Section -->
-            <div style="background: var(--bg-tertiary); border-radius: var(--radius-md); padding: var(--spacing-lg); margin-bottom: var(--spacing-lg); border: 1px solid rgba(59, 130, 246, 0.2);">
-                <div style="display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-md);">
-                    <span style="font-size: 1.25rem;">📅</span>
-                    <h4 style="font-size: 1rem; font-weight: 700; color: var(--accent-primary);">Time Period Filter</h4>
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
-                    <div class="input-group">
-                        <label>Time Period</label>
-                        <select id="timePeriodType" onchange="toggleDateInputs()" style="padding: var(--spacing-md); border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
-                            <option value="all">All Time</option>
-                            <option value="single">Single Date</option>
-                            <option value="range">Date Range</option>
-                            <option value="last7">Last 7 Days</option>
-                            <option value="last30">Last 30 Days</option>
-                            <option value="last90">Last 90 Days</option>
-                        </select>
-                    </div>
-                    <div class="input-group" id="singleDateGroup" style="display: none;">
-                        <label>Select Date</label>
-                        <input type="date" id="singleDate" style="padding: var(--spacing-md); border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
-                    </div>
-                    <div class="input-group" id="startDateGroup" style="display: none;">
-                        <label>Start Date</label>
-                        <input type="date" id="startDate" style="padding: var(--spacing-md); border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
-                    </div>
-                    <div class="input-group" id="endDateGroup" style="display: none;">
-                        <label>End Date</label>
-                        <input type="date" id="endDate" style="padding: var(--spacing-md); border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
-                    </div>
-                </div>
                 <div id="dateRangeInfo" style="font-size: 0.875rem; color: var(--text-secondary); padding: var(--spacing-sm); background: rgba(59, 130, 246, 0.05); border-radius: var(--radius-sm); display: none;">
                     <span id="dateRangeText"></span>
                 </div>

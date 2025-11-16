@@ -175,6 +175,78 @@
             color: white;
         }
     
+        
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .platform-info h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .platform-info p {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .user-status {
+            color: #22c55e;
+            font-size: 0.8rem;
+        }
+
+        .logout-btn {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+            transform: translateY(-2px);
+        }
+
         /* Navigation */
         .nav-container {
             background: #141b3d;
@@ -202,10 +274,28 @@
             background: #3b82f6;
             transform: translateY(-2px);
         }
+
     </style>
 </head>
 <body>
-    <!-- Navigation -->
+    <!-- Header -->
+    <div class="header">
+        <div class="logo-section">
+            <div class="logo">📈</div>
+            <div class="platform-info">
+                <h1>NASDAQ Trading Analytics</h1>
+                <p>Professional Day Trading Platform</p>
+            </div>
+        </div>
+        <div class="user-section">
+            <div class="user-info">
+                <div class="user-name">Trading Professional</div>
+                <div class="user-status">● Online</div>
+            </div>
+            <a href="/logout" class="logout-btn">Logout</a>
+        </div>
+    </div>
+
     <!-- Navigation -->
     <nav class="nav-container">
         <a href="/ml-dashboard" class="nav-link">🤖 ML</a>
@@ -221,6 +311,11 @@
         <a href="/financial-summary" class="nav-link">💰 Finance</a>
         <a href="/reporting-hub" class="nav-link">📊 Reports</a>
     </nav>
+
+
+    <!-- Navigation -->
+    <!-- Navigation -->
+    
     <script>
     (function() {
         const currentPath = window.location.pathname;
@@ -237,13 +332,7 @@
     
     
     <div class="container">
-        <div class="header">
-            <h1>Trade Manager</h1>
-            <p>Add, Edit, and Manage Your Trading Data</p>
-            <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; text-align: center;">
-                <div style="font-size: 12px; opacity: 0.8;">Session Time</div>
-                <div id="currentDateTime" style="font-size: 14px; font-weight: 600;">Loading...</div>
-            </div>
+        
         </div>
         
         <div class="stats-grid">
