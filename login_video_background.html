@@ -349,8 +349,11 @@
 <body>
     <!-- Cycling Video Background -->
     <div class="video-container">
-        <video id="backgroundVideo" autoplay muted loop class="video-background" playsinline>
-            <!-- Will be populated by JavaScript -->
+        <video id="backgroundVideo" autoplay muted loop class="video-background" playsinline preload="auto">
+            {% if video_file %}
+                <source src="{{ url_for('static', filename='videos/login/' + video_file) }}" type="video/mp4">
+                <source src="{{ url_for('static', filename='videos/login/' + video_file) }}" type="video/webm">
+            {% endif %}
         </video>
     </div>
 

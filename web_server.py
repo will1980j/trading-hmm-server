@@ -643,25 +643,48 @@ def read_html_file(filename):
         logger.error(f"Unexpected error reading file {safe_filename}: {safe_error}")
         return "<h1>Trading Dashboard</h1><p>Server error. Please try again.</p><a href='/health'>Health Check</a>"
 
+def get_random_video(subfolder):
+    """
+    Get a random video file from the specified subfolder.
+    Returns filename only (not full path) or None if no videos found.
+    """
+    import os
+    import random
+    
+    base_path = os.path.join('static', 'videos', subfolder)
+    if not os.path.exists(base_path):
+        return None  # Fail gracefully
+    
+    files = [
+        f for f in os.listdir(base_path)
+        if f.lower().endswith(('.mp4', '.webm'))
+    ]
+    if not files:
+        return None
+    
+    return random.choice(files)
+
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Main login page - Beautiful nature video backgrounds"""
+    video_file = get_random_video('login')
+    
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
         
         if not username or not password:
             error_msg = markup_escape('Username and password are required')
-            return render_template_string(read_html_file('login_video_background.html'), error=error_msg)
+            return render_template_string(read_html_file('login_video_background.html'), error=error_msg, video_file=video_file)
             
         if authenticate(username, password):
             session['authenticated'] = True
             return redirect('/homepage')
             
         error_msg = markup_escape('Invalid credentials')
-        return render_template_string(read_html_file('login_video_background.html'), error=error_msg)
-    return render_template_string(read_html_file('login_video_background.html'))
+        return render_template_string(read_html_file('login_video_background.html'), error=error_msg, video_file=video_file)
+    return render_template_string(read_html_file('login_video_background.html'), video_file=video_file)
 
 @app.route('/logout')
 def logout():
@@ -672,7 +695,8 @@ def logout():
 @login_required
 def homepage():
     """Professional homepage - main landing page after login with nature videos"""
-    return read_html_file('homepage_video_background.html')
+    video_file = get_random_video('homepage')
+    return render_template_string(read_html_file('homepage_video_background.html'), video_file=video_file)
 
 # Video Background Versions - For Testing
 @app.route('/login-professional', methods=['GET', 'POST'])
