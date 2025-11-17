@@ -586,9 +586,6 @@ function showHealthError() {
                 const direction = signal.bias || signal.direction;
                 const status = (signal.trade_status || signal.status || 'unknown').toUpperCase();
                 
-                // Calculate trade number: first trade of the day = #1, count up from there
-                const tradeNumber = filteredSignals.length - index;
-                
                 // Determine if trade is active
                 const isActive = status === 'ACTIVE' || status === 'CONFIRMED' || status === 'ENTRY';
                 
@@ -621,7 +618,7 @@ function showHealthError() {
                             <input type="checkbox" class="trade-checkbox" data-trade-id="${signal.trade_id}" onchange="toggleTradeSelection('${signal.trade_id}')" style="cursor: pointer;">
                         </td>
                         <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;">${statusDot}</td>
-                        <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;"><span class="trade-number">${tradeNumber}</span></td>
+                        <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;"><span class="trade-number">${index + 1}</span></td>
                         <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;">${displayTime}</td>
                         <td onclick="showTradeDetail('${signal.trade_id}')" style="cursor: pointer;">
                             <span class="direction-badge ${direction ? direction.toLowerCase() : 'neutral'}">
