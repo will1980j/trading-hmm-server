@@ -1,392 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prop Fund Portfolio Manager</title>
-    <link rel="stylesheet" href="/style_preload.css">
+{%extends 'layout.html' %}
 
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
-        :root {
-            --accent-color: #00ff88;
-            --glass-bg: rgba(255,255,255,0.08);
-            --glass-border: rgba(255,255,255,0.1);
-            --shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: #fff;
-            margin: 0;
-            padding: 20px;
-            transition: all 0.3s ease;
-        }
-        
-        .container {
-            max-width: 1800px;
-            margin: 0 auto;
-        }
-        
-        .navbar {
-            background: rgba(255,255,255,0.1);
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 15px;
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-        
-        .nav-link {
-            color: rgba(255,255,255,0.8);
-            text-decoration: none;
-            padding: 10px 18px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            transition: all 0.3s ease;
-            font-weight: 500;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .nav-link:hover {
-            background: rgba(255,255,255,0.15);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-        
-        .nav-link.active {
-            color: #00ff88;
-            background: rgba(0,255,136,0.15);
-            border-color: rgba(0,255,136,0.3);
-        }
-        
-        .header {
-            text-align: center;
-            padding: 30px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 20px;
-            backdrop-filter: blur(20px);
-            margin-bottom: 30px;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-        
-        .header h1 {
-            font-size: 2.5em;
-            font-weight: 700;
-            margin-bottom: 10px;
-            background: linear-gradient(45deg, #00ff88, #00d4aa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .month-selector {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-bottom: 30px;
-        }
-        
-        .month-btn {
-            padding: 8px 16px;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 8px;
-            background: rgba(255,255,255,0.05);
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .month-btn.active {
-            background: rgba(0,255,136,0.2);
-            border-color: rgba(0,255,136,0.5);
-            color: #00ff88;
-        }
-        
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-        
-        .overview-card {
-            background: rgba(255,255,255,0.08);
-            border-radius: 18px;
-            padding: 20px;
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-        
-        .overview-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding: 10px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 8px;
-        }
-        
-        .overview-label {
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            opacity: 0.8;
-        }
-        
-        .overview-value {
-            font-size: 16px;
-            font-weight: 700;
-        }
-        
-        .data-input {
-            background: rgba(255,255,255,0.08);
-            border-radius: 20px;
-            padding: 25px;
-            backdrop-filter: blur(20px);
-            margin-bottom: 30px;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-        
-        .status-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .status-tab {
-            padding: 10px 20px;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 8px;
-            background: rgba(255,255,255,0.05);
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .status-tab.active {
-            background: rgba(0,255,136,0.2);
-            border-color: rgba(0,255,136,0.5);
-            color: #00ff88;
-        }
-        
-        .firm-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            overflow: hidden;
-            font-size: 12px;
-        }
-        
-        .firm-table th,
-        .firm-table td {
-            padding: 8px;
-            text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .firm-table th {
-            background: rgba(255,255,255,0.1);
-            font-weight: bold;
-            font-size: 11px;
-        }
-        
-        .status-badge {
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: 600;
-        }
-        
-        .status-challenge { background: rgba(255,165,2,0.2); color: #ffa502; }
-        .status-funded { background: rgba(0,255,136,0.2); color: #00ff88; }
-        .status-failed { background: rgba(255,71,87,0.2); color: #ff4757; }
-        
-        .btn {
-            background: linear-gradient(45deg, var(--accent-color), #00d4aa);
-            border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 12px;
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0,255,136,0.3);
-        }
-        
-        .positive { color: #00ff88; }
-        .negative { color: #ff4757; }
-        .neutral { color: #ffa502; }
-        
-        select, input {
-            padding: 4px 8px;
-            border: none;
-            border-radius: 4px;
-            background: rgba(255,255,255,0.9);
-            color: #333;
-            font-size: 12px;
-        }
-        
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 4px;
-            overflow: hidden;
-            margin: 5px 0;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ff4757, #ffa502, #00ff88);
-            transition: width 0.3s ease;
-        }
-        
-        .theme-select {
-            padding: 8px 12px;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 8px;
-            background: rgba(255,255,255,0.1);
-            color: white;
-            font-size: 14px;
-            backdrop-filter: blur(10px);
-        }
-        
-        .theme-select option {
-            background: #2a2a2a;
-            color: white;
-        }
-        
-        /* Theme Styles */
-        .theme-gradient {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: #fff;
-        }
-        
-        .theme-dark {
-            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
-            color: #e0e0e0;
-        }
-        
-        .theme-minimal {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            color: #212529;
-        }
-        
-        .theme-neon {
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a0a1a 100%);
-            color: #00ff88;
-        }
-        
-        .theme-gold {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2416 100%);
-            color: #f4e4bc;
-        }
-        
-        .theme-minimal .navbar,
-        .theme-minimal .header,
-        .theme-minimal .overview-card,
-        .theme-minimal .data-input {
-            background: rgba(255,255,255,0.8);
-            border: 1px solid rgba(0,0,0,0.1);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            color: #212529;
-        }
-        
-        .theme-minimal .nav-link {
-            color: #495057;
-            background: rgba(0,0,0,0.03);
-            border: 1px solid rgba(0,0,0,0.1);
-        }
-        
-        .theme-minimal .nav-link:hover {
-            background: rgba(0,0,0,0.08);
-            color: #212529;
-        }
-        
-        .theme-minimal .nav-link.active {
-            color: #007bff;
-            background: rgba(0,123,255,0.1);
-            border-color: rgba(0,123,255,0.2);
-        }
-        
-        .theme-minimal .header h1 {
-            background: linear-gradient(45deg, #007bff, #0056b3);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .theme-minimal .overview-value {
-            background: linear-gradient(45deg, #007bff, #0056b3);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .theme-minimal .theme-select {
-            background: rgba(255,255,255,0.9);
-            color: #495057;
-            border: 1px solid rgba(0,0,0,0.2);
-        }
-        
-        .theme-minimal .theme-select option {
-            background: white;
-            color: #495057;
-        }
-        
-        .theme-minimal .positive { color: #28a745; }
-        .theme-minimal .negative { color: #dc3545; }
-        .theme-minimal .neutral { color: #ffc107; }
-    </style>
-</head>
-<body>
-    <nav style="background: #141b3d; padding: 12px 20px; margin-bottom: 20px; border-bottom: 1px solid #2d3a5f; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-        <a href="/ml-dashboard" data-page="ml" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🤖 ML</a>
+{% block page_title %}Prop Portfolio — Second Skies{% endblock %}
 
-        <a href="/signal-lab-dashboard" data-page="dashboard" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🏠 Dashboard</a>
-        <a href="/signal-analysis-lab" data-page="lab" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🧪 Signal Lab</a>
-        <a href="/time-analysis" data-page="time" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">⏰ Time</a>
-        <a href="/strategy-optimizer" data-page="optimizer" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🎯 Optimizer</a>
-        <a href="/strategy-comparison" data-page="compare" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🏆 Compare</a>
-        <a href="/ai-business-advisor" data-page="advisor" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">🧠 AI Advisor</a>
-        <a href="/prop-portfolio" data-page="prop" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">💼 Prop</a>
-        <a href="/trade-manager" data-page="trades" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">📋 Trades</a>
-        <a href="/financial-summary" data-page="finance" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">💰 Finance</a>
-        <a href="/reporting-hub" data-page="reports" style="padding: 8px 12px; background: #1a2142; color: #f8fafc; text-decoration: none; border-radius: 6px; font-size: 14px; white-space: nowrap;">📊 Reports</a>
-    </nav>
-    <script>
-    (function() {
-        const currentPath = window.location.pathname;
-        const navLinks = document.querySelectorAll('nav a[data-page]');
-        navLinks.forEach(link => {
-            if (link.getAttribute('href') === currentPath) {
-                link.style.background = '#3b82f6';
-                link.style.color = 'white';
-            }
-        });
-    })();
-    </script>
-    
-    
-    
-    <div class="container">
+{% block content %}
+<div class="container">
         <div class="header">
             <h1>Prop Fund Portfolio Manager</h1>
             <p>Challenge Tracking & Funded Account Management</p>
@@ -667,9 +284,24 @@
             </div>
         </div>
     </div>
-    
-    <script>
-        let currentMonth = '2024-01';
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+        const currentPath = window.location.pathname;
+        const navLinks = document.querySelectorAll('nav a[data-page]');
+        navLinks.forEach(link => {
+            if (link.getAttribute('href') === currentPath) {
+                link.style.background = '#3b82f6';
+                link.style.color = 'white';
+            }
+        });
+    })();
+</script>
+
+<script>
+let currentMonth = '2024-01';
         let propFirms = [];
         
         // Load prop firms from database
@@ -1160,18 +792,8 @@
             // Auto-scrape new deals daily
             setInterval(scrapePropFirms, 24 * 60 * 60 * 1000);
         });
-    </script>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://d3js.org/d3-selection.v3.min.js"></script>
-    <script src="https://d3js.org/d3-scale.v4.min.js"></script>
-    <script src="https://d3js.org/d3-axis.v3.min.js"></script>
-    <script src="https://d3js.org/d3-shape.v3.min.js"></script>
-    <script src="https://d3js.org/d3-zoom.v3.min.js"></script>
-    <script src="https://d3js.org/d3-brush.v3.min.js"></script>
-    <script src="https://d3js.org/d3-transition.v3.min.js"></script>
-    <script src="d3_charts.js"></script>
-<script src="professional_styles.js"></script>
-<script src="chatbot.js"></script>
+</script>
+
 <script>
 function changeStyle() {
     const style = document.getElementById('styleSelector').value;
@@ -1194,6 +816,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 100);
 });
 </script>
-</body>
-</html>
 
+{% endblock %}

@@ -1,83 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ML Intelligence Hub</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script src="/websocket_client.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{%extends 'layout.html' %}
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
-            color: #ffffff;
-            min-height: 100vh;
-        }
+{% block page_title %}ML Intelligence Hub — Second Skies{% endblock %}
 
-        
-    
-        
-    
-        
-    
-        /* Navigation */
-        .nav-container {
-            background: #141b3d;
-            padding: 12px 20px;
-            border-bottom: 1px solid #2d3a5f;
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            flex-wrap: wrap;
-            align-items: center;
-            overflow-x: auto;
-        }
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="/websocket_client.js"></script>
+{% endblock %}
 
-        .nav-link {
-            padding: 8px 12px;
-            background: #1a2142;
-            color: #f8fafc;
-            text-decoration: none;
-            border-radius: 6px;
-            font-size: 14px;
-            white-space: nowrap;
-            transition: all 0.3s;
-        }
-
-        .nav-link:hover {
-            background: #3b82f6;
-            transform: translateY(-2px);
-        }
-    </style>
-</head>
-<body>
-    <!-- Navigation -->
-        <!-- Navigation -->
-    <nav class="nav-container">
-        <a href="/homepage" class="nav-link">🏠 Home</a>
-        <a href="/ml-dashboard" class="nav-link">🤖 ML</a>
-        <a href="/signal-lab-dashboard" class="nav-link">📊 Dashboard</a>
-        <a href="/signal-analysis-lab" class="nav-link">🧪 Signal Lab</a>
-        <a href="/automated-signals" class="nav-link">📡 Automated Signals</a>
-        <a href="/time-analysis" class="nav-link">⏰ Time</a>
-        <a href="/strategy-optimizer" class="nav-link">🎯 Optimizer</a>
-        <a href="/strategy-comparison" class="nav-link">🏆 Compare</a>
-        <a href="/ai-business-advisor" class="nav-link">🧠 AI Advisor</a>
-        <a href="/prop-portfolio" class="nav-link">💼 Prop</a>
-        <a href="/trade-manager" class="nav-link">📋 Trades</a>
-        <a href="/financial-summary" class="nav-link">💰 Finance</a>
-        <a href="/reporting-hub" class="nav-link">📊 Reports</a>
-    </nav>
-
-<div id="bannerLastSignal" style="font-size: 14px; font-weight: 600; margin-top: 2px;">--</div>
-            </div>
+{% block content %}
+</div>
             <div style="text-align: center;">
                 <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">24h Signals</div>
                 <div id="bannerTotalSignals" style="font-size: 14px; font-weight: 600; margin-top: 2px;">--</div>
@@ -480,9 +412,11 @@
             </div>
         </div>
     </div>
+{% endblock %}
 
-    <script>
-        let charts = {};
+{% block extra_js %}
+<script>
+let charts = {};
 
         async function loadData() {
             try {
@@ -1789,6 +1723,6 @@
                 });
             }
         }, 3000);
-    </script>
-</body>
-</html>
+</script>
+
+{% endblock %}

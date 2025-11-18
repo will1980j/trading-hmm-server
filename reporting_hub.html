@@ -1,106 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reporting Hub - Trading Analytics</title>
-    <link rel="stylesheet" href="/style_preload.css">
-        <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{%extends 'layout.html' %}
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
-            color: #ffffff;
-            min-height: 100vh;
-        }
+{% block page_title %}Reporting Hub — Second Skies{% endblock %}
 
-        
-    
-        
-    
-        
-    
-        /* Navigation */
-        .nav-container {
-            background: #141b3d;
-            padding: 12px 20px;
-            border-bottom: 1px solid #2d3a5f;
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            flex-wrap: wrap;
-            align-items: center;
-            overflow-x: auto;
-        }
-
-        .nav-link {
-            padding: 8px 12px;
-            background: #1a2142;
-            color: #f8fafc;
-            text-decoration: none;
-            border-radius: 6px;
-            font-size: 14px;
-            white-space: nowrap;
-            transition: all 0.3s;
-        }
-
-        .nav-link:hover {
-            background: #3b82f6;
-            transform: translateY(-2px);
-        }
-    </style>
-</head>
-<body>
-    <!-- Navigation -->
-        <!-- Navigation -->
-    <nav class="nav-container">
-        <a href="/homepage" class="nav-link">🏠 Home</a>
-        <a href="/ml-dashboard" class="nav-link">🤖 ML</a>
-        <a href="/signal-lab-dashboard" class="nav-link">📊 Dashboard</a>
-        <a href="/signal-analysis-lab" class="nav-link">🧪 Signal Lab</a>
-        <a href="/automated-signals" class="nav-link">📡 Automated Signals</a>
-        <a href="/time-analysis" class="nav-link">⏰ Time</a>
-        <a href="/strategy-optimizer" class="nav-link">🎯 Optimizer</a>
-        <a href="/strategy-comparison" class="nav-link">🏆 Compare</a>
-        <a href="/ai-business-advisor" class="nav-link">🧠 AI Advisor</a>
-        <a href="/prop-portfolio" class="nav-link">💼 Prop</a>
-        <a href="/trade-manager" class="nav-link">📋 Trades</a>
-        <a href="/financial-summary" class="nav-link">💰 Finance</a>
-        <a href="/reporting-hub" class="nav-link">📊 Reports</a>
-    </nav>
-
-<script>
-    (function() {
-        const currentPath = window.location.pathname;
-        const navLinks = document.querySelectorAll('nav a[data-page]');
-        navLinks.forEach(link => {
-            if (link.getAttribute('href') === currentPath) {
-                link.style.background = '#3b82f6';
-                link.style.color = 'white';
-            }
-        });
-    })();
-    </script>
-    
-    
-    
-    <div class="container">
-        
-        
-        <div class="gamma-integration" style="margin-bottom: 20px;">
-            <h3>Quick Actions</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 15px;">
-                <button class="btn" onclick="generateAllReports()">Generate All Reports</button>
-                <button class="btn btn-secondary" onclick="scheduleReports()">Schedule Reports</button>
-                <button class="btn btn-secondary" onclick="shareReports()">Share Reports</button>
-                <button class="btn btn-secondary" onclick="downloadPDF()">Download PDF</button>
-            </div>
-        </div>
+{% block content %}
+</div>
         
         <div class="gamma-integration" style="margin-bottom: 20px;">
             <h3>Gamma.app Templates</h3>
@@ -214,18 +117,24 @@
         </div>
     </div>
 
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://d3js.org/d3-selection.v3.min.js"></script>
-    <script src="https://d3js.org/d3-scale.v4.min.js"></script>
-    <script src="https://d3js.org/d3-axis.v3.min.js"></script>
-    <script src="https://d3js.org/d3-shape.v3.min.js"></script>
-    <script src="https://d3js.org/d3-zoom.v3.min.js"></script>
-    <script src="https://d3js.org/d3-brush.v3.min.js"></script>
-    <script src="https://d3js.org/d3-transition.v3.min.js"></script>
-    <script src="d3_charts.js"></script>
-    <script src="api_integration.js"></script>
-    <script>
-        function connectGamma() {
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+</div><!-- container -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function connectGamma() {
             // Simulate connection process
             const statusIndicator = document.querySelector('.status-indicator');
             const statusText = statusIndicator.nextElementSibling;
@@ -476,9 +385,8 @@
             
             return 'Professional AI-driven content generated';
         }
-    </script>
-<script src="professional_styles.js"></script>
-<script src="chatbot.js"></script>
+</script>
+
 <script>
 function changeStyle() {
     const style = document.getElementById('styleSelector').value;
@@ -501,8 +409,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 100);
 });
 </script>
-</div><!-- container -->
-</body>
-</html>
 
-
+{% endblock %}

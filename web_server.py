@@ -1,4 +1,5 @@
-from flask import Flask, render_template_string, send_from_directory, send_file, request, jsonify, session, redirect, url_for, Response
+# Updated to support new unified layout system on all internal pages (except login/homepage which use video templates)
+from flask import Flask, render_template, render_template_string, send_from_directory, send_file, request, jsonify, session, redirect, url_for, Response
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from os import environ, path
@@ -676,15 +677,15 @@ def login():
         
         if not username or not password:
             error_msg = markup_escape('Username and password are required')
-            return render_template_string(read_html_file('login_video_background.html'), error=error_msg, video_file=video_file)
+            return render_template('login_video_background.html', error=error_msg, video_file=video_file)
             
         if authenticate(username, password):
             session['authenticated'] = True
             return redirect('/homepage')
             
         error_msg = markup_escape('Invalid credentials')
-        return render_template_string(read_html_file('login_video_background.html'), error=error_msg, video_file=video_file)
-    return render_template_string(read_html_file('login_video_background.html'), video_file=video_file)
+        return render_template('login_video_background.html', error=error_msg, video_file=video_file)
+    return render_template('login_video_background.html', video_file=video_file)
 
 @app.route('/logout')
 def logout():
@@ -696,7 +697,7 @@ def logout():
 def homepage():
     """Professional homepage - main landing page after login with nature videos"""
     video_file = get_random_video('homepage')
-    return render_template_string(read_html_file('homepage_video_background.html'), video_file=video_file)
+    return render_template('homepage_video_background.html', video_file=video_file)
 
 # Video Background Versions - For Testing
 @app.route('/login-professional', methods=['GET', 'POST'])
@@ -914,12 +915,12 @@ def advanced_dashboard():
 @app.route('/trade-manager')
 @login_required
 def trade_manager():
-    return read_html_file('trade_manager.html')
+    return render_template('trade_manager.html')
 
 @app.route('/signal-analysis-lab')
 @login_required
 def signal_analysis_lab():
-    return read_html_file('signal_analysis_lab.html')
+    return render_template('signal_analysis_lab.html')
 
 @app.route('/signal-analysis-5m')
 @login_required
@@ -934,7 +935,7 @@ def signal_analysis_15m():
 @app.route('/signal-lab-dashboard')
 @login_required
 def signal_lab_dashboard():
-    return read_html_file('signal_lab_dashboard.html')
+    return render_template('signal_lab_dashboard.html')
 
 @app.route('/signal-lab-v2')
 @login_required
@@ -964,7 +965,7 @@ def automated_signals_dashboard_option3():
 @login_required
 def automated_signals_dashboard():
     """Automated Signals Dashboard - Real-time signal monitoring with calendar"""
-    return read_html_file('automated_signals_dashboard.html')
+    return render_template('automated_signals_dashboard.html')
 
 @app.route('/live-diagnostics-terminal')
 @login_required
@@ -1013,7 +1014,7 @@ def diagnose_1m_signals():
 @app.route('/ai-business-advisor')
 @login_required
 def ai_business_advisor_page():
-    return read_html_file('ai_business_dashboard.html')
+    return render_template('ai_business_dashboard.html')
 
 @app.route('/nasdaq-ml')
 @login_required
@@ -1128,7 +1129,7 @@ def nasdaq_backtest():
 @login_required
 def ml_dashboard():
     """ML Feature Dashboard - Comprehensive ML Intelligence"""
-    return read_html_file('ml_feature_dashboard.html')
+    return render_template('ml_feature_dashboard.html')
 
 @app.route('/api/db-status', methods=['GET'])
 def get_db_status():
@@ -1554,12 +1555,12 @@ def webhook_diagnostic():
 @app.route('/strategy-optimizer')
 @login_required
 def strategy_optimizer():
-    return read_html_file('strategy_optimizer.html')
+    return render_template('strategy_optimizer.html')
 
 @app.route('/strategy-comparison')
 @login_required
 def strategy_comparison():
-    return read_html_file('strategy_comparison.html')
+    return render_template('strategy_comparison.html')
 
 @app.route('/api/strategy-comparison', methods=['GET'])
 @login_required
@@ -1700,7 +1701,7 @@ def get_strategy_trades():
 @app.route('/time-analysis')
 @login_required
 def time_analysis():
-    return read_html_file('time_analysis.html')
+    return render_template('time_analysis.html')
 
 @app.route('/api/time-analysis', methods=['GET'])
 @login_required
@@ -1767,22 +1768,22 @@ def fix_active_trades_page():
 @app.route('/prop-portfolio')
 @login_required
 def prop_portfolio():
-    return read_html_file('prop_firms_v2.html')
+    return render_template('prop_firms_v2.html')
 
 @app.route('/prop-firm-management')
 @login_required
 def prop_firm_management():
-    return read_html_file('prop_firm_management.html')
+    return render_template('prop_firm_management.html')
 
 @app.route('/financial-summary')
 @login_required
 def financial_summary():
-    return read_html_file('financial_summary.html')
+    return render_template('financial_summary.html')
 
 @app.route('/reporting-hub')
 @login_required
 def reporting_hub():
-    return read_html_file('reporting_hub.html')
+    return render_template('reporting_hub.html')
 
 @app.route('/ai-trading-master-plan')
 @login_required
