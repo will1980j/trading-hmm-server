@@ -990,9 +990,17 @@ def automated_signals_hub_data():
 @login_required
 def automated_signals_trade_detail_api(trade_id):
     detail = get_trade_detail(trade_id)
+    
+    # If get_trade_detail returned a Flask Response, pass it through unchanged
+    if hasattr(detail, "status_code"):
+        return detail
+    
+    # If no detail returned
     if detail is None:
         return jsonify({"error": "trade_not_found"}), 404
-    return jsonify(detail)
+    
+    # Otherwise assume detail is a dict-like JSON-serializable object
+    return jsonify(detail), 200
 
 @app.route("/automated-signals-hub-preview", methods=["GET"])
 @login_required
