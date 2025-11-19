@@ -232,8 +232,10 @@ def build_calendar_view(trades: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Aggregate trades into calendar-style stats per signal_date."""
     by_date: Dict[str, Dict[str, Any]] = {}
     for trade in trades:
-        date_key = trade["signal_date"]
-        if date_key is None:
+        # Use either 'date' (flattened field) or 'signal_date'
+        date_key = trade.get("date") or trade.get("signal_date")
+        if not date_key:
+            # Skip trades with no date — cannot place on calendar
             continue
         stats = by_date.get(date_key)
         if not stats:
