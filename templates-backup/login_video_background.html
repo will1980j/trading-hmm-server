@@ -1,0 +1,173 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Second Skies Trading – Login</title><meta name="viewport" content="width=device-width, initial-scale=1.0"><!-- Global Design System --><link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}"><style>.video-container {position: fixed;inset: 0;z-index: -2;overflow: hidden;}.video-background {position: absolute;top: 50%;left: 50%;min-width: 100%;min-height: 100%;transform: translate(-50%, -50%);object-fit: cover;}.video-overlay {position: fixed;inset: 0;z-index: -1;background: linear-gradient(135deg,rgba(10,14,39,0.85),rgba(26,31,58,0.80),rgba(45,27,105,0.90));}/* Particles */.particles-overlay {position: fixed;inset: 0;pointer-events: none;z-index: 0;}.particle {position: absolute;width: 2px;height: 2px;border-radius: 50%;background: rgba(59,130,246,0.7);animation: float 9s ease-in-out infinite;}.particle:nth-child(odd){background: rgba(139,92,246,0.7);animation-duration: 11s;}.particle:nth-child(1){left:10%;animation-delay:0s;}.particle:nth-child(2){left:23%;animation-delay:1.4s;}.particle:nth-child(3){left:34%;animation-delay:2.2s;}.particle:nth-child(4){left:47%;animation-delay:3.1s;}.particle:nth-child(5){left:58%;animation-delay:4s;}.particle:nth-child(6){left:69%;animation-delay:4.8s;}.particle:nth-child(7){left:81%;animation-delay:5.7s;}.particle:nth-child(8){left:91%;animation-delay:6.3s;}@keyframes float {0%,100% {transform:translateY(100vh) scale(0); opacity:0;}10% {transform:translateY(85vh) scale(1); opacity:1;}90% {transform:translateY(10vh) scale(1); opacity:1;}}.auth-wrapper {min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;position:relative;z-index:2;}.platform-logo-xl {font-size:3.2rem;margin-bottom:0.9rem;background:linear-gradient(135deg,#3b82f6,#8b5cf6,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 26px rgba(59,130,246,0.4));}</style></head><body class="body--video"><!-- Background Video --><div class="video-container"><video id="backgroundVideo" class="video-background" autoplay muted loop playsinline preload="auto">{% if video_file %}<source src="{{ url_for('static', filename='videos/login/' + video_file) }}" type="video/mp4"><source src="{{ url_for('static', filename='videos/login/' + video_file) }}" type="video/webm">{% endif %}</video></div><div class="video-overlay"></div><!-- Particles --><div class="particles-overlay"><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div></div><!-- Login Card --><div class="auth-wrapper"><div class="form-card" id="loginCard"><div class="form-header"><div class="platform-logo-xl">📈</div><h1 class="form-title">Second Skies Trading</h1><p class="form-subtitle">Log in to your trading command center</p></div><form method="POST" id="loginForm"><div class="form-group"><input type="text" name="username" class="input" placeholder="Username" autocomplete="username" required></div><div class="form-group"><input type="password" name="password" class="input" placeholder="Password" autocomplete="current-password" required></div><button type="submit" class="btn-primary" style="width:100%;">Access Trading Platform</button></form>{% if error %}<div class="error-box">{{ error }}</div>{% endif %}</div></div><script>document.getElementById('loginForm').addEventListener('submit',function(){document.getElementById('loginCard').classList.add('is-loading');});document.querySelectorAll('.input').forEach(inp=>{inp.addEventListener('focus',()=>{inp.parentElement.style.transform='scale(1.02)';inp.parentElement.style.transition='0.18s';});inp.addEventListener('blur',()=>{inp.parentElement.style.transform='scale(1)';});});</script><script>
+const videoSources = [
+'/proxy-video/18gYaw4YLy0r4-N-NVFP7MTRyRBbhCH1i',
+'/proxy-video/1CG1XiGaTutLOi6atmm3vBb-jOferAy3R',
+'/proxy-video/107-c9jR3b4y0whP3OLyq6eTKRPMFhKY9',
+'/proxy-video/1zh1Enf8cESXVzeBtM6G_9Ho-Is-0AFa1',
+'/proxy-video/1I0odad2sA3IWsFXvYxqln6pOhUsmWemX',
+'/proxy-video/1jB3QkgI8hRtFZmCou21oSPvrHmfzptmZ',
+'/proxy-video/15mOVz4TzU1Nh2u9C0De0iN5B8NGRQcxE',
+'/proxy-video/1Q-Jtepx2aLMesunbbepoJUSiIHEBr3Hv',
+'/proxy-video/1C0h1z9uPjnoEGOkzhPskZEHLPn4OGrfd',
+'/proxy-video/1ad9n0y97uYskUN2KaFxxz4EzUlmMxi1x',
+'/proxy-video/1khedd5UyYnDKrlaXdpJjA7VuRv1nskJJ',
+'/proxy-video/1AW4j_MY9MI8EzouChHUQP-fY30pEeba7',
+'/proxy-video/1XaGv5BG_Z9VytOPEVeE0SZrGJpvRgYbh',
+'/proxy-video/1kwjMpTkvGo25sdrAjPun7JPNnZ58FBGa',
+'/proxy-video/1IDxcL7yJeNG9iwclMcckMGxAVTofLrGH',
+'/proxy-video/1RBOsdJOuFAXtomQ-9Q_kR2h8uQatjAnH',
+'/proxy-video/1jU83_jjYOZWLmLicAGIrQEbAejqWGdpV',
+'/proxy-video/1VqcyCE-PW-DL74nd39KPw2Go79ioIjCE',
+'/proxy-video/1fMCRFCWVv_LL5IiHPbd5aojlZ05MXboW',
+'/proxy-video/1EDG_7sNCCSQBzg64FP1rRSgYdQSU2BW5',
+'/proxy-video/12ulHcA5IG305qLU2kMEklr03RcmoGGMX',
+'/proxy-video/1OwvgPkDU62fcAmOx62wo0mnzY4EhgA-4',
+'/proxy-video/1mJzqn5UYQxlf2Zk_niMvqmOIthK-On-0',
+'/proxy-video/1zqPreHTtNrQ3iN-kEc19JxQjinFuLXbL',
+'/proxy-video/1NJORsHhEu_TAUEflGsDjO5laKjX9QuLg',
+'/proxy-video/1EqwMQgs-vFpBz4-uBOzrEIZ3YDZFbF0E',
+'/proxy-video/1kwuZHhlB3fiwfNw1EWAS0hDbw20SSfVs',
+'/proxy-video/1HtWhyT2ZA8-adr2yfXVeMsFPvj9rZ5IO',
+'/proxy-video/1G0x-fBKdRxKseFlboVtRHRVZJIyKQ4gy',
+'/proxy-video/1nk3OsC0x0IQ-CeqZqs4zFEieRZepoTaL',
+'/proxy-video/1US_QE8bAwTphvHeTqgZhqrhrw3OvtRxe',
+'/proxy-video/14GLMh3SMZ0sRo4L40tgHNR38qBns0Gda',
+'/proxy-video/1Y9MZ8_IWKwKTxSWg6ZH0y-euN55RC-Tf',
+'/proxy-video/1L1uFB1o1AraIP0UrMdgA_jO05pW9xj-p',
+'/proxy-video/1sEpLjDhfffJQJfsH9HIKbKapICmT65OL',
+'/proxy-video/1YAt-MgYSfxCXpR5_Tm72ZP84ki0tPihD',
+'/proxy-video/1xmPAU3TqBuzypfL8B3jhy3RehvMnZadH',
+'/proxy-video/1BigKqxPcEQM7PrSo3v1oq2fqLkVElsH1',
+'/proxy-video/1ob580n1fv7F7kXQThTiXnzmp87h6KFsg',
+'/proxy-video/1Dj7K90riE6sCgCdLMhfV4PWBwb0vZTO_',
+'/proxy-video/1uklkLn8qQXJkJBLWzlQb58VB4MVqkcYd',
+'/proxy-video/1oUKWC-ln3hmupPXvZr38mf6cv_gfom1O',
+'/proxy-video/1wjrO9MAAkzUxHpUYU9772nDLnELO_VxD',
+'/proxy-video/1HkMKp2ThPaTH56su2a-R5UNml9OWtSCG',
+'/proxy-video/1j7QOuy8YJHWKp3SfqQJ9ZX0cp7YVTwjD',
+'/proxy-video/1NuThygDJNqsh9sp0TiDMLsUb9r6DlYJ4',
+'/proxy-video/1n49QdArYSCXhec3WjcswlDR5vvEZweAR',
+'/proxy-video/1peCksjeTKtodRXy6t_NwzqnRTXgIbpQJ',
+'/proxy-video/1rCfPR9gJM6dF9WGf0peJV9xaizwla1ND',
+'/proxy-video/111_tOFQLQTwJd05jqfll3lAqHGh98gxH',
+'/proxy-video/1tXkujWZYhkC9HoZXNfNbj17F37IgnSJ8',
+'/proxy-video/1FxLFPHPqM1ijR5lagVZ1dHeOpfjtSynk',
+'/proxy-video/1JASFoGmQX2FNLMgzWnEpeTitt8qAh6ih',
+'/proxy-video/1PkBcTJMIniyaic4FggwkpBoAbNujSNTJ',
+'/proxy-video/19egODctzRMmb_WiiS8WOxdE7N-LRHbYK',
+'/proxy-video/16g7F469QGkcjCN7Yd65xPTd-zS9qFPoA',
+'/proxy-video/1MI7UxRbU7smv7NXI3SVWsLDw1ilZ7QZF',
+'/proxy-video/1tyVPLAsMu9MOtNFn4zGEkwE7kvnzlvVB',
+'/proxy-video/1jabECNUhqO6K6ILqj3WJOR0CvVnwKmKa',
+'/proxy-video/1Ozo-e9-W_KgsE_D6IDvSThsHAUt5YBT',
+'/proxy-video/1TqMT5toWPiMgzaA2QGi_U2w1WZmEbVla',
+'/proxy-video/11vQjWV1vl1jCn1rvvkWZmvt7GQpQP_rD',
+'/proxy-video/1Fq4mi-okbQ379WajWu3lpqlWT5LCAblW',
+'/proxy-video/1BW9VEq_myf2ppAmYngWG45MuZmPvvjzE',
+'/proxy-video/1rCATcoBLVYvDOl7ZXhOBOoK3s5jDyMeA',
+'/proxy-video/1yfBxNKD2zBgnh4OrIhtt8NtEXQOK1A2R',
+'/proxy-video/1qO7_vaqhJ8-LNTHcKUUuLoF8-82UJP5l',
+'/proxy-video/159du18lMk4lA6ZDBfGG1uSEtpHcysp2K',
+'/proxy-video/1KI3JRNnf9-tqKJ-yE4LDiOV3V5Ibksuj',
+'/proxy-video/1nVxcv-bWORlMeCk2_AzHOQXxBa39-Zyt',
+'/proxy-video/10ajtednyG0nf37aywJa9omF0sEZ4a9No',
+'/proxy-video/1tyAtWhjafHXhoVxjUKR8Q1lFNfNen05M',
+'/proxy-video/1MuxkXcFOgqm72UE1n1rCXqG5QrDCpE1m',
+'/proxy-video/1OfyB6jxFdYqIGv6D5a5AnVX0pgcUJjNI',
+'/proxy-video/1xCG_0-d5ZKr8KCWsAJpvk1Yowh7WDfPI',
+'/proxy-video/1TCBk1S3hfbKmof04FsB__gBcznSydnij',
+'/proxy-video/1OohFHyNiP9r6GE8w77GNPKfwz3zT4DDc',
+'/proxy-video/1IO9YkN4O0YvRngTXccIoU3awaerRkjcr',
+'/proxy-video/1jwpuubfpPBvwfP7qJVHvYY5fPiN9WsYn',
+'/proxy-video/1lmLAfjcity_xT7AxlGFlHHRV06D04z3b',
+'/proxy-video/1uUmdfFPARosedUlpsTG2C9h1eTIWGWJI',
+'/proxy-video/1CNLQae2HKcxLj3Wul1n0N_Oh-9WecHHW',
+'/proxy-video/1Exb8-ruty_wah8J_09zCfHmd2qlQNuhU',
+'/proxy-video/1pONgmrTnvAJSEc0JAY1pMyw5pZCAN_DS',
+'/proxy-video/12cNNkIN1ybmpmeau5ojNtURR52fPRq93',
+'/proxy-video/1VbLpwu8vqsFAjTlf3DeLNe6DwUA0Bcxz',
+'/proxy-video/1ADaw_LPHI-pukTnbIYxaEVytMNt-2woV',
+'/proxy-video/1vireVrDSCsdtZJKLYTLgmTsO8ZzbkTfy',
+'/proxy-video/1Foxzw6Ize-OKaAs_Rvh0kK17YcTsyxXk',
+'/proxy-video/1LQyC24BsWyBs84kdCu1TViaih7irBsEd',
+'/proxy-video/12GbOhExy_O4tm8U6730Ca5yr0OKQud-'
+];
+let videoPlaylist=[...Array(videoSources.length).keys()];
+let currentPlaylistIndex=0;
+const video=document.getElementById('backgroundVideo');
+let isTransitioning=false;
+function shufflePlaylist(){
+for(let i=videoPlaylist.length-1;i>0;i--){
+const j=Math.floor(Math.random()*(i+1));
+[videoPlaylist[i],videoPlaylist[j]]=[videoPlaylist[j],videoPlaylist[i]];
+}
+currentPlaylistIndex=0;
+}
+shufflePlaylist();
+function loadVideo(playlistIndex){
+if(isTransitioning)return;
+const videoIndex=videoPlaylist[playlistIndex];
+const videoUrl=videoSources[videoIndex];
+console.log(`Loading nature video ${videoIndex+1}/${videoSources.length} (playlist position ${playlistIndex+1}): ${videoUrl}`);
+const newVideo=document.createElement('video');
+newVideo.autoplay=true;
+newVideo.muted=true;
+newVideo.loop=true;
+newVideo.playsInline=true;
+newVideo.className='video-background';
+newVideo.style.opacity='0';
+newVideo.addEventListener('loadeddata',function(){
+isTransitioning=true;
+video.style.transition='opacity 2s ease-in-out';
+newVideo.style.transition='opacity 2s ease-in-out';
+video.style.opacity='0';
+newVideo.style.opacity='1';
+setTimeout(()=>{
+video.src=videoUrl;
+video.style.opacity='1';
+video.style.transition='';
+if(newVideo.parentNode){
+newVideo.parentNode.removeChild(newVideo);
+}
+isTransitioning=false;
+},2000);
+});
+newVideo.addEventListener('error',function(){
+console.log(`Video ${videoIndex+1} failed to load, trying next...`);
+cycleToNextVideo();
+});
+document.querySelector('.video-container').appendChild(newVideo);
+newVideo.src=videoUrl;
+}
+function cycleToNextVideo(){
+if(isTransitioning)return;
+currentPlaylistIndex=(currentPlaylistIndex+1)%videoPlaylist.length;
+if(currentPlaylistIndex===0){
+console.log('🔄 Reshuffling video playlist for variety!');
+shufflePlaylist();
+}
+loadVideo(currentPlaylistIndex);
+}
+const firstVideoIndex=videoPlaylist[0];
+video.src=videoSources[firstVideoIndex];
+console.log(`🎬 Starting with random nature video ${firstVideoIndex+1}/${videoSources.length} from your Google Drive collection`);
+video.addEventListener('error',function(){
+console.log('Current video failed, trying next nature video...');
+cycleToNextVideo();
+});
+setInterval(cycleToNextVideo,10000);
+let failedAttempts=0;
+video.addEventListener('error',function(){
+failedAttempts++;
+if(failedAttempts>=videoSources.length){
+console.log('All videos failed, using gradient fallback');
+document.body.style.background=`linear-gradient(135deg, #0a0e27 0%, #1a1f3a 25%, #2d1b69 50%, #3b82f6 75%, #8b5cf6 100%)`;
+document.body.style.backgroundSize='400% 400%';
+document.body.style.animation='gradientShift 20s ease infinite';
+document.querySelector('.video-container').style.display='none';
+}
+});
+const style=document.createElement('style');
+style.textContent=`@keyframes gradientFlow {0%{background-position:0% 50%;filter:hue-rotate(0deg);}25%{background-position:100% 50%;filter:hue-rotate(90deg);}50%{background-position:100% 100%;filter:hue-rotate(180deg);}75%{background-position:0% 100%;filter:hue-rotate(270deg);}100%{background-position:0% 50%;filter:hue-rotate(360deg);}}.video-container{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-2;overflow:hidden;}`;
+document.head.appendChild(style);
+</script></body></html>

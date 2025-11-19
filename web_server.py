@@ -17,6 +17,7 @@ from datetime import datetime
 from auth import login_required, authenticate
 from ml_insights_endpoint import get_ml_insights_response
 from gpt4_strategy_validator import validate_strategy, format_analysis_for_display
+from automated_signals_state import get_hub_data, get_trade_detail
 import math
 import pytz
 
@@ -966,6 +967,37 @@ def automated_signals_dashboard_option3():
 def automated_signals_dashboard():
     """Automated Signals Dashboard - Real-time signal monitoring with calendar"""
     return render_template('automated_signals_dashboard.html')
+
+@app.route("/api/automated-signals/hub-data", methods=["GET"])
+@login_required
+def automated_signals_hub_data():
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+    session = request.args.get("session")
+    direction = request.args.get("direction")
+    status = request.args.get("status")
+    
+    data = get_hub_data(
+        start_date=start_date,
+        end_date=end_date,
+        session=session,
+        direction=direction,
+        status=status,
+    )
+    return jsonify(data)
+
+@app.route("/api/automated-signals/trade/<trade_id>", methods=["GET"])
+@login_required
+def automated_signals_trade_detail_api(trade_id):
+    detail = get_trade_detail(trade_id)
+    if detail is None:
+        return jsonify({"error": "trade_not_found"}), 404
+    return jsonify(detail)
+
+@app.route("/automated-signals-hub-preview", methods=["GET"])
+@login_required
+def automated_signals_hub_preview():
+    return render_template("automated_signals_hub_work/automated_signals_dashboard.html")
 
 @app.route('/live-diagnostics-terminal')
 @login_required

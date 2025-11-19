@@ -1,0 +1,222 @@
+{% extends "layout.html" %}
+
+{% block page_title %}Automated Signals Hub{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="row">
+        <!-- Left: Calendar and Filters -->
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Calendar & Filters</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Session</label>
+                        <select id="filterSession" class="form-select form-select-sm">
+                            <option value="ALL">All sessions</option>
+                            <option value="ASIA">ASIA</option>
+                            <option value="LONDON">LONDON</option>
+                            <option value="NY PRE">NY PRE</option>
+                            <option value="NY AM">NY AM</option>
+                            <option value="NY LUNCH">NY LUNCH</option>
+                            <option value="NY PM">NY PM</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Direction</label>
+                        <select id="filterDirection" class="form-select form-select-sm">
+                            <option value="ALL">Both</option>
+                            <option value="BULLISH">Bullish</option>
+                            <option value="BEARISH">Bearish</option>
+                        </select>
+                    </div>
+
+                    <!-- Calendar heatmap -->
+                    <div id="calendarContainer"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Summary + Table + Modal -->
+        <div class="col-md-8 mb-3">
+            <!-- Day Summary -->
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Day Summary</h5>
+                    <span id="selectedDateLabel" class="text-muted small">No day selected</span>
+                </div>
+                <div class="card-body" id="daySummary">
+                </div>
+            </div>
+
+            <!-- Trade List -->
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Signals</h5>
+                    <div>
+                        <select id="filterStatus" class="form-select form-select-sm d-inline-block w-auto">
+                            <option value="ALL">All</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="BE_PROTECTED">BE Protected</option>
+                            <option value="COMPLETED">Completed</option>
+                            <option value="CANCELLED">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0" id="tradesTable">
+                        <thead>
+                        <tr>
+                            <th>Time (ET)</th>
+                            <th>Dir</th>
+                            <th>Session</th>
+                            <th>Status</th>
+                            <th>BE MFE (R)</th>
+                            <th>No-BE MFE (R)</th>
+                            <th>Final (R)</th>
+                        </tr>
+                        </thead>
+                        <tbody id="tradesTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Trade Journey Modal -->
+            <div class="modal fade" id="tradeJourneyModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="tradeJourneyTitle">Trade Journey</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="tradeJourneyMeta" class="mb-3"></div>
+                            <div class="mb-3">
+                                <canvas id="tradeJourneyChart" height="160"></canvas>
+                            </div>
+                            <div id="tradeEventsLog"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+
+    // Global dashboard state
+    let hubState = {
+        calendar: [],
+        trades: [],
+        tradesById: {},
+        selectedDate: null
+    };
+
+    async function loadHubData() {
+        const params = new URLSearchParams();
+        const session = document.getElementById('filterSession').value;
+        const direction = document.getElementById('filterDirection').value;
+        const status = document.getElementById('filterStatus').value;
+
+        if (session !== 'ALL') params.append('session', session);
+        if (direction !== 'ALL') params.append('direction', direction);
+        if (status !== 'ALL') params.append('status', status);
+
+        const res = await fetch('/api/automated-signals/hub-data?' + params.toString());
+        const data = await res.json();
+
+        hubState.calendar = data.calendar || [];
+        hubState.trades = data.trades || [];
+        hubState.tradesById = {};
+        hubState.trades.forEach(t => hubState.tradesById[t.trade_id] = t);
+
+        renderCalendar();
+        renderTradesTable();
+        updateDaySummary();
+    }
+
+    function renderCalendar() {
+        const container = document.getElementById('calendarContainer');
+        container.innerHTML = '';
+
+        hubState.calendar.forEach(day => {
+            const div = document.createElement('div');
+            div.className = 'calendar-day-tile';
+            div.innerHTML = `
+                <strong>${day.date}</strong><br>
+                #${day.trade_count}<br>
+                Avg No-BE: ${day.avg_no_be_mfe_R ? day.avg_no_be_mfe_R.toFixed(2) : '-'}
+            `;
+            div.addEventListener('click', () => {
+                hubState.selectedDate = day.date;
+                renderTradesTable();
+                updateDaySummary();
+            });
+            container.appendChild(div);
+        });
+    }
+
+    function renderTradesTable() {
+        const tbody = document.getElementById('tradesTableBody');
+        tbody.innerHTML = '';
+
+        const date = hubState.selectedDate;
+
+        const filtered = hubState.trades.filter(t => {
+            if (!date) return true;
+            return t.date === date;
+        });
+
+        filtered.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.dataset.tradeId = t.trade_id;
+            tr.innerHTML = `
+                <td>${t.time_et || ''}</td>
+                <td>${t.direction}</td>
+                <td>${t.session}</td>
+                <td>${t.status}</td>
+                <td>${t.be_mfe_R != null ? t.be_mfe_R.toFixed(2) : ''}</td>
+                <td>${t.no_be_mfe_R != null ? t.no_be_mfe_R.toFixed(2) : ''}</td>
+                <td>${t.final_mfe_R != null ? t.final_mfe_R.toFixed(2) : ''}</td>
+            `;
+            tr.addEventListener('click', () => openTradeJourney(t.trade_id));
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function openTradeJourney(tradeId) {
+        const res = await fetch('/api/automated-signals/trade/' + tradeId);
+        const detail = await res.json();
+
+        document.getElementById('tradeJourneyTitle').innerText = tradeId;
+
+        // Meta
+        document.getElementById('tradeJourneyMeta').innerHTML = `
+            <p><strong>Direction:</strong> ${detail.direction}</p>
+            <p><strong>Status:</strong> ${detail.status}</p>
+            <p><strong>Session:</strong> ${detail.session}</p>
+            <p><strong>Entry:</strong> ${detail.entry_price}</p>
+            <p><strong>Stop:</strong> ${detail.stop_loss}</p>
+        `;
+
+        // TODO: Chart + event log
+
+        const modal = new bootstrap.Modal(document.getElementById('tradeJourneyModal'));
+        modal.show();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('filterSession').addEventListener('change', loadHubData);
+        document.getElementById('filterDirection').addEventListener('change', loadHubData);
+        document.getElementById('filterStatus').addEventListener('change', loadHubData);
+
+        loadHubData();
+    });
+</script>
+{% endblock %}
