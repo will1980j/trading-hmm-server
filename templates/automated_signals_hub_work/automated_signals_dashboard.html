@@ -2,6 +2,10 @@
 
 {% block page_title %}Automated Signals Hub{% endblock %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/automated_signals_hub.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid py-3">
     <div class="row">
@@ -166,27 +170,76 @@
         const tbody = document.getElementById('tradesTableBody');
         tbody.innerHTML = '';
 
-        const date = hubState.selectedDate;
+        const selectedDate = hubState.selectedDate;
 
+        // Filter out invalid trades (missing direction/date)
         const filtered = hubState.trades.filter(t => {
-            if (!date) return true;
-            return t.date === date;
+            if (!t.direction || !t.session || !t.time_et) return false;
+            if (!t.date && selectedDate) return false;
+            if (selectedDate && t.date !== selectedDate) return false;
+            return true;
         });
 
-        filtered.forEach(t => {
-            const tr = document.createElement('tr');
-            tr.dataset.tradeId = t.trade_id;
-            tr.innerHTML = `
-                <td>${t.time_et || ''}</td>
-                <td>${t.direction}</td>
-                <td>${t.session}</td>
-                <td>${t.status}</td>
-                <td>${t.be_mfe_R != null ? t.be_mfe_R.toFixed(2) : ''}</td>
-                <td>${t.no_be_mfe_R != null ? t.no_be_mfe_R.toFixed(2) : ''}</td>
-                <td>${t.final_mfe_R != null ? t.final_mfe_R.toFixed(2) : ''}</td>
+        filtered.forEach(tr => {
+            // Direction pill
+            const directionPill = tr.direction === "LONG"
+                ? `<span class="pill pill-long">LONG</span>`
+                : `<span class="pill pill-short">SHORT</span>`;
+
+            // Status pill
+            let statusClass = "pill-completed";
+            if (tr.status === "ACTIVE") statusClass = "pill-active";
+            else if (tr.status === "BE_PROTECTED") statusClass = "pill-be-protected";
+            else if (tr.status === "CANCELLED") statusClass = "pill-cancelled";
+
+            const statusPill = `<span class="pill ${statusClass}">${tr.status.replace("_", " ")}</span>`;
+
+            // Session pill
+            const sessionPill = `<span class="pill pill-session">${tr.session}</span>`;
+
+            // MFE values with color
+            const beMfe = tr.be_mfe_R;
+            const noBeMfe = tr.no_be_mfe_R;
+
+            const beMfeFormatted = beMfe == null
+                ? `<span class="mfe-neutral">-</span>`
+                : beMfe > 0
+                    ? `<span class="mfe-positive">+${beMfe.toFixed(2)}R</span>`
+                    : beMfe < 0
+                        ? `<span class="mfe-negative">${beMfe.toFixed(2)}R</span>`
+                        : `<span class="mfe-neutral">0.00R</span>`;
+
+            const noBeMfeFormatted = noBeMfe == null
+                ? `<span class="mfe-neutral">-</span>`
+                : noBeMfe > 0
+                    ? `<span class="mfe-positive">+${noBeMfe.toFixed(2)}R</span>`
+                    : noBeMfe < 0
+                        ? `<span class="mfe-negative">${noBeMfe.toFixed(2)}R</span>`
+                        : `<span class="mfe-neutral">0.00R</span>`;
+
+            const finalFormatted = tr.final_mfe_R == null
+                ? `<span class="mfe-neutral">-</span>`
+                : tr.final_mfe_R > 0
+                    ? `<span class="mfe-positive">+${tr.final_mfe_R.toFixed(2)}R</span>`
+                    : tr.final_mfe_R < 0
+                        ? `<span class="mfe-negative">${tr.final_mfe_R.toFixed(2)}R</span>`
+                        : `<span class="mfe-neutral">0.00R</span>`;
+
+            // Build row
+            const trEl = document.createElement('tr');
+            trEl.classList.add('trading-table-row');
+            trEl.innerHTML = `
+                <td>${tr.time_et}</td>
+                <td>${directionPill}</td>
+                <td>${sessionPill}</td>
+                <td>${statusPill}</td>
+                <td>${beMfeFormatted}</td>
+                <td>${noBeMfeFormatted}</td>
+                <td>${finalFormatted}</td>
             `;
-            tr.addEventListener('click', () => openTradeJourney(t.trade_id));
-            tbody.appendChild(tr);
+
+            trEl.addEventListener('click', () => openTradeJourney(tr.trade_id));
+            tbody.appendChild(trEl);
         });
     }
 

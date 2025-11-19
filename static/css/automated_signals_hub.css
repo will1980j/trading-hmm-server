@@ -1,0 +1,47 @@
+/* =============================
+   TRADINGVIEW-STYLE PILL BADGES
+   ============================= */
+
+.pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+/* Direction */
+.pill-long { background-color: #0fa958; }   /* green */
+.pill-short { background-color: #d93b41; }  /* red */
+
+/* Status */
+.pill-active { background-color: #007bff; }       /* blue */
+.pill-be-protected { background-color: #d4a72c; } /* gold */
+.pill-completed { background-color: #6c757d; }    /* grey */
+.pill-cancelled { background-color: #444; }       /* dark grey */
+
+/* Session pills — neutral */
+.pill-session {
+    background-color: #565e64;
+    opacity: 0.8;
+}
+
+/* =============================
+   TABLE STYLING
+   ============================= */
+.trading-table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.trading-table tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.08);
+}
+
+/* MFE coloring */
+.mfe-positive { color: #0fa958; font-weight: 600; }
+.mfe-negative { color: #d93b41; font-weight: 600; }
+.mfe-neutral { color: #999; }
