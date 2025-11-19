@@ -175,8 +175,10 @@
         // Filter out invalid trades (missing direction/date)
         const filtered = hubState.trades.filter(t => {
             if (!t.direction || !t.session || !t.time_et) return false;
-            if (!t.date && selectedDate) return false;
-            if (selectedDate && t.date !== selectedDate) return false;
+            // Only filter by date if the user has clicked a calendar day
+            if (selectedDate && t.date) {
+                if (t.date !== selectedDate) return false;
+            }
             return true;
         });
 
