@@ -54,7 +54,7 @@ def build_trade_state(events: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     entry_price = _decimal_to_float(first.get("entry_price"))
     stop_loss = _decimal_to_float(first.get("stop_loss"))
     risk_distance = _decimal_to_float(first.get("risk_distance"))
-    targets = _decimal_to_float(first.get("targets"))
+    targets = first.get("targets")  # leave JSON/dict/None as-is
 
     # Derived state
     status = "UNKNOWN"  # ACTIVE | BE_PROTECTED | COMPLETED | CANCELLED
