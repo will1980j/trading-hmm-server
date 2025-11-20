@@ -1049,6 +1049,14 @@ f_symbol() =>
     telemetry_symbol_override == "" ? syminfo.tickerid : telemetry_symbol_override
 
 // ============================================================================
+// HELPER FUNCTIONS (TOP-LEVEL)
+// ============================================================================
+
+// Zero-pad helper for timestamps
+pad(x) =>
+    x < 10 ? "0" + str.tostring(x) : str.tostring(x)
+
+// ============================================================================
 // ISO 8601 TIMESTAMP BUILDER
 // ============================================================================
 // Outputs UTC timestamps like "2025-11-18T17:02:00Z"
@@ -1059,16 +1067,7 @@ f_isoTimestamp(timeMs) =>
     h  = hour(timeMs)
     mi = minute(timeMs)
     s  = second(timeMs)
-    
-    // Zero-pad helper
-    pad(x) => x < 10 ? "0" + str.tostring(x) : str.tostring(x)
-    
-    str.tostring(y) + "-" + 
-    pad(mo) + "-" + 
-    pad(d)  + "T" + 
-    pad(h)  + ":" + 
-    pad(mi) + ":" + 
-    pad(s)  + "Z"
+    str.tostring(y) + "-" + pad(mo) + "-" + pad(d) + "T" + pad(h) + ":" + pad(mi) + ":" + pad(s) + "Z"
 
 // ============================================================================
 // SESSION CLASSIFIER
@@ -1088,12 +1087,8 @@ f_sessionLabel(timeMs) =>
     // NY AM:    08:30 - 11:59 ET
     // NY LUNCH: 12:00 - 12:59 ET
     // NY PM:    13:00 - 15:59 ET
-    h >= 20 ? "ASIA" :
-    h < 6   ? "LONDON" :
-    h < 8 or (h == 8 and m < 30) ? "NY PRE" :
-    (h == 8 and m >= 30) or h < 12 ? "NY AM" :
-    h == 12 ? "NY LUNCH" :
-    h < 16  ? "NY PM" : "AFTER_HOURS"
+    session = h >= 20 ? "ASIA" : h < 6 ? "LONDON" : h < 8 or (h == 8 and m < 30) ? "NY PRE" : (h == 8 and m >= 30) or h < 12 ? "NY AM" : h == 12 ? "NY LUNCH" : h < 16 ? "NY PM" : "AFTER_HOURS"
+    session
 
 // ============================================================================
 // JSON HELPER FUNCTIONS
@@ -1110,113 +1105,28 @@ f_str(x) =>
 // TARGETS JSON BUILDER
 // ============================================================================
 f_targetsJson(tp1, tp2, tp3, r1, r2, r3) =>
-    '"targets":{' +
-    '"tp1_price":' + f_num(tp1) + ',' +
-    '"tp2_price":' + f_num(tp2) + ',' +
-    '"tp3_price":' + f_num(tp3) + ',' +
-    '"target_Rs":[' + f_num(r1) + ',' + f_num(r2) + ',' + f_num(r3) + ']' +
-    '}'
+    '"targets":{"tp1_price":' + f_num(tp1) + ',"tp2_price":' + f_num(tp2) + ',"tp3_price":' + f_num(tp3) + ',"target_Rs":[' + f_num(r1) + ',' + f_num(r2) + ',' + f_num(r3) + ']}'
 
 // ============================================================================
 // SETUP JSON BUILDER
 // ============================================================================
 f_setupJson(setupFamily, setupVariant, setupId, strength, trendScore, structureScore, volScore) =>
-    '"setup":{' +
-    '"setup_family":"' + setupFamily + '",' +
-    '"setup_variant":"' + setupVariant + '",' +
-    '"setup_id":"' + setupId + '",' +
-    '"signal_strength":' + f_num(strength) + ',' +
-    '"confidence_components":{' +
-    '"trend_alignment":' + f_num(trendScore) + ',' +
-    '"structure_quality":' + f_num(structureScore) + ',' +
-    '"volatility_fit":' + f_num(volScore) +
-    '}' +
-    '}'
+    '"setup":{"setup_family":"' + setupFamily + '","setup_variant":"' + setupVariant + '","setup_id":"' + setupId + '","signal_strength":' + f_num(strength) + ',"confidence_components":{"trend_alignment":' + f_num(trendScore) + ',"structure_quality":' + f_num(structureScore) + ',"volatility_fit":' + f_num(volScore) + '}}'
 
 // ============================================================================
 // MARKET STATE JSON BUILDER
 // ============================================================================
 f_marketStateJson(trendRegime, trendScore, volRegime, atrVal, atrPct20, dayRangePct20, priceVsOpen, priceVsVwap, distHTF, swingState, bosChoCh, liquCtx) =>
-    '"market_state":{' +
-    '"trend_regime":"' + trendRegime + '",' +
-    '"trend_score":' + f_num(trendScore) + ',' +
-    '"volatility_regime":"' + volRegime + '",' +
-    '"atr":' + f_num(atrVal) + ',' +
-    '"atr_percentile_20d":' + f_num(atrPct20) + ',' +
-    '"daily_range_percentile_20d":' + f_num(dayRangePct20) + ',' +
-    '"price_location":{' +
-    '"vs_daily_open":' + f_num(priceVsOpen) + ',' +
-    '"vs_vwap":' + f_num(priceVsVwap) + ',' +
-    '"distance_to_HTF_level_points":' + f_num(distHTF) +
-    '},' +
-    '"structure":{' +
-    '"swing_state":"' + swingState + '",' +
-    '"bos_choch_signal":"' + bosChoCh + '",' +
-    '"liquidity_context":"' + liquCtx + '"' +
-    '}' +
-    '}'
+    '"market_state":{"trend_regime":"' + trendRegime + '","trend_score":' + f_num(trendScore) + ',"volatility_regime":"' + volRegime + '","atr":' + f_num(atrVal) + ',"atr_percentile_20d":' + f_num(atrPct20) + ',"daily_range_percentile_20d":' + f_num(dayRangePct20) + ',"price_location":{"vs_daily_open":' + f_num(priceVsOpen) + ',"vs_vwap":' + f_num(priceVsVwap) + ',"distance_to_HTF_level_points":' + f_num(distHTF) + '},"structure":{"swing_state":"' + swingState + '","bos_choch_signal":"' + bosChoCh + '","liquidity_context":"' + liquCtx + '"}}'
 
 // ============================================================================
 // MAIN TELEMETRY PAYLOAD BUILDER
 // ============================================================================
-f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, posSize, mfeR, maeR, finalMfeR, exitPrice, exitReason, tp1, tp2, tp3, setupFam, setupVar, htfBias) =>
+f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, posSize, mfeR, maeR, finalMfeR, exitPrice, exitReason, tp1, tp2, tp3, setupFam, setupVar, htfBias, symbol, timeframeStr) =>
     sym  = f_symbol()
     ts   = f_isoTimestamp(time)
     sess = f_sessionLabel(time)
-    
-    // Build JSON payload (broken into lines to avoid Pine string length limits)
-    payload = "{" + 
-        '"schema_version":"'   + telemetry_schema_version   + '",' +
-        '"engine_version":"'   + telemetry_engine_version   + '",' +
-        '"strategy_name":"'    + telemetry_strategy_name    + '",' +
-        '"strategy_id":"'      + telemetry_strategy_id      + '",' +
-        '"strategy_version":"' + telemetry_strategy_version + '",' +
-        '"trade_id":"'         + tradeId                    + '",' +
-        '"event_type":"'       + eventType                  + '",' +
-        '"event_timestamp":"'  + ts                         + '",' +
-        '"symbol":"'           + sym                        + '",' +
-        '"exchange":"'         + syminfo.exchange           + '",' +
-        '"timeframe":"'        + timeframe.period           + '",' +
-        '"session":"'          + sess                       + '",' +
-        '"direction":'         + f_str(dir)                 + ',' +
-        '"entry_price":'       + f_num(entryPrice)          + ',' +
-        '"stop_loss":'         + f_num(stopPrice)           + ',' +
-        '"risk_R":'            + f_num(riskR)               + ',' +
-        '"position_size":'     + f_num(posSize)             + ',' +
-        '"be_price":'          + f_num(bePrice)             + ',' +
-        '"mfe_R":'             + f_num(mfeR)                + ',' +
-        '"mae_R":'             + f_num(maeR)                + ',' +
-        '"final_mfe_R":'       + f_num(finalMfeR)           + ',' +
-        '"exit_price":'        + f_num(exitPrice)           + ',' +
-        '"exit_timestamp":null,' +
-        '"exit_reason":'       + f_str(exitReason)          + ',' +
-        f_targetsJson(tp1, tp2, tp3, 1.0, 2.0, 3.0) + ',' +
-        f_setupJson(
-            setupFam,
-            setupVar,
-            setupFam + "_" + setupVar,
-            75.0,  // signal_strength (placeholder)
-            htfBias == "Bullish" or htfBias == "Bearish" ? 1.0 : 0.5,  // trend_alignment
-            0.8,  // structure_quality (placeholder)
-            0.7   // volatility_fit (placeholder)
-        ) + ',' +
-        f_marketStateJson(
-            bias,  // trend_regime (use existing bias)
-            bias == "Bullish" or bias == "Bearish" ? 0.8 : 0.3,  // trend_score
-            "NORMAL",  // volatility_regime (placeholder)
-            na,  // atr (not calculated in this indicator)
-            na,  // atr_percentile_20d
-            na,  // daily_range_percentile_20d
-            na,  // price_vs_open
-            na,  // price_vs_vwap
-            na,  // distance_to_HTF_level
-            "UNKNOWN",  // swing_state
-            "NONE",  // bos_choch_signal
-            "NEUTRAL"  // liquidity_context
-        ) +
-
-        "}"
-    
+    payload = '{"schema_version":"' + telemetry_schema_version + '","engine_version":"' + telemetry_engine_version + '","strategy_name":"' + telemetry_strategy_name + '","strategy_id":"' + telemetry_strategy_id + '","strategy_version":"' + telemetry_strategy_version + '","trade_id":"' + tradeId + '","event_type":"' + eventType + '","event_timestamp":"' + ts + '","symbol":"' + sym + '","exchange":"' + symbol + '","timeframe":"' + timeframeStr + '","session":"' + sess + '","direction":' + f_str(dir) + ',"entry_price":' + f_num(entryPrice) + ',"stop_loss":' + f_num(stopPrice) + ',"risk_R":' + f_num(riskR) + ',"position_size":' + f_num(posSize) + ',"be_price":' + f_num(bePrice) + ',"mfe_R":' + f_num(mfeR) + ',"mae_R":' + f_num(maeR) + ',"final_mfe_R":' + f_num(finalMfeR) + ',"exit_price":' + f_num(exitPrice) + ',"exit_timestamp":null,"exit_reason":' + f_str(exitReason) + ',' + f_targetsJson(tp1, tp2, tp3, 1.0, 2.0, 3.0) + ',' + f_setupJson(setupFam, setupVar, setupFam + "_" + setupVar, 75.0, htfBias == "Bullish" or htfBias == "Bearish" ? 1.0 : 0.5, 0.8, 0.7) + ',' + f_marketStateJson(bias, bias == "Bullish" or bias == "Bearish" ? 0.8 : 0.3, "NORMAL", float(na), float(na), float(na), float(na), float(na), float(na), "UNKNOWN", "NONE", "NEUTRAL") + '}'
     payload
 
 // Variables to track webhook sending for MULTIPLE signals
@@ -1269,36 +1179,14 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
         // Force US/Eastern timezone for consistency with session validation
         // CRITICAL: Backend expects event_type "ENTRY" not "signal_created"
         // Calculate target prices
-        target_1r = signal_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
-        target_2r = signal_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
-        target_3r = signal_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
+
         
         // Determine setup family and variant
         setup_family = "FVG_CORE"
         setup_variant = htf_bullish or htf_bearish ? "HTF_ALIGNED" : "STANDARD"
         
         // Build telemetry payload for ENTRY event
-        entry_payload = f_buildPayload(
-            EVENT_ENTRY,
-            signal_id,
-            signal_direction,
-            sig_entry,
-            sig_stop,
-            na,  // bePrice (not triggered yet)
-            1.0,  // riskR
-            contract_size,  // posSize
-            0.0,  // mfeR at entry
-            0.0,  // maeR at entry
-            na,  // finalMfeR
-            na,  // exitPrice
-            "",  // exitReason
-            target_1r,  // tp1
-            target_2r,  // tp2
-            target_3r,  // tp3
-            setup_family,  // setupFam
-            setup_variant,  // setupVar
-            bias  // htfBias
-        )
+        entry_payload = f_buildPayload(EVENT_ENTRY, signal_id, signal_direction, sig_entry, sig_stop, float(na), 1.0, contract_size, 0.0, 0.0, float(na), float(na), "", target_1r, target_2r, target_3r, setup_family, setup_variant, bias, syminfo.ticker, timeframe.period)
         
         // Send webhook
         alert(entry_payload, alert.freq_once_per_bar_close)
@@ -1343,6 +1231,13 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
             // Only send MFE_UPDATE if trade has been active for at least 1 bar
             // This prevents sending MFE on the same bar as ENTRY
             if bars_since_entry >= 1
+                // Retrieve signal data from arrays
+                string sig_direction = array.get(signal_directions, signal_array_idx)
+                float sig_entry = array.get(signal_entries, signal_array_idx)
+                float sig_stop = array.get(signal_stops, signal_array_idx)
+                float sig_risk = array.get(signal_risks, signal_array_idx)
+                bool sig_be_triggered = array.get(signal_be_triggered, signal_array_idx)
+                
                 float current_mfe_be = array.get(signal_be_mfes, signal_array_idx)
                 float current_mfe_none = array.get(signal_mfes, signal_array_idx)
                 // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
@@ -1356,27 +1251,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
                 float mfe_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
                 
                 // Build telemetry payload for MFE_UPDATE event
-                string mfe_update_payload = f_buildPayload(
-                    EVENT_MFE_UPDATE,
-                    signal_id_to_update,
-                    sig_direction,
-                    sig_entry,
-                    sig_stop,
-                    sig_be_triggered ? sig_entry : na,  // bePrice if triggered
-                    1.0,  // riskR
-                    contract_size,  // posSize
-                    current_mfe_be,  // mfeR
-                    0.0,  // maeR (not tracked yet)
-                    na,  // finalMfeR
-                    na,  // exitPrice
-                    "",  // exitReason
-                    mfe_target_1r,  // tp1
-                    mfe_target_2r,  // tp2
-                    mfe_target_3r,  // tp3
-                    "FVG_CORE",  // setupFam
-                    "ACTIVE",  // setupVar
-                    bias  // htfBias
-                )
+                string mfe_update_payload = f_buildPayload(EVENT_MFE_UPDATE, signal_id_to_update, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, current_mfe_be, 0.0, float(na), float(na), "", mfe_target_1r, mfe_target_2r, mfe_target_3r, "FVG_CORE", "ACTIVE", bias, syminfo.ticker, timeframe.period)
                 
                 // Send MFE update once per bar (not every tick)
                 // MODIFIED: Send for ALL active signals on real-time bars only
@@ -1402,6 +1277,12 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_trigger
                 bool be_was_triggered = array.get(signal_be_triggered, signal_array_idx)
                 
                 if be_was_triggered
+                    // Retrieve signal data from arrays
+                    string sig_direction = array.get(signal_directions, signal_array_idx)
+                    float sig_entry = array.get(signal_entries, signal_array_idx)
+                    float sig_stop = array.get(signal_stops, signal_array_idx)
+                    float sig_risk = array.get(signal_risks, signal_array_idx)
+                    
                     float current_be_mfe = array.get(signal_be_mfes, signal_array_idx)
                     float current_no_be_mfe = array.get(signal_mfes, signal_array_idx)
                     // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
@@ -1413,27 +1294,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_trigger
                     float be_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
                     
                     // Build telemetry payload for BE_TRIGGERED event
-                    string be_trigger_payload = f_buildPayload(
-                        EVENT_BE_TRIGGERED,
-                        signal_id_for_be,
-                        sig_direction,
-                        sig_entry,
-                        sig_stop,
-                        sig_entry,  // bePrice = entry price
-                        1.0,  // riskR
-                        contract_size,  // posSize
-                        current_be_mfe,  // mfeR
-                        0.0,  // maeR
-                        na,  // finalMfeR
-                        na,  // exitPrice
-                        "",  // exitReason
-                        be_target_1r,  // tp1
-                        be_target_2r,  // tp2
-                        be_target_3r,  // tp3
-                        "FVG_CORE",  // setupFam
-                        "BE_PROTECTED",  // setupVar
-                        bias  // htfBias
-                    )
+                    string be_trigger_payload = f_buildPayload(EVENT_BE_TRIGGERED, signal_id_for_be, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, current_be_mfe, 0.0, float(na), float(na), "", be_target_1r, be_target_2r, be_target_3r, "FVG_CORE", "BE_PROTECTED", bias, syminfo.ticker, timeframe.period)
                     
                     // Send BE trigger webhook
                     alert(be_trigger_payload, alert.freq_once_per_bar_close)
@@ -1462,6 +1323,13 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped
             // CRITICAL: Only send EXIT if trade has been active for at least 1 bar
             // This prevents immediate completion on historical replay
             if (be_stopped or no_be_stopped) and bars_since_entry >= 1
+                // Retrieve signal data from arrays
+                string sig_direction = array.get(signal_directions, signal_array_idx)
+                float sig_entry = array.get(signal_entries, signal_array_idx)
+                float sig_stop = array.get(signal_stops, signal_array_idx)
+                float sig_risk = array.get(signal_risks, signal_array_idx)
+                bool sig_be_triggered = array.get(signal_be_triggered, signal_array_idx)
+                
                 float final_be_mfe = array.get(signal_be_mfes, signal_array_idx)
                 float final_no_be_mfe = array.get(signal_mfes, signal_array_idx)
                 // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
@@ -1477,27 +1345,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped
                 float exit_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
                 
                 // Build telemetry payload for EXIT event
-                string completion_payload = f_buildPayload(
-                    exit_event_type,
-                    signal_id_for_completion,
-                    sig_direction,
-                    sig_entry,
-                    sig_stop,
-                    sig_be_triggered ? sig_entry : na,  // bePrice if was triggered
-                    1.0,  // riskR
-                    contract_size,  // posSize
-                    current_be_mfe,  // mfeR
-                    0.0,  // maeR
-                    be_stopped ? 0.0 : final_no_be_mfe,  // finalMfeR (0 for BE, actual for SL)
-                    sig_stop,  // exitPrice (stop loss price)
-                    completion_reason,  // exitReason
-                    exit_target_1r,  // tp1
-                    exit_target_2r,  // tp2
-                    exit_target_3r,  // tp3
-                    "FVG_CORE",  // setupFam
-                    be_stopped ? "EXIT_BE" : "EXIT_SL",  // setupVar
-                    bias  // htfBias
-                )
+                string completion_payload = f_buildPayload(exit_event_type, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, final_be_mfe, 0.0, be_stopped ? 0.0 : final_no_be_mfe, sig_stop, completion_reason, exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", be_stopped ? "EXIT_BE" : "EXIT_SL", bias, syminfo.ticker, timeframe.period)
                 
                 // Send completion webhook
                 alert(completion_payload, alert.freq_once_per_bar_close)

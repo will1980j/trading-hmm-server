@@ -632,6 +632,35 @@ function asSetupEventHandlers() {
             }
         };
     }
+
+    // PATCH 5C: Purge Legacy Trades button
+    const purgeBtn = document.querySelector('#as-purge-ghosts-btn');
+    if (purgeBtn) {
+        purgeBtn.addEventListener('click', async () => {
+            if (!confirm('This will purge legacy/malformed trades (trade_ids with commas or null). Continue?')) {
+                return;
+            }
+            try {
+                const resp = await fetch('/api/automated-signals/purge-ghosts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await resp.json();
+                if (!data.success) {
+                    console.error('Ghost purge failed:', data.error);
+                    alert('Ghost purge failed: ' + data.error);
+                    return;
+                }
+                alert(`Ghost purge complete. Deleted ${data.deleted} rows.`);
+                AS.state.selectedTrades.clear();
+                await asFetchHubData();
+                asApplyFilters();
+            } catch (err) {
+                console.error('Ghost purge request error:', err);
+                alert('Ghost purge request error. Check console.');
+            }
+        });
+    }
 }
 
 // Initialize the dashboard when DOM is ready

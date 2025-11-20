@@ -382,3 +382,56 @@
     border-color: #b91c1c !important;
     color: #fff !important;
 }
+
+#as-ultra-root #as-purge-ghosts-btn {
+    border-color: #f97316 !important;
+    color: #fed7aa !important;
+    background-color: rgba(248, 113, 113, 0.06) !important;
+}
+
+#as-ultra-root #as-purge-ghosts-btn:hover {
+    background-color: rgba(248, 113, 113, 0.18) !important;
+}
+
+
+/* ============================================================
+   DROPDOWN FIX — white text on white background
+   Ensures dropdowns are fully readable on dark theme
+   ============================================================ */
+
+#as-ultra-root select,
+#as-ultra-root select.form-select {
+    background-color: #0f172a !important;   /* deep slate background */
+    color: #f1f5f9 !important;              /* light text */
+    border: 1px solid #334155 !important;   /* subtle border */
+}
+
+#as-ultra-root select:focus,
+#as-ultra-root select.form-select:focus {
+    background-color: #1e293b !important;   /* slightly lighter on focus */
+    color: #f8fafc !important;              
+    border-color: #3b82f6 !important;       /* blue focus border */
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.4) !important;
+}
+
+#as-ultra-root option {
+    background-color: #0f172a !important;
+    color: #f1f5f9 !important;
+}
+
+#as-ultra-root option:hover,
+#as-ultra-root option:focus {
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+}
+
+/* Allow disabled options to remain readable */
+#as-ultra-root option:disabled {
+    color: #64748b !important;
+    background-color: #0f172a !important;
+}
+
+/* Ensure dropdown carets remain visible */
+#as-ultra-root .form-select {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg fill='%23f1f5f9' viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.204 5.5L8 10.293 12.796 5.5l.708.707L8 11.707 2.496 6.207z'/%3E%3C/svg%3E") !important;
+}

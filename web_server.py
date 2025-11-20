@@ -11273,6 +11273,73 @@ def bulk_delete_automated_signals():
         }), 500
 
 
+@app.route('/api/automated-signals/purge-ghosts', methods=['POST'])
+@login_required
+def purge_ghost_trades():
+    """Purge malformed / legacy 'ghost' trades.
+    
+    Criteria:
+    - trade_id IS NULL
+    - trade_id = ''
+    - trade_id LIKE '%,%'  (contains commas)
+    
+    Returns:
+    {
+        "success": true,
+        "deleted": <int>,
+        "criteria": {...}
+    }
+    """
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({"success": False, "error": "DATABASE_URL not configured"}), 500
+        
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        
+        # Identify ghost rows
+        cursor.execute("""
+            SELECT id
+            FROM automated_signals
+            WHERE trade_id IS NULL
+               OR trade_id = ''
+               OR trade_id LIKE '%,%'
+        """)
+        ghost_ids = [row[0] for row in cursor.fetchall()]
+        
+        deleted_count = 0
+        if ghost_ids:
+            # Bulk delete by primary key
+            cursor.execute("""
+                DELETE FROM automated_signals
+                WHERE id = ANY(%s)
+            """, (ghost_ids,))
+            deleted_count = cursor.rowcount
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        logger.info(f"Ghost purge: deleted {deleted_count} malformed trades")
+        
+        return jsonify({
+            "success": True,
+            "deleted": deleted_count,
+            "criteria": {
+                "trade_id_null_or_empty": True,
+                "trade_id_contains_commas": True
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Ghost purge error: {str(e)}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
 @app.route('/api/automated-signals/stats-live', methods=['GET'])
 @app.route('/api/automated-signals/stats', methods=['GET'])
 def get_automated_signals_stats():
