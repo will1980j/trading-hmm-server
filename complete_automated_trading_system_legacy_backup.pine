@@ -2,19 +2,6 @@
 strategy("Complete Automated Trading System - FVG + Position Sizing", overlay=true, initial_capital=100000, default_qty_type=strategy.cash, commission_type=strategy.commission.cash_per_contract, commission_value=2.40, max_lines_count=500, max_labels_count=500, max_bars_back=5000, calc_on_every_tick=false, process_orders_on_close=true)
 
 // ============================================================================
-// EVENT TYPE CONSTANTS (DO NOT CHANGE - MUST MATCH DATABASE)
-// ============================================================================
-EVENT_ENTRY            = "ENTRY"
-EVENT_MFE_UPDATE       = "MFE_UPDATE"
-EVENT_BE_TRIGGERED     = "BE_TRIGGERED"
-EVENT_EXIT_BREAK_EVEN  = "EXIT_BREAK_EVEN"
-EVENT_EXIT_STOP_LOSS   = "EXIT_STOP_LOSS"
-EVENT_EXIT_TAKE_PROFIT = "EXIT_TAKE_PROFIT"   // reserved for TP exits
-EVENT_EXIT_PARTIAL     = "EXIT_PARTIAL"        // reserved for partial exits
-
-
-
-// ============================================================================
 // ACCOUNT & RISK SETTINGS
 // ============================================================================
 
@@ -1016,208 +1003,19 @@ get_session() =>
     session_name
 
 // Helper function to create signal ID
-// ============================================================================
-// TRADE ID BUILDER (CANONICAL FORMAT)
-// ============================================================================
-// Format: YYYYMMDD_HHMMSSMMM_DIRECTION
-// Example: 20251120_170200000_BULLISH
-f_buildTradeId(datetime, direction) =>
-    year_str = str.tostring(year(datetime))
-    month_str = str.tostring(month(datetime), "00")
-    day_str = str.tostring(dayofmonth(datetime), "00")
-    hour_str = str.tostring(hour(datetime), "00")
-    minute_str = str.tostring(minute(datetime), "00")
-    second_str = str.tostring(second(datetime), "00")
-    millis_str = str.tostring(datetime % 1000, "000")  // Milliseconds for uniqueness
+create_signal_id(signal_direction) =>
+    // Format: YYYYMMDD_HHMMSS_MMM_DIRECTION (added milliseconds to prevent duplicates)
+    // Use str.tostring with format to avoid thousand separators
+    year_str = str.tostring(year)
+    month_str = str.tostring(month, "00")
+    day_str = str.tostring(dayofmonth, "00")
+    hour_str = str.tostring(hour, "00")
+    minute_str = str.tostring(minute, "00")
+    second_str = str.tostring(second, "00")
+    millis_str = str.tostring(time % 1000, "000")  // Add milliseconds for uniqueness
     date_str = year_str + month_str + day_str
     time_str = hour_str + minute_str + second_str + millis_str
-    date_str + "_" + time_str + "_" + str.upper(direction)
-
-
-// ============================================================================
-// TELEMETRY CONFIGURATION
-// ============================================================================
-telemetry_schema_version   = input.string("1.0.0", "Telemetry Schema Version")
-telemetry_engine_version   = input.string("1.0.0", "Telemetry Engine Version")
-telemetry_strategy_name    = input.string("NQ_FVG_CORE", "Strategy Name")
-telemetry_strategy_id      = input.string("NQ_FVG_CORE", "Strategy ID")
-telemetry_strategy_version = input.string("2025.11.20", "Strategy Version")
-telemetry_symbol_override  = input.symbol("", "Symbol Override")
-
-// Fallback to actual chart symbol
-f_symbol() =>
-    telemetry_symbol_override == "" ? syminfo.tickerid : telemetry_symbol_override
-
-// ============================================================================
-// ISO 8601 TIMESTAMP BUILDER
-// ============================================================================
-// Outputs UTC timestamps like "2025-11-18T17:02:00Z"
-f_isoTimestamp(timeMs) =>
-    y  = year(timeMs)
-    mo = month(timeMs)
-    d  = dayofmonth(timeMs)
-    h  = hour(timeMs)
-    mi = minute(timeMs)
-    s  = second(timeMs)
-    
-    // Zero-pad helper
-    pad(x) => x < 10 ? "0" + str.tostring(x) : str.tostring(x)
-    
-    str.tostring(y) + "-" + 
-    pad(mo) + "-" + 
-    pad(d)  + "T" + 
-    pad(h)  + ":" + 
-    pad(mi) + ":" + 
-    pad(s)  + "Z"
-
-// ============================================================================
-// SESSION CLASSIFIER
-// ============================================================================
-// Must match backend session model EXACTLY
-f_sessionLabel(timeMs) =>
-    // Convert current time to US/Eastern
-    t = timenow
-    ny = timestamp("America/New_York", year(t), month(t), dayofmonth(t), hour(t), minute(t))
-    h = hour(ny)
-    m = minute(ny)
-    
-    // Session logic (MUST MATCH BACKEND):
-    // ASIA:     20:00 - 23:59 ET
-    // LONDON:   00:00 - 05:59 ET
-    // NY PRE:   06:00 - 08:29 ET
-    // NY AM:    08:30 - 11:59 ET
-    // NY LUNCH: 12:00 - 12:59 ET
-    // NY PM:    13:00 - 15:59 ET
-    h >= 20 ? "ASIA" :
-    h < 6   ? "LONDON" :
-    h < 8 or (h == 8 and m < 30) ? "NY PRE" :
-    (h == 8 and m >= 30) or h < 12 ? "NY AM" :
-    h == 12 ? "NY LUNCH" :
-    h < 16  ? "NY PM" : "AFTER_HOURS"
-
-// ============================================================================
-// JSON HELPER FUNCTIONS
-// ============================================================================
-// Number or null
-f_num(x) =>
-    na(x) ? "null" : str.tostring(x)
-
-// String or null
-f_str(x) =>
-    x == "" ? "null" : '"' + x + '"'
-
-// ============================================================================
-// TARGETS JSON BUILDER
-// ============================================================================
-f_targetsJson(tp1, tp2, tp3, r1, r2, r3) =>
-    '"targets":{' +
-    '"tp1_price":' + f_num(tp1) + ',' +
-    '"tp2_price":' + f_num(tp2) + ',' +
-    '"tp3_price":' + f_num(tp3) + ',' +
-    '"target_Rs":[' + f_num(r1) + ',' + f_num(r2) + ',' + f_num(r3) + ']' +
-    '}'
-
-// ============================================================================
-// SETUP JSON BUILDER
-// ============================================================================
-f_setupJson(setupFamily, setupVariant, setupId, strength, trendScore, structureScore, volScore) =>
-    '"setup":{' +
-    '"setup_family":"' + setupFamily + '",' +
-    '"setup_variant":"' + setupVariant + '",' +
-    '"setup_id":"' + setupId + '",' +
-    '"signal_strength":' + f_num(strength) + ',' +
-    '"confidence_components":{' +
-    '"trend_alignment":' + f_num(trendScore) + ',' +
-    '"structure_quality":' + f_num(structureScore) + ',' +
-    '"volatility_fit":' + f_num(volScore) +
-    '}' +
-    '}'
-
-// ============================================================================
-// MARKET STATE JSON BUILDER
-// ============================================================================
-f_marketStateJson(trendRegime, trendScore, volRegime, atrVal, atrPct20, dayRangePct20, priceVsOpen, priceVsVwap, distHTF, swingState, bosChoCh, liquCtx) =>
-    '"market_state":{' +
-    '"trend_regime":"' + trendRegime + '",' +
-    '"trend_score":' + f_num(trendScore) + ',' +
-    '"volatility_regime":"' + volRegime + '",' +
-    '"atr":' + f_num(atrVal) + ',' +
-    '"atr_percentile_20d":' + f_num(atrPct20) + ',' +
-    '"daily_range_percentile_20d":' + f_num(dayRangePct20) + ',' +
-    '"price_location":{' +
-    '"vs_daily_open":' + f_num(priceVsOpen) + ',' +
-    '"vs_vwap":' + f_num(priceVsVwap) + ',' +
-    '"distance_to_HTF_level_points":' + f_num(distHTF) +
-    '},' +
-    '"structure":{' +
-    '"swing_state":"' + swingState + '",' +
-    '"bos_choch_signal":"' + bosChoCh + '",' +
-    '"liquidity_context":"' + liquCtx + '"' +
-    '}' +
-    '}'
-
-// ============================================================================
-// MAIN TELEMETRY PAYLOAD BUILDER
-// ============================================================================
-f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, posSize, mfeR, maeR, finalMfeR, exitPrice, exitReason, tp1, tp2, tp3, setupFam, setupVar, htfBias) =>
-    sym  = f_symbol()
-    ts   = f_isoTimestamp(time)
-    sess = f_sessionLabel(time)
-    
-    // Build JSON payload (broken into lines to avoid Pine string length limits)
-    payload = "{" + 
-        '"schema_version":"'   + telemetry_schema_version   + '",' +
-        '"engine_version":"'   + telemetry_engine_version   + '",' +
-        '"strategy_name":"'    + telemetry_strategy_name    + '",' +
-        '"strategy_id":"'      + telemetry_strategy_id      + '",' +
-        '"strategy_version":"' + telemetry_strategy_version + '",' +
-        '"trade_id":"'         + tradeId                    + '",' +
-        '"event_type":"'       + eventType                  + '",' +
-        '"event_timestamp":"'  + ts                         + '",' +
-        '"symbol":"'           + sym                        + '",' +
-        '"exchange":"'         + syminfo.exchange           + '",' +
-        '"timeframe":"'        + timeframe.period           + '",' +
-        '"session":"'          + sess                       + '",' +
-        '"direction":'         + f_str(dir)                 + ',' +
-        '"entry_price":'       + f_num(entryPrice)          + ',' +
-        '"stop_loss":'         + f_num(stopPrice)           + ',' +
-        '"risk_R":'            + f_num(riskR)               + ',' +
-        '"position_size":'     + f_num(posSize)             + ',' +
-        '"be_price":'          + f_num(bePrice)             + ',' +
-        '"mfe_R":'             + f_num(mfeR)                + ',' +
-        '"mae_R":'             + f_num(maeR)                + ',' +
-        '"final_mfe_R":'       + f_num(finalMfeR)           + ',' +
-        '"exit_price":'        + f_num(exitPrice)           + ',' +
-        '"exit_timestamp":null,' +
-        '"exit_reason":'       + f_str(exitReason)          + ',' +
-        f_targetsJson(tp1, tp2, tp3, 1.0, 2.0, 3.0) + ',' +
-        f_setupJson(
-            setupFam,
-            setupVar,
-            setupFam + "_" + setupVar,
-            75.0,  // signal_strength (placeholder)
-            htfBias == "Bullish" or htfBias == "Bearish" ? 1.0 : 0.5,  // trend_alignment
-            0.8,  // structure_quality (placeholder)
-            0.7   // volatility_fit (placeholder)
-        ) + ',' +
-        f_marketStateJson(
-            bias,  // trend_regime (use existing bias)
-            bias == "Bullish" or bias == "Bearish" ? 0.8 : 0.3,  // trend_score
-            "NORMAL",  // volatility_regime (placeholder)
-            na,  // atr (not calculated in this indicator)
-            na,  // atr_percentile_20d
-            na,  // daily_range_percentile_20d
-            na,  // price_vs_open
-            na,  // price_vs_vwap
-            na,  // distance_to_HTF_level
-            "UNKNOWN",  // swing_state
-            "NONE",  // bos_choch_signal
-            "NEUTRAL"  // liquidity_context
-        ) +
-
-        "}"
-    
-    payload
+    date_str + "_" + time_str + "_" + str.upper(signal_direction)
 
 // Variables to track webhook sending for MULTIPLE signals
 var array<string> active_signal_ids = array.new_string(0)
@@ -1257,7 +1055,7 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
         string sig_dir = array.get(signal_directions, last_index)
         
         signal_direction = sig_dir  // "Bullish" or "Bearish"
-        signal_id = f_buildTradeId(time, signal_direction)
+        signal_id = create_signal_id(signal_direction)
         current_session = get_session()
         
         // Calculate target prices using signal data from arrays
@@ -1268,40 +1066,10 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
         // Create JSON payload using SIGNAL CANDLE time (not current bar time)
         // Force US/Eastern timezone for consistency with session validation
         // CRITICAL: Backend expects event_type "ENTRY" not "signal_created"
-        // Calculate target prices
-        target_1r = signal_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
-        target_2r = signal_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
-        target_3r = signal_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
-        
-        // Determine setup family and variant
-        setup_family = "FVG_CORE"
-        setup_variant = htf_bullish or htf_bearish ? "HTF_ALIGNED" : "STANDARD"
-        
-        // Build telemetry payload for ENTRY event
-        entry_payload = f_buildPayload(
-            EVENT_ENTRY,
-            signal_id,
-            signal_direction,
-            sig_entry,
-            sig_stop,
-            na,  // bePrice (not triggered yet)
-            1.0,  // riskR
-            contract_size,  // posSize
-            0.0,  // mfeR at entry
-            0.0,  // maeR at entry
-            na,  // finalMfeR
-            na,  // exitPrice
-            "",  // exitReason
-            target_1r,  // tp1
-            target_2r,  // tp2
-            target_3r,  // tp3
-            setup_family,  // setupFam
-            setup_variant,  // setupVar
-            bias  // htfBias
-        )
+        signal_created_payload = '{"type":"ENTRY","signal_id":"' + signal_id + '","date":"' + str.format_time(signal_candle_time, "yyyy-MM-dd", "America/New_York") + '","time":"' + str.format_time(signal_candle_time, "HH:mm:ss", "America/New_York") + '","bias":"' + signal_direction + '","session":"' + current_session + '","entry_price":' + str.tostring(sig_entry) + ',"sl_price":' + str.tostring(sig_stop) + ',"risk_distance":' + str.tostring(sig_risk) + ',"be_price":' + str.tostring(sig_entry) + ',"target_1r":' + str.tostring(target_1r) + ',"target_2r":' + str.tostring(target_2r) + ',"target_3r":' + str.tostring(target_3r) + ',"be_hit":false,"be_mfe":0.00,"no_be_mfe":0.00,"status":"active","timestamp":' + str.tostring(signal_candle_time) + '}'
         
         // Send webhook
-        alert(entry_payload, alert.freq_once_per_bar_close)
+        alert(signal_created_payload, alert.freq_once_per_bar)
         
         // Mark that ENTRY webhook has been sent for this signal
         array.set(signal_entry_webhook_sent, last_index, true)
@@ -1350,38 +1118,14 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
                 float current_lowest_low = array.get(signal_lowest_lows, signal_array_idx)
                 float current_highest_high = array.get(signal_highest_highs, signal_array_idx)
                 
-                // Calculate target prices for MFE update
-                float mfe_target_1r = sig_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
-                float mfe_target_2r = sig_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
-                float mfe_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
-                
-                // Build telemetry payload for MFE_UPDATE event
-                string mfe_update_payload = f_buildPayload(
-                    EVENT_MFE_UPDATE,
-                    signal_id_to_update,
-                    sig_direction,
-                    sig_entry,
-                    sig_stop,
-                    sig_be_triggered ? sig_entry : na,  // bePrice if triggered
-                    1.0,  // riskR
-                    contract_size,  // posSize
-                    current_mfe_be,  // mfeR
-                    0.0,  // maeR (not tracked yet)
-                    na,  // finalMfeR
-                    na,  // exitPrice
-                    "",  // exitReason
-                    mfe_target_1r,  // tp1
-                    mfe_target_2r,  // tp2
-                    mfe_target_3r,  // tp3
-                    "FVG_CORE",  // setupFam
-                    "ACTIVE",  // setupVar
-                    bias  // htfBias
-                )
+                // Create MFE update payload
+                // CRITICAL: Backend expects event_type "MFE_UPDATE" not "mfe_update"
+                string mfe_update_payload = '{"type":"MFE_UPDATE","signal_id":"' + signal_id_to_update + '","current_price":' + str.tostring(close) + ',"be_mfe":' + str.tostring(current_mfe_be) + ',"no_be_mfe":' + str.tostring(current_mfe_none) + ',"lowest_low":' + str.tostring(current_lowest_low) + ',"highest_high":' + str.tostring(current_highest_high) + ',"status":"active","timestamp":' + str.tostring(time) + '}'
                 
                 // Send MFE update once per bar (not every tick)
                 // MODIFIED: Send for ALL active signals on real-time bars only
                 if barstate.isrealtime
-                    alert(mfe_update_payload, alert.freq_once_per_bar_close)
+                    alert(mfe_update_payload, alert.freq_once_per_bar)
 
 // 3. BE TRIGGER WEBHOOK
 // Send when BE=1 is triggered for any active signal
@@ -1407,36 +1151,12 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_trigger
                     // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
                     current_be_mfe := math.min(current_be_mfe, current_no_be_mfe)
                     
-                    // Calculate target prices for BE trigger
-                    float be_target_1r = sig_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
-                    float be_target_2r = sig_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
-                    float be_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
-                    
-                    // Build telemetry payload for BE_TRIGGERED event
-                    string be_trigger_payload = f_buildPayload(
-                        EVENT_BE_TRIGGERED,
-                        signal_id_for_be,
-                        sig_direction,
-                        sig_entry,
-                        sig_stop,
-                        sig_entry,  // bePrice = entry price
-                        1.0,  // riskR
-                        contract_size,  // posSize
-                        current_be_mfe,  // mfeR
-                        0.0,  // maeR
-                        na,  // finalMfeR
-                        na,  // exitPrice
-                        "",  // exitReason
-                        be_target_1r,  // tp1
-                        be_target_2r,  // tp2
-                        be_target_3r,  // tp3
-                        "FVG_CORE",  // setupFam
-                        "BE_PROTECTED",  // setupVar
-                        bias  // htfBias
-                    )
+                    // Create BE trigger payload
+                    // CRITICAL: Backend expects event_type "BE_TRIGGERED" not "be_triggered"
+                    string be_trigger_payload = '{"type":"BE_TRIGGERED","signal_id":"' + signal_id_for_be + '","be_hit":true,"be_mfe":' + str.tostring(current_be_mfe) + ',"no_be_mfe":' + str.tostring(current_no_be_mfe) + ',"timestamp":' + str.tostring(time) + '}'
                     
                     // Send BE trigger webhook
-                    alert(be_trigger_payload, alert.freq_once_per_bar_close)
+                    alert(be_trigger_payload, alert.freq_once_per_bar)
                     array.set(be_trigger_sent_flags, sig_idx, true)
 
 // 4. COMPLETION WEBHOOK
@@ -1468,39 +1188,13 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped
                 final_be_mfe := math.min(final_be_mfe, final_no_be_mfe)
                 
                 string completion_reason = be_stopped ? "be_stop_loss_hit" : "original_stop_loss_hit"
-                // Determine exit event type
-                string exit_event_type = be_stopped ? EVENT_EXIT_BREAK_EVEN : EVENT_EXIT_STOP_LOSS
-                
-                // Calculate target prices for exit
-                float exit_target_1r = sig_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
-                float exit_target_2r = sig_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
-                float exit_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
-                
-                // Build telemetry payload for EXIT event
-                string completion_payload = f_buildPayload(
-                    exit_event_type,
-                    signal_id_for_completion,
-                    sig_direction,
-                    sig_entry,
-                    sig_stop,
-                    sig_be_triggered ? sig_entry : na,  // bePrice if was triggered
-                    1.0,  // riskR
-                    contract_size,  // posSize
-                    current_be_mfe,  // mfeR
-                    0.0,  // maeR
-                    be_stopped ? 0.0 : final_no_be_mfe,  // finalMfeR (0 for BE, actual for SL)
-                    sig_stop,  // exitPrice (stop loss price)
-                    completion_reason,  // exitReason
-                    exit_target_1r,  // tp1
-                    exit_target_2r,  // tp2
-                    exit_target_3r,  // tp3
-                    "FVG_CORE",  // setupFam
-                    be_stopped ? "EXIT_BE" : "EXIT_SL",  // setupVar
-                    bias  // htfBias
-                )
+                // Create completion payload
+                // CRITICAL: Backend expects "EXIT_STOP_LOSS" or "EXIT_BREAK_EVEN" not "signal_completed"
+                string exit_event_type = be_stopped ? "EXIT_BREAK_EVEN" : "EXIT_STOP_LOSS"
+                string completion_payload = '{"type":"' + exit_event_type + '","signal_id":"' + signal_id_for_completion + '","completion_reason":"' + completion_reason + '","final_be_mfe":' + str.tostring(final_be_mfe) + ',"final_no_be_mfe":' + str.tostring(final_no_be_mfe) + ',"status":"completed","timestamp":' + str.tostring(time) + '}'
                 
                 // Send completion webhook
-                alert(completion_payload, alert.freq_once_per_bar_close)
+                alert(completion_payload, alert.freq_once_per_bar)
                 array.set(completion_sent_flags, sig_idx, true)
                 
                 // BULLETPROOF: Remove this signal from active tracking (all parallel arrays)

@@ -41,20 +41,53 @@ def _decimal_to_float(value: Any) -> Optional[float]:
 def build_trade_state(events: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """Fold a list of automated_signals rows (dicts) into a single canonical
     trade state object.
-    `events` MUST already be sorted by timestamp ascending."""
+    `events` MUST already be sorted by timestamp ascending.
+    PHASE 7.A: Enhanced with telemetry extraction for setup, market_state, and targets."""
     if not events:
         return None
 
     # Core identity from first event
     first = events[0]
     trade_id = first["trade_id"]
-    direction = first["direction"]
-    session = first["session"]
+    
+    # PHASE 7.A: Extract from telemetry if available, fallback to legacy columns
+    telemetry = first.get("telemetry")
+    if telemetry:
+        direction = telemetry.get("direction") or first["direction"]
+        session = telemetry.get("session") or first["session"]
+        entry_price = _decimal_to_float(telemetry.get("entry_price") or first.get("entry_price"))
+        stop_loss = _decimal_to_float(telemetry.get("stop_loss") or first.get("stop_loss"))
+        targets = telemetry.get("targets") or first.get("targets")
+        
+        # Extract setup information
+        setup = telemetry.get("setup", {})
+        setup_family = setup.get("setup_family")
+        setup_variant = setup.get("setup_variant")
+        setup_id = setup.get("setup_id")
+        setup_strength = setup.get("signal_strength")
+        
+        # Extract market state at entry
+        market_state = telemetry.get("market_state", {})
+        market_trend_regime = market_state.get("trend_regime")
+        market_vol_regime = market_state.get("volatility_regime")
+    else:
+        # Legacy path
+        direction = first["direction"]
+        session = first["session"]
+        entry_price = _decimal_to_float(first.get("entry_price"))
+        stop_loss = _decimal_to_float(first.get("stop_loss"))
+        targets = first.get("targets")
+        
+        # No telemetry - setup fields will be None
+        setup_family = None
+        setup_variant = None
+        setup_id = None
+        setup_strength = None
+        market_trend_regime = None
+        market_vol_regime = None
+    
     bias = first.get("bias")
-    entry_price = _decimal_to_float(first.get("entry_price"))
-    stop_loss = _decimal_to_float(first.get("stop_loss"))
     risk_distance = _decimal_to_float(first.get("risk_distance"))
-    targets = first.get("targets")  # leave JSON/dict/None as-is
 
     # Derived state
     status = "UNKNOWN"  # ACTIVE | BE_PROTECTED | COMPLETED | CANCELLED
@@ -110,17 +143,34 @@ def build_trade_state(events: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
             # Trade is now protected at BE but still LIVE
             status = "BE_PROTECTED"
 
-        elif etype in ("EXIT_SL", "EXIT_BE", "EXIT_TP", "EXIT_TARGET", "SIGNAL_COMPLETED"):
+        # COMPLETION EVENTS — based on actual event types in the database
+        elif etype in ("EXIT_BREAK_EVEN", "EXIT_STOP_LOSS"):
             status = "COMPLETED"
             completed_reason = etype
+            
+            # Determine exit price
             ep = row.get("exit_price") or row.get("current_price")
             if ep is not None:
                 exit_price = _decimal_to_float(ep)
-            if row.get("final_mfe") is not None:
-                final_mfe = _decimal_to_float(row["final_mfe"])
-            else:
-                # If no explicit final_mfe, fall back to latest No-BE MFE, then BE MFE
-                final_mfe = current_no_be_mfe if current_no_be_mfe is not None else current_be_mfe
+            
+            # MFE logic
+            # Break-even exit: final R = 0
+            if etype == "EXIT_BREAK_EVEN":
+                final_mfe = 0.0
+            
+            # Stop-loss exit: final R = -1R (or use recorded MFE if available)
+            elif etype == "EXIT_STOP_LOSS":
+                # If indicator provides final_mfe, use it
+                if row.get("final_mfe") is not None:
+                    final_mfe = _decimal_to_float(row["final_mfe"])
+                # Else compute final R from exit vs entry SL distance
+                elif current_no_be_mfe is not None:
+                    final_mfe = current_no_be_mfe
+                elif current_be_mfe is not None:
+                    final_mfe = current_be_mfe
+                else:
+                    # Default: STOP LOSS = -1R
+                    final_mfe = -1.0
 
         elif etype == "CANCELLED":
             status = "CANCELLED"
@@ -164,6 +214,13 @@ def build_trade_state(events: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         "max_mfe_for_stats": max_mfe_for_stats,
         "exit_price": exit_price,
         "final_mfe_R": final_mfe,
+        # PHASE 7.A: Telemetry-rich fields
+        "setup_family": setup_family,
+        "setup_variant": setup_variant,
+        "setup_id": setup_id,
+        "setup_strength": setup_strength,
+        "market_trend_regime": market_trend_regime,
+        "market_vol_regime": market_vol_regime,
     }
     return trade_state
 
@@ -176,7 +233,8 @@ def _fetch_events_for_range(
     end_date: Optional[str],
 ) -> List[Dict[str, Any]]:
     """Fetch all automated_signals rows within [start_date, end_date].
-    Dates are inclusive; if None, the range is unbounded on that side."""
+    Dates are inclusive; if None, the range is unbounded on that side.
+    PHASE 7.A: Now includes telemetry JSONB column."""
     where_clauses = []
     params: List[Any] = []
     if start_date:
@@ -210,7 +268,8 @@ def _fetch_events_for_range(
         signal_date,
         signal_time,
         be_mfe,
-        no_be_mfe
+        no_be_mfe,
+        telemetry
     FROM automated_signals
     {where_sql}
     ORDER BY trade_id, timestamp ASC, id ASC
@@ -330,7 +389,7 @@ def get_hub_data(
         if not _apply_filters(state, session, direction, status):
             continue
 
-        # Flatten for table list
+        # PHASE 7.A: Flatten for table list with telemetry-rich fields
         all_trades.append({
             "trade_id": state["trade_id"],
             "date": state["signal_date"],
@@ -345,6 +404,18 @@ def get_hub_data(
             "no_be_mfe_R": state["no_be_mfe_R"],
             "final_mfe_R": state["final_mfe_R"],
             "last_event_time": state["last_event_time"],
+            # PHASE 7.A: Nested telemetry objects
+            "setup": {
+                "family": state.get("setup_family"),
+                "variant": state.get("setup_variant"),
+                "id": state.get("setup_id"),
+                "signal_strength": state.get("setup_strength")
+            },
+            "market_state": {
+                "trend_regime": state.get("market_trend_regime"),
+                "volatility_regime": state.get("market_vol_regime")
+            },
+            "targets": state.get("targets")
         })
 
     calendar = build_calendar_view(all_trades)
@@ -357,7 +428,8 @@ def get_hub_data(
 
 def get_trade_detail(trade_id: str) -> Optional[Dict[str, Any]]:
     """Return full trade detail + event timeline for a single trade_id.
-    Used by the Trade Journey modal."""
+    Used by the Trade Journey modal.
+    PHASE 7.A: Enhanced with telemetry-rich setup, market_state, and targets."""
     conn = _get_db_conn()
     try:
         sql = """
@@ -380,7 +452,8 @@ def get_trade_detail(trade_id: str) -> Optional[Dict[str, Any]]:
             signal_date,
             signal_time,
             be_mfe,
-            no_be_mfe
+            no_be_mfe,
+            telemetry
         FROM automated_signals
         WHERE trade_id = %s
         ORDER BY timestamp ASC, id ASC
@@ -398,21 +471,58 @@ def get_trade_detail(trade_id: str) -> Optional[Dict[str, Any]]:
     if not state:
         return None
 
-    # Build event timeline for chart + log
+    # PHASE 7.A: Extract entry and exit rows for telemetry
+    entry_row = None
+    exit_row = None
+    for row in rows:
+        if row["event_type"] == "ENTRY" and entry_row is None:
+            entry_row = row
+        if row["event_type"] in ("EXIT_STOP_LOSS", "EXIT_BREAK_EVEN", "EXIT_TAKE_PROFIT", "EXIT_PARTIAL"):
+            exit_row = row  # Keep last exit event
+
+    # Extract telemetry from entry row
+    market_state_entry = None
+    targets_detail = None
+    if entry_row and entry_row.get("telemetry"):
+        entry_telemetry = entry_row["telemetry"]
+        market_state_entry = entry_telemetry.get("market_state")
+        targets_detail = entry_telemetry.get("targets")
+
+    # Build event timeline for chart + log with telemetry-aware MFE
     events_timeline: List[Dict[str, Any]] = []
     for row in rows:
+        telemetry = row.get("telemetry")
+        
+        # Prefer telemetry MFE values if available
+        if telemetry:
+            mfe_R = telemetry.get("mfe_R")
+            mae_R = telemetry.get("mae_R")
+        else:
+            mfe_R = _decimal_to_float(row.get("mfe"))
+            mae_R = None
+        
         events_timeline.append({
             "timestamp": row["timestamp"].isoformat() if row["timestamp"] else None,
             "event_type": row["event_type"],
             "be_mfe_R": _decimal_to_float(row.get("be_mfe")),
             "no_be_mfe_R": _decimal_to_float(row.get("no_be_mfe")),
-            "mfe_R": _decimal_to_float(row.get("mfe")),
+            "mfe_R": mfe_R,
+            "mae_R": mae_R,
             "current_price": _decimal_to_float(row.get("current_price")),
             "exit_price": _decimal_to_float(row.get("exit_price")),
         })
 
+    # PHASE 7.A: Build detail with nested telemetry objects
     detail = {
         **state,
+        "setup": {
+            "family": state.get("setup_family"),
+            "variant": state.get("setup_variant"),
+            "id": state.get("setup_id"),
+            "signal_strength": state.get("setup_strength")
+        },
+        "market_state_entry": market_state_entry,
+        "targets": targets_detail or state.get("targets"),
         "events": events_timeline,
     }
     return detail

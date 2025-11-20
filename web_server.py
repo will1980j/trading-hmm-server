@@ -1007,6 +1007,13 @@ def automated_signals_trade_detail_api(trade_id):
 def automated_signals_hub_preview():
     return render_template("automated_signals_hub_work/automated_signals_dashboard.html")
 
+@app.route("/automated-signals-ultra", methods=["GET"])
+@login_required
+def automated_signals_ultra_dashboard():
+    """Ultra Premium Automated Signals Hub dashboard.
+    Uses telemetry-rich APIs to render a full-width, multi-panel interface."""
+    return render_template("automated_signals_ultra.html")
+
 @app.route('/live-diagnostics-terminal')
 @login_required
 def live_diagnostics_terminal():

@@ -208,178 +208,320 @@ def register_automated_signals_api_robust(app, db):
                 'error': str(e)
             }), 200
 
-def _get_active_trades_robust(cursor, has_signal_time):
-    """Get active trades with multiple fallback strategies"""
-    try:
-        time_columns = "e.signal_date, e.signal_time," if has_signal_time else ""
-        
-        query = f"""
-            SELECT 
-                e.id,
-                e.trade_id,
-                e.direction as bias,
-                CAST(e.entry_price AS FLOAT) as entry_price,
-                CAST(e.stop_loss AS FLOAT) as stop_loss_price,
-                CAST(COALESCE(m.be_mfe, e.be_mfe, 0) AS FLOAT) as be_mfe,
-                CAST(COALESCE(m.no_be_mfe, e.no_be_mfe, m.mfe, e.mfe, 0) AS FLOAT) as no_be_mfe,
-                e.session,
-                {time_columns}
-                e.timestamp as created_at,
-                'ACTIVE' as trade_status
-            FROM automated_signals e
-            LEFT JOIN LATERAL (
-                SELECT be_mfe, no_be_mfe, mfe, current_price
+
+    @app.route('/api/automated-signals/trade-detail/<trade_id>')
+    def get_trade_detail(trade_id):
+        """
+        Get detailed trade information with full telemetry data
+        """
+        try:
+            import os
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+            from automated_signals_state import build_trade_state
+            
+            database_url = os.environ.get('DATABASE_URL')
+            if not database_url:
+                return jsonify({
+                    'success': False,
+                    'error': 'no_database_url'
+                }), 500
+            
+            conn = psycopg2.connect(database_url)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            # Get all events for this trade
+            cursor.execute("""
+                SELECT 
+                    id, trade_id, event_type, direction, entry_price,
+                    stop_loss, session, bias, risk_distance, targets,
+                    current_price, mfe, be_mfe, no_be_mfe,
+                    exit_price, final_mfe,
+                    signal_date, signal_time, timestamp,
+                    telemetry
                 FROM automated_signals
-                WHERE trade_id = e.trade_id
-                AND event_type = 'MFE_UPDATE'
-                ORDER BY timestamp DESC
-                LIMIT 1
-            ) m ON true
-            WHERE e.event_type = 'ENTRY'
-            AND e.trade_id NOT IN (
+                WHERE trade_id = %s
+                ORDER BY timestamp ASC
+            """, (trade_id,))
+            
+            rows = cursor.fetchall()
+            
+            if not rows:
+                cursor.close()
+                conn.close()
+                return jsonify({
+                    'success': False,
+                    'error': 'trade_not_found',
+                    'message': f'Trade {trade_id} not found'
+                }), 404
+            
+            # Convert to events list
+            events = []
+            for row in rows:
+                event = dict(row)
+                # Convert datetime objects to strings
+                if event.get('signal_date'):
+                    event['signal_date'] = event['signal_date'].isoformat()
+                if event.get('signal_time'):
+                    event['signal_time'] = event['signal_time'].isoformat()
+                if event.get('timestamp'):
+                    event['timestamp'] = event['timestamp'].isoformat()
+                events.append(event)
+            
+            # Build trade state
+            trade_state = build_trade_state(events)
+            
+            if not trade_state:
+                cursor.close()
+                conn.close()
+                return jsonify({
+                    'success': False,
+                    'error': 'state_build_failed',
+                    'message': 'Could not build trade state'
+                }), 500
+            
+            # Build detailed response
+            detail = {
+                'trade_id': trade_state['trade_id'],
+                'direction': trade_state['direction'],
+                'session': trade_state['session'],
+                'status': trade_state['status'],
+                'entry_price': float(trade_state['entry_price']) if trade_state['entry_price'] else None,
+                'stop_loss': float(trade_state['stop_loss']) if trade_state['stop_loss'] else None,
+                'current_mfe': float(trade_state['current_mfe']) if trade_state['current_mfe'] else None,
+                'final_mfe': float(trade_state['final_mfe']) if trade_state['final_mfe'] else None,
+                'exit_price': float(trade_state['exit_price']) if trade_state['exit_price'] else None,
+                'exit_reason': trade_state['exit_reason'],
+                'be_triggered': trade_state['be_triggered'],
+                'targets': trade_state['targets'],
+                'setup': trade_state['setup'],
+                'market_state_entry': trade_state['market_state'],
+                'events': []
+            }
+            
+            # Add events with telemetry
+            for event in events:
+                event_data = {
+                    'event_type': event['event_type'],
+                    'timestamp': event['timestamp'],
+                    'mfe_R': float(event['mfe']) if event.get('mfe') else None,
+                    'mae_R': None,  # Not yet tracked
+                    'current_price': float(event['current_price']) if event.get('current_price') else None
+                }
+                
+                # Add telemetry if available
+                if event.get('telemetry'):
+                    tel = event['telemetry']
+                    event_data['telemetry'] = {
+                        'mfe_R': tel.get('mfe_R'),
+                        'mae_R': tel.get('mae_R'),
+                        'final_mfe_R': tel.get('final_mfe_R'),
+                        'exit_reason': tel.get('exit_reason')
+                    }
+                
+                detail['events'].append(event_data)
+            
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'data': detail,
+                'timestamp': datetime.now(pytz.UTC).isoformat()
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"Trade detail error: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'error': 'query_failed',
+                'message': str(e)
+            }), 500
+
+
+def _get_active_trades_robust(cursor, has_signal_time):
+    """Get active trades with telemetry support"""
+    try:
+        # Import state builder
+        from automated_signals_state import build_trade_state
+        
+        # Get all trade_ids for active trades
+        cursor.execute("""
+            SELECT DISTINCT trade_id
+            FROM automated_signals
+            WHERE event_type = 'ENTRY'
+            AND trade_id NOT IN (
                 SELECT trade_id FROM automated_signals 
                 WHERE event_type LIKE 'EXIT_%'
             )
-            ORDER BY e.timestamp DESC
+            ORDER BY timestamp DESC
             LIMIT 100;
-        """
+        """)
         
-        cursor.execute(query)
-        rows = cursor.fetchall()
+        trade_ids = [row[0] for row in cursor.fetchall()]
         
         active_trades = []
-        now = datetime.now(pytz.timezone('US/Eastern'))
         
-        for row in rows:
-            trade = dict(row)
+        for trade_id in trade_ids:
+            # Get all events for this trade
+            cursor.execute("""
+                SELECT 
+                    trade_id, event_type, direction, entry_price,
+                    stop_loss, session, bias, risk_distance, targets,
+                    current_price, mfe, be_mfe, no_be_mfe,
+                    exit_price, final_mfe,
+                    signal_date, signal_time, timestamp,
+                    telemetry
+                FROM automated_signals
+                WHERE trade_id = %s
+                ORDER BY timestamp ASC
+            """, (trade_id,))
             
-            # Ensure numeric fields
-            for field in ['entry_price', 'stop_loss_price', 'be_mfe', 'no_be_mfe']:
-                if trade.get(field):
-                    trade[field] = float(trade[field])
+            events = []
+            for row in cursor.fetchall():
+                event = dict(row)
+                # Convert datetime objects to strings
+                if event.get('signal_date'):
+                    event['signal_date'] = event['signal_date'].isoformat()
+                if event.get('signal_time'):
+                    event['signal_time'] = event['signal_time'].isoformat()
+                if event.get('timestamp'):
+                    event['timestamp'] = event['timestamp'].isoformat()
+                events.append(event)
             
-            # Convert date/time fields to strings for JSON serialization
-            if trade.get('signal_date'):
-                trade['signal_date'] = trade['signal_date'].isoformat()
-            if trade.get('signal_time'):
-                trade['signal_time'] = trade['signal_time'].isoformat()
+            # Build trade state using telemetry-aware builder
+            trade_state = build_trade_state(events)
             
-            # Calculate duration and add date field for calendar
-            if trade.get('created_at'):
-                created = trade['created_at']
-                if created.tzinfo is None:
-                    created = pytz.timezone('US/Eastern').localize(created)
-                duration = now - created
-                trade['duration_seconds'] = int(duration.total_seconds())
-                trade['duration_display'] = _format_duration(duration)
-                # Add date field in YYYY-MM-DD format for calendar
-                trade['date'] = created.strftime('%Y-%m-%d')
-                # Convert created_at to string
-                trade['created_at'] = created.isoformat()
+            if trade_state:
+                # Convert to API format
+                trade = {
+                    'id': events[0].get('id') if events else None,
+                    'trade_id': trade_state['trade_id'],
+                    'direction': trade_state['direction'],
+                    'session': trade_state['session'],
+                    'status': trade_state['status'],
+                    'entry_price': float(trade_state['entry_price']) if trade_state['entry_price'] else None,
+                    'stop_loss': float(trade_state['stop_loss']) if trade_state['stop_loss'] else None,
+                    'current_mfe': float(trade_state['current_mfe']) if trade_state['current_mfe'] else None,
+                    'final_mfe': float(trade_state['final_mfe']) if trade_state['final_mfe'] else None,
+                    'exit_price': float(trade_state['exit_price']) if trade_state['exit_price'] else None,
+                    'exit_reason': trade_state['exit_reason'],
+                    'be_triggered': trade_state['be_triggered'],
+                    'targets': trade_state['targets'],
+                    'setup': trade_state['setup'],
+                    'market_state': trade_state['market_state'],
+                    'timestamp': events[0]['timestamp'] if events else None
+                }
                 
-                # Mark trades as STALE if they're more than 2 hours old
-                # (likely missing completion webhook)
-                if duration.total_seconds() > 7200:  # 2 hours
-                    trade['trade_status'] = 'STALE'
-            
-            active_trades.append(trade)
+                # Add date for calendar
+                if trade.get('timestamp'):
+                    try:
+                        ts = datetime.fromisoformat(trade['timestamp'].replace('Z', '+00:00'))
+                        eastern = pytz.timezone('America/New_York')
+                        ts_eastern = ts.astimezone(eastern)
+                        trade['date'] = ts_eastern.strftime('%Y-%m-%d')
+                    except:
+                        pass
+                
+                active_trades.append(trade)
         
-        logger.info(f"Found {len(active_trades)} active trades")
         return active_trades
         
     except Exception as e:
-        logger.error(f"Error getting active trades: {e}", exc_info=True)
+        import logging
+        logging.error(f"Error getting active trades: {e}", exc_info=True)
         return []
 
+
 def _get_completed_trades_robust(cursor, has_signal_time):
-    """Get completed trades with multiple fallback strategies"""
+    """Get completed trades with telemetry support"""
     try:
-        time_columns = "e.signal_date, e.signal_time," if has_signal_time else ""
+        # Import state builder
+        from automated_signals_state import build_trade_state
         
-        query = f"""
-            SELECT 
-                e.id,
-                e.trade_id,
-                e.direction as bias,
-                CAST(e.entry_price AS FLOAT) as entry_price,
-                CAST(e.stop_loss AS FLOAT) as stop_loss_price,
-                CAST(COALESCE(ex.final_mfe, e.mfe, 0) AS FLOAT) as final_mfe,
-                CAST(COALESCE(ex.be_mfe, ex.final_mfe, e.be_mfe, 0) AS FLOAT) as be_mfe,
-                CAST(COALESCE(ex.no_be_mfe, ex.final_mfe, e.no_be_mfe, 0) AS FLOAT) as no_be_mfe,
-                ex.exit_type,
-                ex.exit_price,
-                e.session,
-                {time_columns}
-                e.timestamp as created_at,
-                ex.timestamp as exit_time,
-                'COMPLETED' as trade_status
-            FROM automated_signals e
-            INNER JOIN LATERAL (
-                SELECT 
-                    event_type as exit_type,
-                    CAST(exit_price AS FLOAT) as exit_price,
-                    CAST(mfe AS FLOAT) as final_mfe,
-                    CAST(be_mfe AS FLOAT) as be_mfe,
-                    CAST(no_be_mfe AS FLOAT) as no_be_mfe,
-                    timestamp
-                FROM automated_signals
-                WHERE trade_id = e.trade_id
-                AND event_type LIKE 'EXIT_%'
-                ORDER BY timestamp DESC
-                LIMIT 1
-            ) ex ON true
-            WHERE e.event_type = 'ENTRY'
-            ORDER BY ex.timestamp DESC
+        # Get all trade_ids for completed trades
+        cursor.execute("""
+            SELECT DISTINCT trade_id
+            FROM automated_signals
+            WHERE event_type LIKE 'EXIT_%'
+            ORDER BY timestamp DESC
             LIMIT 100;
-        """
+        """)
         
-        cursor.execute(query)
-        rows = cursor.fetchall()
+        trade_ids = [row[0] for row in cursor.fetchall()]
         
         completed_trades = []
         
-        for row in rows:
-            trade = dict(row)
+        for trade_id in trade_ids:
+            # Get all events for this trade
+            cursor.execute("""
+                SELECT 
+                    trade_id, event_type, direction, entry_price,
+                    stop_loss, session, bias, risk_distance, targets,
+                    current_price, mfe, be_mfe, no_be_mfe,
+                    exit_price, final_mfe,
+                    signal_date, signal_time, timestamp,
+                    telemetry
+                FROM automated_signals
+                WHERE trade_id = %s
+                ORDER BY timestamp ASC
+            """, (trade_id,))
             
-            # Ensure numeric fields
-            for field in ['entry_price', 'stop_loss_price', 'final_mfe', 'exit_price']:
-                if trade.get(field):
-                    trade[field] = float(trade[field])
+            events = []
+            for row in cursor.fetchall():
+                event = dict(row)
+                # Convert datetime objects to strings
+                if event.get('signal_date'):
+                    event['signal_date'] = event['signal_date'].isoformat()
+                if event.get('signal_time'):
+                    event['signal_time'] = event['signal_time'].isoformat()
+                if event.get('timestamp'):
+                    event['timestamp'] = event['timestamp'].isoformat()
+                events.append(event)
             
-            # Convert date/time fields to strings for JSON serialization
-            if trade.get('signal_date'):
-                trade['signal_date'] = trade['signal_date'].isoformat()
-            if trade.get('signal_time'):
-                trade['signal_time'] = trade['signal_time'].isoformat()
+            # Build trade state using telemetry-aware builder
+            trade_state = build_trade_state(events)
             
-            # Calculate trade duration and add date field for calendar
-            if trade.get('created_at'):
-                created = trade['created_at']
-                if created.tzinfo is None:
-                    created = pytz.timezone('US/Eastern').localize(created)
-                # Add date field in YYYY-MM-DD format for calendar
-                trade['date'] = created.strftime('%Y-%m-%d')
-                # Convert created_at to string
-                trade['created_at'] = created.isoformat()
+            if trade_state and trade_state['status'] == 'COMPLETED':
+                # Convert to API format
+                trade = {
+                    'id': events[0].get('id') if events else None,
+                    'trade_id': trade_state['trade_id'],
+                    'direction': trade_state['direction'],
+                    'session': trade_state['session'],
+                    'status': trade_state['status'],
+                    'entry_price': float(trade_state['entry_price']) if trade_state['entry_price'] else None,
+                    'stop_loss': float(trade_state['stop_loss']) if trade_state['stop_loss'] else None,
+                    'current_mfe': float(trade_state['current_mfe']) if trade_state['current_mfe'] else None,
+                    'final_mfe': float(trade_state['final_mfe']) if trade_state['final_mfe'] else None,
+                    'exit_price': float(trade_state['exit_price']) if trade_state['exit_price'] else None,
+                    'exit_reason': trade_state['exit_reason'],
+                    'be_triggered': trade_state['be_triggered'],
+                    'targets': trade_state['targets'],
+                    'setup': trade_state['setup'],
+                    'market_state': trade_state['market_state'],
+                    'timestamp': events[0]['timestamp'] if events else None
+                }
                 
-                if trade.get('exit_time'):
-                    exited = trade['exit_time']
-                    if exited.tzinfo is None:
-                        exited = pytz.timezone('US/Eastern').localize(exited)
-                    duration = exited - created
-                    trade['duration_seconds'] = int(duration.total_seconds())
-                    trade['duration_display'] = _format_duration(duration)
-                    # Convert exit_time to string
-                    trade['exit_time'] = exited.isoformat()
-            
-            completed_trades.append(trade)
+                # Add date for calendar
+                if trade.get('timestamp'):
+                    try:
+                        ts = datetime.fromisoformat(trade['timestamp'].replace('Z', '+00:00'))
+                        eastern = pytz.timezone('America/New_York')
+                        ts_eastern = ts.astimezone(eastern)
+                        trade['date'] = ts_eastern.strftime('%Y-%m-%d')
+                    except:
+                        pass
+                
+                completed_trades.append(trade)
         
-        logger.info(f"Found {len(completed_trades)} completed trades")
         return completed_trades
         
     except Exception as e:
-        logger.error(f"Error getting completed trades: {e}", exc_info=True)
+        import logging
+        logging.error(f"Error getting completed trades: {e}", exc_info=True)
         return []
+
 
 def _calculate_stats_robust(cursor, active_trades, completed_trades):
     """Calculate statistics with robust error handling"""
