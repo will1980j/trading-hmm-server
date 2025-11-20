@@ -291,3 +291,94 @@
 #as-ultra-root th {
     background-color: #020617 !important;
 }
+
+
+/* Patch 3A — Scope-wide dark mode & readability fixes for Ultra dashboard */
+
+#as-ultra-root,
+#as-ultra-root * {
+    color: #e5e7eb !important;
+}
+
+/* Card headers + summary text under main title */
+#as-ultra-root .card-header,
+#as-ultra-root .text-muted,
+#as-ultra-root small {
+    color: #d1d5db !important;
+}
+
+/* Main subtitle under "Ultra" title */
+#as-ultra-root .as-container p,
+#as-ultra-root #as-last-refresh {
+    color: #e5e7eb !important;
+}
+
+/* Calendar + filter labels */
+#as-ultra-root .form-label,
+#as-ultra-root label,
+#as-ultra-root .as-calendar-day,
+#as-ultra-root .as-calendar-day-date,
+#as-ultra-root .as-calendar-day-meta {
+    color: #e5e7eb !important;
+}
+
+/* Sticky table header and grid subtle lines */
+#as-ultra-root .as-trades-wrapper table,
+#as-ultra-root .as-trades-wrapper table thead th,
+#as-ultra-root .as-trades-wrapper table tbody td {
+    background-color: #020617 !important;
+    color: #e5e7eb !important;
+    border-color: rgba(148, 163, 184, 0.15) !important;
+}
+
+/* Table header specifically */
+#as-ultra-root .as-trades-wrapper table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #0f172a !important;
+    color: #e5e7eb !important;
+    z-index: 5;
+}
+
+/* Refresh button visibility */
+#as-ultra-root #as-refresh-btn {
+    background-color: #1e293b !important;
+    color: #e5e7eb !important;
+    border-color: #4b5563 !important;
+}
+
+/* Make table grid lighter and less chunky */
+#as-ultra-root .as-trades-wrapper table tr {
+    border-color: rgba(75, 85, 99, 0.4) !important;
+}
+
+/* Modal text */
+#as-ultra-root .as-modal,
+#as-ultra-root .as-modal .card-body,
+#as-ultra-root .as-modal .card-header,
+#as-ultra-root .as-modal .as-event-item {
+    color: #e5e7eb !important;
+}
+
+/* Strength bar visibility */
+#as-ultra-root .as-strength-bar {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Patch 4D — Checkbox alignment */
+#as-ultra-root .as-select-trade {
+    transform: scale(1.2);
+    cursor: pointer;
+}
+
+#as-ultra-root #as-select-all-checkbox {
+    transform: scale(1.2);
+    cursor: pointer;
+}
+
+/* Delete button styling */
+#as-ultra-root #as-delete-selected-btn {
+    background: #7f1d1d !important;
+    border-color: #b91c1c !important;
+    color: #fff !important;
+}

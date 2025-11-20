@@ -8,6 +8,7 @@ const AS = {
         filteredTrades: [],
         calendar: [],
         selectedDate: null,
+        selectedTrades: new Set(),
         filters: {
             session: 'ALL',
             direction: 'ALL',
@@ -197,17 +198,21 @@ function asRenderTradesTable() {
         const tr = document.createElement('tr');
         tr.dataset.tradeId = t.trade_id;
         
+        // PATCH 4C: Check if trade is selected
+        const isSelected = AS.state.selectedTrades.has(t.trade_id);
+        
         // FIX 2: Correct combined MFE logic
         const mfeCombined = Math.max(
             Number(t.be_mfe_R ?? -Infinity),
             Number(t.no_be_mfe_R ?? -Infinity)
         );
         
-        // Time formatting
-        const ts = t.timestamp ? new Date(t.timestamp) : null;
-        const timeStr = ts
-            ? ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            : '';
+        // PATCH 3B PART 1: Fix time column
+        const timeStr = t.time_et
+            ? t.time_et
+            : (t.last_event_time
+                ? new Date(t.last_event_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : '');
         // Direction pill
         const dirPill =
             t.direction === 'Bullish'
@@ -223,33 +228,85 @@ function asRenderTradesTable() {
         // Session pill
         const sessionPill = `<span class="pill pill-session">${t.session}</span>`;
         
-        // FIX 1: Entry & exit normalisation
-        const entry = t.entry_price ?? t.entry ?? null;
-        const exit = t.exit_price ?? t.exit ?? null;
+        // PATCH 3B PART 2: Comprehensive normalization
+        // Normalize setup and strength
+        const setupObj = t.setup || {};
+        const setupName = setupObj.id ||
+            setupObj.setup_id ||
+            (setupObj.setup_family || setupObj.family || '') +
+            (setupObj.setup_variant || setupObj.variant
+                ? ' · ' + (setupObj.setup_variant || setupObj.variant)
+                : '');
+        const strength = typeof setupObj.signal_strength === 'number'
+            ? setupObj.signal_strength
+            : null;
         
-        // FIX 2: Strength bar not rendering
-        const strength = t.setup?.signal_strength ?? t.signal_strength ?? null;
+        // Normalize prices
+        const entry = t.entry_price != null ? Number(t.entry_price) : null;
+        const exit = t.exit_price != null ? Number(t.exit_price) : null;
+        
+        // Combined MFE logic
+        const beMfe = t.be_mfe_R != null ? Number(t.be_mfe_R) : null;
+        const noBeMfe = t.no_be_mfe_R != null ? Number(t.no_be_mfe_R) : null;
+        const finalMfe = t.final_mfe_R != null ? Number(t.final_mfe_R) : null;
+        const currentMfe = (function() {
+            const vals = [beMfe, noBeMfe].filter(v => typeof v === 'number' && !Number.isNaN(v));
+            if (!vals.length) return null;
+            return Math.max.apply(null, vals);
+        })();
+        
         const strengthFill = strength != null
-            ? `<div class="as-strength-bar-fill" style="width:${Math.min(100, Math.max(0, strength))}%;"></div>`
+            ? `<div class="as-strength-fill" style="width:${Math.min(100, Math.max(0, strength))}%;"></div>`
             : '';
-        // Build row
+        // Build row - PATCH 4C: Add checkbox as first column
         tr.innerHTML = `
+            <td><input type="checkbox" class="as-select-trade" data-id="${t.trade_id}" ${isSelected ? 'checked' : ''}></td>
             <td>${timeStr}</td>
             <td>${dirPill}</td>
             <td>${sessionPill}</td>
             <td>${statusPill}</td>
-            <td>${t.setup?.id || t.setup?.setup_id || '--'}</td>
+            <td>${setupName || ''}</td>
             <td><div class="as-strength-bar">${strengthFill}</div></td>
-            <td>${fmtR(mfeCombined)}</td>
-            <td>${fmtR(t.no_be_mfe_R)}</td>
-            <td>${fmtR(t.final_mfe)}</td>
-            <td>${entry != null ? entry.toFixed(2) : '--'}</td>
-            <td>${exit != null ? exit.toFixed(2) : '--'}</td>
+            <td>${fmtR(currentMfe)}</td>
+            <td>${fmtR(noBeMfe)}</td>
+            <td>${fmtR(finalMfe)}</td>
+            <td>${entry != null ? entry.toFixed(2) : ''}</td>
+            <td>${exit != null ? exit.toFixed(2) : ''}</td>
         `;
-        // Click handler for details modal
-        tr.onclick = () => asOpenTradeDetail(t.trade_id);
+        // Click handler for details modal - but not on checkbox
+        tr.onclick = (e) => {
+            if (e.target.type !== 'checkbox') {
+                asOpenTradeDetail(t.trade_id);
+            }
+        };
         tbody.appendChild(tr);
     });
+    
+    // PATCH 4C PART 3: Wire up checkbox event handlers
+    document.querySelectorAll('.as-select-trade').forEach(cb => {
+        cb.addEventListener('change', e => {
+            const id = e.target.dataset.id;
+            if (e.target.checked) {
+                AS.state.selectedTrades.add(id);
+            } else {
+                AS.state.selectedTrades.delete(id);
+            }
+        });
+    });
+    
+    // PATCH 4C: Master checkbox handler
+    const master = document.querySelector('#as-select-all-checkbox');
+    if (master) {
+        master.checked = false;
+        master.addEventListener('change', e => {
+            const checked = e.target.checked;
+            AS.state.selectedTrades.clear();
+            document.querySelectorAll('.as-select-trade').forEach(cb => {
+                cb.checked = checked;
+                if (checked) AS.state.selectedTrades.add(cb.dataset.id);
+            });
+        });
+    }
 }
 
 // Update summary cards
@@ -391,9 +448,10 @@ function asRenderTradeTimelineAndChart(detail) {
         const ts = ev.timestamp
             ? (Date.parse(ev.timestamp.replace(" ", "T")) || null)
             : null;
+        // PATCH 3B PART 4: Shorter chart labels
         const timeStr = ts
-            ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-            : `Event ${index + 1}`;
+            ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : `E${index + 1}`;
         // Correct: Use telemetry MFE first, fall back to direct
         const effMfe =
             ev.telemetry?.mfe_R != null
@@ -448,7 +506,7 @@ function asRenderTradeTimelineAndChart(detail) {
             },
             scales: {
                 x: {
-                    ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
+                    ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 8 },
                     title: { display: true, text: 'Time' }
                 },
                 y: {
@@ -541,6 +599,37 @@ function asSetupEventHandlers() {
     if (refreshBtn) {
         refreshBtn.onclick = () => {
             asFetchHubData();
+        };
+    }
+    
+    // PATCH 4C PART 4: Delete Selected button
+    const deleteBtn = document.getElementById('as-delete-selected-btn');
+    if (deleteBtn) {
+        deleteBtn.onclick = async () => {
+            if (AS.state.selectedTrades.size === 0) {
+                alert("No trades selected.");
+                return;
+            }
+            if (!confirm(`Delete ${AS.state.selectedTrades.size} trades? This cannot be undone.`)) {
+                return;
+            }
+            const trade_ids = Array.from(AS.state.selectedTrades);
+            try {
+                const resp = await fetch('/api/automated-signals/delete-trades', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ trade_ids })
+                });
+                const data = await resp.json();
+                if (!data.success) throw new Error(data.error);
+                alert(`Deleted ${data.deleted} records.`);
+                AS.state.selectedTrades.clear();
+                await asFetchHubData();
+                asApplyFilters();
+            } catch (err) {
+                console.error("Bulk delete failed:", err);
+                alert("Bulk delete failed. Check console.");
+            }
         };
     }
 }

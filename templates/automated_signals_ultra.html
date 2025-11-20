@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3 as-container">
+<div id="as-ultra-root" class="container-fluid py-3 as-container">
     <div class="row mb-3 align-items-center">
         <div class="col-md-8">
             <h2 class="mb-1">Automated Signals Hub <span class="badge bg-primary ms-2">Ultra</span></h2>
@@ -150,6 +150,7 @@
                     <span>Signals (Telemetry)</span>
                     <div>
                         <button class="btn btn-sm btn-outline-secondary me-2" id="as-refresh-btn">Refresh</button>
+                        <button id="as-delete-selected-btn" class="btn btn-sm btn-danger ms-2" style="background:#7f1d1d;border-color:#b91c1c;">Delete Selected</button>
                         <span class="badge bg-info text-dark" id="as-total-count-badge">0 trades</span>
                     </div>
                 </div>
@@ -157,6 +158,7 @@
                     <table class="table table-sm table-hover align-middle trading-table" id="as-trades-table">
                         <thead class="table-light">
                             <tr>
+                                <th style="width: 40px;"><input type="checkbox" id="as-select-all-checkbox" /></th>
                                 <th>Time</th>
                                 <th>Dir</th>
                                 <th>Session</th>
