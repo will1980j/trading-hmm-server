@@ -200,8 +200,14 @@ def build_trade_state(events: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
 
         # Future: handle STATE_SNAPSHOT, etc. (non-terminal reconciliations)
 
-    # Default status if nothing changed it
-    if status == "UNKNOWN":
+    # FIX 1: Determine trade status using explicit EXIT events only
+    has_exit_event = any(e.get("event_type") in ("EXIT_BREAK_EVEN", "EXIT_STOP_LOSS")
+                         for e in events)
+    if has_exit_event:
+        status = "COMPLETED"
+    elif any(e.get("event_type") == "BE_TRIGGERED" for e in events):
+        status = "BE_PROTECTED"
+    else:
         status = "ACTIVE"
 
     # For calendar / summary stats, we want a "max_mfe" concept.

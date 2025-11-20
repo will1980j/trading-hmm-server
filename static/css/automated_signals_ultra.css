@@ -239,3 +239,55 @@
 .as-strength-bar {
     background: rgba(255, 255, 255, 0.15) !important;
 }
+
+/* ULTRA DASHBOARD PATCH SET — Sticky Headers + Dark Mode Fixes */
+
+/* FIX 6: Sticky table header */
+.as-trades-wrapper table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #0f172a !important;
+    color: #e5e7eb !important;
+    z-index: 5;
+}
+
+/* Fix unreadable text in calendar + modal */
+.as-calendar-day,
+.as-calendar-day-date,
+.as-calendar-day-meta,
+.as-modal,
+.as-modal .card-body,
+.as-event-item,
+.card-header {
+    color: #e5e7eb !important;
+}
+
+/* Fix white telemetry table background */
+.as-trades-wrapper table,
+.as-trades-wrapper table tbody tr td {
+    background-color: #020617 !important;
+    color: #e5e7eb !important;
+}
+
+/* Strength bars readable */
+.as-strength-bar {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ULTRA DASHBOARD PATCH SET PART 2 — Force Dark Theme Everywhere */
+
+/* FIX 5: Force light text on all elements inside Ultra Dashboard */
+#as-ultra-root,
+#as-ultra-root * {
+    color: #e5e7eb !important;
+}
+
+/* Fix remaining white backgrounds */
+#as-ultra-root table,
+#as-ultra-root thead,
+#as-ultra-root tbody,
+#as-ultra-root tr,
+#as-ultra-root td,
+#as-ultra-root th {
+    background-color: #020617 !important;
+}

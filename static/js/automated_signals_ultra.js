@@ -119,6 +119,12 @@ function asApplyFilters() {
         return true;
     });
     AS.state.filteredTrades = filtered;
+    // FIX 3: Sort newest trades first
+    AS.state.filteredTrades.sort((a, b) => {
+        const timeA = new Date(a.last_event_time || 0);
+        const timeB = new Date(b.last_event_time || 0);
+        return timeB - timeA;
+    });
     asRenderTradesTable();
     asUpdateSummary();
 }
@@ -190,6 +196,13 @@ function asRenderTradesTable() {
     trades.forEach(t => {
         const tr = document.createElement('tr');
         tr.dataset.tradeId = t.trade_id;
+        
+        // FIX 2: Correct combined MFE logic
+        const mfeCombined = Math.max(
+            Number(t.be_mfe_R ?? -Infinity),
+            Number(t.no_be_mfe_R ?? -Infinity)
+        );
+        
         // Time formatting
         const ts = t.timestamp ? new Date(t.timestamp) : null;
         const timeStr = ts
@@ -209,25 +222,29 @@ function asRenderTradesTable() {
         const statusPill = `<span class="pill ${statusClass}">${t.status}</span>`;
         // Session pill
         const sessionPill = `<span class="pill pill-session">${t.session}</span>`;
-        // Signal strength bar
-        const strength = t.setup?.signal_strength ?? null;
-        const strengthFill =
-            strength != null
-                ? `<div class="as-strength-fill" style="width:${Math.min(100, Math.max(0, strength))}%;"></div>`
-                : '';
+        
+        // FIX 1: Entry & exit normalisation
+        const entry = t.entry_price ?? t.entry ?? null;
+        const exit = t.exit_price ?? t.exit ?? null;
+        
+        // FIX 2: Strength bar not rendering
+        const strength = t.setup?.signal_strength ?? t.signal_strength ?? null;
+        const strengthFill = strength != null
+            ? `<div class="as-strength-bar-fill" style="width:${Math.min(100, Math.max(0, strength))}%;"></div>`
+            : '';
         // Build row
         tr.innerHTML = `
             <td>${timeStr}</td>
             <td>${dirPill}</td>
             <td>${sessionPill}</td>
             <td>${statusPill}</td>
-            <td>${t.setup?.setup_family || ''} ${t.setup?.setup_variant ? '· ' + t.setup.setup_variant : ''}</td>
+            <td>${t.setup?.id || t.setup?.setup_id || '--'}</td>
             <td><div class="as-strength-bar">${strengthFill}</div></td>
-            <td>${fmtR(t.current_mfe)}</td>
+            <td>${fmtR(mfeCombined)}</td>
             <td>${fmtR(t.no_be_mfe_R)}</td>
             <td>${fmtR(t.final_mfe)}</td>
-            <td>${t.entry_price != null ? t.entry_price.toFixed(2) : ''}</td>
-            <td>${t.exit_price != null ? t.exit_price.toFixed(2) : ''}</td>
+            <td>${entry != null ? entry.toFixed(2) : '--'}</td>
+            <td>${exit != null ? exit.toFixed(2) : '--'}</td>
         `;
         // Click handler for details modal
         tr.onclick = () => asOpenTradeDetail(t.trade_id);
@@ -323,8 +340,8 @@ function asRenderTradeDetail(detail) {
         const s = detail.setup;
         const t = detail.targets || {};
         setupEl.innerHTML = `
-            <div class="mb-1"><strong>Family:</strong> ${s.setup_family || '–'}</div>
-            <div class="mb-1"><strong>Variant:</strong> ${s.setup_variant || '–'}</div>
+            <div class="mb-1"><strong>Family:</strong> ${s.setup_family || s.family || '–'}</div>
+            <div class="mb-1"><strong>Variant:</strong> ${s.setup_variant || s.variant || '–'}</div>
             <div class="mb-1"><strong>Signal Strength:</strong> ${s.signal_strength != null ? s.signal_strength.toFixed(0) : '–'}</div>
             <hr>
             <div class="mb-1"><strong>TP1:</strong> ${t.tp1_price != null ? t.tp1_price.toFixed(2) : '–'} ${t.target_Rs?.[0] != null ? `(${t.target_Rs[0].toFixed(2)}R)` : ''}</div>
@@ -369,11 +386,14 @@ function asRenderTradeTimelineAndChart(detail) {
     const events = detail.events || [];
     const labels = [];
     const mfeData = [];
-    events.forEach(ev => {
-        const ts = ev.timestamp ? new Date(ev.timestamp) : null;
+    events.forEach((ev, index) => {
+        // FIX 4: Robust timestamp parsing
+        const ts = ev.timestamp
+            ? (Date.parse(ev.timestamp.replace(" ", "T")) || null)
+            : null;
         const timeStr = ts
-            ? ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-            : '';
+            ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            : `Event ${index + 1}`;
         // Correct: Use telemetry MFE first, fall back to direct
         const effMfe =
             ev.telemetry?.mfe_R != null
@@ -394,8 +414,8 @@ function asRenderTradeTimelineAndChart(detail) {
             <div class="${mfeClass}">MFE: ${effMfe != null ? effMfe.toFixed(2) + 'R' : '–'}</div>
         `;
         eventsEl.appendChild(row);
-        // Add to chart data
-        if (ts && effMfe != null) {
+        // FIX 4: Add to chart data (filter out null/NaN)
+        if (Number.isFinite(effMfe)) {
             labels.push(timeStr);
             mfeData.push(effMfe);
         }
@@ -542,3 +562,9 @@ if (document.readyState === 'loading') {
 } else {
     asInit();
 }
+
+// FIX 4: Auto-refresh every 60 seconds
+setInterval(() => {
+    console.log("🔄 Auto-refreshing Ultra Dashboard...");
+    asFetchHubData();
+}, 60000);
