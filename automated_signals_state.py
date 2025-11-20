@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import psycopg2
 import psycopg2.extras
+import pytz
 
 
 # --- DB helpers -------------------------------------------------------------
@@ -53,8 +54,19 @@ def build_trade_state(events: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     # PHASE 7.A: Extract from telemetry if available, fallback to legacy columns
     telemetry = first.get("telemetry")
     if telemetry:
-        direction = telemetry.get("direction") or first["direction"]
-        session = telemetry.get("session") or first["session"]
+        raw_direction = telemetry.get("direction") or first["direction"]
+        # FIX 1: Standardize direction format
+        if raw_direction:
+            if raw_direction.upper() in ("LONG", "BULLISH"):
+                direction = "Bullish"
+            elif raw_direction.upper() in ("SHORT", "BEARISH"):
+                direction = "Bearish"
+            else:
+                direction = raw_direction
+        else:
+            direction = "Other"
+        # FIX 3: Session with fallback
+        session = telemetry.get("session") or first.get("session") or "Other"
         entry_price = _decimal_to_float(telemetry.get("entry_price") or first.get("entry_price"))
         stop_loss = _decimal_to_float(telemetry.get("stop_loss") or first.get("stop_loss"))
         targets = telemetry.get("targets") or first.get("targets")
@@ -72,8 +84,18 @@ def build_trade_state(events: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         market_vol_regime = market_state.get("volatility_regime")
     else:
         # Legacy path
-        direction = first["direction"]
-        session = first["session"]
+        raw_direction = first["direction"]
+        # FIX 1: Standardize direction format
+        if raw_direction:
+            if raw_direction.upper() in ("LONG", "BULLISH"):
+                direction = "Bullish"
+            elif raw_direction.upper() in ("SHORT", "BEARISH"):
+                direction = "Bearish"
+            else:
+                direction = raw_direction
+        else:
+            direction = "Other"
+        session = first.get("session") or "Other"
         entry_price = _decimal_to_float(first.get("entry_price"))
         stop_loss = _decimal_to_float(first.get("stop_loss"))
         targets = first.get("targets")
@@ -188,8 +210,10 @@ def build_trade_state(events: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     if max_mfe_for_stats is None:
         max_mfe_for_stats = max_be_mfe
 
-    # Grab signal_date (assumed same for all rows of a trade)
+    # FIX 5: Grab signal_date with fallback to timestamp
     signal_date = events[0].get("signal_date")
+    if not signal_date and last_event_time:
+        signal_date = last_event_time.date()
     signal_time = events[0].get("signal_time")
 
     trade_state = {
@@ -283,7 +307,10 @@ def _fetch_events_for_range(
 def _group_events_by_trade(rows: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
     grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for row in rows:
-        grouped[row["trade_id"]].append(row)
+        # FIX 6: Remove thousands separators from trade_id
+        trade_id = str(row["trade_id"]).replace(",", "")
+        row["trade_id"] = trade_id
+        grouped[trade_id].append(row)
     return grouped
 
 
@@ -390,10 +417,22 @@ def get_hub_data(
             continue
 
         # PHASE 7.A: Flatten for table list with telemetry-rich fields
+        # FIX 4: Add New York time conversion
+        time_et_str = state["signal_time"]
+        if state.get("last_event_time"):
+            try:
+                from datetime import datetime
+                import pytz
+                last_ts = datetime.fromisoformat(state["last_event_time"])
+                et = last_ts.astimezone(pytz.timezone("America/New_York"))
+                time_et_str = et.strftime("%H:%M:%S")
+            except:
+                pass
+        
         all_trades.append({
             "trade_id": state["trade_id"],
             "date": state["signal_date"],
-            "time_et": state["signal_time"],
+            "time_et": time_et_str,
             "direction": state["direction"],
             "session": state["session"],
             "status": state["status"],
@@ -405,17 +444,22 @@ def get_hub_data(
             "final_mfe_R": state["final_mfe_R"],
             "last_event_time": state["last_event_time"],
             # PHASE 7.A: Nested telemetry objects
+            # FIX 7: Full telemetry object support
             "setup": {
-                "family": state.get("setup_family"),
-                "variant": state.get("setup_variant"),
-                "id": state.get("setup_id"),
+                "setup_family": state.get("setup_family"),
+                "setup_variant": state.get("setup_variant"),
+                "setup_id": state.get("setup_id"),
                 "signal_strength": state.get("setup_strength")
             },
             "market_state": {
                 "trend_regime": state.get("market_trend_regime"),
                 "volatility_regime": state.get("market_vol_regime")
             },
-            "targets": state.get("targets")
+            "targets": state.get("targets"),
+            # Add current MFE for active trades
+            "current_mfe": state.get("no_be_mfe_R") or state.get("be_mfe_R"),
+            "exit_price": state.get("exit_price"),
+            "exit_reason": state.get("completed_reason")
         })
 
     calendar = build_calendar_view(all_trades)

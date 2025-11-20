@@ -198,3 +198,44 @@
 .as-event-mfe-neutral {
     color: #9ca3af;
 }
+
+/* PHASE ULTRA — Dark Mode & Table Styling Fixes */
+
+/* Force dark table */
+.as-table-container table {
+    background: #111 !important;
+    color: #ddd !important;
+}
+
+.as-table-container td,
+.as-table-container th {
+    color: #ddd !important;
+    border-color: #333 !important;
+}
+
+/* Modal */
+.as-modal-content {
+    color: #eee !important;
+}
+
+.as-modal-content h3,
+.as-modal-content .as-meta,
+.as-modal-content .as-setup,
+.as-modal-content .as-market {
+    color: #eee !important;
+}
+
+/* Pill fixes */
+.as-pill {
+    color: #fff !important;
+}
+
+/* Timeline items */
+.as-timeline-item {
+    color: #ddd !important;
+}
+
+/* Fix strength bar visibility */
+.as-strength-bar {
+    background: rgba(255, 255, 255, 0.15) !important;
+}
