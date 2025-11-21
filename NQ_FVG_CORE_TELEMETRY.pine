@@ -1130,7 +1130,7 @@ f_buildPayload(
          '","trade_id":"' + tradeId +
          '","event_type":"' + eventType +
          '","event_timestamp":"' + ts +
-         '","symbol":"' + sym +
+         '","symbol":"' + symbol +
          '","exchange":"' + syminfo.ticker +
          '","timeframe":"' + timeframeStr +
          '","session":"' + sess +
@@ -1293,7 +1293,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
                 float mfe_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
                 
                 // Build telemetry payload for MFE_UPDATE event
-                string mfe_update_payload = f_buildPayload(EVENT_MFE_UPDATE, signal_id_to_update, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, current_mfe_be, 0.0, float(na), float(na), "", mfe_target_1r, mfe_target_2r, mfe_target_3r, "FVG_CORE", "ACTIVE", bias, timeframe.period)
+                string mfe_update_payload = f_buildPayload(EVENT_MFE_UPDATE, signal_id_to_update, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, current_mfe_be, 0.0, float(na), float(na), "", mfe_target_1r, mfe_target_2r, mfe_target_3r, "FVG_CORE", "ACTIVE", bias, syminfo.ticker, timeframe.period)
                 
                 // Send MFE update once per bar (not every tick)
                 // MODIFIED: Send for ALL active signals on real-time bars only
@@ -1336,7 +1336,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_trigger
                     float be_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
                     
                     // Build telemetry payload for BE_TRIGGERED event
-                    string be_trigger_payload = f_buildPayload(EVENT_BE_TRIGGERED, signal_id_for_be, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, current_be_mfe, 0.0, float(na), float(na), "", be_target_1r, be_target_2r, be_target_3r, "FVG_CORE", "BE_PROTECTED", bias, timeframe.period)
+                    string be_trigger_payload = f_buildPayload(EVENT_BE_TRIGGERED, signal_id_for_be, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, current_be_mfe, 0.0, float(na), float(na), "", be_target_1r, be_target_2r, be_target_3r, "FVG_CORE", "BE_PROTECTED", bias, syminfo.ticker, timeframe.period)
                     
                     // Send BE trigger webhook
                     alert(be_trigger_payload, alert.freq_once_per_bar_close)
@@ -1387,7 +1387,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped
                 float exit_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
                 
                 // Build telemetry payload for EXIT event
-                string completion_payload = f_buildPayload(exit_event_type, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, final_be_mfe, 0.0, be_stopped ? 0.0 : final_no_be_mfe, sig_stop, completion_reason, exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", be_stopped ? "EXIT_BE" : "EXIT_SL", bias, timeframe.period)
+                string completion_payload = f_buildPayload(exit_event_type, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, final_be_mfe, 0.0, be_stopped ? 0.0 : final_no_be_mfe, sig_stop, completion_reason, exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", be_stopped ? "EXIT_BE" : "EXIT_SL", bias, syminfo.ticker, timeframe.period)
                 
                 // Send completion webhook
                 alert(completion_payload, alert.freq_once_per_bar_close)

@@ -10473,12 +10473,30 @@ def automated_signals_webhook():
         if not data:
             return jsonify({"success": False, "error": "No data provided"}), 400
         
-        # DUAL FORMAT SUPPORT: Strategy uses "type", Indicator uses "automation_stage"
+        # TRIPLE FORMAT SUPPORT: Strategy uses "type", Indicator uses "automation_stage", Telemetry uses "attributes"
         message_type = data.get('type')  # Strategy format
         automation_stage = data.get('automation_stage')  # Indicator format
+        attributes = data.get('attributes')  # Telemetry format (NQ_FVG_CORE_TELEMETRY.pine)
         
-        # Determine event type from either format
-        if message_type:
+        # Determine event type from any of the three formats
+        if attributes:
+            # TELEMETRY FORMAT (NQ_FVG_CORE_TELEMETRY.pine)
+            # Extract event type and trade ID from attributes
+            event_type = attributes.get('event_type')
+            trade_id = attributes.get('trade_id')
+            
+            # Promote only required fields to top level for pipeline compatibility
+            # DO NOT flatten nested objects (market_state, setup, targets remain nested)
+            for key in [
+                'direction', 'entry_price', 'stop_loss', 'session',
+                'strategy_id', 'strategy_name', 'strategy_version',
+                'position_size', 'risk_R', 'mfe_R', 'be_price'
+            ]:
+                if attributes.get(key) is not None:
+                    data[key] = attributes[key]
+            
+            logger.info(f"📥 Telemetry signal: event_type={event_type}, id={trade_id}")
+        elif message_type:
             # STRATEGY FORMAT (complete_automated_trading_system.pine)
             # Support BOTH old format (signal_created) and new format (ENTRY)
             type_to_event = {
