@@ -10473,29 +10473,93 @@ def automated_signals_webhook():
         if not data:
             return jsonify({"success": False, "error": "No data provided"}), 400
         
-        # TRIPLE FORMAT SUPPORT: Strategy uses "type", Indicator uses "automation_stage", Telemetry uses "attributes"
-        message_type = data.get('type')  # Strategy format
-        automation_stage = data.get('automation_stage')  # Indicator format
-        attributes = data.get('attributes')  # Telemetry format (NQ_FVG_CORE_TELEMETRY.pine)
+        # THREE FORMAT SUPPORT:
+        # 1) Strategy:        top-level "type"
+        # 2) Legacy indicator: "automation_stage"
+        # 3) Telemetry:       TradingView strategy wrapper with "attributes"
         
-        # Determine event type from any of the three formats
-        if attributes:
-            # TELEMETRY FORMAT (NQ_FVG_CORE_TELEMETRY.pine)
-            # Extract event type and trade ID from attributes
-            event_type = attributes.get('event_type')
-            trade_id = attributes.get('trade_id')
+        attributes = data.get('attributes')
+        message_type = data.get('type')
+        automation_stage = data.get('automation_stage')
+        
+        event_type = None
+        trade_id = None
+        
+        if isinstance(attributes, dict):
+            # TELEMETRY FORMAT (wrapped payload from NQ_FVG_CORE_TELEMETRY_V1_DEV)
+            #
+            # Example inner payload (from f_buildPayload in Pine):
+            # {
+            #   "schema_version": "...",
+            #   "engine_version": "...",
+            #   "strategy_name": "...",
+            #   "strategy_id": "...",
+            #   "strategy_version": "...",
+            #   "trade_id": "...",
+            #   "event_type": "ENTRY" / "MFE_UPDATE" / "BE_TRIGGERED" / "EXIT_BREAK_EVEN" / "EXIT_STOP_LOSS",
+            #   "event_timestamp": "...",
+            #   "symbol": "...",
+            #   "exchange": "...",
+            #   "timeframe": "...",
+            #   "session": "...",
+            #   "direction": "...",
+            #   "entry_price": ...,
+            #   "stop_loss": ...,
+            #   "risk_R": ...,
+            #   "position_size": ...,
+            #   "be_price": ...,
+            #   "mfe_R": ...,
+            #   "mae_R": ...,
+            #   "final_mfe_R": ...,
+            #   "exit_price": ...,
+            #   "exit_timestamp": ...,
+            #   "exit_reason": ...,
+            #   "targets": {...},
+            #   "setup": {...},
+            #   "market_state": {...}
+            # }
             
-            # Promote only required fields to top level for pipeline compatibility
-            # DO NOT flatten nested objects (market_state, setup, targets remain nested)
+            # 1) Extract core routing fields
+            event_type = attributes.get("event_type")
+            trade_id = attributes.get("trade_id")
+            
+            # 2) Promote ONLY the fields the backend actually uses to the top level
+            #    so the rest of the handler can remain unchanged.
             for key in [
-                'direction', 'entry_price', 'stop_loss', 'session',
-                'strategy_id', 'strategy_name', 'strategy_version',
-                'position_size', 'risk_R', 'mfe_R', 'be_price'
+                "schema_version",
+                "engine_version",
+                "strategy_name",
+                "strategy_id",
+                "strategy_version",
+                "event_timestamp",
+                "symbol",
+                "exchange",
+                "timeframe",
+                "session",
+                "direction",
+                "entry_price",
+                "stop_loss",
+                "risk_R",
+                "position_size",
+                "be_price",
+                "mfe_R",
+                "mae_R",
+                "final_mfe_R",
+                "exit_price",
+                "exit_reason",
             ]:
-                if attributes.get(key) is not None:
+                if key in attributes:
                     data[key] = attributes[key]
             
-            logger.info(f"📥 Telemetry signal: event_type={event_type}, id={trade_id}")
+            # Map telemetry exit types to internal names
+            telemetry_to_internal = {
+                "EXIT_BREAK_EVEN": "EXIT_BE",
+                "EXIT_STOP_LOSS": "EXIT_SL",
+            }
+            if event_type in telemetry_to_internal:
+                event_type = telemetry_to_internal[event_type]
+            
+            logger.info(f"📥 Telemetry signal: event_type={event_type}, trade_id={trade_id}")
         elif message_type:
             # STRATEGY FORMAT (complete_automated_trading_system.pine)
             # Support BOTH old format (signal_created) and new format (ENTRY)
@@ -10528,11 +10592,13 @@ def automated_signals_webhook():
             trade_id = data.get('trade_id') or data.get('signal_id')
             logger.info(f"📥 Indicator signal: stage={automation_stage}, id={trade_id}")
         else:
-            return jsonify({"success": False, "error": "Missing type or automation_stage"}), 400
+            logger.error(f"❌ Unsupported webhook payload format: {data}")
+            return jsonify({"success": False, "error": "Unsupported payload format"}), 400
         
         # Validate event type
         if not event_type:
-            return jsonify({"success": False, "error": f"Unknown message type: {message_type or automation_stage}"}), 400
+            format_info = f"type={message_type}" if message_type else f"automation_stage={automation_stage}" if automation_stage else "attributes"
+            return jsonify({"success": False, "error": f"Unknown event type from {format_info}"}), 400
         
         # Handle different event types
         if event_type == "ENTRY":
