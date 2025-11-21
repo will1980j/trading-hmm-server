@@ -3,6 +3,7 @@ from flask import Flask, render_template, render_template_string, send_from_dire
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from os import environ, path
+import json
 from json import loads, dumps
 from dotenv import load_dotenv
 # No OpenAI library needed - using direct HTTP
@@ -10447,9 +10448,23 @@ def automated_signals_webhook():
     Handles signals from BOTH:
     - enhanced_fvg_indicator_v2_full_automation.pine (automation_stage format)
     - complete_automated_trading_system.pine (type format)
+    
+    ACCEPTS ANY CONTENT-TYPE: TradingView may send with various Content-Type headers
     """
     try:
-        data = request.get_json()
+        # First try the normal Flask JSON parsing
+        data = None
+        try:
+            data = request.get_json(silent=True)
+        except Exception:
+            data = None
+        
+        # Fallback: if no JSON detected, try to decode raw body as JSON
+        if data is None:
+            raw = request.data.decode("utf-8") if request.data else ""
+            if not raw:
+                return jsonify({"success": False, "error": "Empty request body from webhook"}), 400
+            data = json.loads(raw)
         
         if not data:
             return jsonify({"success": False, "error": "No data provided"}), 400
