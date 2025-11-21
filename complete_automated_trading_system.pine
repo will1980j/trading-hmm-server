@@ -1046,7 +1046,7 @@ telemetry_symbol_override  = input.symbol("", "Symbol Override")
 
 // Fallback to actual chart symbol
 f_symbol() =>
-    telemetry_symbol_override == "" ? syminfo.tickerid : telemetry_symbol_override
+    telemetry_symbol_override != "" ? telemetry_symbol_override : syminfo.ticker
 
 // ============================================================================
 // HELPER FUNCTIONS (TOP-LEVEL)
