@@ -10445,113 +10445,79 @@ def automated_signals_webhook_alias():
 def automated_signals_webhook():
     """
     Webhook endpoint for automated trading signals from TradingView
-    Handles signals from BOTH:
-    - enhanced_fvg_indicator_v2_full_automation.pine (automation_stage format)
-    - complete_automated_trading_system.pine (type format)
     
-    ACCEPTS ANY CONTENT-TYPE: TradingView may send with various Content-Type headers
+    Supported formats (tri-parser):
+    1) Strategy format (complete_automated_trading_system.pine)
+       {
+         "type": "signal_created" | "ENTRY" | "mfe_update" | "MFE_UPDATE" |
+                 "be_triggered" | "BE_TRIGGERED" | "signal_completed" |
+                 "EXIT_SL" | "EXIT_STOP_LOSS" | "EXIT_BREAK_EVEN",
+         "signal_id": "..."
+       }
+    
+    2) Legacy indicator format (enhanced_fvg_indicator_v2_full_automation.pine)
+       {
+         "automation_stage": "SIGNAL_DETECTED" | "CONFIRMATION_DETECTED" |
+                             "TRADE_ACTIVATED" | "MFE_UPDATE" |
+                             "TRADE_RESOLVED" | "SIGNAL_CANCELLED",
+         "trade_id": "...",
+       }
+    
+    3) Telemetry format (NQ_FVG_CORE_TELEMETRY)
+       Wrapped:
+       {
+         "attributes": {
+           "trade_id": "...",
+           "event_type": "ENTRY" | "MFE_UPDATE" | "BE_TRIGGERED" |
+                         "EXIT_BREAK_EVEN" | "EXIT_STOP_LOSS"
+           ...
+         }
+       }
+       
+       Root:
+       {
+         "trade_id": "...",
+         "event_type": "ENTRY" | "MFE_UPDATE" | "BE_TRIGGERED" |
+                       "EXIT_BREAK_EVEN" | "EXIT_STOP_LOSS",
+         "schema_version": "..."
+         ...
+       }
     """
     try:
-        # Log raw body for debugging malformed JSON
-        raw_body = request.data.decode("utf-8", errors="ignore")
-        logger.error("🔎 RAW WEBHOOK BODY:\n" + raw_body)
+        data = request.get_json(force=True, silent=True)
+        logger.info("🟦 RAW WEBHOOK DATA RECEIVED: %s", data)
         
-        # First try the normal Flask JSON parsing
-        data = None
-        try:
-            data = request.get_json(silent=True)
-        except Exception:
-            data = None
+        if not data or not isinstance(data, dict):
+            return jsonify({"success": False, "error": "No valid JSON data provided"}), 400
         
-        # Fallback: if no JSON detected, try to decode raw body as JSON
-        if data is None:
-            raw = request.data.decode("utf-8") if request.data else ""
-            if not raw:
-                return jsonify({"success": False, "error": "Empty request body from webhook"}), 400
-            data = json.loads(raw)
-        
-        if not data:
-            return jsonify({"success": False, "error": "No data provided"}), 400
-        
-        # THREE FORMAT SUPPORT:
-        # 1) Strategy:        top-level "type"
-        # 2) Legacy indicator: "automation_stage"
-        # 3) Telemetry:       TradingView strategy wrapper with "attributes"
-        
-        attributes = data.get('attributes')
+        attributes = data.get('attributes') if isinstance(data.get('attributes'), dict) else None
         message_type = data.get('type')
         automation_stage = data.get('automation_stage')
         
         event_type = None
         trade_id = None
+        format_kind = None
         
-        if isinstance(attributes, dict):
-            # TELEMETRY FORMAT (wrapped payload from NQ_FVG_CORE_TELEMETRY_V1_DEV)
-            #
-            # Example inner payload (from f_buildPayload in Pine):
-            # {
-            #   "schema_version": "...",
-            #   "engine_version": "...",
-            #   "strategy_name": "...",
-            #   "strategy_id": "...",
-            #   "strategy_version": "...",
-            #   "trade_id": "...",
-            #   "event_type": "ENTRY" / "MFE_UPDATE" / "BE_TRIGGERED" / "EXIT_BREAK_EVEN" / "EXIT_STOP_LOSS",
-            #   "event_timestamp": "...",
-            #   "symbol": "...",
-            #   "exchange": "...",
-            #   "timeframe": "...",
-            #   "session": "...",
-            #   "direction": "...",
-            #   "entry_price": ...,
-            #   "stop_loss": ...,
-            #   "risk_R": ...,
-            #   "position_size": ...,
-            #   "be_price": ...,
-            #   "mfe_R": ...,
-            #   "mae_R": ...,
-            #   "final_mfe_R": ...,
-            #   "exit_price": ...,
-            #   "exit_timestamp": ...,
-            #   "exit_reason": ...,
-            #   "targets": {...},
-            #   "setup": {...},
-            #   "market_state": {...}
-            # }
-            
-            # 1) Extract core routing fields
+        # TELEMETRY (wrapped or root)
+        if attributes is None and "event_type" in data and "schema_version" in data:
+            attributes = data
+            format_kind = "telemetry_root"
+        elif attributes is not None:
+            format_kind = "telemetry_wrapped"
+        
+        if attributes is not None:
             event_type = attributes.get("event_type")
             trade_id = attributes.get("trade_id")
             
-            # 2) Promote ONLY the fields the backend actually uses to the top level
-            #    so the rest of the handler can remain unchanged.
-            for key in [
-                "schema_version",
-                "engine_version",
-                "strategy_name",
-                "strategy_id",
-                "strategy_version",
-                "event_timestamp",
-                "symbol",
-                "exchange",
-                "timeframe",
-                "session",
-                "direction",
-                "entry_price",
-                "stop_loss",
-                "risk_R",
-                "position_size",
-                "be_price",
-                "mfe_R",
-                "mae_R",
-                "final_mfe_R",
-                "exit_price",
-                "exit_reason",
-            ]:
+            for key in ["schema_version", "engine_version", "strategy_name", "strategy_id",
+                        "strategy_version", "event_timestamp", "symbol", "exchange",
+                        "timeframe", "session", "direction", "entry_price", "stop_loss",
+                        "risk_R", "position_size", "be_price", "mfe_R", "mae_R",
+                        "final_mfe_R", "exit_price", "exit_reason",
+                       ]:
                 if key in attributes:
                     data[key] = attributes[key]
             
-            # Map telemetry exit types to internal names
             telemetry_to_internal = {
                 "EXIT_BREAK_EVEN": "EXIT_BE",
                 "EXIT_STOP_LOSS": "EXIT_SL",
@@ -10559,68 +10525,76 @@ def automated_signals_webhook():
             if event_type in telemetry_to_internal:
                 event_type = telemetry_to_internal[event_type]
             
-            logger.info(f"📥 Telemetry signal: event_type={event_type}, trade_id={trade_id}")
+            logger.info(f"📥 Telemetry signal ({format_kind}): event_type={event_type}, trade_id={trade_id}")
+        
+        # STRATEGY (type)
         elif message_type:
-            # STRATEGY FORMAT (complete_automated_trading_system.pine)
-            # Support BOTH old format (signal_created) and new format (ENTRY)
+            format_kind = "strategy"
             type_to_event = {
                 'signal_created': 'ENTRY',
-                'ENTRY': 'ENTRY',  # Direct format from indicator
+                'ENTRY': 'ENTRY',
                 'mfe_update': 'MFE_UPDATE',
-                'MFE_UPDATE': 'MFE_UPDATE',  # Direct format from indicator
+                'MFE_UPDATE': 'MFE_UPDATE',
                 'be_triggered': 'BE_TRIGGERED',
-                'BE_TRIGGERED': 'BE_TRIGGERED',  # Direct format from indicator
+                'BE_TRIGGERED': 'BE_TRIGGERED',
                 'signal_completed': 'EXIT_SL',
-                'EXIT_SL': 'EXIT_SL',  # Direct format from indicator
-                'EXIT_STOP_LOSS': 'EXIT_SL',  # Alternative format
-                'EXIT_BREAK_EVEN': 'EXIT_BE'  # Alternative format
+                'EXIT_SL': 'EXIT_SL',
+                'EXIT_STOP_LOSS': 'EXIT_SL',
+                'EXIT_BREAK_EVEN': 'EXIT_BE',
             }
             event_type = type_to_event.get(message_type)
             trade_id = data.get('signal_id')
             logger.info(f"📥 Strategy signal: type={message_type}, id={trade_id}")
+        
+        # LEGACY INDICATOR (automation_stage)
         elif automation_stage:
-            # INDICATOR FORMAT (enhanced_fvg_indicator_v2_full_automation.pine)
+            format_kind = "legacy_indicator"
             stage_to_event = {
                 'SIGNAL_DETECTED': 'ENTRY',
                 'CONFIRMATION_DETECTED': 'ENTRY',
                 'TRADE_ACTIVATED': 'ENTRY',
                 'MFE_UPDATE': 'MFE_UPDATE',
                 'TRADE_RESOLVED': 'EXIT_SL',
-                'SIGNAL_CANCELLED': 'CANCELLED'
+                'SIGNAL_CANCELLED': 'CANCELLED',
             }
             event_type = stage_to_event.get(automation_stage)
             trade_id = data.get('trade_id') or data.get('signal_id')
             logger.info(f"📥 Indicator signal: stage={automation_stage}, id={trade_id}")
+        
         else:
             logger.error(f"❌ Unsupported webhook payload format: {data}")
             return jsonify({"success": False, "error": "Unsupported payload format"}), 400
         
-        # Validate event type
         if not event_type:
-            format_info = f"type={message_type}" if message_type else f"automation_stage={automation_stage}" if automation_stage else "attributes"
-            return jsonify({"success": False, "error": f"Unknown event type from {format_info}"}), 400
+            detail = {
+                "format_kind": format_kind,
+                "message_type": message_type,
+                "automation_stage": automation_stage,
+                "raw_event_type": data.get("event_type"),
+            }
+            return jsonify({"success": False,
+                           "error": f"Unknown event_type for format={format_kind}",
+                           "detail": detail}), 400
         
-        # Handle different event types
         if event_type == "ENTRY":
             result = handle_entry_signal(data)
         elif event_type == "MFE_UPDATE":
             result = handle_mfe_update(data)
         elif event_type == "BE_TRIGGERED":
             result = handle_be_trigger(data)
-        elif event_type == "EXIT_SL" or event_type == "EXIT_BE":
-            # Check resolution_type or completion_reason
-            resolution_type = data.get('resolution_type') or data.get('completion_reason', 'STOP_LOSS')
-            exit_type = "BREAK_EVEN" if 'be_stop' in resolution_type.lower() else "STOP_LOSS"
+        elif event_type in ("EXIT_SL", "EXIT_BE"):
+            resolution = data.get('resolution_type') or data.get('completion_reason', '')
+            exit_type = "BREAK_EVEN" if 'be' in resolution.lower() else "STOP_LOSS"
             result = handle_exit_signal(data, exit_type)
         elif event_type == "CANCELLED":
             result = {"success": True, "message": "Signal cancelled"}
         else:
-            return jsonify({"success": False, "error": f"Unknown event_type: {event_type}"}), 400
+            return jsonify({"success": False, "error": f"Unhandled event_type: {event_type}"}), 400
         
         return jsonify(result), 200 if result.get("success") else 500
         
     except Exception as e:
-        logger.error(f"❌ Automated signals webhook error: {str(e)}")
+        logger.error(f"❌ Automated signals webhook error: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 
