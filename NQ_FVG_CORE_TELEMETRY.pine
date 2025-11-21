@@ -1,5 +1,5 @@
 //@version=5
-strategy("NQ_FVG_CORE_TELEMETRY_V1", overlay=true, initial_capital=100000, default_qty_type=strategy.cash, commission_type=strategy.commission.cash_per_contract, commission_value=2.40, max_lines_count=500, max_labels_count=500, max_bars_back=5000, calc_on_every_tick=false, process_orders_on_close=true)
+strategy("NQ_FVG_CORE_TELEMETRY_V1_DEV", overlay=true, initial_capital=100000, default_qty_type=strategy.cash, commission_type=strategy.commission.cash_per_contract, commission_value=2.40, max_lines_count=500, max_labels_count=500, max_bars_back=5000, calc_on_every_tick=false, process_orders_on_close=true)
 
 // ============================================================================
 // EVENT TYPE CONSTANTS (DO NOT CHANGE - MUST MATCH DATABASE)
@@ -1044,11 +1044,6 @@ telemetry_strategy_id      = input.string("NQ_FVG_CORE", "Strategy ID")
 telemetry_strategy_version = input.string("2025.11.20", "Strategy Version")
 telemetry_symbol_override  = input.symbol("", "Symbol Override")
 
-// Fallback to actual chart symbol
-f_symbol() =>
-    telemetry_symbol_override != "" ? telemetry_symbol_override : syminfo.ticker
-
-
 // ============================================================================
 // HELPER FUNCTIONS (TOP-LEVEL)
 // ============================================================================
@@ -1094,41 +1089,87 @@ f_sessionLabel(timeMs) =>
 // ============================================================================
 // JSON HELPER FUNCTIONS
 // ============================================================================
-// Number or null
-f_num(x) =>
-    na(x) ? "null" : str.tostring(x)
-
-// String or null
-f_str(x) =>
-    x == "" ? "null" : '"' + x + '"'
-
 // ============================================================================
-// TARGETS JSON BUILDER
 // ============================================================================
-f_targetsJson(tp1, tp2, tp3, r1, r2, r3) =>
-    '"targets":{"tp1_price":' + f_num(tp1) + ',"tp2_price":' + f_num(tp2) + ',"tp3_price":' + f_num(tp3) + ',"target_Rs":[' + f_num(r1) + ',' + f_num(r2) + ',' + f_num(r3) + ']}'
-
 // ============================================================================
-// SETUP JSON BUILDER
-// ============================================================================
-f_setupJson(setupFamily, setupVariant, setupId, strength, trendScore, structureScore, volScore) =>
-    '"setup":{"setup_family":"' + setupFamily + '","setup_variant":"' + setupVariant + '","setup_id":"' + setupId + '","signal_strength":' + f_num(strength) + ',"confidence_components":{"trend_alignment":' + f_num(trendScore) + ',"structure_quality":' + f_num(structureScore) + ',"volatility_fit":' + f_num(volScore) + '}}'
-
-// ============================================================================
-// MARKET STATE JSON BUILDER
-// ============================================================================
-f_marketStateJson(trendRegime, trendScore, volRegime, atrVal, atrPct20, dayRangePct20, priceVsOpen, priceVsVwap, distHTF, swingState, bosChoCh, liquCtx) =>
-    '"market_state":{"trend_regime":"' + trendRegime + '","trend_score":' + f_num(trendScore) + ',"volatility_regime":"' + volRegime + '","atr":' + f_num(atrVal) + ',"atr_percentile_20d":' + f_num(atrPct20) + ',"daily_range_percentile_20d":' + f_num(dayRangePct20) + ',"price_location":{"vs_daily_open":' + f_num(priceVsOpen) + ',"vs_vwap":' + f_num(priceVsVwap) + ',"distance_to_HTF_level_points":' + f_num(distHTF) + '},"structure":{"swing_state":"' + swingState + '","bos_choch_signal":"' + bosChoCh + '","liquidity_context":"' + liquCtx + '"}}'
-
 // ============================================================================
 // MAIN TELEMETRY PAYLOAD BUILDER
 // ============================================================================
-f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, posSize, mfeR, maeR, finalMfeR, exitPrice, exitReason, tp1, tp2, tp3, setupFam, setupVar, htfBias, symbol, timeframeStr) =>
+// Number → JSON safe
+f_num(x) =>
+    na(x) ? "null" : str.tostring(x)
+
+// String → JSON safe
+f_str(x) =>
+    x == "" or na(x) ? "null" : '"' + x + '"'
+
+// Symbol helper (SAFE)
+f_symbol() =>
+    telemetry_symbol_override != "" ? telemetry_symbol_override : syminfo.ticker
+
+
+f_buildPayload(
+     eventType, tradeId, dir,
+     entryPrice, stopPrice, bePrice,
+     riskR, posSize, mfeR, maeR,
+     finalMfeR, exitPrice, exitReason,
+     tp1, tp2, tp3,
+     setupFam, setupVar, htfBias,
+     symbol, timeframeStr
+ ) =>
     sym  = f_symbol()
     ts   = f_isoTimestamp(time)
     sess = f_sessionLabel(time)
-    payload = '{"schema_version":"' + telemetry_schema_version + '","engine_version":"' + telemetry_engine_version + '","strategy_name":"' + telemetry_strategy_name + '","strategy_id":"' + telemetry_strategy_id + '","strategy_version":"' + telemetry_strategy_version + '","trade_id":"' + tradeId + '","event_type":"' + eventType + '","event_timestamp":"' + ts + '","symbol":"' + sym + '","exchange":"' + syminfo.ticker + '","timeframe":"' + timeframeStr + '","session":"' + sess + '","direction":' + f_str(dir) + ',"entry_price":' + f_num(entryPrice) + ',"stop_loss":' + f_num(stopPrice) + ',"risk_R":' + f_num(riskR) + ',"position_size":' + f_num(posSize) + ',"be_price":' + f_num(bePrice) + ',"mfe_R":' + f_num(mfeR) + ',"mae_R":' + f_num(maeR) + ',"final_mfe_R":' + f_num(finalMfeR) + ',"exit_price":' + f_num(exitPrice) + ',"exit_timestamp":null,"exit_reason":' + f_str(exitReason) + ',' + f_targetsJson(tp1, tp2, tp3, 1.0, 2.0, 3.0) + ',' + f_setupJson(setupFam, setupVar, setupFam + "_" + setupVar, 75.0, htfBias == "Bullish" or htfBias == "Bearish" ? 1.0 : 0.5, 0.8, 0.7) + ',' + f_marketStateJson(bias, bias == "Bullish" or bias == "Bearish" ? 0.8 : 0.3, "NORMAL", float(na), float(na), float(na), float(na), float(na), float(na), "UNKNOWN", "NONE", "NEUTRAL") + '}'
+
+    payload =
+         '{"schema_version":"' + telemetry_schema_version +
+         '","engine_version":"' + telemetry_engine_version +
+         '","strategy_name":"' + telemetry_strategy_name +
+         '","strategy_id":"' + telemetry_strategy_id +
+         '","strategy_version":"' + telemetry_strategy_version +
+         '","trade_id":"' + tradeId +
+         '","event_type":"' + eventType +
+         '","event_timestamp":"' + ts +
+         '","symbol":"' + sym +
+         '","exchange":"' + syminfo.ticker +
+         '","timeframe":"' + timeframeStr +
+         '","session":"' + sess +
+         '","direction":' + f_str(dir) +
+         ',"entry_price":' + f_num(entryPrice) +
+         ',"stop_loss":' + f_num(stopPrice) +
+         ',"risk_R":' + f_num(riskR) +
+         ',"position_size":' + f_num(posSize) +
+         ',"be_price":' + f_num(bePrice) +
+         ',"mfe_R":' + f_num(mfeR) +
+         ',"mae_R":' + f_num(maeR) +
+         ',"final_mfe_R":' + f_num(finalMfeR) +
+         ',"exit_price":' + f_num(exitPrice) +
+         ',"exit_timestamp":null' +
+         ',"exit_reason":' + f_str(exitReason) +
+
+         ',"targets":{"tp1_price":' + f_num(tp1) +
+             ',"tp2_price":' + f_num(tp2) +
+             ',"tp3_price":' + f_num(tp3) +
+             ',"target_Rs":[' + f_num(1.0) + ',' + f_num(2.0) + ',' + f_num(3.0) + ']}' +
+
+         ',"setup":{"setup_family":"' + setupFam +
+             '","setup_variant":"' + setupVar +
+             '","setup_id":"' + setupFam + '_' + setupVar +
+             '","signal_strength":75' +
+             ',"confidence_components":{"trend_alignment":' +
+                 f_num(htfBias == "Bullish" or htfBias == "Bearish" ? 1.0 : 0.5) +
+                 ',"structure_quality":0.8,"volatility_fit":0.7}}' +
+
+         ',"market_state":{"trend_regime":"' + htfBias +
+             '","trend_score":' + f_num(htfBias == "Bullish" or htfBias == "Bearish" ? 0.8 : 0.3) +
+             ',"volatility_regime":"NORMAL"' +
+             ',"atr":null,"atr_percentile_20d":null,"daily_range_percentile_20d":null' +
+             ',"price_location":{"vs_daily_open":null,"vs_vwap":null,"distance_to_HTF_level_points":null}' +
+             ',"structure":{"swing_state":"UNKNOWN","bos_choch_signal":"NONE","liquidity_context":"NEUTRAL"}}' +
+         '}'
+
     payload
+
 
 // Variables to track webhook sending for MULTIPLE signals
 var array<string> active_signal_ids = array.new_string(0)
@@ -1252,7 +1293,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
                 float mfe_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
                 
                 // Build telemetry payload for MFE_UPDATE event
-                string mfe_update_payload = f_buildPayload(EVENT_MFE_UPDATE, signal_id_to_update, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, current_mfe_be, 0.0, float(na), float(na), "", mfe_target_1r, mfe_target_2r, mfe_target_3r, "FVG_CORE", "ACTIVE", bias, syminfo.ticker, timeframe.period)
+                string mfe_update_payload = f_buildPayload(EVENT_MFE_UPDATE, signal_id_to_update, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, current_mfe_be, 0.0, float(na), float(na), "", mfe_target_1r, mfe_target_2r, mfe_target_3r, "FVG_CORE", "ACTIVE", bias, timeframe.period)
                 
                 // Send MFE update once per bar (not every tick)
                 // MODIFIED: Send for ALL active signals on real-time bars only
@@ -1295,7 +1336,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_trigger
                     float be_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
                     
                     // Build telemetry payload for BE_TRIGGERED event
-                    string be_trigger_payload = f_buildPayload(EVENT_BE_TRIGGERED, signal_id_for_be, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, current_be_mfe, 0.0, float(na), float(na), "", be_target_1r, be_target_2r, be_target_3r, "FVG_CORE", "BE_PROTECTED", bias, syminfo.ticker, timeframe.period)
+                    string be_trigger_payload = f_buildPayload(EVENT_BE_TRIGGERED, signal_id_for_be, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, current_be_mfe, 0.0, float(na), float(na), "", be_target_1r, be_target_2r, be_target_3r, "FVG_CORE", "BE_PROTECTED", bias, timeframe.period)
                     
                     // Send BE trigger webhook
                     alert(be_trigger_payload, alert.freq_once_per_bar_close)
@@ -1346,7 +1387,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped
                 float exit_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
                 
                 // Build telemetry payload for EXIT event
-                string completion_payload = f_buildPayload(exit_event_type, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, final_be_mfe, 0.0, be_stopped ? 0.0 : final_no_be_mfe, sig_stop, completion_reason, exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", be_stopped ? "EXIT_BE" : "EXIT_SL", bias, syminfo.ticker, timeframe.period)
+                string completion_payload = f_buildPayload(exit_event_type, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, final_be_mfe, 0.0, be_stopped ? 0.0 : final_no_be_mfe, sig_stop, completion_reason, exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", be_stopped ? "EXIT_BE" : "EXIT_SL", bias, timeframe.period)
                 
                 // Send completion webhook
                 alert(completion_payload, alert.freq_once_per_bar_close)
