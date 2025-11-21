@@ -10452,6 +10452,10 @@ def automated_signals_webhook():
     ACCEPTS ANY CONTENT-TYPE: TradingView may send with various Content-Type headers
     """
     try:
+        # Log raw body for debugging malformed JSON
+        raw_body = request.data.decode("utf-8", errors="ignore")
+        logger.error("🔎 RAW WEBHOOK BODY:\n" + raw_body)
+        
         # First try the normal Flask JSON parsing
         data = None
         try:
