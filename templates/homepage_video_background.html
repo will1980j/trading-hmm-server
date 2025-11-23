@@ -1,13 +1,12 @@
-{% extends "layout.html" %}
-
-{% block title %}Homepage{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}">
-{% endblock %}
-
-{% block content %}
-<div class="homepage-container">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Second Skies Trading - Homepage</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}">
+</head>
+<body>
     <!-- Video Background Container -->
     <div id="videoContainer" class="video-container">
         <video id="backgroundVideo" autoplay muted loop playsinline>
@@ -41,7 +40,7 @@
         <!-- Hero Section -->
         <section class="hero-section">
             <div class="hero-content">
-                <h1 class="hero-title">Professional Trading Platform</h1>
+                <h1 class="hero-title">Second Skies Trading</h1>
                 <p class="hero-subtitle">Advanced algorithmic trading with real-time signal processing</p>
             </div>
         </section>
@@ -283,105 +282,94 @@
             </div>
         </section>
     </main>
-</div>
 
-<script>
-// 86-Video Background Rotation System
-const videoSources = [
-    '/proxy-video/1', '/proxy-video/2', '/proxy-video/3', '/proxy-video/4', '/proxy-video/5',
-    '/proxy-video/6', '/proxy-video/7', '/proxy-video/8', '/proxy-video/9', '/proxy-video/10',
-    '/proxy-video/11', '/proxy-video/12', '/proxy-video/13', '/proxy-video/14', '/proxy-video/15',
-    '/proxy-video/16', '/proxy-video/17', '/proxy-video/18', '/proxy-video/19', '/proxy-video/20',
-    '/proxy-video/21', '/proxy-video/22', '/proxy-video/23', '/proxy-video/24', '/proxy-video/25',
-    '/proxy-video/26', '/proxy-video/27', '/proxy-video/28', '/proxy-video/29', '/proxy-video/30',
-    '/proxy-video/31', '/proxy-video/32', '/proxy-video/33', '/proxy-video/34', '/proxy-video/35',
-    '/proxy-video/36', '/proxy-video/37', '/proxy-video/38', '/proxy-video/39', '/proxy-video/40',
-    '/proxy-video/41', '/proxy-video/42', '/proxy-video/43', '/proxy-video/44', '/proxy-video/45',
-    '/proxy-video/46', '/proxy-video/47', '/proxy-video/48', '/proxy-video/49', '/proxy-video/50',
-    '/proxy-video/51', '/proxy-video/52', '/proxy-video/53', '/proxy-video/54', '/proxy-video/55',
-    '/proxy-video/56', '/proxy-video/57', '/proxy-video/58', '/proxy-video/59', '/proxy-video/60',
-    '/proxy-video/61', '/proxy-video/62', '/proxy-video/63', '/proxy-video/64', '/proxy-video/65',
-    '/proxy-video/66', '/proxy-video/67', '/proxy-video/68', '/proxy-video/69', '/proxy-video/70',
-    '/proxy-video/71', '/proxy-video/72', '/proxy-video/73', '/proxy-video/74', '/proxy-video/75',
-    '/proxy-video/76', '/proxy-video/77', '/proxy-video/78', '/proxy-video/79', '/proxy-video/80',
-    '/proxy-video/81', '/proxy-video/82', '/proxy-video/83', '/proxy-video/84', '/proxy-video/85',
-    '/proxy-video/86'
-];
+    <script>
+    // 86-Video Background Rotation System
+    const videoSources = [
+        '/proxy-video/1', '/proxy-video/2', '/proxy-video/3', '/proxy-video/4', '/proxy-video/5',
+        '/proxy-video/6', '/proxy-video/7', '/proxy-video/8', '/proxy-video/9', '/proxy-video/10',
+        '/proxy-video/11', '/proxy-video/12', '/proxy-video/13', '/proxy-video/14', '/proxy-video/15',
+        '/proxy-video/16', '/proxy-video/17', '/proxy-video/18', '/proxy-video/19', '/proxy-video/20',
+        '/proxy-video/21', '/proxy-video/22', '/proxy-video/23', '/proxy-video/24', '/proxy-video/25',
+        '/proxy-video/26', '/proxy-video/27', '/proxy-video/28', '/proxy-video/29', '/proxy-video/30',
+        '/proxy-video/31', '/proxy-video/32', '/proxy-video/33', '/proxy-video/34', '/proxy-video/35',
+        '/proxy-video/36', '/proxy-video/37', '/proxy-video/38', '/proxy-video/39', '/proxy-video/40',
+        '/proxy-video/41', '/proxy-video/42', '/proxy-video/43', '/proxy-video/44', '/proxy-video/45',
+        '/proxy-video/46', '/proxy-video/47', '/proxy-video/48', '/proxy-video/49', '/proxy-video/50',
+        '/proxy-video/51', '/proxy-video/52', '/proxy-video/53', '/proxy-video/54', '/proxy-video/55',
+        '/proxy-video/56', '/proxy-video/57', '/proxy-video/58', '/proxy-video/59', '/proxy-video/60',
+        '/proxy-video/61', '/proxy-video/62', '/proxy-video/63', '/proxy-video/64', '/proxy-video/65',
+        '/proxy-video/66', '/proxy-video/67', '/proxy-video/68', '/proxy-video/69', '/proxy-video/70',
+        '/proxy-video/71', '/proxy-video/72', '/proxy-video/73', '/proxy-video/74', '/proxy-video/75',
+        '/proxy-video/76', '/proxy-video/77', '/proxy-video/78', '/proxy-video/79', '/proxy-video/80',
+        '/proxy-video/81', '/proxy-video/82', '/proxy-video/83', '/proxy-video/84', '/proxy-video/85',
+        '/proxy-video/86'
+    ];
 
-let currentVideoIndex = 0;
-let isTransitioning = false;
+    let currentVideoIndex = 0;
+    let isTransitioning = false;
 
-function getRandomVideoIndex() {
-    let newIndex;
-    do {
-        newIndex = Math.floor(Math.random() * videoSources.length);
-    } while (newIndex === currentVideoIndex && videoSources.length > 1);
-    return newIndex;
-}
-
-function loadRandomVideo() {
-    if (isTransitioning) return;
-    
-    const video = document.getElementById('backgroundVideo');
-    const container = document.getElementById('videoContainer');
-    
-    if (!video || !container) return;
-    
-    isTransitioning = true;
-    currentVideoIndex = getRandomVideoIndex();
-    
-    // Fade out
-    container.style.opacity = '0.7';
-    
-    setTimeout(() => {
-        video.src = videoSources[currentVideoIndex];
-        video.load();
-        
-        video.onloadeddata = () => {
-            video.play().catch(e => console.log('Video play failed:', e));
-            // Fade back in
-            container.style.opacity = '1';
-            isTransitioning = false;
-        };
-        
-        video.onerror = () => {
-            console.log('Video load failed, trying next...');
-            container.style.opacity = '1';
-            isTransitioning = false;
-            setTimeout(loadRandomVideo, 1000);
-        };
-    }, 300);
-}
-
-// Initialize video system
-document.addEventListener('DOMContentLoaded', function() {
-    const video = document.getElementById('backgroundVideo');
-    const container = document.getElementById('videoContainer');
-    
-    if (video && container) {
-        // Load initial random video
-        loadRandomVideo();
-        
-        // Set up video ended event to load next random video
-        video.addEventListener('ended', loadRandomVideo);
-        
-        // Fallback: change video every 30 seconds if it's still playing
-        setInterval(() => {
-            if (!video.ended && !isTransitioning) {
-                loadRandomVideo();
-            }
-        }, 30000);
-        
-        // Handle video errors
-        video.addEventListener('error', () => {
-            console.log('Video error, loading next...');
-            setTimeout(loadRandomVideo, 2000);
-        });
+    function getRandomVideoIndex() {
+        let newIndex;
+        do {
+            newIndex = Math.floor(Math.random() * videoSources.length);
+        } while (newIndex === currentVideoIndex && videoSources.length > 1);
+        return newIndex;
     }
-});
-</script>
-{% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/homepage.js') }}"></script>
-{% endblock %}
+    function loadRandomVideo() {
+        if (isTransitioning) return;
+        
+        const video = document.getElementById('backgroundVideo');
+        const container = document.getElementById('videoContainer');
+        
+        if (!video || !container) return;
+        
+        isTransitioning = true;
+        currentVideoIndex = getRandomVideoIndex();
+        
+        container.style.opacity = '0.7';
+        
+        setTimeout(() => {
+            video.src = videoSources[currentVideoIndex];
+            video.load();
+            
+            video.onloadeddata = () => {
+                video.play().catch(e => console.log('Video play failed:', e));
+                container.style.opacity = '1';
+                isTransitioning = false;
+            };
+            
+            video.onerror = () => {
+                console.log('Video load failed, trying next...');
+                container.style.opacity = '1';
+                isTransitioning = false;
+                setTimeout(loadRandomVideo, 1000);
+            };
+        }, 300);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const video = document.getElementById('backgroundVideo');
+        const container = document.getElementById('videoContainer');
+        
+        if (video && container) {
+            loadRandomVideo();
+            video.addEventListener('ended', loadRandomVideo);
+            
+            setInterval(() => {
+                if (!video.ended && !isTransitioning) {
+                    loadRandomVideo();
+                }
+            }, 30000);
+            
+            video.addEventListener('error', () => {
+                console.log('Video error, loading next...');
+                setTimeout(loadRandomVideo, 2000);
+            });
+        }
+    });
+    </script>
+    <script src="{{ url_for('static', filename='js/homepage.js') }}"></script>
+</body>
+</html>
