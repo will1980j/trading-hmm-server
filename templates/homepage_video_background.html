@@ -7,7 +7,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}">
 </head>
 <body>
-    <!-- Video Background Container -->
+
+    <!-- Video Background -->
     <div id="videoContainer" class="video-container">
         <video id="backgroundVideo" autoplay muted loop playsinline>
             <source src="" type="video/mp4">
@@ -15,8 +16,8 @@
         <div class="video-overlay"></div>
     </div>
 
-    <!-- System Status Ribbon -->
-    <section class="status-ribbon" id="systemStatus">
+    <!-- Status Ribbon -->
+    <section class="status-ribbon">
         <div class="status-item">
             <span class="status-label">Session:</span>
             <span class="status-value" id="statusSession">--</span>
@@ -35,341 +36,95 @@
         </div>
     </section>
 
-    <!-- Main Content -->
-    <main class="homepage-main">
-        <!-- Hero Section -->
-        <section class="hero-section">
-            <div class="hero-content">
-                <h1 class="hero-title">Second Skies Trading</h1>
-                <p class="hero-subtitle">Advanced algorithmic trading with real-time signal processing</p>
-            </div>
-        </section>
+    <!-- MAIN GRID WRAPPER (NEW) -->
+    <main style="display: grid; grid-template-columns: 350px 1fr; gap: 30px; padding: 24px;">
 
-        <!-- Navigation Grid -->
-        <section class="workspace-grid">
-            <div class="workspace-card" data-module="automated-signals">
-                <div class="card-header">
-                    <div class="card-icon">📊</div>
-                    <h3>Automated Signals</h3>
-                    <span class="card-status active">ULTRA</span>
-                </div>
-                <p class="card-description">Real-time signal monitoring with Phase 2B integration</p>
-                <a href="/automated-signals" class="card-link">Launch Dashboard</a>
-            </div>
-
-            <div class="workspace-card" data-module="ml-dashboard">
-                <div class="card-header">
-                    <div class="card-icon">🧠</div>
-                    <h3>ML Intelligence Hub</h3>
-                    <span class="card-status">Module 20</span>
-                </div>
-                <p class="card-description">Machine learning insights and predictive analytics</p>
-                <a href="/ml-dashboard" class="card-link">Launch Hub</a>
-            </div>
-
-            <div class="workspace-card" data-module="strategy-optimizer">
-                <div class="card-header">
-                    <div class="card-icon">⚡</div>
-                    <h3>Strategy Optimizer</h3>
-                    <span class="card-status">Module 18</span>
-                </div>
-                <p class="card-description">Advanced strategy optimization and backtesting</p>
-                <a href="/strategy-optimizer" class="card-link">Launch Optimizer</a>
-            </div>
-
-            <div class="workspace-card" data-module="strategy-comparison">
-                <div class="card-header">
-                    <div class="card-icon">📈</div>
-                    <h3>Strategy Compare</h3>
-                    <span class="card-status">Module 19</span>
-                </div>
-                <p class="card-description">Compare and analyze multiple trading strategies</p>
-                <a href="/strategy-comparison" class="card-link">Launch Compare</a>
-            </div>
-
-            <div class="workspace-card" data-module="time-analysis">
-                <div class="card-header">
-                    <div class="card-icon">⏰</div>
-                    <h3>Time Analysis</h3>
-                    <span class="card-status">Module 17</span>
-                </div>
-                <p class="card-description">Temporal pattern analysis and session optimization</p>
-                <a href="/time-analysis" class="card-link">Launch Analysis</a>
-            </div>
-
-            <div class="workspace-card" data-module="trade-manager">
-                <div class="card-header">
-                    <div class="card-icon">📋</div>
-                    <h3>Trade Manager</h3>
-                    <span class="card-status">Beta</span>
-                </div>
-                <p class="card-description">Trade execution and position management</p>
-                <a href="/trade-manager" class="card-link">Launch Manager</a>
-            </div>
-
-            <div class="workspace-card" data-module="financial-summary">
-                <div class="card-header">
-                    <div class="card-icon">💰</div>
-                    <h3>Financial Summary</h3>
-                    <span class="card-status">Module 21</span>
-                </div>
-                <p class="card-description">Comprehensive financial reporting and analytics</p>
-                <a href="/financial-summary" class="card-link">Launch Summary</a>
-            </div>
-
-            <div class="workspace-card" data-module="reporting-hub">
-                <div class="card-header">
-                    <div class="card-icon">📊</div>
-                    <h3>Reporting Hub</h3>
-                    <span class="card-status">Module 22</span>
-                </div>
-                <p class="card-description">Advanced reporting and business intelligence</p>
-                <a href="/reporting-hub" class="card-link">Launch Reports</a>
-            </div>
-
-            <div class="workspace-card" data-module="prop-portfolio">
-                <div class="card-header">
-                    <div class="card-icon">💼</div>
-                    <h3>Prop Portfolio</h3>
-                    <span class="card-status">Beta</span>
-                </div>
-                <p class="card-description">Prop firm portfolio management and compliance</p>
-                <a href="/prop-portfolio" class="card-link">Launch Portfolio</a>
-            </div>
-        </section>
-
-        <!-- Development Roadmap -->
-        <section class="roadmap-section">
+        <!-- LEFT: ROADMAP -->
+        <aside class="roadmap-section">
             <div class="roadmap-header">
                 <h2>Development Roadmap</h2>
                 <p>Platform evolution and feature development timeline</p>
             </div>
-            <div class="roadmap-phases" id="roadmapPhases">
-                <div class="roadmap-phase completed" data-phase="0">
+
+            <div class="roadmap-phases">
+
+                {% for p in [
+                ('0', 'Foundation', 'Core platform infrastructure', 'completed', '✅'),
+                ('1', 'Core Platform', 'Basic trading functionality', 'completed', '✅'),
+                ('2', 'Automated Signals', 'Real-time signal processing', 'active', '🔄'),
+                ('2.5', 'Guardrails', 'Risk management systems', '', '📋'),
+                ('3', 'Real-Time Data', 'Live market data integration', '', '📋'),
+                ('4', 'Paper Trading', 'Simulated environment', '', '📋'),
+                ('5', 'Risk Management', 'Advanced risk controls', '', '📋'),
+                ('6', 'ML Enhancement', 'Machine learning integration', '', '📋'),
+                ('7', 'Advanced Analytics', 'Deep market analysis', '', '📋'),
+                ('8', 'Multi-Market', 'Cross-market trading', '', '📋'),
+                ('9', 'Replay Engine', 'Historical simulation', '', '📋'),
+                ('10', 'Predictive AI', 'AI-powered predictions', '', '📋'),
+                ('Fund', 'Trading Fund', 'Institutional fund management', 'future', '🎯'),
+                ('Wealth', 'Wealth Architecture', 'Comprehensive wealth management', 'future', '🎯'),
+                ('Partner', 'Partner Cadence', 'Strategic partnerships', 'future', '🎯')
+                ] %}
+
+                <div class="roadmap-phase {{ p[3] }}">
                     <div class="phase-header">
-                        <span class="phase-number">Phase 0</span>
-                        <span class="phase-status">✅</span>
+                        <span class="phase-number">{{ p[0] }}</span>
+                        <span class="phase-status">{{ p[4] }}</span>
                     </div>
-                    <div class="phase-title">Foundation</div>
-                    <div class="phase-description">Core platform infrastructure</div>
+                    <div class="phase-title">{{ p[1] }}</div>
+                    <div class="phase-description">{{ p[2] }}</div>
                 </div>
-                
-                <div class="roadmap-phase completed" data-phase="1">
-                    <div class="phase-header">
-                        <span class="phase-number">Phase 1</span>
-                        <span class="phase-status">✅</span>
-                    </div>
-                    <div class="phase-title">Core Platform</div>
-                    <div class="phase-description">Basic trading functionality</div>
-                </div>
-                
-                <div class="roadmap-phase active" data-phase="2">
-                    <div class="phase-header">
-                        <span class="phase-number">Phase 2</span>
-                        <span class="phase-status">🔄</span>
-                    </div>
-                    <div class="phase-title">Automated Signals</div>
-                    <div class="phase-description">Real-time signal processing</div>
-                </div>
-                
-                <div class="roadmap-phase" data-phase="2.5">
-                    <div class="phase-header">
-                        <span class="phase-number">Phase 2.5</span>
-                        <span class="phase-status">📋</span>
-                    </div>
-                    <div class="phase-title">Guardrails</div>
-                    <div class="phase-description">Risk management systems</div>
-                </div>
-                
-                <div class="roadmap-phase" data-phase="3">
-                    <div class="phase-header">
-                        <span class="phase-number">Phase 3</span>
-                        <span class="phase-status">📋</span>
-                    </div>
-                    <div class="phase-title">Real-Time Data</div>
-                    <div class="phase-description">Live market data integration</div>
-                </div>
-                
-                <div class="roadmap-phase" data-phase="4">
-                    <div class="phase-header">
-                        <span class="phase-number">Phase 4</span>
-                        <span class="phase-status">📋</span>
-                    </div>
-                    <div class="phase-title">Paper Trading</div>
-                    <div class="phase-description">Simulated trading environment</div>
-                </div>
-                
-                <div class="roadmap-phase" data-phase="5">
-                    <div class="phase-header">
-                        <span class="phase-number">Phase 5</span>
-                        <span class="phase-status">📋</span>
-                    </div>
-                    <div class="phase-title">Risk Management</div>
-                    <div class="phase-description">Advanced risk controls</div>
-                </div>
-                
-                <div class="roadmap-phase" data-phase="6">
-                    <div class="phase-header">
-                        <span class="phase-number">Phase 6</span>
-                        <span class="phase-status">📋</span>
-                    </div>
-                    <div class="phase-title">ML Enhancement</div>
-                    <div class="phase-description">Machine learning integration</div>
-                </div>
-                
-                <div class="roadmap-phase" data-phase="7">
-                    <div class="phase-header">
-                        <span class="phase-number">Phase 7</span>
-                        <span class="phase-status">📋</span>
-                    </div>
-                    <div class="phase-title">Advanced Analytics</div>
-                    <div class="phase-description">Deep market analysis</div>
-                </div>
-                
-                <div class="roadmap-phase" data-phase="8">
-                    <div class="phase-header">
-                        <span class="phase-number">Phase 8</span>
-                        <span class="phase-status">📋</span>
-                    </div>
-                    <div class="phase-title">Multi-Market</div>
-                    <div class="phase-description">Cross-market trading</div>
-                </div>
-                
-                <div class="roadmap-phase" data-phase="9">
-                    <div class="phase-header">
-                        <span class="phase-number">Phase 9</span>
-                        <span class="phase-status">📋</span>
-                    </div>
-                    <div class="phase-title">Replay Engine</div>
-                    <div class="phase-description">Historical simulation</div>
-                </div>
-                
-                <div class="roadmap-phase" data-phase="10">
-                    <div class="phase-header">
-                        <span class="phase-number">Phase 10</span>
-                        <span class="phase-status">📋</span>
-                    </div>
-                    <div class="phase-title">Predictive AI</div>
-                    <div class="phase-description">AI-powered predictions</div>
-                </div>
-                
-                <div class="roadmap-phase future" data-phase="fund">
-                    <div class="phase-header">
-                        <span class="phase-number">Fund</span>
-                        <span class="phase-status">🎯</span>
-                    </div>
-                    <div class="phase-title">Trading Fund</div>
-                    <div class="phase-description">Institutional fund management</div>
-                </div>
-                
-                <div class="roadmap-phase future" data-phase="wealth">
-                    <div class="phase-header">
-                        <span class="phase-number">Wealth</span>
-                        <span class="phase-status">🎯</span>
-                    </div>
-                    <div class="phase-title">Wealth Architecture</div>
-                    <div class="phase-description">Comprehensive wealth management</div>
-                </div>
-                
-                <div class="roadmap-phase future" data-phase="partner">
-                    <div class="phase-header">
-                        <span class="phase-number">Partner</span>
-                        <span class="phase-status">🎯</span>
-                    </div>
-                    <div class="phase-title">Partner Cadence</div>
-                    <div class="phase-description">Strategic partnerships</div>
-                </div>
+
+                {% endfor %}
+
             </div>
+        </aside>
+
+        <!-- RIGHT: WORKSPACE -->
+        <section>
+
+            <!-- Hero -->
+            <section class="hero-section">
+                <div class="hero-content">
+                    <h1 class="hero-title">Second Skies Trading</h1>
+                    <p class="hero-subtitle">Advanced algorithmic trading with real-time signal processing</p>
+                </div>
+            </section>
+
+            <!-- WORKSPACE GRID -->
+            <section class="workspace-grid">
+                
+                {% for module in [
+                    ('📊', 'Automated Signals', 'Real-time signal monitoring with Phase 2B integration', '/automated-signals', 'ULTRA'),
+                    ('🧠', 'ML Intelligence Hub', 'Machine learning insights and predictive analytics', '/ml-dashboard', 'Module 20'),
+                    ('⚡', 'Strategy Optimizer', 'Advanced strategy optimization and backtesting', '/strategy-optimizer', 'Module 18'),
+                    ('📈', 'Strategy Compare', 'Compare and analyze multiple trading strategies', '/strategy-comparison', 'Module 19'),
+                    ('⏰', 'Time Analysis', 'Temporal pattern analysis and session optimization', '/time-analysis', 'Module 17'),
+                    ('📋', 'Trade Manager', 'Trade execution and position management', '/trade-manager', 'Beta'),
+                    ('💰', 'Financial Summary', 'Comprehensive financial reporting and analytics', '/financial-summary', 'Module 21'),
+                    ('📊', 'Reporting Hub', 'Advanced reporting and business intelligence', '/reporting-hub', 'Module 22'),
+                    ('💼', 'Prop Portfolio', 'Prop firm portfolio management and compliance', '/prop-portfolio', 'Beta')
+                ] %}
+
+                <div class="workspace-card">
+                    <div class="card-header">
+                        <div class="card-icon">{{ module[0] }}</div>
+                        <h3>{{ module[1] }}</h3>
+                        <span class="card-status">{{ module[4] }}</span>
+                    </div>
+                    <p class="card-description">{{ module[2] }}</p>
+                    <a href="{{ module[3] }}" class="card-link">Launch</a>
+                </div>
+
+                {% endfor %}
+
+            </section>
+
         </section>
     </main>
 
-    <script>
-    // 86-Video Background Rotation System
-    const videoSources = [
-        '/proxy-video/1', '/proxy-video/2', '/proxy-video/3', '/proxy-video/4', '/proxy-video/5',
-        '/proxy-video/6', '/proxy-video/7', '/proxy-video/8', '/proxy-video/9', '/proxy-video/10',
-        '/proxy-video/11', '/proxy-video/12', '/proxy-video/13', '/proxy-video/14', '/proxy-video/15',
-        '/proxy-video/16', '/proxy-video/17', '/proxy-video/18', '/proxy-video/19', '/proxy-video/20',
-        '/proxy-video/21', '/proxy-video/22', '/proxy-video/23', '/proxy-video/24', '/proxy-video/25',
-        '/proxy-video/26', '/proxy-video/27', '/proxy-video/28', '/proxy-video/29', '/proxy-video/30',
-        '/proxy-video/31', '/proxy-video/32', '/proxy-video/33', '/proxy-video/34', '/proxy-video/35',
-        '/proxy-video/36', '/proxy-video/37', '/proxy-video/38', '/proxy-video/39', '/proxy-video/40',
-        '/proxy-video/41', '/proxy-video/42', '/proxy-video/43', '/proxy-video/44', '/proxy-video/45',
-        '/proxy-video/46', '/proxy-video/47', '/proxy-video/48', '/proxy-video/49', '/proxy-video/50',
-        '/proxy-video/51', '/proxy-video/52', '/proxy-video/53', '/proxy-video/54', '/proxy-video/55',
-        '/proxy-video/56', '/proxy-video/57', '/proxy-video/58', '/proxy-video/59', '/proxy-video/60',
-        '/proxy-video/61', '/proxy-video/62', '/proxy-video/63', '/proxy-video/64', '/proxy-video/65',
-        '/proxy-video/66', '/proxy-video/67', '/proxy-video/68', '/proxy-video/69', '/proxy-video/70',
-        '/proxy-video/71', '/proxy-video/72', '/proxy-video/73', '/proxy-video/74', '/proxy-video/75',
-        '/proxy-video/76', '/proxy-video/77', '/proxy-video/78', '/proxy-video/79', '/proxy-video/80',
-        '/proxy-video/81', '/proxy-video/82', '/proxy-video/83', '/proxy-video/84', '/proxy-video/85',
-        '/proxy-video/86'
-    ];
-
-    let currentVideoIndex = 0;
-    let isTransitioning = false;
-
-    function getRandomVideoIndex() {
-        let newIndex;
-        do {
-            newIndex = Math.floor(Math.random() * videoSources.length);
-        } while (newIndex === currentVideoIndex && videoSources.length > 1);
-        return newIndex;
-    }
-
-    function loadRandomVideo() {
-        if (isTransitioning) return;
-        
-        const video = document.getElementById('backgroundVideo');
-        const container = document.getElementById('videoContainer');
-        
-        if (!video || !container) return;
-        
-        isTransitioning = true;
-        currentVideoIndex = getRandomVideoIndex();
-        
-        container.style.opacity = '0.7';
-        
-        setTimeout(() => {
-            video.src = videoSources[currentVideoIndex];
-            video.load();
-            
-            video.onloadeddata = () => {
-                video.play().catch(e => console.log('Video play failed:', e));
-                container.style.opacity = '1';
-                isTransitioning = false;
-            };
-            
-            video.onerror = () => {
-                console.log('Video load failed, trying next...');
-                container.style.opacity = '1';
-                isTransitioning = false;
-                setTimeout(loadRandomVideo, 1000);
-            };
-        }, 300);
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const video = document.getElementById('backgroundVideo');
-        const container = document.getElementById('videoContainer');
-        
-        if (video && container) {
-            loadRandomVideo();
-            video.addEventListener('ended', loadRandomVideo);
-            
-            setInterval(() => {
-                if (!video.ended && !isTransitioning) {
-                    loadRandomVideo();
-                }
-            }, 30000);
-            
-            video.addEventListener('error', () => {
-                console.log('Video error, loading next...');
-                setTimeout(loadRandomVideo, 2000);
-            });
-        }
-    });
-    </script>
+    <!-- Video rotation script preserved -->
     <script src="{{ url_for('static', filename='js/homepage.js') }}"></script>
+
 </body>
 </html>
