@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+
+{% block page_title %}AI Predictive Dashboard — SecondSkies{% endblock %}
+
+{% block extra_head %}
+<style>
+body { background:#05070b; }
+.predictive-root { padding:24px; color:#e5e7eb; }
+.predictive-grid {
+    display:grid;
+    grid-template-rows:auto auto 1fr;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+}
+.panel {
+    background:#0b1120;
+    border:1px solid #1e293b;
+    padding:16px;
+    border-radius:8px;
+}
+.panel h3 { margin-top:0; color:#fff; font-size:1rem; }
+.panel pre {
+    background:#020617 !important;
+    padding:10px;
+    border-radius:4px;
+    overflow:auto;
+    max-height:280px;
+    font-size:0.78rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="predictive-root">
+    <h1 style="color:#fff; font-size:1.5rem; margin-bottom:12px;">AI Predictive Dashboard</h1>
+    
+    <div id="predictiveSummary" class="panel">
+        <h3>Recent Trades — AI Summary</h3>
+        <div id="predictiveSummaryContent">Loading...</div>
+    </div>
+    
+    <div class="predictive-grid">
+        <div class="panel">
+            <h3>Selected Trade — Lifecycle Events</h3>
+            <pre id="predictiveLifecycleBox">{}</pre>
+        </div>
+        
+        <div class="panel">
+            <h3>AI Detail — Outcome Prediction</h3>
+            <pre id="predictiveAIBox">{}</pre>
+        </div>
+        
+        <div class="panel" style="grid-column: span 2;">
+            <h3>AI Reasoning</h3>
+            <pre id="predictiveReasoningBox">{}</pre>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/automated_signals_predictive.js"></script>
+{% endblock %}

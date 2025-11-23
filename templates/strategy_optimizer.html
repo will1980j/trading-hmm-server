@@ -1,0 +1,467 @@
+{% extends "layout.html" %}
+
+{% block title %}Strategy Optimizer{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/strategy_optimizer.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="strategy-optimizer-container">
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+        <h1 class="page-title">Strategy Optimizer</h1>
+        
+        <!-- Tab Switcher -->
+        <div class="tab-switcher">
+            <button class="tab-btn active" data-mode="configuration">Configuration Optimizer</button>
+            <button class="tab-btn" data-mode="variant">Variant Optimizer</button>
+        </div>
+        
+        <!-- Dataset Selector -->
+        <div class="dataset-selector">
+            <label>Dataset:</label>
+            <select id="datasetSelect">
+                <option value="v1" selected>V1 Signals</option>
+                <option value="v2" disabled>V2 Signals (Coming Soon)</option>
+            </select>
+        </div>
+        
+        <!-- Date Range Selector -->
+        <div class="date-range-selector">
+            <label>Date Range:</label>
+            <input type="date" id="startDate" placeholder="Start Date">
+            <span>to</span>
+            <input type="date" id="endDate" placeholder="End Date">
+        </div>
+    </div>
+    
+    <!-- METRIC SUMMARY ROW -->
+    <div class="metric-summary-row">
+        <div class="metric-card">
+            <div class="metric-label">Best Configuration</div>
+            <div class="metric-value" id="bestConfig">NY AM + Low Vol</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Best Variant</div>
+            <div class="metric-value" id="bestVariant">Conservative</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Highest Expectancy</div>
+            <div class="metric-value" id="highestExpectancy">2.87R</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Most Stable Strategy</div>
+            <div class="metric-value" id="mostStable">Session Strategy</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">R-Distribution Balance</div>
+            <div class="metric-value" id="rBalance">0.82</div>
+        </div>
+    </div>
+    
+    <!-- SECTION A: CONFIGURATION OPTIMIZER -->
+    <div class="optimizer-section" id="configurationSection">
+        <div class="optimizer-grid">
+            <!-- LEFT PANEL: Config Controls -->
+            <div class="config-controls-panel">
+                <h2 class="panel-title">Configuration Controls</h2>
+                
+                <div class="control-group">
+                    <label>Confirmation Type</label>
+                    <select id="confirmationType">
+                        <option value="all">All Types</option>
+                        <option value="fvg">FVG Only</option>
+                        <option value="ifvg">IFVG Only</option>
+                        <option value="engulfing">Engulfing Only</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Stop-Loss Logic</label>
+                    <select id="stopLossLogic">
+                        <option value="all">All Methods</option>
+                        <option value="pivot">Pivot-Based</option>
+                        <option value="fixed">Fixed Distance</option>
+                        <option value="atr">ATR-Based</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Sessions</label>
+                    <div class="session-checkboxes">
+                        <label><input type="checkbox" value="ASIA" checked> ASIA</label>
+                        <label><input type="checkbox" value="LONDON" checked> LONDON</label>
+                        <label><input type="checkbox" value="NY_PRE" checked> NY PRE</label>
+                        <label><input type="checkbox" value="NY_AM" checked> NY AM</label>
+                        <label><input type="checkbox" value="NY_LUNCH" checked> NY LUNCH</label>
+                        <label><input type="checkbox" value="NY_PM" checked> NY PM</label>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label>Volatility Range</label>
+                    <input type="range" id="volatilitySlider" min="0" max="100" value="50">
+                    <div class="slider-value">
+                        <span id="volatilityValue">50</span>%
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label>Time of Day</label>
+                    <input type="range" id="timeSlider" min="0" max="24" value="12">
+                    <div class="slider-value">
+                        <span id="timeValue">12</span>:00
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label>Min R Target</label>
+                    <input type="range" id="minRSlider" min="0" max="5" step="0.5" value="1">
+                    <div class="slider-value">
+                        <span id="minRValue">1.0</span>R
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label>Max R Target</label>
+                    <input type="range" id="maxRSlider" min="1" max="20" step="1" value="10">
+                    <div class="slider-value">
+                        <span id="maxRValue">10</span>R
+                    </div>
+                </div>
+                
+                <button class="apply-config-btn">Apply Configuration</button>
+            </div>
+            
+            <!-- RIGHT PANEL: Config Results -->
+            <div class="config-results-panel">
+                <h2 class="panel-title">Configuration Results</h2>
+                
+                <div class="results-metrics">
+                    <div class="result-metric">
+                        <div class="result-label">Win Rate</div>
+                        <div class="result-value" id="configWinrate">52.3%</div>
+                    </div>
+                    <div class="result-metric">
+                        <div class="result-label">Expectancy</div>
+                        <div class="result-value" id="configExpectancy">2.45R</div>
+                    </div>
+                    <div class="result-metric">
+                        <div class="result-label">Avg R</div>
+                        <div class="result-value" id="configAvgR">1.87R</div>
+                    </div>
+                </div>
+                
+                <div class="session-performance-card">
+                    <h3>Session Performance</h3>
+                    <div class="session-bars">
+                        <div class="session-bar">
+                            <span class="session-name">ASIA</span>
+                            <div class="bar-container">
+                                <div class="bar-fill" style="width: 85%"></div>
+                            </div>
+                            <span class="session-value">4.14R</span>
+                        </div>
+                        <div class="session-bar">
+                            <span class="session-name">LONDON</span>
+                            <div class="bar-container">
+                                <div class="bar-fill" style="width: 65%"></div>
+                            </div>
+                            <span class="session-value">2.87R</span>
+                        </div>
+                        <div class="session-bar">
+                            <span class="session-name">NY AM</span>
+                            <div class="bar-container">
+                                <div class="bar-fill" style="width: 75%"></div>
+                            </div>
+                            <span class="session-value">3.21R</span>
+                        </div>
+                        <div class="session-bar">
+                            <span class="session-name">NY PM</span>
+                            <div class="bar-container">
+                                <div class="bar-fill" style="width: 55%"></div>
+                            </div>
+                            <span class="session-value">2.14R</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mfe-mae-distribution">
+                    <h3>MFE/MAE Distribution</h3>
+                    <div class="distribution-placeholder">
+                        <div class="placeholder-text">MFE/MAE scatter plot will appear here</div>
+                    </div>
+                </div>
+                
+                <div class="r-distribution-chart">
+                    <h3>R-Distribution</h3>
+                    <div class="chart-placeholder">
+                        <div class="placeholder-text">R-distribution histogram will appear here</div>
+                    </div>
+                </div>
+                
+                <div class="equity-curve-chart">
+                    <h3>Equity Curve</h3>
+                    <div class="chart-placeholder">
+                        <div class="placeholder-text">Equity curve will appear here</div>
+                    </div>
+                </div>
+                
+                <div class="config-heatmap">
+                    <h3>Configuration Heatmap</h3>
+                    <div class="chart-placeholder">
+                        <div class="placeholder-text">Configuration performance heatmap will appear here</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- SECTION B: VARIANT OPTIMIZER -->
+    <div class="optimizer-section hidden" id="variantSection">
+        <div class="optimizer-grid">
+            <!-- LEFT PANEL: Variant List -->
+            <div class="variant-list-panel">
+                <h2 class="panel-title">Strategy Variants</h2>
+                
+                <div class="variant-card" data-variant="baseline">
+                    <h3 class="variant-name">Baseline Strategy</h3>
+                    <div class="variant-metrics">
+                        <div class="variant-metric">
+                            <span class="metric-label">Win Rate:</span>
+                            <span class="metric-value">52.3%</span>
+                        </div>
+                        <div class="variant-metric">
+                            <span class="metric-label">Expectancy:</span>
+                            <span class="metric-value">2.45R</span>
+                        </div>
+                        <div class="variant-metric">
+                            <span class="metric-label">Trades:</span>
+                            <span class="metric-value">1,898</span>
+                        </div>
+                    </div>
+                    <p class="variant-description">Standard configuration with all sessions and default parameters</p>
+                </div>
+                
+                <div class="variant-card" data-variant="conservative">
+                    <h3 class="variant-name">Conservative Strategy</h3>
+                    <div class="variant-metrics">
+                        <div class="variant-metric">
+                            <span class="metric-label">Win Rate:</span>
+                            <span class="metric-value">58.7%</span>
+                        </div>
+                        <div class="variant-metric">
+                            <span class="metric-label">Expectancy:</span>
+                            <span class="metric-value">2.87R</span>
+                        </div>
+                        <div class="variant-metric">
+                            <span class="metric-label">Trades:</span>
+                            <span class="metric-value">842</span>
+                        </div>
+                    </div>
+                    <p class="variant-description">Higher confirmation requirements, lower volatility sessions only</p>
+                </div>
+                
+                <div class="variant-card" data-variant="aggressive">
+                    <h3 class="variant-name">Aggressive Strategy</h3>
+                    <div class="variant-metrics">
+                        <div class="variant-metric">
+                            <span class="metric-label">Win Rate:</span>
+                            <span class="metric-value">48.2%</span>
+                        </div>
+                        <div class="variant-metric">
+                            <span class="metric-label">Expectancy:</span>
+                            <span class="metric-value">3.12R</span>
+                        </div>
+                        <div class="variant-metric">
+                            <span class="metric-label">Trades:</span>
+                            <span class="metric-value">2,456</span>
+                        </div>
+                    </div>
+                    <p class="variant-description">Lower confirmation requirements, all sessions, higher R targets</p>
+                </div>
+                
+                <div class="variant-card" data-variant="volatility">
+                    <h3 class="variant-name">Volatility Strategy</h3>
+                    <div class="variant-metrics">
+                        <div class="variant-metric">
+                            <span class="metric-label">Win Rate:</span>
+                            <span class="metric-value">54.1%</span>
+                        </div>
+                        <div class="variant-metric">
+                            <span class="metric-label">Expectancy:</span>
+                            <span class="metric-value">2.68R</span>
+                        </div>
+                        <div class="variant-metric">
+                            <span class="metric-label">Trades:</span>
+                            <span class="metric-value">1,234</span>
+                        </div>
+                    </div>
+                    <p class="variant-description">Adapts parameters based on real-time volatility conditions</p>
+                </div>
+                
+                <div class="variant-card" data-variant="session">
+                    <h3 class="variant-name">Session Strategy</h3>
+                    <div class="variant-metrics">
+                        <div class="variant-metric">
+                            <span class="metric-label">Win Rate:</span>
+                            <span class="metric-value">61.4%</span>
+                        </div>
+                        <div class="variant-metric">
+                            <span class="metric-label">Expectancy:</span>
+                            <span class="metric-value">4.14R</span>
+                        </div>
+                        <div class="variant-metric">
+                            <span class="metric-label">Trades:</span>
+                            <span class="metric-value">364</span>
+                        </div>
+                    </div>
+                    <p class="variant-description">Optimized for ASIA session only with custom parameters</p>
+                </div>
+                
+                <div class="variant-card" data-variant="ny-only">
+                    <h3 class="variant-name">NY-Only Strategy</h3>
+                    <div class="variant-metrics">
+                        <div class="variant-metric">
+                            <span class="metric-label">Win Rate:</span>
+                            <span class="metric-value">50.8%</span>
+                        </div>
+                        <div class="variant-metric">
+                            <span class="metric-label">Expectancy:</span>
+                            <span class="metric-value">2.34R</span>
+                        </div>
+                        <div class="variant-metric">
+                            <span class="metric-label">Trades:</span>
+                            <span class="metric-value">987</span>
+                        </div>
+                    </div>
+                    <p class="variant-description">NY AM and NY PM sessions only, optimized for US market hours</p>
+                </div>
+            </div>
+            
+            <!-- RIGHT PANEL: Variant Comparison -->
+            <div class="variant-comparison-panel">
+                <h2 class="panel-title">Variant Comparison</h2>
+                
+                <div class="expectancy-curve-chart">
+                    <h3>Multi-Variant Expectancy Curve</h3>
+                    <div class="chart-placeholder">
+                        <div class="placeholder-text">Multi-line expectancy curves will appear here</div>
+                    </div>
+                </div>
+                
+                <div class="winrate-comparison-chart">
+                    <h3>Win Rate Comparison</h3>
+                    <div class="chart-placeholder">
+                        <div class="placeholder-text">Multi-bar win rate comparison will appear here</div>
+                    </div>
+                </div>
+                
+                <div class="r-distribution-comparison">
+                    <h3>R-Distribution Comparison</h3>
+                    <div class="chart-placeholder">
+                        <div class="placeholder-text">Overlaid R-distribution histograms will appear here</div>
+                    </div>
+                </div>
+                
+                <div class="stability-metrics">
+                    <h3>Stability Analysis</h3>
+                    <div class="stability-grid">
+                        <div class="stability-item">
+                            <span class="stability-label">Stability Score:</span>
+                            <span class="stability-value">0.82</span>
+                        </div>
+                        <div class="stability-item">
+                            <span class="stability-label">Best Session:</span>
+                            <span class="stability-value">ASIA (4.14R)</span>
+                        </div>
+                        <div class="stability-item">
+                            <span class="stability-label">Worst Session:</span>
+                            <span class="stability-value">NY LUNCH (1.87R)</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mfe-mae-profiles">
+                    <h3>MFE/MAE Profiles</h3>
+                    <div class="chart-placeholder">
+                        <div class="placeholder-text">Multi-variant MFE/MAE profiles will appear here</div>
+                    </div>
+                </div>
+                
+                <div class="comparison-table">
+                    <h3>Summary Comparison</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Variant</th>
+                                <th>Win Rate</th>
+                                <th>Expectancy</th>
+                                <th>Trades</th>
+                                <th>Avg R</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Baseline</td>
+                                <td>52.3%</td>
+                                <td>2.45R</td>
+                                <td>1,898</td>
+                                <td>1.87R</td>
+                            </tr>
+                            <tr>
+                                <td>Conservative</td>
+                                <td>58.7%</td>
+                                <td>2.87R</td>
+                                <td>842</td>
+                                <td>2.14R</td>
+                            </tr>
+                            <tr>
+                                <td>Aggressive</td>
+                                <td>48.2%</td>
+                                <td>3.12R</td>
+                                <td>2,456</td>
+                                <td>2.45R</td>
+                            </tr>
+                            <tr>
+                                <td>Volatility</td>
+                                <td>54.1%</td>
+                                <td>2.68R</td>
+                                <td>1,234</td>
+                                <td>1.98R</td>
+                            </tr>
+                            <tr>
+                                <td>Session</td>
+                                <td>61.4%</td>
+                                <td>4.14R</td>
+                                <td>364</td>
+                                <td>3.21R</td>
+                            </tr>
+                            <tr>
+                                <td>NY-Only</td>
+                                <td>50.8%</td>
+                                <td>2.34R</td>
+                                <td>987</td>
+                                <td>1.76R</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- SECTION C: INSIGHTS PLACEHOLDER -->
+    <div class="insights-section">
+        <div class="insights-card">
+            <h3>AI-Generated Strategy Insights</h3>
+            <p class="insights-placeholder">AI-generated strategy insights will appear here in Phase 6–9.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/strategy_optimizer.js') }}"></script>
+{% endblock %}

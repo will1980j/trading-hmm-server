@@ -1,13 +1,20 @@
 {% extends 'layout.html' %}
 
-{% block page_title %}Signal Lab — Second Skies{% endblock %}
+{% block page_title %}Signal Lab Dashboard (Legacy — Dataset V1){% endblock %}
 
 {% block extra_head %}
 <script src="https://d3js.org/d3.v7.min.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/signal_lab.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="container"><!-- Error Message Display --><div id="errorMessage" class="error-box" style="display: none;"></div><!-- Navigation --><!-- Navigation --><script>
+<div class="container">
+    <!-- LEGACY ARCHIVE BANNER -->
+    <div class="legacy-banner">
+        ⚠️ Legacy Signal Lab — Dataset V1 (Archived). Manual entries disabled. Preserved for historical review only.
+    </div>
+    
+    <!-- Error Message Display --><div id="errorMessage" class="error-box" style="display: none;"></div><!-- Navigation --><!-- Navigation --><script>
  (function() {
  const currentPath = window.location.pathname;
  const navLinks = document.querySelectorAll('nav a[data-page]');
@@ -5307,4 +5314,5 @@ CURRENT PERFORMANCE METRICS:
  });
  }
  </script></div><!-- container -->
+<script src="{{ url_for('static', filename='js/signal_lab.js') }}"></script>
 {% endblock %}

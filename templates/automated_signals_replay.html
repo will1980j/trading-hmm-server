@@ -1,0 +1,114 @@
+{% extends 'layout.html' %}
+
+{% block page_title %}Automated Signals — Replay Engine{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/static/style_preload.css">
+<style>
+  .as-replay-container {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-columns: 280px 1fr;
+    gap: 16px;
+    height: calc(100vh - 80px);
+    padding: 16px;
+    background: #050810;
+    color: #f5f7ff;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .as-replay-sidebar {
+    grid-row: 1 / span 3;
+    grid-column: 1 / 2;
+    background: linear-gradient(145deg, #0b1220, #020617);
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+  }
+  .as-replay-main {
+    grid-row: 1 / 3;
+    grid-column: 2 / 3;
+    background: radial-gradient(circle at top left, rgba(56,189,248,0.06), transparent 60%),
+                radial-gradient(circle at bottom right, rgba(94,234,212,0.05), transparent 55%),
+                #020617;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    overflow: hidden;
+    position: relative;
+  }
+  .as-replay-footer {
+    grid-row: 3 / 4;
+    grid-column: 2 / 3;
+    background: #020617;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+  }
+  .as-replay-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #9ca3af;
+    margin-bottom: 4px;
+  }
+  .as-replay-input {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(148,163,184,0.4);
+    background: rgba(15,23,42,0.9);
+    color: #e5e7eb;
+    font-size: 13px;
+  }
+  .as-replay-button {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #0ea5e9, #22c55e);
+    color: #0b1120;
+    cursor: pointer;
+  }
+  .as-replay-button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="as-replay-container">
+  <div class="as-replay-sidebar">
+    <div class="as-replay-label">Symbol</div>
+    <input id="as-replay-symbol" class="as-replay-input" value="NQ1!">
+    
+    <div class="as-replay-label" style="margin-top:12px;">Date (NY)</div>
+    <input id="as-replay-date" class="as-replay-input" type="date">
+    
+    <div class="as-replay-label" style="margin-top:16px;">Controls</div>
+    <button id="as-replay-load" class="as-replay-button">Load Session</button>
+    
+    <div id="as-replay-status" style="margin-top:16px;font-size:12px;color:#9ca3af;"></div>
+  </div>
+  
+  <div class="as-replay-main">
+    <div id="as-replay-chart" style="width:100%;height:100%;"></div>
+  </div>
+  
+  <div class="as-replay-footer">
+    <div id="as-replay-current" style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+      Waiting for replay data...
+    </div>
+    <input id="as-replay-slider" type="range" min="0" max="0" value="0" style="width:260px;">
+  </div>
+</div>
+
+<script src="/static/js/automated_signals_replay.js"></script>
+{% endblock %}

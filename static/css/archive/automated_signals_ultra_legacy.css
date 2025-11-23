@@ -1,0 +1,437 @@
+.as-container {
+    font-size: 14px;
+}
+
+/* Summary cards */
+.as-summary-card {
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(15, 23, 42, 0.9);
+    color: #f8fafc;
+}
+
+.as-summary-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #9ca3af;
+}
+
+.as-summary-value {
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.as-summary-sub {
+    font-size: 11px;
+    color: #6b7280;
+}
+
+/* Calendar */
+.as-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+
+.as-calendar-day {
+    border-radius: 10px;
+    padding: 6px;
+    background-color: #0f172a;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.as-calendar-day:hover {
+    background-color: #1e293b;
+    transform: translateY(-1px);
+}
+
+.as-calendar-day.active {
+    border-color: #38bdf8;
+    background: linear-gradient(135deg, #0ea5e9, #1d4ed8);
+    color: #f9fafb;
+}
+
+.as-calendar-day-date {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.as-calendar-day-meta {
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+/* Pills */
+.pill {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #f9fafb;
+    line-height: 1.4;
+}
+
+.pill-long {
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+}
+
+.pill-short {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+}
+
+.pill-active {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+.pill-be-protected {
+    background: linear-gradient(135deg, #facc15, #eab308);
+    color: #1f2937;
+}
+
+.pill-completed {
+    background: #4b5563;
+}
+
+.pill-cancelled {
+    background: #6b7280;
+}
+
+.pill-session {
+    background: #0f172a;
+    border: 1px solid rgba(148, 163, 184, 0.6);
+    color: #e5e7eb;
+    font-weight: 500;
+}
+
+/* Table + trades */
+.as-trades-wrapper {
+    max-height: calc(100vh - 320px);
+    overflow-y: auto;
+}
+
+.trading-table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+}
+
+.trading-table tbody tr:hover {
+    background-color: rgba(59, 130, 246, 0.05);
+}
+
+.trading-table td,
+.trading-table th {
+    white-space: nowrap;
+}
+
+/* Signal strength bar */
+.as-strength-bar {
+    position: relative;
+    width: 70px;
+    height: 6px;
+    border-radius: 999px;
+    background: #111827;
+    overflow: hidden;
+}
+
+.as-strength-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4ade80, #22c55e);
+}
+
+/* Modal styling */
+.as-modal {
+    background: #020617;
+    color: #e5e7eb;
+}
+
+.as-modal .card {
+    background: #020617;
+    border: 1px solid #1f2937;
+}
+
+.as-modal .card-header {
+    background: #0f172a;
+    border-bottom-color: #1f2937;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #9ca3af;
+}
+
+.as-badge-soft {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #0f172a;
+    color: #9ca3af;
+}
+
+/* Event timeline */
+.as-event-item {
+    border-bottom: 1px solid #1f2937;
+    padding: 6px 0;
+    font-size: 12px;
+}
+
+.as-event-item:last-child {
+    border-bottom: none;
+}
+
+.as-event-type {
+    font-weight: 600;
+    margin-right: 6px;
+}
+
+.as-event-mfe-positive {
+    color: #4ade80;
+}
+
+.as-event-mfe-negative {
+    color: #f97316;
+}
+
+.as-event-mfe-neutral {
+    color: #9ca3af;
+}
+
+/* PHASE ULTRA — Dark Mode & Table Styling Fixes */
+
+/* Force dark table */
+.as-table-container table {
+    background: #111 !important;
+    color: #ddd !important;
+}
+
+.as-table-container td,
+.as-table-container th {
+    color: #ddd !important;
+    border-color: #333 !important;
+}
+
+/* Modal */
+.as-modal-content {
+    color: #eee !important;
+}
+
+.as-modal-content h3,
+.as-modal-content .as-meta,
+.as-modal-content .as-setup,
+.as-modal-content .as-market {
+    color: #eee !important;
+}
+
+/* Pill fixes */
+.as-pill {
+    color: #fff !important;
+}
+
+/* Timeline items */
+.as-timeline-item {
+    color: #ddd !important;
+}
+
+/* Fix strength bar visibility */
+.as-strength-bar {
+    background: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* ULTRA DASHBOARD PATCH SET — Sticky Headers + Dark Mode Fixes */
+
+/* FIX 6: Sticky table header */
+.as-trades-wrapper table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #0f172a !important;
+    color: #e5e7eb !important;
+    z-index: 5;
+}
+
+/* Fix unreadable text in calendar + modal */
+.as-calendar-day,
+.as-calendar-day-date,
+.as-calendar-day-meta,
+.as-modal,
+.as-modal .card-body,
+.as-event-item,
+.card-header {
+    color: #e5e7eb !important;
+}
+
+/* Fix white telemetry table background */
+.as-trades-wrapper table,
+.as-trades-wrapper table tbody tr td {
+    background-color: #020617 !important;
+    color: #e5e7eb !important;
+}
+
+/* Strength bars readable */
+.as-strength-bar {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ULTRA DASHBOARD PATCH SET PART 2 — Force Dark Theme Everywhere */
+
+/* FIX 5: Force light text on all elements inside Ultra Dashboard */
+#as-ultra-root,
+#as-ultra-root * {
+    color: #e5e7eb !important;
+}
+
+/* Fix remaining white backgrounds */
+#as-ultra-root table,
+#as-ultra-root thead,
+#as-ultra-root tbody,
+#as-ultra-root tr,
+#as-ultra-root td,
+#as-ultra-root th {
+    background-color: #020617 !important;
+}
+
+
+/* Patch 3A — Scope-wide dark mode & readability fixes for Ultra dashboard */
+
+#as-ultra-root,
+#as-ultra-root * {
+    color: #e5e7eb !important;
+}
+
+/* Card headers + summary text under main title */
+#as-ultra-root .card-header,
+#as-ultra-root .text-muted,
+#as-ultra-root small {
+    color: #d1d5db !important;
+}
+
+/* Main subtitle under "Ultra" title */
+#as-ultra-root .as-container p,
+#as-ultra-root #as-last-refresh {
+    color: #e5e7eb !important;
+}
+
+/* Calendar + filter labels */
+#as-ultra-root .form-label,
+#as-ultra-root label,
+#as-ultra-root .as-calendar-day,
+#as-ultra-root .as-calendar-day-date,
+#as-ultra-root .as-calendar-day-meta {
+    color: #e5e7eb !important;
+}
+
+/* Sticky table header and grid subtle lines */
+#as-ultra-root .as-trades-wrapper table,
+#as-ultra-root .as-trades-wrapper table thead th,
+#as-ultra-root .as-trades-wrapper table tbody td {
+    background-color: #020617 !important;
+    color: #e5e7eb !important;
+    border-color: rgba(148, 163, 184, 0.15) !important;
+}
+
+/* Table header specifically */
+#as-ultra-root .as-trades-wrapper table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #0f172a !important;
+    color: #e5e7eb !important;
+    z-index: 5;
+}
+
+/* Refresh button visibility */
+#as-ultra-root #as-refresh-btn {
+    background-color: #1e293b !important;
+    color: #e5e7eb !important;
+    border-color: #4b5563 !important;
+}
+
+/* Make table grid lighter and less chunky */
+#as-ultra-root .as-trades-wrapper table tr {
+    border-color: rgba(75, 85, 99, 0.4) !important;
+}
+
+/* Modal text */
+#as-ultra-root .as-modal,
+#as-ultra-root .as-modal .card-body,
+#as-ultra-root .as-modal .card-header,
+#as-ultra-root .as-modal .as-event-item {
+    color: #e5e7eb !important;
+}
+
+/* Strength bar visibility */
+#as-ultra-root .as-strength-bar {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Patch 4D — Checkbox alignment */
+#as-ultra-root .as-select-trade {
+    transform: scale(1.2);
+    cursor: pointer;
+}
+
+#as-ultra-root #as-select-all-checkbox {
+    transform: scale(1.2);
+    cursor: pointer;
+}
+
+/* Delete button styling */
+#as-ultra-root #as-delete-selected-btn {
+    background: #7f1d1d !important;
+    border-color: #b91c1c !important;
+    color: #fff !important;
+}
+
+#as-ultra-root #as-purge-ghosts-btn {
+    border-color: #f97316 !important;
+    color: #fed7aa !important;
+    background-color: rgba(248, 113, 113, 0.06) !important;
+}
+
+#as-ultra-root #as-purge-ghosts-btn:hover {
+    background-color: rgba(248, 113, 113, 0.18) !important;
+}
+
+
+/* ============================================================
+   DROPDOWN FIX — white text on white background
+   Ensures dropdowns are fully readable on dark theme
+   ============================================================ */
+
+#as-ultra-root select,
+#as-ultra-root select.form-select {
+    background-color: #0f172a !important;   /* deep slate background */
+    color: #f1f5f9 !important;              /* light text */
+    border: 1px solid #334155 !important;   /* subtle border */
+}
+
+#as-ultra-root select:focus,
+#as-ultra-root select.form-select:focus {
+    background-color: #1e293b !important;   /* slightly lighter on focus */
+    color: #f8fafc !important;              
+    border-color: #3b82f6 !important;       /* blue focus border */
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.4) !important;
+}
+
+#as-ultra-root option {
+    background-color: #0f172a !important;
+    color: #f1f5f9 !important;
+}
+
+#as-ultra-root option:hover,
+#as-ultra-root option:focus {
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+}
+
+/* Allow disabled options to remain readable */
+#as-ultra-root option:disabled {
+    color: #64748b !important;
+    background-color: #0f172a !important;
+}
+
+/* Ensure dropdown carets remain visible */
+#as-ultra-root .form-select {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg fill='%23f1f5f9' viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.204 5.5L8 10.293 12.796 5.5l.708.707L8 11.707 2.496 6.207z'/%3E%3C/svg%3E") !important;
+}

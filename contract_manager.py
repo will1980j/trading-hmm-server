@@ -13,14 +13,142 @@ from db_error_handler import auto_fix_db_errors
 
 logger = logging.getLogger(__name__)
 
+# =====================================================================
+# MULTI-MARKET INSTRUMENT REGISTRY (Stage 11)
+# ---------------------------------------------------------------------
+# Centralised mapping for US index futures + their micro counterparts.
+# This is purely metadata – no behavioural changes to existing NQ logic.
+# =====================================================================
+INSTRUMENT_REGISTRY = {
+    # Nasdaq 100
+    "NQ": {
+        "description": "E-mini Nasdaq-100 Futures",
+        "root": "NQ",
+        "is_micro": False,
+        "micro_symbol": "MNQ",
+        "tick_size": 0.25,
+        "tick_value": 5.0,   # $5 per tick for NQ
+        "point_value": 20.0  # 4 ticks per point * $5
+    },
+    "MNQ": {
+        "description": "Micro E-mini Nasdaq-100 Futures",
+        "root": "MNQ",
+        "is_micro": True,
+        "parent_symbol": "NQ",
+        "tick_size": 0.25,
+        "tick_value": 0.5,   # $0.50 per tick
+        "point_value": 2.0
+    },
+    
+    # S&P 500
+    "ES": {
+        "description": "E-mini S&P 500 Futures",
+        "root": "ES",
+        "is_micro": False,
+        "micro_symbol": "MES",
+        "tick_size": 0.25,
+        "tick_value": 12.5,
+        "point_value": 50.0
+    },
+    "MES": {
+        "description": "Micro E-mini S&P 500 Futures",
+        "root": "MES",
+        "is_micro": True,
+        "parent_symbol": "ES",
+        "tick_size": 0.25,
+        "tick_value": 1.25,
+        "point_value": 5.0
+    },
+    
+    # Dow
+    "YM": {
+        "description": "E-mini Dow Futures",
+        "root": "YM",
+        "is_micro": False,
+        "micro_symbol": "MYM",
+        "tick_size": 1.0,
+        "tick_value": 5.0,
+        "point_value": 5.0
+    },
+    "MYM": {
+        "description": "Micro E-mini Dow Futures",
+        "root": "MYM",
+        "is_micro": True,
+        "parent_symbol": "YM",
+        "tick_size": 1.0,
+        "tick_value": 0.5,
+        "point_value": 0.5
+    },
+    
+    # Russell 2000
+    "RTY": {
+        "description": "E-mini Russell 2000 Futures",
+        "root": "RTY",
+        "is_micro": False,
+        "micro_symbol": "M2K",
+        "tick_size": 0.1,
+        "tick_value": 5.0,
+        "point_value": 50.0
+    },
+    "M2K": {
+        "description": "Micro E-mini Russell 2000 Futures",
+        "root": "M2K",
+        "is_micro": True,
+        "parent_symbol": "RTY",
+        "tick_size": 0.1,
+        "tick_value": 0.5,
+        "point_value": 5.0
+    },
+}
+
+
+def get_instrument_base_symbol(raw_symbol: str) -> str:
+    """
+    Given a raw TradingView / exchange symbol (e.g. 'NQ1!', 'MNQH5', 'ESM5'),
+    return the logical base symbol key used in INSTRUMENT_REGISTRY
+    (e.g. 'NQ', 'MNQ', 'ES', 'MES', 'YM', 'MYM', 'RTY', 'M2K').
+    
+    This is a pure helper – it does NOT perform any DB or network I/O.
+    """
+    if not raw_symbol:
+        return "NQ"  # default to existing behaviour
+    
+    sym = str(raw_symbol).upper()
+    
+    # Normalise common futures roots; keep simple substring rules.
+    for root in ("MNQ", "NQ", "MES", "ES", "MYM", "YM", "M2K", "RTY"):
+        if root in sym:
+            return root
+    
+    # Fallback: keep legacy behaviour – NQ as default
+    return "NQ"
+
+
+def get_instrument_meta(base_symbol: str) -> dict:
+    """
+    Return the instrument metadata dict from INSTRUMENT_REGISTRY.
+    If unknown, fallback to NQ defaults (to preserve legacy behaviour).
+    """
+    base = (base_symbol or "NQ").upper()
+    meta = INSTRUMENT_REGISTRY.get(base)
+    if meta is None:
+        return INSTRUMENT_REGISTRY["NQ"].copy()
+    # Return a shallow copy to avoid accidental in-place mutation
+    return dict(meta)
+
+
 class ContractManager:
     def __init__(self, db):
         self.db = db
         self.contract_patterns = {
             'NQ': r'NQ[A-Z]?\d{0,2}!?',  # Matches NQ1!, NQZ24, NQU24, etc.
+            'MNQ': r'MNQ[A-Z]?\d{0,2}!?',  # Matches MNQ1!, MNQZ24, etc.
             'ES': r'ES[A-Z]?\d{0,2}!?',  # Matches ES1!, ESZ24, ESU24, etc.
+            'MES': r'MES[A-Z]?\d{0,2}!?',  # Matches MES1!, MESZ24, etc.
             'YM': r'YM[A-Z]?\d{0,2}!?',  # Matches YM1!, YMZ24, YMU24, etc.
+            'MYM': r'MYM[A-Z]?\d{0,2}!?',  # Matches MYM1!, MYMZ24, etc.
             'RTY': r'RTY[A-Z]?\d{0,2}!?', # Matches RTY1!, RTYZ24, etc.
+            'M2K': r'M2K[A-Z]?\d{0,2}!?', # Matches M2K1!, M2KZ24, etc.
         }
         
         # Contract month codes
@@ -47,20 +175,29 @@ class ContractManager:
                 # psycopg2 already parses JSONB to dict
                 return data if isinstance(data, dict) else loads(data)
             else:
-                # Initialize with defaults
+                # Initialize with defaults (Stage 11: added micro contracts)
                 defaults = {
                     'NQ': 'NQ1!',
-                    'ES': 'ES1!', 
+                    'MNQ': 'MNQ1!',
+                    'ES': 'ES1!',
+                    'MES': 'MES1!',
                     'YM': 'YM1!',
-                    'RTY': 'RTY1!'
+                    'MYM': 'MYM1!',
+                    'RTY': 'RTY1!',
+                    'M2K': 'M2K1!'
                 }
                 self._save_active_contracts(defaults)
                 return defaults
                 
         except Exception as e:
             logger.error(f"Error loading contracts: {e}")
-            # Fallback to defaults
-            return {'NQ': 'NQ1!', 'ES': 'ES1!', 'YM': 'YM1!', 'RTY': 'RTY1!'}
+            # Fallback to defaults (Stage 11: added micro contracts)
+            return {
+                'NQ': 'NQ1!', 'MNQ': 'MNQ1!',
+                'ES': 'ES1!', 'MES': 'MES1!',
+                'YM': 'YM1!', 'MYM': 'MYM1!',
+                'RTY': 'RTY1!', 'M2K': 'M2K1!'
+            }
     
     @auto_fix_db_errors
     def _save_active_contracts(self, contracts: Dict[str, str]):
@@ -337,15 +474,58 @@ class ContractManager:
         """
         Process incoming signal and handle any contract rollovers
         Returns updated signal data with normalized symbol
+        
+        Stage 11: Now adds base_symbol, normalized_symbol, and instrument_meta fields
         """
         try:
             original_symbol = signal_data.get('symbol', '')
+            raw_symbol = str(original_symbol)
+            
+            # Stage 11: Extract base symbol and metadata
+            base_symbol = get_instrument_base_symbol(raw_symbol)
+            meta = get_instrument_meta(base_symbol)
+            
+            # Stage 11: Compute normalized_symbol for backward compatibility
+            normalized = None
+            raw_upper = raw_symbol.upper()
+            if "NQ" in raw_upper and "MNQ" not in raw_upper:
+                normalized = "NQ1!"
+            elif "MNQ" in raw_upper:
+                normalized = "MNQ1!"
+            elif "ES" in raw_upper and "MES" not in raw_upper:
+                normalized = "ES1!"
+            elif "MES" in raw_upper:
+                normalized = "MES1!"
+            elif "YM" in raw_upper and "MYM" not in raw_upper:
+                normalized = "YM1!"
+            elif "MYM" in raw_upper:
+                normalized = "MYM1!"
+            elif "RTY" in raw_upper:
+                normalized = "RTY1!"
+            elif "M2K" in raw_upper:
+                normalized = "M2K1!"
+            elif "DXY" in raw_upper:
+                normalized = "DXY"
+            else:
+                normalized = "NQ1!"  # legacy fallback
+            
+            # Stage 11: Add new fields
+            signal_data["base_symbol"] = base_symbol
+            signal_data["normalized_symbol"] = normalized
+            signal_data["instrument_meta"] = meta
             
             # Check for rollover
             rollover_info = self.detect_contract_rollover(original_symbol)
             
             if rollover_info:
-                logger.info(f"🔄 Contract rollover detected: {rollover_info}")
+                # Stage 11: Add base_symbol to rollover_info
+                rollover_info["base_symbol"] = base_symbol
+                rollover_info["raw_symbol"] = raw_symbol
+                
+                logger.info(
+                    f"🔄 CONTRACT ROLLOVER: base={base_symbol} old={rollover_info.get('old_contract')} "
+                    f"new={rollover_info.get('new_contract')} (raw={raw_symbol})"
+                )
                 
                 # Handle the rollover
                 if self.handle_rollover(rollover_info):
@@ -355,9 +535,9 @@ class ContractManager:
                     signal_data['original_symbol'] = original_symbol
             else:
                 # Normalize to current active contract
-                normalized_symbol = self.normalize_symbol(original_symbol)
-                if normalized_symbol != original_symbol:
-                    signal_data['symbol'] = normalized_symbol
+                normalized_contract = self.normalize_symbol(original_symbol)
+                if normalized_contract != original_symbol:
+                    signal_data['symbol'] = normalized_contract
                     signal_data['symbol_normalized'] = True
                     signal_data['original_symbol'] = original_symbol
             

@@ -1,0 +1,454 @@
+/* ============================================================================
+   MODULE 17 - TIME ANALYSIS
+   Hybrid Fintech UI System - Session & Temporal Analytics
+   ============================================================================ */
+
+/* ============================================================================
+   TYPOGRAPHY & FONTS
+   ============================================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* ============================================================================
+   ROOT VARIABLES - HYBRID FINTECH COLOR SYSTEM
+   ============================================================================ */
+:root {
+    /* Background Colors */
+    --bg-primary: #0D0E12;
+    --bg-card: #14161C;
+    --bg-card-hover: #1A1C22;
+    
+    /* Accent Gradient */
+    --accent-start: #4C66FF;
+    --accent-end: #8E54FF;
+    
+    /* Text Colors */
+    --text-primary: #F2F3F5;
+    --text-muted: #9CA3AF;
+    --text-accent: #4C66FF;
+    
+    /* Status Colors */
+    --status-success: #10B981;
+    --status-warning: #F59E0B;
+    --status-danger: #EF4444;
+    --status-info: #3B82F6;
+    
+    /* Spacing */
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+    
+    /* Border Radius */
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-normal: 250ms ease;
+}
+
+/* ============================================================================
+   GLOBAL RESET & BASE STYLES
+   ============================================================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+/* ============================================================================
+   REGION A: HEADER & METRIC SUMMARY
+   ============================================================================ */
+.header-section {
+    background: var(--bg-card);
+    border-bottom: 1px solid rgba(76, 102, 255, 0.1);
+    padding: var(--spacing-xl) var(--spacing-lg);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header-container {
+    max-width: 1920px;
+    margin: 0 auto;
+}
+
+.title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.page-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.header-controls {
+    display: flex;
+    gap: var(--spacing-lg);
+    align-items: center;
+}
+
+.dataset-selector,
+.date-range-selector {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.dataset-selector label,
+.date-range-selector label {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.dataset-selector select,
+.date-range-selector input {
+    background: var(--bg-card-hover);
+    border: 1px solid rgba(76, 102, 255, 0.2);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+    transition: all var(--transition-fast);
+}
+
+.dataset-selector select:hover,
+.date-range-selector input:hover {
+    border-color: var(--accent-start);
+}
+
+.dataset-selector select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.date-range-selector span {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.metric-summary {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--spacing-lg);
+}
+
+.metric-block {
+    background: var(--bg-card-hover);
+    border: 1px solid rgba(76, 102, 255, 0.1);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md) var(--spacing-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    transition: all var(--transition-normal);
+}
+
+.metric-block:hover {
+    border-color: rgba(76, 102, 255, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(76, 102, 255, 0.1);
+}
+
+.metric-block.highlight {
+    background: linear-gradient(135deg, rgba(76, 102, 255, 0.1), rgba(142, 84, 255, 0.1));
+    border-color: rgba(76, 102, 255, 0.3);
+}
+
+.metric-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.metric-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+}
+
+/* ============================================================================
+   SECTION HEADERS
+   ============================================================================ */
+.section-header {
+    max-width: 1920px;
+    margin: 0 auto var(--spacing-lg);
+    padding: 0 var(--spacing-lg);
+}
+
+.section-header h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 2px solid;
+    border-image: linear-gradient(90deg, var(--accent-start), var(--accent-end)) 1;
+}
+
+/* ============================================================================
+   CHART CARDS - UNIVERSAL COMPONENT
+   ============================================================================ */
+.chart-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(76, 102, 255, 0.1);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    transition: all var(--transition-normal);
+}
+
+.chart-card:hover {
+    border-color: rgba(76, 102, 255, 0.3);
+    box-shadow: 0 8px 24px rgba(76, 102, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    margin-bottom: var(--spacing-md);
+}
+
+.card-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+}
+
+.card-content {
+    color: var(--text-primary);
+}
+
+.card-content canvas {
+    width: 100% !important;
+    height: 250px !important;
+}
+
+/* ============================================================================
+   REGION B: SESSION PERFORMANCE GRID
+   ============================================================================ */
+.session-section {
+    max-width: 1920px;
+    margin: var(--spacing-2xl) auto;
+    padding: 0 var(--spacing-lg);
+}
+
+.session-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-lg);
+}
+
+.session-heatmap-container {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: var(--spacing-sm);
+    min-height: 200px;
+}
+
+.session-heatmap-cell {
+    background: var(--bg-card-hover);
+    border: 1px solid rgba(76, 102, 255, 0.1);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    transition: all var(--transition-fast);
+}
+
+.session-heatmap-cell:hover {
+    transform: scale(1.05);
+    border-color: var(--accent-start);
+}
+
+.session-name {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.session-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.session-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-md);
+}
+
+.session-card {
+    background: var(--bg-card-hover);
+    border: 1px solid rgba(76, 102, 255, 0.1);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    text-align: center;
+}
+
+.session-card-name {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+}
+
+.session-card-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* ============================================================================
+   REGION C: HOUR-OF-DAY ANALYTICS
+   ============================================================================ */
+.hod-section {
+    max-width: 1920px;
+    margin: var(--spacing-2xl) auto;
+    padding: 0 var(--spacing-lg);
+}
+
+.hod-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-lg);
+}
+
+/* ============================================================================
+   REGION D: TEMPORAL PERFORMANCE CURVES
+   ============================================================================ */
+.temporal-section {
+    max-width: 1920px;
+    margin: var(--spacing-2xl) auto;
+    padding: 0 var(--spacing-lg);
+}
+
+.temporal-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-lg);
+}
+
+/* ============================================================================
+   REGION E: INSIGHTS PANEL
+   ============================================================================ */
+.insights-section {
+    max-width: 1920px;
+    margin: var(--spacing-2xl) auto var(--spacing-2xl);
+    padding: 0 var(--spacing-lg);
+}
+
+.insights-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(76, 102, 255, 0.2);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+}
+
+.insights-card .card-content {
+    text-align: center;
+}
+
+.placeholder-text {
+    font-size: 16px;
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-md);
+}
+
+.placeholder-subtext {
+    font-size: 14px;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+@media (max-width: 1400px) {
+    .session-grid,
+    .hod-grid,
+    .temporal-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .metric-summary {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .title-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-md);
+    }
+    
+    .header-controls {
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+    }
+    
+    .metric-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .session-heatmap-container {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .session-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .page-title {
+        font-size: 24px;
+    }
+    
+    .metric-summary {
+        grid-template-columns: 1fr;
+    }
+    
+    .session-heatmap-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .session-cards-grid {
+        grid-template-columns: 1fr;
+    }
+}

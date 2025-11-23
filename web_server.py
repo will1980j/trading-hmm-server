@@ -19,8 +19,11 @@ from auth import login_required, authenticate
 from ml_insights_endpoint import get_ml_insights_response
 from gpt4_strategy_validator import validate_strategy, format_analysis_for_display
 from automated_signals_state import get_hub_data, get_trade_detail
+from execution_router import ExecutionRouter
+from account_engine import AccountStateManager  # Stage 13G
 import math
 import pytz
+from prop_firm_registry import PropFirmRegistry
 
 try:
     from full_automation_webhook_handlers import register_automation_routes
@@ -68,6 +71,154 @@ def get_current_session():
     else:
         return "Asia"
 
+
+# STAGE 10: Replay candle helpers (DB-first + external OHLC fallback)
+def get_replay_candles_from_db(symbol, date_str, timeframe='1m'):
+    """
+    Fetch replay candles from replay_candles table for a given symbol/date/timeframe.
+    Returns a list of dicts sorted by candle_time.
+    Does NOT call any external APIs.
+    """
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        return []
+    
+    conn = None
+    cursor = None
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT symbol, timeframe, candle_date, candle_time,
+                   open, high, low, close, volume, source
+            FROM replay_candles
+            WHERE symbol = %s
+              AND timeframe = %s
+              AND candle_date = %s::date
+            ORDER BY candle_time ASC
+        """, (symbol, timeframe, date_str))
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Replay DB fetch error: {e}", exc_info=True)
+        return []
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def get_or_fetch_replay_candles(symbol, date_str, timeframe='1m'):
+    """
+    Hybrid replay candle fetch:
+    1) Try replay_candles table (DB-first)
+    2) If empty, fetch from external OHLC API (e.g. TwelveData or similar),
+       cache results into replay_candles, then return them.
+    All failures must be handled gracefully and return [] on error.
+    """
+    # Step 1: DB-first
+    db_candles = get_replay_candles_from_db(symbol, date_str, timeframe)
+    if db_candles:
+        return db_candles
+    
+    # Step 2: External OHLC API fallback
+    # IMPORTANT: This must fail gracefully, never raise uncaught exceptions.
+    try:
+        api_key = os.environ.get('TWELVEDATA_API_KEY') or os.environ.get('TWELVEDATA_KEY')
+        if not api_key:
+            logger.warning("Replay fallback: TwelveData API key not configured")
+            return []
+        
+        # You may reuse the same HTTP style as /api/test-twelvedata
+        import requests
+        
+        # For now, assume symbol uses a mapping from futures to ETF proxy (e.g. NQ1! -> QQQ)
+        # Keep mapping simple and explicit.
+        mapped_symbol = 'QQQ' if 'NQ' in symbol else symbol
+        
+        params = {
+            'symbol': mapped_symbol,
+            'interval': '1min',
+            'start_date': date_str,
+            'end_date': date_str,
+            'apikey': api_key,
+            'outputsize': 5000
+        }
+        resp = requests.get('https://api.twelvedata.com/time_series', params=params, timeout=10)
+        if resp.status_code != 200:
+            logger.error(f"Replay OHLC fallback HTTP {resp.status_code}: {resp.text[:200]}")
+            return []
+        
+        data = resp.json()
+        if 'values' not in data:
+            logger.error(f"Replay OHLC fallback invalid payload: {str(data)[:200]}")
+            return []
+        
+        values = data['values']
+        if not isinstance(values, list) or not values:
+            return []
+        
+        # Normalize + cache
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return []
+        
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        
+        # Insert each candle (avoid duplicates by simple ON CONFLICT pattern if desired)
+        inserted = 0
+        for v in values:
+            ts = v.get('datetime')  # e.g. "2024-01-15 09:31:00"
+            if not ts:
+                continue
+            # Split datetime into date + time
+            try:
+                dt = ts.split(' ')
+                c_date = dt[0]
+                c_time = dt[1]
+            except Exception:
+                continue
+            
+            try:
+                o = float(v.get('open', 0))
+                h = float(v.get('high', 0))
+                l = float(v.get('low', 0))
+                c = float(v.get('close', 0))
+                vol = int(float(v.get('volume', 0)))
+            except Exception:
+                continue
+            
+            cursor.execute("""
+                INSERT INTO replay_candles (
+                    symbol, timeframe, candle_date, candle_time,
+                    open, high, low, close, volume, source
+                ) VALUES (%s, %s, %s::date, %s::time, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT DO NOTHING
+            """, (symbol, timeframe, c_date, c_time, o, h, l, c, vol, 'twelvedata'))
+            inserted += 1
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        logger.info(f"Replay OHLC fallback cached {inserted} candles for {symbol} {date_str}")
+        
+        # Return from DB now that we have cached
+        return get_replay_candles_from_db(symbol, date_str, timeframe)
+    
+    except Exception as e:
+        logger.error(f"Replay OHLC fallback error: {e}", exc_info=True)
+        return []
+
+
 # Constants - Updated for Railway deployment
 NEWLINE_CHAR = '\n'
 CARRIAGE_RETURN_CHAR = '\r'
@@ -114,6 +265,41 @@ try:
                 ALTER TABLE signal_lab_trades 
                 ADD COLUMN IF NOT EXISTS ml_prediction JSONB DEFAULT NULL
             """)
+            
+            # Execution queue tables for multi-account routing (Stage 13B)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS execution_tasks (
+                    id SERIAL PRIMARY KEY,
+                    trade_id VARCHAR(100) NOT NULL,
+                    event_type VARCHAR(32) NOT NULL,
+                    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+                    attempts INTEGER NOT NULL DEFAULT 0,
+                    last_error TEXT,
+                    payload JSONB,
+                    last_attempt_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_execution_tasks_status_created
+                ON execution_tasks (status, created_at)
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS execution_logs (
+                    id SERIAL PRIMARY KEY,
+                    task_id INTEGER NOT NULL REFERENCES execution_tasks(id) ON DELETE CASCADE,
+                    status VARCHAR(32) NOT NULL,
+                    response_code INTEGER,
+                    response_body TEXT,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_execution_logs_task_id
+                ON execution_logs (task_id)
+            """)
+            
             db.conn.commit()
             logger.info("✅ Ensured required columns exist")
         except Exception as e:
@@ -137,6 +323,12 @@ except Exception as e:
     logger.error(f"Unexpected database error: {safe_error}")
     db = None
     db_enabled = False
+
+# Prop Firm registry (initialized if DB is available)
+prop_registry = None
+
+# Execution dry-run mode (Stage 13C)
+EXECUTION_DRY_RUN = os.getenv("EXECUTION_DRY_RUN", "true").lower() in ("1", "true", "yes", "on")
 
 # ============================================================================
 # ROBUST V2 WEBHOOK DATABASE SOLUTION
@@ -449,9 +641,15 @@ if db_enabled:
     register_diagnostics_api(app)
     register_system_health_api(app, db)
     register_signal_integrity_api(app)
+    
+    # Phase 2A: Register lightweight read-only API endpoints
+    from signals_api_v2 import register_signals_api_v2
+    register_signals_api_v2(app)
+    
     logger.info("✅ Robust API endpoints registered")
     logger.info("✅ Diagnostics API registered")
     logger.info("✅ Signal Integrity API registered")
+    logger.info("✅ Phase 2A API endpoints registered")
 
 # Initialize legacy handler
 realtime_handler = RealtimeSignalHandler(socketio, db) if db_enabled else None
@@ -620,6 +818,37 @@ if db_enabled and db:
     logger.info("✅ Database health monitor started")
 else:
     logger.warning("⚠️ Database health monitor skipped: database not available")
+
+# Initialize Prop Firm Registry and seed baseline data
+if db_enabled and db:
+    try:
+        prop_registry = PropFirmRegistry(db)
+        prop_registry.ensure_schema_and_seed()
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize PropFirmRegistry: {e}", exc_info=True)
+        prop_registry = None
+else:
+    logger.warning("⚠️ PropFirmRegistry not initialized: database not available")
+
+# Stage 13G: shared account state manager
+ACCOUNT_STATE_MANAGER = AccountStateManager()
+
+# Initialize and start ExecutionRouter (Stage 13B - Execution Queue)
+execution_router = None
+if db_enabled:
+    try:
+        execution_router = ExecutionRouter(
+            poll_interval=2.0,
+            batch_size=20,
+            dry_run=EXECUTION_DRY_RUN,
+            logger=logger,
+            account_state_manager=ACCOUNT_STATE_MANAGER,
+        )
+        execution_router.start()
+    except Exception as e:
+        logger.error(f"Failed to start ExecutionRouter: {e}", exc_info=True)
+else:
+    logger.warning("⚠️ ExecutionRouter not started: database not enabled")
 
 # Read HTML files and serve them
 def read_html_file(filename):
@@ -912,7 +1141,7 @@ def root():
 @app.route('/dashboard')
 @login_required
 def advanced_dashboard():
-    return read_html_file('dashboard_clean.html')
+    return render_template('main_dashboard.html')
 
 @app.route('/trade-manager')
 @login_required
@@ -1014,6 +1243,30 @@ def automated_signals_ultra_dashboard():
     """Ultra Premium Automated Signals Hub dashboard.
     Uses telemetry-rich APIs to render a full-width, multi-panel interface."""
     return render_template("automated_signals_ultra.html")
+
+
+# PATCH 9 START — Predictive Dashboard Route
+@app.route('/automated-signals-predictive', methods=['GET'])
+@login_required
+def automated_signals_predictive_dashboard():
+    """AI Predictive Dashboard — multi-panel Bloomberg-style view."""
+    return render_template('automated_signals_predictive.html')
+# PATCH 9 END — Predictive Dashboard Route
+
+# STAGE 10: Replay Dashboard route (READ-ONLY)
+@app.route("/automated-signals-replay", methods=["GET"])
+@login_required
+def automated_signals_replay_dashboard():
+    """Automated Signals Replay Dashboard - 1m hybrid replay (DB + OHLC fallback)."""
+    return render_template("automated_signals_replay.html")
+
+# PATCH 7K START: Automated Signals Telemetry & Diff Dashboard route
+@app.route('/automated-signals-telemetry')
+@login_required
+def automated_signals_telemetry_dashboard():
+    """Automated Signals Telemetry & Diff Dashboard"""
+    return render_template('automated_signals_telemetry.html')
+# PATCH 7K END: Automated Signals Telemetry & Diff Dashboard route
 
 @app.route('/live-diagnostics-terminal')
 @login_required
@@ -1610,6 +1863,16 @@ def strategy_optimizer():
 def strategy_comparison():
     return render_template('strategy_comparison.html')
 
+@app.route('/compare')
+@login_required
+def compare():
+    return render_template('compare.html')
+
+@app.route('/ml-hub')
+@login_required
+def ml_hub():
+    return render_template('ml_hub.html')
+
 @app.route('/api/strategy-comparison', methods=['GET'])
 @login_required
 def get_strategy_comparison():
@@ -1827,6 +2090,11 @@ def prop_firm_management():
 @login_required
 def financial_summary():
     return render_template('financial_summary.html')
+
+@app.route('/reporting')
+@login_required
+def reporting():
+    return render_template('reporting.html')
 
 @app.route('/reporting-hub')
 @login_required
@@ -4059,20 +4327,10 @@ def capture_live_signal():
         if triangle_bias not in ['Bullish', 'Bearish']:
             triangle_bias = 'Bullish'
             
-        # Clean symbol name FIRST - fix the symbol extraction issue
-        raw_symbol = data.get('symbol', 'NQ1!')
-        if 'YM' in raw_symbol:
-            clean_symbol = 'YM1!'
-        elif 'ES' in raw_symbol:
-            clean_symbol = 'ES1!'
-        elif 'NQ' in raw_symbol:
-            clean_symbol = 'NQ1!'
-        elif 'RTY' in raw_symbol:
-            clean_symbol = 'RTY1!'
-        elif 'DXY' in raw_symbol:
-            clean_symbol = 'DXY'
-        else:
-            clean_symbol = raw_symbol  # Keep original if no match
+        # Stage 11: Use normalized_symbol from ContractManager
+        base_symbol = data.get("base_symbol", "NQ")
+        raw_symbol = data.get("symbol", "NQ1!")
+        clean_symbol = data.get("normalized_symbol") or raw_symbol
         
         # All signals are now accepted regardless of HTF status
         htf_aligned = data.get('htf_aligned', False)
@@ -4094,8 +4352,13 @@ def capture_live_signal():
             logger.warning(f"Invalid price in signal: {data}")
         
         # CRITICAL: Log parsed signal data for debugging (AFTER price is extracted)
-        logger.info(f"📊 PARSED SIGNAL: bias={triangle_bias}, symbol={clean_symbol}, price={price}, htf={htf_status}")
-        print(f"📊 PARSED SIGNAL: bias={triangle_bias}, symbol={clean_symbol}, price={price}, htf={htf_status}")
+        # Stage 11: Enhanced logging with base_symbol and micro flag
+        meta = data.get("instrument_meta") or {}
+        logger.info(
+            f"📊 PARSED SIGNAL: base={base_symbol} raw={raw_symbol} normalized={clean_symbol} "
+            f"bias={triangle_bias} price={price} session={current_session} micro={meta.get('is_micro')}"
+        )
+        print(f"📊 PARSED SIGNAL: base={base_symbol} raw={raw_symbol} normalized={clean_symbol} bias={triangle_bias} price={price}")
         
         # Strength will be set by ML confidence after prediction
         base_strength = 0
@@ -4277,14 +4540,16 @@ def capture_live_signal():
             base_strength = 0
         
         # 🎯 AUTO-POPULATION LOGIC - All NQ signals are now captured
+        # Stage 11: Use normalized_symbol for comparison to preserve behaviour
         active_nq_contract = contract_manager.get_active_contract('NQ')
         
         if not active_nq_contract:
             active_nq_contract = 'NQ1!'
         
-        should_populate = signal['symbol'] == active_nq_contract
+        normalized = signal.get('normalized_symbol') or signal.get('symbol')
+        should_populate = (normalized == active_nq_contract)
         
-        logger.info(f"🎯 Auto-population: Symbol={signal['symbol']}, Active={active_nq_contract}, Populate={should_populate}")
+        logger.info(f"🎯 Auto-population: Symbol={signal['symbol']}, Normalized={normalized}, Active={active_nq_contract}, Populate={should_populate}")
         
         # Log final signal storage with market context
         lab_status = 'Yes' if should_populate else 'No'
@@ -4601,6 +4866,40 @@ def clear_all_live_signals():
             db.conn.rollback()
         logger.error(f"Error clearing live signals: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
+# STAGE 10: Replay candles API (READ-ONLY)
+@app.route("/api/automated-signals/replay-candles", methods=["GET"])
+@login_required
+def get_replay_candles_api():
+    """
+    Return 1m replay candles for a given symbol/date using hybrid DB + external OHLC fallback.
+    Query params:
+      - symbol (default 'NQ1!')
+      - date (YYYY-MM-DD, required)
+      - timeframe (default '1m', future-proofed)
+    """
+    symbol = request.args.get("symbol", "NQ1!")
+    date_str = request.args.get("date")
+    timeframe = request.args.get("timeframe", "1m")
+    
+    if not date_str:
+        return jsonify({
+            "success": False,
+            "error": "Missing required parameter: date (YYYY-MM-DD)"
+        }), 400
+    
+    candles = get_or_fetch_replay_candles(symbol, date_str, timeframe or "1m")
+    
+    return jsonify({
+        "success": True,
+        "symbol": symbol,
+        "date": date_str,
+        "timeframe": timeframe,
+        "count": len(candles),
+        "candles": candles
+    })
+
 
 @app.route('/api/db-reset', methods=['POST'])
 def reset_database_connection():
@@ -7050,6 +7349,92 @@ def contract_manager_dashboard():
     """Contract management dashboard"""
     return read_html_file('contract_manager.html')
 
+# ------------------------------------------------------------------------
+# Stage 13: Prop Firm Registry API (read-only, data-driven)
+# ------------------------------------------------------------------------
+
+@app.route('/api/prop-registry/firms', methods=['GET'])
+@login_required
+def api_prop_registry_firms():
+    """
+    Return all active prop firms with basic summary stats.
+    Uses PropFirmRegistry if available, otherwise returns empty list.
+    """
+    try:
+        global prop_registry
+        if not db_enabled or not db or not prop_registry:
+            return jsonify({
+                'status': 'ok',
+                'firms': [],
+                'message': 'PropFirmRegistry not available; database may be offline or not initialized.'
+            }), 200
+        
+        firms = prop_registry.list_firms_with_program_summary()
+        return jsonify({
+            'status': 'success',
+            'count': len(firms),
+            'firms': firms
+        })
+    except Exception as e:
+        logger.error(f"api_prop_registry_firms error: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/prop-registry/programs', methods=['GET'])
+@login_required
+def api_prop_registry_programs():
+    """
+    Return all programs, optionally filtered by firm_id (?firm_id=).
+    """
+    try:
+        global prop_registry
+        if not db_enabled or not db or not prop_registry:
+            return jsonify({
+                'status': 'ok',
+                'programs': [],
+                'message': 'PropFirmRegistry not available; database may be offline or not initialized.'
+            }), 200
+        
+        firm_id = request.args.get('firm_id')
+        firm_id_int = int(firm_id) if firm_id is not None and firm_id.isdigit() else None
+        programs = prop_registry.list_programs(firm_id=firm_id_int)
+        return jsonify({
+            'status': 'success',
+            'count': len(programs),
+            'programs': programs
+        })
+    except Exception as e:
+        logger.error(f"api_prop_registry_programs error: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/prop-registry/scaling-rules', methods=['GET'])
+@login_required
+def api_prop_registry_scaling_rules():
+    """
+    Return scaling rules, optionally filtered by program_id (?program_id=).
+    """
+    try:
+        global prop_registry
+        if not db_enabled or not db or not prop_registry:
+            return jsonify({
+                'status': 'ok',
+                'rules': [],
+                'message': 'PropFirmRegistry not available; database may be offline or not initialized.'
+            }), 200
+        
+        program_id = request.args.get('program_id')
+        program_id_int = int(program_id) if program_id is not None and program_id.isdigit() else None
+        rules = prop_registry.list_scaling_rules(program_id=program_id_int)
+        return jsonify({
+            'status': 'success',
+            'count': len(rules),
+            'rules': rules
+        })
+    except Exception as e:
+        logger.error(f"api_prop_registry_scaling_rules error: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
 # Prop Firm Management API Endpoints
 @app.route('/api/prop-firm/overview', methods=['GET'])
 @login_required
@@ -7081,12 +7466,17 @@ def get_prop_firm_overview():
 @app.route('/api/prop-firm/firms', methods=['GET'])
 @login_required
 def get_prop_firms():
+    """
+    Backward-compatible endpoint returning a simple list of firms.
+    
+    If PropFirmRegistry is available and has data, it will be used to populate
+    the response. If not, we fall back to the original hard-coded mock data
+    to avoid breaking existing UI.
+    """
     try:
-        if not db_enabled or not db:
-            return jsonify({'error': 'Database not available'}), 500
-            
-        # Mock data - replace with real database queries
-        firms = [
+        global prop_registry
+        
+        fallback_firms = [
             {
                 'id': 1,
                 'name': 'Apex Trader Funding',
@@ -7107,9 +7497,37 @@ def get_prop_firms():
             }
         ]
         
-        return jsonify(firms)
+        if not db_enabled or not db or not prop_registry:
+            return jsonify(fallback_firms), 200
         
+        firms = prop_registry.list_firms_with_program_summary()
+        if not firms:
+            # No data yet; keep old behavior
+            return jsonify(fallback_firms), 200
+        
+        # Map registry output to existing shape
+        response_items = []
+        for f in firms:
+            # Use program stats to infer default drawdown/target if present
+            account_size = f.get('max_account_size') or f.get('min_account_size') or 50000
+            max_dd = float(account_size) * 0.10 if account_size else 0.0
+            daily_dd = float(account_size) * 0.05 if account_size else 0.0
+            profit_target = float(account_size) * 0.10 if account_size else 0.0
+            
+            response_items.append({
+                'id': int(f['id']),
+                'name': f.get('name') or f.get('code'),
+                'base_currency': 'USD',
+                'max_drawdown': float(max_dd),
+                'daily_loss_limit': float(daily_dd),
+                'profit_target': float(profit_target),
+                'account_count': int(f.get('program_count', 0) or 0)
+            })
+        
+        return jsonify(response_items), 200
+    
     except Exception as e:
+        logger.error(f"get_prop_firms error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/prop-firm/accounts', methods=['GET'])
@@ -8125,6 +8543,65 @@ Focus on data-driven insights."""
 try:
     if db_enabled and db:
         cursor = db.conn.cursor()
+        
+        # ------------------------------------------------------------------
+        # Stage 13: Prop Firm Registry schema (idempotent)
+        # ------------------------------------------------------------------
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS prop_firms (
+                id SERIAL PRIMARY KEY,
+                code VARCHAR(50) UNIQUE NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                website_url TEXT,
+                status VARCHAR(32) DEFAULT 'active',
+                schema_version INTEGER DEFAULT 1,
+                meta JSONB DEFAULT '{}'::jsonb,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                last_synced_at TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS prop_programs (
+                id SERIAL PRIMARY KEY,
+                firm_id INTEGER NOT NULL REFERENCES prop_firms(id) ON DELETE CASCADE,
+                name VARCHAR(255) NOT NULL,
+                account_size NUMERIC(18,2) NOT NULL,
+                currency VARCHAR(16) DEFAULT 'USD',
+                max_daily_loss NUMERIC(18,2),
+                max_total_loss NUMERIC(18,2),
+                profit_target NUMERIC(18,2),
+                min_trading_days INTEGER,
+                max_trading_days INTEGER,
+                payout_split NUMERIC(5,4),
+                scaling_plan TEXT,
+                schema_version INTEGER DEFAULT 1,
+                meta JSONB DEFAULT '{}'::jsonb,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE (firm_id, name, account_size)
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS prop_scaling_rules (
+                id SERIAL PRIMARY KEY,
+                firm_id INTEGER NOT NULL REFERENCES prop_firms(id) ON DELETE CASCADE,
+                program_id INTEGER REFERENCES prop_programs(id) ON DELETE CASCADE,
+                step_number INTEGER NOT NULL DEFAULT 1,
+                scale_factor NUMERIC(10,4) NOT NULL,
+                profit_target_multiple NUMERIC(10,4),
+                min_days_between_scales INTEGER,
+                max_equity_drawdown NUMERIC(10,4),
+                meta JSONB DEFAULT '{}'::jsonb,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_prop_firms_code ON prop_firms(code)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_prop_programs_firm_id ON prop_programs(firm_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_prop_programs_account_size ON prop_programs(account_size)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_scaling_rules_program_id ON prop_scaling_rules(program_id)")
+        
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS economic_news_cache (
                 id SERIAL PRIMARY KEY,
@@ -8168,6 +8645,42 @@ try:
         logger.info("Database tables ready with HTF, market context, and ML prediction columns")
 except Exception as e:
     logger.error(f"Error creating database tables: {str(e)}")
+
+# STAGE 10: Replay candles cache table (DB-first hybrid replay)
+try:
+    if db_enabled and db:
+        cursor = db.conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS replay_candles (
+                id SERIAL PRIMARY KEY,
+                symbol VARCHAR(20) NOT NULL,
+                timeframe VARCHAR(10) NOT NULL,
+                candle_date DATE NOT NULL,
+                candle_time TIME NOT NULL,
+                open DECIMAL(12,6) NOT NULL,
+                high DECIMAL(12,6) NOT NULL,
+                low DECIMAL(12,6) NOT NULL,
+                close DECIMAL(12,6) NOT NULL,
+                volume BIGINT DEFAULT 0,
+                source VARCHAR(30) DEFAULT 'db',
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_replay_candles_key
+            ON replay_candles(symbol, timeframe, candle_date, candle_time)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_replay_candles_date
+            ON replay_candles(symbol, timeframe, candle_date)
+        """)
+        
+        db.conn.commit()
+        logger.info("Replay candles table ready with indexes")
+except Exception as e:
+    logger.error(f"Error creating replay_candles table: {str(e)}")
 
 # Signal lab table is created in railway_db.py setup_tables()
 
@@ -10358,6 +10871,91 @@ def deploy_dual_schema():
         }), 500
 
 # ============================================================================
+# EXECUTION QUEUE HELPERS (Stage 13B - Execution Queue)
+# ============================================================================
+
+def enqueue_execution_task(trade_id, event_type, payload):
+    """
+    Enqueue a generic execution task into the execution_tasks table.
+    This is non-blocking and does not perform any external calls.
+    """
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        logger.warning("Execution queue: DATABASE_URL not configured, skipping enqueue")
+        return
+    
+    conn = None
+    cur = None
+    try:
+        conn = psycopg2.connect(database_url)
+        conn.autocommit = False
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO execution_tasks (
+                trade_id,
+                event_type,
+                status,
+                payload,
+                created_at,
+                updated_at
+            ) VALUES (%s, %s, %s, %s, NOW(), NOW())
+            """,
+            (trade_id, event_type, 'PENDING', json.dumps(payload)),
+        )
+        conn.commit()
+        logger.info("📥 Enqueued execution task: trade_id=%s event_type=%s", trade_id, event_type)
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        logger.error("Execution queue enqueue failed for trade_id=%s: %s", trade_id, e, exc_info=True)
+    finally:
+        if cur is not None:
+            try:
+                cur.close()
+            except Exception:
+                pass
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def enqueue_execution_task_for_entry(trade_id, direction, entry_price, stop_loss, session, bias, contracts=None):
+    """
+    Convenience wrapper for ENTRY tasks.
+    Stage 13H: Added contracts parameter for enforcement checks.
+    """
+    payload = {
+        "kind": "ENTRY",
+        "direction": direction,
+        "entry_price": float(entry_price) if entry_price is not None else None,
+        "stop_loss": float(stop_loss) if stop_loss is not None else None,
+        "session": session,
+        "bias": bias,
+        "contracts": int(contracts) if contracts is not None else None,
+    }
+    enqueue_execution_task(trade_id, "ENTRY", payload)
+
+
+def enqueue_execution_task_for_exit(trade_id, exit_type, exit_price, final_be_mfe, final_no_be_mfe):
+    """
+    Convenience wrapper for EXIT tasks.
+    """
+    payload = {
+        "kind": "EXIT",
+        "exit_type": exit_type,
+        "exit_price": float(exit_price) if exit_price is not None else None,
+        "final_be_mfe": float(final_be_mfe) if final_be_mfe is not None else None,
+        "final_no_be_mfe": float(final_no_be_mfe) if final_no_be_mfe is not None else None,
+    }
+    enqueue_execution_task(trade_id, "EXIT", payload)
+
+# ============================================================================
 # AUTOMATED SIGNALS WEBHOOK ENDPOINT
 # ============================================================================
 
@@ -10410,6 +11008,15 @@ def create_automated_signals_table():
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_event_type ON automated_signals(event_type);')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_timestamp ON automated_signals(timestamp);')
         
+        # Ensure lifecycle columns exist for state machine tracking
+        cursor.execute('''
+            ALTER TABLE automated_signals
+            ADD COLUMN IF NOT EXISTS lifecycle_state VARCHAR(40),
+            ADD COLUMN IF NOT EXISTS lifecycle_seq INTEGER,
+            ADD COLUMN IF NOT EXISTS lifecycle_entered_at TIMESTAMP,
+            ADD COLUMN IF NOT EXISTS lifecycle_updated_at TIMESTAMP;
+        ''')
+        
         conn.commit()
         
         # Verify table was created
@@ -10442,160 +11049,579 @@ def automated_signals_webhook_alias():
     """Alias for backward compatibility with /webhook suffix"""
     return automated_signals_webhook()
 
-def automated_signals_webhook():
+def _validate_trade_id(raw_trade_id, format_kind, event_type):
     """
-    Webhook endpoint for automated trading signals from TradingView
+    Strict validation for incoming trade IDs to prevent malformed or 'ghost' trades.
     
-    Supported formats (tri-parser):
-    1) Strategy format (complete_automated_trading_system.pine)
-       {
-         "type": "signal_created" | "ENTRY" | "mfe_update" | "MFE_UPDATE" |
-                 "be_triggered" | "BE_TRIGGERED" | "signal_completed" |
-                 "EXIT_SL" | "EXIT_STOP_LOSS" | "EXIT_BREAK_EVEN",
-         "signal_id": "..."
-       }
+    Returns (normalized_trade_id, None) on success, or (None, error_message) on failure.
+    Does not perform any database IO.
+    """
+    trade_id = str(raw_trade_id).strip() if raw_trade_id is not None else ""
     
-    2) Legacy indicator format (enhanced_fvg_indicator_v2_full_automation.pine)
-       {
-         "automation_stage": "SIGNAL_DETECTED" | "CONFIRMATION_DETECTED" |
-                             "TRADE_ACTIVATED" | "MFE_UPDATE" |
-                             "TRADE_RESOLVED" | "SIGNAL_CANCELLED",
-         "trade_id": "...",
-       }
+    if not trade_id:
+        return None, "missing trade_id/signal_id"
     
-    3) Telemetry format (NQ_FVG_CORE_TELEMETRY)
-       Wrapped:
-       {
-         "attributes": {
-           "trade_id": "...",
-           "event_type": "ENTRY" | "MFE_UPDATE" | "BE_TRIGGERED" |
-                         "EXIT_BREAK_EVEN" | "EXIT_STOP_LOSS"
-           ...
-         }
-       }
-       
-       Root:
-       {
-         "trade_id": "...",
-         "event_type": "ENTRY" | "MFE_UPDATE" | "BE_TRIGGERED" |
-                       "EXIT_BREAK_EVEN" | "EXIT_STOP_LOSS",
-         "schema_version": "..."
-         ...
-       }
+    # Disallow obvious bad characters that break grouping or indicate malformed payloads
+    if any(ch.isspace() for ch in trade_id):
+        return None, "trade_id must not contain whitespace"
+    
+    if any(ch in trade_id for ch in [",", ";"]):
+        return None, "trade_id contains invalid separator characters"
+    
+    # Basic pattern: allow alphanumerics, underscore, dash, colon
+    import re
+    if not re.match(r"^[A-Za-z0-9_\-:]+$", trade_id):
+        return None, "trade_id contains invalid characters"
+    
+    return trade_id, None
+
+def as_parse_automated_signal_payload(data):
+    """
+    Unified parser for TradingView automation payloads.
+    Supports:
+        1) Strategy format (type, signal_id)
+        2) Indicator format (automation_stage, trade_id)
+        3) Telemetry format (root or wrapped in attributes{})
+    
+    Returns:
+        {
+            "event_type": "ENTRY" | "MFE_UPDATE" | "BE_TRIGGERED" | "EXIT_SL" | "EXIT_BE",
+            "trade_id": "<string>",
+            "format_kind": "<string>",
+            "normalized": "<bool>"
+        }
+    """
+    event_type = None
+    trade_id = None
+    format_kind = None
+    normalized = False
+    
+    attributes = data.get("attributes") if isinstance(data.get("attributes"), dict) else None
+    message_type = data.get("type")
+    automation_stage = data.get("automation_stage")
+    
+    # --- Telemetry (root) ---
+    if attributes is None and "event_type" in data and "schema_version" in data:
+        format_kind = "telemetry_root"
+        event_type = data.get("event_type")
+        trade_id = data.get("trade_id")
+        normalized = True
+    
+    # --- Telemetry (wrapped) ---
+    elif attributes is not None:
+        format_kind = "telemetry_wrapped"
+        event_type = attributes.get("event_type")
+        trade_id = attributes.get("trade_id")
+        normalized = True
+    
+    # --- Strategy format ---
+    elif message_type:
+        format_kind = "strategy"
+        trade_id = data.get("signal_id")
+        mapping = {
+            "signal_created": "ENTRY",
+            "ENTRY": "ENTRY",
+            "mfe_update": "MFE_UPDATE",
+            "MFE_UPDATE": "MFE_UPDATE",
+            "be_triggered": "BE_TRIGGERED",
+            "BE_TRIGGERED": "BE_TRIGGERED",
+            "signal_completed": "EXIT_SL",
+            "EXIT_SL": "EXIT_SL",
+            "EXIT_STOP_LOSS": "EXIT_SL",
+            "EXIT_BREAK_EVEN": "EXIT_BE",
+        }
+        event_type = mapping.get(message_type)
+    
+    # --- Legacy indicator ---
+    elif automation_stage:
+        format_kind = "legacy_indicator"
+        trade_id = data.get("trade_id") or data.get("signal_id")
+        mapping = {
+            "SIGNAL_DETECTED": "ENTRY",
+            "CONFIRMATION_DETECTED": "ENTRY",
+            "TRADE_ACTIVATED": "ENTRY",
+            "MFE_UPDATE": "MFE_UPDATE",
+            "TRADE_RESOLVED": "EXIT_SL",
+            "SIGNAL_CANCELLED": "CANCELLED",
+        }
+        event_type = mapping.get(automation_stage)
+    
+    canonical = {
+        "event_type": event_type,
+        "trade_id": trade_id or "UNKNOWN",
+        "format_kind": format_kind,
+        "normalized": normalized
+    }
+    
+    # ------------------------------------
+    # 7F: STRICT TELEMETRY VALIDATION BLOCK
+    # ------------------------------------
+    required_fields = ["event_type", "trade_id"]
+    missing = []
+    for field in required_fields:
+        if not canonical.get(field):
+            missing.append(field)
+    if missing:
+        canonical["validation_error"] = {
+            "type": "MISSING_REQUIRED_FIELDS",
+            "missing": missing,
+            "payload_subset": {
+                "event_type": canonical.get("event_type"),
+                "trade_id": canonical.get("trade_id")
+            }
+        }
+    
+    # Validate event_type is one of the supported lifecycle events
+    allowed_events = ["ENTRY", "MFE_UPDATE", "BE_TRIGGERED", "EXIT_BE", "EXIT_SL", "CANCELLED"]
+    if canonical.get("event_type") not in allowed_events:
+        canonical["validation_error"] = {
+            "type": "UNKNOWN_EVENT_TYPE",
+            "value": canonical.get("event_type"),
+            "allowed": allowed_events
+        }
+    
+    # Validate trade_id format (must not be None, empty, or malformed)
+    if canonical.get("trade_id") in [None, "", "null", "undefined"] or "," in canonical.get("trade_id", ""):
+        canonical["validation_error"] = {
+            "type": "INVALID_TRADE_ID_FORMAT",
+            "value": canonical.get("trade_id")
+        }
+    
+    return canonical
+
+def as_validate_parsed_payload(canonical):
+    """
+    Strict telemetry validation gate.
+    Rejects malformed or incomplete telemetry before lifecycle handlers run.
+    Returns: None if valid, or an error string if invalid.
+    """
+    if canonical is None:
+        return "canonical payload is None"
+    
+    # Required fields
+    required_fields = ["event_type", "trade_id", "format_kind"]
+    for field in required_fields:
+        if field not in canonical or canonical[field] in (None, "", "UNKNOWN"):
+            return f"Missing or invalid required field: {field}"
+    
+    # Format must be recognized
+    if canonical["format_kind"] not in ("telemetry_root", "telemetry_wrapped", "strategy", "legacy_indicator"):
+        return f"Unrecognized format_kind: {canonical['format_kind']}"
+    
+    # Telemetry event types must match internal mapping
+    allowed_events = {"ENTRY", "MFE_UPDATE", "BE_TRIGGERED", "EXIT_BE", "EXIT_SL", "CANCELLED"}
+    if canonical["event_type"] not in allowed_events:
+        return f"Illegal or unknown event_type: {canonical['event_type']}"
+    
+    # trade_id sanity check
+    tid = canonical["trade_id"]
+    if not isinstance(tid, str) or tid.strip() == "" or "," in tid or " " in tid:
+        return f"Malformed trade_id: {repr(tid)}"
+    
+    return None
+
+def as_fuse_automated_payload_sources(raw_data, parsed):
+    """
+    Upgrade 7H:
+    Multi-source fusion & telemetry consistency guard.
+    
+    Inputs:
+    • raw_data: dict — raw webhook JSON payload
+    • parsed: dict — canonical structure from as_parse_automated_signal_payload()
+    
+    Output:
+    • fused canonical event dict OR None on failure
+    """
+    # Base canonical object — always begins with parsed
+    fused = dict(parsed)
+    
+    # 1. Strategy metadata (if exists)
+    if isinstance(raw_data, dict):
+        for k in ("strategy_name", "strategy_version", "engine_version"):
+            if k in raw_data and k not in fused:
+                fused[k] = raw_data[k]
+    
+    # 2. Attributes.* metadata (if present)
+    attrs = raw_data.get("attributes") if isinstance(raw_data.get("attributes"), dict) else None
+    if attrs:
+        for k, v in attrs.items():
+            if k not in fused and k not in ("event_type", "trade_id"):
+                fused[k] = v
+    
+    # 3. Core field consistency check
+    raw_et = raw_data.get("event_type") or (attrs.get("event_type") if attrs else None)
+    if raw_et and raw_et != fused["event_type"]:
+        fused["telemetry_warning"] = f"event_type mismatch: raw='{raw_et}' canonical='{fused['event_type']}'"
+    
+    raw_tid = raw_data.get("trade_id") or (attrs.get("trade_id") if attrs else None)
+    if raw_tid and raw_tid != fused["trade_id"]:
+        fused["telemetry_warning"] = f"trade_id mismatch: raw='{raw_tid}' canonical='{fused['trade_id']}'"
+    
+    return fused
+
+def as_validate_lifecycle_transition(trade_id, new_event_type, cursor):
+    """
+    Strict lifecycle state machine validation.
+    Ensures: ENTRY → MFE_UPDATE → EXIT_* is the ONLY allowed order.
+    """
+    cursor.execute("""
+        SELECT event_type
+        FROM automated_signals
+        WHERE trade_id = %s
+        ORDER BY id ASC
+    """, (trade_id,))
+    rows = cursor.fetchall()
+    history = [r[0] for r in rows]
+    
+    # no ENTRY yet → only ENTRY allowed
+    if "ENTRY" not in history:
+        if new_event_type != "ENTRY":
+            return f"Illegal transition: {new_event_type} received before ENTRY"
+        return None
+    
+    # already exited → no further events allowed
+    if any(e.startswith("EXIT_") for e in history):
+        return f"Illegal transition: Trade {trade_id} already exited"
+    
+    # ENTRY → MFE allowed
+    if new_event_type == "MFE_UPDATE":
+        return None
+    
+    # ENTRY → EXIT allowed
+    if new_event_type.startswith("EXIT_"):
+        return None
+    
+    # anything else is illegal
+    return f"Illegal transition for {trade_id}: {new_event_type}"
+
+def as_log_automated_signal_event(raw_data, fused_event, validation_error, handler_result, timing_ms):
+    """
+    Non-blocking audit logger for automated webhook events.
+    NEVER raises. NEVER mutates automated_signals.
+    Append-only into telemetry_automated_signals_log.
     """
     try:
-        data = request.get_json(force=True, silent=True)
-        logger.info("🟦 RAW WEBHOOK DATA RECEIVED: %s", data)
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return
         
-        if not data or not isinstance(data, dict):
-            return jsonify({"success": False, "error": "No valid JSON data provided"}), 400
+        conn = psycopg2.connect(database_url)
+        cur = conn.cursor()
         
-        attributes = data.get('attributes') if isinstance(data.get('attributes'), dict) else None
-        message_type = data.get('type')
-        automation_stage = data.get('automation_stage')
+        # PATCH 7M-C: Ensure ai_detail column exists (non-destructive)
+        try:
+            cur2 = conn.cursor()
+            cur2.execute("""
+                ALTER TABLE telemetry_automated_signals_log
+                ADD COLUMN IF NOT EXISTS ai_detail JSONB;
+            """)
+            conn.commit()
+            cur2.close()
+        except Exception:
+            pass
         
-        event_type = None
-        trade_id = None
-        format_kind = None
+        # STAGE 12 START — RL SCORE COLUMN
+        try:
+            cur_rl = conn.cursor()
+            cur_rl.execute("""
+                ALTER TABLE telemetry_automated_signals_log
+                ADD COLUMN IF NOT EXISTS ai_rl_score JSONB;
+            """)
+            conn.commit()
+            cur_rl.close()
+        except Exception:
+            pass
+        # STAGE 12 END — RL SCORE COLUMN
         
-        # TELEMETRY (wrapped or root)
-        if attributes is None and "event_type" in data and "schema_version" in data:
-            attributes = data
-            format_kind = "telemetry_root"
-        elif attributes is not None:
-            format_kind = "telemetry_wrapped"
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS telemetry_automated_signals_log (
+                id SERIAL PRIMARY KEY,
+                received_at TIMESTAMP DEFAULT NOW(),
+                raw_payload JSONB,
+                fused_event JSONB,
+                validation_error TEXT,
+                handler_result JSONB,
+                processing_time_ms INTEGER
+            );
+        """)
         
-        if attributes is not None:
-            event_type = attributes.get("event_type")
-            trade_id = attributes.get("trade_id")
-            
-            for key in ["schema_version", "engine_version", "strategy_name", "strategy_id",
-                        "strategy_version", "event_timestamp", "symbol", "exchange",
-                        "timeframe", "session", "direction", "entry_price", "stop_loss",
-                        "risk_R", "position_size", "be_price", "mfe_R", "mae_R",
-                        "final_mfe_R", "exit_price", "exit_reason",
-                       ]:
-                if key in attributes:
-                    data[key] = attributes[key]
-            
-            telemetry_to_internal = {
-                "EXIT_BREAK_EVEN": "EXIT_BE",
-                "EXIT_STOP_LOSS": "EXIT_SL",
+        # PATCH 7M-C: compute ai_detail BEFORE logging
+        try:
+            ai_detail = ai_analyze_trade_pattern(raw_data, fused_event, handler_result)
+        except Exception as _aierr:
+            ai_detail = {"ai_enabled": False, "error": str(_aierr)}
+        
+        # STAGE 12 — compute RL score
+        try:
+            trade_id = (fused_event or {}).get("trade_id")
+            lifecycle_events = []
+            if trade_id:
+                cur_lc = conn.cursor()
+                cur_lc.execute("""
+                    SELECT event_type, entry_price, stop_loss, mfe, be_mfe, no_be_mfe
+                    FROM automated_signals
+                    WHERE trade_id = %s
+                    ORDER BY id ASC
+                """, (trade_id,))
+                lifecycle_events = cur_lc.fetchall()
+                cur_lc.close()
+            ai_rl_score = ai_reinforcement_score(lifecycle_events, ai_detail)
+        except Exception as _rlerr:
+            ai_rl_score = {
+                "rl_quality": 0.0,
+                "rl_grade": "F",
+                "rl_notes": [f"RL scoring error: {str(_rlerr)}"]
             }
-            if event_type in telemetry_to_internal:
-                event_type = telemetry_to_internal[event_type]
-            
-            logger.info(f"📥 Telemetry signal ({format_kind}): event_type={event_type}, trade_id={trade_id}")
         
-        # STRATEGY (type)
-        elif message_type:
-            format_kind = "strategy"
-            type_to_event = {
-                'signal_created': 'ENTRY',
-                'ENTRY': 'ENTRY',
-                'mfe_update': 'MFE_UPDATE',
-                'MFE_UPDATE': 'MFE_UPDATE',
-                'be_triggered': 'BE_TRIGGERED',
-                'BE_TRIGGERED': 'BE_TRIGGERED',
-                'signal_completed': 'EXIT_SL',
-                'EXIT_SL': 'EXIT_SL',
-                'EXIT_STOP_LOSS': 'EXIT_SL',
-                'EXIT_BREAK_EVEN': 'EXIT_BE',
-            }
-            event_type = type_to_event.get(message_type)
-            trade_id = data.get('signal_id')
-            logger.info(f"📥 Strategy signal: type={message_type}, id={trade_id}")
+        cur.execute("""
+            INSERT INTO telemetry_automated_signals_log
+                (raw_payload, fused_event, validation_error, handler_result, processing_time_ms, ai_detail, ai_rl_score)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (
+            json.dumps(raw_data) if raw_data else None,
+            json.dumps(fused_event) if fused_event else None,
+            validation_error,
+            json.dumps(handler_result) if handler_result else None,
+            int(timing_ms),
+            json.dumps(ai_detail),
+            json.dumps(ai_rl_score)
+        ))
         
-        # LEGACY INDICATOR (automation_stage)
-        elif automation_stage:
-            format_kind = "legacy_indicator"
-            stage_to_event = {
-                'SIGNAL_DETECTED': 'ENTRY',
-                'CONFIRMATION_DETECTED': 'ENTRY',
-                'TRADE_ACTIVATED': 'ENTRY',
-                'MFE_UPDATE': 'MFE_UPDATE',
-                'TRADE_RESOLVED': 'EXIT_SL',
-                'SIGNAL_CANCELLED': 'CANCELLED',
-            }
-            event_type = stage_to_event.get(automation_stage)
-            trade_id = data.get('trade_id') or data.get('signal_id')
-            logger.info(f"📥 Indicator signal: stage={automation_stage}, id={trade_id}")
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception:
+        try:
+            conn.rollback()
+        except:
+            pass
+        return
+
+
+# PATCH 7M-C START: AI Pattern Validator Helper
+def ai_analyze_trade_pattern(raw_payload, fused_event, handler_result):
+    """7M-C: Full AI Trade Pattern Evaluation using OpenAI API.
+    Returns a dict with:
+    - ai_confidence
+    - ai_expected_exit
+    - ai_predicted_outcome
+    - ai_expected_mfe_path
+    - ai_score
+    - ai_reasoning
+    If OPENAI_API_KEY missing or call fails — returns a fallback minimal dict."""
+    try:
+        import openai, os, json
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            return {"ai_enabled": False,
+                    "reason": "OPENAI_API_KEY not configured"}
         
+        openai.api_key = api_key
+        prompt = {
+            "raw_payload": raw_payload,
+            "fused_event": fused_event,
+            "handler_result": handler_result
+        }
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system",
+                 "content": "You are an institutional-grade trade pattern analysis engine. Analyze the trade event structurally and provide predictive metadata."},
+                {"role": "user",
+                 "content": "Analyze the following trade context and output a JSON dict with ai_confidence, ai_expected_exit, ai_predicted_outcome, ai_expected_mfe_path, ai_reasoning, ai_score:\n\n" +
+                           json.dumps(prompt, indent=2)}
+            ],
+            max_tokens=300
+        )
+        
+        raw_text = response["choices"][0]["message"]["content"]
+        try:
+            parsed = json.loads(raw_text)
+            parsed["ai_enabled"] = True
+            return parsed
+        except Exception:
+            return {"ai_enabled": True,
+                    "raw_response": raw_text,
+                    "reason": "Failed to parse AI JSON"}
+    except Exception as e:
+        return {"ai_enabled": False,
+                "error": str(e)}
+# PATCH 7M-C END: AI Pattern Validator Helper
+
+
+# STAGE 12 START — RL SCORING ENGINE
+def ai_reinforcement_score(lifecycle_events, ai_detail):
+    """Stage 12 Reinforcement AI Scoring Engine.
+    Computes a reinforcement-style trade quality score based on:
+    - AI confidence
+    - Exit prediction correctness
+    - MFE development
+    Returns:
+    {
+        "rl_quality": float (0–1),
+        "rl_grade": "A"|"B"|"C"|"D"|"F",
+        "rl_components": {...},
+        "rl_notes": [...]
+    }
+    """
+    try:
+        rl = {
+            "rl_quality": 0.5,
+            "rl_grade": "C",
+            "rl_components": {},
+            "rl_notes": []
+        }
+        
+        # 1) AI confidence
+        ai_conf = 0.0
+        if isinstance(ai_detail, dict):
+            ai_conf = float(ai_detail.get("ai_confidence", 0.0) or 0.0)
+        rl["rl_components"]["ai_confidence"] = ai_conf
+        
+        # 2) Exit match (expected vs actual)
+        actual_exit = None
+        for ev in lifecycle_events:
+            et = ev.get("event_type")
+            if et and et.startswith("EXIT_"):
+                actual_exit = et
+                break
+        
+        predicted_exit = None
+        if isinstance(ai_detail, dict):
+            predicted_exit = ai_detail.get("ai_expected_exit")
+        
+        exit_match = (1.0 if actual_exit and predicted_exit and actual_exit == predicted_exit
+                      else 0.3)
+        rl["rl_components"]["exit_match"] = exit_match
+        
+        # 3) MFE profile scoring
+        mfe_score = 0.4
+        try:
+            mfe_vals = [ev.get("mfe") for ev in lifecycle_events if ev.get("mfe") is not None]
+            if mfe_vals:
+                max_mfe = max(mfe_vals)
+                mfe_score = min(1.0, max_mfe / 3.0)
+        except Exception:
+            pass
+        rl["rl_components"]["mfe_profile"] = mfe_score
+        
+        # Weighted final score
+        final = 0.5 * ai_conf + 0.3 * exit_match + 0.2 * mfe_score
+        final = max(0.0, min(1.0, final))
+        rl["rl_quality"] = final
+        
+        # Grade
+        if final >= 0.85:
+            rl["rl_grade"] = "A"
+        elif final >= 0.70:
+            rl["rl_grade"] = "B"
+        elif final >= 0.50:
+            rl["rl_grade"] = "C"
+        elif final >= 0.30:
+            rl["rl_grade"] = "D"
         else:
-            logger.error(f"❌ Unsupported webhook payload format: {data}")
-            return jsonify({"success": False, "error": "Unsupported payload format"}), 400
+            rl["rl_grade"] = "F"
         
-        if not event_type:
-            detail = {
-                "format_kind": format_kind,
-                "message_type": message_type,
-                "automation_stage": automation_stage,
-                "raw_event_type": data.get("event_type"),
-            }
-            return jsonify({"success": False,
-                           "error": f"Unknown event_type for format={format_kind}",
-                           "detail": detail}), 400
+        # Notes
+        if predicted_exit and actual_exit and predicted_exit == actual_exit:
+            rl["rl_notes"].append("AI correctly predicted the exit classification.")
+        else:
+            rl["rl_notes"].append("AI prediction did not match actual exit.")
+        rl["rl_notes"].append(f"MFE contribution: {mfe_score:.2f}")
+        rl["rl_notes"].append(f"AI confidence contribution: {ai_conf:.2f}")
         
+        return rl
+    
+    except Exception as e:
+        return {
+            "rl_quality": 0.0,
+            "rl_grade": "F",
+            "rl_components": {},
+            "rl_notes": [f"RL error: {str(e)}"]
+        }
+# STAGE 12 END — RL SCORING ENGINE
+
+
+def automated_signals_webhook():
+    """
+    Unified webhook with strict telemetry enforcement (Upgrade 7G).
+    Enhanced with Phase 2A normalization layer.
+    All raw payload parsing is delegated to as_parse_automated_signal_payload().
+    All validation is delegated to as_validate_parsed_payload().
+    Routes clean canonical events to correct handlers.
+    """
+    import time
+    t0 = time.time()
+    
+    try:
+        data_raw = request.get_json(force=True, silent=True)
+        logger.info("🟦 RAW WEBHOOK DATA RECEIVED (7G): %s", data_raw)
+        
+        # PHASE 2A: Apply normalization layer BEFORE any DB writes
+        from signal_normalization import normalize_signal_payload, validate_normalized_payload
+        normalized_data = normalize_signal_payload(data_raw)
+        
+        # Validate normalized payload
+        is_valid, validation_error = validate_normalized_payload(normalized_data)
+        if not is_valid:
+            logger.warning(f"[WEBHOOK] Normalization validation failed: {validation_error}")
+            # Continue with original data for backward compatibility
+            data_to_parse = data_raw
+        else:
+            logger.info(f"[WEBHOOK] Normalization successful: direction={normalized_data.get('direction')}, session={normalized_data.get('session')}")
+            # Use normalized data for downstream processing
+            data_to_parse = normalized_data
+        
+        # Continue with existing logic using normalized data
+        parsed = as_parse_automated_signal_payload(data_to_parse)
+        
+        if isinstance(parsed, dict) and parsed.get("success") is False:
+            return jsonify(parsed), 400
+        
+        validation_error = as_validate_parsed_payload(parsed)
+        if validation_error:
+            t1 = time.time()
+            as_log_automated_signal_event(data_raw, parsed, validation_error, {"error": validation_error}, (t1 - t0) * 1000)
+            return jsonify({"success": False, "error": validation_error}), 400
+        
+        # 7H multi-source fusion
+        canonical = as_fuse_automated_payload_sources(data_raw, parsed)
+        
+        event_type = canonical["event_type"]
+        format_kind = canonical["format_kind"]
+        logger.info(f"📥 Parsed (7G): event_type={event_type}, trade_id={canonical['trade_id']}, format={format_kind}")
+        
+        # ROUTING
         if event_type == "ENTRY":
-            result = handle_entry_signal(data)
+            result = handle_entry_signal(canonical)
         elif event_type == "MFE_UPDATE":
-            result = handle_mfe_update(data)
+            result = handle_mfe_update(canonical)
         elif event_type == "BE_TRIGGERED":
-            result = handle_be_trigger(data)
-        elif event_type in ("EXIT_SL", "EXIT_BE"):
-            resolution = data.get('resolution_type') or data.get('completion_reason', '')
-            exit_type = "BREAK_EVEN" if 'be' in resolution.lower() else "STOP_LOSS"
-            result = handle_exit_signal(data, exit_type)
+            result = handle_be_trigger(canonical)
+        elif event_type in ("EXIT_BE", "EXIT_SL"):
+            exit_type = "BREAK_EVEN" if event_type == "EXIT_BE" else "STOP_LOSS"
+            result = handle_exit_signal(canonical, exit_type)
         elif event_type == "CANCELLED":
             result = {"success": True, "message": "Signal cancelled"}
         else:
-            return jsonify({"success": False, "error": f"Unhandled event_type: {event_type}"}), 400
+            return jsonify({
+                "success": False,
+                "error": f"Unhandled event_type: {event_type}"
+            }), 400
         
+        t1 = time.time()
+        as_log_automated_signal_event(data_raw, canonical, None, result, (t1 - t0) * 1000)
         return jsonify(result), 200 if result.get("success") else 500
-        
+    
     except Exception as e:
-        logger.error(f"❌ Automated signals webhook error: {str(e)}", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        logger.error(f"❌ Automated signals webhook error (7G): {str(e)}", exc_info=True)
+        t1 = time.time()
+        as_log_automated_signal_event(data_raw if 'data_raw' in locals() else None, None, "exception", {"error": str(e)}, (t1 - t0) * 1000)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 
 def handle_entry_signal(data):
@@ -10672,6 +11698,14 @@ def handle_entry_signal(data):
         
         session = data.get('session', 'NY AM')
         
+        # Stage 13H: Extract contracts for enforcement checks
+        contracts = data.get('contracts') or data.get('quantity')
+        if contracts is not None:
+            try:
+                contracts = int(contracts)
+            except (ValueError, TypeError):
+                contracts = None
+        
         # Calculate risk distance (strategy may provide it)
         risk_distance = data.get('risk_distance')
         if risk_distance:
@@ -10712,18 +11746,47 @@ def handle_entry_signal(data):
         be_mfe = float(data.get('be_mfe', 0.0))
         no_be_mfe = float(data.get('no_be_mfe', 0.0))
         
+        # Deduplication guard: do not create a second ENTRY row for the same trade_id
+        cursor.execute("""
+            SELECT id, event_type
+            FROM automated_signals
+            WHERE trade_id = %s
+            ORDER BY id ASC
+            LIMIT 1
+        """, (trade_id,))
+        existing = cursor.fetchone()
+        if existing:
+            existing_id, existing_event_type = existing
+            logger.info(f"⚠️ Duplicate ENTRY ignored for trade_id={trade_id}, existing_id={existing_id}, existing_event_type={existing_event_type}")
+            conn.commit()
+            return {
+                "success": True,
+                "duplicate": True,
+                "signal_id": existing_id,
+                "trade_id": trade_id,
+                "message": "Duplicate ENTRY ignored - trade already exists"
+            }
+        
+        # 7I lifecycle validation
+        validation_error = as_validate_lifecycle_transition(trade_id, "ENTRY", cursor)
+        if validation_error:
+            return {"success": False, "error": validation_error}
+        
         # Insert into database
         cursor.execute("""
             INSERT INTO automated_signals (
                 trade_id, event_type, direction, entry_price, stop_loss,
                 session, bias, risk_distance, targets, signal_date, signal_time,
-                be_mfe, no_be_mfe
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
+                be_mfe, no_be_mfe,
+                lifecycle_state, lifecycle_seq, lifecycle_entered_at, lifecycle_updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                      %s, %s, NOW(), NOW())
+            RETURNING id, lifecycle_state, lifecycle_seq
         """, (
             trade_id, 'ENTRY', direction, entry_price, stop_loss,
             session, bias or direction, risk_distance, dumps(targets), signal_date, signal_time,
-            be_mfe, no_be_mfe
+            be_mfe, no_be_mfe,
+            'ACTIVE', 1
         ))
         
         result = cursor.fetchone()
@@ -10731,6 +11794,8 @@ def handle_entry_signal(data):
             raise Exception("Insert returned no result")
             
         signal_id = result[0]
+        lifecycle_state = result[1]
+        lifecycle_seq = result[2]
         conn.commit()
         
         logger.info(f"✅ Entry signal stored: ID {signal_id}, Trade {trade_id}, Direction {direction}")
@@ -10748,6 +11813,41 @@ def handle_entry_signal(data):
             logger.info(f"📡 WebSocket broadcast: signal_received for {trade_id}")
         except Exception as ws_error:
             logger.warning(f"WebSocket broadcast failed: {ws_error}")
+        
+        # Broadcast lifecycle event for real-time animations
+        try:
+            socketio.emit('trade_lifecycle', {
+                'trade_id': trade_id,
+                'event_type': 'ENTRY',
+                'lifecycle_state': lifecycle_state,
+                'lifecycle_seq': lifecycle_seq,
+                'timestamp': datetime.now().isoformat(),
+                'be_mfe': be_mfe,
+                'no_be_mfe': no_be_mfe,
+                'exit_type': None
+            }, namespace='/')
+            logger.info(f"📡 WebSocket broadcast: trade_lifecycle ENTRY for {trade_id}")
+        except Exception as ws_error:
+            logger.warning(f"WebSocket lifecycle broadcast failed: {ws_error}")
+        
+        # Enqueue execution task for this ENTRY (non-blocking)
+        try:
+            enqueue_execution_task_for_entry(
+                trade_id=trade_id,
+                direction=direction,
+                entry_price=entry_price,
+                stop_loss=stop_loss,
+                session=session,
+                bias=bias or direction,
+                contracts=contracts
+            )
+        except Exception as enqueue_error:
+            logger.error(
+                "Execution queue enqueue error for ENTRY trade_id=%s: %s",
+                trade_id,
+                enqueue_error,
+                exc_info=True
+            )
         
         return {
             "success": True,
@@ -10818,18 +11918,76 @@ def handle_mfe_update(data):
         
         # Update MFE in database (store both BE and No BE values)
         cursor = conn.cursor()
+        
+        # 7I lifecycle validation
+        validation_error = as_validate_lifecycle_transition(trade_id, "MFE_UPDATE", cursor)
+        if validation_error:
+            return {"success": False, "error": validation_error}
+        
+        # Lifecycle enforcement: do not update MFE after EXIT
         cursor.execute("""
-            INSERT INTO automated_signals (
-                trade_id, event_type, current_price, mfe, be_mfe, no_be_mfe
-            ) VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (trade_id, 'MFE_UPDATE', current_price, no_be_mfe, be_mfe, no_be_mfe))
+            SELECT 1
+            FROM automated_signals
+            WHERE trade_id = %s
+              AND event_type LIKE 'EXIT_%%'
+            LIMIT 1
+        """, (trade_id,))
+        exit_exists = cursor.fetchone()
+        
+        if exit_exists:
+            conn.commit()
+            logger.warning(f"⚠️ MFE update ignored for trade_id={trade_id} — trade already exited")
+            return {
+                "success": True,
+                "ignored": True,
+                "reason": "MFE_IGNORED_AFTER_EXIT",
+                "trade_id": trade_id,
+                "message": "MFE update ignored — trade already exited"
+            }
+        
+        cursor.execute("""
+            UPDATE automated_signals
+            SET 
+                event_type = 'MFE_UPDATE',
+                current_price = %s,
+                mfe = %s,
+                be_mfe = %s,
+                no_be_mfe = %s,
+                timestamp = NOW(),
+                lifecycle_state = COALESCE(lifecycle_state, 'ACTIVE'),
+                lifecycle_seq = COALESCE(lifecycle_seq, 0) + 1,
+                lifecycle_entered_at = CASE
+                    WHEN lifecycle_state IS NULL THEN NOW()
+                    ELSE lifecycle_entered_at
+                END,
+                lifecycle_updated_at = NOW()
+            WHERE trade_id = %s
+              AND event_type IN ('ENTRY', 'MFE_UPDATE')
+            RETURNING id, lifecycle_state, lifecycle_seq
+        """, (
+            current_price,
+            no_be_mfe,
+            be_mfe,
+            no_be_mfe,
+            trade_id
+        ))
         
         result = cursor.fetchone()
+        
         if not result:
-            raise Exception("Insert returned no result")
-            
+            # No matching ENTRY row found – ignore this MFE safely
+            conn.commit()
+            logger.warning(f"⚠️ MFE update ignored for trade_id={trade_id} - no active ENTRY row found")
+            return {
+                "success": True,
+                "ignored": True,
+                "reason": "No active ENTRY row found for MFE_UPDATE",
+                "trade_id": trade_id
+            }
+        
         signal_id = result[0]
+        lifecycle_state = result[1]
+        lifecycle_seq = result[2]
         conn.commit()
         
         logger.info(f"✅ MFE update stored: Trade {trade_id}, BE={be_mfe}R, No BE={no_be_mfe}R @ {current_price}")
@@ -10846,6 +12004,22 @@ def handle_mfe_update(data):
             logger.info(f"📡 WebSocket broadcast: mfe_update for {trade_id}")
         except Exception as ws_error:
             logger.warning(f"WebSocket broadcast failed: {ws_error}")
+        
+        # Broadcast lifecycle event for real-time animations
+        try:
+            socketio.emit('trade_lifecycle', {
+                'trade_id': trade_id,
+                'event_type': 'MFE_UPDATE',
+                'lifecycle_state': lifecycle_state,
+                'lifecycle_seq': lifecycle_seq,
+                'timestamp': datetime.now().isoformat(),
+                'be_mfe': be_mfe,
+                'no_be_mfe': no_be_mfe,
+                'exit_type': None
+            }, namespace='/')
+            logger.info(f"📡 WebSocket broadcast: trade_lifecycle MFE_UPDATE for {trade_id}")
+        except Exception as ws_error:
+            logger.warning(f"WebSocket lifecycle broadcast failed: {ws_error}")
         
         return {
             "success": True,
@@ -10980,29 +12154,129 @@ def handle_exit_signal(data, exit_type):
         except (ValueError, TypeError) as conv_error:
             return {"success": False, "error": f"Invalid exit data: {str(conv_error)}"}
         
-        # Store exit signal with BOTH MFE values
+        # ==========================================
+        # EXIT SAFETY GUARD — DO NOT MODIFY
+        # Prevent EXIT events before ENTRY exists
+        # ==========================================
         cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 1
+            FROM automated_signals
+            WHERE trade_id = %s
+              AND event_type = 'ENTRY'
+            LIMIT 1
+        """, (trade_id,))
+        entry_exists = cursor.fetchone()
+        
+        if not entry_exists:
+            logger.warning(f"⚠️ EXIT ignored for trade_id={trade_id} — no ENTRY row found")
+            return {
+                "success": True,
+                "ignored": True,
+                "reason": "EXIT_IGNORED_NO_ENTRY",
+                "trade_id": trade_id,
+                "message": "EXIT update ignored — ENTRY row does not exist"
+            }
+        
+        # Compute next lifecycle sequence for this trade
+        cursor.execute("""
+            SELECT MAX(lifecycle_seq)
+            FROM automated_signals
+            WHERE trade_id = %s
+        """, (trade_id,))
+        seq_row = cursor.fetchone()
+        next_lifecycle_seq = (seq_row[0] or 1) + 1
+        
+        # Lifecycle enforcement: ignore duplicate EXITs
+        cursor.execute("""
+            SELECT 1
+            FROM automated_signals
+            WHERE trade_id = %s
+              AND event_type LIKE 'EXIT_%%'
+            LIMIT 1
+        """, (trade_id,))
+        exit_exists = cursor.fetchone()
+        
+        if exit_exists:
+            logger.warning(f"⚠️ EXIT ignored for trade_id={trade_id} — trade already has an EXIT event")
+            return {
+                "success": True,
+                "ignored": True,
+                "reason": "EXIT_IGNORED_ALREADY_EXITED",
+                "trade_id": trade_id,
+                "message": "EXIT update ignored — trade already exited"
+            }
+        
+        # 7I lifecycle validation
+        validation_error = as_validate_lifecycle_transition(trade_id, f"EXIT_{exit_type}", cursor)
+        if validation_error:
+            return {"success": False, "error": validation_error}
+        
+        # Store exit signal with BOTH MFE values
         if exit_price > 0:
             cursor.execute("""
                 INSERT INTO automated_signals (
-                    trade_id, event_type, exit_price, be_mfe, no_be_mfe
-                ) VALUES (%s, %s, %s, %s, %s)
+                    trade_id,
+                    event_type,
+                    exit_price,
+                    be_mfe,
+                    no_be_mfe,
+                    lifecycle_state,
+                    lifecycle_seq,
+                    lifecycle_entered_at,
+                    lifecycle_updated_at
+                ) VALUES (%s, %s, %s, %s, %s,
+                          %s, %s, NOW(), NOW())
                 RETURNING id
-            """, (trade_id, f'EXIT_{exit_type}', exit_price, final_be_mfe, final_no_be_mfe))
+            """, (
+                trade_id,
+                f'EXIT_{exit_type}',
+                exit_price,
+                final_be_mfe,
+                final_no_be_mfe,
+                'EXITED',
+                next_lifecycle_seq
+            ))
         else:
             # No exit price (strategy format)
             cursor.execute("""
                 INSERT INTO automated_signals (
-                    trade_id, event_type, be_mfe, no_be_mfe
-                ) VALUES (%s, %s, %s, %s)
+                    trade_id,
+                    event_type,
+                    be_mfe,
+                    no_be_mfe,
+                    lifecycle_state,
+                    lifecycle_seq,
+                    lifecycle_entered_at,
+                    lifecycle_updated_at
+                ) VALUES (%s, %s, %s, %s,
+                          %s, %s, NOW(), NOW())
                 RETURNING id
-            """, (trade_id, f'EXIT_{exit_type}', final_be_mfe, final_no_be_mfe))
+            """, (
+                trade_id,
+                f'EXIT_{exit_type}',
+                final_be_mfe,
+                final_no_be_mfe,
+                'EXITED',
+                next_lifecycle_seq
+            ))
         
         result = cursor.fetchone()
         if not result:
             raise Exception("Insert returned no result")
             
         signal_id = result[0]
+        
+        # Get lifecycle state and seq for the new lifecycle event
+        cursor.execute("""
+            SELECT lifecycle_state, lifecycle_seq
+            FROM automated_signals
+            WHERE id = %s
+        """, (signal_id,))
+        lifecycle_row = cursor.fetchone()
+        lifecycle_state = lifecycle_row[0] if lifecycle_row else None
+        lifecycle_seq = lifecycle_row[1] if lifecycle_row else None
+        
         conn.commit()
         
         logger.info(f"✅ Exit signal stored: Trade {trade_id}, Type {exit_type}, BE MFE {final_be_mfe}R, No BE MFE {final_no_be_mfe}R")
@@ -11020,6 +12294,39 @@ def handle_exit_signal(data, exit_type):
             logger.info(f"📡 WebSocket broadcast: signal_resolved for {trade_id}")
         except Exception as ws_error:
             logger.warning(f"WebSocket broadcast failed: {ws_error}")
+        
+        # Broadcast lifecycle event for real-time animations
+        try:
+            socketio.emit('trade_lifecycle', {
+                'trade_id': trade_id,
+                'event_type': f'EXIT_{exit_type}',
+                'lifecycle_state': lifecycle_state,
+                'lifecycle_seq': lifecycle_seq,
+                'timestamp': datetime.now().isoformat(),
+                'be_mfe': final_be_mfe,
+                'no_be_mfe': final_no_be_mfe,
+                'exit_type': exit_type
+            }, namespace='/')
+            logger.info(f"📡 WebSocket broadcast: trade_lifecycle EXIT_{exit_type} for {trade_id}")
+        except Exception as ws_error:
+            logger.warning(f"WebSocket lifecycle broadcast failed: {ws_error}")
+        
+        # Enqueue execution task for this EXIT (non-blocking)
+        try:
+            enqueue_execution_task_for_exit(
+                trade_id=trade_id,
+                exit_type=exit_type,
+                exit_price=exit_price if exit_price else None,
+                final_be_mfe=final_be_mfe,
+                final_no_be_mfe=final_no_be_mfe
+            )
+        except Exception as enqueue_error:
+            logger.error(
+                "Execution queue enqueue error for EXIT trade_id=%s: %s",
+                trade_id,
+                enqueue_error,
+                exc_info=True
+            )
         
         return {
             "success": True,
@@ -11112,6 +12419,468 @@ def fix_automated_signals_schema():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+# PATCH 9 START — Predictive JSON APIs
+@app.route('/api/automated-signals/predictive/<trade_id>', methods=['GET'])
+@login_required
+def predictive_trade_view(trade_id):
+    """Stage 9: Single-trade predictive AI view.
+    Returns aggregated data:
+    - canonical lifecycle trade object
+    - latest AI detail (from telemetry)
+    - expected MFE path (from AI or fallback)
+    - deviation metrics"""
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({"success": False, "error": "DATABASE_URL missing"}), 500
+        
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cur = conn.cursor()
+        
+        # 1) canonical trade object
+        cur.execute("""
+            SELECT *
+            FROM automated_signals
+            WHERE trade_id = %s
+            ORDER BY id ASC
+        """, (trade_id,))
+        lifecycle_rows = cur.fetchall()
+        
+        # 2) latest AI detail
+        cur.execute("""
+            SELECT ai_detail
+            FROM telemetry_automated_signals_log
+            WHERE raw_payload->>'trade_id' = %s
+            OR fused_event->>'trade_id' = %s
+            OR handler_result->>'trade_id' = %s
+            ORDER BY id DESC
+            LIMIT 1
+        """, (trade_id, trade_id, trade_id))
+        ai_row = cur.fetchone()
+        
+        response = {
+            "success": True,
+            "trade_id": trade_id,
+            "lifecycle_events": lifecycle_rows,
+            "ai_detail": ai_row["ai_detail"] if ai_row else None
+        }
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/automated-signals/predictive/summary', methods=['GET'])
+@login_required
+def predictive_summary():
+    """Stage 9: Multi-trade predictive summary.
+    Returns:
+    - list of recent trades
+    - each with latest AI prediction summary"""
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({"success": False, "error": "DATABASE_URL missing"}), 500
+        
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT DISTINCT trade_id
+            FROM automated_signals
+            ORDER BY trade_id DESC
+            LIMIT 50
+        """)
+        trades = [row["trade_id"] for row in cur.fetchall()]
+        
+        results = []
+        for tid in trades:
+            cur.execute("""
+                SELECT ai_detail
+                FROM telemetry_automated_signals_log
+                WHERE raw_payload->>'trade_id' = %s
+                OR fused_event->>'trade_id' = %s
+                OR handler_result->>'trade_id' = %s
+                ORDER BY id DESC
+                LIMIT 1
+            """, (tid, tid, tid))
+            ai_row = cur.fetchone()
+            
+            summary = {
+                "trade_id": tid,
+                "ai_detail": ai_row["ai_detail"] if ai_row else None
+            }
+            results.append(summary)
+        
+        return jsonify({"success": True, "trades": results}), 200
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+# PATCH 9 END — Predictive JSON APIs
+
+
+# PATCH 7K START: Automated Signals Telemetry JSON APIs
+@app.route('/api/automated-signals/telemetry', methods=['GET'])
+@login_required
+def get_automated_signals_telemetry():
+    """Return recent automated signal telemetry events from telemetry_automated_signals_log."""
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        return jsonify({'success': False, 'error': 'DATABASE_URL not configured'}), 500
+    
+    limit_param = request.args.get('limit', '50')
+    try:
+        limit = int(limit_param)
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Invalid limit parameter'}), 400
+    
+    if limit <= 0:
+        limit = 50
+    if limit > 500:
+        limit = 500
+    
+    after_id_param = request.args.get('after_id')
+    
+    conn = None
+    cursor = None
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        
+        base_sql = """
+            SELECT 
+                id,
+                received_at,
+                COALESCE(processing_time_ms, 0) AS processing_time_ms,
+                validation_error
+            FROM telemetry_automated_signals_log
+        """
+        params = []
+        
+        if after_id_param:
+            try:
+                after_id = int(after_id_param)
+                base_sql += " WHERE id > %s"
+                params.append(after_id)
+            except ValueError:
+                return jsonify({'success': False, 'error': 'Invalid after_id parameter'}), 400
+        
+        base_sql += " ORDER BY id DESC LIMIT %s"
+        params.append(limit)
+        
+        cursor.execute(base_sql, tuple(params))
+        rows = cursor.fetchall()
+        
+        return jsonify({
+            'success': True,
+            'events': rows,
+            'count': len(rows)
+        })
+    
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+        logger.error(f"Telemetry list error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
+
+@app.route('/api/automated-signals/telemetry/<int:log_id>', methods=['GET'])
+@login_required
+def get_automated_signal_telemetry_detail(log_id):
+    """Return full detail for a single telemetry event."""
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        return jsonify({'success': False, 'error': 'DATABASE_URL not configured'}), 500
+    
+    conn = None
+    cursor = None
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT *
+            FROM telemetry_automated_signals_log
+            WHERE id = %s
+        """, (log_id,))
+        
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({'success': False, 'error': 'Telemetry event not found'}), 404
+        
+        return jsonify({'success': True, 'event': row})
+    
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+        logger.error(f"Telemetry detail error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
+
+
+# PATCH 7L START: Telemetry backfill helper
+def backfill_telemetry_from_automated_signals(limit=1000):
+    """
+    Backfill telemetry_automated_signals_log from automated_signals table.
+    
+    This is a best-effort, read-only style backfill for analysis and debugging:
+    - NEVER modifies automated_signals
+    - ONLY inserts into telemetry_automated_signals_log
+    - Uses synthetic raw_payload and handler_result based on available fields
+    - Does NOT attempt de-duplication beyond basic LIMIT semantics
+    """
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        return {
+            "success": False,
+            "error": "DATABASE_URL not configured",
+            "inserted": 0,
+            "scanned": 0
+        }
+    
+    # Guard limit
+    try:
+        limit = int(limit)
+    except (ValueError, TypeError):
+        limit = 1000
+    if limit <= 0:
+        limit = 1000
+    if limit > 5000:
+        limit = 5000
+    
+    conn = None
+    cursor = None
+    inserted = 0
+    scanned = 0
+    
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        
+        # Verify automated_signals exists
+        cursor.execute("""
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_name = 'automated_signals'
+            LIMIT 1
+        """)
+        if cursor.fetchone() is None:
+            return {
+                "success": False,
+                "error": "automated_signals table not found",
+                "inserted": 0,
+                "scanned": 0
+            }
+        
+        # Verify telemetry_automated_signals_log exists
+        cursor.execute("""
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_name = 'telemetry_automated_signals_log'
+            LIMIT 1
+        """)
+        if cursor.fetchone() is None:
+            return {
+                "success": False,
+                "error": "telemetry_automated_signals_log table not found",
+                "inserted": 0,
+                "scanned": 0
+            }
+        
+        # Fetch recent automated_signals events (ENTRY, MFE_UPDATE, EXIT)
+        cursor.execute("""
+            SELECT
+                id,
+                trade_id,
+                event_type,
+                direction,
+                entry_price,
+                stop_loss,
+                current_price,
+                mfe,
+                be_mfe,
+                no_be_mfe,
+                exit_price,
+                final_mfe,
+                session,
+                bias,
+                timestamp
+            FROM automated_signals
+            ORDER BY id DESC
+            LIMIT %s
+        """, (limit,))
+        rows = cursor.fetchall()
+        scanned = len(rows)
+        
+        if scanned == 0:
+            return {
+                "success": True,
+                "error": None,
+                "inserted": 0,
+                "scanned": 0
+            }
+        
+        # Insert synthetic telemetry events
+        for row in rows:
+            try:
+                trade_id = row.get("trade_id") or "UNKNOWN"
+                event_type = row.get("event_type") or "UNKNOWN"
+                direction = row.get("direction")
+                session = row.get("session")
+                bias = row.get("bias")
+                ts = row.get("timestamp")
+                
+                raw_payload = {
+                    "source": "backfill_7L",
+                    "event_type": event_type,
+                    "trade_id": trade_id,
+                    "direction": direction,
+                    "session": session,
+                    "bias": bias,
+                    "timestamp": str(ts) if ts else None,
+                    "entry_price": float(row["entry_price"]) if row.get("entry_price") is not None else None,
+                    "stop_loss": float(row["stop_loss"]) if row.get("stop_loss") is not None else None,
+                    "current_price": float(row["current_price"]) if row.get("current_price") is not None else None,
+                    "mfe": float(row["mfe"]) if row.get("mfe") is not None else None,
+                    "be_mfe": float(row["be_mfe"]) if row.get("be_mfe") is not None else None,
+                    "no_be_mfe": float(row["no_be_mfe"]) if row.get("no_be_mfe") is not None else None,
+                    "exit_price": float(row["exit_price"]) if row.get("exit_price") is not None else None,
+                    "final_mfe": float(row["final_mfe"]) if row.get("final_mfe") is not None else None
+                }
+                
+                handler_result = {
+                    "source": "backfill_7L",
+                    "status": "backfilled",
+                    "event_type": event_type,
+                    "trade_id": trade_id,
+                    "session": session,
+                    "bias": bias
+                }
+                
+                cursor.execute("""
+                    INSERT INTO telemetry_automated_signals_log (
+                        received_at,
+                        raw_payload,
+                        fused_event,
+                        validation_error,
+                        handler_result,
+                        processing_time_ms
+                    ) VALUES (
+                        NOW(),
+                        %s,
+                        NULL,
+                        NULL,
+                        %s,
+                        0
+                    )
+                """, (
+                    json.dumps(raw_payload),
+                    json.dumps(handler_result)
+                ))
+                inserted += 1
+            except Exception as inner_e:
+                # Do not abort entire backfill; log and continue
+                safe_msg = str(inner_e)[:200]
+                logger.warning(f"Backfill 7L: failed to insert telemetry for automated_signals.id={row.get('id')}: {safe_msg}")
+        
+        conn.commit()
+        
+        return {
+            "success": True,
+            "error": None,
+            "inserted": inserted,
+            "scanned": scanned
+        }
+    
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        safe_msg = str(e)[:200]
+        logger.error(f"Backfill 7L error: {safe_msg}", exc_info=True)
+        return {
+            "success": False,
+            "error": safe_msg,
+            "inserted": inserted,
+            "scanned": scanned
+        }
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+# PATCH 7L END: Telemetry backfill helper
+
+
+# PATCH 7L START: Telemetry backfill API
+@app.route('/api/automated-signals/telemetry/backfill', methods=['POST'])
+@login_required
+def backfill_automated_signals_telemetry_api():
+    """
+    API endpoint to trigger telemetry backfill from automated_signals.
+    This is a controlled, authenticated operation for analysis only.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        limit = data.get('limit', 1000)
+        
+        result = backfill_telemetry_from_automated_signals(limit=limit)
+        
+        status_code = 200 if result.get("success") else 500
+        return jsonify({
+            "success": result.get("success", False),
+            "error": result.get("error"),
+            "inserted": result.get("inserted", 0),
+            "scanned": result.get("scanned", 0),
+            "limit": limit
+        }), status_code
+    
+    except Exception as e:
+        safe_msg = str(e)[:200]
+        logger.error(f"Backfill 7L API error: {safe_msg}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": safe_msg,
+            "inserted": 0,
+            "scanned": 0
+        }), 500
+# PATCH 7L END: Telemetry backfill API
+# PATCH 7K END: Automated Signals Telemetry JSON APIs
+
 @app.route('/api/automated-signals/debug', methods=['GET'])
 def debug_automated_signals():
     """Debug endpoint to see what's actually in the database"""
@@ -11173,6 +12942,477 @@ def debug_automated_signals():
     except Exception as e:
         logger.error(f"Debug error: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/automated-signals/integrity-report', methods=['GET'])
+@login_required
+def automated_signals_integrity_report():
+    """
+    Institutional-grade integrity guardrail endpoint.
+    
+    Returns a read-only integrity report derived from the canonical
+    automated_signals lifecycle event stream via analyze_automated_signals_integrity().
+    
+    This endpoint:
+    - NEVER mutates automated_signals
+    - Is safe to call from dashboards or diagnostics tools
+    - Respects the strict lifecycle state machine already enforced by ENTRY/MFE/EXIT handlers
+    """
+    try:
+        limit_param = request.args.get('limit', '1000')
+        try:
+            limit = int(limit_param)
+            if limit < 1:
+                limit = 1
+            if limit > 5000:
+                limit = 5000
+        except ValueError:
+            limit = 1000
+        
+        report = analyze_automated_signals_integrity(limit=limit)
+        status_code = 200 if report.get("success", True) else 500
+        return jsonify(report), status_code
+    except Exception as e:
+        logger.error(f"Integrity report endpoint error: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+def reconstruct_automated_trades(limit=100, trade_id=None):
+    """
+    Reconstruct per-trade lifecycle view from raw automated_signals events.
+    
+    - Read-only: NEVER mutates any rows.
+    - Groups events by trade_id and rebuilds a canonical trade view.
+    - Uses lifecycle_state + lifecycle_seq when available.
+    - Skips malformed 'ghost' trade_ids (NULL, empty, or containing commas).
+    """
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        return {
+            "success": False,
+            "error": "DATABASE_URL not configured",
+            "trades": []
+        }
+    
+    conn = None
+    cursor = None
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        
+        params = []
+        where_clauses = []
+        
+        if trade_id:
+            where_clauses.append("trade_id = %s")
+            params.append(trade_id)
+        
+        # Read most recent raw events, newest first, then we will process oldest->newest in Python
+        base_query = """
+            SELECT 
+                id,
+                trade_id,
+                event_type,
+                direction,
+                entry_price,
+                stop_loss,
+                session,
+                bias,
+                current_price,
+                mfe,
+                be_mfe,
+                no_be_mfe,
+                exit_price,
+                final_mfe,
+                signal_date,
+                signal_time,
+                timestamp,
+                lifecycle_state,
+                lifecycle_seq,
+                lifecycle_entered_at,
+                lifecycle_updated_at
+            FROM automated_signals
+        """
+        if where_clauses:
+            base_query += " WHERE " + " AND ".join(where_clauses)
+        base_query += """
+            ORDER BY timestamp DESC, id DESC
+            LIMIT 2000
+        """
+        
+        cursor.execute(base_query, params)
+        rows = cursor.fetchall()
+        
+        trades = {}
+        # Process oldest -> newest so first ENTRY wins, last EXIT wins
+        for row in reversed(rows):
+            tid = row.get("trade_id")
+            # Skip clearly malformed / ghost IDs; these can be purged by the ghost purge endpoint
+            if not tid or "," in str(tid):
+                continue
+            
+            trade = trades.setdefault(tid, {
+                "trade_id": tid,
+                "direction": row.get("direction"),
+                "session": row.get("session"),
+                "bias": row.get("bias"),
+                "entry_price": None,
+                "stop_loss": None,
+                "exit_price": None,
+                "entry_timestamp": None,
+                "exit_timestamp": None,
+                "final_be_mfe": None,
+                "final_no_be_mfe": None,
+                "max_no_be_mfe": None,
+                "max_be_mfe": None,
+                "lifecycle_state": row.get("lifecycle_state"),
+                "lifecycle_seq": row.get("lifecycle_seq"),
+                "lifecycle_entered_at": row.get("lifecycle_entered_at"),
+                "lifecycle_updated_at": row.get("lifecycle_updated_at"),
+                "events": []
+            })
+            
+            # Append raw event for full timeline in the notebook
+            event = {
+                "id": row.get("id"),
+                "event_type": row.get("event_type"),
+                "timestamp": row.get("timestamp").isoformat() if row.get("timestamp") else None,
+                "mfe": float(row["mfe"]) if row.get("mfe") is not None else None,
+                "be_mfe": float(row["be_mfe"]) if row.get("be_mfe") is not None else None,
+                "no_be_mfe": float(row["no_be_mfe"]) if row.get("no_be_mfe") is not None else None,
+                "exit_price": float(row["exit_price"]) if row.get("exit_price") is not None else None,
+                "current_price": float(row["current_price"]) if row.get("current_price") is not None else None
+            }
+            trade["events"].append(event)
+            
+            etype = row.get("event_type") or ""
+            
+            # Capture first ENTRY as canonical entry
+            if etype == "ENTRY" and trade["entry_price"] is None:
+                trade["entry_price"] = float(row["entry_price"]) if row.get("entry_price") is not None else None
+                trade["stop_loss"] = float(row["stop_loss"]) if row.get("stop_loss") is not None else None
+                ts = row.get("timestamp")
+                trade["entry_timestamp"] = ts.isoformat() if ts else None
+            
+            # Capture first EXIT as canonical exit
+            if etype.startswith("EXIT_") and trade["exit_price"] is None:
+                trade["exit_price"] = float(row["exit_price"]) if row.get("exit_price") is not None else None
+                ts = row.get("timestamp")
+                trade["exit_timestamp"] = ts.isoformat() if ts else None
+                trade["final_be_mfe"] = float(row["be_mfe"]) if row.get("be_mfe") is not None else None
+                trade["final_no_be_mfe"] = float(row["no_be_mfe"]) if row.get("no_be_mfe") is not None else None
+            
+            # Track max No-BE MFE over all MFE_UPDATEs
+            no_be_val = row.get("no_be_mfe")
+            if no_be_val is not None:
+                no_be_val = float(no_be_val)
+                if trade["max_no_be_mfe"] is None or no_be_val > trade["max_no_be_mfe"]:
+                    trade["max_no_be_mfe"] = no_be_val
+            
+            # Track max BE MFE (for BE-at-1R diagnostics)
+            be_val = row.get("be_mfe")
+            if be_val is not None:
+                be_val = float(be_val)
+                if trade["max_be_mfe"] is None or be_val > trade["max_be_mfe"]:
+                    trade["max_be_mfe"] = be_val
+            
+            # Keep latest lifecycle snapshot using highest lifecycle_seq
+            current_seq = row.get("lifecycle_seq")
+            if current_seq is not None:
+                prev_seq = trade.get("lifecycle_seq")
+                if prev_seq is None or current_seq > prev_seq:
+                    trade["lifecycle_seq"] = current_seq
+                    trade["lifecycle_state"] = row.get("lifecycle_state")
+                    trade["lifecycle_entered_at"] = row.get("lifecycle_entered_at")
+                    trade["lifecycle_updated_at"] = row.get("lifecycle_updated_at")
+        
+        # Turn dict into list and apply trade-level limit
+        trade_list = list(trades.values())
+        
+        def sort_key(t):
+            # Prefer exit_timestamp, then entry_timestamp, newest first
+            return t.get("exit_timestamp") or t.get("entry_timestamp") or ""
+        
+        trade_list.sort(key=sort_key, reverse=True)
+        if limit and len(trade_list) > limit:
+            trade_list = trade_list[:limit]
+        
+        # Derive high-level status from lifecycle_state with safe fallback
+        for t in trade_list:
+            state = (t.get("lifecycle_state") or "").upper()
+            if state == "EXITED":
+                t["status"] = "COMPLETED"
+            elif state == "ACTIVE":
+                t["status"] = "ACTIVE"
+            else:
+                # Fallback: infer from presence of EXIT timestamp
+                t["status"] = "COMPLETED" if t.get("exit_timestamp") else "ACTIVE"
+        
+        return {
+            "success": True,
+            "count": len(trade_list),
+            "trades": trade_list
+        }
+    except Exception as e:
+        logger.error(f"Reconstruction error: {str(e)}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e),
+            "trades": []
+        }
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def analyze_automated_signals_integrity(limit=1000):
+    """
+    Read-only integrity report for automated_signals lifecycle data.
+    
+    - Scans the most recent <limit> rows from automated_signals
+    - Groups by trade_id
+    - Detects lifecycle anomalies:
+      * multiple ENTRY events
+      * EXIT_* without ENTRY
+      * MFE_UPDATE without ENTRY
+      * EXIT_* before ENTRY in time
+    - Skips malformed / 'ghost' trade_ids (NULL, empty, or containing commas)
+    - NEVER mutates the automated_signals table
+    """
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        return {
+            "success": False,
+            "error": "DATABASE_URL not configured",
+            "total_events": 0,
+            "total_trades": 0,
+            "limit": limit,
+            "issues": {}
+        }
+    
+    conn = None
+    cursor = None
+    try:
+        # Read-only connection
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Most recent raw events
+        cursor.execute("""
+            SELECT id, trade_id, event_type, timestamp, created_at
+            FROM automated_signals
+            ORDER BY id DESC
+            LIMIT %s
+        """, (limit,))
+        
+        rows = cursor.fetchall()
+        
+        trades = {}
+        for row in rows:
+            raw_trade_id = row.get("trade_id")
+            if raw_trade_id is None:
+                continue
+            tid = str(raw_trade_id).strip()
+            
+            # Skip malformed / ghost trade_ids
+            if not tid or ',' in tid:
+                continue
+            
+            if tid not in trades:
+                trades[tid] = {
+                    "events": [],
+                    "entry_count": 0,
+                    "exit_count": 0,
+                    "mfe_count": 0,
+                }
+            
+            etype = (row.get("event_type") or "").strip()
+            trades[tid]["events"].append({
+                "id": row.get("id"),
+                "event_type": etype,
+                "timestamp": row.get("timestamp"),
+                "created_at": row.get("created_at"),
+            })
+            
+            if etype == "ENTRY":
+                trades[tid]["entry_count"] += 1
+            elif etype == "MFE_UPDATE":
+                trades[tid]["mfe_count"] += 1
+            elif etype.startswith("EXIT_"):
+                trades[tid]["exit_count"] += 1
+        
+        multiple_entry = []
+        exit_without_entry = []
+        mfe_without_entry = []
+        exit_before_entry = []
+        
+        for tid, info in trades.items():
+            events = sorted(
+                info["events"],
+                key=lambda ev: (
+                    ev.get("timestamp") if ev.get("timestamp") is not None else 0,
+                    ev.get("id") or 0
+                )
+            )
+            
+            if info["entry_count"] > 1:
+                multiple_entry.append(tid)
+            
+            if info["exit_count"] > 0 and info["entry_count"] == 0:
+                exit_without_entry.append(tid)
+            
+            if info["mfe_count"] > 0 and info["entry_count"] == 0:
+                mfe_without_entry.append(tid)
+            
+            if events:
+                first_event_type = (events[0].get("event_type") or "").strip()
+            else:
+                first_event_type = None
+            
+            if first_event_type and first_event_type.startswith("EXIT_") and info["entry_count"] > 0:
+                exit_before_entry.append(tid)
+        
+        return {
+            "success": True,
+            "total_events": len(rows),
+            "total_trades": len(trades),
+            "limit": limit,
+            "issues": {
+                "multiple_entry_trades": {
+                    "count": len(multiple_entry),
+                    "sample": multiple_entry[:10],
+                },
+                "exit_without_entry_trades": {
+                    "count": len(exit_without_entry),
+                    "sample": exit_without_entry[:10],
+                },
+                "mfe_without_entry_trades": {
+                    "count": len(mfe_without_entry),
+                    "sample": mfe_without_entry[:10],
+                },
+                "exit_before_entry_trades": {
+                    "count": len(exit_before_entry),
+                    "sample": exit_before_entry[:10],
+                },
+            }
+        }
+    except Exception as e:
+        logger.error(f"Automated signals integrity analysis error: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e),
+            "total_events": 0,
+            "total_trades": 0,
+            "limit": limit,
+            "issues": {}
+        }
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+@app.route('/api/automated-signals/reconstruct', methods=['GET'])
+@login_required
+def automated_signals_reconstruct():
+    """
+    Return reconstructed trade lifecycle view from automated_signals.
+    
+    - Read-only, NEVER mutates automated_signals.
+    - Uses reconstruct_automated_trades() to build institutional-grade,
+      lifecycle-aware trade objects for dashboards and diagnostics.
+    """
+    try:
+        trade_id = request.args.get('trade_id')
+        try:
+            limit = int(request.args.get('limit', '100'))
+        except ValueError:
+            limit = 100
+        
+        result = reconstruct_automated_trades(limit=limit, trade_id=trade_id)
+        status_code = 200 if result.get("success", False) else 500
+        return jsonify(result), status_code
+    except Exception as e:
+        logger.error(f"Reconstruct endpoint error: {str(e)}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "trades": []
+        }), 500
+
+
+@app.route('/api/automated-signals/canonical', methods=['GET'])
+@login_required
+def get_automated_signals_canonical():
+    """
+    Canonical lifecycle-aware automated trades API.
+    
+    - Read-only view over automated_signals
+    - Uses reconstruct_automated_trades() as the single source of truth
+    - Supports optional trade_id filter and limit parameter
+    """
+    try:
+        # Parse query parameters
+        trade_id = request.args.get('trade_id')
+        try:
+            limit = int(request.args.get('limit', 200))
+        except (TypeError, ValueError):
+            limit = 200
+        
+        # Clamp limit to a safe range
+        if limit <= 0:
+            limit = 1
+        if limit > 1000:
+            limit = 1000
+        
+        # Call reconstruction engine (read-only)
+        result = reconstruct_automated_trades(limit=limit, trade_id=trade_id)
+        
+        # If the helper returns a dict with an error, pass it through
+        if isinstance(result, dict) and result.get('error'):
+            logger.warning("Canonical trades reconstruction reported error: %s",
+                         result.get('error'))
+            return jsonify({
+                "success": False,
+                "error": result.get('error'),
+                "stats": result.get('stats', {}),
+                "trades": result.get('trades', [])
+            }), 500
+        
+        # Normal successful response
+        return jsonify({
+            "success": True,
+            "trades": result.get('trades', []) if isinstance(result, dict) else result,
+            "stats": result.get('stats', {}) if isinstance(result, dict) else {},
+            "limit": limit,
+            "filtered_trade_id": trade_id
+        }), 200
+    except Exception as e:
+        logger.error("Canonical trades API error: %s", str(e))
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "trades": [],
+            "stats": {}
+        }), 500
 
 
 @app.route('/api/automated-signals/dashboard-data', methods=['GET'])

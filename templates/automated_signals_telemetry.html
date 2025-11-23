@@ -1,0 +1,242 @@
+{% extends "layout.html" %}
+
+{% block page_title %}Automated Signals Telemetry — Second Skies{% endblock %}
+
+{% block extra_head %}
+<style>
+.as-telemetry-root {
+    padding: 24px;
+    background: #05070b;
+    color: #e5e7eb;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.as-telemetry-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.7fr);
+    gap: 16px;
+}
+.as-telemetry-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+.as-telemetry-title {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #f9fafb;
+}
+.as-telemetry-subtitle {
+    font-size: 0.85rem;
+    color: #9ca3af;
+}
+.as-telemetry-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.as-telemetry-btn {
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    border: 1px solid #374151;
+    background: #111827;
+    color: #e5e7eb;
+    cursor: pointer;
+}
+.as-telemetry-btn:hover {
+    background: #1f2937;
+}
+.as-telemetry-badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid #374151;
+    background: #0b1120;
+    color: #9ca3af;
+}
+.as-telemetry-panel {
+    background: #020617;
+    border-radius: 8px;
+    border: 1px solid #111827;
+    padding: 12px;
+    min-height: 200px;
+}
+.as-telemetry-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.8rem;
+    color: #9ca3af;
+}
+.as-telemetry-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+.as-telemetry-table thead {
+    background: #020617;
+}
+.as-telemetry-table th,
+.as-telemetry-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #111827;
+    text-align: left;
+}
+.as-telemetry-table th {
+    font-weight: 500;
+    color: #9ca3af;
+    font-size: 0.75rem;
+}
+.as-telemetry-row {
+    cursor: pointer;
+}
+.as-telemetry-row:hover {
+    background: #020617;
+}
+.as-telemetry-row--selected {
+    background: #020617;
+    border-left: 2px solid #60a5fa;
+}
+.as-telemetry-id {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.75rem;
+    color: #9ca3af;
+}
+.as-telemetry-time {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+.as-telemetry-ms {
+    font-size: 0.75rem;
+    color: #a3e635;
+}
+.as-telemetry-ms-bad {
+    color: #f97316;
+}
+.as-telemetry-pill-ok {
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(22, 163, 74, 0.15);
+    border: 1px solid rgba(22, 163, 74, 0.4);
+    color: #bbf7d0;
+    font-size: 0.7rem;
+}
+.as-telemetry-pill-warn {
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(234, 179, 8, 0.15);
+    border: 1px solid rgba(234, 179, 8, 0.4);
+    color: #facc15;
+    font-size: 0.7rem;
+}
+.as-telemetry-pill-err {
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #fecaca;
+    font-size: 0.7rem;
+}
+.as-telemetry-json-labels {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 0.75rem;
+    color: #9ca3af;
+}
+.as-telemetry-json-labels span {
+    padding: 2px 6px;
+    border-radius: 8px;
+    background: #020617;
+}
+.as-telemetry-json-layout {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+.as-telemetry-json-box {
+    background: #020617;
+    border-radius: 6px;
+    border: 1px solid #111827;
+    padding: 6px;
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.7rem;
+    color: #e5e7eb;
+    max-height: 260px;
+    overflow: auto;
+    white-space: pre;
+}
+.as-telemetry-empty {
+    font-size: 0.8rem;
+    color: #6b7280;
+    padding: 16px 4px;
+    text-align: center;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="as-telemetry-root" id="asTelemetryRoot">
+    <div class="as-telemetry-header">
+        <div>
+            <div class="as-telemetry-title">Automated Signals Telemetry</div>
+            <div class="as-telemetry-subtitle">Read-only audit stream from telemetry_automated_signals_log (no trading impact).</div>
+        </div>
+        <div class="as-telemetry-actions">
+            <span class="as-telemetry-badge" id="asTelemetryStatusBadge">Status: Idle</span>
+            <button type="button" class="as-telemetry-btn" id="asTelemetryRefreshBtn">Refresh</button>
+            <!-- PATCH 7L START: Telemetry backfill button -->
+            <button id="as-telemetry-backfill-btn" class="as-telemetry-btn">
+                Run Backfill (from automated_signals)
+            </button>
+            <!-- PATCH 7L END: Telemetry backfill button -->
+            <a href="/automated-signals-ultra" class="as-telemetry-btn">← Back to Ultra Hub</a>
+        </div>
+    </div>
+
+    <div class="as-telemetry-layout">
+        <div class="as-telemetry-panel">
+            <div class="as-telemetry-panel-header">
+                <span>Recent Telemetry Events</span>
+                <span id="asTelemetrySummary" class="as-telemetry-time">0 events</span>
+            </div>
+            <table class="as-telemetry-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Received</th>
+                        <th>Latency</th>
+                        <th>Validation</th>
+                    </tr>
+                </thead>
+                <tbody id="asTelemetryTableBody">
+                    <tr>
+                        <td colspan="4" class="as-telemetry-empty">Loading telemetry events...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="as-telemetry-panel">
+            <div class="as-telemetry-panel-header">
+                <span>Selected Event</span>
+                <span id="asTelemetryDetailStatus" class="as-telemetry-time">No event selected</span>
+            </div>
+            <div class="as-telemetry-json-labels">
+                <span>Raw Payload</span>
+                <span>Fused Event</span>
+                <span>Handler Result</span>
+            </div>
+            <div class="as-telemetry-json-layout">
+                <div class="as-telemetry-json-box" id="asTelemetryRawBox">{/* raw_payload JSON */}</div>
+                <div class="as-telemetry-json-box" id="asTelemetryFusedBox">{/* fused_event JSON */}</div>
+                <div class="as-telemetry-json-box" id="asTelemetryResultBox">{/* handler_result JSON */}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/automated_signals_telemetry.js"></script>
+{% endblock %}

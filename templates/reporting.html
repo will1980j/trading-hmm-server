@@ -1,0 +1,67 @@
+{% extends "layout.html" %}
+
+{% block title %}Reporting Center{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporting.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="reporting-container">
+    <!-- REGION A: REPORTING CATEGORY SELECTOR -->
+    <div class="page-header">
+        <h1 class="page-title">Reporting Center</h1>
+    </div>
+    
+    <div class="category-selector">
+        <div class="category-card" data-category="trading">
+            <div class="category-icon">📊</div>
+            <div class="category-title">Trading Reports</div>
+            <div class="category-subtitle">Daily, weekly, monthly performance</div>
+        </div>
+        <div class="category-card" data-category="prop">
+            <div class="category-icon">🏢</div>
+            <div class="category-title">Prop Firm Reports</div>
+            <div class="category-subtitle">Compliance, DD, scaling history</div>
+        </div>
+        <div class="category-card" data-category="business">
+            <div class="category-icon">💼</div>
+            <div class="category-title">Business & Accounting</div>
+            <div class="category-subtitle">Tax, financials, cash flow</div>
+        </div>
+        <div class="category-card" data-category="export">
+            <div class="category-icon">📤</div>
+            <div class="category-title">Export Center</div>
+            <div class="category-subtitle">PDF, CSV, compliance packages</div>
+        </div>
+    </div>
+    
+    <!-- REGION B: TRADING REPORTS -->
+    <div class="report-section" id="trading-section" style="display: none;">
+        <h2 class="section-title">Trading Reports</h2>
+        <div class="reports-grid" id="tradingReports"></div>
+    </div>
+    
+    <!-- REGION C: PROP FIRM REPORTS -->
+    <div class="report-section" id="prop-section" style="display: none;">
+        <h2 class="section-title">Prop Firm Reports</h2>
+        <div class="reports-grid" id="propReports"></div>
+    </div>
+    
+    <!-- REGION D: BUSINESS & ACCOUNTING REPORTS -->
+    <div class="report-section" id="business-section" style="display: none;">
+        <h2 class="section-title">Business & Accounting Reports</h2>
+        <div class="reports-grid" id="businessReports"></div>
+    </div>
+    
+    <!-- REGION E: EXPORT CENTER -->
+    <div class="report-section" id="export-section" style="display: none;">
+        <h2 class="section-title">Export Center</h2>
+        <div class="export-buttons-grid" id="exportButtons"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/reporting.js') }}"></script>
+{% endblock %}

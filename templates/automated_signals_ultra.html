@@ -1,247 +1,203 @@
-{% extends "layout.html" %}
-
-{% block page_title %}Automated Signals — Ultra Dashboard{% endblock %}
-
-{% block extra_head %}
-<!-- Existing platform styles -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/automated_signals_hub.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/automated_signals_ultra.css') }}">
-{% endblock %}
-
-{% block content %}
-<div id="as-ultra-root" class="container-fluid py-3 as-container">
-    <div class="row mb-3 align-items-center">
-        <div class="col-md-8">
-            <h2 class="mb-1">Automated Signals Hub <span class="badge bg-primary ms-2">Ultra</span></h2>
-            <p class="text-muted mb-0">Live, telemetry-powered view of your NASDAQ automated signals.</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Signals ULTRA</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/automated_signals_ultra.css') }}">
+</head>
+<body>
+    <!-- REGION A: SIGNAL FEED HEADER -->
+    <header class="ultra-header">
+        <div class="header-main">
+            <h1 class="ultra-title">Automated Signals ULTRA</h1>
+            <div class="status-pill live">LIVE</div>
         </div>
-        <div class="col-md-4 text-md-end mt-2 mt-md-0">
-            <span class="badge bg-success me-2" id="as-live-indicator">● Live</span>
-            <small class="text-muted">Last update: <span id="as-last-refresh">–</span></small>
+        
+        <div class="header-controls">
+            <div class="dataset-selector">
+                <button class="dataset-btn active" data-dataset="v1">V1</button>
+                <button class="dataset-btn" data-dataset="v2">V2</button>
+            </div>
+            
+            <div class="session-switcher">
+                <select id="sessionSelect">
+                    <option value="london">London</option>
+                    <option value="ny" selected>New York</option>
+                    <option value="asia">Asia</option>
+                </select>
+            </div>
+            
+            <div class="timestamp" id="liveTimestamp">--:--:--</div>
         </div>
+        
+        <div class="metrics-row">
+            <div class="metric-item">
+                <span class="metric-label">Signals Today</span>
+                <span class="metric-value" id="signalsToday">0</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Confirmed</span>
+                <span class="metric-value" id="confirmedSignals">0</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Active Trades</span>
+                <span class="metric-value" id="activeTrades">0</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Avg R</span>
+                <span class="metric-value" id="avgR">0.0</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">MFE High</span>
+                <span class="metric-value" id="mfeHigh">0.0</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="ultra-container">
+        <!-- REGION E: LEFT COLLAPSIBLE FILTERS/HISTORY -->
+        <aside class="filters-panel" id="filtersPanel">
+            <div class="panel-header">
+                <h3>Filters & History</h3>
+                <button class="collapse-btn" id="collapseFilters">←</button>
+            </div>
+            
+            <div class="filter-section">
+                <h4>Filters</h4>
+                
+                <div class="filter-group">
+                    <label>Session</label>
+                    <select id="filterSession">
+                        <option value="all">All Sessions</option>
+                        <option value="london">London</option>
+                        <option value="ny">New York</option>
+                        <option value="asia">Asia</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Direction</label>
+                    <select id="filterDirection">
+                        <option value="all">All</option>
+                        <option value="long">Long</option>
+                        <option value="short">Short</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Status</label>
+                    <select id="filterStatus">
+                        <option value="all">All</option>
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="be">Breakeven</option>
+                        <option value="mfe">MFE</option>
+                        <option value="exit">Exit</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Time Window</label>
+                    <select id="filterTime">
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>R Range</label>
+                    <input type="range" id="rRangeMin" min="-5" max="5" step="0.1" value="-5">
+                    <input type="range" id="rRangeMax" min="-5" max="5" step="0.1" value="5">
+                    <div class="range-display">
+                        <span id="rRangeDisplay">-5.0 to 5.0</span>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <label>MFE Range</label>
+                    <input type="range" id="mfeRangeMin" min="0" max="10" step="0.1" value="0">
+                    <input type="range" id="mfeRangeMax" min="0" max="10" step="0.1" value="10">
+                    <div class="range-display">
+                        <span id="mfeRangeDisplay">0.0 to 10.0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="history-section">
+                <h4>History</h4>
+                <div class="recent-signals" id="recentSignals">
+                    <!-- Recent signals populated by JS -->
+                </div>
+                <button class="load-older-btn" id="loadOlderBtn">Load Older Signals</button>
+            </div>
+        </aside>
+
+        <!-- REGION B: LIVE SIGNAL FEED (TERMINAL PANEL) -->
+        <main class="signal-feed">
+            <div class="feed-header">
+                <h2>Live Signal Feed</h2>
+                <div class="feed-controls">
+                    <button class="auto-scroll-btn active" id="autoScrollBtn">Auto Scroll</button>
+                    <button class="clear-feed-btn" id="clearFeedBtn">Clear</button>
+                </div>
+            </div>
+            
+            <div class="signal-cards-container" id="signalCardsContainer">
+                <!-- Signal cards populated by JS -->
+            </div>
+        </main>
+
+        <!-- REGION C: SIGNAL DETAILS RIGHT PANEL -->
+        <aside class="details-panel" id="detailsPanel">
+            <div class="panel-header">
+                <h3>Signal Details</h3>
+                <button class="close-btn" id="closeDetailsBtn">×</button>
+            </div>
+            
+            <div class="details-content" id="detailsContent">
+                <div class="no-selection">
+                    <p>Select a signal to view details</p>
+                </div>
+            </div>
+        </aside>
     </div>
 
-    <div class="row">
-        <!-- Left column: Calendar + filters -->
-        <div class="col-lg-3 mb-3">
-            <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>Calendar</span>
-                    <span class="badge bg-secondary" id="as-calendar-month-label">Loading…</span>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label">Session</label>
-                        <select id="as-filter-session" class="form-select form-select-sm">
-                            <option value="ALL" selected>All sessions</option>
-                            <option value="ASIA">ASIA</option>
-                            <option value="LONDON">LONDON</option>
-                            <option value="NY PRE">NY PRE</option>
-                            <option value="NY AM">NY AM</option>
-                            <option value="NY LUNCH">NY LUNCH</option>
-                            <option value="NY PM">NY PM</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Direction</label>
-                        <select id="as-filter-direction" class="form-select form-select-sm">
-                            <option value="ALL" selected>Both</option>
-                            <option value="Bullish">Long</option>
-                            <option value="Bearish">Short</option>
-                        </select>
-                    </div>
-                    <div class="mb-2 d-flex justify-content-between align-items-center">
-                        <span class="fw-semibold">Filter by Day</span>
-                        <button class="btn btn-sm btn-outline-secondary" id="as-clear-day">Clear</button>
-                    </div>
-                    <div id="as-calendar-grid" class="as-calendar-grid">
-                        <!-- Calendar day tiles injected by JS -->
-                    </div>
-                </div>
+    <!-- REGION D: PERFORMANCE STRIP (BOTTOM) -->
+    <footer class="performance-strip">
+        <div class="perf-metrics">
+            <div class="perf-item">
+                <span class="perf-label">Today's R</span>
+                <span class="perf-value" id="todayR">+0.0</span>
+            </div>
+            <div class="perf-item">
+                <span class="perf-label">Today's P&L</span>
+                <span class="perf-value" id="todayPnl">$0.00</span>
+            </div>
+            <div class="perf-item">
+                <span class="perf-label">Session P&L</span>
+                <span class="perf-value" id="sessionPnl">$0.00</span>
+            </div>
+            <div class="perf-item">
+                <span class="perf-label">MFE High/Low</span>
+                <span class="perf-value" id="mfeHighLow">0.0 / 0.0</span>
+            </div>
+            <div class="perf-item">
+                <span class="perf-label">BE Triggers</span>
+                <span class="perf-value" id="beTriggers">0</span>
+            </div>
+            <div class="perf-item">
+                <span class="perf-label">SL Events</span>
+                <span class="perf-value" id="slEvents">0</span>
             </div>
         </div>
-
-        <!-- Right column: Trades + summary -->
-        <div class="col-lg-9 mb-3">
-            <!-- Summary row -->
-            <div class="row g-3 mb-3">
-                <div class="col-md-3">
-                    <div class="card as-summary-card">
-                        <div class="card-body">
-                            <div class="as-summary-label">Trades</div>
-                            <div class="as-summary-value" id="as-summary-trades">–</div>
-                            <div class="as-summary-sub">Selected range</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card as-summary-card">
-                        <div class="card-body">
-                            <div class="as-summary-label">Avg Final R</div>
-                            <div class="as-summary-value" id="as-summary-avg-r">–</div>
-                            <div class="as-summary-sub">Completed only</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card as-summary-card">
-                        <div class="card-body">
-                            <div class="as-summary-label">Win Rate</div>
-                            <div class="as-summary-value" id="as-summary-winrate">–</div>
-                            <div class="as-summary-sub">R &gt; 0</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card as-summary-card">
-                        <div class="card-body">
-                            <div class="as-summary-label">Avg Signal Strength</div>
-                            <div class="as-summary-value" id="as-summary-strength">–</div>
-                            <div class="as-summary-sub">Setup confidence</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Filters row -->
-            <div class="card mb-3">
-                <div class="card-body">
-                    <div class="row g-2 align-items-end">
-                        <div class="col-md-3">
-                            <label class="form-label">Status</label>
-                            <select id="as-filter-status" class="form-select form-select-sm">
-                                <option value="ALL" selected>All</option>
-                                <option value="ACTIVE">Active</option>
-                                <option value="BE_PROTECTED">BE Protected</option>
-                                <option value="COMPLETED">Completed</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Setup Family</label>
-                            <select id="as-filter-setup-family" class="form-select form-select-sm">
-                                <option value="ALL" selected>All</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Trend Regime</label>
-                            <select id="as-filter-trend" class="form-select form-select-sm">
-                                <option value="ALL" selected>All</option>
-                                <option value="Bullish">Bullish</option>
-                                <option value="Bearish">Bearish</option>
-                                <option value="Neutral">Neutral</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Min Signal Strength</label>
-                            <input type="range" id="as-filter-strength" min="0" max="100" step="5" value="0" class="form-range">
-                            <div class="d-flex justify-content-between">
-                                <small class="text-muted">0</small>
-                                <small class="text-muted" id="as-filter-strength-value">0</small>
-                                <small class="text-muted">100</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Trades table -->
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>Signals (Telemetry)</span>
-                    <div>
-                        <button class="btn btn-sm btn-outline-secondary me-2" id="as-refresh-btn">Refresh</button>
-                        <button id="as-delete-selected-btn" class="btn btn-sm btn-danger ms-2" style="background:#7f1d1d;border-color:#b91c1c;">Delete Selected</button>
-                        <button id="as-purge-ghosts-btn" class="btn btn-outline-warning ms-2" style="border-color:#f97316;color:#f97316;">Purge Legacy Trades</button>
-                        <span class="badge bg-info text-dark" id="as-total-count-badge">0 trades</span>
-                    </div>
-                </div>
-                <div class="table-responsive as-trades-wrapper">
-                    <table class="table table-sm table-hover align-middle trading-table" id="as-trades-table">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width: 40px;"><input type="checkbox" id="as-select-all-checkbox" /></th>
-                                <th>Time</th>
-                                <th>Dir</th>
-                                <th>Session</th>
-                                <th>Status</th>
-                                <th>Setup</th>
-                                <th>Str</th>
-                                <th>BE MFE (R)</th>
-                                <th>No-BE MFE (R)</th>
-                                <th>Final (R)</th>
-                                <th>Entry</th>
-                                <th>Exit</th>
-                            </tr>
-                        </thead>
-                        <tbody id="as-trades-tbody">
-                            <!-- rows injected by JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+        
+        <div class="sparkline-container">
+            <canvas id="sparklineChart" width="200" height="40"></canvas>
         </div>
-    </div>
-</div>
+    </footer>
 
-<!-- Trade Detail Modal -->
-<div class="modal fade" id="as-trade-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
-        <div class="modal-content as-modal">
-            <div class="modal-header">
-                <div>
-                    <h5 class="modal-title" id="as-trade-modal-title">Trade Detail</h5>
-                    <small class="text-muted" id="as-trade-modal-subtitle"></small>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <div class="card mb-3">
-                            <div class="card-header">Trade Snapshot</div>
-                            <div class="card-body" id="as-trade-meta">
-                                <!-- meta info injected -->
-                            </div>
-                        </div>
-                        <div class="card mb-3">
-                            <div class="card-header">Setup</div>
-                            <div class="card-body" id="as-trade-setup">
-                                <!-- setup info -->
-                            </div>
-                        </div>
-                        <div class="card mb-3">
-                            <div class="card-header">Market Context</div>
-                            <div class="card-body" id="as-trade-market">
-                                <!-- market state info -->
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-8">
-                        <div class="card mb-3">
-                            <div class="card-header">MFE Journey (R)</div>
-                            <div class="card-body">
-                                <canvas id="as-trade-chart" height="160"></canvas>
-                            </div>
-                        </div>
-                        <div class="card">
-                            <div class="card-header">Event Timeline</div>
-                            <div class="card-body" id="as-trade-events">
-                                <!-- events list -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<!-- Chart.js for MFE journey -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="" crossorigin="anonymous"></script>
-<script src="{{ url_for('static', filename='js/automated_signals_ultra.js') }}"></script>
-{% endblock %}
+    <script src="{{ url_for('static', filename='js/automated_signals_ultra.js') }}"></script>
+</body>
+</html>

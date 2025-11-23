@@ -1,0 +1,154 @@
+{% extends "layout.html" %}
+
+{% block title %}Compare Strategies{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/compare.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="compare-container">
+    <!-- REGION A: HEADER & CONTROLS -->
+    <div class="page-header">
+        <h1 class="page-title">Compare Strategies</h1>
+        
+        <!-- Dataset Selector -->
+        <div class="dataset-selector">
+            <label>Dataset:</label>
+            <select id="datasetSelect">
+                <option value="v1" selected>V1 Signals</option>
+                <option value="v2" disabled>V2 Signals (Coming Soon)</option>
+            </select>
+        </div>
+        
+        <!-- Date Range Selector -->
+        <div class="date-range-selector">
+            <label>Date Range:</label>
+            <input type="date" id="startDate" placeholder="Start Date">
+            <span>to</span>
+            <input type="date" id="endDate" placeholder="End Date">
+        </div>
+    </div>
+    
+    <!-- Summary Delta Metrics Row -->
+    <div class="delta-metrics-row">
+        <div class="delta-metric-card">
+            <div class="metric-label">Expectancy Delta</div>
+            <div class="metric-value" id="deltaExpectancy">--</div>
+        </div>
+        <div class="delta-metric-card">
+            <div class="metric-label">Winrate Delta</div>
+            <div class="metric-value" id="deltaWinrate">--</div>
+        </div>
+        <div class="delta-metric-card">
+            <div class="metric-label">Avg R Delta</div>
+            <div class="metric-value" id="deltaAvgR">--</div>
+        </div>
+        <div class="delta-metric-card">
+            <div class="metric-label">Trades Delta</div>
+            <div class="metric-value" id="deltaTrades">--</div>
+        </div>
+        <div class="delta-metric-card">
+            <div class="metric-label">Stability Delta</div>
+            <div class="metric-value" id="deltaStability">--</div>
+        </div>
+    </div>
+    
+    <!-- REGION B: STRATEGY CARDS (UNLIMITED) -->
+    <div class="strategies-section">
+        <h2 class="section-title">Selected Strategies</h2>
+        <div class="strategies-scroll-container">
+            <!-- Add Strategy Card -->
+            <div class="add-strategy-card" id="addStrategyCard">
+                <div class="add-icon">+</div>
+                <div class="add-text">Add Strategy</div>
+            </div>
+            
+            <!-- Strategy cards will be dynamically added here -->
+            <div id="strategyCardsContainer"></div>
+        </div>
+    </div>
+    
+    <!-- REGION C: COMPARISON CHARTS -->
+    <div class="comparison-charts-section">
+        <h2 class="section-title">Comparison Charts</h2>
+        
+        <div class="charts-grid">
+            <!-- Multi-line Expectancy Curve -->
+            <div class="chart-card">
+                <h3 class="chart-title">Multi-Strategy Expectancy Curve</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Multi-line expectancy curves will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Multi-series R-Distribution -->
+            <div class="chart-card">
+                <h3 class="chart-title">R-Distribution Comparison</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Multi-series R-distribution will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Winrate by Session -->
+            <div class="chart-card">
+                <h3 class="chart-title">Winrate by Session</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Session winrate comparison will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Expectancy by Session -->
+            <div class="chart-card">
+                <h3 class="chart-title">Expectancy by Session</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Session expectancy comparison will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Hour of Day Comparison -->
+            <div class="chart-card">
+                <h3 class="chart-title">Hour-of-Day Performance</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Hour-of-day comparison will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Stability Comparison -->
+            <div class="chart-card">
+                <h3 class="chart-title">Stability Comparison</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Stability metrics comparison will appear here</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- REGION D: INSIGHTS PANEL -->
+    <div class="insights-section">
+        <div class="insights-card">
+            <h3>AI-Generated Strategy Insights</h3>
+            <p class="insights-placeholder">AI-generated strategy insights will appear here in Phase 6–9.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Strategy Selection Modal -->
+<div class="modal" id="strategyModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Select Strategy</h2>
+            <button class="modal-close" id="modalClose">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="strategy-list" id="strategyList">
+                <!-- Strategy options will be populated here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/compare.js') }}"></script>
+{% endblock %}

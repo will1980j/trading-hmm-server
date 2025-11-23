@@ -1,0 +1,660 @@
+/* ============================================
+   FINANCIAL SUMMARY - HYBRID FINTECH STYLING
+   ============================================ */
+
+/* COLOR PALETTE */
+:root {
+    --bg-primary: #0D0E12;
+    --bg-card: #14161C;
+    --bg-card-hover: #1A1C22;
+    --text-primary: #F2F3F5;
+    --text-muted: #9CA3AF;
+    --accent-start: #4C66FF;
+    --accent-end: #8E54FF;
+    --border-color: #2A2D35;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+}
+
+/* CONTAINER */
+.financial-summary-container {
+    padding: 24px;
+    background: var(--bg-primary);
+    min-height: 100vh;
+}
+
+/* PAGE HEADER */
+.page-header {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 24px;
+    align-items: center;
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.page-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* DATASET SELECTOR */
+.dataset-selector {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dataset-selector label {
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.dataset-selector select {
+    padding: 10px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 150ms ease;
+}
+
+.dataset-selector select:hover {
+    border-color: var(--accent-start);
+}
+
+.dataset-selector select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* DATE RANGE SELECTOR */
+.date-range-selector {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.date-range-selector label {
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.date-range-selector input[type="date"] {
+    padding: 10px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all 150ms ease;
+}
+
+.date-range-selector input[type="date"]:hover {
+    border-color: var(--accent-start);
+}
+
+.date-range-selector span {
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+/* GLOBAL METRICS ROW */
+.global-metrics-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 24px;
+    margin-bottom: 48px;
+}
+
+.metric-block {
+    background: var(--bg-card);
+    padding: 24px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    transition: all 200ms ease;
+}
+
+.metric-block:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    border-color: var(--accent-start);
+}
+
+.metric-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.metric-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* SECTIONS */
+.performance-section,
+.portfolio-section,
+.risk-forecast-section {
+    margin-bottom: 48px;
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 24px 0;
+}
+
+.subsection-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 16px 0;
+}
+
+/* PERSONAL PERFORMANCE GRID */
+.personal-performance-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+.performance-card {
+    background: var(--bg-card);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    transition: all 200ms ease;
+}
+
+.performance-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    border-color: var(--accent-start);
+}
+
+.card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 16px 0;
+}
+
+/* P&L DISPLAY */
+.pnl-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 20px;
+}
+
+.pnl-r {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--success);
+}
+
+.pnl-dollar {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* SESSION PROFITABILITY GRID */
+.session-profitability-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.session-block {
+    background: var(--bg-primary);
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.session-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.session-pnl {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.session-pnl.positive {
+    color: var(--success);
+}
+
+.session-pnl.negative {
+    color: var(--danger);
+}
+
+/* CHART PLACEHOLDERS */
+.chart-placeholder {
+    height: 200px;
+    background: var(--bg-primary);
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.placeholder-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* PROP ACCOUNTS GRID */
+.prop-accounts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.prop-account-card {
+    background: var(--bg-card);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    transition: all 200ms ease;
+}
+
+.prop-account-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    border-color: var(--accent-start);
+}
+
+.account-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.firm-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.status-pill {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-pill.eval {
+    background: rgba(76, 102, 255, 0.2);
+    color: var(--accent-start);
+}
+
+.status-pill.funded {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.status-pill.scaling {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--warning);
+}
+
+.status-pill.breach {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--danger);
+}
+
+.program-name {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.account-balances {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.balance-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+}
+
+.balance-label {
+    color: var(--text-muted);
+}
+
+.balance-value {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.account-risk {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.risk-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+}
+
+.risk-label {
+    color: var(--text-muted);
+}
+
+.risk-value {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.account-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.today-pnl {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.today-pnl.positive {
+    color: var(--success);
+}
+
+.today-pnl.negative {
+    color: var(--danger);
+}
+
+.risk-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.risk-indicator.green {
+    background: var(--success);
+}
+
+.risk-indicator.yellow {
+    background: var(--warning);
+}
+
+.risk-indicator.red {
+    background: var(--danger);
+}
+
+/* PORTFOLIO AGGREGATION */
+.portfolio-aggregation {
+    background: var(--bg-card);
+    padding: 24px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.aggregation-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+}
+
+.aggregation-card {
+    background: var(--bg-primary);
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.aggregation-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.stat-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* RISK & FORECAST GRID */
+.risk-forecast-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+.risk-card {
+    background: var(--bg-card);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    transition: all 200ms ease;
+}
+
+.risk-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    border-color: var(--accent-start);
+}
+
+.risk-card.forecast-panel {
+    grid-column: span 3;
+}
+
+/* RISK EXPOSURE DISPLAY */
+.risk-exposure-display {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.exposure-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.exposure-label {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.exposure-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.risk-gauge-container {
+    margin-top: 8px;
+}
+
+.risk-gauge {
+    height: 20px;
+    background: var(--bg-primary);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.gauge-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--success), var(--warning), var(--danger));
+    transition: width 300ms ease;
+}
+
+.gauge-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* BREACH PROBABILITY DISPLAY */
+.breach-probability-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+}
+
+.probability-gauge {
+    text-align: center;
+}
+
+.gauge-value {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.gauge-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.probability-status {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.probability-status.safe {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.probability-status.caution {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--warning);
+}
+
+.probability-status.danger {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--danger);
+}
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 1400px) {
+    .global-metrics-row {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .personal-performance-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .aggregation-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 1024px) {
+    .page-header {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .global-metrics-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .personal-performance-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .risk-forecast-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .risk-card.forecast-panel {
+        grid-column: span 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .financial-summary-container {
+        padding: 16px;
+    }
+    
+    .page-title {
+        font-size: 24px;
+    }
+    
+    .global-metrics-row {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .prop-accounts-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .session-profitability-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .page-title {
+        font-size: 20px;
+    }
+    
+    .metric-value {
+        font-size: 20px;
+    }
+    
+    .session-profitability-grid {
+        grid-template-columns: 1fr;
+    }
+}

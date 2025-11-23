@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Analysis - Second Skies Trading</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/time_analysis.css') }}">
+</head>
+<body>
+    <!-- REGION A: HEADER & METRIC SUMMARY -->
+    <div class="header-section">
+        <div class="header-container">
+            <div class="title-row">
+                <h1 class="page-title">Time Analysis</h1>
+                <div class="header-controls">
+                    <div class="dataset-selector">
+                        <label>Dataset:</label>
+                        <select id="dataset-toggle">
+                            <option value="v1" selected>Dataset V1</option>
+                            <option value="v2" disabled>Dataset V2 (Coming Soon)</option>
+                        </select>
+                    </div>
+                    <div class="date-range-selector">
+                        <label>Date Range:</label>
+                        <input type="date" id="start-date" placeholder="Start Date">
+                        <span>to</span>
+                        <input type="date" id="end-date" placeholder="End Date">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="metric-summary">
+                <div class="metric-block">
+                    <span class="metric-label">Win Rate</span>
+                    <span class="metric-value" id="winrate-overall">--</span>
+                </div>
+                <div class="metric-block">
+                    <span class="metric-label">Expectancy</span>
+                    <span class="metric-value" id="expectancy">--</span>
+                </div>
+                <div class="metric-block">
+                    <span class="metric-label">Avg R</span>
+                    <span class="metric-value" id="avg-r">--</span>
+                </div>
+                <div class="metric-block">
+                    <span class="metric-label">Total Trades</span>
+                    <span class="metric-value" id="total-trades">--</span>
+                </div>
+                <div class="metric-block highlight">
+                    <span class="metric-label">Best Session</span>
+                    <span class="metric-value" id="best-session">--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REGION B: SESSION PERFORMANCE GRID -->
+    <div class="session-section">
+        <div class="section-header">
+            <h2>Session Performance Analysis</h2>
+        </div>
+        
+        <div class="session-grid">
+            <!-- Session Heatmap -->
+            <div class="chart-card">
+                <div class="card-header">
+                    <h3>Session Heatmap</h3>
+                </div>
+                <div class="card-content">
+                    <div id="session-heatmap" class="session-heatmap-container">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Session R-Multiple Distribution -->
+            <div class="chart-card">
+                <div class="card-header">
+                    <h3>R-Multiple Distribution by Session</h3>
+                </div>
+                <div class="card-content">
+                    <canvas id="session-r-distribution"></canvas>
+                </div>
+            </div>
+
+            <!-- Session Winrate Cards -->
+            <div class="chart-card">
+                <div class="card-header">
+                    <h3>Win Rate by Session</h3>
+                </div>
+                <div class="card-content">
+                    <div id="session-winrate-cards" class="session-cards-grid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Session Expectancy Cards -->
+            <div class="chart-card">
+                <div class="card-header">
+                    <h3>Expectancy by Session</h3>
+                </div>
+                <div class="card-content">
+                    <div id="session-expectancy-cards" class="session-cards-grid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REGION C: HOUR-OF-DAY ANALYTICS -->
+    <div class="hod-section">
+        <div class="section-header">
+            <h2>Hour-of-Day Performance</h2>
+        </div>
+        
+        <div class="hod-grid">
+            <!-- HOD Histogram -->
+            <div class="chart-card">
+                <div class="card-header">
+                    <h3>Win Rate by Hour</h3>
+                </div>
+                <div class="card-content">
+                    <canvas id="hod-histogram"></canvas>
+                </div>
+            </div>
+
+            <!-- Expectancy Curve -->
+            <div class="chart-card">
+                <div class="card-header">
+                    <h3>Expectancy Curve (24h)</h3>
+                </div>
+                <div class="card-content">
+                    <canvas id="expectancy-curve"></canvas>
+                </div>
+            </div>
+
+            <!-- R-Distribution per Hour -->
+            <div class="chart-card">
+                <div class="card-header">
+                    <h3>R-Distribution by Hour</h3>
+                </div>
+                <div class="card-content">
+                    <canvas id="r-distribution-hour"></canvas>
+                </div>
+            </div>
+
+            <!-- Heatmap Overlay (Optional) -->
+            <div class="chart-card">
+                <div class="card-header">
+                    <h3>Performance Heatmap</h3>
+                </div>
+                <div class="card-content">
+                    <canvas id="heatmap-overlay"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REGION D: TEMPORAL PERFORMANCE CURVES -->
+    <div class="temporal-section">
+        <div class="section-header">
+            <h2>Temporal Performance Curves</h2>
+        </div>
+        
+        <div class="temporal-grid">
+            <!-- Equity Curve -->
+            <div class="chart-card">
+                <div class="card-header">
+                    <h3>Equity Curve (Segmented by Session)</h3>
+                </div>
+                <div class="card-content">
+                    <canvas id="equity-curve"></canvas>
+                </div>
+            </div>
+
+            <!-- MFE/MAE Time Decay -->
+            <div class="chart-card">
+                <div class="card-header">
+                    <h3>MFE/MAE Time Decay</h3>
+                </div>
+                <div class="card-content">
+                    <canvas id="mfe-mae-curve"></canvas>
+                </div>
+            </div>
+
+            <!-- Trend vs Chop Indicator -->
+            <div class="chart-card">
+                <div class="card-header">
+                    <h3>Trend vs Chop Indicator</h3>
+                </div>
+                <div class="card-content">
+                    <canvas id="trend-chop-indicator"></canvas>
+                </div>
+            </div>
+
+            <!-- Volatility-Time Curve -->
+            <div class="chart-card">
+                <div class="card-header">
+                    <h3>Volatility-Time Curve</h3>
+                </div>
+                <div class="card-content">
+                    <canvas id="volatility-time-curve"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REGION E: INSIGHTS PANEL -->
+    <div class="insights-section">
+        <div class="section-header">
+            <h2>AI-Generated Insights</h2>
+        </div>
+        
+        <div class="insights-card">
+            <div class="card-content">
+                <p class="placeholder-text">
+                    AI-generated insights will appear here in Phase 6–9.
+                </p>
+                <p class="placeholder-subtext">
+                    The AI Business Advisor will analyze temporal patterns and provide actionable recommendations based on your trading data.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/time_analysis.js') }}"></script>
+</body>
+</html>

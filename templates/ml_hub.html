@@ -1,0 +1,411 @@
+{% extends "layout.html" %}
+
+{% block title %}ML Intelligence Hub{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ml_hub.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="ml-hub-container">
+    <!-- REGION A: HEADER & OVERVIEW -->
+    <div class="page-header">
+        <h1 class="page-title">ML Intelligence Hub</h1>
+        
+        <!-- Dataset Selector -->
+        <div class="dataset-selector">
+            <label>Dataset:</label>
+            <select id="datasetSelect">
+                <option value="v1" selected>V1 Signals</option>
+                <option value="v2" disabled>V2 Signals (Coming Soon)</option>
+            </select>
+        </div>
+        
+        <!-- Date Range Selector -->
+        <div class="date-range-selector">
+            <label>Date Range:</label>
+            <input type="date" id="startDate" placeholder="Start Date">
+            <span>to</span>
+            <input type="date" id="endDate" placeholder="End Date">
+        </div>
+    </div>
+    
+    <!-- Metric Overview -->
+    <div class="metric-overview-row">
+        <div class="metric-overview-card">
+            <div class="metric-label">Market Regime</div>
+            <div class="metric-value" id="marketRegime">Loading...</div>
+        </div>
+        <div class="metric-overview-card">
+            <div class="metric-label">Signal Quality Forecast</div>
+            <div class="metric-value" id="signalQuality">0.00</div>
+        </div>
+        <div class="metric-overview-card">
+            <div class="metric-label">Volatility Outlook</div>
+            <div class="metric-value" id="volatilityOutlook">Loading...</div>
+        </div>
+        <div class="metric-overview-card">
+            <div class="metric-label">Model Confidence</div>
+            <div class="metric-value" id="modelConfidence">0.00</div>
+        </div>
+        <div class="metric-overview-card">
+            <div class="metric-label">Strategy Recommendation</div>
+            <div class="metric-value" id="strategyRecommendation">Loading...</div>
+        </div>
+    </div>
+    
+    <!-- REGION B: MODEL INTELLIGENCE -->
+    <div class="intelligence-section">
+        <h2 class="section-title">Model Intelligence</h2>
+        
+        <div class="model-intelligence-grid">
+            <!-- Model Accuracy -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Model Accuracy</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Model accuracy chart will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Expected vs Delivered -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Expected vs Delivered Performance</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Performance comparison chart will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Feature Importance -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Feature Importance</h3>
+                <div class="feature-importance-bars">
+                    <div class="feature-bar">
+                        <span class="feature-name">Session Type</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 85%"></div>
+                        </div>
+                        <span class="feature-value">0.85</span>
+                    </div>
+                    <div class="feature-bar">
+                        <span class="feature-name">Volatility</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 72%"></div>
+                        </div>
+                        <span class="feature-value">0.72</span>
+                    </div>
+                    <div class="feature-bar">
+                        <span class="feature-name">Time of Day</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 68%"></div>
+                        </div>
+                        <span class="feature-value">0.68</span>
+                    </div>
+                    <div class="feature-bar">
+                        <span class="feature-name">Market Regime</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 61%"></div>
+                        </div>
+                        <span class="feature-value">0.61</span>
+                    </div>
+                    <div class="feature-bar">
+                        <span class="feature-name">Signal Type</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 54%"></div>
+                        </div>
+                        <span class="feature-value">0.54</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Model Drift Indicator -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Model Drift Indicator</h3>
+                <div class="drift-indicator">
+                    <div class="drift-gauge">
+                        <div class="gauge-value">2.3%</div>
+                        <div class="gauge-label">Drift Level</div>
+                    </div>
+                    <div class="drift-status ok">OK</div>
+                </div>
+            </div>
+            
+            <!-- Dataset Distribution -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Dataset Distribution Summary</h3>
+                <div class="distribution-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Training Samples:</span>
+                        <span class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Validation Samples:</span>
+                        <span class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Test Samples:</span>
+                        <span class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Feature Count:</span>
+                        <span class="stat-value">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Model Health -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Model Health</h3>
+                <div class="health-pills">
+                    <div class="health-pill ok">Training: OK</div>
+                    <div class="health-pill ok">Validation: OK</div>
+                    <div class="health-pill warning">Drift: Warning</div>
+                    <div class="health-pill ok">Performance: OK</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- REGION C: MARKET INTELLIGENCE -->
+    <div class="intelligence-section">
+        <h2 class="section-title">Market Intelligence</h2>
+        
+        <div class="market-intelligence-grid">
+            <!-- Regime Classifier -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Regime Classifier</h3>
+                <div class="regime-blocks">
+                    <div class="regime-block active">
+                        <div class="regime-name">Trend</div>
+                        <div class="regime-probability">67%</div>
+                    </div>
+                    <div class="regime-block">
+                        <div class="regime-name">Chop</div>
+                        <div class="regime-probability">18%</div>
+                    </div>
+                    <div class="regime-block">
+                        <div class="regime-name">Volatile</div>
+                        <div class="regime-probability">12%</div>
+                    </div>
+                    <div class="regime-block">
+                        <div class="regime-name">Low Vol</div>
+                        <div class="regime-probability">3%</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Regime Over Time -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Regime Over Time</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Multi-line regime chart will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Expected MFE Distribution -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Expected MFE Distribution</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">MFE distribution chart will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Expected Drawdown -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Expected Drawdown Forecast</h3>
+                <div class="dd-forecast">
+                    <div class="dd-metric">
+                        <span class="dd-label">Max DD (95% CI):</span>
+                        <span class="dd-value">-4.2%</span>
+                    </div>
+                    <div class="dd-metric">
+                        <span class="dd-label">Avg DD:</span>
+                        <span class="dd-value">-1.8%</span>
+                    </div>
+                    <div class="dd-metric">
+                        <span class="dd-label">Recovery Time:</span>
+                        <span class="dd-value">12 trades</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Volatility Regime Panel -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Volatility Regime Panel</h3>
+                <div class="volatility-panel">
+                    <div class="vol-gauge">
+                        <div class="gauge-needle" style="transform: rotate(45deg)"></div>
+                        <div class="gauge-labels">
+                            <span class="gauge-label-low">Low</span>
+                            <span class="gauge-label-high">High</span>
+                        </div>
+                    </div>
+                    <div class="vol-reading">Current: Moderate (0.62)</div>
+                </div>
+            </div>
+            
+            <!-- Session Behavior Forecast -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Session Behavior Forecast</h3>
+                <div class="session-forecast-grid">
+                    <div class="session-forecast-block">
+                        <div class="session-name">ASIA</div>
+                        <div class="session-forecast good">Good</div>
+                        <div class="session-probability">78%</div>
+                    </div>
+                    <div class="session-forecast-block">
+                        <div class="session-name">LONDON</div>
+                        <div class="session-forecast moderate">Moderate</div>
+                        <div class="session-probability">65%</div>
+                    </div>
+                    <div class="session-forecast-block">
+                        <div class="session-name">NY PRE</div>
+                        <div class="session-forecast poor">Poor</div>
+                        <div class="session-probability">42%</div>
+                    </div>
+                    <div class="session-forecast-block">
+                        <div class="session-name">NY AM</div>
+                        <div class="session-forecast good">Good</div>
+                        <div class="session-probability">71%</div>
+                    </div>
+                    <div class="session-forecast-block">
+                        <div class="session-name">NY LUNCH</div>
+                        <div class="session-forecast poor">Poor</div>
+                        <div class="session-probability">38%</div>
+                    </div>
+                    <div class="session-forecast-block">
+                        <div class="session-name">NY PM</div>
+                        <div class="session-forecast moderate">Moderate</div>
+                        <div class="session-probability">58%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- REGION D: SIGNAL INTELLIGENCE -->
+    <div class="intelligence-section">
+        <h2 class="section-title">Signal Intelligence</h2>
+        
+        <div class="signal-intelligence-grid">
+            <!-- Signal Validity Forecast -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Signal Validity Forecast</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Signal validity forecast will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Predicted R-Distribution -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Predicted R-Distribution</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Predicted R-distribution will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Predicted Win Rate -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Predicted Win Rate</h3>
+                <div class="winrate-prediction">
+                    <div class="prediction-gauge">
+                        <div class="gauge-value">64.2%</div>
+                        <div class="gauge-confidence">±3.1%</div>
+                    </div>
+                    <div class="prediction-trend up">↗ +2.1% vs last week</div>
+                </div>
+            </div>
+            
+            <!-- 24H Confidence Heatmap -->
+            <div class="intelligence-card">
+                <h3 class="card-title">24H Confidence Heatmap</h3>
+                <div class="heatmap-grid">
+                    <div class="heatmap-hour high" data-hour="0">0</div>
+                    <div class="heatmap-hour low" data-hour="1">1</div>
+                    <div class="heatmap-hour low" data-hour="2">2</div>
+                    <div class="heatmap-hour medium" data-hour="3">3</div>
+                    <div class="heatmap-hour high" data-hour="4">4</div>
+                    <div class="heatmap-hour high" data-hour="5">5</div>
+                    <div class="heatmap-hour medium" data-hour="6">6</div>
+                    <div class="heatmap-hour low" data-hour="7">7</div>
+                    <div class="heatmap-hour medium" data-hour="8">8</div>
+                    <div class="heatmap-hour high" data-hour="9">9</div>
+                    <div class="heatmap-hour high" data-hour="10">10</div>
+                    <div class="heatmap-hour medium" data-hour="11">11</div>
+                    <div class="heatmap-hour low" data-hour="12">12</div>
+                    <div class="heatmap-hour medium" data-hour="13">13</div>
+                    <div class="heatmap-hour high" data-hour="14">14</div>
+                    <div class="heatmap-hour high" data-hour="15">15</div>
+                    <div class="heatmap-hour medium" data-hour="16">16</div>
+                    <div class="heatmap-hour low" data-hour="17">17</div>
+                    <div class="heatmap-hour low" data-hour="18">18</div>
+                    <div class="heatmap-hour medium" data-hour="19">19</div>
+                    <div class="heatmap-hour high" data-hour="20">20</div>
+                    <div class="heatmap-hour high" data-hour="21">21</div>
+                    <div class="heatmap-hour medium" data-hour="22">22</div>
+                    <div class="heatmap-hour low" data-hour="23">23</div>
+                </div>
+            </div>
+            
+            <!-- Opportunity Zones -->
+            <div class="intelligence-card">
+                <h3 class="card-title">Opportunity Zones</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Opportunity zones chart will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Strategy Projection Cards -->
+            <div class="intelligence-card strategy-projections">
+                <h3 class="card-title">Strategy Projections</h3>
+                <div class="projection-cards">
+                    <div class="projection-card">
+                        <div class="projection-name">Conservative</div>
+                        <div class="projection-metric">
+                            <span class="metric-label">Expected R:</span>
+                            <span class="metric-value">2.87</span>
+                        </div>
+                        <div class="projection-confidence">Confidence: 82%</div>
+                    </div>
+                    <div class="projection-card">
+                        <div class="projection-name">Aggressive</div>
+                        <div class="projection-metric">
+                            <span class="metric-label">Expected R:</span>
+                            <span class="metric-value">3.12</span>
+                        </div>
+                        <div class="projection-confidence">Confidence: 67%</div>
+                    </div>
+                    <div class="projection-card">
+                        <div class="projection-name">Session-Based</div>
+                        <div class="projection-metric">
+                            <span class="metric-label">Expected R:</span>
+                            <span class="metric-value">4.14</span>
+                        </div>
+                        <div class="projection-confidence">Confidence: 74%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- REGION E: AI INSIGHTS (Phase 6–9 Placeholder) -->
+    <div class="intelligence-section">
+        <h2 class="section-title">AI Insights</h2>
+        
+        <div class="ai-insights-card">
+            <h3>AI-Generated Insights</h3>
+            <p class="insights-placeholder">AI-generated insights will appear here in Phases 6–9:</p>
+            <ul class="insights-list">
+                <li>Regime interpretation</li>
+                <li>Signal quality reasoning</li>
+                <li>Strategy suitability</li>
+                <li>Risk advisories</li>
+                <li>Narrative explanations</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/ml_hub.js') }}"></script>
+{% endblock %}

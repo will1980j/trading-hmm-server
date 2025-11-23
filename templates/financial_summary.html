@@ -1,0 +1,255 @@
+{% extends "layout.html" %}
+
+{% block title %}Financial Summary{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/financial_summary.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="financial-summary-container">
+    <!-- REGION A: GLOBAL FINANCIAL OVERVIEW -->
+    <div class="page-header">
+        <h1 class="page-title">Financial Summary</h1>
+        
+        <!-- Dataset Selector -->
+        <div class="dataset-selector">
+            <label>Dataset:</label>
+            <select id="datasetSelect">
+                <option value="v1" selected>V1 Signals</option>
+                <option value="v2" disabled>V2 Signals (Coming Soon)</option>
+            </select>
+        </div>
+        
+        <!-- Date Range Selector -->
+        <div class="date-range-selector">
+            <label>Date Range:</label>
+            <input type="date" id="startDate" placeholder="Start Date">
+            <span>to</span>
+            <input type="date" id="endDate" placeholder="End Date">
+        </div>
+    </div>
+    
+    <!-- Global Metrics Overview -->
+    <div class="global-metrics-row">
+        <div class="metric-block">
+            <div class="metric-label">Total P&L (All Accounts)</div>
+            <div class="metric-value" id="totalPnL">$0.00</div>
+        </div>
+        <div class="metric-block">
+            <div class="metric-label">Combined R Today</div>
+            <div class="metric-value" id="combinedR">0.00R</div>
+        </div>
+        <div class="metric-block">
+            <div class="metric-label">Portfolio Drawdown</div>
+            <div class="metric-value" id="portfolioDD">0.00%</div>
+        </div>
+        <div class="metric-block">
+            <div class="metric-label">Active Accounts</div>
+            <div class="metric-value" id="activeAccounts">0 / 0</div>
+        </div>
+        <div class="metric-block">
+            <div class="metric-label">Scaling Opportunity Index</div>
+            <div class="metric-value" id="scalingIndex">0.00</div>
+        </div>
+    </div>
+    
+    <!-- REGION B: PERSONAL TRADING PERFORMANCE -->
+    <div class="performance-section">
+        <h2 class="section-title">Personal Trading Performance</h2>
+        
+        <div class="personal-performance-grid">
+            <!-- P&L Today -->
+            <div class="performance-card">
+                <h3 class="card-title">P&L Today</h3>
+                <div class="pnl-display">
+                    <div class="pnl-r" id="personalRToday">+0.00R</div>
+                    <div class="pnl-dollar" id="personalDollarToday">$0.00</div>
+                </div>
+            </div>
+            
+            <!-- Personal Equity Curve -->
+            <div class="performance-card">
+                <h3 class="card-title">Personal Equity Curve</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Equity curve chart will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Personal Drawdown Curve -->
+            <div class="performance-card">
+                <h3 class="card-title">Personal Drawdown Curve</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Drawdown curve chart will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Session Profitability -->
+            <div class="performance-card">
+                <h3 class="card-title">Session Profitability</h3>
+                <div class="session-profitability-grid">
+                    <div class="session-block">
+                        <div class="session-name">ASIA</div>
+                        <div class="session-pnl positive">+2.4R</div>
+                    </div>
+                    <div class="session-block">
+                        <div class="session-name">LONDON</div>
+                        <div class="session-pnl positive">+1.8R</div>
+                    </div>
+                    <div class="session-block">
+                        <div class="session-name">NY PRE</div>
+                        <div class="session-pnl negative">-0.5R</div>
+                    </div>
+                    <div class="session-block">
+                        <div class="session-name">NY AM</div>
+                        <div class="session-pnl positive">+3.2R</div>
+                    </div>
+                    <div class="session-block">
+                        <div class="session-name">NY LUNCH</div>
+                        <div class="session-pnl negative">-0.8R</div>
+                    </div>
+                    <div class="session-block">
+                        <div class="session-name">NY PM</div>
+                        <div class="session-pnl positive">+1.5R</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- R-Distribution Histogram -->
+            <div class="performance-card">
+                <h3 class="card-title">R-Distribution Histogram</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">R-distribution histogram will appear here</div>
+                </div>
+            </div>
+            
+            <!-- Day-Type Heatmap -->
+            <div class="performance-card">
+                <h3 class="card-title">Day-Type Heatmap</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Day-type heatmap will appear here</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- REGION C: PROP FIRM PORTFOLIO PERFORMANCE -->
+    <div class="portfolio-section">
+        <h2 class="section-title">Prop Firm Portfolio Performance</h2>
+        
+        <!-- Prop Account Cards Grid -->
+        <div class="prop-accounts-grid" id="propAccountsGrid">
+            <!-- Cards will be populated by JavaScript -->
+        </div>
+        
+        <!-- Portfolio Aggregation -->
+        <div class="portfolio-aggregation">
+            <h3 class="subsection-title">Portfolio Aggregation</h3>
+            
+            <div class="aggregation-grid">
+                <!-- Portfolio Metrics -->
+                <div class="aggregation-card">
+                    <h4 class="card-title">Portfolio Metrics</h4>
+                    <div class="aggregation-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Capital:</span>
+                            <span class="stat-value" id="totalCapital">$0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Total P&L Today:</span>
+                            <span class="stat-value" id="totalPnLToday">$0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Avg Daily Loss Remaining:</span>
+                            <span class="stat-value" id="avgDailyLoss">$0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Avg Max DD Remaining:</span>
+                            <span class="stat-value" id="avgMaxDD">$0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Multi-Account Equity Curve -->
+                <div class="aggregation-card">
+                    <h4 class="card-title">Multi-Account Equity Curve</h4>
+                    <div class="chart-placeholder">
+                        <div class="placeholder-text">Multi-account equity curve will appear here</div>
+                    </div>
+                </div>
+                
+                <!-- Account Correlation Matrix -->
+                <div class="aggregation-card">
+                    <h4 class="card-title">Account Correlation Matrix</h4>
+                    <div class="chart-placeholder">
+                        <div class="placeholder-text">Correlation matrix will appear here</div>
+                    </div>
+                </div>
+                
+                <!-- Portfolio R-Distribution -->
+                <div class="aggregation-card">
+                    <h4 class="card-title">Portfolio R-Distribution</h4>
+                    <div class="chart-placeholder">
+                        <div class="placeholder-text">Portfolio R-distribution will appear here</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- REGION D: PORTFOLIO RISK & FORECAST -->
+    <div class="risk-forecast-section">
+        <h2 class="section-title">Portfolio Risk & Forecast</h2>
+        
+        <div class="risk-forecast-grid">
+            <!-- Risk Exposure Card -->
+            <div class="risk-card">
+                <h3 class="card-title">Risk Exposure</h3>
+                <div class="risk-exposure-display">
+                    <div class="exposure-metric">
+                        <span class="exposure-label">Open Risk:</span>
+                        <span class="exposure-value" id="openRisk">$0</span>
+                    </div>
+                    <div class="exposure-metric">
+                        <span class="exposure-label">Risk Share:</span>
+                        <span class="exposure-value" id="riskShare">0.00%</span>
+                    </div>
+                    <div class="risk-gauge-container">
+                        <div class="risk-gauge">
+                            <div class="gauge-fill" id="riskGaugeFill" style="width: 0%"></div>
+                        </div>
+                        <div class="gauge-labels">
+                            <span>Low</span>
+                            <span>High</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Breach Probability Estimate -->
+            <div class="risk-card">
+                <h3 class="card-title">Breach Probability Estimate</h3>
+                <div class="breach-probability-display">
+                    <div class="probability-gauge">
+                        <div class="gauge-value" id="breachProbability">0.0%</div>
+                        <div class="gauge-label">Estimated Breach Risk</div>
+                    </div>
+                    <div class="probability-status safe" id="breachStatus">Safe</div>
+                </div>
+            </div>
+            
+            <!-- Forecast Panel -->
+            <div class="risk-card forecast-panel">
+                <h3 class="card-title">Forecast Panel</h3>
+                <div class="chart-placeholder">
+                    <div class="placeholder-text">Forecast line chart will appear here</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/financial_summary.js') }}"></script>
+{% endblock %}
