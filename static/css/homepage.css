@@ -1,422 +1,228 @@
-/* ============================================
-   MODULE 15 - HOMEPAGE COMMAND CENTER
-   Hybrid Fintech UI System - Phase 1
-   ============================================ */
+/* ===================================================
+HOMEPAGE — MATCHED EXACTLY TO YOUR HTML STRUCTURE
+Dark Fintech UI — Full Working Version
+=================================================== */
 
-/* ===== TYPOGRAPHY ===== */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-/* Satoshi fallback to Inter with tighter spacing */
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    letter-spacing: -0.01em;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    background: #0D0E12;
+    color: #F2F3F5;
 }
 
-/* ===== COLOR SYSTEM ===== */
-:root {
-    --bg-primary: #0D0E12;
-    --surface-card: #14161C;
-    --surface-card-hover: #1A1C22;
-    --accent-blue: #4C66FF;
-    --accent-indigo: #8E54FF;
-    --accent-cyan: #00D1FF;
-    --text-primary: #F2F3F5;
-    --text-muted: #9CA3AF;
-    --border-subtle: rgba(255, 255, 255, 0.1);
-    --border-emphasis: rgba(255, 255, 255, 0.2);
-}
-
-/* ===== HERO GRID LAYOUT ===== */
-.hero-grid {
-    display: grid;
-    grid-template-columns: 60% 40%;
-    gap: 24px;
-    margin-bottom: 48px;
-    padding: 0 24px;
-}
-
-@media (max-width: 1024px) {
-    .hero-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* ===== ROADMAP PANEL (LEFT) ===== */
-.roadmap-panel {
-    background: var(--surface-card);
-    border-radius: 16px;
-    padding: 24px;
-    border: 1px solid var(--border-subtle);
-}
-
-.roadmap-header {
-    margin-bottom: 20px;
-}
-
-.roadmap-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 8px;
-}
-
-.roadmap-subtitle {
-    font-size: 0.9rem;
-    color: var(--text-muted);
-}
-
-.roadmap-phases {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-/* Phase Card */
-.phase-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--border-subtle);
-    border-radius: 12px;
-    padding: 16px;
-    cursor: pointer;
-    transition: all 200ms ease;
-}
-
-.phase-card:hover {
-    background: rgba(255, 255, 255, 0.05);
-    transform: translateY(-2px);
-}
-
-.phase-card.complete {
-    border-left: 3px solid #22c55e;
-}
-
-.phase-card.active {
-    border-left: 3px solid var(--accent-blue);
-    background: linear-gradient(90deg, rgba(76, 102, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%);
-}
-
-.phase-card.upcoming {
-    border-left: 3px solid var(--text-muted);
-    opacity: 0.6;
-}
-
-.phase-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.phase-number {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-muted);
-}
-
-.phase-status {
-    font-size: 0.75rem;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-weight: 500;
-}
-
-.phase-status.complete {
-    background: rgba(34, 197, 94, 0.2);
-    color: #22c55e;
-}
-
-.phase-status.active {
-    background: rgba(76, 102, 255, 0.2);
-    color: var(--accent-blue);
-}
-
-.phase-status.upcoming {
-    background: rgba(156, 163, 175, 0.2);
-    color: var(--text-muted);
-}
-
-.phase-name {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 8px;
-}
-
-.phase-progress {
-    height: 4px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
+/* ============================
+VIDEO BACKGROUND
+============================ */
+.video-container {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
     overflow: hidden;
-    margin-bottom: 8px;
 }
 
-.phase-progress-bar {
+#backgroundVideo {
+    width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, var(--accent-blue), var(--accent-indigo));
-    transition: width 300ms ease;
+    object-fit: cover;
 }
 
-.phase-expand-icon {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    transition: transform 200ms ease;
+.video-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(5,8,22,0.75);
+    z-index: -1;
 }
 
-.phase-card.expanded .phase-expand-icon {
-    transform: rotate(180deg);
-}
-
-.phase-stages {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 300ms ease;
-}
-
-.phase-card.expanded .phase-stages {
-    max-height: 500px;
-    margin-top: 12px;
-}
-
-.stage-item {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    padding: 6px 0;
-    padding-left: 16px;
-    border-left: 2px solid var(--border-subtle);
-    margin-left: 8px;
-}
-
-/* ===== CATEGORY LAUNCHER (RIGHT) ===== */
-.category-launcher {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.category-card {
-    background: var(--surface-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: 12px;
-    padding: 20px;
-    cursor: pointer;
-    transition: all 200ms ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.category-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, var(--accent-blue), var(--accent-indigo));
-    opacity: 0;
-    transition: opacity 200ms ease;
-}
-
-.category-card:hover {
-    background: var(--surface-card-hover);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
-
-.category-card:hover::before {
-    opacity: 1;
-}
-
-.category-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-}
-
-.category-icon {
-    font-size: 1.5rem;
-}
-
-.category-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.category-description {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    margin-bottom: 12px;
-    line-height: 1.5;
-}
-
-.category-modules {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.module-link {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 8px;
-    text-decoration: none;
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    transition: all 150ms ease;
-}
-
-.module-link:hover {
-    background: rgba(255, 255, 255, 0.08);
-    transform: translateX(4px);
-}
-
-.module-icon {
-    font-size: 1rem;
-}
-
-/* ===== SYSTEM STATUS RIBBON ===== */
+/* ============================
+STATUS RIBBON
+============================ */
 .status-ribbon {
-    background: var(--surface-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: 12px;
+    background: rgba(20,22,28,0.85);
     padding: 16px 24px;
-    margin: 0 24px 24px 24px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.12);
+    margin: 24px;
     display: flex;
     justify-content: space-between;
-    align-items: center;
     flex-wrap: wrap;
-    gap: 16px;
+    gap: 12px;
 }
 
 .status-item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .status-label {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    font-weight: 500;
+    color: #9CA3AF;
+    font-size: 0.85rem;
 }
 
 .status-value {
+    font-weight: 600;
     font-size: 0.9rem;
-    color: var(--text-primary);
-    font-weight: 600;
 }
 
-.status-badge {
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    border: 1px solid;
+/* ============================
+HERO SECTION
+============================ */
+.hero-section {
+    padding: 24px;
+    margin-bottom: 20px;
 }
 
-.status-badge.healthy {
-    background: rgba(34, 197, 94, 0.2);
-    color: #22c55e;
-    border-color: #22c55e;
+.hero-content {
+    text-align: left;
 }
 
-.status-badge.warning {
-    background: rgba(251, 191, 36, 0.2);
-    color: #fbbf24;
-    border-color: #fbbf24;
+.hero-title {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+    background: linear-gradient(135deg, #ffffff, #4C66FF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
-.status-badge.error {
-    background: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
-    border-color: #ef4444;
+.hero-subtitle {
+    font-size: 1rem;
+    color: #9CA3AF;
 }
 
-/* ===== QUICK LINKS SECTION ===== */
-.quick-links-section {
-    padding: 0 24px 48px 24px;
-}
-
-.section-title {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 16px;
-}
-
-.quick-links-grid {
+/* ============================
+WORKSPACE GRID (MAIN MODULES)
+============================ */
+.workspace-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+    padding: 24px;
 }
 
-.quick-link-card {
-    background: var(--surface-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: 10px;
-    padding: 16px;
-    text-decoration: none;
-    color: var(--text-primary);
-    transition: all 150ms ease;
+.workspace-card {
+    background: rgba(20,22,28,0.9);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.2s ease;
+}
+
+.workspace-card:hover {
+    background: rgba(26,28,34,1);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+}
+
+/* Card Header */
+.card-header {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
+    margin-bottom: 12px;
 }
 
-.quick-link-card:hover {
-    background: var(--surface-card-hover);
-    transform: translateY(-2px);
-    border-color: var(--border-emphasis);
+.card-icon {
+    font-size: 1.6rem;
 }
 
-.quick-link-icon {
-    font-size: 1.5rem;
+.card-status {
+    font-size: 0.8rem;
+    padding: 3px 9px;
+    border-radius: 10px;
+    background: rgba(76,102,255,0.2);
+    color: #4C66FF;
 }
 
-.quick-link-text {
-    font-size: 0.95rem;
+/* Description */
+.card-description {
+    color: #9CA3AF;
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+}
+
+/* Link Button */
+.card-link {
+    display: inline-block;
+    padding: 8px 12px;
+    background: rgba(76,102,255,0.18);
+    border-radius: 8px;
+    text-decoration: none;
+    color: #4C66FF;
     font-weight: 600;
+    transition: all 0.2s ease;
 }
 
-/* ===== ANIMATIONS ===== */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.card-link:hover {
+    background: rgba(76,102,255,0.35);
+    transform: translateY(-2px);
 }
 
-.hero-grid,
-.status-ribbon,
-.quick-links-section {
-    animation: fadeIn 400ms ease;
+/* ============================
+ROADMAP SECTION
+============================ */
+.roadmap-section {
+    padding: 24px;
 }
 
-/* ===== RESPONSIVE ===== */
+.roadmap-header h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+
+.roadmap-header p {
+    color: #9CA3AF;
+    margin-bottom: 20px;
+}
+
+/* Roadmap phases container */
+.roadmap-phases {
+    display: grid;
+    gap: 14px;
+}
+
+/* Individual phase */
+.roadmap-phase {
+    background: rgba(20,22,28,0.9);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 18px;
+    transition: all 0.2s ease;
+}
+
+.roadmap-phase:hover {
+    background: rgba(26,28,34,1);
+    transform: translateY(-2px);
+}
+
+/* Phase Header */
+.phase-header {
+    display: flex;
+    justify-content: space-between;
+}
+
+.phase-number {
+    font-weight: 600;
+    color: #9CA3AF;
+}
+
+.phase-status {
+    font-size: 1rem;
+}
+
+/* ============================
+RESPONSIVE
+============================ */
 @media (max-width: 768px) {
-    .hero-grid {
-        padding: 0 16px;
-    }
-    
     .status-ribbon {
-        margin: 0 16px 24px 16px;
         flex-direction: column;
         align-items: flex-start;
     }
     
-    .quick-links-section {
-        padding: 0 16px 48px 16px;
-    }
-    
-    .quick-links-grid {
-        grid-template-columns: 1fr;
+    .hero-title {
+        font-size: 1.6rem;
     }
 }
