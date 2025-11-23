@@ -1431,6 +1431,103 @@ This is now a permanent engineering discipline for the Second Skies platform.
 
 ---
 
+## 🔒 Mandatory Multi-Layer Validation & Repo Sync Policy
+
+Every future patch, module, or upgrade MUST use this mandatory validation sequence.
+
+This policy enforces absolute correctness, prevents partial Kiro implementations, and guarantees the Windows Git repository always contains the true, final code.
+
+---
+
+### ✔ 1. Workspace Validation (Kiro Internal)
+
+After generating or modifying any file, Kiro MUST:
+
+- Confirm the new logic exists in the workspace file.
+- Confirm the change matches **exactly** what the user requested.
+- Confirm no legacy code remains.
+- Confirm no duplicate snippets exist.
+- Confirm no partial implementations were left behind.
+- Confirm ALL target files were updated (multi-file patches).
+
+If anything is missing → STOP, FIX, REVALIDATE.
+
+---
+
+### ✔ 2. Full-File Export Validation (Mandatory)
+
+Kiro MUST:
+
+- PRINT the full contents of each modified file.
+- NOT summarize.
+- NOT collapse sections.
+- NOT omit any lines.
+- NOT make assumptions about file size.
+
+This PRINTED version is the **ground truth** that the user validates and manually compares against the Windows repository copy.
+
+---
+
+### ✔ 3. Windows Repo Consistency Check (Critical)
+
+Because Kiro edits its own cloud workspace (NOT the Windows repo),
+Kiro must assume:
+
+> "The file in the Windows repo may NOT contain the changes."
+
+Kiro MUST:
+
+- Compare exported file content to the file it believes it modified.
+- Confirm the NEW code fully replaces the OLD code.
+- Confirm no original/stale code remains.
+- Identify leftover blocks or unmodified sections.
+- STOP if any mismatch exists and correct it.
+
+This prevents:
+
+- 0-byte files
+- stale homepage templates
+- partial backend patches
+- broken ULTRA deployments
+- incomplete multi-file operations
+
+---
+
+### ✔ 4. Final Completion Signal
+
+Kiro MUST end each patch with this EXACT message:
+
+> **"STRICT VALIDATION PASSED — File is correct in workspace. User may now paste into Windows repo."**
+
+The user then manually pastes the file(s) into the Windows repo, stages, commits, pushes, and deploys.
+
+This ensures:
+
+- 100% correctness
+- 100% repo integrity
+- 100% transparency
+- 0% risk of silent failure
+
+---
+
+### ✔ 5. Deployment Blocker Rule
+
+NO DEPLOYMENT TO RAILWAY IS PERMITTED unless:
+
+- Workspace validation is passed  
+- Full-file export is complete  
+- Windows repo consistency is verified  
+- The file actually appears in GitHub Desktop  
+- The user sees all diffs clearly  
+- No file is empty, stale, or missing  
+- Roadmap updates (if required) are complete
+
+---
+
+### 🚨 This policy is PERMANENT and applies to every future module, patch, UI rebuild, backend engine, API layer, risk engine change, ML integration, ULTRA update, or roadmap step.
+
+---
+
 # 🚀 SECOND SKIES TRADING FUND
 **Core Capital Growth Engine**
 

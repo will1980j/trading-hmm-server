@@ -618,7 +618,7 @@ class AutomatedSignalsUltra {
     
     clearFeed() {
         if (confirm('Clear all signals from the feed?')) {
-            this.mockSignals = [];
+            this.liveSignals = [];
             this.filteredSignals = [];
             this.renderSignalFeed();
             this.updateMetrics();
@@ -742,11 +742,11 @@ class AutomatedSignalsUltra {
         todayREl.className = `perf-value ${parseFloat(todayR) >= 0 ? 'positive' : 'negative'}`;
         
         const todayPnlEl = document.getElementById('todayPnl');
-        todayPnlEl.textContent = `$${parseFloat(todayPnl) >= 0 ? '+' : ''}${todayPnl}`;
+        todayPnlEl.textContent = `${parseFloat(todayPnl) >= 0 ? '+$' : '-$'}${Math.abs(parseFloat(todayPnl)).toFixed(2)}`;
         todayPnlEl.className = `perf-value ${parseFloat(todayPnl) >= 0 ? 'positive' : 'negative'}`;
         
         const sessionPnlEl = document.getElementById('sessionPnl');
-        sessionPnlEl.textContent = `$${parseFloat(sessionPnl) >= 0 ? '+' : ''}${sessionPnl}`;
+        sessionPnlEl.textContent = `${parseFloat(sessionPnl) >= 0 ? '+' : ''}${sessionPnl}`;
         sessionPnlEl.className = `perf-value ${parseFloat(sessionPnl) >= 0 ? 'positive' : 'negative'}`;
         
         document.getElementById('mfeHighLow').textContent = `${mfeHigh} / ${mfeLow}`;
@@ -811,3 +811,4 @@ class AutomatedSignalsUltra {
 document.addEventListener('DOMContentLoaded', () => {
     window.ultraDashboard = new AutomatedSignalsUltra();
 });
+

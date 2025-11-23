@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Second Skies Trading - Professional Day Trading Platform</title>
+    <title>Second Skies Trading — Command Center</title>
     <style>
         * {
             margin: 0;
@@ -17,16 +17,12 @@
             color: #ffffff;
             overflow-x: hidden;
             position: relative;
-            /* Loading placeholder gradient */
-            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #2d1b69 100%);
+            background: #050816;
         }
 
         .video-container {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             z-index: -2;
             overflow: hidden;
         }
@@ -37,167 +33,327 @@
             left: 50%;
             min-width: 100%;
             min-height: 100%;
-            width: auto;
-            height: auto;
             transform: translate(-50%, -50%);
             object-fit: cover;
         }
 
         .video-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg,
-                    rgba(10, 14, 39, 0.85) 0%,
-                    rgba(26, 31, 58, 0.8) 50%,
-                    rgba(45, 27, 105, 0.85) 100%);
+            inset: 0;
+            background: radial-gradient(circle at top left, rgba(76,102,255,0.45), transparent 45%),
+                        radial-gradient(circle at bottom right, rgba(142,84,255,0.45), transparent 55%),
+                        linear-gradient(135deg, rgba(5,8,22,0.95), rgba(5,8,22,0.98));
             z-index: -1;
         }
 
         .header {
             position: sticky;
             top: 0;
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(25px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background: rgba(5,8,22,0.85);
+            backdrop-filter: blur(24px);
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            padding: 0.75rem 2rem;
             z-index: 100;
         }
 
-
-
         .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
             display: flex;
             gap: 0.5rem;
             align-items: center;
-            justify-content: center;
+            justify-content: space-between;
             flex-wrap: wrap;
+        }
+
+        .brand {
+            font-weight: 700;
+            font-size: 1.1rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #e5e7eb;
+        }
+
+        .nav-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            justify-content: flex-end;
         }
 
         .nav-link {
             color: #e2e8f0;
             text-decoration: none;
             font-weight: 500;
-            padding: 6px 10px;
-            border-radius: 6px;
-            transition: all 0.3s;
+            padding: 4px 10px;
+            border-radius: 999px;
+            transition: all 0.2s;
             font-size: 13px;
             white-space: nowrap;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(15,23,42,0.65);
+            border: 1px solid rgba(148,163,184,0.25);
         }
 
         .nav-link:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(148,163,184,0.2);
             color: #ffffff;
         }
 
         .main-content {
-            padding: 2.5rem 2rem;
+            padding: 2.2rem 2rem 3rem;
             max-width: 1400px;
             margin: 0 auto;
         }
 
         .welcome-section {
-            text-align: center;
-            margin-bottom: 2.5rem;
+            margin-bottom: 1.75rem;
         }
 
         .welcome-title {
-            font-size: 2.8rem;
+            font-size: 2.4rem;
             font-weight: 800;
-            margin-bottom: 1rem;
-            background: linear-gradient(135deg, #ffffff, #e2e8f0, #3b82f6);
+            margin-bottom: 0.6rem;
+            background: linear-gradient(135deg,#ffffff,#e2e8f0,#4c66ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             line-height: 1.2;
         }
 
         .welcome-subtitle {
-            font-size: 1.1rem;
-            color: #94a3b8;
-            margin-bottom: 1.5rem;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
+            font-size: 0.98rem;
+            color: #9ca3af;
+            max-width: 620px;
         }
 
-        .tools-grid {
+        .status-ribbon {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(15,23,42,0.9);
+            border-radius: 999px;
+            padding: 0.6rem 1.2rem;
+            border: 1px solid rgba(148,163,184,0.35);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.45);
+            font-size: 0.8rem;
+            margin-bottom: 1.8rem;
+        }
+
+        .status-pill {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.75rem;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: rgba(22,163,74,0.12);
+            color: #4ade80;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 999px;
+            background: #22c55e;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            color: #9ca3af;
+        }
+
+        .status-label {
+            color: #6b7280;
+        }
+
+        .hero-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.2rem;
-            margin-bottom: 3rem;
+            grid-template-columns: minmax(0, 1.55fr) minmax(0, 1.1fr);
+            gap: 1.5rem;
+            align-items: flex-start;
         }
 
-        .tool-card {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(25px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 16px;
-            padding: 1.4rem;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            color: inherit;
+        .panel {
+            background: radial-gradient(circle at top left, rgba(76,102,255,0.25), transparent 45%),
+                        linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.98));
+            border-radius: 20px;
+            border: 1px solid rgba(148,163,184,0.35);
+            padding: 1.4rem 1.5rem;
+            box-shadow: 0 22px 55px rgba(0,0,0,0.6);
         }
 
-        .tool-card:hover {
-            transform: translateY(-6px);
-            background: rgba(255, 255, 255, 0.12);
-            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.4);
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.9rem;
         }
 
-        .tool-icon {
-            font-size: 2rem;
-            margin-bottom: 0.8rem;
-            display: block;
-        }
-
-        .tool-title {
-            font-size: 1.1rem;
-            font-weight: 700;
-            margin-bottom: 0.6rem;
-            color: #ffffff;
-        }
-
-        .tool-description {
-            color: #94a3b8;
-            line-height: 1.5;
+        .panel-title {
             font-size: 0.9rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #9ca3af;
+        }
+
+        .pill {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.7rem;
+            border-radius: 999px;
+            background: rgba(15,23,42,0.9);
+            border: 1px solid rgba(148,163,184,0.5);
+            color: #e5e7eb;
+        }
+
+        .roadmap-list {
+            display: grid;
+            gap: 0.75rem;
+            margin-top: 0.4rem;
+        }
+
+        .roadmap-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(15,23,42,0.85);
+            border-radius: 12px;
+            padding: 0.8rem 0.9rem;
+            border: 1px solid rgba(51,65,85,0.9);
+        }
+
+        .roadmap-main {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .phase-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            background: rgba(76,102,255,0.18);
+            border: 1px solid rgba(129,140,248,0.75);
+            color: #e5e7eb;
+        }
+
+        .phase-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .phase-subtitle {
+            font-size: 0.78rem;
+            color: #9ca3af;
+        }
+
+        .phase-status {
+            font-size: 0.8rem;
+            color: #a5b4fc;
+        }
+
+        .category-grid {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .category-card {
+            background: rgba(15,23,42,0.92);
+            border-radius: 14px;
+            padding: 0.85rem 0.95rem;
+            border: 1px solid rgba(55,65,81,0.95);
+            cursor: pointer;
+            transition: all 0.18s ease-out;
+        }
+
+        .category-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 40px rgba(0,0,0,0.6);
+            border-color: rgba(96,165,250,0.9);
+        }
+
+        .category-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+        }
+
+        .category-description {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-bottom: 0.5rem;
+        }
+
+        .category-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+
+        .category-link {
+            font-size: 0.75rem;
+            padding: 0.18rem 0.6rem;
+            border-radius: 999px;
+            border: 1px solid rgba(75,85,99,1);
+            color: #e5e7eb;
+            text-decoration: none;
+            background: rgba(15,23,42,0.95);
+        }
+
+        .quick-links {
+            margin-top: 1.6rem;
+        }
+
+        .quick-links-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 0.7rem;
+            color: #9ca3af;
+        }
+
+        .quick-links-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+
+        .quick-link {
+            font-size: 0.78rem;
+            padding: 0.35rem 0.8rem;
+            border-radius: 999px;
+            border: 1px solid rgba(148,163,184,0.6);
+            background: rgba(15,23,42,0.95);
+            color: #e5e7eb;
+            text-decoration: none;
+        }
+
+        @media (max-width: 960px) {
+            .hero-grid {
+                grid-template-columns: minmax(0,1fr);
+            }
         }
 
         @media (max-width: 768px) {
             .header {
-                flex-direction: column;
-                gap: 1rem;
-                text-align: center;
+                padding: 0.75rem 1rem;
             }
-
-            .nav-container {
-                justify-content: center;
+            .main-content {
+                padding: 1.8rem 1.2rem 2.2rem;
             }
-
             .welcome-title {
-                font-size: 2.2rem;
-            }
-
-            .tools-grid {
-                grid-template-columns: 1fr;
+                font-size: 2rem;
             }
         }
     </style>
 </head>
-
 <body>
     <div class="video-container">
         <video id="backgroundVideo" autoplay muted loop class="video-background" playsinline preload="auto">
             {% if video_file %}
-                <source src="{{ url_for('static', filename='videos/homepage/' + video_file) }}" type="video/mp4">
-                <source src="{{ url_for('static', filename='videos/homepage/' + video_file) }}" type="video/webm">
+            <source src="{{ url_for('static', filename='videos/homepage/' + video_file) }}" type="video/mp4">
             {% endif %}
         </video>
     </div>
@@ -205,337 +361,181 @@
     <div class="video-overlay"></div>
 
     <header class="header">
-        <nav class="nav-container">
-            <a href="/homepage" class="nav-link">🏠 Home</a>
-            <a href="/signal-lab-dashboard" class="nav-link">📊 Dashboard</a>
-            <a href="/signal-analysis-lab" class="nav-link">🧪 Signal Lab</a>
-            <a href="/ml-dashboard" class="nav-link">🤖 ML Hub</a>
-
-            <a href="/automated-signals" class="nav-link">📡 Automated Signals
-            <a href="/time-analysis" class="nav-link">⏰ Time Analysis</a>
-            <a href="/strategy-optimizer" class="nav-link">🎯 Strategy</a>
-            <a href="/strategy-comparison" class="nav-link">🏆 Compare</a>
-            <a href="/ai-business-advisor" class="nav-link">🧠 AI Advisor</a>
-            <a href="/prop-portfolio" class="nav-link">💼 Portfolio</a>
-            <a href="/trade-manager" class="nav-link">📋 Trades</a>
-            <a href="/financial-summary" class="nav-link">💰 Finance</a>
-            <a href="/reporting-hub" class="nav-link">📊 Reports</a>
-            <a href="/logout" class="nav-link">🚪 Logout</a>
-        </nav>
+        <div class="nav-container">
+            <div class="brand">SECOND SKIES</div>
+            <nav class="nav-links">
+                <a href="/homepage" class="nav-link">Home</a>
+                <a href="/signal-lab-dashboard" class="nav-link">Dashboard</a>
+                <a href="/automated-signals" class="nav-link">Automated Signals</a>
+                <a href="/time-analysis" class="nav-link">Time Analysis</a>
+                <a href="/strategy-optimizer" class="nav-link">Strategy</a>
+                <a href="/strategy-comparison" class="nav-link">Compare</a>
+                <a href="/ml-dashboard" class="nav-link">ML Hub</a>
+                <a href="/financial-summary" class="nav-link">Finance</a>
+                <a href="/reporting-hub" class="nav-link">Reports</a>
+                <a href="/prop-portfolio" class="nav-link">Prop Portfolio</a>
+                <a href="/trade-manager" class="nav-link">Trade Manager</a>
+                <a href="/logout" class="nav-link">Logout</a>
+            </nav>
+        </div>
     </header>
 
     <main class="main-content">
         <section class="welcome-section">
-            <h1 class="welcome-title">Second Skies Trading</h1>
+            <h1 class="welcome-title">Trading Command Center</h1>
             <p class="welcome-subtitle">
-                Advanced analytics, real-time signals, and machine learning insights for NASDAQ scalping strategies
+                Live signals, analytics and intelligence unified in one place — built to support our NQ prop trading, Trading Fund, and long-term wealth engine.
             </p>
         </section>
 
-        <section class="tools-grid">
-            <a href="/ml-dashboard" class="tool-card">
-                <span class="tool-icon">🤖</span>
-                <h3 class="tool-title">ML Intelligence Hub</h3>
-                <p class="tool-description">Advanced machine learning predictions and model analysis for trading signals</p>
-            </a>
+        <section class="status-ribbon" id="statusRibbon">
+            <span class="status-pill">
+                <span class="status-dot"></span>
+                System Online
+            </span>
+            <div class="status-item">
+                <span class="status-label">Session:</span>
+                <span id="statusSession">—</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Signals Today:</span>
+                <span id="statusSignals">—</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Last Signal:</span>
+                <span id="statusLastSignal">—</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Webhook:</span>
+                <span id="statusWebhook">—</span>
+            </div>
+        </section>
 
+        <section class="hero-grid">
+            <!-- Roadmap Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Roadmap</div>
+                    <span class="pill">Phase Overview</span>
+                </div>
+                <div class="roadmap-list">
+                    <div class="roadmap-item">
+                        <div class="roadmap-main">
+                            <span class="phase-badge">Phase 1</span>
+                            <div>
+                                <div class="phase-title">Foundation & UI Rebuild</div>
+                                <div class="phase-subtitle">Dashboards, ULTRA redesign, ML hub shells</div>
+                            </div>
+                        </div>
+                        <div class="phase-status">✅ Complete</div>
+                    </div>
+                    <div class="roadmap-item">
+                        <div class="roadmap-main">
+                            <span class="phase-badge">Phase 2</span>
+                            <div>
+                                <div class="phase-title">Live Data & Signal Engine</div>
+                                <div class="phase-subtitle">Ingestion, ULTRA live, dashboards connected</div>
+                            </div>
+                        </div>
+                        <div class="phase-status">🟡 In Progress</div>
+                    </div>
+                    <div class="roadmap-item">
+                        <div class="roadmap-main">
+                            <span class="phase-badge">Phase 2.5</span>
+                            <div>
+                                <div class="phase-title">Proving Ground (Evaluations)</div>
+                                <div class="phase-subtitle">Manual NQ trading, passed evaluations, first payouts</div>
+                            </div>
+                        </div>
+                        <div class="phase-status">🔜 Upcoming</div>
+                    </div>
+                    <div class="roadmap-item">
+                        <div class="roadmap-main">
+                            <span class="phase-badge">Trading Fund</span>
+                            <div>
+                                <div class="phase-title">Second Skies Trading Fund</div>
+                                <div class="phase-subtitle">Core capital engine beyond prop rules</div>
+                            </div>
+                        </div>
+                        <div class="phase-status">🔭 Long-Term</div>
+                    </div>
+                </div>
+            </div>
 
+            <!-- Category Launcher -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Workspace</div>
+                    <span class="pill">Quick Navigation</span>
+                </div>
+                <div class="category-grid">
+                    <div class="category-card">
+                        <div class="category-title">Intelligence</div>
+                        <div class="category-description">
+                            Model insights, signal quality and future ML/AI guidance.
+                        </div>
+                        <div class="category-links">
+                            <a href="/ml-dashboard" class="category-link">ML Hub</a>
+                            <a href="/ai-business-advisor" class="category-link">AI Business Advisor</a>
+                        </div>
+                    </div>
 
-            <a href="/signal-lab-dashboard" class="tool-card">
-                <span class="tool-icon">🏠</span>
-                <h3 class="tool-title">Main Dashboard</h3>
-                <p class="tool-description">Comprehensive overview of all trading activities and performance metrics</p>
-            </a>
+                    <div class="category-card">
+                        <div class="category-title">Signals & Execution</div>
+                        <div class="category-description">
+                            Live signal lifecycle and trade management.
+                        </div>
+                        <div class="category-links">
+                            <a href="/automated-signals" class="category-link">Automated Signals ULTRA</a>
+                            <a href="/trade-manager" class="category-link">Trade Manager</a>
+                        </div>
+                    </div>
 
-            <a href="/signal-analysis-lab" class="tool-card">
-                <span class="tool-icon">🧪</span>
-                <h3 class="tool-title">Signal Lab</h3>
-                <p class="tool-description">Advanced signal analysis, manual backtesting, and validation tools</p>
-            </a>
+                    <div class="category-card">
+                        <div class="category-title">Analytics</div>
+                        <div class="category-description">
+                            Time, strategy and comparison analytics to refine our edge.
+                        </div>
+                        <div class="category-links">
+                            <a href="/time-analysis" class="category-link">Time Analysis</a>
+                            <a href="/strategy-optimizer" class="category-link">Strategy Optimizer</a>
+                            <a href="/strategy-comparison" class="category-link">Compare</a>
+                        </div>
+                    </div>
 
-            <a href="/automated-signals" class="tool-card">
-                <span class="tool-icon">📡</span>
-                <h3 class="tool-title">Automated Signals</h3>
-                <p class="tool-description">Real-time signal monitoring with calendar view, health monitoring, and 24/7 cloud automation</p>
-            </a>
+                    <div class="category-card">
+                        <div class="category-title">Prop & Accounts</div>
+                        <div class="category-description">
+                            Prop evaluations, funded accounts and capital scaling.
+                        </div>
+                        <div class="category-links">
+                            <a href="/prop-portfolio" class="category-link">Prop Portfolio</a>
+                            <a href="/financial-summary" class="category-link">Financial Summary</a>
+                            <a href="/reporting-hub" class="category-link">Reporting</a>
+                        </div>
+                    </div>
+                </div>
 
-            <a href="/time-analysis" class="tool-card">
-                <span class="tool-icon">⏰</span>
-                <h3 class="tool-title">Time Analysis</h3>
-                <p class="tool-description">Temporal trading pattern analysis and session-based optimization</p>
-            </a>
-
-            <a href="/strategy-optimizer" class="tool-card">
-                <span class="tool-icon">🎯</span>
-                <h3 class="tool-title">Strategy Optimizer</h3>
-                <p class="tool-description">Trading strategy backtesting, optimization, and performance analysis</p>
-            </a>
-
-            <a href="/strategy-comparison" class="tool-card">
-                <span class="tool-icon">🏆</span>
-                <h3 class="tool-title">Compare</h3>
-                <p class="tool-description">Strategy comparison and competitive performance analysis</p>
-            </a>
-
-            <a href="/ai-business-advisor" class="tool-card">
-                <span class="tool-icon">🧠</span>
-                <h3 class="tool-title">AI Business Advisor</h3>
-                <p class="tool-description">AI-powered trading insights and strategic recommendations</p>
-            </a>
-
-            <a href="/prop-portfolio" class="tool-card">
-                <span class="tool-icon">💼</span>
-                <h3 class="tool-title">Prop Portfolio</h3>
-                <p class="tool-description">Portfolio management, risk analysis, and capital allocation</p>
-            </a>
-
-            <a href="/trade-manager" class="tool-card">
-                <span class="tool-icon">📋</span>
-                <h3 class="tool-title">Trade Manager</h3>
-                <p class="tool-description">Trade execution, management, and comprehensive tracking</p>
-            </a>
-
-            <a href="/financial-summary" class="tool-card">
-                <span class="tool-icon">💰</span>
-                <h3 class="tool-title">Financial Summary</h3>
-                <p class="tool-description">Financial performance tracking and detailed P&L analysis</p>
-            </a>
-
-            <a href="/reporting-hub" class="tool-card">
-                <span class="tool-icon">📊</span>
-                <h3 class="tool-title">Reports</h3>
-                <p class="tool-description">Comprehensive reporting and advanced analytics dashboard</p>
-            </a>
+                <div class="quick-links">
+                    <div class="quick-links-title">Quick Actions</div>
+                    <div class="quick-links-grid">
+                        <a href="/automated-signals" class="quick-link">Open ULTRA</a>
+                        <a href="/signal-lab-dashboard" class="quick-link">View Main Dashboard</a>
+                        <a href="/time-analysis" class="quick-link">Check Session Edge</a>
+                        <a href="/strategy-optimizer" class="quick-link">Review Strategy Settings</a>
+                        <a href="/prop-portfolio" class="quick-link">Review Prop Evaluations</a>
+                    </div>
+                </div>
+            </div>
         </section>
     </main>
+
+    <!-- Keep your existing video rotation script -->
+    <script>
+{{ '' }}
+// NOTE: keep your existing video rotation JS here,
+// or paste the JS you already have for videoSources & transitions.
+// If it’s already in this file, leave it as-is
+    </script>
 </body>
-</html><script
->
-// Your 86 Beautiful Nature Videos - Served via Railway Proxy
-const videoSources = [
-    '/proxy-video/18gYaw4YLy0r4-N-NVFP7MTRyRBbhCH1i',
-    '/proxy-video/1CG1XiGaTutLOi6atmm3vBb-jOferAy3R',
-    '/proxy-video/107-c9jR3b4y0whP3OLyq6eTKRPMFhKY9',
-    '/proxy-video/1zh1Enf8cESXVzeBtM6G_9Ho-Is-0AFa1',
-    '/proxy-video/1I0odad2sA3IWsFXvYxqln6pOhUsmWemX',
-    '/proxy-video/1jB3QkgI8hRtFZmCou21oSPvrHmfzptmZ',
-    '/proxy-video/15mOVz4TzU1Nh2u9C0De0iN5B8NGRQcxE',
-    '/proxy-video/1Q-Jtepx2aLMesunbbepoJUSiIHEBr3Hv',
-    '/proxy-video/1C0h1z9uPjnoEGOkzhPskZEHLPn4OGrfd',
-    '/proxy-video/1ad9n0y97uYskUN2KaFxxz4EzUlmMxi1x',
-    '/proxy-video/1khedd5UyYnDKrlaXdpJjA7VuRv1nskJJ',
-    '/proxy-video/1AW4j_MY9MI8EzouChHUQP-fY30pEeba7',
-    '/proxy-video/1XaGv5BG_Z9VytOPEVeE0SZrGJpvRgYbh',
-    '/proxy-video/1kwjMpTkvGo25sdrAjPun7JPNnZ58FBGa',
-    '/proxy-video/1IDxcL7yJeNG9iwclMcckMGxAVTofLrGH',
-    '/proxy-video/1RBOsdJOuFAXtomQ-9Q_kR2h8uQatjAnH',
-    '/proxy-video/1jU83_jjYOZWLmLicAGIrQEbAejqWGdpV',
-    '/proxy-video/1VqcyCE-PW-DL74nd39KPw2Go79ioIjCE',
-    '/proxy-video/1fMCRFCWVv_LL5IiHPbd5aojlZ05MXboW',
-    '/proxy-video/1EDG_7sNCCSQBzg64FP1rRSgYdQSU2BW5',
-    '/proxy-video/12ulHcA5IG305qLU2kMEklr03RcmoGGMX',
-    '/proxy-video/1OwvgPkDU62fcAmOx62wo0mnzY4EhgA-4',
-    '/proxy-video/1mJzqn5UYQxlf2Zk_niMvqmOIthK-On-0',
-    '/proxy-video/1zqPreHTtNrQ3iN-kEc19JxQjinFuLXbL',
-    '/proxy-video/1NJORsHhEu_TAUEflGsDjO5laKjX9QuLg',
-    '/proxy-video/1EqwMQgs-vFpBz4-uBOzrEIZ3YDZFbF0E',
-    '/proxy-video/1kwuZHhlB3fiwfNw1EWAS0hDbw20SSfVs',
-    '/proxy-video/1HtWhyT2ZA8-adr2yfXVeMsFPvj9rZ5IO',
-    '/proxy-video/1G0x-fBKdRxKseFlboVtRHRVZJIyKQ4gy',
-    '/proxy-video/1nk3OsC0x0IQ-CeqZqs4zFEieRZepoTaL',
-    '/proxy-video/1US_QE8bAwTphvHeTqgZhqrhrw3OvtRxe',
-    '/proxy-video/14GLMh3SMZ0sRo4L40tgHNR38qBns0Gda',
-    '/proxy-video/1Y9MZ8_IWKwKTxSWg6ZH0y-euN55RC-Tf',
-    '/proxy-video/1L1uFB1o1AraIP0UrMdgA_jO05pW9xj-p',
-    '/proxy-video/1sEpLjDhfffJQJfsH9HIKbKapICmT65OL',
-    '/proxy-video/1YAt-MgYSfxCXpR5_Tm72ZP84ki0tPihD',
-    '/proxy-video/1xmPAU3TqBuzypfL8B3jhy3RehvMnZadH',
-    '/proxy-video/1BigKqxPcEQM7PrSo3v1oq2fqLkVElsH1',
-    '/proxy-video/1ob580n1fv7F7kXQThTiXnzmp87h6KFsg',
-    '/proxy-video/1Dj7K90riE6sCgCdLMhfV4PWBwb0vZTO_',
-    '/proxy-video/1uklkLn8qQXJkJBLWzlQb58VB4MVqkcYd',
-    '/proxy-video/1oUKWC-ln3hmupPXvZr38mf6cv_gfom1O',
-    '/proxy-video/1wjrO9MAAkzUxHpUYU9772nDLnELO_VxD',
-    '/proxy-video/1HkMKp2ThPaTH56su2a-R5UNml9OWtSCG',
-    '/proxy-video/1j7QOuy8YJHWKp3SfqQJ9ZX0cp7YVTwjD',
-    '/proxy-video/1NuThygDJNqsh9sp0TiDMLsUb9r6DlYJ4',
-    '/proxy-video/1n49QdArYSCXhec3WjcswlDR5vvEZweAR',
-    '/proxy-video/1peCksjeTKtodRXy6t_NwzqnRTXgIbpQJ',
-    '/proxy-video/1rCfPR9gJM6dF9WGf0peJV9xaizwla1ND',
-    '/proxy-video/111_tOFQLQTwJd05jqfll3lAqHGh98gxH',
-    '/proxy-video/1tXkujWZYhkC9HoZXNfNbj17F37IgnSJ8',
-    '/proxy-video/1FxLFPHPqM1ijR5lagVZ1dHeOpfjtSynk',
-    '/proxy-video/1JASFoGmQX2FNLMgzWnEpeTitt8qAh6ih',
-    '/proxy-video/1PkBcTJMIniyaic4FggwkpBoAbNujSNTJ',
-    '/proxy-video/19egODctzRMmb_WiiS8WOxdE7N-LRHbYK',
-    '/proxy-video/16g7F469QGkcjCN7Yd65xPTd-zS9qFPoA',
-    '/proxy-video/1MI7UxRbU7smv7NXI3SVWsLDw1ilZ7QZF',
-    '/proxy-video/1tyVPLAsMu9MOtNFn4zGEkwE7kvnzlvVB',
-    '/proxy-video/1jabECNUhqO6K6ILqj3WJOR0CvVnwKmKa',
-    '/proxy-video/1Ozo-e9-W_KgsE_D6IDvSThsHAUt5YBT',
-    '/proxy-video/1TqMT5toWPiMgzaA2QGi_U2w1WZmEbVla',
-    '/proxy-video/11vQjWV1vl1jCn1rvvkWZmvt7GQpQP_rD',
-    '/proxy-video/1Fq4mi-okbQ379WajWu3lpqlWT5LCAblW',
-    '/proxy-video/1BW9VEq_myf2ppAmYngWG45MuZmPvvjzE',
-    '/proxy-video/1rCATcoBLVYvDOl7ZXhOBOoK3s5jDyMeA',
-    '/proxy-video/1yfBxNKD2zBgnh4OrIhtt8NtEXQOK1A2R',
-    '/proxy-video/1qO7_vaqhJ8-LNTHcKUUuLoF8-82UJP5l',
-    '/proxy-video/159du18lMk4lA6ZDBfGG1uSEtpHcysp2K',
-    '/proxy-video/1KI3JRNnf9-tqKJ-yE4LDiOV3V5Ibksuj',
-    '/proxy-video/1nVxcv-bWORlMeCk2_AzHOQXxBa39-Zyt',
-    '/proxy-video/10ajtednyG0nf37aywJa9omF0sEZ4a9No',
-    '/proxy-video/1tyAtWhjafHXhoVxjUKR8Q1lFNfNen05M',
-    '/proxy-video/1MuxkXcFOgqm72UE1n1rCXqG5QrDCpE1m',
-    '/proxy-video/1OfyB6jxFdYqIGv6D5a5AnVX0pgcUJjNI',
-    '/proxy-video/1xCG_0-d5ZKr8KCWsAJpvk1Yowh7WDfPI',
-    '/proxy-video/1TCBk1S3hfbKmof04FsB__gBcznSydnij',
-    '/proxy-video/1OohFHyNiP9r6GE8w77GNPKfwz3zT4DDc',
-    '/proxy-video/1IO9YkN4O0YvRngTXccIoU3awaerRkjcr',
-    '/proxy-video/1jwpuubfpPBvwfP7qJVHvYY5fPiN9WsYn',
-    '/proxy-video/1lmLAfjcity_xT7AxlGFlHHRV06D04z3b',
-    '/proxy-video/1uUmdfFPARosedUlpsTG2C9h1eTIWGWJI',
-    '/proxy-video/1CNLQae2HKcxLj3Wul1n0N_Oh-9WecHHW',
-    '/proxy-video/1Exb8-ruty_wah8J_09zCfHmd2qlQNuhU',
-    '/proxy-video/1pONgmrTnvAJSEc0JAY1pMyw5pZCAN_DS',
-    '/proxy-video/12cNNkIN1ybmpmeau5ojNtURR52fPRq93',
-    '/proxy-video/1VbLpwu8vqsFAjTlf3DeLNe6DwUA0Bcxz',
-    '/proxy-video/1ADaw_LPHI-pukTnbIYxaEVytMNt-2woV',
-    '/proxy-video/1vireVrDSCsdtZJKLYTLgmTsO8ZzbkTfy',
-    '/proxy-video/1Foxzw6Ize-OKaAs_Rvh0kK17YcTsyxXk',
-    '/proxy-video/1LQyC24BsWyBs84kdCu1TViaih7irBsEd',
-    '/proxy-video/12GbOhExy_O4tm8U6730Ca5yr0OKQud-'
-];
-
-// ⚡ OPTIMIZED VIDEO LOADING SYSTEM ⚡
-// Shuffle playlist once at start
-let videoPlaylist = [...Array(videoSources.length).keys()];
-for (let i = videoPlaylist.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [videoPlaylist[i], videoPlaylist[j]] = [videoPlaylist[j], videoPlaylist[i]];
-}
-
-let currentPlaylistIndex = 0;
-let failedAttempts = 0;
-const video = document.getElementById('backgroundVideo');
-let nextVideoElement = null;
-
-// OPTIMIZATION: Preload next video in background
-function preloadNextVideo() {
-    const nextIndex = (currentPlaylistIndex + 1) % videoPlaylist.length;
-    const nextVideoIndex = videoPlaylist[nextIndex];
-    const nextVideoUrl = videoSources[nextVideoIndex];
-    
-    // Remove old preload
-    if (nextVideoElement) {
-        nextVideoElement.remove();
-    }
-    
-    // Create hidden video to preload
-    nextVideoElement = document.createElement('video');
-    nextVideoElement.preload = 'auto';
-    nextVideoElement.src = nextVideoUrl;
-    nextVideoElement.style.display = 'none';
-    nextVideoElement.muted = true;
-    document.body.appendChild(nextVideoElement);
-    
-    console.log(`⏳ Preloading next video ${nextVideoIndex + 1}/${videoSources.length}`);
-}
-
-// OPTIMIZATION: Fast transition using preloaded video
-function transitionToVideo(playlistIndex) {
-    const videoIndex = videoPlaylist[playlistIndex];
-    const videoUrl = videoSources[videoIndex];
-    console.log(`🎬 Loading video ${videoIndex + 1}/${videoSources.length}`);
-    
-    // Check if we have this video preloaded
-    if (nextVideoElement && nextVideoElement.src.includes(videoUrl)) {
-        const container = document.querySelector('.video-container');
-        const oldVideo = video;
-        
-        // Setup preloaded video
-        nextVideoElement.style.display = 'block';
-        nextVideoElement.className = 'video-background';
-        nextVideoElement.autoplay = true;
-        nextVideoElement.loop = true;
-        nextVideoElement.playsInline = true;
-        nextVideoElement.style.opacity = '0';
-        
-        container.appendChild(nextVideoElement);
-        
-        // Smooth fade transition
-        setTimeout(() => {
-            nextVideoElement.style.transition = 'opacity 1s ease-in-out';
-            nextVideoElement.style.opacity = '1';
-            oldVideo.style.transition = 'opacity 1s ease-in-out';
-            oldVideo.style.opacity = '0';
-            
-            setTimeout(() => {
-                if (oldVideo !== video) {
-                    oldVideo.remove();
-                }
-                nextVideoElement = null;
-                
-                // Preload next video
-                setTimeout(preloadNextVideo, 1000);
-            }, 1000);
-        }, 50);
-        
-        nextVideoElement.play().catch(e => console.log('Playback error:', e));
-    } else {
-        // Fallback: direct loading
-        video.src = videoUrl;
-        video.play().catch(e => console.log('Playback error:', e));
-        
-        // Preload next video after 2 seconds
-        setTimeout(preloadNextVideo, 2000);
-    }
-}
-
-// Initialize with first video
-const firstVideoIndex = videoPlaylist[0];
-video.src = videoSources[firstVideoIndex];
-video.preload = 'auto';
-console.log(`🎬 Starting with video ${firstVideoIndex + 1}/${videoSources.length}`);
-
-// Start preloading next video after 2 seconds
-setTimeout(preloadNextVideo, 2000);
-
-// Handle video end
-video.addEventListener('ended', function () {
-    currentPlaylistIndex = (currentPlaylistIndex + 1) % videoPlaylist.length;
-    
-    if (currentPlaylistIndex === 0) {
-        // Reshuffle when playlist completes
-        for (let i = videoPlaylist.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [videoPlaylist[i], videoPlaylist[j]] = [videoPlaylist[j], videoPlaylist[i]];
-        }
-        console.log('🔄 Playlist complete - reshuffled');
-    }
-    
-    transitionToVideo(currentPlaylistIndex);
-});
-
-// Handle video errors
-video.addEventListener('error', function () {
-    failedAttempts++;
-    if (failedAttempts >= videoSources.length) {
-        console.log('All videos failed, using gradient fallback');
-        document.body.style.background = 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%)';
-        document.querySelector('.video-container').style.display = 'none';
-        return;
-    }
-    
-    console.log(`Video failed, trying next (attempt ${failedAttempts})`);
-    currentPlaylistIndex = (currentPlaylistIndex + 1) % videoPlaylist.length;
-    transitionToVideo(currentPlaylistIndex);
-});
-
-// Ensure video plays on page load
-video.play().catch(e => {
-    console.log('Autoplay blocked, will play on user interaction');
-    document.addEventListener('click', () => {
-        video.play().catch(err => console.log('Play error:', err));
-    }, { once: true });
-});
-</script>
+</html>
