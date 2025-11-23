@@ -4092,53 +4092,61 @@ def get_automated_signals_status():
 # Live Signals API endpoints
 
 
-@app.route('/api/live-signals', methods=['GET'])
-@login_required
-def get_live_signals():
-    try:
-        timeframe = request.args.get('timeframe', '1m')
-        limit = int(request.args.get('limit', 50))  # Reasonable limit
+
+# ============================================================================
+# LEGACY ENDPOINT DISABLED - CONFLICTS WITH PHASE 2A/2B/2C API V2
+# ============================================================================
+# @app.route('/api/live-signals', methods=['GET'])
+# @login_required
+# def get_live_signals():
+#     try:
+#         timeframe = request.args.get('timeframe', '1m')
+#         limit = int(request.args.get('limit', 50))  # Reasonable limit
         
-        if not db_enabled or not db:
-            return jsonify({'signals': []})
+#         if not db_enabled or not db:
+#             return jsonify({'signals': []})
         
-        # Clear any aborted transactions
-        try:
-            db.conn.rollback()
-        except:
-            pass
+#         # Clear any aborted transactions
+#         try:
+#             db.conn.rollback()
+#         except:
+#             pass
             
-        cursor = db.conn.cursor()
+#         cursor = db.conn.cursor()
         
-        # Keep signals for ML analysis - only delete very old ones
-        cursor.execute("DELETE FROM live_signals WHERE timestamp < NOW() - INTERVAL '4 hours'")
-        db.conn.commit()
+#         # Keep signals for ML analysis - only delete very old ones
+#         cursor.execute("DELETE FROM live_signals WHERE timestamp < NOW() - INTERVAL '4 hours'")
+#         db.conn.commit()
         
-        # Get only the most recent signal per symbol for the timeframe
-        cursor.execute("""
-            WITH latest_signals AS (
-                SELECT DISTINCT ON (symbol) 
-                    id, symbol, timeframe, signal_type, bias, price, strength, 
-                    htf_aligned, htf_status, session, timestamp
-                FROM live_signals 
-                WHERE timeframe = %s 
-                ORDER BY symbol, timestamp DESC, id DESC
-            )
-            SELECT * FROM latest_signals 
-            ORDER BY timestamp DESC
-            LIMIT %s
-        """, (timeframe, limit))
+#         # Get only the most recent signal per symbol for the timeframe
+#         cursor.execute("""
+#             WITH latest_signals AS (
+#                 SELECT DISTINCT ON (symbol) 
+#                     id, symbol, timeframe, signal_type, bias, price, strength, 
+#                     htf_aligned, htf_status, session, timestamp
+#                 FROM live_signals 
+#                 WHERE timeframe = %s 
+#                 ORDER BY symbol, timestamp DESC, id DESC
+#             )
+#             SELECT * FROM latest_signals 
+#             ORDER BY timestamp DESC
+#             LIMIT %s
+#         """, (timeframe, limit))
         
-        signals = [dict(row) for row in cursor.fetchall()]
-        return jsonify({'signals': signals, 'count': len(signals)})
+#         signals = [dict(row) for row in cursor.fetchall()]
+#         return jsonify({'signals': signals, 'count': len(signals)})
         
-    except Exception as e:
-        try:
-            db.conn.rollback()
-        except:
-            pass
-        logger.error(f"Error getting live signals: {str(e)}")
-        return jsonify({'signals': [], 'error': str(e)})
+#     except Exception as e:
+#         try:
+#             db.conn.rollback()
+#         except:
+#             pass
+#         logger.error(f"Error getting live signals: {str(e)}")
+#         return jsonify({'signals': [], 'error': str(e)})
+
+# ⚠️ Disabled legacy GET /api/live-signals endpoint in favor of Phase 2A/2B/2C API v2
+# New endpoint: /api/signals/live (registered by signals_api_v2.py)
+# ============================================================================
 
 @app.route('/api/chart-display', methods=['POST'])
 def chart_display_signal():
@@ -4192,515 +4200,523 @@ def chart_display_signal():
         logger.error(f"Chart display error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/live-signals', methods=['POST'])
-def capture_live_signal():
-    """Webhook endpoint for TradingView to send live signals with market context enrichment"""
-    global db
-    
-    # Get fresh connection from pool for this request
-    if db_enabled:
-        try:
-            from database.railway_db import RailwayDB
-            db = RailwayDB(use_pool=True)  # Use connection pooling - replaces global db for this request
-            
-            if not db or not db.conn:
-                return jsonify({"error": "Database connection failed"}), 500
-                
-            logger.info("🔄 Got fresh database connection from pool")
-        except Exception as conn_error:
-            logger.error(f"❌ Failed to get connection: {conn_error}")
-            return jsonify({"error": "Database connection failed"}), 500
-    
-    try:
-        # Handle TradingView webhook - they send the alert message as raw text
-        raw_data = request.get_data(as_text=True)
-        logger.info(f"🔥 WEBHOOK RECEIVED: {raw_data[:500]}")
-        print(f"🔥 WEBHOOK RECEIVED: {raw_data[:500]}")  # Console output
-        
-        # Log webhook request for debugging
-        try:
-            if webhook_debugger:
-                webhook_debugger.log_webhook_request(raw_data, None, 'TradingView')
-        except:
-            pass
-        
-        # Initialize contract manager for automatic rollover handling
-        from contract_manager import ContractManager
-        contract_manager = ContractManager(db)
-        
-        data = None
-        
-        # Check for simple string format first
-        if raw_data and raw_data.startswith('SIGNAL:'):
-            # Parse simple format: SIGNAL:bias:price:strength:htf_status:ALIGNED:timestamp
-            parts = raw_data.split(':')
-            if len(parts) >= 6:
-                # Determine symbol from price range
-                price_val = float(parts[2])
-                if 90 <= price_val <= 110:
-                    symbol = 'DXY'
-                elif 4000 <= price_val <= 8000:
-                    symbol = 'ES1!'
-                elif 30000 <= price_val <= 60000:
-                    symbol = 'YM1!'
-                elif 1500 <= price_val <= 3000:
-                    symbol = 'RTY1!'
-                else:
-                    symbol = 'NQ1!'  # Default for NQ range 10000-25000
-                
-                data = {
-                    'bias': parts[1],
-                    'price': price_val,
-                    'strength': int(parts[3]),
-                    'htf_status': parts[4],
-                    'htf_aligned': True,  # Pine Script only sends if HTF aligned
-                    'symbol': symbol,
-                    'timeframe': '1m',
-                    'signal_type': 'BIAS_CHANGE'
-                }
-        elif raw_data:
-            try:
-                data = loads(raw_data)
-            except:
-                # If not JSON, treat as plain text alert message
-                data = {'alert_message': raw_data}
-        
-        # Also check form data
-        if not data and request.form:
-            form_data = request.form.to_dict()
-            if form_data:
-                data = form_data
-        
-        # If data is wrapped in alert_message, extract data directly
-        if data and 'alert_message' in data:
-            try:
-                alert_msg = data['alert_message']
-                import re
-                
-                # Extract values using regex - improved price parsing for all futures
-                bias_match = re.search(r'"bias":"(\w+)"', alert_msg)
-                price_match = re.search(r'"price":([\d,\.]+)', alert_msg)  # Handle commas and decimals
-                strength_match = re.search(r'"strength":(\d+)', alert_msg)
-                symbol_match = re.search(r'"symbol":"[^"]*:([^"!]+)', alert_msg)
-                
-                # Also try alternative price patterns for different formats
-                if not price_match:
-                    price_match = re.search(r'price["\s]*:["\s]*([\d,\.]+)', alert_msg)
-                if not price_match:
-                    price_match = re.search(r'([\d,\.]+)', alert_msg)  # Last resort - any number
-                
-                if bias_match and price_match:
-                    # Clean price string and convert to float
-                    price_str = price_match.group(1).replace(',', '')
-                    data = {
-                        'bias': bias_match.group(1),
-                        'price': float(price_str),
-                        'strength': int(strength_match.group(1)) if strength_match else 50,
-                        'symbol': symbol_match.group(1) + '1!' if symbol_match else 'NQ1!',
-                        'timeframe': '1m',
-                        'signal_type': 'BIAS_CHANGE'
-                    }
-                    logger.info(f"Extracted from alert_message: {data['symbol']} {data['bias']} at {data['price']}")
-                else:
-                    logger.error(f"Could not extract data from: {alert_msg[:100]}")
-                    
-            except Exception as e:
-                logger.error(f"Failed to extract from alert_message: {e}")
-                pass
-        
-        # Skip invalid signals with no price data
-        if not data or not isinstance(data, dict) or not data.get('price'):
-            return jsonify({"error": "Invalid signal data"}), 400
-        
-        # 🔄 AUTOMATIC CONTRACT ROLLOVER HANDLING
-        original_symbol = data.get('symbol', 'Unknown')
-        data = contract_manager.process_incoming_signal(data)
-        
-        # Log contract changes
-        if data.get('contract_rollover'):
-            logger.info(f"🔄 CONTRACT ROLLOVER: {data.get('original_symbol')} → {data.get('symbol')}")
-        elif data.get('symbol_normalized'):
-            logger.info(f"📝 SYMBOL NORMALIZED: {data.get('original_symbol')} → {data.get('symbol')}")
-        
-        logger.info(f"📊 Webhook received: {data.get('symbol', 'Unknown')} {data.get('bias', 'N/A')} at {data.get('price', 'N/A')} (strength: {data.get('strength', 'N/A')}%)")
-        logger.debug(f"Full webhook data: {str(data)[:300]}...")
-        
-        if not db_enabled or not db:
-            return jsonify({"error": "Database not available"}), 500
-        
-        # Ensure database connection
-        if not db_enabled or not db:
-            return jsonify({"error": "Database not available"}), 500
-        
-        # Extract signal data from TradingView webhook - focus on triangle bias with HTF context
-        triangle_bias = data.get('bias', 'Bullish')  # Default to Bullish, never Neutral
-        
-        # Force bias to be only Bullish or Bearish
-        if triangle_bias not in ['Bullish', 'Bearish']:
-            triangle_bias = 'Bullish'
-            
-        # Stage 11: Use normalized_symbol from ContractManager
-        base_symbol = data.get("base_symbol", "NQ")
-        raw_symbol = data.get("symbol", "NQ1!")
-        clean_symbol = data.get("normalized_symbol") or raw_symbol
-        
-        # All signals are now accepted regardless of HTF status
-        htf_aligned = data.get('htf_aligned', False)
-        htf_status = data.get('htf_status', 'N/A')
-        
-        # Ensure price is valid - handle string and numeric prices with commas
-        raw_price = data.get('price', 0)
-        try:
-            if isinstance(raw_price, str):
-                # Remove commas and convert to float
-                price = float(raw_price.replace(',', '')) if raw_price else 0
-            else:
-                price = float(raw_price) if raw_price else 0
-        except (ValueError, TypeError):
-            price = 0
-            logger.warning(f"Could not parse price '{raw_price}' in signal: {data}")
-        
-        if price == 0:
-            logger.warning(f"Invalid price in signal: {data}")
-        
-        # CRITICAL: Log parsed signal data for debugging (AFTER price is extracted)
-        # Stage 11: Enhanced logging with base_symbol and micro flag
-        meta = data.get("instrument_meta") or {}
-        logger.info(
-            f"📊 PARSED SIGNAL: base={base_symbol} raw={raw_symbol} normalized={clean_symbol} "
-            f"bias={triangle_bias} price={price} session={current_session} micro={meta.get('is_micro')}"
-        )
-        print(f"📊 PARSED SIGNAL: base={base_symbol} raw={raw_symbol} normalized={clean_symbol} bias={triangle_bias} price={price}")
-        
-        # Strength will be set by ML confidence after prediction
-        base_strength = 0
-        
-        # Determine current session
-        current_session = get_current_session()
-        
-        # 🚀 TRADINGVIEW MARKET CONTEXT ENRICHMENT - Real-time data from TradingView
-        try:
-            from tradingview_market_enricher import tradingview_enricher
-            
-            base_signal = {
-                'symbol': clean_symbol,
-                'timeframe': data.get('timeframe', '1m'),
-                'signal_type': f"BIAS_{triangle_bias.upper()}",
-                'bias': triangle_bias,
-                'price': price,
-                'strength': base_strength,
-                'htf_aligned': htf_aligned,
-                'htf_status': htf_status,
-                'session': current_session,
-                'timestamp': get_ny_time().isoformat()
-            }
-            
-            # Enrich signal with TradingView real-time market context
-            enriched_signal = tradingview_enricher.enrich_signal_with_context(base_signal)
-            signal = enriched_signal
-            
-            # Log TradingView market context
-            market_ctx = signal.get('market_context', {})
-            data_source = market_ctx.get('data_source', 'Unknown')
-            logger.info(f"📊 TRADINGVIEW CONTEXT ({data_source}): VIX={market_ctx.get('vix', 'N/A'):.1f} | Session={market_ctx.get('market_session', 'N/A')} | Volume={market_ctx.get('spy_volume', 0):,} | DXY={market_ctx.get('dxy_price', 'N/A'):.2f} | Quality={signal.get('context_quality_score', 0):.2f}")
-            
-            # Log context recommendations
-            recommendations = signal.get('context_recommendations', [])
-            if recommendations:
-                logger.info(f"💡 TV RECOMMENDATIONS: {' | '.join(recommendations[:2])}")
-            
-        except Exception as e:
-            logger.error(f"TradingView enrichment failed: {str(e)} - using basic signal")
-            signal = {
-                'symbol': clean_symbol,
-                'timeframe': data.get('timeframe', '1m'),
-                'signal_type': f"BIAS_{triangle_bias.upper()}",
-                'bias': triangle_bias,
-                'price': price,
-                'strength': base_strength,
-                'htf_aligned': htf_aligned,
-                'htf_status': htf_status,
-                'session': current_session,
-                'timestamp': get_ny_time().isoformat()
-            }
-        
-        cursor = db.conn.cursor()
-        
-        # Store enriched signal with market context
-        market_context_json = dumps(signal.get('market_context', {}))
-        context_quality = signal.get('context_quality_score', 0.5)
-        context_recommendations_json = dumps(signal.get('context_recommendations', []))
-        
-        # Update signal strength with ML confidence before storing
-        signal['strength'] = base_strength
-        
-        # CRITICAL: Truncate htf_status to fit database column (VARCHAR(50))
-        htf_status_truncated = str(signal.get('htf_status', 'N/A'))[:50]
-        
-        cursor.execute("""
-            INSERT INTO live_signals 
-            (symbol, timeframe, signal_type, bias, price, strength, htf_aligned, htf_status, session, timestamp,
-             market_context, context_quality_score, context_recommendations)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (
-            signal['symbol'], signal['timeframe'], signal['signal_type'],
-            signal['bias'], signal['price'], base_strength, 
-            signal['htf_aligned'], htf_status_truncated, signal['session'], get_ny_time(),
-            market_context_json, context_quality, context_recommendations_json
-        ))
-        
-        result = cursor.fetchone()
-        signal_id = result['id']
-        db.conn.commit()
-        
-        # Log successful signal processing
-        try:
-            if webhook_debugger:
-                webhook_debugger.log_signal_processing(signal, 'success')
-        except:
-            pass
-        
-        # Trigger AI analysis for pattern recognition
-        # Enhance with Level 2 data if available
-        try:
-            from level2_data import level2_provider
-            enhanced_strength = level2_provider.get_signal_strength_with_level2(
-                signal['symbol'], signal['strength']
-            )
-            
-            if enhanced_strength != signal['strength']:
-                cursor.execute(
-                    "UPDATE live_signals SET strength = %s, level2_data = %s WHERE id = %s",
-                    (enhanced_strength, dumps(level2_provider.level2_data.get(signal['symbol'], {})), signal_id)
-                )
-                db.conn.commit()
-        except ImportError:
-            pass  # Level 2 data not available
-        
-        # Advanced ML Analysis
-        try:
-            from advanced_ml_engine import AdvancedMLEngine
-            
-            ml_engine = AdvancedMLEngine(db)
-            ml_prediction = ml_engine.predict_signal_quality(
-                signal.get('market_context', {}),
-                {
-                    'bias': signal['bias'],
-                    'session': signal['session'],
-                    'price': signal['price'],
-                    'signal_type': signal['signal_type']
-                }
-            )
-            
-            if 'error' not in ml_prediction:
-                # Store ML analysis in database
-                cursor.execute("""
-                    UPDATE live_signals 
-                    SET ai_analysis = %s 
-                    WHERE id = %s
-                """, (
-                    dumps(ml_prediction),
-                    signal_id
-                ))
-                db.conn.commit()
-                
-                logger.info(f"🤖 ML ANALYSIS: {signal['symbol']} | Success: {ml_prediction.get('success_probability', 0):.1f}% | MFE: {ml_prediction.get('predicted_mfe', 0):.2f}R | Rec: {ml_prediction.get('recommendation', 'N/A')}")
-            
-        except Exception as ml_error:
-            logger.error(f"❌ ML analysis error: {str(ml_error)}")
-            pass
-        
-        # 🤖 UNIFIED ML PREDICTION - Learns from ALL your data
-        context_quality = signal.get('context_quality_score', 0.5)
-        ml_prediction = None
-        
-        try:
-            from unified_ml_intelligence import get_unified_ml
-            ml_engine = get_unified_ml(db)
-            
-            # Auto-train if not trained yet
-            if not ml_engine.is_trained:
-                logger.info("🎯 Training unified ML on all trading data...")
-                training_result = ml_engine.train_on_all_data()
-                if 'error' not in training_result:
-                    logger.info(f"✅ ML training complete: {training_result.get('training_samples', 0)} trades, {training_result.get('success_accuracy', 0):.1f}% accuracy")
-            
-            # Get ML prediction
-            ml_prediction = ml_engine.predict_signal_quality(
-                {
-                    'bias': signal['bias'], 
-                    'session': signal['session'],
-                    'price': signal['price'],
-                    'signal_type': signal['signal_type']
-                },
-                signal.get('market_context', {})
-            )
-            
-            # Use ML confidence as strength
-            base_strength = int(ml_prediction.get('confidence', 0))
-            
-            pred_mfe = ml_prediction.get('predicted_mfe', 0)
-            success_prob = ml_prediction.get('success_probability', 0)
-            recommendation = ml_prediction.get('recommendation', 'N/A')
-            
-            logger.info(f"🤖 ML: Strength={base_strength}%, MFE={pred_mfe:.2f}R, Success={success_prob:.1f}%, Rec={recommendation}")
-            
-        except Exception as e:
-            logger.error(f"ML prediction error: {str(e)}")
-            ml_prediction = None
-            base_strength = 0
-        
-        # 🎯 AUTO-POPULATION LOGIC - All NQ signals are now captured
-        # Stage 11: Use normalized_symbol for comparison to preserve behaviour
-        active_nq_contract = contract_manager.get_active_contract('NQ')
-        
-        if not active_nq_contract:
-            active_nq_contract = 'NQ1!'
-        
-        normalized = signal.get('normalized_symbol') or signal.get('symbol')
-        should_populate = (normalized == active_nq_contract)
-        
-        logger.info(f"🎯 Auto-population: Symbol={signal['symbol']}, Normalized={normalized}, Active={active_nq_contract}, Populate={should_populate}")
-        
-        # Log final signal storage with market context
-        lab_status = 'Yes' if should_populate else 'No'
-        market_ctx = signal.get('market_context', {})
-        vix_info = f"VIX={market_ctx.get('vix', 'N/A'):.1f}" if market_ctx.get('vix') else "VIX=N/A"
-        quality_info = f"Quality={context_quality:.2f}"
-        
-        logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | {vix_info} | {quality_info} | ID: {signal_id} | Lab: {lab_status}")
-        
-        # 📊 PREDICTION ACCURACY TRACKING
-        prediction_id = None
-        if prediction_tracker and ml_prediction and 'error' not in ml_prediction:
-            try:
-                prediction_id = prediction_tracker.record_prediction(
-                    signal_id=signal_id,
-                    signal_data={
-                        'symbol': signal['symbol'],
-                        'bias': signal['bias'],
-                        'session': signal['session'],
-                        'price': signal['price']
-                    },
-                    ml_prediction=ml_prediction
-                )
-                logger.info(f"📊 Prediction tracking started: {prediction_id}")
-            except Exception as track_error:
-                logger.error(f"Prediction tracking error: {track_error}")
 
-        # 🚀 REAL-TIME WEBSOCKET BROADCASTING
-        try:
-            if realtime_handler:
-                # Process signal through real-time handler for instant broadcasting
-                broadcast_data = realtime_handler.process_signal({
-                    'id': signal_id,
-                    'bias': signal['bias'],
-                    'symbol': signal['symbol'],
-                    'price': signal['price'],
-                    'strength': base_strength,
-                    'session': signal['session'],
-                    'htf_aligned': signal['htf_aligned'],
-                    'htf_status': signal['htf_status'],
-                    'market_context': signal.get('market_context', {}),
-                    'ml_prediction': ml_prediction,
-                    'prediction_id': prediction_id,
-                    'timestamp': datetime.now().isoformat()
-                })
-                logger.info(f"🚀 Real-time broadcast sent to {realtime_handler.active_connections} clients")
-            else:
-                # Fallback to basic WebSocket emit
-                socketio.emit('signal_received', {
-                    'bias': signal['bias'],
-                    'symbol': signal['symbol'],
-                    'price': signal['price'],
-                    'timestamp': datetime.now().isoformat()
-                }, namespace='/')
-        except Exception as ws_error:
-            logger.error(f"WebSocket broadcast error: {ws_error}")
-            pass
-        
-        if should_populate:
-            logger.info(f"✅ {active_nq_contract} signal: {signal['bias']} - Auto-populating Signal Lab")
-        else:
-            logger.info(f"❌ SKIPPED: Symbol={signal['symbol']} != Active={active_nq_contract}")
-        
-        if should_populate:
-            try:
-                # Enhanced lab trade with market context + ML prediction
-                lab_trade = {
-                    'date': get_ny_time().strftime('%Y-%m-%d'),
-                    'time': get_ny_time().strftime('%H:%M:%S'),
-                    'bias': signal['bias'],
-                    'session': signal['session'],
-                    'signal_type': signal['signal_type'],
-                    'entry_price': signal['price'],
-                    'active_trade': True,
-                    'market_context': market_context_json,
-                    'context_quality_score': context_quality,
-                    'ml_prediction': dumps(ml_prediction) if ml_prediction else None
-                }
+# ============================================================================
+# LEGACY ENDPOINT DISABLED - CONFLICTS WITH PHASE 2A/2B/2C API V2
+# ============================================================================
+# @app.route('/api/live-signals', methods=['POST'])
+# def capture_live_signal():
+#     """Webhook endpoint for TradingView to send live signals with market context enrichment"""
+#     global db
+    
+#     # Get fresh connection from pool for this request
+#     if db_enabled:
+#         try:
+#             from database.railway_db import RailwayDB
+#             db = RailwayDB(use_pool=True)  # Use connection pooling - replaces global db for this request
+            
+#             if not db or not db.conn:
+#                 return jsonify({"error": "Database connection failed"}), 500
                 
-                cursor.execute("""
-                    INSERT INTO signal_lab_trades 
-                    (date, time, bias, session, signal_type, entry_price, active_trade, 
-                     market_context, context_quality_score, ml_prediction)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    lab_trade['date'], lab_trade['time'], lab_trade['bias'], 
-                    lab_trade['session'], lab_trade['signal_type'], lab_trade['entry_price'],
-                    lab_trade['active_trade'],
-                    lab_trade['market_context'], lab_trade['context_quality_score'],
-                    lab_trade['ml_prediction']
-                ))
-                db.conn.commit()
+#             logger.info("🔄 Got fresh database connection from pool")
+#         except Exception as conn_error:
+#             logger.error(f"❌ Failed to get connection: {conn_error}")
+#             return jsonify({"error": "Database connection failed"}), 500
+    
+#     try:
+#         # Handle TradingView webhook - they send the alert message as raw text
+#         raw_data = request.get_data(as_text=True)
+#         logger.info(f"🔥 WEBHOOK RECEIVED: {raw_data[:500]}")
+#         print(f"🔥 WEBHOOK RECEIVED: {raw_data[:500]}")  # Console output
+        
+#         # Log webhook request for debugging
+#         try:
+#             if webhook_debugger:
+#                 webhook_debugger.log_webhook_request(raw_data, None, 'TradingView')
+#         except:
+#             pass
+        
+#         # Initialize contract manager for automatic rollover handling
+#         from contract_manager import ContractManager
+#         contract_manager = ContractManager(db)
+        
+#         data = None
+        
+#         # Check for simple string format first
+#         if raw_data and raw_data.startswith('SIGNAL:'):
+#             # Parse simple format: SIGNAL:bias:price:strength:htf_status:ALIGNED:timestamp
+#             parts = raw_data.split(':')
+#             if len(parts) >= 6:
+#                 # Determine symbol from price range
+#                 price_val = float(parts[2])
+#                 if 90 <= price_val <= 110:
+#                     symbol = 'DXY'
+#                 elif 4000 <= price_val <= 8000:
+#                     symbol = 'ES1!'
+#                 elif 30000 <= price_val <= 60000:
+#                     symbol = 'YM1!'
+#                 elif 1500 <= price_val <= 3000:
+#                     symbol = 'RTY1!'
+#                 else:
+#                     symbol = 'NQ1!'  # Default for NQ range 10000-25000
                 
-                ml_info = f"ML: {ml_prediction['predicted_mfe']:.2f}R" if ml_prediction else "ML: N/A"
-                logger.info(f"✅ Auto-populated Signal Lab: {signal['bias']} {signal['symbol']} | Quality: {context_quality:.2f} | {ml_info}")
+#                 data = {
+#                     'bias': parts[1],
+#                     'price': price_val,
+#                     'strength': int(parts[3]),
+#                     'htf_status': parts[4],
+#                     'htf_aligned': True,  # Pine Script only sends if HTF aligned
+#                     'symbol': symbol,
+#                     'timeframe': '1m',
+#                     'signal_type': 'BIAS_CHANGE'
+#                 }
+#         elif raw_data:
+#             try:
+#                 data = loads(raw_data)
+#             except:
+#                 # If not JSON, treat as plain text alert message
+#                 data = {'alert_message': raw_data}
+        
+#         # Also check form data
+#         if not data and request.form:
+#             form_data = request.form.to_dict()
+#             if form_data:
+#                 data = form_data
+        
+#         # If data is wrapped in alert_message, extract data directly
+#         if data and 'alert_message' in data:
+#             try:
+#                 alert_msg = data['alert_message']
+#                 import re
                 
-            except Exception as e:
-                logger.error(f"Failed to auto-populate Signal Lab: {str(e)}")
-        else:
-            logger.info(f"⚠️ Skipped: {signal['symbol']} is not active NQ contract {active_nq_contract}")
+#                 # Extract values using regex - improved price parsing for all futures
+#                 bias_match = re.search(r'"bias":"(\w+)"', alert_msg)
+#                 price_match = re.search(r'"price":([\d,\.]+)', alert_msg)  # Handle commas and decimals
+#                 strength_match = re.search(r'"strength":(\d+)', alert_msg)
+#                 symbol_match = re.search(r'"symbol":"[^"]*:([^"!]+)', alert_msg)
+                
+#                 # Also try alternative price patterns for different formats
+#                 if not price_match:
+#                     price_match = re.search(r'price["\s]*:["\s]*([\d,\.]+)', alert_msg)
+#                 if not price_match:
+#                     price_match = re.search(r'([\d,\.]+)', alert_msg)  # Last resort - any number
+                
+#                 if bias_match and price_match:
+#                     # Clean price string and convert to float
+#                     price_str = price_match.group(1).replace(',', '')
+#                     data = {
+#                         'bias': bias_match.group(1),
+#                         'price': float(price_str),
+#                         'strength': int(strength_match.group(1)) if strength_match else 50,
+#                         'symbol': symbol_match.group(1) + '1!' if symbol_match else 'NQ1!',
+#                         'timeframe': '1m',
+#                         'signal_type': 'BIAS_CHANGE'
+#                     }
+#                     logger.info(f"Extracted from alert_message: {data['symbol']} {data['bias']} at {data['price']}")
+#                 else:
+#                     logger.error(f"Could not extract data from: {alert_msg[:100]}")
+                    
+#             except Exception as e:
+#                 logger.error(f"Failed to extract from alert_message: {e}")
+#                 pass
         
-        # Enhanced signal already broadcasted through real-time handler above
-        # This ensures no duplicate broadcasts
+#         # Skip invalid signals with no price data
+#         if not data or not isinstance(data, dict) or not data.get('price'):
+#             return jsonify({"error": "Invalid signal data"}), 400
         
-        return jsonify({
-            "status": "success",
-            "signal_id": signal_id,
-            "bias": signal['bias'],
-            "market_context": signal.get('market_context', {}),
-            "context_quality_score": context_quality,
-            "context_recommendations": signal.get('context_recommendations', []),
-            "ml_prediction": ml_prediction,
-            "message": "Signal captured with TradingView context + Advanced ML prediction + Auto contract management"
-        })
+#         # 🔄 AUTOMATIC CONTRACT ROLLOVER HANDLING
+#         original_symbol = data.get('symbol', 'Unknown')
+#         data = contract_manager.process_incoming_signal(data)
         
-    except Exception as e:
-        # CRITICAL: Rollback on error to prevent stuck transactions
-        if db_enabled and db:
-            try:
-                db.conn.rollback()
-                logger.info("🔄 Transaction rolled back after error")
-            except:
-                pass
+#         # Log contract changes
+#         if data.get('contract_rollover'):
+#             logger.info(f"🔄 CONTRACT ROLLOVER: {data.get('original_symbol')} → {data.get('symbol')}")
+#         elif data.get('symbol_normalized'):
+#             logger.info(f"📝 SYMBOL NORMALIZED: {data.get('original_symbol')} → {data.get('symbol')}")
         
-        logger.error(f"❌ ERROR capturing live signal: {str(e)} - Content-Type: {request.content_type}")
-        logger.error(f"Raw request data: {request.get_data(as_text=True)[:500]}")
+#         logger.info(f"📊 Webhook received: {data.get('symbol', 'Unknown')} {data.get('bias', 'N/A')} at {data.get('price', 'N/A')} (strength: {data.get('strength', 'N/A')}%)")
+#         logger.debug(f"Full webhook data: {str(data)[:300]}...")
         
-        # Log failed signal processing
-        try:
-            if webhook_debugger:
-                webhook_debugger.log_signal_processing(
-                    {'bias': 'Unknown', 'symbol': 'Unknown', 'price': 0},
-                    'failed',
-                    str(e)
-                )
-        except:
-            pass
+#         if not db_enabled or not db:
+#             return jsonify({"error": "Database not available"}), 500
         
-        return jsonify({"error": str(e)}), 500
+#         # Ensure database connection
+#         if not db_enabled or not db:
+#             return jsonify({"error": "Database not available"}), 500
+        
+#         # Extract signal data from TradingView webhook - focus on triangle bias with HTF context
+#         triangle_bias = data.get('bias', 'Bullish')  # Default to Bullish, never Neutral
+        
+#         # Force bias to be only Bullish or Bearish
+#         if triangle_bias not in ['Bullish', 'Bearish']:
+#             triangle_bias = 'Bullish'
+            
+#         # Stage 11: Use normalized_symbol from ContractManager
+#         base_symbol = data.get("base_symbol", "NQ")
+#         raw_symbol = data.get("symbol", "NQ1!")
+#         clean_symbol = data.get("normalized_symbol") or raw_symbol
+        
+#         # All signals are now accepted regardless of HTF status
+#         htf_aligned = data.get('htf_aligned', False)
+#         htf_status = data.get('htf_status', 'N/A')
+        
+#         # Ensure price is valid - handle string and numeric prices with commas
+#         raw_price = data.get('price', 0)
+#         try:
+#             if isinstance(raw_price, str):
+#                 # Remove commas and convert to float
+#                 price = float(raw_price.replace(',', '')) if raw_price else 0
+#             else:
+#                 price = float(raw_price) if raw_price else 0
+#         except (ValueError, TypeError):
+#             price = 0
+#             logger.warning(f"Could not parse price '{raw_price}' in signal: {data}")
+        
+#         if price == 0:
+#             logger.warning(f"Invalid price in signal: {data}")
+        
+#         # CRITICAL: Log parsed signal data for debugging (AFTER price is extracted)
+#         # Stage 11: Enhanced logging with base_symbol and micro flag
+#         meta = data.get("instrument_meta") or {}
+#         logger.info(
+#             f"📊 PARSED SIGNAL: base={base_symbol} raw={raw_symbol} normalized={clean_symbol} "
+#             f"bias={triangle_bias} price={price} session={current_session} micro={meta.get('is_micro')}"
+#         )
+#         print(f"📊 PARSED SIGNAL: base={base_symbol} raw={raw_symbol} normalized={clean_symbol} bias={triangle_bias} price={price}")
+        
+#         # Strength will be set by ML confidence after prediction
+#         base_strength = 0
+        
+#         # Determine current session
+#         current_session = get_current_session()
+        
+#         # 🚀 TRADINGVIEW MARKET CONTEXT ENRICHMENT - Real-time data from TradingView
+#         try:
+#             from tradingview_market_enricher import tradingview_enricher
+            
+#             base_signal = {
+#                 'symbol': clean_symbol,
+#                 'timeframe': data.get('timeframe', '1m'),
+#                 'signal_type': f"BIAS_{triangle_bias.upper()}",
+#                 'bias': triangle_bias,
+#                 'price': price,
+#                 'strength': base_strength,
+#                 'htf_aligned': htf_aligned,
+#                 'htf_status': htf_status,
+#                 'session': current_session,
+#                 'timestamp': get_ny_time().isoformat()
+#             }
+            
+#             # Enrich signal with TradingView real-time market context
+#             enriched_signal = tradingview_enricher.enrich_signal_with_context(base_signal)
+#             signal = enriched_signal
+            
+#             # Log TradingView market context
+#             market_ctx = signal.get('market_context', {})
+#             data_source = market_ctx.get('data_source', 'Unknown')
+#             logger.info(f"📊 TRADINGVIEW CONTEXT ({data_source}): VIX={market_ctx.get('vix', 'N/A'):.1f} | Session={market_ctx.get('market_session', 'N/A')} | Volume={market_ctx.get('spy_volume', 0):,} | DXY={market_ctx.get('dxy_price', 'N/A'):.2f} | Quality={signal.get('context_quality_score', 0):.2f}")
+            
+#             # Log context recommendations
+#             recommendations = signal.get('context_recommendations', [])
+#             if recommendations:
+#                 logger.info(f"💡 TV RECOMMENDATIONS: {' | '.join(recommendations[:2])}")
+            
+#         except Exception as e:
+#             logger.error(f"TradingView enrichment failed: {str(e)} - using basic signal")
+#             signal = {
+#                 'symbol': clean_symbol,
+#                 'timeframe': data.get('timeframe', '1m'),
+#                 'signal_type': f"BIAS_{triangle_bias.upper()}",
+#                 'bias': triangle_bias,
+#                 'price': price,
+#                 'strength': base_strength,
+#                 'htf_aligned': htf_aligned,
+#                 'htf_status': htf_status,
+#                 'session': current_session,
+#                 'timestamp': get_ny_time().isoformat()
+#             }
+        
+#         cursor = db.conn.cursor()
+        
+#         # Store enriched signal with market context
+#         market_context_json = dumps(signal.get('market_context', {}))
+#         context_quality = signal.get('context_quality_score', 0.5)
+#         context_recommendations_json = dumps(signal.get('context_recommendations', []))
+        
+#         # Update signal strength with ML confidence before storing
+#         signal['strength'] = base_strength
+        
+#         # CRITICAL: Truncate htf_status to fit database column (VARCHAR(50))
+#         htf_status_truncated = str(signal.get('htf_status', 'N/A'))[:50]
+        
+#         cursor.execute("""
+#             INSERT INTO live_signals 
+#             (symbol, timeframe, signal_type, bias, price, strength, htf_aligned, htf_status, session, timestamp,
+#              market_context, context_quality_score, context_recommendations)
+#             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+#             RETURNING id
+#         """, (
+#             signal['symbol'], signal['timeframe'], signal['signal_type'],
+#             signal['bias'], signal['price'], base_strength, 
+#             signal['htf_aligned'], htf_status_truncated, signal['session'], get_ny_time(),
+#             market_context_json, context_quality, context_recommendations_json
+#         ))
+        
+#         result = cursor.fetchone()
+#         signal_id = result['id']
+#         db.conn.commit()
+        
+#         # Log successful signal processing
+#         try:
+#             if webhook_debugger:
+#                 webhook_debugger.log_signal_processing(signal, 'success')
+#         except:
+#             pass
+        
+#         # Trigger AI analysis for pattern recognition
+#         # Enhance with Level 2 data if available
+#         try:
+#             from level2_data import level2_provider
+#             enhanced_strength = level2_provider.get_signal_strength_with_level2(
+#                 signal['symbol'], signal['strength']
+#             )
+            
+#             if enhanced_strength != signal['strength']:
+#                 cursor.execute(
+#                     "UPDATE live_signals SET strength = %s, level2_data = %s WHERE id = %s",
+#                     (enhanced_strength, dumps(level2_provider.level2_data.get(signal['symbol'], {})), signal_id)
+#                 )
+#                 db.conn.commit()
+#         except ImportError:
+#             pass  # Level 2 data not available
+        
+#         # Advanced ML Analysis
+#         try:
+#             from advanced_ml_engine import AdvancedMLEngine
+            
+#             ml_engine = AdvancedMLEngine(db)
+#             ml_prediction = ml_engine.predict_signal_quality(
+#                 signal.get('market_context', {}),
+#                 {
+#                     'bias': signal['bias'],
+#                     'session': signal['session'],
+#                     'price': signal['price'],
+#                     'signal_type': signal['signal_type']
+#                 }
+#             )
+            
+#             if 'error' not in ml_prediction:
+#                 # Store ML analysis in database
+#                 cursor.execute("""
+#                     UPDATE live_signals 
+#                     SET ai_analysis = %s 
+#                     WHERE id = %s
+#                 """, (
+#                     dumps(ml_prediction),
+#                     signal_id
+#                 ))
+#                 db.conn.commit()
+                
+#                 logger.info(f"🤖 ML ANALYSIS: {signal['symbol']} | Success: {ml_prediction.get('success_probability', 0):.1f}% | MFE: {ml_prediction.get('predicted_mfe', 0):.2f}R | Rec: {ml_prediction.get('recommendation', 'N/A')}")
+            
+#         except Exception as ml_error:
+#             logger.error(f"❌ ML analysis error: {str(ml_error)}")
+#             pass
+        
+#         # 🤖 UNIFIED ML PREDICTION - Learns from ALL your data
+#         context_quality = signal.get('context_quality_score', 0.5)
+#         ml_prediction = None
+        
+#         try:
+#             from unified_ml_intelligence import get_unified_ml
+#             ml_engine = get_unified_ml(db)
+            
+#             # Auto-train if not trained yet
+#             if not ml_engine.is_trained:
+#                 logger.info("🎯 Training unified ML on all trading data...")
+#                 training_result = ml_engine.train_on_all_data()
+#                 if 'error' not in training_result:
+#                     logger.info(f"✅ ML training complete: {training_result.get('training_samples', 0)} trades, {training_result.get('success_accuracy', 0):.1f}% accuracy")
+            
+#             # Get ML prediction
+#             ml_prediction = ml_engine.predict_signal_quality(
+#                 {
+#                     'bias': signal['bias'], 
+#                     'session': signal['session'],
+#                     'price': signal['price'],
+#                     'signal_type': signal['signal_type']
+#                 },
+#                 signal.get('market_context', {})
+#             )
+            
+#             # Use ML confidence as strength
+#             base_strength = int(ml_prediction.get('confidence', 0))
+            
+#             pred_mfe = ml_prediction.get('predicted_mfe', 0)
+#             success_prob = ml_prediction.get('success_probability', 0)
+#             recommendation = ml_prediction.get('recommendation', 'N/A')
+            
+#             logger.info(f"🤖 ML: Strength={base_strength}%, MFE={pred_mfe:.2f}R, Success={success_prob:.1f}%, Rec={recommendation}")
+            
+#         except Exception as e:
+#             logger.error(f"ML prediction error: {str(e)}")
+#             ml_prediction = None
+#             base_strength = 0
+        
+#         # 🎯 AUTO-POPULATION LOGIC - All NQ signals are now captured
+#         # Stage 11: Use normalized_symbol for comparison to preserve behaviour
+#         active_nq_contract = contract_manager.get_active_contract('NQ')
+        
+#         if not active_nq_contract:
+#             active_nq_contract = 'NQ1!'
+        
+#         normalized = signal.get('normalized_symbol') or signal.get('symbol')
+#         should_populate = (normalized == active_nq_contract)
+        
+#         logger.info(f"🎯 Auto-population: Symbol={signal['symbol']}, Normalized={normalized}, Active={active_nq_contract}, Populate={should_populate}")
+        
+#         # Log final signal storage with market context
+#         lab_status = 'Yes' if should_populate else 'No'
+#         market_ctx = signal.get('market_context', {})
+#         vix_info = f"VIX={market_ctx.get('vix', 'N/A'):.1f}" if market_ctx.get('vix') else "VIX=N/A"
+#         quality_info = f"Quality={context_quality:.2f}"
+        
+#         logger.info(f"✅ Signal stored: {signal['symbol']} {signal['bias']} at {signal['price']} | Strength: {signal['strength']}% | HTF: {signal['htf_status']} | Session: {current_session} | {vix_info} | {quality_info} | ID: {signal_id} | Lab: {lab_status}")
+        
+#         # 📊 PREDICTION ACCURACY TRACKING
+#         prediction_id = None
+#         if prediction_tracker and ml_prediction and 'error' not in ml_prediction:
+#             try:
+#                 prediction_id = prediction_tracker.record_prediction(
+#                     signal_id=signal_id,
+#                     signal_data={
+#                         'symbol': signal['symbol'],
+#                         'bias': signal['bias'],
+#                         'session': signal['session'],
+#                         'price': signal['price']
+#                     },
+#                     ml_prediction=ml_prediction
+#                 )
+#                 logger.info(f"📊 Prediction tracking started: {prediction_id}")
+#             except Exception as track_error:
+#                 logger.error(f"Prediction tracking error: {track_error}")
+
+#         # 🚀 REAL-TIME WEBSOCKET BROADCASTING
+#         try:
+#             if realtime_handler:
+#                 # Process signal through real-time handler for instant broadcasting
+#                 broadcast_data = realtime_handler.process_signal({
+#                     'id': signal_id,
+#                     'bias': signal['bias'],
+#                     'symbol': signal['symbol'],
+#                     'price': signal['price'],
+#                     'strength': base_strength,
+#                     'session': signal['session'],
+#                     'htf_aligned': signal['htf_aligned'],
+#                     'htf_status': signal['htf_status'],
+#                     'market_context': signal.get('market_context', {}),
+#                     'ml_prediction': ml_prediction,
+#                     'prediction_id': prediction_id,
+#                     'timestamp': datetime.now().isoformat()
+#                 })
+#                 logger.info(f"🚀 Real-time broadcast sent to {realtime_handler.active_connections} clients")
+#             else:
+#                 # Fallback to basic WebSocket emit
+#                 socketio.emit('signal_received', {
+#                     'bias': signal['bias'],
+#                     'symbol': signal['symbol'],
+#                     'price': signal['price'],
+#                     'timestamp': datetime.now().isoformat()
+#                 }, namespace='/')
+#         except Exception as ws_error:
+#             logger.error(f"WebSocket broadcast error: {ws_error}")
+#             pass
+        
+#         if should_populate:
+#             logger.info(f"✅ {active_nq_contract} signal: {signal['bias']} - Auto-populating Signal Lab")
+#         else:
+#             logger.info(f"❌ SKIPPED: Symbol={signal['symbol']} != Active={active_nq_contract}")
+        
+#         if should_populate:
+#             try:
+#                 # Enhanced lab trade with market context + ML prediction
+#                 lab_trade = {
+#                     'date': get_ny_time().strftime('%Y-%m-%d'),
+#                     'time': get_ny_time().strftime('%H:%M:%S'),
+#                     'bias': signal['bias'],
+#                     'session': signal['session'],
+#                     'signal_type': signal['signal_type'],
+#                     'entry_price': signal['price'],
+#                     'active_trade': True,
+#                     'market_context': market_context_json,
+#                     'context_quality_score': context_quality,
+#                     'ml_prediction': dumps(ml_prediction) if ml_prediction else None
+#                 }
+                
+#                 cursor.execute("""
+#                     INSERT INTO signal_lab_trades 
+#                     (date, time, bias, session, signal_type, entry_price, active_trade, 
+#                      market_context, context_quality_score, ml_prediction)
+#                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+#                 """, (
+#                     lab_trade['date'], lab_trade['time'], lab_trade['bias'], 
+#                     lab_trade['session'], lab_trade['signal_type'], lab_trade['entry_price'],
+#                     lab_trade['active_trade'],
+#                     lab_trade['market_context'], lab_trade['context_quality_score'],
+#                     lab_trade['ml_prediction']
+#                 ))
+#                 db.conn.commit()
+                
+#                 ml_info = f"ML: {ml_prediction['predicted_mfe']:.2f}R" if ml_prediction else "ML: N/A"
+#                 logger.info(f"✅ Auto-populated Signal Lab: {signal['bias']} {signal['symbol']} | Quality: {context_quality:.2f} | {ml_info}")
+                
+#             except Exception as e:
+#                 logger.error(f"Failed to auto-populate Signal Lab: {str(e)}")
+#         else:
+#             logger.info(f"⚠️ Skipped: {signal['symbol']} is not active NQ contract {active_nq_contract}")
+        
+#         # Enhanced signal already broadcasted through real-time handler above
+#         # This ensures no duplicate broadcasts
+        
+#         return jsonify({
+#             "status": "success",
+#             "signal_id": signal_id,
+#             "bias": signal['bias'],
+#             "market_context": signal.get('market_context', {}),
+#             "context_quality_score": context_quality,
+#             "context_recommendations": signal.get('context_recommendations', []),
+#             "ml_prediction": ml_prediction,
+#             "message": "Signal captured with TradingView context + Advanced ML prediction + Auto contract management"
+#         })
+        
+#     except Exception as e:
+#         # CRITICAL: Rollback on error to prevent stuck transactions
+#         if db_enabled and db:
+#             try:
+#                 db.conn.rollback()
+#                 logger.info("🔄 Transaction rolled back after error")
+#             except:
+#                 pass
+        
+#         logger.error(f"❌ ERROR capturing live signal: {str(e)} - Content-Type: {request.content_type}")
+#         logger.error(f"Raw request data: {request.get_data(as_text=True)[:500]}")
+        
+#         # Log failed signal processing
+#         try:
+#             if webhook_debugger:
+#                 webhook_debugger.log_signal_processing(
+#                     {'bias': 'Unknown', 'symbol': 'Unknown', 'price': 0},
+#                     'failed',
+#                     str(e)
+#                 )
+#         except:
+#             pass
+        
+#         return jsonify({"error": str(e)}), 500
+
+# ⚠️ Disabled legacy POST /api/live-signals endpoint in favor of Phase 2A/2B/2C API v2
+# New endpoint: /api/signals/live (registered by signals_api_v2.py)
+# ============================================================================
 
 @app.route('/api/ai-signal-analysis-live', methods=['POST'])
 @login_required
@@ -4767,118 +4783,139 @@ def ai_signal_analysis_live():
             "recommendation": "Monitor signals for patterns"
         })
 
-@app.route('/api/live-signals/delete-test', methods=['POST'])
-def delete_test_signals():
-    """Delete all test signals from database"""
-    try:
-        if not db_enabled or not db:
-            return jsonify({'error': 'Database not available'}), 500
-        
-        cursor = db.conn.cursor()
-        cursor.execute("""
-            DELETE FROM live_signals 
-            WHERE timestamp < NOW() - INTERVAL '4 hours'
-            OR signal_type LIKE '%TEST%'
-            OR signal_type LIKE '%FIX%'
-            OR signal_type LIKE '%DEBUG%'
-            OR signal_type LIKE '%BULLISH_FVG%'
-            OR price = 20150.2500
-        """)
-        rows_deleted = cursor.rowcount
-        db.conn.commit()
-        
-        logger.info(f"Deleted {rows_deleted} test signals from database")
-        
-        return jsonify({
-            'status': 'success',
-            'message': f'Deleted {rows_deleted} test signals',
-            'rows_deleted': rows_deleted
-        })
-        
-    except Exception as e:
-        if hasattr(db, 'conn') and db.conn:
-            db.conn.rollback()
-        logger.error(f"Error deleting test signals: {str(e)}")
-        return jsonify({'error': str(e)}), 500
 
-@app.route('/api/live-signals/fix-prices', methods=['POST'])
-def fix_signal_prices():
-    """Fix incorrect prices in live signals"""
-    try:
-        if not db_enabled or not db:
-            return jsonify({'error': 'Database not available'}), 500
+# ============================================================================
+# LEGACY UTILITY ENDPOINT DISABLED
+# ============================================================================
+# @app.route('/api/live-signals/delete-test', methods=['POST'])
+# def delete_test_signals():
+#     """Delete all test signals from database"""
+#     try:
+#         if not db_enabled or not db:
+#             return jsonify({'error': 'Database not available'}), 500
         
-        cursor = db.conn.cursor()
+#         cursor = db.conn.cursor()
+#         cursor.execute("""
+#             DELETE FROM live_signals 
+#             WHERE timestamp < NOW() - INTERVAL '4 hours'
+#             OR signal_type LIKE '%TEST%'
+#             OR signal_type LIKE '%FIX%'
+#             OR signal_type LIKE '%DEBUG%'
+#             OR signal_type LIKE '%BULLISH_FVG%'
+#             OR price = 20150.2500
+#         """)
+#         rows_deleted = cursor.rowcount
+#         db.conn.commit()
         
-        # First, get count of problematic signals
-        cursor.execute("""
-            SELECT symbol, COUNT(*) as count, AVG(price) as avg_price
-            FROM live_signals 
-            WHERE (symbol = 'YM1!' AND (price = 15000.0000 OR price < 30000 OR price > 60000))
-            OR (symbol = 'ES1!' AND (price = 15000.0000 OR price < 3000 OR price > 8000))
-            OR (symbol = 'RTY1!' AND (price = 15000.0000 OR price < 1500 OR price > 3000))
-            OR (symbol = 'NQ1!' AND (price < 10000 OR price > 25000))
-            OR price = 0
-            GROUP BY symbol
-        """)
+#         logger.info(f"Deleted {rows_deleted} test signals from database")
         
-        problematic_signals = cursor.fetchall()
-        logger.info(f"Found problematic signals: {[dict(row) for row in problematic_signals]}")
+#         return jsonify({
+#             'status': 'success',
+#             'message': f'Deleted {rows_deleted} test signals',
+#             'rows_deleted': rows_deleted
+#         })
         
-        # Delete signals with obviously wrong prices
-        cursor.execute("""
-            DELETE FROM live_signals 
-            WHERE (symbol = 'YM1!' AND (price = 15000.0000 OR price < 30000 OR price > 60000))
-            OR (symbol = 'ES1!' AND (price = 15000.0000 OR price < 3000 OR price > 8000))
-            OR (symbol = 'RTY1!' AND (price = 15000.0000 OR price < 1500 OR price > 3000))
-            OR (symbol = 'NQ1!' AND (price < 10000 OR price > 25000))
-            OR price = 0
-            OR price IS NULL
-        """)
-        rows_deleted = cursor.rowcount
-        db.conn.commit()
-        
-        logger.info(f"Cleaned up {rows_deleted} signals with incorrect prices")
-        
-        return jsonify({
-            'status': 'success',
-            'message': f'Fixed {rows_deleted} signals with incorrect prices',
-            'rows_deleted': rows_deleted,
-            'problematic_breakdown': [dict(row) for row in problematic_signals]
-        })
-        
-    except Exception as e:
-        if hasattr(db, 'conn') and db.conn:
-            db.conn.rollback()
-        logger.error(f"Error fixing signal prices: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+#     except Exception as e:
+#         if hasattr(db, 'conn') and db.conn:
+#             db.conn.rollback()
+#         logger.error(f"Error deleting test signals: {str(e)}")
+#         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/live-signals/clear-all', methods=['DELETE'])
-def clear_all_live_signals():
-    """Clear all live signals from database"""
-    try:
-        if not db_enabled or not db:
-            return jsonify({'error': 'Database not available'}), 500
-        
-        cursor = db.conn.cursor()
-        cursor.execute("DELETE FROM live_signals")
-        rows_deleted = cursor.rowcount
-        db.conn.commit()
-        
-        logger.info(f"Cleared {rows_deleted} live signals from database")
-        
-        return jsonify({
-            'status': 'success',
-            'message': f'Cleared {rows_deleted} live signals',
-            'rows_deleted': rows_deleted
-        })
-        
-    except Exception as e:
-        if hasattr(db, 'conn') and db.conn:
-            db.conn.rollback()
-        logger.error(f"Error clearing live signals: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+# ⚠️ Disabled legacy utility endpoint - use Phase 2A/2B/2C API v2 equivalents
+# ============================================================================
 
+
+# ============================================================================
+# LEGACY UTILITY ENDPOINT DISABLED
+# ============================================================================
+# @app.route('/api/live-signals/fix-prices', methods=['POST'])
+# def fix_signal_prices():
+#     """Fix incorrect prices in live signals"""
+#     try:
+#         if not db_enabled or not db:
+#             return jsonify({'error': 'Database not available'}), 500
+        
+#         cursor = db.conn.cursor()
+        
+#         # First, get count of problematic signals
+#         cursor.execute("""
+#             SELECT symbol, COUNT(*) as count, AVG(price) as avg_price
+#             FROM live_signals 
+#             WHERE (symbol = 'YM1!' AND (price = 15000.0000 OR price < 30000 OR price > 60000))
+#             OR (symbol = 'ES1!' AND (price = 15000.0000 OR price < 3000 OR price > 8000))
+#             OR (symbol = 'RTY1!' AND (price = 15000.0000 OR price < 1500 OR price > 3000))
+#             OR (symbol = 'NQ1!' AND (price < 10000 OR price > 25000))
+#             OR price = 0
+#             GROUP BY symbol
+#         """)
+        
+#         problematic_signals = cursor.fetchall()
+#         logger.info(f"Found problematic signals: {[dict(row) for row in problematic_signals]}")
+        
+#         # Delete signals with obviously wrong prices
+#         cursor.execute("""
+#             DELETE FROM live_signals 
+#             WHERE (symbol = 'YM1!' AND (price = 15000.0000 OR price < 30000 OR price > 60000))
+#             OR (symbol = 'ES1!' AND (price = 15000.0000 OR price < 3000 OR price > 8000))
+#             OR (symbol = 'RTY1!' AND (price = 15000.0000 OR price < 1500 OR price > 3000))
+#             OR (symbol = 'NQ1!' AND (price < 10000 OR price > 25000))
+#             OR price = 0
+#             OR price IS NULL
+#         """)
+#         rows_deleted = cursor.rowcount
+#         db.conn.commit()
+        
+#         logger.info(f"Cleaned up {rows_deleted} signals with incorrect prices")
+        
+#         return jsonify({
+#             'status': 'success',
+#             'message': f'Fixed {rows_deleted} signals with incorrect prices',
+#             'rows_deleted': rows_deleted,
+#             'problematic_breakdown': [dict(row) for row in problematic_signals]
+#         })
+        
+#     except Exception as e:
+#         if hasattr(db, 'conn') and db.conn:
+#             db.conn.rollback()
+#         logger.error(f"Error fixing signal prices: {str(e)}")
+#         return jsonify({'error': str(e)}), 500
+
+# ⚠️ Disabled legacy utility endpoint - use Phase 2A/2B/2C API v2 equivalents
+# ============================================================================
+
+
+# ============================================================================
+# LEGACY UTILITY ENDPOINT DISABLED
+# ============================================================================
+# @app.route('/api/live-signals/clear-all', methods=['DELETE'])
+# def clear_all_live_signals():
+#     """Clear all live signals from database"""
+#     try:
+#         if not db_enabled or not db:
+#             return jsonify({'error': 'Database not available'}), 500
+        
+#         cursor = db.conn.cursor()
+#         cursor.execute("DELETE FROM live_signals")
+#         rows_deleted = cursor.rowcount
+#         db.conn.commit()
+        
+#         logger.info(f"Cleared {rows_deleted} live signals from database")
+        
+#         return jsonify({
+#             'status': 'success',
+#             'message': f'Cleared {rows_deleted} live signals',
+#             'rows_deleted': rows_deleted
+#         })
+        
+#     except Exception as e:
+#         if hasattr(db, 'conn') and db.conn:
+#             db.conn.rollback()
+#         logger.error(f"Error clearing live signals: {str(e)}")
+#         return jsonify({'error': str(e)}), 500
+
+
+# ⚠️ Disabled legacy utility endpoint - use Phase 2A/2B/2C API v2 equivalents
+# ============================================================================
 
 # STAGE 10: Replay candles API (READ-ONLY)
 @app.route("/api/automated-signals/replay-candles", methods=["GET"])
@@ -10538,130 +10575,138 @@ def get_v2_price_stream():
             'message': str(e)
         }), 500
 
-# Enhanced webhook endpoint for V2 automation
-@app.route('/api/live-signals-v2', methods=['POST'])
-def receive_signal_v2():
-    """Enhanced webhook with V2 automation - no login required for TradingView"""
-    try:
-        data = request.get_json()
-        
-        # Process through V2 automation
-        signal_result = {
-            "type": data.get('type', data.get('signal_type', data.get('signal', ''))),
-            "price": data.get('price', 0),
-            "timestamp": data.get('timestamp', datetime.now().isoformat()),
-            "session": data.get('session', 'NY AM')
-        }
-        
-        # Call the V2 processing function
-        try:
-            # Use the same logic as process_signal_v2 but without login requirement
-            signal_type = signal_result["type"]  # Keep original: "Bullish" or "Bearish"
-            signal_price = float(signal_result["price"])
-            
-            # Normalize signal type (handle both capitalized and lowercase)
-            if signal_type.lower() in ['bullish', 'bearish'] and signal_price > 0:
-                signal_type = signal_type.capitalize()  # Convert to "Bullish" or "Bearish"
-                # EXACT METHODOLOGY - NO SHORTCUTS
-                # Signal must wait for confirmation - cannot calculate entry/stop immediately
-                entry_price = None
-                stop_loss_price = None
-                risk_distance = None
-                targets = {
-                    "1R": None,
-                    "2R": None,
-                    "3R": None,
-                    "5R": None,
-                    "10R": None,
-                    "20R": None
-                }
-                
-                # Execute V2 database operation with robust connection handling
-                db_result = execute_v2_database_operation_robust(
-                    signal_type, 
-                    signal_result.get("session", "NY AM"),
-                    entry_price, 
-                    stop_loss_price, 
-                    risk_distance, 
-                    targets
-                )
-                
-                if not db_result.get('success'):
-                    raise Exception(f"Robust database operation failed: {db_result.get('error', 'Unknown error')}")
-                
-                trade_id = db_result['trade_id']
-                trade_uuid = db_result['trade_uuid']
-                
-                v2_automation = {
-                    "success": True,
-                    "trade_id": trade_id,
-                    "trade_uuid": str(trade_uuid),
-                    "entry_price": entry_price,
-                    "stop_loss_price": stop_loss_price,
-                    "r_targets": targets,
-                    "automation": "v2_enabled"
-                }
-            else:
-                v2_automation = {
-                    "success": False,
-                    "reason": "Invalid signal type or price"
-                }
-                
-        except Exception as v2_error:
-            # Capture detailed error information
-            error_msg = str(v2_error) if str(v2_error) else f"Empty error message from {type(v2_error).__name__}"
-            
-            # Special handling for KeyError to get the missing key
-            if isinstance(v2_error, KeyError):
-                error_msg = f"Missing key: {v2_error.args[0] if v2_error.args else 'unknown key'}"
-            
-            v2_automation = {
-                "success": False,
-                "error": error_msg,
-                "error_type": type(v2_error).__name__,
-                "debug_info": {
-                    "signal_type": signal_type if 'signal_type' in locals() else "undefined",
-                    "signal_price": signal_price if 'signal_price' in locals() else "undefined"
-                }
-            }
-        
-        # Also store in original live_signals table for compatibility
-        try:
-            cursor = db.conn.cursor()
-            cursor.execute("""
-                INSERT INTO live_signals (symbol, type, timestamp, price, session)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING id;
-            """, (
-                data.get('symbol', 'NQ1!'),
-                data.get('type', ''),
-                datetime.now(),
-                data.get('price', 0),
-                data.get('session', 'NY AM')
-            ))
-            
-            original_id = cursor.fetchone()[0]
-            db.conn.commit()
-            
-        except Exception as original_error:
-            original_id = None
-        
-        return jsonify({
-            "success": True,
-            "message": "Signal received and processed through V2 automation",
-            "original_signal_id": original_id,
-            "v2_automation": v2_automation,
-            "timestamp": datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
-        }), 500
 
 # ============================================================================
+# LEGACY ENDPOINT DISABLED - CONFLICTS WITH PHASE 2A/2B/2C API V2
+# ============================================================================
+# # Enhanced webhook endpoint for V2 automation
+# @app.route('/api/live-signals-v2', methods=['POST'])
+# def receive_signal_v2():
+#     """Enhanced webhook with V2 automation - no login required for TradingView"""
+#     try:
+#         data = request.get_json()
+        
+#         # Process through V2 automation
+#         signal_result = {
+#             "type": data.get('type', data.get('signal_type', data.get('signal', ''))),
+#             "price": data.get('price', 0),
+#             "timestamp": data.get('timestamp', datetime.now().isoformat()),
+#             "session": data.get('session', 'NY AM')
+#         }
+        
+#         # Call the V2 processing function
+#         try:
+#             # Use the same logic as process_signal_v2 but without login requirement
+#             signal_type = signal_result["type"]  # Keep original: "Bullish" or "Bearish"
+#             signal_price = float(signal_result["price"])
+            
+#             # Normalize signal type (handle both capitalized and lowercase)
+#             if signal_type.lower() in ['bullish', 'bearish'] and signal_price > 0:
+#                 signal_type = signal_type.capitalize()  # Convert to "Bullish" or "Bearish"
+#                 # EXACT METHODOLOGY - NO SHORTCUTS
+#                 # Signal must wait for confirmation - cannot calculate entry/stop immediately
+#                 entry_price = None
+#                 stop_loss_price = None
+#                 risk_distance = None
+#                 targets = {
+#                     "1R": None,
+#                     "2R": None,
+#                     "3R": None,
+#                     "5R": None,
+#                     "10R": None,
+#                     "20R": None
+#                 }
+                
+#                 # Execute V2 database operation with robust connection handling
+#                 db_result = execute_v2_database_operation_robust(
+#                     signal_type, 
+#                     signal_result.get("session", "NY AM"),
+#                     entry_price, 
+#                     stop_loss_price, 
+#                     risk_distance, 
+#                     targets
+#                 )
+                
+#                 if not db_result.get('success'):
+#                     raise Exception(f"Robust database operation failed: {db_result.get('error', 'Unknown error')}")
+                
+#                 trade_id = db_result['trade_id']
+#                 trade_uuid = db_result['trade_uuid']
+                
+#                 v2_automation = {
+#                     "success": True,
+#                     "trade_id": trade_id,
+#                     "trade_uuid": str(trade_uuid),
+#                     "entry_price": entry_price,
+#                     "stop_loss_price": stop_loss_price,
+#                     "r_targets": targets,
+#                     "automation": "v2_enabled"
+#                 }
+#             else:
+#                 v2_automation = {
+#                     "success": False,
+#                     "reason": "Invalid signal type or price"
+#                 }
+                
+#         except Exception as v2_error:
+#             # Capture detailed error information
+#             error_msg = str(v2_error) if str(v2_error) else f"Empty error message from {type(v2_error).__name__}"
+            
+#             # Special handling for KeyError to get the missing key
+#             if isinstance(v2_error, KeyError):
+#                 error_msg = f"Missing key: {v2_error.args[0] if v2_error.args else 'unknown key'}"
+            
+#             v2_automation = {
+#                 "success": False,
+#                 "error": error_msg,
+#                 "error_type": type(v2_error).__name__,
+#                 "debug_info": {
+#                     "signal_type": signal_type if 'signal_type' in locals() else "undefined",
+#                     "signal_price": signal_price if 'signal_price' in locals() else "undefined"
+#                 }
+#             }
+        
+#         # Also store in original live_signals table for compatibility
+#         try:
+#             cursor = db.conn.cursor()
+#             cursor.execute("""
+#                 INSERT INTO live_signals (symbol, type, timestamp, price, session)
+#                 VALUES (%s, %s, %s, %s, %s)
+#                 RETURNING id;
+#             """, (
+#                 data.get('symbol', 'NQ1!'),
+#                 data.get('type', ''),
+#                 datetime.now(),
+#                 data.get('price', 0),
+#                 data.get('session', 'NY AM')
+#             ))
+            
+#             original_id = cursor.fetchone()[0]
+#             db.conn.commit()
+            
+#         except Exception as original_error:
+#             original_id = None
+        
+#         return jsonify({
+#             "success": True,
+#             "message": "Signal received and processed through V2 automation",
+#             "original_signal_id": original_id,
+#             "v2_automation": v2_automation,
+#             "timestamp": datetime.now().isoformat()
+#         })
+        
+#     except Exception as e:
+#         return jsonify({
+#             "success": False,
+#             "error": str(e),
+#             "timestamp": datetime.now().isoformat()
+#         }), 500
+
+# # ============================================================================
+# ⚠️ Disabled legacy POST /api/live-signals-v2 endpoint in favor of Phase 2A/2B/2C API v2
+# New endpoint: /api/signals/live (registered by signals_api_v2.py)
+# ============================================================================
+
 # REAL-TIME PRICE WEBHOOK ENDPOINT (TradingView 1-Second Data)
 # ============================================================================
 
