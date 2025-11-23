@@ -1,0 +1,9 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = ""
+buildEnv = { }
+
+[deploy]
+startCommand = "python web_server.py"
+healthcheckPath = "/homepage"
+port = 8080
