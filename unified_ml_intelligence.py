@@ -621,13 +621,15 @@ _auto_trainer_thread = None
 
 def get_unified_ml(db):
     """Get or create unified ML instance"""
+    import os
     global _unified_ml, _auto_trainer_thread
     
     if _unified_ml is None:
         _unified_ml = UnifiedMLIntelligence(db)
         
-        # Start auto-trainer thread
-        if _auto_trainer_thread is None:
+        # Start auto-trainer thread (GATED BEHIND ENABLE_ML_TRAINING)
+        ENABLE_ML = os.environ.get("ENABLE_ML_TRAINING", "false").lower() == "true"
+        if ENABLE_ML and _auto_trainer_thread is None:
             _auto_trainer_thread = threading.Thread(
                 target=_auto_trainer_loop,
                 args=(_unified_ml,),
@@ -635,6 +637,8 @@ def get_unified_ml(db):
             )
             _auto_trainer_thread.start()
             logger.info("🤖 Auto-trainer thread started")
+        elif not ENABLE_ML:
+            logger.info("⚠️ ML auto-trainer thread disabled (ENABLE_ML_TRAINING=false)")
     
     return _unified_ml
 

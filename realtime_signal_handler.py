@@ -16,6 +16,7 @@ class RealtimeSignalHandler:
     """Handles real-time signal processing and WebSocket broadcasting"""
     
     def __init__(self, socketio, db):
+        import os
         self.socketio = socketio
         self.db = db
         self.active_connections = 0
@@ -23,12 +24,15 @@ class RealtimeSignalHandler:
         self.signal_cache = {}
         self.ml_engine = None
         
-        # Initialize ML engine if available
+        # Initialize ML engine if available (GATED BEHIND ENABLE_ML_TRAINING)
+        ENABLE_ML = os.environ.get("ENABLE_ML_TRAINING", "false").lower() == "true"
         try:
-            if db:
+            if db and ENABLE_ML:
                 from unified_ml_intelligence import get_unified_ml
                 self.ml_engine = get_unified_ml(db)
                 logger.info("✅ ML engine initialized for real-time predictions")
+            elif db:
+                logger.info("⚠️ ML engine disabled for real-time predictions (ENABLE_ML_TRAINING=false)")
         except Exception as e:
             logger.warning(f"ML engine not available for real-time handler: {e}")
     

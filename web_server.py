@@ -762,8 +762,10 @@ if db_enabled and db:
     from ai_business_advisor_endpoint import register_advisor_routes
     register_advisor_routes(app, db)
 
-# Auto-train ML on startup
-if ml_available and db_enabled and db:
+# Auto-train ML on startup (GATED BEHIND ENABLE_ML_TRAINING)
+ENABLE_ML = os.environ.get("ENABLE_ML_TRAINING", "false").lower() == "true"
+
+if ENABLE_ML and ml_available and db_enabled and db:
     def auto_train_ml():
         try:
             logger.info("🤖 Starting ML auto-train thread...")
@@ -808,6 +810,8 @@ if ml_available and db_enabled and db:
         logger.error(f"❌ Auto-optimizer failed to start: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
+elif ml_available and db_enabled and db:
+    logger.info("⚠️ ML auto-training fully disabled (ENABLE_ML_TRAINING=false)")
 else:
     logger.warning(f"⚠️ ML auto-train skipped: ml_available={ml_available}, db_enabled={db_enabled}")
 
