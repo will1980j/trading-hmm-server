@@ -1158,6 +1158,8 @@ def advanced_dashboard():
 @app.route('/trade-manager')
 @login_required
 def trade_manager():
+    """Trade Manager - Trade execution and management"""
+    logger.info("✅ Route /trade-manager wired to trade_manager.html")
     return render_template('trade_manager.html')
 
 @app.route('/signal-analysis-lab')
@@ -1207,8 +1209,9 @@ def automated_signals_dashboard_option3():
 @app.route('/automated-signals')
 @login_required
 def automated_signals_dashboard():
-    """Automated Signals Dashboard - Real-time signal monitoring with calendar"""
-    return render_template('automated_signals_dashboard.html')
+    """Automated Signals ULTRA Dashboard - Phase 2B/2C Real Data"""
+    logger.info("✅ Route /automated-signals wired to automated_signals_ultra.html (ULTRA v2)")
+    return render_template('automated_signals_ultra.html')
 
 @app.route("/api/automated-signals/hub-data", methods=["GET"])
 @login_required
@@ -1327,6 +1330,8 @@ def diagnose_1m_signals():
 @app.route('/ai-business-advisor')
 @login_required
 def ai_business_advisor_page():
+    """AI Business Advisor - Strategic insights"""
+    logger.info("✅ Route /ai-business-advisor wired to ai_business_dashboard.html")
     return render_template('ai_business_dashboard.html')
 
 @app.route('/nasdaq-ml')
@@ -1441,8 +1446,9 @@ def nasdaq_backtest():
 @app.route('/ml-dashboard')
 @login_required
 def ml_dashboard():
-    """ML Feature Dashboard - Comprehensive ML Intelligence"""
-    return render_template('ml_feature_dashboard.html')
+    """ML Intelligence Hub - Module 20"""
+    logger.info("✅ Route /ml-dashboard wired to ml_hub.html (Module 20)")
+    return render_template('ml_hub.html')
 
 @app.route('/api/db-status', methods=['GET'])
 def get_db_status():
@@ -1868,12 +1874,16 @@ def webhook_diagnostic():
 @app.route('/strategy-optimizer')
 @login_required
 def strategy_optimizer():
+    """Strategy Optimizer - Module 18"""
+    logger.info("✅ Route /strategy-optimizer wired to strategy_optimizer.html (Module 18)")
     return render_template('strategy_optimizer.html')
 
 @app.route('/strategy-comparison')
 @login_required
 def strategy_comparison():
-    return render_template('strategy_comparison.html')
+    """Compare - Module 19"""
+    logger.info("✅ Route /strategy-comparison wired to compare.html (Module 19)")
+    return render_template('compare.html')
 
 @app.route('/compare')
 @login_required
@@ -2024,6 +2034,8 @@ def get_strategy_trades():
 @app.route('/time-analysis')
 @login_required
 def time_analysis():
+    """Time Analysis - Module 17"""
+    logger.info("✅ Route /time-analysis wired to time_analysis.html (Module 17)")
     return render_template('time_analysis.html')
 
 @app.route('/api/time-analysis', methods=['GET'])
@@ -2091,6 +2103,8 @@ def fix_active_trades_page():
 @app.route('/prop-portfolio')
 @login_required
 def prop_portfolio():
+    """Prop Portfolio - Portfolio management"""
+    logger.info("✅ Route /prop-portfolio wired to prop_firms_v2.html")
     return render_template('prop_firms_v2.html')
 
 @app.route('/prop-firm-management')
@@ -2101,6 +2115,8 @@ def prop_firm_management():
 @app.route('/financial-summary')
 @login_required
 def financial_summary():
+    """Financial Summary - Module 21"""
+    logger.info("✅ Route /financial-summary wired to financial_summary.html (Module 21)")
     return render_template('financial_summary.html')
 
 @app.route('/reporting')
@@ -2111,7 +2127,9 @@ def reporting():
 @app.route('/reporting-hub')
 @login_required
 def reporting_hub():
-    return render_template('reporting_hub.html')
+    """Reporting Hub - Module 22"""
+    logger.info("✅ Route /reporting-hub wired to reporting.html (Module 22)")
+    return render_template('reporting.html')
 
 @app.route('/ai-trading-master-plan')
 @login_required

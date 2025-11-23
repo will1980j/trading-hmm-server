@@ -129,19 +129,18 @@ const roadmapData = [
     }
 ];
 
-// System Status Data (Mock - will be replaced with API)
+// System Status Data (Updated from API)
 let systemStatus = {
-    webhook_health: "healthy",
+    webhook_health: "--",
     queue_depth: 0,
-    risk_engine: "operational",
-    last_signal: "2 min ago",
-    current_session: "NY AM",
-    latency_ms: 45
+    signals_today: 0,
+    last_signal: "--",
+    current_session: "--",
+    latency_ms: 0
 };
 
 // Initialize Homepage
 document.addEventListener('DOMContentLoaded', function() {
-    renderRoadmap();
     renderSystemStatus();
     setupEventListeners();
     startStatusRefresh();
@@ -191,35 +190,23 @@ function createPhaseCard(phase) {
 
 // Render System Status
 function renderSystemStatus() {
-    const container = document.getElementById('systemStatus');
-    if (!container) return;
+    // Update DOM elements with current status
+    const sessionLabel = document.getElementById('sessionLabel');
+    const signalsToday = document.getElementById('signalsToday');
+    const lastSignalTime = document.getElementById('lastSignalTime');
+    const webhookHealth = document.getElementById('webhookHealth');
+    const queueDepth = document.getElementById('queueDepth');
+    const latencyMs = document.getElementById('latencyMs');
     
-    container.innerHTML = `
-        <div class="status-item">
-            <span class="status-label">Webhook:</span>
-            <span class="status-badge ${systemStatus.webhook_health}">${systemStatus.webhook_health}</span>
-        </div>
-        <div class="status-item">
-            <span class="status-label">Queue:</span>
-            <span class="status-value">${systemStatus.queue_depth}</span>
-        </div>
-        <div class="status-item">
-            <span class="status-label">Risk Engine:</span>
-            <span class="status-value">${systemStatus.risk_engine}</span>
-        </div>
-        <div class="status-item">
-            <span class="status-label">Last Signal:</span>
-            <span class="status-value">${systemStatus.last_signal}</span>
-        </div>
-        <div class="status-item">
-            <span class="status-label">Session:</span>
-            <span class="status-value">${systemStatus.current_session}</span>
-        </div>
-        <div class="status-item">
-            <span class="status-label">Latency:</span>
-            <span class="status-value">${systemStatus.latency_ms}ms</span>
-        </div>
-    `;
+    if (sessionLabel) sessionLabel.textContent = systemStatus.current_session || '--';
+    if (signalsToday) signalsToday.textContent = systemStatus.signals_today || '0';
+    if (lastSignalTime) lastSignalTime.textContent = systemStatus.last_signal || '--';
+    if (webhookHealth) {
+        webhookHealth.textContent = systemStatus.webhook_health || '--';
+        webhookHealth.className = `status-value ${systemStatus.webhook_health === 'healthy' ? 'status-healthy' : 'status-warning'}`;
+    }
+    if (queueDepth) queueDepth.textContent = systemStatus.queue_depth || '0';
+    if (latencyMs) latencyMs.textContent = systemStatus.latency_ms ? `${systemStatus.latency_ms}ms` : '--';
 }
 
 // Setup Event Listeners
@@ -247,7 +234,10 @@ function setupEventListeners() {
 
 // Start Status Refresh
 function startStatusRefresh() {
-    // Refresh system status every 30 seconds
+    // Initial fetch
+    fetchSystemStatus().then(() => renderSystemStatus());
+    
+    // Refresh system status every 15 seconds
     setInterval(async () => {
         try {
             await fetchSystemStatus();
@@ -255,24 +245,39 @@ function startStatusRefresh() {
         } catch (error) {
             console.log('Status refresh error:', error);
         }
-    }, 30000);
+    }, 15000);
 }
 
 // Fetch System Status (API call)
 async function fetchSystemStatus() {
     try {
-        // Try to fetch from automated signals stats
-        const response = await fetch('/api/automated-signals/stats');
-        if (response.ok) {
-            const data = await response.json();
-            
-            // Update status based on API data
-            systemStatus.webhook_health = data.total_signals > 0 ? "healthy" : "warning";
-            systemStatus.queue_depth = data.active_signals || 0;
-            systemStatus.last_signal = data.last_signal_time || "N/A";
+        // Fetch system status
+        const statusResponse = await fetch('/api/system-status');
+        if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            if (statusData.success && statusData.status) {
+                systemStatus.webhook_health = statusData.status.webhook_health || 'unknown';
+                systemStatus.queue_depth = statusData.status.queue_depth || 0;
+                systemStatus.latency_ms = statusData.status.latency_ms || 0;
+                systemStatus.current_session = statusData.status.current_session || '--';
+            }
         }
     } catch (error) {
         console.log('Failed to fetch system status:', error);
+    }
+    
+    try {
+        // Fetch today's stats
+        const statsResponse = await fetch('/api/signals/stats/today');
+        if (statsResponse.ok) {
+            const statsData = await statsResponse.json();
+            if (statsData.success && statsData.stats) {
+                systemStatus.signals_today = statsData.stats.total_signals || 0;
+                systemStatus.last_signal = statsData.stats.last_signal_time || '--';
+            }
+        }
+    } catch (error) {
+        console.log('Failed to fetch today stats:', error);
     }
 }
 
