@@ -44,7 +44,7 @@ class PredictionRecord:
 class PredictionAccuracyTracker:
     """Tracks and analyzes ML prediction accuracy in real-time"""
     
-    def __init__(self, db, socketio=None):
+    def __init__(self, db, socketio=None, auto_start_monitoring=False):
         self.db = db
         self.socketio = socketio
         self.active_predictions = {}  # prediction_id -> PredictionRecord
@@ -70,8 +70,9 @@ class PredictionAccuracyTracker:
         # Load existing predictions
         self._load_active_predictions()
         
-        # Start background monitoring
-        self._start_monitoring()
+        # Conditionally start background monitoring
+        if auto_start_monitoring:
+            self._start_monitoring()
     
     def _init_database(self):
         """Initialize prediction tracking table"""

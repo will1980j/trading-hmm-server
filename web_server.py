@@ -659,15 +659,23 @@ prediction_tracker = None
 auto_outcome_updater = None
 if db_enabled and db:
     try:
+        # Check if ML training is enabled
+        ml_training_enabled = os.environ.get("ENABLE_ML_TRAINING", "false").lower() == "true"
+        
         from prediction_accuracy_tracker import PredictionAccuracyTracker
-        prediction_tracker = PredictionAccuracyTracker(db, socketio)
+        prediction_tracker = PredictionAccuracyTracker(db, socketio, auto_start_monitoring=ml_training_enabled)
         logger.info("✅ Prediction accuracy tracker initialized")
         
-        # Initialize auto outcome updater
-        from auto_prediction_outcome_updater import AutoPredictionOutcomeUpdater
-        auto_outcome_updater = AutoPredictionOutcomeUpdater(db, prediction_tracker)
-        auto_outcome_updater.start_monitoring()
-        logger.info("✅ Auto prediction outcome updater started")
+        # Conditionally start auto-training and outcome updates based on environment variable
+        if ml_training_enabled:
+            logger.info("🤖 Starting ML auto-training and outcome updates...")
+            # Initialize auto outcome updater
+            from auto_prediction_outcome_updater import AutoPredictionOutcomeUpdater
+            auto_outcome_updater = AutoPredictionOutcomeUpdater(db, prediction_tracker)
+            auto_outcome_updater.start_monitoring()
+            logger.info("✅ Auto prediction outcome updater started")
+        else:
+            logger.info("⚠️ ML auto-training disabled on startup (ENABLE_ML_TRAINING=false)")
         
     except Exception as e:
         logger.error(f"Failed to initialize prediction tracker: {e}")
