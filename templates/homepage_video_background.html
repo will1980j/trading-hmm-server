@@ -1,541 +1,387 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Second Skies Trading — Command Center</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% extends "layout.html" %}
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            min-height: 100vh;
-            color: #ffffff;
-            overflow-x: hidden;
-            position: relative;
-            background: #050816;
-        }
+{% block title %}Homepage{% endblock %}
 
-        .video-container {
-            position: fixed;
-            inset: 0;
-            z-index: -2;
-            overflow: hidden;
-        }
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}">
+{% endblock %}
 
-        .video-background {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            min-width: 100%;
-            min-height: 100%;
-            transform: translate(-50%, -50%);
-            object-fit: cover;
-        }
-
-        .video-overlay {
-            position: fixed;
-            inset: 0;
-            background: radial-gradient(circle at top left, rgba(76,102,255,0.45), transparent 45%),
-                        radial-gradient(circle at bottom right, rgba(142,84,255,0.45), transparent 55%),
-                        linear-gradient(135deg, rgba(5,8,22,0.95), rgba(5,8,22,0.98));
-            z-index: -1;
-        }
-
-        .header {
-            position: sticky;
-            top: 0;
-            background: rgba(5,8,22,0.85);
-            backdrop-filter: blur(24px);
-            border-bottom: 1px solid rgba(255,255,255,0.07);
-            padding: 0.75rem 2rem;
-            z-index: 100;
-        }
-
-        .nav-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-        }
-
-        .brand {
-            font-weight: 700;
-            font-size: 1.1rem;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: #e5e7eb;
-        }
-
-        .nav-links {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.4rem;
-            justify-content: flex-end;
-        }
-
-        .nav-link {
-            color: #e2e8f0;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 4px 10px;
-            border-radius: 999px;
-            transition: all 0.2s;
-            font-size: 13px;
-            white-space: nowrap;
-            background: rgba(15,23,42,0.65);
-            border: 1px solid rgba(148,163,184,0.25);
-        }
-
-        .nav-link:hover {
-            background: rgba(148,163,184,0.2);
-            color: #ffffff;
-        }
-
-        .main-content {
-            padding: 2.2rem 2rem 3rem;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .welcome-section {
-            margin-bottom: 1.75rem;
-        }
-
-        .welcome-title {
-            font-size: 2.4rem;
-            font-weight: 800;
-            margin-bottom: 0.6rem;
-            background: linear-gradient(135deg,#ffffff,#e2e8f0,#4c66ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            line-height: 1.2;
-        }
-
-        .welcome-subtitle {
-            font-size: 0.98rem;
-            color: #9ca3af;
-            max-width: 620px;
-        }
-
-        .status-ribbon {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            background: rgba(15,23,42,0.9);
-            border-radius: 999px;
-            padding: 0.6rem 1.2rem;
-            border: 1px solid rgba(148,163,184,0.35);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.45);
-            font-size: 0.8rem;
-            margin-bottom: 1.8rem;
-        }
-
-        .status-pill {
-            font-size: 0.75rem;
-            padding: 0.2rem 0.75rem;
-            border-radius: 999px;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            background: rgba(22,163,74,0.12);
-            color: #4ade80;
-        }
-
-        .status-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 999px;
-            background: #22c55e;
-        }
-
-        .status-item {
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-            color: #9ca3af;
-        }
-
-        .status-label {
-            color: #6b7280;
-        }
-
-        .hero-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1.55fr) minmax(0, 1.1fr);
-            gap: 1.5rem;
-            align-items: flex-start;
-        }
-
-        .panel {
-            background: radial-gradient(circle at top left, rgba(76,102,255,0.25), transparent 45%),
-                        linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.98));
-            border-radius: 20px;
-            border: 1px solid rgba(148,163,184,0.35);
-            padding: 1.4rem 1.5rem;
-            box-shadow: 0 22px 55px rgba(0,0,0,0.6);
-        }
-
-        .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.9rem;
-        }
-
-        .panel-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: #9ca3af;
-        }
-
-        .pill {
-            font-size: 0.75rem;
-            padding: 0.2rem 0.7rem;
-            border-radius: 999px;
-            background: rgba(15,23,42,0.9);
-            border: 1px solid rgba(148,163,184,0.5);
-            color: #e5e7eb;
-        }
-
-        .roadmap-list {
-            display: grid;
-            gap: 0.75rem;
-            margin-top: 0.4rem;
-        }
-
-        .roadmap-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: rgba(15,23,42,0.85);
-            border-radius: 12px;
-            padding: 0.8rem 0.9rem;
-            border: 1px solid rgba(51,65,85,0.9);
-        }
-
-        .roadmap-main {
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-        }
-
-        .phase-badge {
-            font-size: 0.75rem;
-            padding: 0.25rem 0.6rem;
-            border-radius: 999px;
-            background: rgba(76,102,255,0.18);
-            border: 1px solid rgba(129,140,248,0.75);
-            color: #e5e7eb;
-        }
-
-        .phase-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-        }
-
-        .phase-subtitle {
-            font-size: 0.78rem;
-            color: #9ca3af;
-        }
-
-        .phase-status {
-            font-size: 0.8rem;
-            color: #a5b4fc;
-        }
-
-        .category-grid {
-            display: grid;
-            gap: 0.75rem;
-        }
-
-        .category-card {
-            background: rgba(15,23,42,0.92);
-            border-radius: 14px;
-            padding: 0.85rem 0.95rem;
-            border: 1px solid rgba(55,65,81,0.95);
-            cursor: pointer;
-            transition: all 0.18s ease-out;
-        }
-
-        .category-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 18px 40px rgba(0,0,0,0.6);
-            border-color: rgba(96,165,250,0.9);
-        }
-
-        .category-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-            margin-bottom: 0.2rem;
-        }
-
-        .category-description {
-            font-size: 0.8rem;
-            color: #9ca3af;
-            margin-bottom: 0.5rem;
-        }
-
-        .category-links {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.35rem;
-        }
-
-        .category-link {
-            font-size: 0.75rem;
-            padding: 0.18rem 0.6rem;
-            border-radius: 999px;
-            border: 1px solid rgba(75,85,99,1);
-            color: #e5e7eb;
-            text-decoration: none;
-            background: rgba(15,23,42,0.95);
-        }
-
-        .quick-links {
-            margin-top: 1.6rem;
-        }
-
-        .quick-links-title {
-            font-size: 0.85rem;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            margin-bottom: 0.7rem;
-            color: #9ca3af;
-        }
-
-        .quick-links-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.6rem;
-        }
-
-        .quick-link {
-            font-size: 0.78rem;
-            padding: 0.35rem 0.8rem;
-            border-radius: 999px;
-            border: 1px solid rgba(148,163,184,0.6);
-            background: rgba(15,23,42,0.95);
-            color: #e5e7eb;
-            text-decoration: none;
-        }
-
-        @media (max-width: 960px) {
-            .hero-grid {
-                grid-template-columns: minmax(0,1fr);
-            }
-        }
-
-        @media (max-width: 768px) {
-            .header {
-                padding: 0.75rem 1rem;
-            }
-            .main-content {
-                padding: 1.8rem 1.2rem 2.2rem;
-            }
-            .welcome-title {
-                font-size: 2rem;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="video-container">
-        <video id="backgroundVideo" autoplay muted loop class="video-background" playsinline preload="auto">
-            {% if video_file %}
-            <source src="{{ url_for('static', filename='videos/homepage/' + video_file) }}" type="video/mp4">
-            {% endif %}
+{% block content %}
+<div class="homepage-container">
+    <!-- Video Background Container -->
+    <div id="videoContainer" class="video-container">
+        <video id="backgroundVideo" autoplay muted loop playsinline>
+            <source src="" type="video/mp4">
         </video>
+        <div class="video-overlay"></div>
     </div>
 
-    <div class="video-overlay"></div>
-
-    <header class="header">
-        <div class="nav-container">
-            <div class="brand">SECOND SKIES</div>
-            <nav class="nav-links">
-                <a href="/homepage" class="nav-link">Home</a>
-                <a href="/signal-lab-dashboard" class="nav-link">Dashboard</a>
-                <a href="/automated-signals" class="nav-link">Automated Signals</a>
-                <a href="/time-analysis" class="nav-link">Time Analysis</a>
-                <a href="/strategy-optimizer" class="nav-link">Strategy</a>
-                <a href="/strategy-comparison" class="nav-link">Compare</a>
-                <a href="/ml-dashboard" class="nav-link">ML Hub</a>
-                <a href="/financial-summary" class="nav-link">Finance</a>
-                <a href="/reporting-hub" class="nav-link">Reports</a>
-                <a href="/prop-portfolio" class="nav-link">Prop Portfolio</a>
-                <a href="/trade-manager" class="nav-link">Trade Manager</a>
-                <a href="/logout" class="nav-link">Logout</a>
-            </nav>
+    <!-- System Status Ribbon -->
+    <section class="status-ribbon" id="systemStatus">
+        <div class="status-item">
+            <span class="status-label">Session:</span>
+            <span class="status-value" id="statusSession">--</span>
         </div>
-    </header>
+        <div class="status-item">
+            <span class="status-label">Signals Today:</span>
+            <span class="status-value" id="statusSignals">0</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">Last Signal:</span>
+            <span class="status-value" id="statusLastSignal">--</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">Webhook:</span>
+            <span class="status-value" id="statusWebhook">--</span>
+        </div>
+    </section>
 
-    <main class="main-content">
-        <section class="welcome-section">
-            <h1 class="welcome-title">Trading Command Center</h1>
-            <p class="welcome-subtitle">
-                Live signals, analytics and intelligence unified in one place — built to support our NQ prop trading, Trading Fund, and long-term wealth engine.
-            </p>
-        </section>
-
-        <section class="status-ribbon" id="statusRibbon">
-            <span class="status-pill">
-                <span class="status-dot"></span>
-                System Online
-            </span>
-            <div class="status-item">
-                <span class="status-label">Session:</span>
-                <span id="statusSession">—</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">Signals Today:</span>
-                <span id="statusSignals">—</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">Last Signal:</span>
-                <span id="statusLastSignal">—</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">Webhook:</span>
-                <span id="statusWebhook">—</span>
+    <!-- Main Content -->
+    <main class="homepage-main">
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="hero-content">
+                <h1 class="hero-title">Professional Trading Platform</h1>
+                <p class="hero-subtitle">Advanced algorithmic trading with real-time signal processing</p>
             </div>
         </section>
 
-        <section class="hero-grid">
-            <!-- Roadmap Panel -->
-            <div class="panel">
-                <div class="panel-header">
-                    <div class="panel-title">Roadmap</div>
-                    <span class="pill">Phase Overview</span>
+        <!-- Navigation Grid -->
+        <section class="workspace-grid">
+            <div class="workspace-card" data-module="automated-signals">
+                <div class="card-header">
+                    <div class="card-icon">📊</div>
+                    <h3>Automated Signals</h3>
+                    <span class="card-status active">ULTRA</span>
                 </div>
-                <div class="roadmap-list">
-                    <div class="roadmap-item">
-                        <div class="roadmap-main">
-                            <span class="phase-badge">Phase 1</span>
-                            <div>
-                                <div class="phase-title">Foundation & UI Rebuild</div>
-                                <div class="phase-subtitle">Dashboards, ULTRA redesign, ML hub shells</div>
-                            </div>
-                        </div>
-                        <div class="phase-status">✅ Complete</div>
-                    </div>
-                    <div class="roadmap-item">
-                        <div class="roadmap-main">
-                            <span class="phase-badge">Phase 2</span>
-                            <div>
-                                <div class="phase-title">Live Data & Signal Engine</div>
-                                <div class="phase-subtitle">Ingestion, ULTRA live, dashboards connected</div>
-                            </div>
-                        </div>
-                        <div class="phase-status">🟡 In Progress</div>
-                    </div>
-                    <div class="roadmap-item">
-                        <div class="roadmap-main">
-                            <span class="phase-badge">Phase 2.5</span>
-                            <div>
-                                <div class="phase-title">Proving Ground (Evaluations)</div>
-                                <div class="phase-subtitle">Manual NQ trading, passed evaluations, first payouts</div>
-                            </div>
-                        </div>
-                        <div class="phase-status">🔜 Upcoming</div>
-                    </div>
-                    <div class="roadmap-item">
-                        <div class="roadmap-main">
-                            <span class="phase-badge">Trading Fund</span>
-                            <div>
-                                <div class="phase-title">Second Skies Trading Fund</div>
-                                <div class="phase-subtitle">Core capital engine beyond prop rules</div>
-                            </div>
-                        </div>
-                        <div class="phase-status">🔭 Long-Term</div>
-                    </div>
-                </div>
+                <p class="card-description">Real-time signal monitoring with Phase 2B integration</p>
+                <a href="/automated-signals" class="card-link">Launch Dashboard</a>
             </div>
 
-            <!-- Category Launcher -->
-            <div class="panel">
-                <div class="panel-header">
-                    <div class="panel-title">Workspace</div>
-                    <span class="pill">Quick Navigation</span>
+            <div class="workspace-card" data-module="ml-dashboard">
+                <div class="card-header">
+                    <div class="card-icon">🧠</div>
+                    <h3>ML Intelligence Hub</h3>
+                    <span class="card-status">Module 20</span>
                 </div>
-                <div class="category-grid">
-                    <div class="category-card">
-                        <div class="category-title">Intelligence</div>
-                        <div class="category-description">
-                            Model insights, signal quality and future ML/AI guidance.
-                        </div>
-                        <div class="category-links">
-                            <a href="/ml-dashboard" class="category-link">ML Hub</a>
-                            <a href="/ai-business-advisor" class="category-link">AI Business Advisor</a>
-                        </div>
-                    </div>
+                <p class="card-description">Machine learning insights and predictive analytics</p>
+                <a href="/ml-dashboard" class="card-link">Launch Hub</a>
+            </div>
 
-                    <div class="category-card">
-                        <div class="category-title">Signals & Execution</div>
-                        <div class="category-description">
-                            Live signal lifecycle and trade management.
-                        </div>
-                        <div class="category-links">
-                            <a href="/automated-signals" class="category-link">Automated Signals ULTRA</a>
-                            <a href="/trade-manager" class="category-link">Trade Manager</a>
-                        </div>
-                    </div>
-
-                    <div class="category-card">
-                        <div class="category-title">Analytics</div>
-                        <div class="category-description">
-                            Time, strategy and comparison analytics to refine our edge.
-                        </div>
-                        <div class="category-links">
-                            <a href="/time-analysis" class="category-link">Time Analysis</a>
-                            <a href="/strategy-optimizer" class="category-link">Strategy Optimizer</a>
-                            <a href="/strategy-comparison" class="category-link">Compare</a>
-                        </div>
-                    </div>
-
-                    <div class="category-card">
-                        <div class="category-title">Prop & Accounts</div>
-                        <div class="category-description">
-                            Prop evaluations, funded accounts and capital scaling.
-                        </div>
-                        <div class="category-links">
-                            <a href="/prop-portfolio" class="category-link">Prop Portfolio</a>
-                            <a href="/financial-summary" class="category-link">Financial Summary</a>
-                            <a href="/reporting-hub" class="category-link">Reporting</a>
-                        </div>
-                    </div>
+            <div class="workspace-card" data-module="strategy-optimizer">
+                <div class="card-header">
+                    <div class="card-icon">⚡</div>
+                    <h3>Strategy Optimizer</h3>
+                    <span class="card-status">Module 18</span>
                 </div>
+                <p class="card-description">Advanced strategy optimization and backtesting</p>
+                <a href="/strategy-optimizer" class="card-link">Launch Optimizer</a>
+            </div>
 
-                <div class="quick-links">
-                    <div class="quick-links-title">Quick Actions</div>
-                    <div class="quick-links-grid">
-                        <a href="/automated-signals" class="quick-link">Open ULTRA</a>
-                        <a href="/signal-lab-dashboard" class="quick-link">View Main Dashboard</a>
-                        <a href="/time-analysis" class="quick-link">Check Session Edge</a>
-                        <a href="/strategy-optimizer" class="quick-link">Review Strategy Settings</a>
-                        <a href="/prop-portfolio" class="quick-link">Review Prop Evaluations</a>
+            <div class="workspace-card" data-module="strategy-comparison">
+                <div class="card-header">
+                    <div class="card-icon">📈</div>
+                    <h3>Strategy Compare</h3>
+                    <span class="card-status">Module 19</span>
+                </div>
+                <p class="card-description">Compare and analyze multiple trading strategies</p>
+                <a href="/strategy-comparison" class="card-link">Launch Compare</a>
+            </div>
+
+            <div class="workspace-card" data-module="time-analysis">
+                <div class="card-header">
+                    <div class="card-icon">⏰</div>
+                    <h3>Time Analysis</h3>
+                    <span class="card-status">Module 17</span>
+                </div>
+                <p class="card-description">Temporal pattern analysis and session optimization</p>
+                <a href="/time-analysis" class="card-link">Launch Analysis</a>
+            </div>
+
+            <div class="workspace-card" data-module="trade-manager">
+                <div class="card-header">
+                    <div class="card-icon">📋</div>
+                    <h3>Trade Manager</h3>
+                    <span class="card-status">Beta</span>
+                </div>
+                <p class="card-description">Trade execution and position management</p>
+                <a href="/trade-manager" class="card-link">Launch Manager</a>
+            </div>
+
+            <div class="workspace-card" data-module="financial-summary">
+                <div class="card-header">
+                    <div class="card-icon">💰</div>
+                    <h3>Financial Summary</h3>
+                    <span class="card-status">Module 21</span>
+                </div>
+                <p class="card-description">Comprehensive financial reporting and analytics</p>
+                <a href="/financial-summary" class="card-link">Launch Summary</a>
+            </div>
+
+            <div class="workspace-card" data-module="reporting-hub">
+                <div class="card-header">
+                    <div class="card-icon">📊</div>
+                    <h3>Reporting Hub</h3>
+                    <span class="card-status">Module 22</span>
+                </div>
+                <p class="card-description">Advanced reporting and business intelligence</p>
+                <a href="/reporting-hub" class="card-link">Launch Reports</a>
+            </div>
+
+            <div class="workspace-card" data-module="prop-portfolio">
+                <div class="card-header">
+                    <div class="card-icon">💼</div>
+                    <h3>Prop Portfolio</h3>
+                    <span class="card-status">Beta</span>
+                </div>
+                <p class="card-description">Prop firm portfolio management and compliance</p>
+                <a href="/prop-portfolio" class="card-link">Launch Portfolio</a>
+            </div>
+        </section>
+
+        <!-- Development Roadmap -->
+        <section class="roadmap-section">
+            <div class="roadmap-header">
+                <h2>Development Roadmap</h2>
+                <p>Platform evolution and feature development timeline</p>
+            </div>
+            <div class="roadmap-phases" id="roadmapPhases">
+                <div class="roadmap-phase completed" data-phase="0">
+                    <div class="phase-header">
+                        <span class="phase-number">Phase 0</span>
+                        <span class="phase-status">✅</span>
                     </div>
+                    <div class="phase-title">Foundation</div>
+                    <div class="phase-description">Core platform infrastructure</div>
+                </div>
+                
+                <div class="roadmap-phase completed" data-phase="1">
+                    <div class="phase-header">
+                        <span class="phase-number">Phase 1</span>
+                        <span class="phase-status">✅</span>
+                    </div>
+                    <div class="phase-title">Core Platform</div>
+                    <div class="phase-description">Basic trading functionality</div>
+                </div>
+                
+                <div class="roadmap-phase active" data-phase="2">
+                    <div class="phase-header">
+                        <span class="phase-number">Phase 2</span>
+                        <span class="phase-status">🔄</span>
+                    </div>
+                    <div class="phase-title">Automated Signals</div>
+                    <div class="phase-description">Real-time signal processing</div>
+                </div>
+                
+                <div class="roadmap-phase" data-phase="2.5">
+                    <div class="phase-header">
+                        <span class="phase-number">Phase 2.5</span>
+                        <span class="phase-status">📋</span>
+                    </div>
+                    <div class="phase-title">Guardrails</div>
+                    <div class="phase-description">Risk management systems</div>
+                </div>
+                
+                <div class="roadmap-phase" data-phase="3">
+                    <div class="phase-header">
+                        <span class="phase-number">Phase 3</span>
+                        <span class="phase-status">📋</span>
+                    </div>
+                    <div class="phase-title">Real-Time Data</div>
+                    <div class="phase-description">Live market data integration</div>
+                </div>
+                
+                <div class="roadmap-phase" data-phase="4">
+                    <div class="phase-header">
+                        <span class="phase-number">Phase 4</span>
+                        <span class="phase-status">📋</span>
+                    </div>
+                    <div class="phase-title">Paper Trading</div>
+                    <div class="phase-description">Simulated trading environment</div>
+                </div>
+                
+                <div class="roadmap-phase" data-phase="5">
+                    <div class="phase-header">
+                        <span class="phase-number">Phase 5</span>
+                        <span class="phase-status">📋</span>
+                    </div>
+                    <div class="phase-title">Risk Management</div>
+                    <div class="phase-description">Advanced risk controls</div>
+                </div>
+                
+                <div class="roadmap-phase" data-phase="6">
+                    <div class="phase-header">
+                        <span class="phase-number">Phase 6</span>
+                        <span class="phase-status">📋</span>
+                    </div>
+                    <div class="phase-title">ML Enhancement</div>
+                    <div class="phase-description">Machine learning integration</div>
+                </div>
+                
+                <div class="roadmap-phase" data-phase="7">
+                    <div class="phase-header">
+                        <span class="phase-number">Phase 7</span>
+                        <span class="phase-status">📋</span>
+                    </div>
+                    <div class="phase-title">Advanced Analytics</div>
+                    <div class="phase-description">Deep market analysis</div>
+                </div>
+                
+                <div class="roadmap-phase" data-phase="8">
+                    <div class="phase-header">
+                        <span class="phase-number">Phase 8</span>
+                        <span class="phase-status">📋</span>
+                    </div>
+                    <div class="phase-title">Multi-Market</div>
+                    <div class="phase-description">Cross-market trading</div>
+                </div>
+                
+                <div class="roadmap-phase" data-phase="9">
+                    <div class="phase-header">
+                        <span class="phase-number">Phase 9</span>
+                        <span class="phase-status">📋</span>
+                    </div>
+                    <div class="phase-title">Replay Engine</div>
+                    <div class="phase-description">Historical simulation</div>
+                </div>
+                
+                <div class="roadmap-phase" data-phase="10">
+                    <div class="phase-header">
+                        <span class="phase-number">Phase 10</span>
+                        <span class="phase-status">📋</span>
+                    </div>
+                    <div class="phase-title">Predictive AI</div>
+                    <div class="phase-description">AI-powered predictions</div>
+                </div>
+                
+                <div class="roadmap-phase future" data-phase="fund">
+                    <div class="phase-header">
+                        <span class="phase-number">Fund</span>
+                        <span class="phase-status">🎯</span>
+                    </div>
+                    <div class="phase-title">Trading Fund</div>
+                    <div class="phase-description">Institutional fund management</div>
+                </div>
+                
+                <div class="roadmap-phase future" data-phase="wealth">
+                    <div class="phase-header">
+                        <span class="phase-number">Wealth</span>
+                        <span class="phase-status">🎯</span>
+                    </div>
+                    <div class="phase-title">Wealth Architecture</div>
+                    <div class="phase-description">Comprehensive wealth management</div>
+                </div>
+                
+                <div class="roadmap-phase future" data-phase="partner">
+                    <div class="phase-header">
+                        <span class="phase-number">Partner</span>
+                        <span class="phase-status">🎯</span>
+                    </div>
+                    <div class="phase-title">Partner Cadence</div>
+                    <div class="phase-description">Strategic partnerships</div>
                 </div>
             </div>
         </section>
     </main>
+</div>
 
-    <!-- Keep your existing video rotation script -->
-    <script>
-{{ '' }}
-// NOTE: keep your existing video rotation JS here,
-// or paste the JS you already have for videoSources & transitions.
-// If it’s already in this file, leave it as-is
-    </script>
-</body>
-</html>
+<script>
+// 86-Video Background Rotation System
+const videoSources = [
+    '/proxy-video/1', '/proxy-video/2', '/proxy-video/3', '/proxy-video/4', '/proxy-video/5',
+    '/proxy-video/6', '/proxy-video/7', '/proxy-video/8', '/proxy-video/9', '/proxy-video/10',
+    '/proxy-video/11', '/proxy-video/12', '/proxy-video/13', '/proxy-video/14', '/proxy-video/15',
+    '/proxy-video/16', '/proxy-video/17', '/proxy-video/18', '/proxy-video/19', '/proxy-video/20',
+    '/proxy-video/21', '/proxy-video/22', '/proxy-video/23', '/proxy-video/24', '/proxy-video/25',
+    '/proxy-video/26', '/proxy-video/27', '/proxy-video/28', '/proxy-video/29', '/proxy-video/30',
+    '/proxy-video/31', '/proxy-video/32', '/proxy-video/33', '/proxy-video/34', '/proxy-video/35',
+    '/proxy-video/36', '/proxy-video/37', '/proxy-video/38', '/proxy-video/39', '/proxy-video/40',
+    '/proxy-video/41', '/proxy-video/42', '/proxy-video/43', '/proxy-video/44', '/proxy-video/45',
+    '/proxy-video/46', '/proxy-video/47', '/proxy-video/48', '/proxy-video/49', '/proxy-video/50',
+    '/proxy-video/51', '/proxy-video/52', '/proxy-video/53', '/proxy-video/54', '/proxy-video/55',
+    '/proxy-video/56', '/proxy-video/57', '/proxy-video/58', '/proxy-video/59', '/proxy-video/60',
+    '/proxy-video/61', '/proxy-video/62', '/proxy-video/63', '/proxy-video/64', '/proxy-video/65',
+    '/proxy-video/66', '/proxy-video/67', '/proxy-video/68', '/proxy-video/69', '/proxy-video/70',
+    '/proxy-video/71', '/proxy-video/72', '/proxy-video/73', '/proxy-video/74', '/proxy-video/75',
+    '/proxy-video/76', '/proxy-video/77', '/proxy-video/78', '/proxy-video/79', '/proxy-video/80',
+    '/proxy-video/81', '/proxy-video/82', '/proxy-video/83', '/proxy-video/84', '/proxy-video/85',
+    '/proxy-video/86'
+];
+
+let currentVideoIndex = 0;
+let isTransitioning = false;
+
+function getRandomVideoIndex() {
+    let newIndex;
+    do {
+        newIndex = Math.floor(Math.random() * videoSources.length);
+    } while (newIndex === currentVideoIndex && videoSources.length > 1);
+    return newIndex;
+}
+
+function loadRandomVideo() {
+    if (isTransitioning) return;
+    
+    const video = document.getElementById('backgroundVideo');
+    const container = document.getElementById('videoContainer');
+    
+    if (!video || !container) return;
+    
+    isTransitioning = true;
+    currentVideoIndex = getRandomVideoIndex();
+    
+    // Fade out
+    container.style.opacity = '0.7';
+    
+    setTimeout(() => {
+        video.src = videoSources[currentVideoIndex];
+        video.load();
+        
+        video.onloadeddata = () => {
+            video.play().catch(e => console.log('Video play failed:', e));
+            // Fade back in
+            container.style.opacity = '1';
+            isTransitioning = false;
+        };
+        
+        video.onerror = () => {
+            console.log('Video load failed, trying next...');
+            container.style.opacity = '1';
+            isTransitioning = false;
+            setTimeout(loadRandomVideo, 1000);
+        };
+    }, 300);
+}
+
+// Initialize video system
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('backgroundVideo');
+    const container = document.getElementById('videoContainer');
+    
+    if (video && container) {
+        // Load initial random video
+        loadRandomVideo();
+        
+        // Set up video ended event to load next random video
+        video.addEventListener('ended', loadRandomVideo);
+        
+        // Fallback: change video every 30 seconds if it's still playing
+        setInterval(() => {
+            if (!video.ended && !isTransitioning) {
+                loadRandomVideo();
+            }
+        }, 30000);
+        
+        // Handle video errors
+        video.addEventListener('error', () => {
+            console.log('Video error, loading next...');
+            setTimeout(loadRandomVideo, 2000);
+        });
+    }
+});
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/homepage.js') }}"></script>
+{% endblock %}
