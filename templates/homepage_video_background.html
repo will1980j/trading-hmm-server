@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Second Skies Trading - Homepage</title>
+<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}?v=2">
 </head>
 <body>
@@ -65,12 +66,18 @@
 ('Partner', 'Partner Cadence', 'Strategic partnerships', 'future', '🎯')
 ] %}
 <div class="roadmap-phase {{ p[3] }}">
+<button class="phase-toggle" type="button">
 <div class="phase-header">
 <span class="phase-number">{{ p[0] }}</span>
 <span class="phase-status">{{ p[4] }}</span>
 </div>
 <div class="phase-title">{{ p[1] }}</div>
 <div class="phase-description">{{ p[2] }}</div>
+<span class="phase-expand-indicator">Details</span>
+</button>
+<div class="phase-details">
+<p class="phase-details-text">More detail for phase {{ p[0] }} — {{ p[1] }} will be shown here.</p>
+</div>
 </div>
 {% endfor %}
 </div>

@@ -653,6 +653,11 @@ if db_enabled:
     logger.info("✅ Signal Integrity API registered")
     logger.info("✅ Phase 2A API endpoints registered")
 
+# Always register Phase 2A read-only endpoints (outside db_enabled)
+from signals_api_v2 import register_signals_api_v2
+register_signals_api_v2(app)
+logger.info("📌 Phase 2A endpoints registered unconditionally for reliability")
+
 # Initialize legacy handler
 realtime_handler = RealtimeSignalHandler(socketio, db) if db_enabled else None
 

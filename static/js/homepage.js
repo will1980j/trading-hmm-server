@@ -435,3 +435,19 @@ function initMarketClock() {
 if (typeof document !== 'undefined') {
     document.addEventListener('DOMContentLoaded', initMarketClock);
 }
+
+/* ============================================
+   DISABLE BACKGROUND VIDEO LOADING (NO-OP)
+   ============================================ */
+function loadRandomBackgroundVideo() {
+    try {
+        // Background video rotation disabled.
+        // Cinematic gradient + neural mesh now control the backdrop.
+        const video = document.getElementById('backgroundVideo');
+        if (video) {
+            video.removeAttribute('src');
+        }
+    } catch (e) {
+        console.log('loadRandomBackgroundVideo disabled error:', e);
+    }
+}
