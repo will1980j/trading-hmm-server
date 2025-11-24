@@ -1,130 +1,119 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Second Skies Trading - Homepage</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Second Skies Trading - Homepage</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}">
 </head>
 <body>
 
-    <!-- Video Background -->
-    <div id="videoContainer" class="video-container">
-        <video id="backgroundVideo" autoplay muted loop playsinline>
-            <source src="" type="video/mp4">
-        </video>
-        <div class="video-overlay"></div>
-    </div>
+<!-- Background Video -->
+<div id="videoContainer" class="video-container">
+<video id="backgroundVideo" autoplay muted loop playsinline>
+<source src="" type="video/mp4">
+</video>
+<div class="video-overlay"></div>
+</div>
 
-    <!-- Status Ribbon -->
-    <section class="status-ribbon">
-        <div class="status-item">
-            <span class="status-label">Session:</span>
-            <span class="status-value" id="statusSession">--</span>
-        </div>
-        <div class="status-item">
-            <span class="status-label">Signals Today:</span>
-            <span class="status-value" id="statusSignals">0</span>
-        </div>
-        <div class="status-item">
-            <span class="status-label">Last Signal:</span>
-            <span class="status-value" id="statusLastSignal">--</span>
-        </div>
-        <div class="status-item">
-            <span class="status-label">Webhook:</span>
-            <span class="status-value" id="statusWebhook">--</span>
-        </div>
-    </section>
+<!-- System Status Ribbon -->
+<section class="status-ribbon">
+<div class="status-item">
+<span class="status-label">Session:</span>
+<span class="status-value" id="statusSession">--</span>
+</div>
+<div class="status-item">
+<span class="status-label">Signals Today:</span>
+<span class="status-value" id="statusSignals">0</span>
+</div>
+<div class="status-item">
+<span class="status-label">Last Signal:</span>
+<span class="status-value" id="statusLastSignal">--</span>
+</div>
+<div class="status-item">
+<span class="status-label">Webhook:</span>
+<span class="status-value" id="statusWebhook">--</span>
+</div>
+</section>
 
-    <!-- MAIN GRID WRAPPER (NEW) -->
-    <main style="display: grid; grid-template-columns: 350px 1fr; gap: 30px; padding: 24px;">
+<!-- Main 2-Column Layout -->
+<main class="layout-grid">
 
-        <!-- LEFT: ROADMAP -->
-        <aside class="roadmap-section">
-            <div class="roadmap-header">
-                <h2>Development Roadmap</h2>
-                <p>Platform evolution and feature development timeline</p>
-            </div>
+<!-- LEFT COLUMN: ROADMAP -->
+<aside class="roadmap-section">
+<div class="roadmap-header">
+<h2>Development Roadmap</h2>
+<p>Platform evolution and feature development timeline</p>
+</div>
 
-            <div class="roadmap-phases">
+<div class="roadmap-phases">
+{% for p in [
+('0', 'Foundation', 'Core platform infrastructure', 'completed', '✅'),
+('1', 'Core Platform', 'Basic trading functionality', 'completed', '✅'),
+('2', 'Automated Signals', 'Real-time signal processing', 'active', '🔄'),
+('2.5', 'Guardrails', 'Risk management systems', '', '📋'),
+('3', 'Real-Time Data', 'Live market data integration', '', '📋'),
+('4', 'Paper Trading', 'Simulated trading environment', '', '📋'),
+('5', 'Risk Management', 'Advanced risk controls', '', '📋'),
+('6', 'ML Enhancement', 'Machine learning integration', '', '📋'),
+('7', 'Advanced Analytics', 'Deep market analysis', '', '📋'),
+('8', 'Multi-Market', 'Cross-market trading', '', '📋'),
+('9', 'Replay Engine', 'Historical simulation', '', '📋'),
+('10', 'Predictive AI', 'AI-powered predictions', '', '📋'),
+('Fund', 'Trading Fund', 'Institutional fund management', 'future', '🎯'),
+('Wealth', 'Wealth Architecture', 'Comprehensive wealth management', 'future', '🎯'),
+('Partner', 'Partner Cadence', 'Strategic partnerships', 'future', '🎯')
+] %}
+<div class="roadmap-phase {{ p[3] }}">
+<div class="phase-header">
+<span class="phase-number">{{ p[0] }}</span>
+<span class="phase-status">{{ p[4] }}</span>
+</div>
+<div class="phase-title">{{ p[1] }}</div>
+<div class="phase-description">{{ p[2] }}</div>
+</div>
+{% endfor %}
+</div>
+</aside>
 
-                {% for p in [
-                ('0', 'Foundation', 'Core platform infrastructure', 'completed', '✅'),
-                ('1', 'Core Platform', 'Basic trading functionality', 'completed', '✅'),
-                ('2', 'Automated Signals', 'Real-time signal processing', 'active', '🔄'),
-                ('2.5', 'Guardrails', 'Risk management systems', '', '📋'),
-                ('3', 'Real-Time Data', 'Live market data integration', '', '📋'),
-                ('4', 'Paper Trading', 'Simulated environment', '', '📋'),
-                ('5', 'Risk Management', 'Advanced risk controls', '', '📋'),
-                ('6', 'ML Enhancement', 'Machine learning integration', '', '📋'),
-                ('7', 'Advanced Analytics', 'Deep market analysis', '', '📋'),
-                ('8', 'Multi-Market', 'Cross-market trading', '', '📋'),
-                ('9', 'Replay Engine', 'Historical simulation', '', '📋'),
-                ('10', 'Predictive AI', 'AI-powered predictions', '', '📋'),
-                ('Fund', 'Trading Fund', 'Institutional fund management', 'future', '🎯'),
-                ('Wealth', 'Wealth Architecture', 'Comprehensive wealth management', 'future', '🎯'),
-                ('Partner', 'Partner Cadence', 'Strategic partnerships', 'future', '🎯')
-                ] %}
+<!-- RIGHT COLUMN: WORKSPACE -->
+<section class="workspace-column">
 
-                <div class="roadmap-phase {{ p[3] }}">
-                    <div class="phase-header">
-                        <span class="phase-number">{{ p[0] }}</span>
-                        <span class="phase-status">{{ p[4] }}</span>
-                    </div>
-                    <div class="phase-title">{{ p[1] }}</div>
-                    <div class="phase-description">{{ p[2] }}</div>
-                </div>
+<section class="hero-section">
+<h1 class="hero-title">Second Skies Trading</h1>
+<p class="hero-subtitle">Advanced algorithmic trading with real-time signal processing</p>
+</section>
 
-                {% endfor %}
+<section class="workspace-grid">
+{% for module in [
+('📊', 'Automated Signals', 'Real-time signal monitoring with Phase 2B integration', '/automated-signals', 'ULTRA'),
+('🧠', 'ML Intelligence Hub', 'Machine learning insights and predictive analytics', '/ml-dashboard', 'Module 20'),
+('⚡', 'Strategy Optimizer', 'Advanced strategy optimization and backtesting', '/strategy-optimizer', 'Module 18'),
+('📈', 'Strategy Compare', 'Compare and analyze multiple trading strategies', '/strategy-comparison', 'Module 19'),
+('⏰', 'Time Analysis', 'Temporal pattern analysis and session optimization', '/time-analysis', 'Module 17'),
+('📋', 'Trade Manager', 'Trade execution and position management', '/trade-manager', 'Beta'),
+('💰', 'Financial Summary', 'Comprehensive financial reporting and analytics', '/financial-summary', 'Module 21'),
+('📊', 'Reporting Hub', 'Advanced reporting and business intelligence', '/reporting-hub', 'Module 22'),
+('💼', 'Prop Portfolio', 'Prop firm portfolio management and compliance', '/prop-portfolio', 'Beta')
+] %}
+<div class="workspace-card">
+<div class="card-header">
+<div class="card-icon">{{ module[0] }}</div>
+<h3>{{ module[1] }}</h3>
+<span class="card-status">{{ module[4] }}</span>
+</div>
+<p class="card-description">{{ module[2] }}</p>
+<a href="{{ module[3] }}" class="card-link">Launch</a>
+</div>
+{% endfor %}
+</section>
 
-            </div>
-        </aside>
+</section>
 
-        <!-- RIGHT: WORKSPACE -->
-        <section>
+</main>
 
-            <!-- Hero -->
-            <section class="hero-section">
-                <div class="hero-content">
-                    <h1 class="hero-title">Second Skies Trading</h1>
-                    <p class="hero-subtitle">Advanced algorithmic trading with real-time signal processing</p>
-                </div>
-            </section>
-
-            <!-- WORKSPACE GRID -->
-            <section class="workspace-grid">
-                
-                {% for module in [
-                    ('📊', 'Automated Signals', 'Real-time signal monitoring with Phase 2B integration', '/automated-signals', 'ULTRA'),
-                    ('🧠', 'ML Intelligence Hub', 'Machine learning insights and predictive analytics', '/ml-dashboard', 'Module 20'),
-                    ('⚡', 'Strategy Optimizer', 'Advanced strategy optimization and backtesting', '/strategy-optimizer', 'Module 18'),
-                    ('📈', 'Strategy Compare', 'Compare and analyze multiple trading strategies', '/strategy-comparison', 'Module 19'),
-                    ('⏰', 'Time Analysis', 'Temporal pattern analysis and session optimization', '/time-analysis', 'Module 17'),
-                    ('📋', 'Trade Manager', 'Trade execution and position management', '/trade-manager', 'Beta'),
-                    ('💰', 'Financial Summary', 'Comprehensive financial reporting and analytics', '/financial-summary', 'Module 21'),
-                    ('📊', 'Reporting Hub', 'Advanced reporting and business intelligence', '/reporting-hub', 'Module 22'),
-                    ('💼', 'Prop Portfolio', 'Prop firm portfolio management and compliance', '/prop-portfolio', 'Beta')
-                ] %}
-
-                <div class="workspace-card">
-                    <div class="card-header">
-                        <div class="card-icon">{{ module[0] }}</div>
-                        <h3>{{ module[1] }}</h3>
-                        <span class="card-status">{{ module[4] }}</span>
-                    </div>
-                    <p class="card-description">{{ module[2] }}</p>
-                    <a href="{{ module[3] }}" class="card-link">Launch</a>
-                </div>
-
-                {% endfor %}
-
-            </section>
-
-        </section>
-    </main>
-
-    <!-- Video rotation script preserved -->
-    <script src="{{ url_for('static', filename='js/homepage.js') }}"></script>
+<!-- *** DO NOT MODIFY THE EXISTING VIDEO ROTATION JAVASCRIPT BELOW THIS COMMENT *** -->
+<script src="{{ url_for('static', filename='js/homepage.js') }}"></script>
 
 </body>
 </html>

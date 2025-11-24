@@ -1,6 +1,5 @@
 /* ===================================================
-HOMEPAGE — MATCHED EXACTLY TO YOUR HTML STRUCTURE
-Dark Fintech UI — Full Working Version
+HOMEPAGE — DARK FINTECH UI
 =================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -13,9 +12,6 @@ body {
     color: #F2F3F5;
 }
 
-/* ============================
-VIDEO BACKGROUND
-============================ */
 .video-container {
     position: fixed;
     inset: 0;
@@ -36,9 +32,7 @@ VIDEO BACKGROUND
     z-index: -1;
 }
 
-/* ============================
-STATUS RIBBON
-============================ */
+/* Status Ribbon */
 .status-ribbon {
     background: rgba(20,22,28,0.85);
     padding: 16px 24px;
@@ -51,33 +45,43 @@ STATUS RIBBON
     gap: 12px;
 }
 
-.status-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
+.status-item { display: flex; align-items: center; gap: 6px; }
+.status-label { color: #9CA3AF; font-size: 0.85rem; }
+.status-value { font-weight: 600; font-size: 0.9rem; }
 
-.status-label {
-    color: #9CA3AF;
-    font-size: 0.85rem;
-}
-
-.status-value {
-    font-weight: 600;
-    font-size: 0.9rem;
-}
-
-/* ============================
-HERO SECTION
-============================ */
-.hero-section {
+/* Main Layout */
+.layout-grid {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 30px;
     padding: 24px;
-    margin-bottom: 20px;
 }
 
-.hero-content {
-    text-align: left;
+/* Roadmap */
+.roadmap-section { padding: 0; }
+.roadmap-header h2 { font-size: 1.4rem; font-weight: 700; }
+.roadmap-header p { color: #9CA3AF; margin-bottom: 20px; }
+.roadmap-phases { display: grid; gap: 14px; }
+
+.roadmap-phase {
+    background: rgba(20,22,28,0.9);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 18px;
+    transition: all 0.2s ease;
 }
+
+.roadmap-phase:hover {
+    background: rgba(26,28,34,1);
+    transform: translateY(-2px);
+}
+
+.phase-header { display: flex; justify-content: space-between; }
+.phase-number { color: #9CA3AF; font-weight: 600; }
+.phase-status { font-size: 1rem; }
+
+/* Workspace */
+.workspace-column { padding-right: 10px; }
 
 .hero-title {
     font-size: 2rem;
@@ -88,19 +92,12 @@ HERO SECTION
     -webkit-text-fill-color: transparent;
 }
 
-.hero-subtitle {
-    font-size: 1rem;
-    color: #9CA3AF;
-}
+.hero-subtitle { color: #9CA3AF; font-size: 1rem; }
 
-/* ============================
-WORKSPACE GRID (MAIN MODULES)
-============================ */
 .workspace-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 20px;
-    padding: 24px;
 }
 
 .workspace-card {
@@ -117,7 +114,6 @@ WORKSPACE GRID (MAIN MODULES)
     box-shadow: 0 8px 20px rgba(0,0,0,0.35);
 }
 
-/* Card Header */
 .card-header {
     display: flex;
     align-items: center;
@@ -125,9 +121,7 @@ WORKSPACE GRID (MAIN MODULES)
     margin-bottom: 12px;
 }
 
-.card-icon {
-    font-size: 1.6rem;
-}
+.card-icon { font-size: 1.6rem; }
 
 .card-status {
     font-size: 0.8rem;
@@ -137,14 +131,8 @@ WORKSPACE GRID (MAIN MODULES)
     color: #4C66FF;
 }
 
-/* Description */
-.card-description {
-    color: #9CA3AF;
-    font-size: 0.9rem;
-    margin-bottom: 12px;
-}
+.card-description { color: #9CA3AF; font-size: 0.9rem; margin-bottom: 12px; }
 
-/* Link Button */
 .card-link {
     display: inline-block;
     padding: 8px 12px;
@@ -161,68 +149,9 @@ WORKSPACE GRID (MAIN MODULES)
     transform: translateY(-2px);
 }
 
-/* ============================
-ROADMAP SECTION
-============================ */
-.roadmap-section {
-    padding: 24px;
-}
-
-.roadmap-header h2 {
-    font-size: 1.4rem;
-    font-weight: 700;
-}
-
-.roadmap-header p {
-    color: #9CA3AF;
-    margin-bottom: 20px;
-}
-
-/* Roadmap phases container */
-.roadmap-phases {
-    display: grid;
-    gap: 14px;
-}
-
-/* Individual phase */
-.roadmap-phase {
-    background: rgba(20,22,28,0.9);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 12px;
-    padding: 18px;
-    transition: all 0.2s ease;
-}
-
-.roadmap-phase:hover {
-    background: rgba(26,28,34,1);
-    transform: translateY(-2px);
-}
-
-/* Phase Header */
-.phase-header {
-    display: flex;
-    justify-content: space-between;
-}
-
-.phase-number {
-    font-weight: 600;
-    color: #9CA3AF;
-}
-
-.phase-status {
-    font-size: 1rem;
-}
-
-/* ============================
-RESPONSIVE
-============================ */
+/* Responsive */
 @media (max-width: 768px) {
-    .status-ribbon {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .hero-title {
-        font-size: 1.6rem;
+    .layout-grid {
+        grid-template-columns: 1fr;
     }
 }
