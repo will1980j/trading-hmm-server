@@ -645,8 +645,9 @@ if db_enabled:
     register_signal_integrity_api(app)
     
     # Phase 2A: Register lightweight read-only API endpoints
-    from signals_api_v2 import register_signals_api_v2
-    register_signals_api_v2(app)
+    # ORIGINAL Phase 2A registration disabled (duplicate)
+    # from signals_api_v2 import register_signals_api_v2
+    # register_signals_api_v2(app)
     
     logger.info("✅ Robust API endpoints registered")
     logger.info("✅ Diagnostics API registered")
