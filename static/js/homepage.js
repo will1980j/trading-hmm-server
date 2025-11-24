@@ -303,3 +303,135 @@ if (typeof module !== 'undefined' && module.exports) {
         renderSystemStatus
     };
 }
+
+/* ============================================
+   BACKGROUND VIDEO ROTATION (NEW BLOCK)
+   ============================================ */
+
+const VIDEO_SOURCES = [
+    "/static/login/1039099-uhd_3840_2160_30fps.mp4",
+    "/static/login/11273072-uhd_3840_2160_60fps.mp4",
+    "/static/login/11750841-uhd_3840_2160.mp4",
+    "/static/login/11901242_3840_2160_60fps.mp4",
+    "/static/login/11901266_3840_2160_60fps.mp4",
+    "/static/login/11901278_3840_2160_60fps.mp4",
+    "/static/login/11956328_3840_2160_60fps.mp4",
+    "/static/login/11987722_3840_2160_60fps.mp4",
+    "/static/login/12175382_3840_2160_60fps.mp4",
+    "/static/login/12245087_3840_2160_60fps.mp4",
+    "/static/login/12417159_3840_2160_60fps.mp4",
+    "/static/login/13206301_3840_2160_60fps.mp4",
+    "/static/login/13206313_3840_2160_60fps.mp4",
+    "/static/login/13520816_3840_2160_60fps.mp4",
+    "/static/login/13572067_3840_2160_60fps.mp4",
+    "/static/login/1448735-uhd_4096_2160_24fps.mp4",
+    "/static/login/14516377_3840_2160_60fps.mp4",
+    "/static/login/14533156_3840_2160_60fps.mp4",
+    "/static/login/14549988_3840_2160_60fps.mp4",
+    "/static/login/14572815_3840_2160_60fps.mp4",
+    "/static/login/14583020_3840_2160_60fps.mp4",
+    "/static/login/15441769-uhd_3840_2160_60fps.mp4",
+    "/static/login/1722697-uhd_3840_2160_25fps.mp4",
+    "/static/login/17422526-uhd_3840_2160_60fps.mp4",
+    "/static/login/1757853-uhd_3840_2160_25fps.mp4",
+    "/static/login/1851190-uhd_3840_2160_25fps.mp4",
+    "/static/login/18674366-uhd_3840_2160_60fps.mp4",
+    "/static/login/18919092-uhd_3840_2160_60fps.mp4",
+    "/static/login/18924205-uhd_3840_2160_60fps.mp4",
+    "/static/login/18991342-uhd_3840_2160_60fps.mp4",
+    "/static/login/20174325-uhd_3840_2160_60fps.mp4",
+    "/static/login/20412841-uhd_3840_2160_60fps.mp4",
+    "/static/login/20528868-uhd_3840_2160_60fps.mp4",
+    "/static/login/2439510-hd_1920_1080_30fps.mp4",
+    "/static/login/2715412-uhd_3840_2160_30fps.mp4",
+    "/static/login/3129595-uhd_3840_2160_30fps.mp4",
+    "/static/login/3214448-uhd_3840_2160_25fps.mp4",
+    "/static/login/3571264-uhd_3840_2160_30fps.mp4",
+    "/static/login/3971351-uhd_3840_2160_25fps.mp4",
+    "/static/login/4130872-uhd_3840_2160_25fps.mp4",
+    "/static/login/4205697-uhd_3840_2160_30fps.mp4",
+    "/static/login/4208317-uhd_3840_2160_24fps.mp4",
+    "/static/login/4280450-uhd_3840_2160_30fps.mp4",
+    "/static/login/4456305-uhd_3840_2160_30fps.mp4",
+    "/static/login/4471213-uhd_3840_2160_30fps.mp4",
+    "/static/login/4763824-uhd_3840_2160_24fps.mp4",
+    "/static/login/5061405-uhd_3840_2160_30fps.mp4",
+    "/static/login/5091624-hd_1920_1080_24fps.mp4",
+    "/static/login/5174040-uhd_3840_2160_30fps.mp4",
+    "/static/login/5179893-uhd_3840_2160_30fps.mp4",
+    "/static/login/5453622-uhd_3840_2160_24fps.mp4",
+    "/static/login/5562986-uhd_3840_2160_24fps.mp4",
+    "/static/login/5606319-uhd_3840_2160_30fps.mp4",
+    "/static/login/5735604-uhd_3840_2160_30fps.mp4",
+    "/static/login/6582341-uhd_3840_2160_30fps.mp4",
+    "/static/login/856885-hd_1920_1080_30fps.mp4",
+    "/static/login/857195-hd_1280_720_25fps.mp4",
+    "/static/login/8820216-uhd_3840_2160_25fps.mp4",
+    "/static/login/uhd_60fps.mp4"
+];
+
+function loadRandomBackgroundVideo() {
+    const video = document.getElementById("backgroundVideo");
+    if (!video) return;
+    
+    const index = Math.floor(Math.random() * VIDEO_SOURCES.length);
+    video.src = VIDEO_SOURCES[index];
+}
+
+// Initialize background video after DOM load
+document.addEventListener("DOMContentLoaded", loadRandomBackgroundVideo);
+
+
+/* ============================================
+   MARKET CLOCK — TIME (NEW YORK) IN STATUS RIBBON
+   ============================================ */
+
+function initMarketClock() {
+    try {
+        const ribbon = document.querySelector('.status-ribbon');
+        if (!ribbon) return;
+
+        // Avoid duplicating clock if called twice
+        if (document.getElementById('statusMarketClock')) return;
+
+        const clockItem = document.createElement('div');
+        clockItem.className = 'status-item status-item-clock';
+        clockItem.innerHTML = `
+            <span class="status-label">Time (NY):</span>
+            <span class="status-value status-neutral" id="statusMarketClock">--:--:--</span>
+        `;
+        ribbon.appendChild(clockItem);
+
+        function updateMarketClock() {
+            try {
+                const clockEl = document.getElementById('statusMarketClock');
+                if (!clockEl) return;
+
+                const now = new Date();
+                const options = {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true,
+                    timeZone: 'America/New_York'
+                };
+                const nyTime = now.toLocaleTimeString('en-US', options);
+                clockEl.textContent = nyTime;
+            } catch (e) {
+                console.log('Market clock update error:', e);
+            }
+        }
+
+        // Initial draw + 1-second updates
+        updateMarketClock();
+        setInterval(updateMarketClock, 1000);
+
+    } catch (err) {
+        console.log('Market clock init error:', err);
+    }
+}
+
+// Attach as a separate DOMContentLoaded listener
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', initMarketClock);
+}
