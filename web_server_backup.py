@@ -118,7 +118,11 @@ if client:
 else:
     logger.warning("⚠️ OPENAI_API_KEY not found")
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    static_folder='static',
+    static_url_path='/static'
+)
 app.secret_key = environ.get('SECRET_KEY', 'dev-key-change-in-production')
 CORS(app, origins=['chrome-extension://abndgpgodnhhkchaoiiopnondcpmnanc', 'https://www.tradingview.com'], supports_credentials=True)
 csrf.init_app(app)
