@@ -383,7 +383,13 @@ def register_signals_api_v2(app):
             # Determine webhook health
             webhook_health = 'HEALTHY'
             if last_ts:
-                time_since_last = datetime.now().timestamp() * 1000 - last_ts
+                # Normalize last_ts into milliseconds since epoch
+                now_ts_ms = datetime.now().timestamp() * 1000
+                if isinstance(last_ts, datetime):
+                    last_ts_ms = last_ts.timestamp() * 1000
+                else:
+                    last_ts_ms = float(last_ts)
+                time_since_last = now_ts_ms - last_ts_ms
                 if time_since_last > 3600000:  # 1 hour
                     webhook_health = 'DEGRADED'
                 if time_since_last > 86400000:  # 24 hours

@@ -924,3 +924,35 @@ body {
     color: #b3bfdc;
     margin: 0;
 }
+
+
+/* ================================================================
+   ROADMAP TEXT VISIBILITY FIX — ADD-ONLY
+   ================================================================ */
+
+.roadmap-section,
+.roadmap-phases,
+.roadmap-phase {
+    color: #e5efff;
+}
+
+.roadmap-phase .phase-number,
+.roadmap-phase .phase-status,
+.roadmap-phase .phase-title,
+.roadmap-phase .phase-description {
+    color: #e5efff;
+}
+
+.roadmap-phase.future .phase-title,
+.roadmap-phase.future .phase-description {
+    color: #cbd5f5;
+}
+
+.roadmap-phase .phase-status {
+    font-weight: 600;
+}
+
+/* Ensure any stray default text inside roadmap stays light */
+.roadmap-section * {
+    color: inherit;
+}
