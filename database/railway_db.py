@@ -1,69 +1,44 @@
-"""Railway PostgreSQL database connection with resilient error handling"""
-import logging
-import os
+"""Railway PostgreSQL database connection - Railway-only, no fallbacks"""
+from os import environ
 import psycopg2
-from psycopg2 import pool, extensions
 from psycopg2.extras import RealDictCursor
+from psycopg2 import extensions
 
-logger = logging.getLogger(__name__)
+# Get Railway DATABASE_URL - fail immediately if missing
+DATABASE_URL = environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise Exception("❌ DATABASE_URL is missing — Railway DB cannot be reached.")
 
-# Try to import resilient system, fall back to basic connection
-try:
-    from database.resilient_connection import get_resilient_db
-    RESILIENT_AVAILABLE = True
-except ImportError:
-    RESILIENT_AVAILABLE = False
-    logger.warning("Resilient connection system not available, using basic connection")
+# Connect to Railway PostgreSQL with SSL
+conn = psycopg2.connect(DATABASE_URL, sslmode='require', cursor_factory=RealDictCursor)
+conn.set_isolation_level(extensions.ISOLATION_LEVEL_READ_COMMITTED)
+conn.rollback()
 
 class RailwayDB:
+    """Railway PostgreSQL database connection wrapper"""
+    
     def __init__(self, use_pool=True):
-        if RESILIENT_AVAILABLE:
-            self._resilient_db = get_resilient_db()
-            self.conn = self._resilient_db.conn
-            self._using_resilient = True
-        else:
-            database_url = os.environ.get('DATABASE_URL')
-            if database_url:
-                self.conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
-                self.conn.set_isolation_level(extensions.ISOLATION_LEVEL_READ_COMMITTED)
-                self.conn.rollback()
-            else:
-                self.conn = None
-            self._using_resilient = False
+        """Initialize with Railway connection only"""
+        self.conn = conn
     
     def close(self):
-        if not self._using_resilient and self.conn:
-            try:
+        """Close connection"""
+        try:
+            if self.conn:
                 self.conn.close()
-            except:
-                pass
+        except:
+            pass
     
     def __del__(self):
+        """Cleanup on deletion"""
         self.close()
     
     def ensure_clean_transaction(self):
-        if self._using_resilient:
-            self._resilient_db._check_and_fix_transaction_state()
-        elif self.conn:
-            try:
-                status = self.conn.get_transaction_status()
-                if status == extensions.TRANSACTION_STATUS_INERROR:
-                    self.conn.rollback()
-            except:
-                pass
-        return True
-    
-    def store_market_data(self, symbol, data):
-        """Mock store market data"""
-        logger.info(f"Mock: Storing market data for {symbol}")
-        return True
-    
-    def store_signal(self, signal_data):
-        """Mock store signal"""
-        logger.info(f"Mock: Storing signal {signal_data.get('type', 'Unknown')}")
-        return True
-    
-    def store_ict_level(self, level_data):
-        """Mock store ICT level"""
-        logger.info(f"Mock: Storing ICT level {level_data.get('type', 'Unknown')}")
+        """Ensure transaction is in clean state"""
+        try:
+            status = self.conn.get_transaction_status()
+            if status == extensions.TRANSACTION_STATUS_INERROR:
+                self.conn.rollback()
+        except:
+            pass
         return True
