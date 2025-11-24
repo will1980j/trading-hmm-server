@@ -861,3 +861,26 @@ body {
 body {
     z-index: -4;
 }
+
+
+/* ================================================================
+   NEURAL MESH CANVAS — LAYERING & VISUAL STYLE (ADD-ONLY)
+   ================================================================ */
+
+.neural-mesh-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.35;
+    mix-blend-mode: screen;
+}
+
+/* Slightly softer mesh on mobile devices */
+@media (max-width: 768px) {
+    .neural-mesh-canvas {
+        opacity: 0.24;
+    }
+}
