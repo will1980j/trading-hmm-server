@@ -1364,3 +1364,27 @@ body {
 .phase-toggle {
     pointer-events: auto !important;
 }
+
+/* ============================================================
+   PATCH 17A — Progress Bar (scale animation + correct width)
+   ============================================================ */
+
+/* Reset all old width animations */
+.phase-progress-line-fill {
+    will-change: transform;
+    transform-origin: left;
+    transform: scaleX(0);
+    opacity: 0;
+}
+
+/* When expanded, animate to full width */
+.roadmap-phase.expanded .phase-progress-line-fill {
+    transform: scaleX(1);
+    opacity: 1;
+    transition: transform 0.45s ease, opacity 0.3s ease;
+}
+
+/* Ensure the bar is visible on all themes */
+.phase-progress-line {
+    overflow: visible !important;
+}

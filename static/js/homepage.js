@@ -549,3 +549,20 @@ function fixRoadmapExpansion() {
 }
 
 document.addEventListener('DOMContentLoaded', fixRoadmapExpansion);
+
+/* ============================================================
+   PATCH 17B — Remove conflicting JS width logic
+   ============================================================ */
+
+function disableProgressWidthReset() {
+    try {
+        const bars = document.querySelectorAll('.phase-progress-line-fill');
+        bars.forEach(bar => {
+            bar.style.width = '';  // remove any JS-set width
+        });
+    } catch (e) {
+        console.log("disableProgressWidthReset error:", e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', disableProgressWidthReset);
