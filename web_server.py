@@ -11291,6 +11291,25 @@ def as_parse_automated_signal_payload(data):
         }
         event_type = mapping.get(automation_stage)
     
+    # --- PHASE 2A FIX: Direct telemetry format (event_type + trade_id directly in payload) ---
+    elif "event_type" in data and ("trade_id" in data or "signal_id" in data):
+        format_kind = "direct_telemetry"
+        event_type = data.get("event_type")
+        trade_id = data.get("trade_id") or data.get("signal_id")
+        normalized = True
+        
+        # Map legacy event type names to standard names
+        event_type_map = {
+            "signal_created": "ENTRY",
+            "SIGNAL_CREATED": "ENTRY",
+            "mfe_update": "MFE_UPDATE",
+            "be_triggered": "BE_TRIGGERED",
+            "signal_completed": "EXIT_SL",
+            "EXIT_STOP_LOSS": "EXIT_SL",
+            "EXIT_BREAK_EVEN": "EXIT_BE"
+        }
+        event_type = event_type_map.get(event_type, event_type)
+    
     canonical = {
         "event_type": event_type,
         "trade_id": trade_id or "UNKNOWN",
@@ -11349,8 +11368,8 @@ def as_validate_parsed_payload(canonical):
         if field not in canonical or canonical[field] in (None, "", "UNKNOWN"):
             return f"Missing or invalid required field: {field}"
     
-    # Format must be recognized
-    if canonical["format_kind"] not in ("telemetry_root", "telemetry_wrapped", "strategy", "legacy_indicator"):
+    # Format must be recognized (PHASE 2A: Added direct_telemetry)
+    if canonical["format_kind"] not in ("telemetry_root", "telemetry_wrapped", "strategy", "legacy_indicator", "direct_telemetry"):
         return f"Unrecognized format_kind: {canonical['format_kind']}"
     
     # Telemetry event types must match internal mapping
