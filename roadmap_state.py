@@ -103,13 +103,13 @@ _add_phase(
     description="Main UX shell, login, dashboards and core analytics modules.",
     modules={
         "homepage_command_center": {"done": True},
-        "main_dashboard": {"done": True},
-        "login_basic": {"done": True},
+        "main_dashboard": {"done": False},
+        "login_basic": {"done": False},
         "secure_auth_hardening": {"done": False},
-        "time_analysis_module": {"done": True},
-        "financial_summary_module": {"done": True},
-        "reporting_hub_module": {"done": True},
-        "trade_manager_module": {"done": True},
+        "time_analysis_module": {"done": False},
+        "financial_summary_module": {"done": False},
+        "reporting_hub_module": {"done": False},
+        "trade_manager_module": {"done": False},
     },
 )
 
@@ -120,14 +120,14 @@ _add_phase(
     name="Automated Signals Engine",
     description="Signal ingestion, lifecycle, MFE and automation-ready state.",
     modules={
-        "webhook_ingest_v2": {"done": True},
-        "event_normalisation": {"done": True},
-        "lifecycle_builder": {"done": True},
-        "mfe_engine_dual": {"done": True},
-        "exit_consolidation": {"done": True},
-        "signal_state_api": {"done": True},
+        "webhook_ingest_v2": {"done": False},
+        "event_normalisation": {"done": False},
+        "lifecycle_builder": {"done": False},
+        "mfe_engine_dual": {"done": False},
+        "exit_consolidation": {"done": False},
+        "signal_state_api": {"done": False},
         "validation_and_guardrails": {"done": False},
-        "live_signal_stats": {"done": True},
+        "live_signal_stats": {"done": False},
     },
 )
 
@@ -166,10 +166,10 @@ _add_phase(
     name="Execution & Automation Engine",
     description="Multi-account routing, pre-trade checks and auto-execution.",
     modules={
-        "execution_router": {"done": True},
-        "order_queue": {"done": True},
-        "position_state_manager": {"done": True},
-        "risk_engine_core": {"done": True},
+        "execution_router": {"done": False},
+        "order_queue": {"done": False},
+        "position_state_manager": {"done": False},
+        "risk_engine_core": {"done": False},
         "auto_entry_logic": {"done": False},
         "auto_exit_logic": {"done": False},
         "pre_trade_checks": {"done": False},
@@ -187,7 +187,7 @@ _add_phase(
         "feature_engineering": {"done": False},
         "r_multiple_model": {"done": False},
         "regime_classifier": {"done": False},
-        "ml_dashboard": {"done": True},
+        "ml_dashboard": {"done": False},
     },
 )
 
@@ -198,10 +198,10 @@ _add_phase(
     name="Strategy Research & Analytics",
     description="Optimisation, comparison and research tooling.",
     modules={
-        "strategy_optimizer": {"done": True},
-        "strategy_compare": {"done": True},
+        "strategy_optimizer": {"done": False},
+        "strategy_compare": {"done": False},
         "expectancy_analysis": {"done": False},
-        "session_analytics": {"done": True},
+        "session_analytics": {"done": False},
         "multi_strategy_portfolio_analysis": {"done": False},
         "what_if_scenarios": {"done": False},
     },
@@ -214,7 +214,7 @@ _add_phase(
     name="Signal Quality & Integrity",
     description="Telemetry, validation, anomaly detection and data hygiene.",
     modules={
-        "telemetry_pipeline": {"done": True},
+        "telemetry_pipeline": {"done": False},
         "signal_validator": {"done": False},
         "anomaly_detection": {"done": False},
         "integrity_dashboard": {"done": False},
@@ -228,11 +228,11 @@ _add_phase(
     name="Prop Portfolio & Compliance",
     description="Prop account registry, rule tracking and payout governance.",
     modules={
-        "prop_account_registry": {"done": True},
+        "prop_account_registry": {"done": False},
         "rule_library": {"done": False},
         "violation_detection": {"done": False},
         "payout_schedule": {"done": False},
-        "programme_sizing": {"done": True},
+        "programme_sizing": {"done": False},
         "exposure_monitoring": {"done": False},
     },
 )
