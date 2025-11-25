@@ -1374,6 +1374,122 @@ def ai_business_advisor_page():
 def nasdaq_ml():
     return read_html_file('nasdaq_ml_dashboard.html')
 
+# ============================================================================
+# HOMEPAGE STATS API - Unified endpoint for homepage statistics
+# ============================================================================
+@app.route('/api/homepage-stats', methods=['GET'])
+def get_homepage_stats():
+    """
+    Unified homepage statistics endpoint
+    Returns: current_session, signals_today, last_signal_time, webhook_health, server_time_ny
+    Data source: automated_signals table (TradingView ingestion pipeline)
+    """
+    try:
+        import pytz
+        from datetime import datetime, timedelta
+        
+        # Get current NY time
+        eastern = pytz.timezone('US/Eastern')
+        now_utc = datetime.utcnow().replace(tzinfo=pytz.utc)
+        now_ny = now_utc.astimezone(eastern)
+        
+        # Calculate current session based on NY time
+        hour = now_ny.hour
+        minute = now_ny.minute
+        current_time_minutes = hour * 60 + minute
+        
+        # Session classification (Eastern Time)
+        if 1200 <= current_time_minutes <= 1439:  # 20:00-23:59
+            current_session = "ASIA"
+        elif 0 <= current_time_minutes < 360:  # 00:00-05:59
+            current_session = "LONDON"
+        elif 360 <= current_time_minutes < 510:  # 06:00-08:29
+            current_session = "NY PRE"
+        elif 510 <= current_time_minutes < 720:  # 08:30-11:59
+            current_session = "NY AM"
+        elif 720 <= current_time_minutes < 780:  # 12:00-12:59
+            current_session = "NY LUNCH"
+        elif 780 <= current_time_minutes < 960:  # 13:00-15:59
+            current_session = "NY PM"
+        else:  # 16:00-19:59
+            current_session = "CLOSED"
+        
+        # Get database connection
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({
+                "current_session": current_session,
+                "signals_today": 0,
+                "last_signal_time": None,
+                "webhook_health": "NO_DATA",
+                "server_time_ny": now_ny.isoformat(),
+                "error": "DATABASE_URL not configured"
+            }), 200
+        
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        
+        # Get today's date in NY timezone
+        today_ny = now_ny.date()
+        
+        # Count unique trade_ids for today (signals today)
+        cursor.execute("""
+            SELECT COUNT(DISTINCT trade_id)
+            FROM automated_signals
+            WHERE DATE(timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'US/Eastern') = %s
+        """, (today_ny,))
+        signals_today = cursor.fetchone()[0] or 0
+        
+        # Get last signal timestamp
+        cursor.execute("""
+            SELECT timestamp
+            FROM automated_signals
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """)
+        last_signal_row = cursor.fetchone()
+        
+        if last_signal_row:
+            last_signal_utc = last_signal_row[0]
+            # Convert to Eastern Time
+            if last_signal_utc.tzinfo is None:
+                last_signal_utc = pytz.utc.localize(last_signal_utc)
+            last_signal_ny = last_signal_utc.astimezone(eastern)
+            last_signal_time = last_signal_ny.isoformat()
+            
+            # Calculate webhook health based on freshness
+            time_since_last = now_utc - last_signal_utc.replace(tzinfo=pytz.utc)
+            minutes_since_last = time_since_last.total_seconds() / 60
+            
+            if minutes_since_last < 10:
+                webhook_health = "OK"
+            elif minutes_since_last < 60:
+                webhook_health = "WARNING"
+            else:
+                webhook_health = "CRITICAL"
+        else:
+            last_signal_time = None
+            webhook_health = "NO_DATA"
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "current_session": current_session,
+            "signals_today": signals_today,
+            "last_signal_time": last_signal_time,
+            "webhook_health": webhook_health,
+            "server_time_ny": now_ny.isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Homepage stats error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "error": "db_failure",
+            "message": str(e)
+        }), 500
+
 # NASDAQ ML API Endpoints
 @app.route('/api/nasdaq-train', methods=['POST'])
 @login_required

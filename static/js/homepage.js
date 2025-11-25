@@ -191,10 +191,10 @@ function createPhaseCard(phase) {
 // Render System Status
 function renderSystemStatus() {
     // Update DOM elements with current status
-    const sessionLabel = document.getElementById('sessionLabel');
-    const signalsToday = document.getElementById('signalsToday');
-    const lastSignalTime = document.getElementById('lastSignalTime');
-    const webhookHealth = document.getElementById('webhookHealth');
+    const sessionLabel = document.getElementById('statusSession');
+    const signalsToday = document.getElementById('statusSignals');
+    const lastSignalTime = document.getElementById('statusLastSignal');
+    const webhookHealth = document.getElementById('statusWebhook');
     const queueDepth = document.getElementById('queueDepth');
     const latencyMs = document.getElementById('latencyMs');
     
@@ -248,36 +248,38 @@ function startStatusRefresh() {
     }, 15000);
 }
 
-// Fetch System Status (API call)
+// Fetch System Status (API call) - UNIFIED ENDPOINT
 async function fetchSystemStatus() {
     try {
-        // Fetch system status
-        const statusResponse = await fetch('/api/system-status');
-        if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            if (statusData.success && statusData.status) {
-                systemStatus.webhook_health = statusData.status.webhook_health || 'unknown';
-                systemStatus.queue_depth = statusData.status.queue_depth || 0;
-                systemStatus.latency_ms = statusData.status.latency_ms || 0;
-                systemStatus.current_session = statusData.status.current_session || '--';
+        // Fetch unified homepage stats from single endpoint
+        const response = await fetch('/api/homepage-stats');
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Map response to systemStatus object
+            systemStatus.current_session = data.current_session || '--';
+            systemStatus.signals_today = data.signals_today || 0;
+            systemStatus.last_signal = data.last_signal_time || '--';
+            systemStatus.webhook_health = data.webhook_health || 'unknown';
+            
+            // Format last signal time if present
+            if (data.last_signal_time && data.last_signal_time !== '--') {
+                try {
+                    const signalDate = new Date(data.last_signal_time);
+                    systemStatus.last_signal = signalDate.toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                } catch (e) {
+                    systemStatus.last_signal = data.last_signal_time;
+                }
             }
+        } else {
+            console.log('Homepage stats API returned error:', response.status);
         }
     } catch (error) {
-        console.log('Failed to fetch system status:', error);
-    }
-    
-    try {
-        // Fetch today's stats
-        const statsResponse = await fetch('/api/signals/stats/today');
-        if (statsResponse.ok) {
-            const statsData = await statsResponse.json();
-            if (statsData.success && statsData.stats) {
-                systemStatus.signals_today = statsData.stats.total_signals || 0;
-                systemStatus.last_signal = statsData.stats.last_signal_time || '--';
-            }
-        }
-    } catch (error) {
-        console.log('Failed to fetch today stats:', error);
+        console.log('Failed to fetch homepage stats:', error);
     }
 }
 
