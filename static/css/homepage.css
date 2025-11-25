@@ -1682,3 +1682,58 @@ body {
 .condensed-phase-header * {
     box-sizing: border-box !important;
 }
+
+/* Ensures bar animates correctly using backend % */
+.phase-progress-line-fill {
+    transform-origin: left !important;
+    transform: scaleX(0) !important;
+    transition: transform 0.5s ease !important;
+}
+
+/* When expanded, animate to full visible width */
+.roadmap-phase.expanded .phase-progress-line-fill {
+    transform: scaleX(1) !important;
+}
+
+/* Status chip container */
+.phase-module-status-chip {
+    margin-left: auto;
+    font-size: 0.72rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+/* Completed = green */
+.phase-module-status-chip.complete {
+    background: rgba(74,222,128,0.1);
+    color: #4ade80;
+    border: 1px solid rgba(74,222,128,0.4);
+}
+
+/* In-progress = amber */
+.phase-module-status-chip.progress {
+    background: rgba(251,191,36,0.1);
+    color: #fbbf24;
+    border: 1px solid rgba(251,191,36,0.4);
+}
+
+/* Not started = grey */
+.phase-module-status-chip.incomplete {
+    background: rgba(148,163,184,0.1);
+    color: #94a3b8;
+    border: 1px solid rgba(148,163,184,0.4);
+}
+
+/* Tighten spine to align visually with phase numbers */
+.roadmap-phases::before {
+    left: 3px !important;
+    width: 2px !important;
+    opacity: 0.75 !important;
+}
+
+/* Ensure items align cleanly against the spine */
+.roadmap-phase {
+    margin-left: 10px !important;
+}
