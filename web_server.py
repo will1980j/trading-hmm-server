@@ -24,6 +24,7 @@ from account_engine import AccountStateManager  # Stage 13G
 import math
 import pytz
 from prop_firm_registry import PropFirmRegistry
+from roadmap_state import phase_progress_snapshot
 
 try:
     from full_automation_webhook_handlers import register_automation_routes
@@ -948,15 +949,8 @@ def logout():
 def homepage():
     """Professional homepage - main landing page after login with nature videos"""
     video_file = get_random_video('homepage')
-    return render_template('homepage_video_background.html', video_file=video_file)
-
-@app.route('/roadmap')
-def roadmap_page():
-    try:
-        return render_template('roadmap.html')
-    except Exception as e:
-        app.logger.error(f"Error rendering roadmap page: {e}", exc_info=True)
-        return "Error loading roadmap", 500
+    roadmap = phase_progress_snapshot()
+    return render_template('homepage_video_background.html', video_file=video_file, roadmap=roadmap)
 
 # Video Background Versions - For Testing
 @app.route('/login-professional', methods=['GET', 'POST'])

@@ -45,39 +45,24 @@
 <div class="roadmap-header">
 <h2>Development Roadmap</h2>
 <p>Platform evolution and feature development timeline</p>
-<button class="roadmap-full-button" type="button" onclick="window.location.href='/roadmap'">View Full Roadmap →</button>
 </div>
 
 <div class="roadmap-phases">
-{% for p in [
-('0', 'Foundation', 'Core platform infrastructure', 'completed', '✅'),
-('1', 'Core Platform', 'Basic trading functionality', 'completed', '✅'),
-('2', 'Automated Signals', 'Real-time signal processing', 'active', '🔄'),
-('2.5', 'Guardrails', 'Risk management systems', '', '📋'),
-('3', 'Real-Time Data', 'Live market data integration', '', '📋'),
-('4', 'Paper Trading', 'Simulated trading environment', '', '📋'),
-('5', 'Risk Management', 'Advanced risk controls', '', '📋'),
-('6', 'ML Enhancement', 'Machine learning integration', '', '📋'),
-('7', 'Advanced Analytics', 'Deep market analysis', '', '📋'),
-('8', 'Multi-Market', 'Cross-market trading', '', '📋'),
-('9', 'Replay Engine', 'Historical simulation', '', '📋'),
-('10', 'Predictive AI', 'AI-powered predictions', '', '📋'),
-('Fund', 'Trading Fund', 'Institutional fund management', 'future', '🎯'),
-('Wealth', 'Wealth Architecture', 'Comprehensive wealth management', 'future', '🎯'),
-('Partner', 'Partner Cadence', 'Strategic partnerships', 'future', '🎯')
-] %}
-<div class="roadmap-phase {{ p[3] }}">
+{% for phase_id, phase in roadmap|dictsort(attribute='1.level') %}
+{# derive a status class based on percent complete #}
+{% set status_class = 'active' if phase.percent > 0 else 'future' %}
+<div class="roadmap-phase {{ status_class }}">
 <button class="phase-toggle" type="button">
 <div class="phase-header condensed-phase-header">
-<span class="condensed-phase-number">{{ p[0] }}</span>
-<span class="condensed-phase-title">{{ p[1] }}</span>
-<span class="condensed-phase-meta">(5 modules • 60%)</span>
+<span class="condensed-phase-number">{{ phase_id }}</span>
+<span class="condensed-phase-title">{{ phase.name }}</span>
+<span class="condensed-phase-meta">({{ phase.modules }} modules • {{ phase.percent }}%)</span>
 </div>
 </button>
 <div class="phase-details">
-<p class="phase-details-text">{{ p[2] }}</p>
+<p class="phase-details-text">{{ phase.description }}</p>
 <div class="phase-progress-line">
-<div class="phase-progress-line-fill" style="width: 60%;"></div>
+<div class="phase-progress-line-fill" style="width: {{ phase.percent }}%;"></div>
 </div>
 </div>
 </div>
