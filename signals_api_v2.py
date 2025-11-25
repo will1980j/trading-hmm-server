@@ -194,7 +194,7 @@ def register_signals_api_v2(app):
             cursor.execute("""
                 SELECT DISTINCT trade_id
                 FROM automated_signals
-                WHERE timestamp >= %s
+                WHERE timestamp >= TO_TIMESTAMP(%s / 1000.0)
             """, (today_start_ts,))
             
             trade_ids = [row['trade_id'] for row in cursor.fetchall()]
