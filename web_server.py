@@ -950,7 +950,8 @@ def homepage():
     """Professional homepage - main landing page after login with nature videos"""
     video_file = get_random_video('homepage')
     roadmap = phase_progress_snapshot()
-    return render_template('homepage_video_background.html', video_file=video_file, roadmap=roadmap)
+    roadmap_sorted = sorted(roadmap.items(), key=lambda item: item[1].get("level", 999))
+    return render_template('homepage_video_background.html', video_file=video_file, roadmap=roadmap_sorted)
 
 # Video Background Versions - For Testing
 @app.route('/login-professional', methods=['GET', 'POST'])

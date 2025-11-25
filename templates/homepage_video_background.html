@@ -48,7 +48,7 @@
 </div>
 
 <div class="roadmap-phases">
-{% for phase_id, phase in roadmap|dictsort(attribute='1.level') %}
+{% for phase_id, phase in roadmap %}
 {# derive a status class based on percent complete #}
 {% set status_class = 'active' if phase.percent > 0 else 'future' %}
 <div class="roadmap-phase {{ status_class }}">
