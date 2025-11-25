@@ -23,6 +23,7 @@ from execution_router import ExecutionRouter
 from account_engine import AccountStateManager  # Stage 13G
 import math
 import pytz
+import traceback
 from prop_firm_registry import PropFirmRegistry
 from roadmap_state import phase_progress_snapshot, ROADMAP
 
@@ -1389,7 +1390,7 @@ def get_homepage_stats():
         from datetime import datetime, timedelta
         
         # Get current NY time
-        eastern = pytz.timezone('US/Eastern')
+        eastern = pytz.timezone('America/New_York')
         now_utc = datetime.utcnow().replace(tzinfo=pytz.utc)
         now_ny = now_utc.astimezone(eastern)
         
@@ -1436,7 +1437,7 @@ def get_homepage_stats():
         cursor.execute("""
             SELECT COUNT(DISTINCT trade_id)
             FROM automated_signals
-            WHERE DATE(timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'US/Eastern') = %s
+            WHERE DATE(timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'America/New_York') = %s
         """, (today_ny,))
         signals_today = cursor.fetchone()[0] or 0
         
