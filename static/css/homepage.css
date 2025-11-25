@@ -1316,6 +1316,44 @@ body {
     color: #d2dcff;
 }
 
+/* Module list container */
+.phase-modules {
+    margin: 8px 0 10px 0;
+}
+
+/* Individual module row */
+.phase-module-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 0.8rem;
+}
+
+/* Module status dot */
+.phase-module-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.phase-module-dot.complete {
+    background: #4ade80;
+    box-shadow: 0 0 4px rgba(74, 222, 128, 0.4);
+}
+
+.phase-module-dot.incomplete {
+    background: #64748b;
+    box-shadow: 0 0 4px rgba(100, 116, 139, 0.3);
+}
+
+/* Module name text */
+.phase-module-name {
+    color: #cbd5e1;
+    line-height: 1.3;
+}
+
 /* Minimal, elegant progress bar */
 .phase-progress-line {
     width: 100%;
@@ -1387,4 +1425,260 @@ body {
 /* Ensure the bar is visible on all themes */
 .phase-progress-line {
     overflow: visible !important;
+}
+
+/* ============================================================
+   PATCH 18 — FINAL FIX FOR DROPDOWN + PROGRESS BAR VISIBILITY
+   ============================================================ */
+
+/* COLLAPSED STATE (default) */
+.phase-details {
+    transform-origin: top;
+    transform: scaleY(0);
+    opacity: 0;
+    height: 0;
+    transition: transform 0.28s ease, opacity 0.25s ease;
+    overflow: hidden;
+}
+
+/* EXPANDED STATE */
+.roadmap-phase.expanded .phase-details {
+    transform: scaleY(1);
+    opacity: 1;
+    height: auto;
+    padding-top: 8px !important;
+}
+
+/* PROGRESS BAR ALWAYS VISIBLE WHEN EXPANDED */
+.roadmap-phase.expanded .phase-progress-line {
+    opacity: 1 !important;
+}
+
+/* PROGRESS BAR ANIMATION (uses width from backend) */
+.phase-progress-line-fill {
+    transform-origin: left;
+    transform: scaleX(0);
+    transition: transform 0.45s ease;
+}
+
+.roadmap-phase.expanded .phase-progress-line-fill {
+    transform: scaleX(1);
+}
+
+/* ============================================================
+   MODULE LIST STYLE (FINTECH CLEAN MODE)
+   ============================================================ */
+
+.phase-modules {
+    margin-top: 6px;
+    margin-bottom: 6px;
+    padding-left: 4px;
+}
+
+.phase-module-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+}
+
+.phase-module-name {
+    font-size: 0.82rem;
+    color: #cfd9ff;
+    letter-spacing: 0.01em;
+}
+
+/* Status dots */
+.phase-module-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.phase-module-dot.complete {
+    background: #4ade80;   /* green */
+}
+
+.phase-module-dot.incomplete {
+    background: #9ca3af;   /* grey */
+}
+
+/* ============================================================
+   PATCH 21 — FINAL ROADMAP POLISH
+   Fintech alignment, neon numbers, perfect spacing
+   ============================================================ */
+
+/* 1. Prevent phase number from wrapping */
+.condensed-phase-number {
+    white-space: nowrap;
+    display: inline-block;
+    padding-right: 4px;
+}
+
+/* 2. Align module count + percent cleanly */
+.condensed-phase-meta {
+    font-size: 0.78rem;
+    color: #b9c8ff;
+    opacity: 0.95;
+    padding-left: 8px;
+    white-space: nowrap;
+}
+
+.condensed-phase-percent {
+    font-size: 0.82rem;
+    color: #7ca2ff;
+    font-weight: 700;
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+/* 3. Make the condensed header perfectly aligned */
+.condensed-phase-header {
+    padding: 6px 8px;
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    align-items: center;
+    width: 100%;
+    gap: 10px;
+}
+
+/* 4. Maintain neon look reliably */
+.condensed-phase-number {
+    color: #29a8ff !important;
+    text-shadow: 0 0 8px rgba(41, 168, 255, 0.5);
+}
+
+/* 5. Perfect detail spacing */
+.phase-details {
+    margin-left: 10px;
+    padding-left: 10px;
+    border-left: 1px solid rgba(110, 130, 170, 0.25);
+    background: rgba(255, 255, 255, 0.015);
+    border-radius: 0 0 8px 8px;
+}
+
+/* 6. Better readable detail text */
+.phase-details-text {
+    font-size: 0.84rem;
+    color: #d3dcff;
+    margin-bottom: 10px;
+}
+
+/* 7. Align module list cleanly */
+.phase-modules {
+    margin-top: 6px;
+    margin-bottom: 6px;
+    padding-left: 4px;
+}
+
+.phase-module-row {
+    padding: 3px 0;
+    align-items: center;
+}
+
+/* 8. Dot improvements */
+.phase-module-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+.phase-module-dot.complete {
+    background: #4ade80;
+}
+
+.phase-module-dot.incomplete {
+    background: #9ca3af;
+}
+
+/* 9. Smooth reveal of details */
+.roadmap-phase.expanded .phase-details {
+    transition: all 0.25s ease;
+}
+
+/* 10. Slight hover elevation for roadmap rows */
+.roadmap-phase:hover {
+    background: rgba(255,255,255,0.03);
+}
+
+/* 11. Condense overall roadmap spacing */
+.roadmap-section {
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+/* ============================================================
+   PATCH 22 — Roadmap Alignment Polish + Spine Correction
+   ============================================================ */
+
+/* 1. Align roadmap container cleanly */
+.roadmap-phases {
+    position: relative;
+    padding-left: 12px !important;
+}
+
+/* 2. Timeline spine alignment */
+.roadmap-phases::before {
+    left: 6px !important;
+}
+
+/* 3. Reduce phase row vertical footprint */
+.roadmap-phase {
+    padding: 2px 0 !important;
+}
+
+/* 4. Perfect alignment of condensed header grid columns */
+.condensed-phase-header {
+    grid-template-columns: auto auto 1fr auto !important;
+    gap: 6px !important;
+}
+
+/* 5. Lock neon phase number baseline */
+.condensed-phase-number {
+    display: inline-block;
+    line-height: 1rem !important;
+    padding-top: 1px;
+}
+
+/* 6. Phase name spacing fix */
+.condensed-phase-title {
+    padding-top: 1px;
+}
+
+/* 7. Module count spacing fix */
+.condensed-phase-meta {
+    padding-top: 1px;
+}
+
+/* 8. Percent right alignment + vertical center */
+.condensed-phase-percent {
+    padding-top: 1px;
+}
+
+/* 9. Ensure details section opens smoothly and uniformly */
+.phase-details {
+    margin-top: 4px !important;
+    padding-left: 12px !important;
+}
+
+/* 10. Module list rows alignment */
+.phase-module-row {
+    display: flex !important;
+    align-items: center !important;
+    padding: 2px 0 !important;
+}
+
+/* 11. Keep dots vertically aligned */
+.phase-module-dot {
+    margin-top: 1px !important;
+}
+
+/* 12. Prevent any leftover old styles from interfering */
+.phase-details,
+.phase-details *,
+.condensed-phase-header,
+.condensed-phase-header * {
+    box-sizing: border-box !important;
 }

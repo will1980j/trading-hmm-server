@@ -61,6 +61,14 @@
 </button>
 <div class="phase-details">
 <p class="phase-details-text">{{ phase.description }}</p>
+<div class="phase-modules">
+{% for module in phase.module_list %}
+<div class="phase-module-row">
+<span class="phase-module-dot {% if module.done %}complete{% else %}incomplete{% endif %}"></span>
+<span class="phase-module-name">{{ module.title }}</span>
+</div>
+{% endfor %}
+</div>
 <div class="phase-progress-line">
 <div class="phase-progress-line-fill" style="width: {{ phase.percent }}%;"></div>
 </div>

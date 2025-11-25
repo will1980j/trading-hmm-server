@@ -24,7 +24,7 @@ from account_engine import AccountStateManager  # Stage 13G
 import math
 import pytz
 from prop_firm_registry import PropFirmRegistry
-from roadmap_state import phase_progress_snapshot
+from roadmap_state import phase_progress_snapshot, ROADMAP
 
 try:
     from full_automation_webhook_handlers import register_automation_routes
@@ -949,7 +949,29 @@ def logout():
 def homepage():
     """Professional homepage - main landing page after login with nature videos"""
     video_file = get_random_video('homepage')
-    roadmap = phase_progress_snapshot()
+    snapshot = phase_progress_snapshot()
+    
+    # Build human-readable module lists (same logic as /api/roadmap)
+    module_lists = {}
+    for phase_id, pdata in snapshot.items():
+        raw_phase = ROADMAP.get(phase_id, {})
+        raw_modules = raw_phase.get("modules", {})
+        cleaned = []
+        for key, done in raw_modules.items():
+            title = key.replace("_", " ").title()
+            cleaned.append({
+                "key": key,
+                "title": title,
+                "done": bool(done)
+            })
+        module_lists[phase_id] = cleaned
+    
+    # Combine snapshot with module lists
+    roadmap = {}
+    for phase_id in snapshot:
+        roadmap[phase_id] = dict(snapshot[phase_id])
+        roadmap[phase_id]["module_list"] = module_lists.get(phase_id, [])
+    
     roadmap_sorted = sorted(roadmap.items(), key=lambda item: item[1].get("level", 999))
     return render_template('homepage_video_background.html', video_file=video_file, roadmap=roadmap_sorted)
 
@@ -5589,6 +5611,39 @@ def api_health_check():
     })
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
+
+@app.route('/api/roadmap', methods=['GET'])
+def api_roadmap():
+    """Get roadmap data with human-readable module lists"""
+    try:
+        snapshot = phase_progress_snapshot()
+        
+        # Build human-readable module lists
+        module_lists = {}
+        for phase_id, pdata in snapshot.items():
+            raw_phase = ROADMAP.get(phase_id, {})
+            raw_modules = raw_phase.get("modules", {})
+            cleaned = []
+            for key, done in raw_modules.items():
+                # Convert internal key: "signal_ingestion" -> "Signal Ingestion"
+                title = key.replace("_", " ").title()
+                cleaned.append({
+                    "key": key,
+                    "title": title,
+                    "done": bool(done)
+                })
+            module_lists[phase_id] = cleaned
+        
+        # Combine snapshot with module lists
+        combined = {}
+        for phase_id in snapshot:
+            combined[phase_id] = dict(snapshot[phase_id])
+            combined[phase_id]["module_list"] = module_lists.get(phase_id, [])
+        
+        return jsonify({"success": True, "roadmap": combined})
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/test')
 def test_endpoint():
