@@ -221,23 +221,23 @@ def register_signals_api_v2(app):
             completed = len([s for s in states if s.get('status') == 'COMPLETED'])
             active = len([s for s in states if s.get('status') in ['ACTIVE', 'PENDING']])
             
-            # Win rate (signals with positive R)
+            # Win rate
             completed_states = [s for s in states if s.get('status') == 'COMPLETED']
             wins = len([s for s in completed_states if (s.get('r_multiple') or 0) > 0])
-            winrate = (wins / completed) * 100 if completed > 0 else 0
+            winrate = round((wins / completed) * 100, 2) if completed > 0 else 0
             
             # Average R
-            r_values = [s.get('r_multiple') for s in completed_states if s.get('r_multiple') is not None]
-            avg_r = sum(r_values) / len(r_values) if r_values else 0
+            r_values = [s.get('r_multiple') for s in completed_states if isinstance(s.get('r_multiple'), (int, float))]
+            avg_r = round(sum(r_values) / len(r_values), 2) if r_values else 0
             
             # Expectancy
-            expectancy = avg_r if r_values else 0
+            expectancy = avg_r
             
             # Average MFE
-            mfe_values = [s.get('mfe') for s in states if s.get('mfe') is not None]
-            avg_mfe = sum(mfe_values) / len(mfe_values) if mfe_values else 0
+            mfe_values = [s.get('mfe') for s in states if isinstance(s.get('mfe'), (int, float))]
+            avg_mfe = round(sum(mfe_values) / len(mfe_values), 2) if mfe_values else 0
             
-            # Average AE (not yet implemented)
+            # Average AE (not implemented)
             avg_ae = 0
             
             return jsonify({
