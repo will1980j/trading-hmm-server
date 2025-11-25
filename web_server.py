@@ -954,10 +954,12 @@ def homepage():
     # Build human-readable module lists (same logic as /api/roadmap)
     module_lists = {}
     for phase_id, pdata in snapshot.items():
-        raw_phase = ROADMAP.get(phase_id, {})
-        raw_modules = raw_phase.get("modules", {})
+        raw_phase = ROADMAP.get(phase_id)
+        raw_modules = getattr(raw_phase, "modules", {}) or {}
         cleaned = []
-        for key, done in raw_modules.items():
+        for key, status in raw_modules.items():
+            # status may be a ModuleStatus dataclass or a simple bool
+            done = getattr(status, "completed", status)
             title = key.replace("_", " ").title()
             cleaned.append({
                 "key": key,
@@ -5621,10 +5623,12 @@ def api_roadmap():
         # Build human-readable module lists
         module_lists = {}
         for phase_id, pdata in snapshot.items():
-            raw_phase = ROADMAP.get(phase_id, {})
-            raw_modules = raw_phase.get("modules", {})
+            raw_phase = ROADMAP.get(phase_id)
+            raw_modules = getattr(raw_phase, "modules", {}) or {}
             cleaned = []
-            for key, done in raw_modules.items():
+            for key, status in raw_modules.items():
+                # status may be a ModuleStatus dataclass or a simple bool
+                done = getattr(status, "completed", status)
                 # Convert internal key: "signal_ingestion" -> "Signal Ingestion"
                 title = key.replace("_", " ").title()
                 cleaned.append({
