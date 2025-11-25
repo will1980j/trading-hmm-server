@@ -1333,3 +1333,34 @@ body {
     border-radius: inherit;
     transition: width 0.6s ease;
 }
+
+/* ================================================================
+   PATCH 16A — Fix roadmap expand/collapse + remove dot
+   ================================================================ */
+
+/* 1. Ensure dropdown expands regardless of DOM structure */
+.roadmap-phase.expanded .phase-details {
+    display: block !important;
+    max-height: 600px !important;
+    opacity: 1 !important;
+    padding-top: 10px !important;
+    transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+/* 2. Default collapsed state */
+.phase-details {
+    display: block;
+    max-height: 0 !important;
+    opacity: 0 !important;
+    overflow: hidden;
+}
+
+/* 3. Remove the blue dot but keep the timeline spine */
+.roadmap-phase::before {
+    display: none !important;
+}
+
+/* 4. Ensure toggle always accepts clicks */
+.phase-toggle {
+    pointer-events: auto !important;
+}

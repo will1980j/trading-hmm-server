@@ -527,3 +527,25 @@ function enhanceRoadmapUX() {
 }
 
 document.addEventListener('DOMContentLoaded', enhanceRoadmapUX);
+
+/* ================================================================
+   PATCH 16B — Fix JS selector so expansion WORKS
+   ================================================================ */
+
+function fixRoadmapExpansion() {
+    try {
+        const phases = document.querySelectorAll('.roadmap-phase');
+        phases.forEach(phase => {
+            const toggle = phase.querySelector('.phase-toggle');
+            if (!toggle) return;
+            
+            toggle.addEventListener('click', () => {
+                phase.classList.toggle('expanded');
+            });
+        });
+    } catch (e) {
+        console.log("fixRoadmapExpansion error:", e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', fixRoadmapExpansion);
