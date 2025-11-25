@@ -451,3 +451,31 @@ function loadRandomBackgroundVideo() {
         console.log('loadRandomBackgroundVideo disabled error:', e);
     }
 }
+
+
+/* ================================================================
+   ROADMAP PHASE EXPANSION CONTROLS — ADD ONLY
+   ================================================================ */
+
+function initRoadmapExpansion() {
+    try {
+        const phases = document.querySelectorAll('.roadmap-phase .phase-toggle');
+        if (!phases.length) return;
+
+        phases.forEach(btn => {
+            btn.addEventListener('click', function () {
+                try {
+                    const parent = this.closest('.roadmap-phase');
+                    if (!parent) return;
+                    parent.classList.toggle('expanded');
+                } catch (err) {
+                    console.log("Roadmap expansion error:", err);
+                }
+            });
+        });
+    } catch (e) {
+        console.log("initRoadmapExpansion error:", e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', initRoadmapExpansion);

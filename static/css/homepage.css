@@ -956,3 +956,157 @@ body {
 .roadmap-section * {
     color: inherit;
 }
+
+/* ================================================================
+   ROADMAP UI UPGRADE — STYLING & VISUAL FIXES (ADD-ONLY)
+   ================================================================ */
+
+/* --- Fix roadmap text visibility --- */
+.roadmap-section,
+.roadmap-section * {
+    color: #e8efff !important;
+}
+
+/* --- Roadmap header button --- */
+.roadmap-full-button {
+    margin-top: 8px;
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid rgba(0,163,255,0.35);
+    background: rgba(0,163,255,0.15);
+    color: #d9eeff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+}
+
+.roadmap-full-button:hover {
+    background: rgba(0,163,255,0.25);
+    transform: translateY(-2px);
+}
+
+/* --- Phase toggle button area --- */
+.phase-toggle {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+}
+
+/* --- Expand indicator --- */
+.phase-expand-indicator {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    color: #9db8ff;
+    margin-top: 4px;
+}
+
+/* --- Hidden details container --- */
+.phase-details {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    padding-left: 4px;
+    padding-top: 0px;
+    transition:
+        max-height 0.28s ease,
+        opacity 0.24s ease;
+    border-left: 1px solid rgba(122,162,255,0.2);
+}
+
+/* --- Expanded state --- */
+.roadmap-phase.expanded .phase-details {
+    max-height: 200px;
+    opacity: 1;
+    padding-top: 8px;
+}
+
+/* --- Details text --- */
+.phase-details-text {
+    font-size: 0.82rem;
+    line-height: 1.3rem;
+    color: #cfd9ff;
+    margin-bottom: 10px;
+}
+
+/* --- Status dot placeholders (used in Patch 3/4) --- */
+.phase-module-status {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: #6b7280;  /* default = grey */
+}
+
+.phase-module-status.complete {
+    background: #4ade80; /* green */
+}
+
+.phase-module-status.progress {
+    background: #fde047; /* amber */
+}
+
+.phase-module-status.future {
+    background: #9ca3af; /* grey */
+}
+
+
+/* ================================================================
+   MODULE GRID STATUS STYLING — ACTIVE / FUTURE
+   ================================================================ */
+
+.workspace-card--active {
+    opacity: 1;
+}
+
+.workspace-card--future {
+    opacity: 0.65;
+    border-style: dashed;
+    border-color: rgba(148, 163, 184, 0.8);
+}
+
+.workspace-card--future .card-link {
+    background: transparent;
+    border-style: dashed;
+    border-color: rgba(148, 163, 184, 0.8);
+    color: #9ca3af;
+}
+
+/* Disabled / in-progress states (for later use) */
+.card-link--disabled {
+    display: inline-block;
+    padding: 7px 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: 10px;
+    background: rgba(148, 163, 184, 0.12);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    color: #9ca3af;
+    cursor: default;
+}
+
+.card-link--ghost {
+    cursor: pointer;
+}
+
+/* Module code hover indicator (B = show numbers on hover) */
+.workspace-card::after {
+    content: attr(data-module-code);
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(156, 163, 175, 0.0);
+    transition: color 0.18s ease;
+}
+
+.workspace-card:hover::after {
+    color: rgba(156, 163, 175, 0.8);
+}
