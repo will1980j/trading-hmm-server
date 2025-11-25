@@ -1110,3 +1110,100 @@ body {
 .workspace-card:hover::after {
     color: rgba(156, 163, 175, 0.8);
 }
+
+
+/* ================================================================
+   PATCH 7 — CONDENSED ROADMAP STYLING (ADD-ONLY)
+   Premium fintech compact layout
+   ================================================================ */
+
+/* --- Roadmap container compact spacing --- */
+.roadmap-section {
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+/* --- One-line compact header --- */
+.condensed-phase-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 4px;
+}
+
+/* --- Neon number (premium minimalist style) --- */
+.condensed-phase-number {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #00a3ff; /* neon */
+    min-width: 18px;
+}
+
+/* --- Phase title on same line --- */
+.condensed-phase-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #e8efff;
+}
+
+/* --- Module count + % (right side) --- */
+.condensed-phase-meta {
+    margin-left: auto;
+    font-size: 0.75rem;
+    opacity: 0.85;
+    color: #9fb6ff;
+}
+
+/* --- Hide default description (moved to expanded area) --- */
+.phase-description {
+    display: none !important;
+}
+
+/* --- Expanded section styling --- */
+.phase-details {
+    padding: 8px 10px 6px 10px;
+    border-left: 1px solid rgba(122,162,255,0.20);
+    margin-left: 6px;
+    transition: all 0.25s ease;
+}
+
+.phase-details-text {
+    font-size: 0.82rem;
+    color: #cfd9ff;
+    line-height: 1.32rem;
+    margin-bottom: 6px;
+}
+
+/* --- Minimal line progress bar --- */
+.phase-progress-line {
+    width: 100%;
+    height: 3px;
+    background: rgba(110,130,170,0.25);
+    border-radius: 20px;
+    overflow: hidden;
+    margin-top: 6px;
+}
+
+.phase-progress-line-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4c66ff, #00a3ff);
+    border-radius: inherit;
+    transition: width 0.5s ease;
+}
+
+/* --- Remove old "Details" label --- */
+.phase-expand-indicator {
+    display: none !important;
+}
+
+/* --- Hover elevation for compact blocks --- */
+.roadmap-phase {
+    padding: 0;
+    margin: 0;
+}
+
+.roadmap-phase:hover {
+    background: rgba(255,255,255,0.03);
+    transition: background 0.2s ease;
+}

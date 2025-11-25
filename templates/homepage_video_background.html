@@ -68,16 +68,17 @@
 ] %}
 <div class="roadmap-phase {{ p[3] }}">
 <button class="phase-toggle" type="button">
-<div class="phase-header">
-<span class="phase-number">{{ p[0] }}</span>
-<span class="phase-status">{{ p[4] }}</span>
+<div class="phase-header condensed-phase-header">
+<span class="condensed-phase-number">{{ p[0] }}</span>
+<span class="condensed-phase-title">{{ p[1] }}</span>
+<span class="condensed-phase-meta">(5 modules • 60%)</span>
 </div>
-<div class="phase-title">{{ p[1] }}</div>
-<div class="phase-description">{{ p[2] }}</div>
-<span class="phase-expand-indicator">Details</span>
 </button>
 <div class="phase-details">
-<p class="phase-details-text">Detailed plan and module-level status for phase {{ p[0] }} — {{ p[1] }} will appear here.</p>
+<p class="phase-details-text">{{ p[2] }}</p>
+<div class="phase-progress-line">
+<div class="phase-progress-line-fill" style="width: 60%;"></div>
+</div>
 </div>
 </div>
 {% endfor %}

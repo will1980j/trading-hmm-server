@@ -479,3 +479,51 @@ function initRoadmapExpansion() {
 }
 
 document.addEventListener('DOMContentLoaded', initRoadmapExpansion);
+
+
+/* ================================================================
+   PATCH 8 — ROADMAP JS POLISH (ADD ONLY)
+   Smooth expansion, auto-scroll, and animated progress bars
+   ================================================================ */
+
+function enhanceRoadmapUX() {
+    try {
+        const phases = document.querySelectorAll('.roadmap-phase');
+        if (!phases.length) return;
+
+        phases.forEach(phase => {
+            const toggle = phase.querySelector('.phase-toggle');
+            const details = phase.querySelector('.phase-details');
+            const progressFill = phase.querySelector('.phase-progress-line-fill');
+
+            if (!toggle || !details) return;
+
+            toggle.addEventListener('click', () => {
+                // Toggle expansion state
+                const expanded = phase.classList.toggle('expanded');
+
+                // Smooth scroll into view if opening
+                if (expanded) {
+                    setTimeout(() => {
+                        phase.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 120);
+                }
+
+                // Animate progress bar fill on open
+                if (progressFill) {
+                    if (expanded) {
+                        const width = progressFill.getAttribute('data-progress') || progressFill.style.width;
+                        progressFill.style.width = width;
+                    } else {
+                        // collapse animation (optional)
+                        progressFill.style.width = "0%";
+                    }
+                }
+            });
+        });
+    } catch (error) {
+        console.log("enhanceRoadmapUX error:", error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', enhanceRoadmapUX);

@@ -950,6 +950,14 @@ def homepage():
     video_file = get_random_video('homepage')
     return render_template('homepage_video_background.html', video_file=video_file)
 
+@app.route('/roadmap')
+def roadmap_page():
+    try:
+        return render_template('roadmap.html')
+    except Exception as e:
+        app.logger.error(f"Error rendering roadmap page: {e}", exc_info=True)
+        return "Error loading roadmap", 500
+
 # Video Background Versions - For Testing
 @app.route('/login-professional', methods=['GET', 'POST'])
 def login_professional():
