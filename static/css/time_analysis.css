@@ -395,6 +395,32 @@ body {
 }
 
 /* ============================================================================
+   SESSION HOTSPOT ROWS
+   ============================================================================ */
+
+.session-hotspot-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    color: #d7e1f8;
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+.hot-label {
+    color: #4DDFFF; /* neon blue */
+}
+
+.cold-label {
+    color: #F87171; /* muted red */
+}
+
+.hot-values,
+.cold-values {
+    font-weight: 600;
+}
+
+/* ============================================================================
    RESPONSIVE DESIGN
    ============================================================================ */
 @media (max-width: 1400px) {

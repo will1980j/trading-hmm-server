@@ -1,19 +1,18 @@
 // ============================================================================
-// MODULE 17 - TIME ANALYSIS (PHASE 2C)
-// Wired to Phase 2A Read-Only APIs - Real Data
+// MODULE 17 - TIME ANALYSIS (H1.3 - Canonical API)
+// Uses /api/time-analysis as single source of truth
 // ============================================================================
 
 class TimeAnalysis {
     constructor() {
         this.isLoading = false;
-        this.todaySignals = [];
-        this.sessionData = {};
+        this.data = null;
         
         this.init();
     }
     
     async init() {
-        console.log('🚀 Time Analysis - Phase 2C Initialized (Real Data)');
+        console.log('🚀 Time Analysis - H1.3 Initialized (Canonical API)');
         
         await this.fetchAllData();
     }
@@ -23,253 +22,194 @@ class TimeAnalysis {
         
         this.isLoading = true;
         try {
-            await Promise.all([
-                this.fetchTodaySignals(),
-                this.fetchSessionSummary()
-            ]);
+            const res = await fetch('/api/time-analysis');
+            if (!res.ok) {
+                console.error('❌ Time Analysis API returned:', res.status);
+                this.renderEmpty();
+                return;
+            }
             
+            const data = await res.json();
+            this.data = data;
+            console.log('✅ Time Analysis data loaded:', data);
             this.renderAll();
-        } catch (error) {
-            console.error('❌ Time Analysis - Error fetching data:', error);
+        } catch (e) {
+            console.error('❌ Time Analysis fetch error:', e);
             this.renderEmpty();
         } finally {
             this.isLoading = false;
         }
     }
     
-    async fetchTodaySignals() {
-        try {
-            const response = await fetch('/api/signals/today');
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            
-            const data = await response.json();
-            if (data.success && data.signals) {
-                this.todaySignals = data.signals;
-            }
-        } catch (error) {
-            console.error('❌ Error fetching today signals:', error);
-            this.todaySignals = [];
-        }
-    }
-    
-    async fetchSessionSummary() {
-        try {
-            const endDate = new Date();
-            const startDate = new Date();
-            startDate.setDate(startDate.getDate() - 30);
-            
-            const start = startDate.toISOString().split('T')[0];
-            const end = endDate.toISOString().split('T')[0];
-            
-            const response = await fetch(`/api/session-summary?start=${start}&end=${end}`);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            
-            const data = await response.json();
-            if (data.success && data.sessions) {
-                this.sessionData = data.sessions;
-            }
-        } catch (error) {
-            console.error('❌ Error fetching session summary:', error);
-            this.sessionData = {};
-        }
-    }
-    
     renderAll() {
+        if (!this.data) {
+            this.renderEmpty();
+            return;
+        }
+        
         this.renderMetricSummary();
-        this.renderSessionHeatmap();
-        this.renderSessionCards();
-        this.renderRDistribution();
+        this.renderSessionAnalysis();
+        this.renderHourlyAnalysis();
+        this.renderDayAnalysis();
+        this.renderSessionHotspots();
+        this.renderHotColdHours();
     }
     
     renderEmpty() {
-        this.renderMetricSummary({});
-        this.renderSessionHeatmap({});
-        this.renderSessionCards({});
-        this.renderRDistribution([]);
+        const elements = [
+            'winrate-overall', 'expectancy', 'avg-r', 'total-trades', 'best-session'
+        ];
+        elements.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '--';
+        });
+        
+        console.log('📊 Time Analysis - No data available');
     }
     
     renderMetricSummary() {
-        const overallWinrate = this.calculateOverallWinrate();
-        const overallExpectancy = this.calculateOverallExpectancy();
-        const overallAvgR = this.calculateOverallAvgR();
-        const totalTrades = this.calculateTotalTrades();
-        const bestSession = this.findBestSession();
+        if (!this.data) return;
+        
+        // Calculate overall win rate from session data
+        let totalWins = 0;
+        let totalTrades = this.data.total_trades || 0;
+        
+        if (this.data.session && this.data.session.length > 0) {
+            this.data.session.forEach(s => {
+                totalWins += Math.round(s.trades * s.win_rate);
+            });
+        }
+        
+        const overallWinrate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
         
         const winrateEl = document.getElementById('winrate-overall');
         if (winrateEl) winrateEl.textContent = overallWinrate.toFixed(1) + '%';
         
         const expectancyEl = document.getElementById('expectancy');
-        if (expectancyEl) expectancyEl.textContent = overallExpectancy.toFixed(2) + 'R';
+        if (expectancyEl) expectancyEl.textContent = (this.data.overall_expectancy || 0).toFixed(2) + 'R';
         
         const avgREl = document.getElementById('avg-r');
-        if (avgREl) avgREl.textContent = overallAvgR.toFixed(2) + 'R';
+        if (avgREl) avgREl.textContent = (this.data.overall_expectancy || 0).toFixed(2) + 'R';
         
         const totalEl = document.getElementById('total-trades');
         if (totalEl) totalEl.textContent = totalTrades;
         
         const bestEl = document.getElementById('best-session');
-        if (bestEl) bestEl.textContent = bestSession;
-    }
-    
-    renderSessionHeatmap() {
-        const container = document.getElementById('session-heatmap');
-        if (!container) return;
-        
-        const sessions = Object.keys(this.sessionData);
-        
-        if (sessions.length === 0) {
-            container.innerHTML = '<div class="no-data">No session data available</div>';
-            return;
+        if (bestEl && this.data.best_session) {
+            bestEl.textContent = this.data.best_session.session || '--';
         }
-        
-        container.innerHTML = '';
-        
-        sessions.forEach(session => {
-            const data = this.sessionData[session];
-            const winrate = data.winrate || 0;
-            const intensity = Math.min(winrate / 100, 1);
-            const color = intensity > 0.5 ? 
-                `rgba(16, 185, 129, ${intensity})` : 
-                `rgba(239, 68, 68, ${1 - intensity})`;
-            
-            const cell = document.createElement('div');
-            cell.className = 'session-heatmap-cell';
-            cell.style.background = color;
-            
-            cell.innerHTML = `
-                <span class="session-name">${session.replace('_', ' ')}</span>
-                <span class="session-value">${winrate.toFixed(1)}%</span>
-            `;
-            
-            container.appendChild(cell);
-        });
     }
     
-    renderSessionCards() {
+    renderSessionAnalysis() {
+        if (!this.data || !this.data.session) return;
+        
+        console.log('📊 Session Analysis:', this.data.session);
+        
+        // Render session cards in both grids
         const winrateContainer = document.getElementById('session-winrate-cards');
         const expectancyContainer = document.getElementById('session-expectancy-cards');
         
-        if (!winrateContainer || !expectancyContainer) return;
+        if (winrateContainer) {
+            winrateContainer.innerHTML = '';
+            this.data.session.forEach(sessionData => {
+                const card = this.createSessionCard(sessionData, 'winrate');
+                winrateContainer.appendChild(card);
+            });
+        }
         
-        const sessions = Object.keys(this.sessionData);
+        if (expectancyContainer) {
+            expectancyContainer.innerHTML = '';
+            this.data.session.forEach(sessionData => {
+                const card = this.createSessionCard(sessionData, 'expectancy');
+                expectancyContainer.appendChild(card);
+            });
+        }
+    }
+    
+    createSessionCard(sessionData, type) {
+        const card = document.createElement('div');
+        card.className = 'session-card';
         
-        if (sessions.length === 0) {
-            winrateContainer.innerHTML = '<div class="no-data">No data</div>';
-            expectancyContainer.innerHTML = '<div class="no-data">No data</div>';
+        const value = type === 'winrate' 
+            ? (sessionData.win_rate * 100).toFixed(1) + '%'
+            : sessionData.expectancy.toFixed(2) + 'R';
+        
+        card.innerHTML = `
+            <div class="session-title">${sessionData.session}</div>
+            <div class="session-value">${value}</div>
+            <div class="session-metric">Trades: ${sessionData.trades}</div>
+            <div class="session-hotspot-row">
+                <div class="hot-label">Hot Hours:</div>
+                <div class="hot-values" data-hot-hours-for="${sessionData.session}">--</div>
+            </div>
+            <div class="session-hotspot-row">
+                <div class="cold-label">Cold Hour:</div>
+                <div class="cold-values" data-cold-hours-for="${sessionData.session}">--</div>
+            </div>
+        `;
+        
+        return card;
+    }
+    
+    renderHourlyAnalysis() {
+        if (!this.data || !this.data.hourly) return;
+        
+        console.log('📊 Hourly Analysis:', this.data.hourly);
+        // Placeholder for hourly visualization
+        // Can be enhanced with charts in future iterations
+    }
+    
+    renderDayAnalysis() {
+        if (!this.data || !this.data.day_of_week) return;
+        
+        console.log('📊 Day Analysis:', this.data.day_of_week);
+        // Placeholder for day-of-week visualization
+        // Can be enhanced with charts in future iterations
+    }
+    
+    renderSessionHotspots() {
+        if (!this.data || !this.data.session_hotspots || !this.data.session_hotspots.sessions) {
+            console.log('📊 Session Hotspots: No data available');
             return;
         }
         
-        winrateContainer.innerHTML = '';
-        expectancyContainer.innerHTML = '';
+        const sessions = this.data.session_hotspots.sessions;
+        console.log('🔥 Session Hotspots:', sessions);
         
-        sessions.forEach(session => {
-            const data = this.sessionData[session];
-            
-            const winrateCard = document.createElement('div');
-            winrateCard.className = 'session-card';
-            winrateCard.innerHTML = `
-                <div class="session-card-name">${session.replace('_', ' ')}</div>
-                <div class="session-card-value">${(data.winrate || 0).toFixed(1)}%</div>
-            `;
-            winrateContainer.appendChild(winrateCard);
-            
-            const expectancyCard = document.createElement('div');
-            expectancyCard.className = 'session-card';
-            expectancyCard.innerHTML = `
-                <div class="session-card-name">${session.replace('_', ' ')}</div>
-                <div class="session-card-value">${(data.expectancy || 0).toFixed(2)}R</div>
-            `;
-            expectancyContainer.appendChild(expectancyCard);
+        // Log detailed hotspot information for each session
+        Object.entries(sessions).forEach(([sessionName, hotspotData]) => {
+            console.log(`  ${sessionName}:`, {
+                hot_hours: hotspotData.hot_hours,
+                cold_hours: hotspotData.cold_hours,
+                avg_r: hotspotData.avg_r,
+                win_rate: (hotspotData.win_rate * 100).toFixed(1) + '%',
+                density: hotspotData.density + ' trades/hour',
+                total_trades: hotspotData.total_trades
+            });
         });
+        
+        // Store for potential Main Dashboard consumption
+        window.sessionHotspots = sessions;
     }
     
-    renderRDistribution() {
-        const container = document.getElementById('session-r-distribution');
-        if (!container) return;
-        
-        if (this.todaySignals.length === 0) {
-            const ctx = container.getContext('2d');
-            ctx.fillStyle = '#1A1C22';
-            ctx.fillRect(0, 0, container.width, container.height);
-            ctx.fillStyle = '#9CA3AF';
-            ctx.font = '14px Inter, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('No signal data available', container.width / 2, container.height / 2);
+    renderHotColdHours() {
+        if (!this.data || !this.data.session_hotspots || !this.data.session_hotspots.sessions) {
             return;
         }
         
-        const rBuckets = {
-            '-2 to -1': 0,
-            '-1 to 0': 0,
-            '0 to 1': 0,
-            '1 to 2': 0,
-            '2 to 3': 0,
-            '3+': 0
-        };
+        const hotspots = this.data.session_hotspots.sessions;
         
-        this.todaySignals.forEach(signal => {
-            const r = signal.r_multiple ? parseFloat(signal.r_multiple) : 0;
+        Object.keys(hotspots).forEach(sessionName => {
+            const sessionData = hotspots[sessionName];
+            const hotHours = sessionData.hot_hours || [];
+            const coldHours = sessionData.cold_hours || [];
             
-            if (r >= -2 && r < -1) rBuckets['-2 to -1']++;
-            else if (r >= -1 && r < 0) rBuckets['-1 to 0']++;
-            else if (r >= 0 && r < 1) rBuckets['0 to 1']++;
-            else if (r >= 1 && r < 2) rBuckets['1 to 2']++;
-            else if (r >= 2 && r < 3) rBuckets['2 to 3']++;
-            else if (r >= 3) rBuckets['3+']++;
+            const hotEls = document.querySelectorAll(`[data-hot-hours-for="${sessionName}"]`);
+            const coldEls = document.querySelectorAll(`[data-cold-hours-for="${sessionName}"]`);
+            
+            hotEls.forEach(el => el.textContent = hotHours.length ? hotHours.join(', ') : '--');
+            coldEls.forEach(el => el.textContent = coldHours.length ? coldHours.join(', ') : '--');
         });
-        
-        const ctx = container.getContext('2d');
-        ctx.fillStyle = '#1A1C22';
-        ctx.fillRect(0, 0, container.width, container.height);
-        ctx.fillStyle = '#9CA3AF';
-        ctx.font = '12px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('R-Distribution Chart (Placeholder)', container.width / 2, container.height / 2);
-    }
-    
-    calculateOverallWinrate() {
-        const sessions = Object.values(this.sessionData);
-        if (sessions.length === 0) return 0;
-        
-        const totalWins = sessions.reduce((sum, s) => sum + (s.wins || 0), 0);
-        const totalTrades = sessions.reduce((sum, s) => sum + (s.total || 0), 0);
-        
-        return totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
-    }
-    
-    calculateOverallExpectancy() {
-        const sessions = Object.values(this.sessionData);
-        if (sessions.length === 0) return 0;
-        
-        const totalExpectancy = sessions.reduce((sum, s) => sum + (s.expectancy || 0), 0);
-        return totalExpectancy / sessions.length;
-    }
-    
-    calculateOverallAvgR() {
-        const sessions = Object.values(this.sessionData);
-        if (sessions.length === 0) return 0;
-        
-        const totalAvgR = sessions.reduce((sum, s) => sum + (s.avg_r || 0), 0);
-        return totalAvgR / sessions.length;
-    }
-    
-    calculateTotalTrades() {
-        const sessions = Object.values(this.sessionData);
-        return sessions.reduce((sum, s) => sum + (s.total || 0), 0);
-    }
-    
-    findBestSession() {
-        const sessions = Object.entries(this.sessionData);
-        if (sessions.length === 0) return 'N/A';
-        
-        let best = sessions[0];
-        sessions.forEach(([name, data]) => {
-            if ((data.expectancy || 0) > (best[1].expectancy || 0)) {
-                best = [name, data];
-            }
-        });
-        
-        return best[0].replace('_', ' ');
     }
 }
 
@@ -278,4 +218,4 @@ document.addEventListener('DOMContentLoaded', function() {
     window.timeAnalysis = new TimeAnalysis();
 });
 
-console.log('Time Analysis JS Module loaded successfully (Phase 2C)');
+console.log('✅ Time Analysis JS Module loaded (H1.3 - Canonical API)');

@@ -44,6 +44,9 @@ def analyze_time_performance(db):
     best_day = max(day_of_week, key=lambda x: x['expectancy'])
     best_month = max(monthly, key=lambda x: x['expectancy']) if monthly else {'month': 'N/A'}
     
+    # Analyze session hotspots
+    session_hotspots = analyze_session_hotspots(hourly, session, trades)
+    
     return {
         'total_trades': len(trades),
         'overall_expectancy': overall_expectancy,
@@ -56,7 +59,8 @@ def analyze_time_performance(db):
         'best_hour': {'hour': f"{best_hour['hour']}:00", 'expectancy': best_hour['expectancy']},
         'best_session': {'session': best_session['session'], 'expectancy': best_session['expectancy']},
         'best_day': {'day': best_day['day'], 'expectancy': best_day['expectancy']},
-        'best_month': {'month': best_month['month'], 'expectancy': best_month.get('expectancy', 0)}
+        'best_month': {'month': best_month['month'], 'expectancy': best_month.get('expectancy', 0)},
+        'session_hotspots': session_hotspots
     }
 
 def analyze_macro_windows(trades):
@@ -261,6 +265,121 @@ def analyze_monthly(trades):
     
     return results
 
+def analyze_session_hotspots(hourly_data, session_data, trades):
+    """
+    Analyze per-session R hotspots using hourly + session breakdown.
+    
+    Args:
+        hourly_data: list with hour-level R and trades (0-23)
+        session_data: list with session-level performance
+        trades: raw trade data with time, session, r_value
+    
+    Returns:
+        {
+            "sessions": {
+                "NY AM": {
+                    "hot_hours": ["09:00", "10:00"],
+                    "cold_hours": ["11:00"],
+                    "avg_r": float,
+                    "win_rate": float,
+                    "density": float,  # trades per hour
+                    "total_trades": int
+                },
+                ...
+            }
+        }
+    """
+    # Session hour mappings (US Eastern Time)
+    session_hour_map = {
+        'ASIA': list(range(20, 24)),  # 20:00-23:59
+        'LONDON': list(range(0, 6)),  # 00:00-05:59
+        'NY PRE': list(range(6, 9)),  # 06:00-08:59 (includes 08:00-08:29)
+        'NY AM': list(range(9, 12)),  # 09:00-11:59 (market open 08:30, but 09:00-11:59 for full hours)
+        'NY LUNCH': [12],  # 12:00-12:59
+        'NY PM': list(range(13, 16))  # 13:00-15:59
+    }
+    
+    # Build session-hour performance map
+    session_hour_performance = {}
+    
+    for trade in trades:
+        try:
+            time_str = str(trade['time']) if trade['time'] else ''
+            if not time_str or ':' not in time_str:
+                continue
+            
+            hour = int(time_str.split(':')[0])
+            session = trade['session'] or 'Unknown'
+            r_value = float(trade['r_value'])
+            
+            if session not in session_hour_performance:
+                session_hour_performance[session] = {}
+            
+            if hour not in session_hour_performance[session]:
+                session_hour_performance[session][hour] = []
+            
+            session_hour_performance[session][hour].append(r_value)
+        except:
+            continue
+    
+    # Build hotspots for each session
+    sessions_result = {}
+    
+    for session_name, hour_list in session_hour_map.items():
+        if session_name not in session_hour_performance:
+            continue
+        
+        session_hours = session_hour_performance[session_name]
+        
+        # Calculate per-hour stats within this session
+        hour_stats = []
+        for hour in hour_list:
+            if hour in session_hours and len(session_hours[hour]) >= 3:  # Min 3 trades for significance
+                r_values = session_hours[hour]
+                hour_stats.append({
+                    'hour': hour,
+                    'avg_r': statistics.mean(r_values),
+                    'trades': len(r_values),
+                    'win_rate': len([r for r in r_values if r > 0]) / len(r_values)
+                })
+        
+        if not hour_stats:
+            continue
+        
+        # Sort by avg_r to find hot/cold hours
+        hour_stats.sort(key=lambda x: x['avg_r'], reverse=True)
+        
+        # Top 1-2 hours are "hot" (positive R preferred)
+        hot_hours = [f"{h['hour']:02d}:00" for h in hour_stats[:2] if h['avg_r'] > 0]
+        
+        # Bottom hour is "cold" if negative or significantly lower
+        cold_hours = []
+        if len(hour_stats) > 2 and hour_stats[-1]['avg_r'] < 0:
+            cold_hours = [f"{hour_stats[-1]['hour']:02d}:00"]
+        
+        # Calculate session-level aggregates
+        all_session_trades = []
+        for hour in hour_list:
+            if hour in session_hours:
+                all_session_trades.extend(session_hours[hour])
+        
+        if all_session_trades:
+            total_trades = len(all_session_trades)
+            avg_r = statistics.mean(all_session_trades)
+            win_rate = len([r for r in all_session_trades if r > 0]) / total_trades
+            density = total_trades / len(hour_list)  # trades per hour
+            
+            sessions_result[session_name] = {
+                'hot_hours': hot_hours,
+                'cold_hours': cold_hours,
+                'avg_r': round(avg_r, 3),
+                'win_rate': round(win_rate, 3),
+                'density': round(density, 2),
+                'total_trades': total_trades
+            }
+    
+    return {'sessions': sessions_result}
+
 def generate_empty_analysis():
     """Return empty analysis structure"""
     return {
@@ -274,6 +393,7 @@ def generate_empty_analysis():
         'monthly': [],
         'best_hour': {'hour': 'N/A', 'expectancy': 0},
         'best_session': {'session': 'N/A', 'expectancy': 0},
+        'session_hotspots': {'sessions': {}},
         'best_day': {'day': 'N/A', 'expectancy': 0},
         'best_month': {'month': 'N/A', 'expectancy': 0}
     }
