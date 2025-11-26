@@ -246,34 +246,41 @@ class TestChunk3DatePanel:
             assert 'linear-gradient' in content
             assert 'border-radius: 8px' in content
     
-    def test_date_panel_above_pnl_today(self):
-        """Verify date panel appears before P&L Today panel"""
+    def test_date_panel_inside_time_panel(self):
+        """Verify date panel is now inside time panel (Chunk 4)"""
         with open('templates/main_dashboard.html', 'r', encoding='utf-8') as f:
             content = f.read()
             
-            date_panel_pos = content.find('class="date-panel"')
-            pnl_today_pos = content.find('P&L TODAY PANEL')
+            # Find time panel
+            time_panel_start = content.find('class="time-panel"')
+            # Find the closing div of time-panel (after all its children)
+            time_panel_section = content[time_panel_start:time_panel_start + 2000]
+            time_panel_end = time_panel_start + time_panel_section.find('</div>\n            </div>\n        </div>')
             
+            assert time_panel_start != -1, "Time panel not found"
+            
+            # Date panel should be inside time panel
+            date_panel_pos = content.find('class="date-panel"')
             assert date_panel_pos != -1, "Date panel not found"
-            assert pnl_today_pos != -1, "P&L Today panel not found"
-            assert date_panel_pos < pnl_today_pos, "Date panel should appear before P&L Today"
+            assert time_panel_start < date_panel_pos < time_panel_end, "Date panel should be inside time panel"
     
-    def test_date_panel_in_right_column(self):
-        """Verify date panel is in right column"""
+    def test_date_panel_not_in_right_column(self):
+        """Verify date panel is no longer in right column (Chunk 4)"""
         with open('templates/main_dashboard.html', 'r', encoding='utf-8') as f:
             content = f.read()
             
             # Find right column
             right_col_start = content.find('<!-- RIGHT COLUMN -->')
-            
-            # Find next column or end
-            next_section = content.find('</div>', right_col_start + 1000)
+            pnl_today_start = content.find('P&L TODAY PANEL')
             
             assert right_col_start != -1, "Right column marker not found"
+            assert pnl_today_start != -1, "P&L Today panel not found"
             
-            # Date panel should be in right column
-            date_panel_pos = content.find('class="date-panel"')
-            assert date_panel_pos > right_col_start, "Date panel should be in right column"
+            # Extract right column content
+            right_column_content = content[right_col_start:pnl_today_start + 500]
+            
+            # Date panel should NOT be in right column anymore
+            assert 'class="date-panel"' not in right_column_content, "Date panel should not be in right column"
     
     def test_renderTodayDate_method_exists(self):
         """Verify renderTodayDate method exists in JavaScript"""

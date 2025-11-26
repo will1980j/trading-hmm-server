@@ -3,7 +3,7 @@
    Deep blue fintech theme with NO FAKE DATA
    ============================================================================ */
 
-/* Date Panel (H1.2 Chunk 3) */
+/* Date Panel (H1.2 Chunk 3/4) */
 .date-panel {
     background: linear-gradient(180deg, #0d1b33 0%, #0a1324 100%);
     border: 1px solid #1e2a44;
@@ -11,6 +11,14 @@
     padding: 14px 18px;
     margin-bottom: 16px;
     color: #d7e1f8;
+}
+
+/* Date Panel inside Time Panel (H1.2 Chunk 4) */
+.time-panel .date-panel {
+    margin-top: 0;
+    margin-bottom: 0;
+    flex: 1;
+    min-width: 180px;
 }
 
 .date-main {

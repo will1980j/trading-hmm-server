@@ -27,7 +27,7 @@
 
     <div class="container-fluid mt-4 px-4">
         
-        <!-- TIME PANEL (H1.2 CHUNK 2 - LOCAL + NY TIME) -->
+        <!-- TIME PANEL (H1.2 CHUNK 2 - LOCAL + NY TIME + DATE) -->
         <div class="row mb-3">
             <div class="col-12">
                 <div class="time-panel">
@@ -40,6 +40,11 @@
                         <div class="time-label">New York Time (ET)</div>
                         <div class="time-value" id="nyTimeDisplay">--:--</div>
                         <div class="time-sub" id="currentSessionDisplay">Loading...</div>
+                    </div>
+                    <!-- Today's Date Panel (H1.2 Chunk 4 - MOVED FROM RIGHT COLUMN) -->
+                    <div class="date-panel">
+                        <div class="date-main" id="todayDateDisplay">--</div>
+                        <div class="date-sub" id="todayWeekDisplay">--</div>
                     </div>
                 </div>
             </div>
@@ -178,12 +183,6 @@
 
             <!-- RIGHT COLUMN -->
             <div class="col-lg-6 mb-4">
-                
-                <!-- Today's Date Panel (H1.2 Chunk 3) -->
-                <div class="date-panel">
-                    <div class="date-main" id="todayDateDisplay">--</div>
-                    <div class="date-sub" id="todayWeekDisplay">--</div>
-                </div>
                 
                 <!-- P&L TODAY PANEL (H1 - EXPANDED) -->
                 <div class="dashboard-card mb-4">
