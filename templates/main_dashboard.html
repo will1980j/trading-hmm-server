@@ -3,281 +3,287 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Main System Dashboard - Second Skies Trading</title>
+    <title>H1.2 Main Dashboard - Second Skies Trading</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main_dashboard.css') }}">
 </head>
 <body>
-    <!-- REGION A: OPERATIONAL TOP BAR -->
-    <div class="operational-topbar">
-        <div class="topbar-container">
-            <div class="status-pills">
-                <div class="status-pill" id="automation-status">
-                    <span class="pill-label">Automation</span>
-                    <span class="pill-value">ACTIVE</span>
-                </div>
-                <div class="status-pill" id="risk-engine">
-                    <span class="pill-label">Risk Engine</span>
-                    <span class="pill-value">HEALTHY</span>
-                </div>
+    {% from '_macros.html' import roadmap_locked, empty_state, is_complete %}
+    
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('homepage') }}">
+                <strong>Second Skies Trading</strong> - H1.2 Main Dashboard
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('homepage') }}">Homepage</a>
+                <a class="nav-link" href="{{ url_for('automated_signals_dashboard') }}">Signals</a>
+                <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
             </div>
-            <div class="topbar-metrics">
-                <div class="metric-item">
-                    <span class="metric-label">Queue Depth</span>
-                    <span class="metric-value" id="queue-depth">0</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">Webhook Health</span>
-                    <span class="metric-value" id="webhook-health">100%</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">Session</span>
-                    <span class="metric-value" id="session-label">NY AM</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">Next Session</span>
-                    <span class="metric-value" id="next-session">2h 15m</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">Latency</span>
-                    <span class="metric-value" id="latency-ms">45ms</span>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4 px-4">
+        
+        <!-- SYSTEM HEALTH TOPBAR (H1 ONLY - REAL DATA) -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="health-topbar">
+                    <div class="health-item">
+                        <span class="health-label">Webhook Health</span>
+                        <span class="health-value" id="webhook-health">Loading...</span>
+                    </div>
+                    <div class="health-item">
+                        <span class="health-label">Current Session</span>
+                        <span class="health-value" id="current-session">Loading...</span>
+                    </div>
+                    <div class="health-item">
+                        <span class="health-label">Next Session</span>
+                        <span class="health-value" id="next-session">Loading...</span>
+                    </div>
+                    <div class="health-item locked">
+                        {{ roadmap_locked("h3_12_pre_trade_checks", "Automated Entry Engine") }}
+                    </div>
+                    <div class="health-item locked">
+                        {{ roadmap_locked("h1_22_order_queue", "Execution Queue") }}
+                    </div>
+                    <div class="health-item locked">
+                        {{ roadmap_locked("h3_29_observability_layer", "Observability Layer") }}
+                    </div>
                 </div>
             </div>
         </div>
+
+        <!-- PRIMARY KPIS ROW (REPOSITIONED TO TOP) -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="kpi-card">
+                    <div class="kpi-label">Expectancy</div>
+                    <div class="kpi-value" id="kpi-expectancy">Loading...</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="kpi-card">
+                    <div class="kpi-label">Win Rate</div>
+                    <div class="kpi-value" id="kpi-winrate">Loading...</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="kpi-card">
+                    <div class="kpi-label">R-Distribution</div>
+                    <div class="kpi-value" id="kpi-rdist">Loading...</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="kpi-card locked-kpi">
+                    {{ roadmap_locked("h1_28_early_stage_strategy_discovery", "Active Strategy") }}
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT GRID -->
+        <div class="row">
+            
+            <!-- LEFT COLUMN -->
+            <div class="col-lg-6 mb-4">
+                
+                <!-- ACTIVE SIGNALS PANEL (H1 - LIFECYCLE DRIVEN) -->
+                <div class="dashboard-card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Active Signals</h3>
+                        <span class="card-badge" id="active-count">0</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="active-signals-container" class="signals-container">
+                            <div class="empty-state">No active signals</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LIVE TRADES PANEL (H1 ESSENTIALS) -->
+                <div class="dashboard-card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Live Trades</h3>
+                        <span class="card-badge" id="live-count">0</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="live-trades-container" class="trades-container">
+                            <div class="empty-state">No live trades</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AUTOMATION ENGINE PANEL (LOCKED) -->
+                <div class="dashboard-card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Automation Engine</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="locked-panel">
+                            {{ roadmap_locked("h3_14_model_registry", "Execution Queue Engine") }}
+                            {{ roadmap_locked("h3_9_execution_safety_sandbox", "Strategy Confirmation Engine") }}
+                            {{ roadmap_locked("h3_12_pre_trade_checks", "Automated Entry Engine") }}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT COLUMN -->
+            <div class="col-lg-6 mb-4">
+                
+                <!-- P&L TODAY PANEL (H1 - EXPANDED) -->
+                <div class="dashboard-card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">P&L Today</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="pnl-grid">
+                            <div class="pnl-item">
+                                <span class="pnl-label">R Today</span>
+                                <span class="pnl-value" id="pnl-r-today">Loading...</span>
+                            </div>
+                            <div class="pnl-item">
+                                <span class="pnl-label">Trades Today</span>
+                                <span class="pnl-value" id="pnl-trades-today">Loading...</span>
+                            </div>
+                            <div class="pnl-item">
+                                <span class="pnl-label">Win/Loss</span>
+                                <span class="pnl-value" id="pnl-winloss">Loading...</span>
+                            </div>
+                            <div class="pnl-item">
+                                <span class="pnl-label">Best Trade</span>
+                                <span class="pnl-value" id="pnl-best">Loading...</span>
+                            </div>
+                            <div class="pnl-item">
+                                <span class="pnl-label">Worst Trade</span>
+                                <span class="pnl-value" id="pnl-worst">Loading...</span>
+                            </div>
+                            <div class="pnl-item">
+                                <span class="pnl-label">Date</span>
+                                <span class="pnl-value" id="pnl-date">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="locked-section mt-3">
+                            {{ roadmap_locked("h2_13_consistency_metrics", "Weekly/Monthly P&L") }}
+                            {{ roadmap_locked("h2_14_evaluation_reporting", "Economic Calendar") }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SESSION PERFORMANCE PANEL (H1 - FULL UPGRADE) -->
+                <div class="dashboard-card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Session Performance</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="session-performance-container">
+                            <div class="empty-state">Loading session data...</div>
+                        </div>
+                        <div class="locked-section mt-3">
+                            {{ roadmap_locked("h2_15_session_heatmaps", "Session Heatmaps") }}
+                            {{ roadmap_locked("h2_16_regime_classifier", "ML Session Prediction") }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SIGNAL QUALITY PANEL (H1 - REAL METRICS) -->
+                <div class="dashboard-card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Signal Quality</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="quality-grid">
+                            <div class="quality-item">
+                                <span class="quality-label">Valid Signal Rate</span>
+                                <span class="quality-value" id="quality-valid">Loading...</span>
+                            </div>
+                            <div class="quality-item">
+                                <span class="quality-label">Noise Rate</span>
+                                <span class="quality-value" id="quality-noise">Loading...</span>
+                            </div>
+                            <div class="quality-item">
+                                <span class="quality-label">Confirmation Time</span>
+                                <span class="quality-value" id="quality-confirm-time">Loading...</span>
+                            </div>
+                            <div class="quality-item">
+                                <span class="quality-label">Cancellation Rate</span>
+                                <span class="quality-value" id="quality-cancel">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="locked-section mt-3">
+                            {{ roadmap_locked("h2_32_signal_validator", "False Positive/Negative Rates") }}
+                            {{ roadmap_locked("h3_22_quality_scoring_engine", "ML Quality Predictions") }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RISK SNAPSHOT PANEL (H1 - WITH WARNINGS) -->
+                <div class="dashboard-card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Risk Snapshot</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="risk-grid">
+                            <div class="risk-item">
+                                <span class="risk-label">Max Risk Per Trade</span>
+                                <span class="risk-value" id="risk-max">Loading...</span>
+                            </div>
+                            <div class="risk-item">
+                                <span class="risk-label">Estimated Open Risk</span>
+                                <span class="risk-value" id="risk-open">Loading...</span>
+                            </div>
+                            <div class="risk-item">
+                                <span class="risk-label">Daily Remaining Risk</span>
+                                <span class="risk-value" id="risk-remaining">Loading...</span>
+                            </div>
+                        </div>
+                        <div id="risk-warnings-container" class="risk-warnings mt-3">
+                            <!-- Warnings populated by JS -->
+                        </div>
+                        <div class="locked-section mt-3">
+                            {{ roadmap_locked("h2_35_risk_rule_logic", "Real Prop Account Risk") }}
+                            {{ roadmap_locked("h2_40_programme_sizing", "Multi-Account Exposure") }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PROP-FIRM STATUS PANEL (H1-LIMITED) -->
+                <div class="dashboard-card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Prop-Firm Status</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="prop-grid">
+                            <div class="prop-item">
+                                <span class="prop-label">Today's P/L</span>
+                                <span class="prop-value" id="prop-pnl-today">Loading...</span>
+                            </div>
+                            <div class="prop-item">
+                                <span class="prop-label">Today's P/L (R)</span>
+                                <span class="prop-value" id="prop-pnl-r">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="locked-section mt-3">
+                            {{ roadmap_locked("h2_35_risk_rule_logic", "Currency Toggle") }}
+                            {{ roadmap_locked("h1_43_prop_account_registry", "Prop Firm List") }}
+                            {{ roadmap_locked("h2_38_account_breach_detection", "DD per Firm") }}
+                            {{ roadmap_locked("h2_37_violation_detection", "Max DD Tracking") }}
+                            {{ roadmap_locked("h2_21_account_state_manager", "Evaluation/Funded Status") }}
+                            {{ roadmap_locked("h3_26_scaling_ladder", "40+ Accounts Support") }}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
     </div>
 
-    <!-- REGION B: HERO TWO-COLUMN GRID -->
-    <div class="hero-grid">
-        <!-- LEFT COLUMN: OPERATIONAL -->
-        <div class="hero-column operational-column">
-            <!-- Active Signals Block -->
-            <div class="data-card">
-                <div class="card-header">
-                    <h2 class="card-title">Active Signals</h2>
-                    <span class="card-badge" id="active-count">0</span>
-                </div>
-                <div class="card-content">
-                    <div id="active-signals-list" class="signals-list">
-                        <!-- Populated by JS -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Automation Engine Overview -->
-            <div class="data-card">
-                <div class="card-header">
-                    <h2 class="card-title">Automation Engine</h2>
-                </div>
-                <div class="card-content">
-                    <div class="automation-metrics">
-                        <div class="auto-metric">
-                            <span class="auto-label">Signals Processed</span>
-                            <span class="auto-value" id="signals-processed">0</span>
-                        </div>
-                        <div class="auto-metric">
-                            <span class="auto-label">Confirmations Pending</span>
-                            <span class="auto-value" id="confirmations-pending">0</span>
-                        </div>
-                        <div class="auto-metric">
-                            <span class="auto-label">Auto-Entries Today</span>
-                            <span class="auto-value" id="auto-entries">0</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Prop-Firm Status Snapshot -->
-            <div class="data-card">
-                <div class="card-header">
-                    <h2 class="card-title">Prop-Firm Status</h2>
-                </div>
-                <div class="card-content">
-                    <div class="prop-status">
-                        <div class="prop-metric">
-                            <span class="prop-label">Daily Drawdown</span>
-                            <span class="prop-value" id="daily-dd">-$250 / $2,000</span>
-                        </div>
-                        <div class="prop-metric">
-                            <span class="prop-label">Max Drawdown</span>
-                            <span class="prop-value" id="max-dd">-$1,200 / $5,000</span>
-                        </div>
-                        <div class="prop-metric">
-                            <span class="prop-label">Profit Target</span>
-                            <span class="prop-value" id="profit-target">$3,500 / $10,000</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Live Trades Block -->
-            <div class="data-card">
-                <div class="card-header">
-                    <h2 class="card-title">Live Trades</h2>
-                    <span class="card-badge" id="live-count">0</span>
-                </div>
-                <div class="card-content">
-                    <div id="live-trades-list" class="trades-list">
-                        <p class="placeholder-text">No live trades</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- RIGHT COLUMN: ANALYTICS -->
-        <div class="hero-column analytics-column">
-            <!-- P&L Today Metric Block -->
-            <div class="data-card metric-card">
-                <div class="card-header">
-                    <h2 class="card-title">P&L Today</h2>
-                </div>
-                <div class="card-content">
-                    <div class="large-metric">
-                        <span class="metric-currency">$</span>
-                        <span class="metric-amount" id="pnl-today">+1,250.00</span>
-                    </div>
-                    <div class="metric-subtext">
-                        <span id="pnl-change">+12.5%</span> vs yesterday
-                    </div>
-                </div>
-            </div>
-
-            <!-- Session Performance Card -->
-            <div class="data-card">
-                <div class="card-header">
-                    <h2 class="card-title">Session Performance</h2>
-                </div>
-                <div class="card-content">
-                    <div class="session-stats">
-                        <div class="session-stat">
-                            <span class="stat-label">NY AM</span>
-                            <span class="stat-value" id="session-ny-am">+$850</span>
-                        </div>
-                        <div class="session-stat">
-                            <span class="stat-label">NY PM</span>
-                            <span class="stat-value" id="session-ny-pm">+$400</span>
-                        </div>
-                        <div class="session-stat">
-                            <span class="stat-label">LONDON</span>
-                            <span class="stat-value" id="session-london">$0</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Signal Quality Metrics -->
-            <div class="data-card">
-                <div class="card-header">
-                    <h2 class="card-title">Signal Quality</h2>
-                </div>
-                <div class="card-content">
-                    <div class="quality-metrics">
-                        <div class="quality-metric">
-                            <span class="quality-label">Confirmation Rate</span>
-                            <span class="quality-value" id="confirm-rate">68%</span>
-                        </div>
-                        <div class="quality-metric">
-                            <span class="quality-label">Avg Time to Confirm</span>
-                            <span class="quality-value" id="avg-confirm-time">12m</span>
-                        </div>
-                        <div class="quality-metric">
-                            <span class="quality-label">Cancellation Rate</span>
-                            <span class="quality-value" id="cancel-rate">32%</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Risk Snapshot Card -->
-            <div class="data-card">
-                <div class="card-header">
-                    <h2 class="card-title">Risk Snapshot</h2>
-                </div>
-                <div class="card-content">
-                    <div class="risk-metrics">
-                        <div class="risk-metric">
-                            <span class="risk-label">Max Risk Per Trade</span>
-                            <span class="risk-value" id="max-risk">1.0%</span>
-                        </div>
-                        <div class="risk-metric">
-                            <span class="risk-label">Current Exposure</span>
-                            <span class="risk-value" id="current-exposure">0.5%</span>
-                        </div>
-                        <div class="risk-metric">
-                            <span class="risk-label">Available Risk</span>
-                            <span class="risk-value" id="available-risk">2.5%</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Distribution Cards -->
-            <div class="distribution-grid">
-                <div class="data-card dist-card">
-                    <div class="card-header">
-                        <h3 class="card-subtitle">Expectancy</h3>
-                    </div>
-                    <div class="card-content">
-                        <div class="dist-value" id="expectancy">+2.45R</div>
-                    </div>
-                </div>
-                <div class="data-card dist-card">
-                    <div class="card-header">
-                        <h3 class="card-subtitle">Win Rate</h3>
-                    </div>
-                    <div class="card-content">
-                        <div class="dist-value" id="win-rate">58%</div>
-                    </div>
-                </div>
-                <div class="data-card dist-card">
-                    <div class="card-header">
-                        <h3 class="card-subtitle">R-Distribution</h3>
-                    </div>
-                    <div class="card-content">
-                        <div class="dist-value" id="r-dist">1.2σ</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- REGION C: LOWER ANALYTICS GRID -->
-    <div class="analytics-grid">
-        <div class="chart-card">
-            <div class="card-header">
-                <h2 class="card-title">Equity Curve</h2>
-            </div>
-            <div class="card-content">
-                <canvas id="equity-curve-chart"></canvas>
-            </div>
-        </div>
-
-        <div class="chart-card">
-            <div class="card-header">
-                <h2 class="card-title">R-Multiple Heatmap</h2>
-            </div>
-            <div class="card-content">
-                <canvas id="r-heatmap-chart"></canvas>
-            </div>
-        </div>
-
-        <div class="chart-card">
-            <div class="card-header">
-                <h2 class="card-title">Hour-of-Day Performance</h2>
-            </div>
-            <div class="card-content">
-                <canvas id="hour-histogram-chart"></canvas>
-            </div>
-        </div>
-
-        <div class="chart-card">
-            <div class="card-header">
-                <h2 class="card-title">Session Comparison</h2>
-            </div>
-            <div class="card-content">
-                <canvas id="session-comparison-chart"></canvas>
-            </div>
-        </div>
-    </div>
-
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/main_dashboard.js') }}"></script>
 </body>
 </html>

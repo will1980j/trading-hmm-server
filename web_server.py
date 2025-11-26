@@ -1013,7 +1013,7 @@ def homepage():
 @login_required
 def main_dashboard():
     """H1.2 Main Dashboard - Central cockpit for system overview"""
-    return render_template('main_dashboard.html')
+    return render_template('main_dashboard.html', is_complete=is_complete)
 
 # Video Background Versions - For Testing
 @app.route('/login-professional', methods=['GET', 'POST'])

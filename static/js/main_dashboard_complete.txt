@@ -1,0 +1,1 @@
+class MainDashboard { constructor() { this.data = {}; } }
