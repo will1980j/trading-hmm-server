@@ -103,7 +103,7 @@ _add_phase(
     description="Main UX shell, login, dashboards and core analytics modules.",
     modules={
         "h1_1_homepage_command_center": {"done": True, "desc": "H1.1 Homepage Command Center ⭐ H1"},
-        "h1_2_main_dashboard": {"done": False, "desc": "H1.2 Main Dashboard ⭐ H1"},
+        "h1_2_main_dashboard": {"done": True, "desc": "H1.2 Main Dashboard ⭐ H1"},
         "h1_3_time_analysis": {"done": False, "desc": "H1.3 Time Analysis ⭐ H1"},
         "h1_4_ml_intelligence_hub": {"done": False, "desc": "H1.4 ML Intelligence Hub ⭐ H1"},
         "h1_5_financial_summary": {"done": False, "desc": "H1.5 Financial Summary ⭐ H1"},

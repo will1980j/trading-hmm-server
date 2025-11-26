@@ -1008,6 +1008,13 @@ def homepage():
     roadmap_sorted = sorted(roadmap.items(), key=lambda item: item[1].get("level", 999))
     return render_template('homepage_video_background.html', video_file=video_file, roadmap=roadmap_sorted)
 
+
+@app.route('/main-dashboard')
+@login_required
+def main_dashboard():
+    """H1.2 Main Dashboard - Central cockpit for system overview"""
+    return render_template('main_dashboard.html')
+
 # Video Background Versions - For Testing
 @app.route('/login-professional', methods=['GET', 'POST'])
 def login_professional():
