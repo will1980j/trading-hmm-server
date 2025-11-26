@@ -53,62 +53,85 @@ Each MODULE contains SUBMODULES or STAGES.
 
 ---
 
-# 🟩 LEVEL 1 — CORE PLATFORM & AUTHENTICATION (50%)
+# 🟩 LEVEL 1 — CORE PLATFORM & AUTHENTICATION (8%)
 
 ## PHASE 1 — Core Platform & UI/UX Modernization
 
 Modules:
-- Module 15 — Homepage Command Center
-- Module 16 — Main Dashboard
-- Module 17 — Time Analysis
-- Module 20 — ML Intelligence Hub
-- Module 21 — Financial Summary
-- Module 22 — Reporting Center
-
-Missing Modules:
-- Secure authentication system
-- Navigation framework
-- User/session manager
-- Audit log system
+- H1.1 Homepage Command Center ⭐ H1 (Module 15) ✅
+- H1.2 Main Dashboard ⭐ H1 (Module 16)
+- H1.3 Time Analysis ⭐ H1 (Module 17)
+- H1.4 ML Intelligence Hub ⭐ H1 (Module 20)
+- H1.5 Financial Summary ⭐ H1 (Module 21)
+- H1.6 Reporting Center ⭐ H1 (Module 22)
+- H2.1 Secure Authentication System ⭐ H2
+- H2.2 Navigation Framework ⭐ H2
+- H2.3 User/Session Manager ⭐ H2
+- H2.4 User Roles & Permissions ⭐ H2
+- H2.5 Multi-Factor Authentication (MFA) ⭐ H2
+- H3.1 Unified Navigation System (role-aware) ⭐ H3
+- H3.2 Audit Trail & Activity Logging (expanded) ⭐ H3
 
 ---
 
-# 🟦 LEVEL 2 — AUTOMATED SIGNALS ENGINE (Phase 2A–2C)
+# 🟦 LEVEL 2 — AUTOMATED SIGNALS ENGINE (0%)
 
-## PHASE 2A — Raw Ingestion & Normalization (Missing)
+## PHASE 2A — Raw Ingestion & Normalization
 
-- Webhook ingestion
-- Timestamp normalization
-- Duplicate filtering
-- Session tagging
+Modules:
+- H1.7 Signal Noise Filter (Pre-Validation Filter) ⭐ H1
+- H1.8 Webhook Ingestion ⭐ H1
+- H1.9 Timestamp Normalization ⭐ H1
+- H2.6 Duplicate Filtering ⭐ H2
+- H2.7 Session Tagging ⭐ H2
 
-## PHASE 2B — Signal Validation Engine (Missing)
+## PHASE 2B — Signal Validation Engine
 
-- Validation rules
-- Outlier detection
-- Guardrails
-- Missing-field repair
+Modules:
+- H1.10 Validation Rules ⭐ H1
+- H1.11 Outlier Detection ⭐ H1
+- H2.8 Guardrails ⭐ H2
+- H2.9 Missing-Field Repair ⭐ H2
 
-## PHASE 2C — Signal Lifecycle Engine (Partial)
+## PHASE 2C — Signal Lifecycle Engine
 
-- Signal lifecycle model
-- MFE Engine (Complete)
-- BE Logic
-- Exit consolidation
-- Multi-event reconciliation
-- 2C.1 — Data Accumulation Window (Complete)
-- 2.5 — Prop Evaluation & Consistency Layer
+Modules:
+- H1.12 Signal Lifecycle Model ⭐ H1
+- H1.13 MFE Engine (Dual) ⭐ H1
+- H1.14 BE Logic ⭐ H1
+- H1.15 Exit Consolidation ⭐ H1
+- H2.10 Multi-Event Reconciliation ⭐ H2
+- H2.11 Data Accumulation Window ⭐ H2
+- H2.12 Signal Schema Governance ⭐ H2
+- H3.3 Data Integrity Watchdog ⭐ H3
+- H3.4 Signal Replay Engine ⭐ H3
+
+## PHASE 2.5 — Prop Guardrails & Evaluation
+
+Modules:
+- H1.16 Drawdown Limits ⭐ H1
+- H1.17 Daily Loss Limits ⭐ H1
+- H2.13 Consistency Metrics ⭐ H2
+- H2.14 Evaluation Reporting ⭐ H2
 
 ---
 
 # 🟧 LEVEL 3 — REAL-TIME DATA LAYER (0%)
 
+## PHASE 3 — Real-Time Data Infrastructure
+
 Modules:
-- Real-time price stream
-- ATR/volatility model
-- Tick-to-bar converter
-- Session heatmaps
-- Regime classifier
+- H1.18 Real-Time Price Stream ⭐ H1
+- H1.19 ATR/Volatility Model ⭐ H1
+- H1.20 Tick-to-Bar Converter ⭐ H1
+- H2.15 Session Heatmaps ⭐ H2
+- H2.16 Regime Classifier ⭐ H2
+- H2.17 Bar Aggregation ⭐ H2
+- H2.18 Session Metrics ⭐ H2
+- H3.5 Tick Data Warehouse ⭐ H3
+- H3.6 Market Replay Engine ⭐ H3
+- H3.7 DOM / Orderbook Capture Layer ⭐ H3
+- H3.8 Latency Monitoring ⭐ H3
 
 Dependencies:
 - Needed for automation (Level 4)
@@ -116,25 +139,31 @@ Dependencies:
 
 ---
 
-# 🟨 LEVEL 4 — EXECUTION & AUTOMATION ENGINE (30%)
+# 🟨 LEVEL 4 — EXECUTION & AUTOMATION ENGINE (0%)
 
-## PHASE 4A — Execution Router (Mostly Complete)
+## PHASE 4A — Execution Router
 
 Modules:
-- Multi-account router
-- Order queue
-- Dry-run mode
-- State reconciliation
-- Program sizing
-- Risk engine integration
-- Account state manager
+- H1.21 Multi-Account Router ⭐ H1
+- H1.22 Order Queue ⭐ H1
+- H1.23 Dry-Run Mode ⭐ H1
+- H1.24 State Reconciliation ⭐ H1
+- H2.19 Program Sizing ⭐ H2
+- H2.20 Risk Engine Integration ⭐ H2
+- H2.21 Account State Manager ⭐ H2
+- H2.22 Position State Manager ⭐ H2
+- H3.9 Execution Safety Sandbox ⭐ H3
+- H3.10 Circuit Breakers ⭐ H3
+- H3.11 Execution Decision Engine (ML → action logic) ⭐ H3
+- H3.12 Pre-Trade Checks ⭐ H3
 
-## PHASE 4B — Automated Execution Engine (Missing)
+## PHASE 4B — Automated Execution Engine
 
-- Automated entries
-- Automated exits
-- Position sizing automation
-- Strategy–signal compatibility engine
+Modules:
+- H1.25 Automated Entry Logic ⭐ H1
+- H1.26 Automated Exit Logic ⭐ H1
+- H1.27 Position Sizing Automation ⭐ H1
+- H2.23 Strategy–Signal Compatibility Engine ⭐ H2
 
 Dependencies:
 - Level 3
@@ -142,86 +171,120 @@ Dependencies:
 
 ---
 
-# 🟪 LEVEL 5 — ML INTELLIGENCE LAYER (10%)
+# 🟪 LEVEL 5 — ML INTELLIGENCE LAYER (0%)
+
+## PHASE 5 — ML Intelligence & Predictive Models
 
 Modules:
-- ML dataset builder
-- Feature engineering
-- Expectancy model
-- R-multiple distribution predictor
-- Regime classifier
-- ML dashboard (Module 20 baseline)
+- H1.28 Early-Stage Strategy Discovery Engine ⭐ H1
+- H1.29 ML Dataset Builder ⭐ H1
+- H1.30 Feature Engineering ⭐ H1
+- H1.31 Expectancy Model ⭐ H1
+- H1.32 R-Multiple Distribution Predictor ⭐ H1
+- H2.24 Regime Classifier ⭐ H2
+- H2.25 ML Dashboard (Module 20 baseline) ⭐ H2
+- H3.13 Feature Store ⭐ H3
+- H3.14 Model Registry ⭐ H3
+- H3.15 Model Drift Detection ⭐ H3
 
 ---
 
-# 🟥 LEVEL 6 — STRATEGY RESEARCH & ANALYTICS (40%)
+# 🟥 LEVEL 6 — STRATEGY RESEARCH & ANALYTICS (0%)
+
+## PHASE 6 — Strategy Research & Optimization
 
 Modules:
-- Strategy Optimizer (18)
-- Strategy Compare (19)
-- Time Analysis (17)
-- Financial Summary (21)
-- Reporting Center (22)
-- ML Hub (20)
-
-Missing:
-- Backtesting engine
-- Strategy library
-- R-multiple expectation designer
+- H1.33 Signal–Strategy Attribution Engine ⭐ H1
+- H1.34 Strategy Optimizer (Module 18) ⭐ H1
+- H1.35 Strategy Compare (Module 19) ⭐ H1
+- H1.36 Expectancy Analysis ⭐ H1
+- H2.26 Session Analytics ⭐ H2
+- H2.27 Multi-Strategy Portfolio Analysis ⭐ H2
+- H2.28 What-If Scenarios ⭐ H2
+- H2.29 Backtesting Engine (institutional-grade) ⭐ H2
+- H2.30 Strategy Library ⭐ H2
+- H2.31 R-Multiple Expectation Designer ⭐ H2
+- H3.16 Automated Reporting Engine ⭐ H3
+- H3.17 Slide/Document Generation Layer (vendor-agnostic) ⭐ H3
+- H3.18 Report Scheduler & Delivery System ⭐ H3
+- H3.19 Narrative AI Summarization Engine ⭐ H3
 
 ---
 
-# 🟩 LEVEL 7 — SIGNAL QUALITY & INTEGRITY (20%)
+# 🟩 LEVEL 7 — SIGNAL QUALITY & INTEGRITY (0%)
+
+## PHASE 7 — Signal Quality & Telemetry
 
 Modules:
-- Signal Integrity API
-- Telemetry (PATCH 7A–7M)
-- Validation checks
-- Repair engine
-
-Missing:
-- Integrity dashboard
-- Quality scoring
-- Alerting engine
+- H1.37 Signal Integrity API ⭐ H1
+- H1.38 Telemetry Pipeline (PATCH 7A–7M) ⭐ H1
+- H1.39 Validation Checks ⭐ H1
+- H2.32 Signal Validator ⭐ H2
+- H2.33 Anomaly Detection ⭐ H2
+- H2.34 Repair Engine ⭐ H2
+- H3.20 Integrity Dashboard ⭐ H3
+- H3.21 Statistical Integrity Engine ⭐ H3
+- H3.22 Quality Scoring Engine ⭐ H3
+- H3.23 Alerting Engine ⭐ H3
 
 ---
 
-# 🟫 LEVEL 8 — PROP PORTFOLIO & COMPLIANCE (30%)
+# 🟫 LEVEL 8 — PROP PORTFOLIO & COMPLIANCE (0%)
+
+## PHASE 8 — Prop Firm Management & Compliance
 
 Modules:
-- Prop portfolio management
-- Prop registry
-- Risk rule logic
-- Account breach detection
-- Program sizing
-
-Missing:
-- Payout engine
-- Compliance dashboard
-- Scaling ladder
+- H1.40 Prop Firm Challenge Simulator ⭐ H1
+- H1.41 Drawdown Stress Tester (Risk-Only Simulator) ⭐ H1
+- H1.42 Prop Portfolio Management ⭐ H1
+- H1.43 Prop Account Registry ⭐ H1
+- H2.35 Risk Rule Logic ⭐ H2
+- H2.36 Rule Library ⭐ H2
+- H2.37 Violation Detection ⭐ H2
+- H2.38 Account Breach Detection ⭐ H2
+- H2.39 Payout Schedule ⭐ H2
+- H2.40 Programme Sizing ⭐ H2
+- H3.24 Payout Engine ⭐ H3
+- H3.25 Compliance Dashboard ⭐ H3
+- H3.26 Scaling Ladder ⭐ H3
+- H3.27 Exposure Monitoring ⭐ H3
 
 ---
 
 # 🟪 LEVEL 9 — SCALING & INFRASTRUCTURE (0%)
 
+## PHASE 9 — Infrastructure & Scaling
+
 Modules:
-- Worker scaling
-- Multi-region support
-- Load balancing
-- Caching layer
-- Performance tuning
-- Monitoring dashboards
+- H2.41 Worker Scaling ⭐ H2
+- H2.42 DB Scaling ⭐ H2
+- H2.43 Multi-Region Support ⭐ H2
+- H2.44 Load Balancing ⭐ H2
+- H2.45 Caching Layer ⭐ H2
+- H2.46 Performance Tuning ⭐ H2
+- H3.28 Observability Stack ⭐ H3
+- H3.29 Observability Layer (metrics/logs/traces) ⭐ H3
+- H3.30 Distributed Worker Queue ⭐ H3
+- H3.31 Disaster Recovery ⭐ H3
 
 ---
 
-# 🟦 LEVEL 10 — AUTONOMOUS TRADER ENGINE (Conceptual)
+# 🟦 LEVEL 10 — AUTONOMOUS TRADER ENGINE (0%)
+
+## PHASE 10 — Autonomous AI Trading
 
 Modules:
-- Strategy selector
-- Autonomous executor
-- Adaptive risk engine
-- Continuous optimizer
-- Wealth architecture
+- H2.47 Automated Challenge Execution Planner ⭐ H2
+- H2.48 Strategy Selector ⭐ H2
+- H2.49 Autonomous Executor ⭐ H2
+- H2.50 Auto Risk Manager ⭐ H2
+- H2.51 AI Business Advisor ⭐ H2
+- H2.52 Auto Tilt Detection ⭐ H2
+- H2.53 Regime-Aware Execution ⭐ H2
+- H2.54 Auto Scale Up/Down ⭐ H2
+- H3.32 Safety-Aware Strategy Selector ⭐ H3
+- H3.33 Autonomous Execution Simulator (shadow mode) ⭐ H3
+- H3.34 Fund Automation Bridge ⭐ H3
 
 Dependencies:
 - Levels 2–5 and 7–9
