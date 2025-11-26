@@ -51,7 +51,8 @@
 {% for phase_id, phase in roadmap %}
 {# derive a status class based on percent complete #}
 {% set status_class = 'active' if phase.percent > 0 else 'future' %}
-<div class="roadmap-phase {{ status_class }}">
+{% set complete_class = 'phase-complete' if phase.percent == 100 else '' %}
+<div class="roadmap-phase {{ status_class }} {{ complete_class }}">
 <button class="phase-toggle" type="button">
 <div class="phase-header condensed-phase-header">
 <span class="condensed-phase-number">{{ phase_id }}</span>

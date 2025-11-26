@@ -39,6 +39,30 @@ from psycopg2.extras import RealDictCursor
 import os
 import time
 
+# --- Roadmap Completion Helper ---
+def is_complete(module_id: str) -> bool:
+    """
+    Checks roadmap_state.py to determine if a module is completed.
+    Prevents UI ambiguity by providing a single source of truth.
+    
+    Args:
+        module_id: The module key (e.g., "h1_1_homepage_command_center")
+    
+    Returns:
+        bool: True if module is complete, False otherwise
+    """
+    try:
+        # Check all phases for the module
+        for phase_id, phase in ROADMAP.items():
+            if module_id in phase.modules:
+                return phase.modules[module_id].completed
+        # Module not found, assume incomplete
+        return False
+    except Exception:
+        # Fail safe: assume incomplete
+        return False
+
+
 # Set New York timezone for the entire system
 NY_TZ = pytz.timezone('America/New_York')
 
@@ -605,6 +629,12 @@ def reset_db_transaction():
             db = RailwayDB()
         except:
             pass
+
+# Make is_complete available to all templates
+@app.context_processor
+def inject_roadmap_helpers():
+    """Inject roadmap helper functions into all templates"""
+    return dict(is_complete=is_complete)
 
 # Initialize SocketIO with automatic async mode detection
 # Railway will use threading mode (compatible with all Python versions)

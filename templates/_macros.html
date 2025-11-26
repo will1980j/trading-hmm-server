@@ -1,0 +1,36 @@
+{# ============================================
+   GLOBAL TEMPLATE MACROS
+   Shared macros for consistent UI across all dashboards
+   ============================================ #}
+
+{# Roadmap-Lock System: Feature Locked Indicator #}
+{% macro roadmap_locked(module_id, module_title) %}
+<div class="feature-locked" style="
+    padding: 12px;
+    background: linear-gradient(180deg, #0d1b33, #0a1324);
+    border: 1px solid #1e2a44;
+    border-radius: 8px;
+    margin: 6px 0;
+    color: #8aa2c2;
+    font-size: 14px;
+">
+    <strong style="color: #c1d8ff;">🔒 Feature Locked</strong>
+    <p style="margin: 8px 0 0 0;">
+        This feature activates after <b>{{ module_id }}</b> {{ module_title }} is completed.
+        It is currently unavailable per roadmap sequencing.
+    </p>
+</div>
+{% endmacro %}
+
+{# Empty State: Honest "No Data" Message #}
+{% macro empty_state(message="No data available yet.") %}
+<p class="empty-state" style="
+    color: #9bb1d3;
+    opacity: 0.85;
+    padding: 20px;
+    text-align: center;
+    font-size: 14px;
+">
+    {{ message }}
+</p>
+{% endmacro %}

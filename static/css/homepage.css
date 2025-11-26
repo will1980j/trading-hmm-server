@@ -1737,3 +1737,21 @@ body {
 .roadmap-phase {
     margin-left: 10px !important;
 }
+
+
+/* ============================================
+   COMPLETED PHASE STYLING
+   Dark green highlight for 100% complete phases
+   ============================================ */
+
+/* Completed Phase Styling */
+.phase-complete {
+    background: linear-gradient(180deg, #0f2b18 0%, #0a1f12 100%);
+    border: 1px solid rgba(60, 255, 155, 0.4);
+    box-shadow: 0 0 10px rgba(60, 255, 155, 0.15);
+}
+
+/* Optional: Slightly brighter title text */
+.phase-complete .condensed-phase-title {
+    color: #a8ffc8;
+}
