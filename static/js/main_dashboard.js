@@ -29,6 +29,10 @@ class MainDashboard {
         // Initial data fetch
         await this.fetchAllData();
         
+        // Render today's date (H1.2 Chunk 3)
+        this.renderTodayDate();
+        setInterval(() => this.renderTodayDate(), 60000); // update every 60 seconds
+        
         // Start polling
         this.startPolling();
     }
@@ -253,6 +257,35 @@ class MainDashboard {
         const currentIndex = sessionOrder.indexOf(current);
         const nextIndex = (currentIndex + 1) % sessionOrder.length;
         return sessionOrder[nextIndex];
+    }
+    
+    /**
+     * Render today's date panel (H1.2 Chunk 3)
+     * Displays current date, day of week, and week number
+     */
+    renderTodayDate() {
+        const now = new Date();
+        
+        // Today, e.g.: "Tuesday, 26 November 2025"
+        const dateString = now.toLocaleDateString([], {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+        // Week number calculation
+        const oneJan = new Date(now.getFullYear(), 0, 1);
+        const numberOfDays = Math.floor((now - oneJan) / (24 * 60 * 60 * 1000));
+        const week = Math.ceil((now.getDay() + 1 + numberOfDays) / 7);
+        
+        const weekString = `Week ${week} • ${now.toLocaleDateString([], { year: 'numeric' })}`;
+        
+        const dateMain = document.getElementById('todayDateDisplay');
+        const dateSub = document.getElementById('todayWeekDisplay');
+        
+        if (dateMain) dateMain.textContent = dateString;
+        if (dateSub) dateSub.textContent = weekString;
     }
     
     /**

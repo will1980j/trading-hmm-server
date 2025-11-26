@@ -213,6 +213,99 @@ class TestChunk2TimePanel:
             # Check for timezone handling
             assert 'Intl.DateTimeFormat' in content
             assert 'timeZone' in content
+
+
+class TestChunk3DatePanel:
+    """Test Chunk 3: Today's Date Panel"""
+    
+    def test_date_panel_elements_exist(self):
+        """Verify date panel HTML elements exist in template"""
+        with open('templates/main_dashboard.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+            # Date panel container
+            assert 'class="date-panel"' in content
+            
+            # Date display elements
+            assert 'id="todayDateDisplay"' in content
+            assert 'id="todayWeekDisplay"' in content
+            
+            # Comment marker
+            assert "Today's Date Panel" in content
+    
+    def test_date_panel_css_exists(self):
+        """Verify date panel CSS styling exists"""
+        with open('static/css/main_dashboard.css', 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+            assert '.date-panel' in content
+            assert '.date-main' in content
+            assert '.date-sub' in content
+            
+            # Check for specific styles
+            assert 'linear-gradient' in content
+            assert 'border-radius: 8px' in content
+    
+    def test_date_panel_above_pnl_today(self):
+        """Verify date panel appears before P&L Today panel"""
+        with open('templates/main_dashboard.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+            date_panel_pos = content.find('class="date-panel"')
+            pnl_today_pos = content.find('P&L TODAY PANEL')
+            
+            assert date_panel_pos != -1, "Date panel not found"
+            assert pnl_today_pos != -1, "P&L Today panel not found"
+            assert date_panel_pos < pnl_today_pos, "Date panel should appear before P&L Today"
+    
+    def test_date_panel_in_right_column(self):
+        """Verify date panel is in right column"""
+        with open('templates/main_dashboard.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+            # Find right column
+            right_col_start = content.find('<!-- RIGHT COLUMN -->')
+            
+            # Find next column or end
+            next_section = content.find('</div>', right_col_start + 1000)
+            
+            assert right_col_start != -1, "Right column marker not found"
+            
+            # Date panel should be in right column
+            date_panel_pos = content.find('class="date-panel"')
+            assert date_panel_pos > right_col_start, "Date panel should be in right column"
+    
+    def test_renderTodayDate_method_exists(self):
+        """Verify renderTodayDate method exists in JavaScript"""
+        with open('static/js/main_dashboard.js', 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+            # Check for method definition
+            assert 'renderTodayDate()' in content
+            
+            # Check for date formatting
+            assert 'toLocaleDateString' in content
+            assert 'weekday' in content
+            assert 'month' in content
+            
+            # Check for week number calculation
+            assert 'Week ${week}' in content or 'Week ' in content
+            
+            # Check for element updates
+            assert 'todayDateDisplay' in content
+            assert 'todayWeekDisplay' in content
+    
+    def test_date_panel_initialization(self):
+        """Verify date panel is initialized in init method"""
+        with open('static/js/main_dashboard.js', 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+            # Check for initialization call
+            assert 'this.renderTodayDate()' in content
+            
+            # Check for interval setup
+            assert 'setInterval' in content
+            assert '60000' in content  # 60 second interval
     
     def test_no_vs_yesterday(self):
         """No fake 'vs yesterday' comparisons"""
