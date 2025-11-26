@@ -27,6 +27,24 @@
 
     <div class="container-fluid mt-4 px-4">
         
+        <!-- TIME PANEL (H1.2 CHUNK 2 - LOCAL + NY TIME) -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="time-panel">
+                    <div class="time-block">
+                        <div class="time-label">Local Time</div>
+                        <div class="time-value" id="localTimeDisplay">--:--</div>
+                        <div class="time-sub" id="localLocationDisplay">Loading...</div>
+                    </div>
+                    <div class="time-block">
+                        <div class="time-label">New York Time (ET)</div>
+                        <div class="time-value" id="nyTimeDisplay">--:--</div>
+                        <div class="time-sub" id="currentSessionDisplay">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- SYSTEM HEALTH TOPBAR (H1 ONLY - REAL DATA) -->
         <div class="row mb-4">
             <div class="col-12">
@@ -89,6 +107,47 @@
             <!-- LEFT COLUMN -->
             <div class="col-lg-6 mb-4">
                 
+                <!-- PROP-FIRM STATUS PANEL (H1-LIMITED) - REPOSITIONED FROM RIGHT COLUMN -->
+                <div class="dashboard-card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Prop-Firm Status</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="prop-grid">
+                            <div class="prop-item">
+                                <span class="prop-label">Today's P/L</span>
+                                <span class="prop-value" id="prop-pnl-today">Loading...</span>
+                            </div>
+                            <div class="prop-item">
+                                <span class="prop-label">Today's P/L (R)</span>
+                                <span class="prop-value" id="prop-pnl-r">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="locked-section mt-3">
+                            {{ roadmap_locked("h2_35_risk_rule_logic", "Currency Toggle") }}
+                            {{ roadmap_locked("h1_43_prop_account_registry", "Prop Firm List") }}
+                            {{ roadmap_locked("h2_38_account_breach_detection", "DD per Firm") }}
+                            {{ roadmap_locked("h2_37_violation_detection", "Max DD Tracking") }}
+                            {{ roadmap_locked("h2_21_account_state_manager", "Evaluation/Funded Status") }}
+                            {{ roadmap_locked("h3_26_scaling_ladder", "40+ Accounts Support") }}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AUTOMATION ENGINE PANEL (LOCKED) -->
+                <div class="dashboard-card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Automation Engine</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="locked-panel">
+                            {{ roadmap_locked("h3_14_model_registry", "Execution Queue Engine") }}
+                            {{ roadmap_locked("h3_9_execution_safety_sandbox", "Strategy Confirmation Engine") }}
+                            {{ roadmap_locked("h3_12_pre_trade_checks", "Automated Entry Engine") }}
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- ACTIVE SIGNALS PANEL (H1 - LIFECYCLE DRIVEN) -->
                 <div class="dashboard-card mb-4">
                     <div class="card-header">
@@ -111,20 +170,6 @@
                     <div class="card-body">
                         <div id="live-trades-container" class="trades-container">
                             <div class="empty-state">No live trades</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- AUTOMATION ENGINE PANEL (LOCKED) -->
-                <div class="dashboard-card mb-4">
-                    <div class="card-header">
-                        <h3 class="card-title">Automation Engine</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="locked-panel">
-                            {{ roadmap_locked("h3_14_model_registry", "Execution Queue Engine") }}
-                            {{ roadmap_locked("h3_9_execution_safety_sandbox", "Strategy Confirmation Engine") }}
-                            {{ roadmap_locked("h3_12_pre_trade_checks", "Automated Entry Engine") }}
                         </div>
                     </div>
                 </div>
@@ -246,33 +291,6 @@
                         <div class="locked-section mt-3">
                             {{ roadmap_locked("h2_35_risk_rule_logic", "Real Prop Account Risk") }}
                             {{ roadmap_locked("h2_40_programme_sizing", "Multi-Account Exposure") }}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- PROP-FIRM STATUS PANEL (H1-LIMITED) -->
-                <div class="dashboard-card mb-4">
-                    <div class="card-header">
-                        <h3 class="card-title">Prop-Firm Status</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="prop-grid">
-                            <div class="prop-item">
-                                <span class="prop-label">Today's P/L</span>
-                                <span class="prop-value" id="prop-pnl-today">Loading...</span>
-                            </div>
-                            <div class="prop-item">
-                                <span class="prop-label">Today's P/L (R)</span>
-                                <span class="prop-value" id="prop-pnl-r">Loading...</span>
-                            </div>
-                        </div>
-                        <div class="locked-section mt-3">
-                            {{ roadmap_locked("h2_35_risk_rule_logic", "Currency Toggle") }}
-                            {{ roadmap_locked("h1_43_prop_account_registry", "Prop Firm List") }}
-                            {{ roadmap_locked("h2_38_account_breach_detection", "DD per Firm") }}
-                            {{ roadmap_locked("h2_37_violation_detection", "Max DD Tracking") }}
-                            {{ roadmap_locked("h2_21_account_state_manager", "Evaluation/Funded Status") }}
-                            {{ roadmap_locked("h3_26_scaling_ladder", "40+ Accounts Support") }}
                         </div>
                     </div>
                 </div>

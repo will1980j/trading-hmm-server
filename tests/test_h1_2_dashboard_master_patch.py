@@ -48,6 +48,171 @@ class TestMasterPatchImplementation:
         with open('templates/main_dashboard.html', 'r', encoding='utf-8') as f:
             content = f.read()
             assert 'Latency' not in content or 'roadmap_locked' in content
+
+
+class TestSystemTimeAPI:
+    """Test /api/system-time endpoint and session logic"""
+    
+    def test_get_ny_session_info_returns_dict(self):
+        """get_ny_session_info() returns proper dict structure"""
+        from web_server import get_ny_session_info
+        
+        info = get_ny_session_info()
+        
+        assert isinstance(info, dict)
+        assert 'et_time' in info
+        assert 'current_session' in info
+        assert 'next_session' in info
+    
+    def test_get_ny_session_info_valid_sessions(self):
+        """get_ny_session_info() returns valid session names"""
+        from web_server import get_ny_session_info
+        
+        info = get_ny_session_info()
+        
+        valid_sessions = ['ASIA', 'LONDON', 'NY PRE', 'NY AM', 'NY LUNCH', 'NY PM', 'CLOSED']
+        assert info['current_session'] in valid_sessions
+        assert info['next_session'] in valid_sessions
+    
+    def test_get_ny_session_info_et_time_has_timezone(self):
+        """get_ny_session_info() returns ET time with timezone"""
+        from web_server import get_ny_session_info
+        
+        info = get_ny_session_info()
+        
+        assert info['et_time'].tzinfo is not None
+        assert str(info['et_time'].tzinfo) in ['EST', 'EDT', 'America/New_York']
+    
+    def test_system_time_endpoint_exists(self):
+        """Verify /api/system-time endpoint is registered"""
+        from web_server import app
+        
+        # Check if route exists
+        routes = [str(rule) for rule in app.url_map.iter_rules()]
+        assert '/api/system-time' in routes
+    
+    def test_system_time_endpoint_returns_json(self):
+        """Test /api/system-time returns proper JSON structure"""
+        from web_server import app
+        
+        with app.test_client() as client:
+            # Note: This will fail without login, but we're testing structure
+            # In real deployment, this requires @login_required
+            response = client.get('/api/system-time')
+            
+            # Should redirect to login (302) or return 401 unauthorized
+            assert response.status_code in [302, 401]
+    
+    def test_session_sequence_logic(self):
+        """Test that next_session follows correct sequence"""
+        from web_server import get_ny_session_info
+        
+        info = get_ny_session_info()
+        
+        # Define valid transitions
+        valid_transitions = {
+            'ASIA': 'LONDON',
+            'LONDON': 'NY PRE',
+            'NY PRE': 'NY AM',
+            'NY AM': 'NY LUNCH',
+            'NY LUNCH': 'NY PM',
+            'NY PM': 'ASIA',
+            'CLOSED': 'ASIA'
+        }
+        
+        current = info['current_session']
+        next_session = info['next_session']
+        
+        assert valid_transitions[current] == next_session
+
+
+class TestChunk2TimePanel:
+    """Test Chunk 2: Time Panel & Layout Adjustments"""
+    
+    def test_time_panel_elements_exist(self):
+        """Verify time panel HTML elements exist in template"""
+        with open('templates/main_dashboard.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+            # Time panel container
+            assert 'class="time-panel"' in content
+            
+            # Local time elements
+            assert 'id="localTimeDisplay"' in content
+            assert 'id="localLocationDisplay"' in content
+            
+            # NY time elements
+            assert 'id="nyTimeDisplay"' in content
+            assert 'id="currentSessionDisplay"' in content
+            
+            # Time labels
+            assert 'Local Time' in content
+            assert 'New York Time (ET)' in content
+    
+    def test_time_panel_css_exists(self):
+        """Verify time panel CSS styling exists"""
+        with open('static/css/main_dashboard.css', 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+            assert '.time-panel' in content
+            assert '.time-block' in content
+            assert '.time-label' in content
+            assert '.time-value' in content
+            assert '.time-sub' in content
+    
+    def test_prop_firm_in_left_column(self):
+        """Verify Prop-Firm Status panel is in left column"""
+        with open('templates/main_dashboard.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+            # Find left column
+            left_col_start = content.find('<!-- LEFT COLUMN -->')
+            left_col_end = content.find('<!-- RIGHT COLUMN -->')
+            
+            assert left_col_start != -1, "Left column marker not found"
+            assert left_col_end != -1, "Right column marker not found"
+            
+            left_column_content = content[left_col_start:left_col_end]
+            
+            # Prop-Firm Status should be in left column
+            assert 'Prop-Firm Status' in left_column_content
+            assert 'id="prop-pnl-today"' in left_column_content
+    
+    def test_prop_firm_above_automation_engine(self):
+        """Verify Prop-Firm Status appears before Automation Engine"""
+        with open('templates/main_dashboard.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+            prop_firm_pos = content.find('Prop-Firm Status')
+            automation_pos = content.find('Automation Engine')
+            
+            assert prop_firm_pos != -1, "Prop-Firm Status not found"
+            assert automation_pos != -1, "Automation Engine not found"
+            assert prop_firm_pos < automation_pos, "Prop-Firm Status should appear before Automation Engine"
+    
+    def test_no_duplicate_prop_firm_panel(self):
+        """Verify Prop-Firm Status panel appears only once"""
+        with open('templates/main_dashboard.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+            # Count occurrences of Prop-Firm Status header
+            count = content.count('Prop-Firm Status</h3>')
+            assert count == 1, f"Prop-Firm Status should appear exactly once, found {count} times"
+    
+    def test_renderSystemTime_updates_time_display(self):
+        """Verify renderSystemTime method updates time display elements"""
+        with open('static/js/main_dashboard.js', 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+            # Check for time display updates
+            assert 'localTimeDisplay' in content
+            assert 'localLocationDisplay' in content
+            assert 'nyTimeDisplay' in content
+            assert 'currentSessionDisplay' in content
+            
+            # Check for timezone handling
+            assert 'Intl.DateTimeFormat' in content
+            assert 'timeZone' in content
     
     def test_no_vs_yesterday(self):
         """No fake 'vs yesterday' comparisons"""

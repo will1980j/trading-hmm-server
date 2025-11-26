@@ -98,6 +98,66 @@ def get_current_session():
         return "Asia"
 
 
+def get_ny_session_info():
+    """
+    Returns current New York time, current session label, and next session label
+    using Eastern Time with correct DST handling.
+    
+    Returns:
+        dict: {
+            "et_time": datetime object in Eastern Time,
+            "current_session": str (ASIA, LONDON, NY PRE, NY AM, NY LUNCH, NY PM),
+            "next_session": str (next session in sequence)
+        }
+    """
+    from datetime import datetime
+    import pytz
+    
+    eastern = pytz.timezone("America/New_York")
+    now_utc = datetime.utcnow().replace(tzinfo=pytz.utc)
+    now_et = now_utc.astimezone(eastern)
+    
+    hour = now_et.hour
+    minute = now_et.minute
+    
+    # Define session boundaries (Eastern Time) - matches architecture doc
+    # ASIA: 20:00-23:59 (20:00 - 23:59)
+    # LONDON: 00:00-05:59 (00:00 - 05:59)
+    # NY PRE: 06:00-08:29 (06:00 - 08:29)
+    # NY AM: 08:30-11:59 (08:30 - 11:59)
+    # NY LUNCH: 12:00-12:59 (12:00 - 12:59)
+    # NY PM: 13:00-15:59 (13:00 - 15:59)
+    # CLOSED: 16:00-19:59 (16:00 - 19:59)
+    
+    if 20 <= hour <= 23:
+        current_session = "ASIA"
+        next_session = "LONDON"
+    elif 0 <= hour <= 5:
+        current_session = "LONDON"
+        next_session = "NY PRE"
+    elif hour == 6 or hour == 7 or (hour == 8 and minute < 30):
+        current_session = "NY PRE"
+        next_session = "NY AM"
+    elif (hour == 8 and minute >= 30) or (9 <= hour <= 11):
+        current_session = "NY AM"
+        next_session = "NY LUNCH"
+    elif hour == 12:
+        current_session = "NY LUNCH"
+        next_session = "NY PM"
+    elif 13 <= hour <= 15:
+        current_session = "NY PM"
+        next_session = "ASIA"
+    else:  # 16:00-19:59
+        current_session = "CLOSED"
+        next_session = "ASIA"
+    
+    return {
+        "et_time": now_et,
+        "current_session": current_session,
+        "next_session": next_session
+    }
+
+
 # STAGE 10: Replay candle helpers (DB-first + external OHLC fallback)
 def get_replay_candles_from_db(symbol, date_str, timeframe='1m'):
     """
@@ -1411,6 +1471,28 @@ def ai_business_advisor_page():
 @login_required
 def nasdaq_ml():
     return read_html_file('nasdaq_ml_dashboard.html')
+
+# ============================================================================
+# SYSTEM TIME API - NY time and session information
+# ============================================================================
+@app.route('/api/system-time', methods=['GET'])
+@login_required
+def system_time():
+    """
+    Get current NY time and session information
+    Returns: ny_time (ISO format), current_session, next_session
+    """
+    try:
+        info = get_ny_session_info()
+        return jsonify({
+            "ny_time": info["et_time"].isoformat(),
+            "current_session": info["current_session"],
+            "next_session": info["next_session"]
+        })
+    except Exception as e:
+        logger.error(f"System time error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
 
 # ============================================================================
 # HOMEPAGE STATS API - Unified endpoint for homepage statistics

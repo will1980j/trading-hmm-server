@@ -7,6 +7,7 @@
 class MainDashboard {
     constructor() {
         this.refreshInterval = 15000; // 15 seconds
+        this.systemTimeInterval = null; // Separate interval for system time
         this.intervalId = null;
         this.data = {
             signals: [],
@@ -14,7 +15,9 @@ class MainDashboard {
             pnl: {},
             sessions: {},
             risk: {},
-            quality: {}
+            quality: {},
+            systemTime: null, // NY time and session info
+            localTime: null   // Browser local time
         };
         
         this.init();
@@ -34,7 +37,8 @@ class MainDashboard {
         try {
             await Promise.all([
                 this.fetchDashboardData(),
-                this.fetchStats()
+                this.fetchStats(),
+                this.fetchSystemTime()
             ]);
             
             this.renderAll();
@@ -80,6 +84,23 @@ class MainDashboard {
         } catch (error) {
             console.error('❌ Error fetching stats:', error);
             this.data.stats = {};
+        }
+    }
+    
+    /**
+     * Fetch system time from /api/system-time
+     * Populates: NY time, current session, next session
+     */
+    async fetchSystemTime() {
+        try {
+            const response = await fetch('/api/system-time');
+            if (!response.ok) return;
+            
+            const data = await response.json();
+            this.data.systemTime = data;
+            this.renderSystemTime();
+        } catch (error) {
+            console.error('❌ Failed to fetch system time:', error);
         }
     }
     
@@ -191,16 +212,28 @@ class MainDashboard {
             webhookEl.className = `health-value ${webhookClass}`;
         }
         
-        const currentSession = this.getCurrentSession();
-        const currentEl = document.getElementById('current-session');
-        if (currentEl) currentEl.textContent = currentSession;
-        
-        const nextSession = this.getNextSession(currentSession);
-        const nextEl = document.getElementById('next-session');
-        if (nextEl) nextEl.textContent = nextSession;
+        // Use backend session data if available, fallback to client-side calculation
+        if (this.data.systemTime) {
+            const currentEl = document.getElementById('current-session');
+            if (currentEl) currentEl.textContent = this.data.systemTime.current_session;
+            
+            const nextEl = document.getElementById('next-session');
+            if (nextEl) nextEl.textContent = this.data.systemTime.next_session;
+        } else {
+            // Fallback to client-side calculation (deprecated)
+            const currentSession = this.getCurrentSession();
+            const currentEl = document.getElementById('current-session');
+            if (currentEl) currentEl.textContent = currentSession;
+            
+            const nextSession = this.getNextSession(currentSession);
+            const nextEl = document.getElementById('next-session');
+            if (nextEl) nextEl.textContent = nextSession;
+        }
     }
     
     getCurrentSession() {
+        // DEPRECATED: Use backend session data from this.data.systemTime
+        // Kept for fallback only
         const now = new Date();
         const hour = now.getHours();
         
@@ -214,10 +247,59 @@ class MainDashboard {
     }
     
     getNextSession(current) {
+        // DEPRECATED: Use backend session data from this.data.systemTime
+        // Kept for fallback only
         const sessionOrder = ['ASIA', 'LONDON', 'NY PRE', 'NY AM', 'NY LUNCH', 'NY PM', 'CLOSED'];
         const currentIndex = sessionOrder.indexOf(current);
         const nextIndex = (currentIndex + 1) % sessionOrder.length;
         return sessionOrder[nextIndex];
+    }
+    
+    /**
+     * Render system time and session info from backend
+     * Uses /api/system-time data (NY time with DST handling)
+     */
+    renderSystemTime() {
+        if (!this.data.systemTime) return;
+        
+        // Update session labels from backend NY session data
+        const currentEl = document.getElementById('current-session');
+        if (currentEl) currentEl.textContent = this.data.systemTime.current_session;
+        
+        const nextEl = document.getElementById('next-session');
+        if (nextEl) nextEl.textContent = this.data.systemTime.next_session;
+        
+        // Update local time (browser time)
+        const now = new Date();
+        const localTimeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        this.data.localTime = localTimeString;
+        
+        // H1.2 CHUNK 2: Wire time display in HTML
+        // Local Time Display
+        const localTimeEl = document.getElementById('localTimeDisplay');
+        if (localTimeEl) localTimeEl.textContent = localTimeString;
+        
+        // Local Location Display (timezone)
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        const locationLabel = tz || 'Local Timezone';
+        const localLocationEl = document.getElementById('localLocationDisplay');
+        if (localLocationEl) localLocationEl.textContent = locationLabel;
+        
+        // NY Time Display (format from backend ISO timestamp)
+        if (this.data.systemTime.ny_time) {
+            const nyDate = new Date(this.data.systemTime.ny_time);
+            const nyTimeString = nyDate.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                timeZone: 'America/New_York'
+            });
+            const nyTimeEl = document.getElementById('nyTimeDisplay');
+            if (nyTimeEl) nyTimeEl.textContent = nyTimeString + ' ET';
+        }
+        
+        // Current Session Display (in time panel)
+        const currentSessionEl = document.getElementById('currentSessionDisplay');
+        if (currentSessionEl) currentSessionEl.textContent = this.data.systemTime.current_session;
     }
     
     renderPrimaryKPIs() {
@@ -633,17 +715,27 @@ class MainDashboard {
     }
     
     startPolling() {
+        // Main data polling (15s)
         this.intervalId = setInterval(() => {
             this.fetchAllData();
         }, this.refreshInterval);
         
-        console.log('🔄 Dashboard polling started (15s interval)');
+        // System time polling (60s) - separate interval for time/session updates
+        this.systemTimeInterval = setInterval(() => {
+            this.fetchSystemTime();
+        }, 60000);
+        
+        console.log('🔄 Dashboard polling started (15s data, 60s system time)');
     }
     
     stopPolling() {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
+        }
+        if (this.systemTimeInterval) {
+            clearInterval(this.systemTimeInterval);
+            this.systemTimeInterval = null;
         }
     }
 }
