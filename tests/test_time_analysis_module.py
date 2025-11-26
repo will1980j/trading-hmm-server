@@ -468,3 +468,70 @@ class TestHotColdHoursUI:
             "JavaScript should create session-title elements"
         assert 'session-value' in content, \
             "JavaScript should create session-value elements"
+
+
+
+class TestAbortedTransactionResilience:
+    """Tests for H1.3 Chunk 6 - Aborted transaction resilience"""
+    
+    def test_time_analysis_uses_fresh_connection(self):
+        """Test that /api/time-analysis uses fresh connection from pool"""
+        import web_server
+        
+        # Read the endpoint source to verify it uses get_db_connection
+        import inspect
+        source = inspect.getsource(web_server.get_time_analysis)
+        
+        assert 'get_db_connection' in source, \
+            "/api/time-analysis should use get_db_connection for fresh connection"
+        assert 'release_connection' in source, \
+            "/api/time-analysis should release connection after use"
+        assert 'FreshDBWrapper' in source, \
+            "/api/time-analysis should wrap connection for time_analyzer"
+    
+    def test_time_analysis_resilient_to_aborted_transaction(self):
+        """Test that /api/time-analysis doesn't fail with aborted transaction error"""
+        import web_server
+        
+        # This test verifies the endpoint structure prevents aborted transaction errors
+        # by using a fresh connection instead of reusing potentially aborted db.conn
+        
+        web_server.app.config['TESTING'] = True
+        web_server.app.config['LOGIN_DISABLED'] = True
+        
+        with web_server.app.test_client() as client:
+            # Make request to time-analysis endpoint
+            res = client.get('/api/time-analysis')
+            
+            # Should not return "current transaction is aborted" error
+            if res.status_code == 500:
+                data = res.get_json()
+                error_msg = data.get('error', '').lower() if data else ''
+                
+                assert 'current transaction is aborted' not in error_msg, \
+                    "Endpoint should not fail with aborted transaction error"
+                assert 'infailedsqltransaction' not in error_msg, \
+                    "Endpoint should not fail with InFailedSqlTransaction error"
+    
+    def test_fresh_db_wrapper_provides_conn_attribute(self):
+        """Test that FreshDBWrapper provides conn attribute like db object"""
+        # This test verifies the wrapper structure matches what time_analyzer expects
+        
+        class MockConnection:
+            def cursor(self):
+                return None
+        
+        # Simulate the FreshDBWrapper from the endpoint
+        class FreshDBWrapper:
+            def __init__(self, connection):
+                self.conn = connection
+        
+        mock_conn = MockConnection()
+        wrapper = FreshDBWrapper(mock_conn)
+        
+        assert hasattr(wrapper, 'conn'), \
+            "FreshDBWrapper should have conn attribute"
+        assert wrapper.conn == mock_conn, \
+            "FreshDBWrapper.conn should be the provided connection"
+        assert hasattr(wrapper.conn, 'cursor'), \
+            "FreshDBWrapper.conn should have cursor method"

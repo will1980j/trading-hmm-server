@@ -2312,13 +2312,36 @@ def time_analysis():
 @app.route('/api/time-analysis', methods=['GET'])
 @login_required
 def get_time_analysis():
+    """
+    Time Analysis endpoint with resilient connection handling.
+    Uses fresh connection to avoid 'current transaction is aborted' errors.
+    """
     try:
         if not db_enabled or not db:
             return jsonify({'error': 'Database not available'}), 500
         
-        from time_analyzer import analyze_time_performance
-        analysis = analyze_time_performance(db)
-        return jsonify(analysis)
+        # Get fresh connection from pool to avoid aborted transaction issues
+        from db_connection import get_db_connection, release_connection
+        
+        conn = None
+        try:
+            conn = get_db_connection()
+            
+            # Create a db-like wrapper for time_analyzer
+            class FreshDBWrapper:
+                def __init__(self, connection):
+                    self.conn = connection
+            
+            fresh_db = FreshDBWrapper(conn)
+            
+            from time_analyzer import analyze_time_performance
+            analysis = analyze_time_performance(fresh_db)
+            
+            return jsonify(analysis)
+            
+        finally:
+            if conn:
+                release_connection(conn)
         
     except Exception as e:
         logger.exception(f"🔥 H1.3 API ERROR: Time Analysis crashed — {str(e)}")
