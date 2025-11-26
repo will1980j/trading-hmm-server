@@ -4,9 +4,14 @@ Analyzes R-value distributions across multiple time windows
 """
 from datetime import datetime
 import statistics
+import logging
+
+logger = logging.getLogger(__name__)
 
 def analyze_time_performance(db):
     """Analyze trading performance across all time windows"""
+    
+    logger.error("🔥 H1.3 DEBUG: Entering analyze_time_performance()")
     
     cursor = db.conn.cursor()
     
@@ -23,15 +28,28 @@ def analyze_time_performance(db):
     
     trades = cursor.fetchall()
     
+    logger.error(f"🔥 H1.3 DEBUG: Retrieved {len(trades)} trades from DB")
+    
     if not trades:
         return generate_empty_analysis()
     
     # Analyze each time window
+    logger.error("🔥 H1.3 DEBUG: Starting analyze_macro_windows()")
     macro = analyze_macro_windows(trades)
+    
+    logger.error("🔥 H1.3 DEBUG: Starting analyze_hourly()")
     hourly = analyze_hourly(trades)
+    
+    logger.error("🔥 H1.3 DEBUG: Starting analyze_session()")
     session = analyze_session(trades)
+    
+    logger.error("🔥 H1.3 DEBUG: Starting analyze_day_of_week()")
     day_of_week = analyze_day_of_week(trades)
+    
+    logger.error("🔥 H1.3 DEBUG: Starting analyze_week_of_month()")
     week_of_month = analyze_week_of_month(trades)
+    
+    logger.error("🔥 H1.3 DEBUG: Starting analyze_monthly()")
     monthly = analyze_monthly(trades)
     
     # Calculate overall stats
@@ -45,9 +63,15 @@ def analyze_time_performance(db):
     best_month = max(monthly, key=lambda x: x['expectancy']) if monthly else {'month': 'N/A'}
     
     # Analyze session hotspots
-    session_hotspots = analyze_session_hotspots(hourly, session, trades)
+    logger.error("🔥 H1.3 DEBUG: Starting analyze_session_hotspots()")
+    try:
+        session_hotspots = analyze_session_hotspots(hourly, session, trades)
+        logger.error(f"🔥 H1.3 DEBUG: session_hotspots keys → {list(session_hotspots.keys()) if session_hotspots else 'NONE'}")
+    except Exception as e:
+        logger.exception("🔥 H1.3 ERROR: analyze_session_hotspots() crashed")
+        raise
     
-    return {
+    analysis = {
         'total_trades': len(trades),
         'overall_expectancy': overall_expectancy,
         'macro': macro,
@@ -62,6 +86,12 @@ def analyze_time_performance(db):
         'best_month': {'month': best_month['month'], 'expectancy': best_month.get('expectancy', 0)},
         'session_hotspots': session_hotspots
     }
+    
+    logger.error(f"🔥 H1.3 DEBUG: hourly keys → {list(analysis.get('hourly', [{}])[0].keys()) if analysis.get('hourly') else 'EMPTY'}")
+    logger.error(f"🔥 H1.3 DEBUG: session keys → {list(analysis.get('session', [{}])[0].keys()) if analysis.get('session') else 'EMPTY'}")
+    logger.error(f"🔥 H1.3 DEBUG: Returning analysis with {len(analysis)} top-level keys")
+    
+    return analysis
 
 def analyze_macro_windows(trades):
     """Analyze macro windows (xx:50-xx:10 + MOC 15:15-15:45) vs non-macro"""
@@ -289,6 +319,9 @@ def analyze_session_hotspots(hourly_data, session_data, trades):
             }
         }
     """
+    logger.error(f"🔥 H1.3 DEBUG: Hotspot input hourly → {type(hourly_data)} / length = {len(hourly_data) if hourly_data else 0}")
+    logger.error(f"🔥 H1.3 DEBUG: Hotspot input session → {type(session_data)} / length = {len(session_data) if session_data else 0}")
+    logger.error(f"🔥 H1.3 DEBUG: Hotspot input trades → {type(trades)} / length = {len(trades) if trades else 0}")
     # Session hour mappings (US Eastern Time)
     session_hour_map = {
         'ASIA': list(range(20, 24)),  # 20:00-23:59
@@ -319,7 +352,8 @@ def analyze_session_hotspots(hourly_data, session_data, trades):
                 session_hour_performance[session][hour] = []
             
             session_hour_performance[session][hour].append(r_value)
-        except:
+        except Exception as e:
+            logger.exception("🔥 H1.3 ERROR: analyze_session_hotspots() failed processing trade")
             continue
     
     # Build hotspots for each session
@@ -378,7 +412,9 @@ def analyze_session_hotspots(hourly_data, session_data, trades):
                 'total_trades': total_trades
             }
     
-    return {'sessions': sessions_result}
+    result = {'sessions': sessions_result}
+    logger.error(f"🔥 H1.3 DEBUG: Hotspot output → {list(result['sessions'].keys()) if 'sessions' in result else 'NO SESSIONS'}")
+    return result
 
 def generate_empty_analysis():
     """Return empty analysis structure"""

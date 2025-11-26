@@ -2321,7 +2321,7 @@ def get_time_analysis():
         return jsonify(analysis)
         
     except Exception as e:
-        logger.error(f'Time analysis error: {str(e)}')
+        logger.exception(f"🔥 H1.3 API ERROR: Time Analysis crashed — {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/ml-dashboard-old')
