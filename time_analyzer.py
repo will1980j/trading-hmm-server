@@ -33,6 +33,30 @@ def normalize_session_name(name):
         return name
     return SESSION_MAP.get(name.strip(), name.strip())
 
+def ensure_numeric(val):
+    """
+    Converts numeric values that may be strings or Decimal into float.
+    Returns None unchanged.
+    """
+    if val is None:
+        return None
+    try:
+        return float(val)
+    except Exception:
+        return val
+
+def normalize_numeric_fields(obj):
+    """
+    Recursively walks dicts/lists and converts all numeric-like values to float.
+    Leaves non-numeric values unchanged.
+    """
+    if isinstance(obj, dict):
+        return {k: normalize_numeric_fields(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [normalize_numeric_fields(v) for v in obj]
+    else:
+        return ensure_numeric(obj)
+
 def analyze_time_performance(db):
     """Analyze trading performance across all time windows"""
     
@@ -121,7 +145,7 @@ def analyze_time_performance(db):
     logger.error(f"🔥 H1.3 DEBUG: session keys → {list(analysis.get('session', [{}])[0].keys()) if analysis.get('session') else 'EMPTY'}")
     logger.error(f"🔥 H1.3 DEBUG: Returning analysis with {len(analysis)} top-level keys")
     
-    return analysis
+    return normalize_numeric_fields(analysis)
 
 def analyze_macro_windows(trades):
     """Analyze macro windows (xx:50-xx:10 + MOC 15:15-15:45) vs non-macro"""

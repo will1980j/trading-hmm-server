@@ -615,3 +615,122 @@ class TestSessionNormalization:
             "JavaScript should have ASIA in normalization map"
         assert '"NY PRE"' in content, \
             "JavaScript should have NY PRE in normalization map"
+
+
+class TestNumericFieldNormalization:
+    """Tests for H1.3 Chunk 8 - Global numeric field normalization"""
+    
+    def test_numeric_fields_are_floats(self):
+        """Test that all numeric fields in API response are floats"""
+        import web_server
+        web_server.app.config['TESTING'] = True
+        web_server.app.config['LOGIN_DISABLED'] = True
+        
+        with web_server.app.test_client() as client:
+            res = client.get('/api/time-analysis')
+            if res.status_code == 200:
+                data = res.get_json()
+                
+                # Check top-level numeric fields
+                if 'overall_expectancy' in data:
+                    assert isinstance(data['overall_expectancy'], (float, int)), \
+                        f"overall_expectancy should be numeric, got {type(data['overall_expectancy'])}"
+                
+                # Check numeric fields inside hourly structures
+                if 'hourly' in data and data['hourly']:
+                    for h in data['hourly']:
+                        if 'avg_r' in h:
+                            assert isinstance(h['avg_r'], (float, int)), \
+                                f"hourly avg_r should be numeric, got {type(h['avg_r'])}"
+                        if 'expectancy' in h:
+                            assert isinstance(h['expectancy'], (float, int)), \
+                                f"hourly expectancy should be numeric, got {type(h['expectancy'])}"
+                        if 'std_dev' in h:
+                            assert isinstance(h['std_dev'], (float, int)), \
+                                f"hourly std_dev should be numeric, got {type(h['std_dev'])}"
+                        if 'win_rate' in h:
+                            assert isinstance(h['win_rate'], (float, int)), \
+                                f"hourly win_rate should be numeric, got {type(h['win_rate'])}"
+                
+                # Check numeric fields inside session structures
+                if 'session' in data and data['session']:
+                    for s in data['session']:
+                        if 'avg_r' in s:
+                            assert isinstance(s['avg_r'], (float, int)), \
+                                f"session avg_r should be numeric, got {type(s['avg_r'])}"
+                        if 'expectancy' in s:
+                            assert isinstance(s['expectancy'], (float, int)), \
+                                f"session expectancy should be numeric, got {type(s['expectancy'])}"
+                
+                # Check numeric fields inside monthly structures
+                if 'monthly' in data and data['monthly']:
+                    for m in data['monthly']:
+                        if 'avg_r' in m:
+                            assert isinstance(m['avg_r'], (float, int)), \
+                                f"monthly avg_r should be numeric, got {type(m['avg_r'])}"
+                        if 'expectancy' in m:
+                            assert isinstance(m['expectancy'], (float, int)), \
+                                f"monthly expectancy should be numeric, got {type(m['expectancy'])}"
+                
+                # Check hotspots
+                if 'session_hotspots' in data and 'sessions' in data['session_hotspots']:
+                    hotspots = data['session_hotspots']['sessions']
+                    for name, sess in hotspots.items():
+                        if 'avg_r' in sess:
+                            assert isinstance(sess['avg_r'], (float, int)), \
+                                f"hotspot avg_r should be numeric, got {type(sess['avg_r'])}"
+                        if 'win_rate' in sess:
+                            assert isinstance(sess['win_rate'], (float, int)), \
+                                f"hotspot win_rate should be numeric, got {type(sess['win_rate'])}"
+                        if 'density' in sess:
+                            assert isinstance(sess['density'], (float, int)), \
+                                f"hotspot density should be numeric, got {type(sess['density'])}"
+    
+    def test_ensure_numeric_function(self):
+        """Test the ensure_numeric utility function"""
+        from time_analyzer import ensure_numeric
+        
+        # Test float conversion
+        assert ensure_numeric("3.14") == 3.14
+        assert ensure_numeric("0") == 0.0
+        assert ensure_numeric("-2.5") == -2.5
+        
+        # Test None handling
+        assert ensure_numeric(None) is None
+        
+        # Test already numeric values
+        assert ensure_numeric(3.14) == 3.14
+        assert ensure_numeric(42) == 42.0
+        
+        # Test non-numeric strings (should return unchanged)
+        assert ensure_numeric("not_a_number") == "not_a_number"
+        assert ensure_numeric("") == ""
+    
+    def test_normalize_numeric_fields_function(self):
+        """Test the normalize_numeric_fields utility function"""
+        from time_analyzer import normalize_numeric_fields
+        
+        # Test dict normalization
+        test_dict = {
+            'name': 'test',
+            'value': '3.14',
+            'count': '42',
+            'nested': {
+                'rate': '0.75',
+                'label': 'nested_test'
+            }
+        }
+        result = normalize_numeric_fields(test_dict)
+        assert result['name'] == 'test'  # string unchanged
+        assert result['value'] == 3.14   # string converted to float
+        assert result['count'] == 42.0   # string converted to float
+        assert result['nested']['rate'] == 0.75  # nested conversion
+        assert result['nested']['label'] == 'nested_test'  # nested string unchanged
+        
+        # Test list normalization
+        test_list = ['1.5', '2.0', 'text', None]
+        result_list = normalize_numeric_fields(test_list)
+        assert result_list[0] == 1.5
+        assert result_list[1] == 2.0
+        assert result_list[2] == 'text'
+        assert result_list[3] is None
