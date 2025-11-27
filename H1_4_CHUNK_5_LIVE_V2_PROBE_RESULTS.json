@@ -1,0 +1,1170 @@
+{
+  "timestamp": "2025-11-27T16:52:21.647983",
+  "base_url": "https://web-production-f8c3.up.railway.app",
+  "endpoints_probed": [
+    "/api/automated-signals/stats",
+    "/api/automated-signals/dashboard-data",
+    "/api/automated-signals/active",
+    "/api/automated-signals/completed",
+    "/api/automated-signals/mfe-distribution",
+    "/api/automated-signals/hourly-distribution",
+    "/api/automated-signals/daily-calendar"
+  ],
+  "results": [
+    {
+      "endpoint": "/api/automated-signals/stats",
+      "url": "https://web-production-f8c3.up.railway.app/api/automated-signals/stats",
+      "status_code": 200,
+      "success": true,
+      "response_time_ms": 1352,
+      "has_json": true,
+      "data": {
+        "active_count": 0,
+        "avg_mfe": 0,
+        "completed_count": 0,
+        "pending_count": 0,
+        "session_breakdown": {},
+        "success": true,
+        "success_rate": 0.0,
+        "total_signals": 0,
+        "win_rate": 0.0
+      },
+      "data_keys": [
+        "active_count",
+        "avg_mfe",
+        "completed_count",
+        "pending_count",
+        "session_breakdown",
+        "success",
+        "success_rate",
+        "total_signals",
+        "win_rate"
+      ]
+    },
+    {
+      "endpoint": "/api/automated-signals/dashboard-data",
+      "url": "https://web-production-f8c3.up.railway.app/api/automated-signals/dashboard-data",
+      "status_code": 500,
+      "success": false,
+      "response_time_ms": 1223,
+      "has_json": true,
+      "data": {
+        "error": "0",
+        "success": false
+      },
+      "data_keys": [
+        "error",
+        "success"
+      ]
+    },
+    {
+      "endpoint": "/api/automated-signals/active",
+      "url": "https://web-production-f8c3.up.railway.app/api/automated-signals/active",
+      "status_code": 200,
+      "success": true,
+      "response_time_ms": 1047,
+      "has_json": true,
+      "data": {
+        "success": true,
+        "trades": [
+          {
+            "direction": "Bullish",
+            "entry_price": "24049.25",
+            "id": 9605,
+            "mfe": null,
+            "session": "LONDON",
+            "stop_loss_price": "24027.50",
+            "timestamp": "Fri, 21 Nov 2025 10:47:01 GMT",
+            "trade_id": "20251121_044600000_BULLISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bearish",
+            "entry_price": "24117.25",
+            "id": 9642,
+            "mfe": null,
+            "session": "LONDON",
+            "stop_loss_price": "24153.75",
+            "timestamp": "Fri, 21 Nov 2025 11:19:00 GMT",
+            "trade_id": "20251121_051800000_BEARISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bearish",
+            "entry_price": "24044.50",
+            "id": 9682,
+            "mfe": null,
+            "session": "LONDON",
+            "stop_loss_price": "24093.25",
+            "timestamp": "Fri, 21 Nov 2025 11:50:00 GMT",
+            "trade_id": "20251121_054900000_BEARISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bearish",
+            "entry_price": "23978.75",
+            "id": 9724,
+            "mfe": null,
+            "session": "LONDON",
+            "stop_loss_price": "24025.00",
+            "timestamp": "Fri, 21 Nov 2025 12:22:04 GMT",
+            "trade_id": "20251121_062100000_BEARISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bullish",
+            "entry_price": "24160.25",
+            "id": 9743,
+            "mfe": null,
+            "session": "LONDON",
+            "stop_loss_price": "24068.50",
+            "timestamp": "Fri, 21 Nov 2025 12:37:00 GMT",
+            "trade_id": "20251121_063600000_BULLISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bullish",
+            "entry_price": "24176.75",
+            "id": 9753,
+            "mfe": null,
+            "session": "LONDON",
+            "stop_loss_price": "24118.00",
+            "timestamp": "Fri, 21 Nov 2025 12:45:00 GMT",
+            "trade_id": "20251121_064400000_BULLISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bearish",
+            "entry_price": "24237.75",
+            "id": 9802,
+            "mfe": null,
+            "session": "NY PRE",
+            "stop_loss_price": "24292.00",
+            "timestamp": "Fri, 21 Nov 2025 13:25:00 GMT",
+            "trade_id": "20251121_072400000_BEARISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bearish",
+            "entry_price": "24225.75",
+            "id": 9864,
+            "mfe": null,
+            "session": "NY PRE",
+            "stop_loss_price": "24261.75",
+            "timestamp": "Fri, 21 Nov 2025 14:17:00 GMT",
+            "trade_id": "20251121_081600000_BEARISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bearish",
+            "entry_price": "24021.75",
+            "id": 9988,
+            "mfe": null,
+            "session": "NY AM",
+            "stop_loss_price": "24099.25",
+            "timestamp": "Fri, 21 Nov 2025 16:00:05 GMT",
+            "trade_id": "20251121_095900000_BEARISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bullish",
+            "entry_price": "24027.75",
+            "id": 10002,
+            "mfe": null,
+            "session": "NY AM",
+            "stop_loss_price": "23934.25",
+            "timestamp": "Fri, 21 Nov 2025 16:09:02 GMT",
+            "trade_id": "20251121_100800000_BULLISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bullish",
+            "entry_price": "24099.00",
+            "id": 10016,
+            "mfe": null,
+            "session": "NY AM",
+            "stop_loss_price": "23990.25",
+            "timestamp": "Fri, 21 Nov 2025 16:22:02 GMT",
+            "trade_id": "20251121_102100000_BULLISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bearish",
+            "entry_price": "24345.50",
+            "id": 10121,
+            "mfe": null,
+            "session": "NY AM",
+            "stop_loss_price": "24405.00",
+            "timestamp": "Fri, 21 Nov 2025 17:53:00 GMT",
+            "trade_id": "20251121_115200000_BEARISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bullish",
+            "entry_price": "24276.00",
+            "id": 10154,
+            "mfe": null,
+            "session": "NY AM",
+            "stop_loss_price": "24203.00",
+            "timestamp": "Fri, 21 Nov 2025 18:22:01 GMT",
+            "trade_id": "20251121_122100000_BULLISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bearish",
+            "entry_price": "24533.25",
+            "id": 10236,
+            "mfe": null,
+            "session": "NY LUNCH",
+            "stop_loss_price": "24595.25",
+            "timestamp": "Fri, 21 Nov 2025 19:34:00 GMT",
+            "trade_id": "20251121_133300000_BEARISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bearish",
+            "entry_price": "24517.75",
+            "id": 10249,
+            "mfe": null,
+            "session": "NY LUNCH",
+            "stop_loss_price": "24583.50",
+            "timestamp": "Fri, 21 Nov 2025 19:44:01 GMT",
+            "trade_id": "20251121_134300000_BEARISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bearish",
+            "entry_price": "24399.25",
+            "id": 10317,
+            "mfe": null,
+            "session": "NY PM",
+            "stop_loss_price": "24454.75",
+            "timestamp": "Fri, 21 Nov 2025 20:42:00 GMT",
+            "trade_id": "20251121_144100000_BEARISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bullish",
+            "entry_price": "24328.25",
+            "id": 10339,
+            "mfe": null,
+            "session": "NY PM",
+            "stop_loss_price": "24284.75",
+            "timestamp": "Fri, 21 Nov 2025 21:01:05 GMT",
+            "trade_id": "20251121_150000000_BULLISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bullish",
+            "entry_price": "24340.25",
+            "id": 10379,
+            "mfe": null,
+            "session": "NY PM",
+            "stop_loss_price": "24317.50",
+            "timestamp": "Fri, 21 Nov 2025 21:36:00 GMT",
+            "trade_id": "20251121_153500000_BULLISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bearish",
+            "entry_price": "24326.75",
+            "id": 10393,
+            "mfe": null,
+            "session": "NY PM",
+            "stop_loss_price": "24360.75",
+            "timestamp": "Fri, 21 Nov 2025 21:48:00 GMT",
+            "trade_id": "20251121_154700000_BEARISH",
+            "trade_status": "ACTIVE"
+          },
+          {
+            "direction": "Bullish",
+            "entry_price": "24345.25",
+            "id": 10397,
+            "mfe": null,
+            "session": "NY PM",
+            "stop_loss_price": "24321.25",
+            "timestamp": "Fri, 21 Nov 2025 21:51:00 GMT",
+            "trade_id": "20251121_155000000_BULLISH",
+            "trade_status": "ACTIVE"
+          }
+        ]
+      },
+      "data_keys": [
+        "success",
+        "trades"
+      ]
+    },
+    {
+      "endpoint": "/api/automated-signals/completed",
+      "url": "https://web-production-f8c3.up.railway.app/api/automated-signals/completed",
+      "status_code": 200,
+      "success": true,
+      "response_time_ms": 1055,
+      "has_json": true,
+      "data": {
+        "success": true,
+        "trades": []
+      },
+      "data_keys": [
+        "success",
+        "trades"
+      ]
+    },
+    {
+      "endpoint": "/api/automated-signals/mfe-distribution",
+      "url": "https://web-production-f8c3.up.railway.app/api/automated-signals/mfe-distribution",
+      "status_code": 200,
+      "success": true,
+      "response_time_ms": 1063,
+      "has_json": true,
+      "data": {
+        "distribution": {
+          "0-0.5R": 0,
+          "0.5-1R": 0,
+          "1-1.5R": 0,
+          "1.5-2R": 0,
+          "2-2.5R": 0,
+          "2.5-3R": 0,
+          "3R+": 0
+        },
+        "raw_values": [],
+        "success": true
+      },
+      "data_keys": [
+        "distribution",
+        "raw_values",
+        "success"
+      ]
+    },
+    {
+      "endpoint": "/api/automated-signals/hourly-distribution",
+      "url": "https://web-production-f8c3.up.railway.app/api/automated-signals/hourly-distribution",
+      "status_code": 200,
+      "success": true,
+      "response_time_ms": 1150,
+      "has_json": true,
+      "data": {
+        "hourly_data": {},
+        "success": true
+      },
+      "data_keys": [
+        "hourly_data",
+        "success"
+      ]
+    },
+    {
+      "endpoint": "/api/automated-signals/daily-calendar",
+      "url": "https://web-production-f8c3.up.railway.app/api/automated-signals/daily-calendar",
+      "status_code": 200,
+      "success": true,
+      "response_time_ms": 1041,
+      "has_json": true,
+      "data": {
+        "daily_data": {
+          "2025-11-21": {
+            "has_news": false,
+            "total_r": 0,
+            "trade_count": 121,
+            "trades": [
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY PM",
+                "time": "21:51"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PM",
+                "time": "21:48"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "21:45"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY PM",
+                "time": "21:36"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "21:28"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PM",
+                "time": "21:23"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PM",
+                "time": "21:08"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY PM",
+                "time": "21:01"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "20:55"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "20:54"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PM",
+                "time": "20:42"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY PM",
+                "time": "20:36"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "20:36"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "20:31"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PM",
+                "time": "20:25"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "20:24"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY PM",
+                "time": "20:18"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "19:54"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY LUNCH",
+                "time": "19:44"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "19:44"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY LUNCH",
+                "time": "19:37"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY LUNCH",
+                "time": "19:34"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "19:33"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY LUNCH",
+                "time": "19:20"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY LUNCH",
+                "time": "19:07"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "18:49"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "18:37"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "18:33"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "18:22"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "17:58"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "17:55"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "17:53"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "17:53"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "17:52"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "17:49"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "17:46"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "17:34"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "17:32"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "17:29"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "17:20"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "17:10"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "16:30"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "16:22"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "16:09"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "16:09"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "16:06"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "16:03"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "16:00"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "15:48"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY AM",
+                "time": "15:44"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "15:31"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "15:28"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "15:24"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "15:19"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "15:13"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "15:09"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "15:05"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "15:03"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "15:01"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "14:55"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "14:53"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "14:49"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "14:46"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "14:46"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "14:42"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "14:39"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "14:31"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "14:29"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "14:22"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "14:21"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "14:17"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "14:10"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "14:09"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "14:09"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "14:02"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "13:57"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "13:37"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "13:27"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "13:25"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "13:15"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "13:14"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "13:12"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "NY PRE",
+                "time": "13:03"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "12:58"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "12:46"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "12:45"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "12:42"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "12:37"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "12:31"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "12:30"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "12:24"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "12:23"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "12:22"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "12:16"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "12:15"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "12:10"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "12:06"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "12:06"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "12:03"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "11:59"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "11:50"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "11:48"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "11:44"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "11:43"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "11:41"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "11:39"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "11:19"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "11:08"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "11:08"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "11:04"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "10:52"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "10:47"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "10:45"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "10:41"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "10:36"
+              },
+              {
+                "direction": "Bullish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "10:32"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "10:32"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "10:16"
+              },
+              {
+                "direction": null,
+                "mfe": 0,
+                "session": null,
+                "time": "10:00"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "10:00"
+              },
+              {
+                "direction": "Bearish",
+                "mfe": 0,
+                "session": "LONDON",
+                "time": "09:53"
+              }
+            ]
+          }
+        },
+        "success": true
+      },
+      "data_keys": [
+        "daily_data",
+        "success"
+      ]
+    }
+  ],
+  "field_availability": {
+    "trade_id": {
+      "present": true,
+      "populated": true,
+      "sample": "20251121_044600000_BULLISH"
+    },
+    "event_type": {
+      "present": false,
+      "populated": false,
+      "sample": null
+    },
+    "entry_price": {
+      "present": true,
+      "populated": true,
+      "sample": "24049.25"
+    },
+    "stop_loss": {
+      "present": false,
+      "populated": false,
+      "sample": null
+    },
+    "mfe": {
+      "present": true,
+      "populated": false,
+      "sample": null
+    },
+    "no_be_mfe": {
+      "present": false,
+      "populated": false,
+      "sample": null
+    },
+    "be_mfe": {
+      "present": false,
+      "populated": false,
+      "sample": null
+    },
+    "direction": {
+      "present": true,
+      "populated": true,
+      "sample": "Bullish"
+    },
+    "timestamp": {
+      "present": true,
+      "populated": true,
+      "sample": "Fri, 21 Nov 2025 10:47:01 GMT"
+    },
+    "signal_date": {
+      "present": false,
+      "populated": false,
+      "sample": null
+    },
+    "signal_time": {
+      "present": false,
+      "populated": false,
+      "sample": null
+    },
+    "session": {
+      "present": true,
+      "populated": true,
+      "sample": "LONDON"
+    }
+  },
+  "verdict": "\u2705 READY",
+  "reason": "V2 data is complete with all required fields for Time Analysis migration"
+}

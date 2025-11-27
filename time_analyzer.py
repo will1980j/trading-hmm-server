@@ -57,11 +57,115 @@ def normalize_numeric_fields(obj):
     else:
         return ensure_numeric(obj)
 
-def analyze_time_performance(db):
-    """Analyze trading performance across all time windows"""
+
+def load_v2_trades(db):
+    """
+    Loads V2 automated signals from the database and aggregates them
+    into trade-level records suitable for Time Analysis.
     
-    logger.error("🔥 H1.3 DEBUG: Entering analyze_time_performance()")
+    Returns a list of dicts:
+    [
+        {
+            'session': 'NY AM',
+            'hour': 9,
+            'direction': 'Bullish',
+            'entry_price': 24049.25,
+            'stop_loss': 23990.0,
+            'mfe_no_be': 2.4,
+            'mfe_be': 1.8,
+            'r_value': float,
+            'timestamp': datetime,
+        },
+        ...
+    ]
+    """
+    import psycopg2.extras
+    from datetime import datetime
     
+    conn = db.get_connection() if hasattr(db, "get_connection") else db.conn
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    # Pull all automated signals rows (all event types)
+    cursor.execute("""
+        SELECT
+            trade_id,
+            event_type,
+            direction,
+            entry_price,
+            stop_loss,
+            be_mfe,
+            no_be_mfe,
+            session,
+            timestamp
+        FROM automated_signals
+        WHERE trade_id IS NOT NULL
+        ORDER BY trade_id, timestamp ASC
+    """)
+    
+    rows = cursor.fetchall()
+    
+    # Aggregate rows by trade_id
+    trades = {}
+    for row in rows:
+        tid = row["trade_id"]
+        if tid not in trades:
+            trades[tid] = {
+                "trade_id": tid,
+                "direction": row.get("direction"),
+                "entry_price": row.get("entry_price"),
+                "stop_loss": row.get("stop_loss"),
+                "session": normalize_session_name(row.get("session")),
+                "timestamp": row["timestamp"],
+                "be_mfe": None,
+                "no_be_mfe": None
+            }
+        
+        # Update MFE values if present
+        if row.get("be_mfe") is not None:
+            trades[tid]["be_mfe"] = row["be_mfe"]
+        
+        if row.get("no_be_mfe") is not None:
+            trades[tid]["no_be_mfe"] = row["no_be_mfe"]
+    
+    # Convert dict-of-dicts → list-of-dicts
+    results = []
+    for tid, t in trades.items():
+        
+        # Filter invalid records - skip if missing critical fields
+        if not t.get("session") or not t.get("direction") or not t.get("entry_price"):
+            continue
+        
+        # Compute hour
+        hour = t["timestamp"].hour if hasattr(t["timestamp"], "hour") else None
+        
+        # Compute R-value (fallback to no_be_mfe → be_mfe)
+        r_val = None
+        if t.get("no_be_mfe") is not None:
+            r_val = float(t["no_be_mfe"])
+        elif t.get("be_mfe") is not None:
+            r_val = float(t["be_mfe"])
+        
+        results.append({
+            "session": t["session"],
+            "hour": hour,
+            "direction": t["direction"],
+            "entry_price": t["entry_price"],
+            "stop_loss": t["stop_loss"],
+            "mfe_no_be": t["no_be_mfe"],
+            "mfe_be": t["be_mfe"],
+            "r_value": r_val,
+            "timestamp": t["timestamp"],
+        })
+    
+    return results
+
+
+def load_v1_trades(db):
+    """
+    Loads V1 trades from signal_lab_trades table (legacy loader).
+    
+    Returns a list of dicts compatible with time analysis functions.
+    """
     cursor = db.conn.cursor()
     
     # Get all trades with time and MFE data
@@ -77,12 +181,39 @@ def analyze_time_performance(db):
     
     trades = cursor.fetchall()
     
-    logger.error(f"🔥 H1.3 DEBUG: Retrieved {len(trades)} trades from DB")
-    
     # Normalize session names in all trades
     for t in trades:
         if 'session' in t and t['session']:
             t['session'] = normalize_session_name(t['session'])
+    
+    return trades
+
+
+def analyze_time_performance(db, source="v2"):
+    """
+    Analyze trading performance across all time windows.
+    
+    Args:
+        db: Database connection object
+        source: Data source - "v2" (default, automated_signals) or "v1" (signal_lab_trades)
+    
+    Returns:
+        dict: Comprehensive time analysis results
+    """
+    
+    logger.error(f"🔥 H1.3 DEBUG: Entering analyze_time_performance(source={source})")
+    
+    # Validate source parameter
+    if source not in ["v1", "v2"]:
+        raise ValueError(f"Invalid source '{source}'. Must be 'v1' or 'v2'.")
+    
+    # Load trades from selected source
+    if source == "v2":
+        trades = load_v2_trades(db)
+        logger.error(f"🔥 H1.3 DEBUG: Loaded {len(trades)} trades from V2 (automated_signals)")
+    else:
+        trades = load_v1_trades(db)
+        logger.error(f"🔥 H1.3 DEBUG: Loaded {len(trades)} trades from V1 (signal_lab_trades)")
     
     if not trades:
         return generate_empty_analysis()

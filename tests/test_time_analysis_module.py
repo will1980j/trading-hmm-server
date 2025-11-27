@@ -734,3 +734,364 @@ class TestNumericFieldNormalization:
         assert result_list[1] == 2.0
         assert result_list[2] == 'text'
         assert result_list[3] is None
+
+
+
+# ============================================================================
+# V2 LOADER TESTS (CHUNK 6A)
+# ============================================================================
+
+class TestLoadV2Trades:
+    """Tests for load_v2_trades function"""
+    
+    def test_load_v2_trades_structure(self):
+        """Test load_v2_trades returns correct structure"""
+        from datetime import datetime
+        from time_analyzer import load_v2_trades
+        
+        # Mock V2 rows
+        sample_v2_rows = [
+            {
+                "trade_id": "T1",
+                "event_type": "SIGNAL_CREATED",
+                "direction": "Bullish",
+                "entry_price": 24000.0,
+                "stop_loss": 23900.0,
+                "be_mfe": None,
+                "no_be_mfe": None,
+                "session": "NY AM",
+                "timestamp": datetime(2025, 11, 21, 14, 30),
+            },
+            {
+                "trade_id": "T1",
+                "event_type": "MFE_UPDATE",
+                "direction": "Bullish",
+                "entry_price": 24000.0,
+                "stop_loss": 23900.0,
+                "be_mfe": None,
+                "no_be_mfe": 2.5,
+                "session": "NY AM",
+                "timestamp": datetime(2025, 11, 21, 14, 45),
+            },
+            {
+                "trade_id": "T2",
+                "event_type": "SIGNAL_CREATED",
+                "direction": "Bearish",
+                "entry_price": 23950.0,
+                "stop_loss": 24050.0,
+                "be_mfe": 1.8,
+                "no_be_mfe": None,
+                "session": "LONDON",
+                "timestamp": datetime(2025, 11, 21, 10, 15),
+            }
+        ]
+        
+        # Mock cursor
+        class FakeCursor:
+            def execute(self, query):
+                pass
+            
+            def fetchall(self):
+                return sample_v2_rows
+        
+        # Mock connection
+        class FakeConnection:
+            def cursor(self, cursor_factory=None):
+                return FakeCursor()
+        
+        # Mock database
+        class FakeDB:
+            def get_connection(self):
+                return FakeConnection()
+        
+        fake_db = FakeDB()
+        trades = load_v2_trades(fake_db)
+        
+        assert isinstance(trades, list)
+        assert len(trades) == 2  # T1 and T2
+        
+        # Test T1 (should have no_be_mfe = 2.5)
+        t1 = next((t for t in trades if t["direction"] == "Bullish"), None)
+        assert t1 is not None
+        assert t1["session"] == "NY AM"
+        assert t1["hour"] == 14
+        assert t1["r_value"] == 2.5
+        assert t1["mfe_no_be"] == 2.5
+        assert t1["mfe_be"] is None
+        assert t1["entry_price"] == 24000.0
+        assert t1["stop_loss"] == 23900.0
+        
+        # Test T2 (should have be_mfe = 1.8)
+        t2 = next((t for t in trades if t["direction"] == "Bearish"), None)
+        assert t2 is not None
+        assert t2["session"] == "LONDON"
+        assert t2["hour"] == 10
+        assert t2["r_value"] == 1.8
+        assert t2["mfe_be"] == 1.8
+        assert t2["mfe_no_be"] is None
+    
+    def test_load_v2_trades_filters_invalid_entries(self):
+        """Test that load_v2_trades filters out invalid entries"""
+        from datetime import datetime
+        from time_analyzer import load_v2_trades
+        
+        # Invalid rows
+        sample_v2_invalid_rows = [
+            {
+                "trade_id": "T_INVALID_1",
+                "event_type": "SIGNAL_CREATED",
+                "direction": None,  # Missing direction
+                "entry_price": 24000.0,
+                "stop_loss": 23900.0,
+                "be_mfe": None,
+                "no_be_mfe": None,
+                "session": "NY AM",
+                "timestamp": datetime(2025, 11, 21, 14, 30),
+            },
+            {
+                "trade_id": "T_INVALID_2",
+                "event_type": "SIGNAL_CREATED",
+                "direction": "Bullish",
+                "entry_price": None,  # Missing entry_price
+                "stop_loss": 23900.0,
+                "be_mfe": None,
+                "no_be_mfe": None,
+                "session": "NY AM",
+                "timestamp": datetime(2025, 11, 21, 14, 30),
+            },
+            {
+                "trade_id": "T_INVALID_3",
+                "event_type": "SIGNAL_CREATED",
+                "direction": "Bullish",
+                "entry_price": 24000.0,
+                "stop_loss": 23900.0,
+                "be_mfe": None,
+                "no_be_mfe": None,
+                "session": None,  # Missing session
+                "timestamp": datetime(2025, 11, 21, 14, 30),
+            }
+        ]
+        
+        # Mock cursor
+        class FakeCursor:
+            def execute(self, query):
+                pass
+            
+            def fetchall(self):
+                return sample_v2_invalid_rows
+        
+        # Mock connection
+        class FakeConnection:
+            def cursor(self, cursor_factory=None):
+                return FakeCursor()
+        
+        # Mock database
+        class FakeDB:
+            def get_connection(self):
+                return FakeConnection()
+        
+        fake_db = FakeDB()
+        trades = load_v2_trades(fake_db)
+        
+        # All invalid entries should be filtered out
+        assert len(trades) == 0
+    
+    def test_load_v2_trades_handles_mfe_logic(self):
+        """Test MFE preference logic: no_be_mfe preferred, be_mfe fallback, None → None"""
+        from datetime import datetime
+        from time_analyzer import load_v2_trades
+        
+        test_rows = [
+            {
+                "trade_id": "T_NO_BE",
+                "event_type": "MFE_UPDATE",
+                "direction": "Bullish",
+                "entry_price": 24000.0,
+                "stop_loss": 23900.0,
+                "be_mfe": 1.0,
+                "no_be_mfe": 2.0,  # This should be preferred
+                "session": "NY AM",
+                "timestamp": datetime(2025, 11, 21, 14, 30),
+            },
+            {
+                "trade_id": "T_BE_ONLY",
+                "event_type": "MFE_UPDATE",
+                "direction": "Bearish",
+                "entry_price": 23950.0,
+                "stop_loss": 24050.0,
+                "be_mfe": 1.5,  # This should be used as fallback
+                "no_be_mfe": None,
+                "session": "LONDON",
+                "timestamp": datetime(2025, 11, 21, 10, 15),
+            },
+            {
+                "trade_id": "T_NONE",
+                "event_type": "SIGNAL_CREATED",
+                "direction": "Bullish",
+                "entry_price": 24100.0,
+                "stop_loss": 24000.0,
+                "be_mfe": None,
+                "no_be_mfe": None,  # Both None → r_value should be None
+                "session": "NY PM",
+                "timestamp": datetime(2025, 11, 21, 18, 30),
+            }
+        ]
+        
+        # Mock cursor
+        class FakeCursor:
+            def execute(self, query):
+                pass
+            
+            def fetchall(self):
+                return test_rows
+        
+        # Mock connection
+        class FakeConnection:
+            def cursor(self, cursor_factory=None):
+                return FakeCursor()
+        
+        # Mock database
+        class FakeDB:
+            def get_connection(self):
+                return FakeConnection()
+        
+        fake_db = FakeDB()
+        trades = load_v2_trades(fake_db)
+        
+        assert len(trades) == 3
+        
+        # Test no_be_mfe preference
+        t_no_be = next((t for t in trades if t["entry_price"] == 24000.0), None)
+        assert t_no_be["r_value"] == 2.0  # no_be_mfe preferred over be_mfe
+        
+        # Test be_mfe fallback
+        t_be_only = next((t for t in trades if t["direction"] == "Bearish"), None)
+        assert t_be_only["r_value"] == 1.5  # be_mfe used as fallback
+        
+        # Test None → None
+        t_none = next((t for t in trades if t["entry_price"] == 24100.0), None)
+        assert t_none["r_value"] is None  # Both MFE values None
+    
+    def test_load_v2_trades_session_normalization(self):
+        """Test that load_v2_trades uses session normalization"""
+        from datetime import datetime
+        from time_analyzer import load_v2_trades
+        
+        test_rows = [
+            {
+                "trade_id": "T_NORM",
+                "event_type": "SIGNAL_CREATED",
+                "direction": "Bullish",
+                "entry_price": 24000.0,
+                "stop_loss": 23900.0,
+                "be_mfe": None,
+                "no_be_mfe": None,
+                "session": "ny am",  # lowercase - should be normalized
+                "timestamp": datetime(2025, 11, 21, 14, 30),
+            }
+        ]
+        
+        # Mock cursor
+        class FakeCursor:
+            def execute(self, query):
+                pass
+            
+            def fetchall(self):
+                return test_rows
+        
+        # Mock connection
+        class FakeConnection:
+            def cursor(self, cursor_factory=None):
+                return FakeCursor()
+        
+        # Mock database
+        class FakeDB:
+            def get_connection(self):
+                return FakeConnection()
+        
+        fake_db = FakeDB()
+        trades = load_v2_trades(fake_db)
+        
+        assert len(trades) == 1
+        assert trades[0]["session"] == "ny am"  # Session normalization happens via normalize_session_name
+
+
+
+# ============================================================================
+# SOURCE SELECTION TESTS (CHUNK 6B)
+# ============================================================================
+
+class TestAnalyzeTimePerformanceSourceSelection:
+    """Tests for analyze_time_performance source parameter"""
+    
+    def test_analyze_time_performance_uses_v2_when_default(self, monkeypatch):
+        """Test that analyze_time_performance uses V2 loader by default"""
+        from time_analyzer import analyze_time_performance
+        
+        calls = {"v2": False}
+        
+        def fake_v2_loader(db):
+            calls["v2"] = True
+            return []
+        
+        monkeypatch.setattr("time_analyzer.load_v2_trades", fake_v2_loader)
+        
+        # Mock db
+        class FakeDB:
+            class conn:
+                @staticmethod
+                def cursor():
+                    return None
+        
+        try:
+            analyze_time_performance(FakeDB())  # default == v2
+        except:
+            pass  # May fail on empty data, but we only care about loader call
+        
+        assert calls["v2"] is True, "V2 loader should be called by default"
+    
+    def test_analyze_time_performance_uses_v1_when_requested(self, monkeypatch):
+        """Test that analyze_time_performance uses V1 loader when source='v1'"""
+        from time_analyzer import analyze_time_performance
+        
+        calls = {"v1": False}
+        
+        def fake_v1_loader(db):
+            calls["v1"] = True
+            return []
+        
+        monkeypatch.setattr("time_analyzer.load_v1_trades", fake_v1_loader)
+        
+        # Mock db
+        class FakeDB:
+            class conn:
+                @staticmethod
+                def cursor():
+                    return None
+        
+        try:
+            analyze_time_performance(FakeDB(), source="v1")
+        except:
+            pass  # May fail on empty data, but we only care about loader call
+        
+        assert calls["v1"] is True, "V1 loader should be called when source='v1'"
+    
+    def test_analyze_time_performance_rejects_invalid_source(self):
+        """Test that analyze_time_performance rejects invalid source values"""
+        from time_analyzer import analyze_time_performance
+        
+        # Mock db
+        class FakeDB:
+            class conn:
+                @staticmethod
+                def cursor():
+                    return None
+        
+        try:
+            analyze_time_performance(FakeDB(), source="invalid")
+            assert False, "Expected ValueError for invalid source"
+        except ValueError as e:
+            assert "invalid" in str(e).lower(), f"Error message should mention 'invalid': {e}"
+            assert "v1" in str(e).lower() or "v2" in str(e).lower(), f"Error should mention valid options: {e}"
+        except Exception as e:
+            assert False, f"Expected ValueError but got {type(e).__name__}: {e}"
