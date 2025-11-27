@@ -5,8 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Time Analysis - Second Skies Trading</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/time_analysis.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://unpkg.com/chartjs-chart-matrix@4.0.0/dist/chartjs-chart-matrix.umd.min.js"></script>
+    <!-- Chart.js 3.x (stable version fully supported by chartjs-chart-matrix 2.x) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    
+    <!-- Chart.js Matrix Plugin 2.0.1 (stable & compatible with Chart.js 3.x) -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.umd.min.js"></script>
 </head>
 <body>
     <!-- REGION A: HEADER & METRIC SUMMARY -->
