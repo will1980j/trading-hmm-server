@@ -394,6 +394,82 @@ class TestTimeAnalysisJavaScript:
         assert 'this.data' in content, "JavaScript should store data in this.data"
 
 
+class TestChunk7BSessionHourlyAnalytics:
+    """Tests for CHUNK 7B - Session & Hourly Analytics with Chart.js"""
+    
+    def test_template_has_session_and_hourly_sections(self):
+        """Test that template contains new session and hourly sections"""
+        with open('templates/time_analysis.html', encoding='utf-8') as f:
+            content = f.read()
+        
+        assert 'id="sessionGrid"' in content, "sessionGrid should be present"
+        assert 'id="sessionHeatmapCanvas"' in content, "sessionHeatmapCanvas should be present"
+        assert 'id="hourlyGrid"' in content, "hourlyGrid should be present"
+        assert 'ta-section' in content, "ta-section class should be present"
+        assert 'ta-section-title' in content, "ta-section-title class should be present"
+    
+    def test_template_includes_chartjs_libraries(self):
+        """Test that template includes Chart.js and matrix plugin"""
+        with open('templates/time_analysis.html', encoding='utf-8') as f:
+            content = f.read()
+        
+        assert 'chart.js' in content.lower(), "Chart.js should be included"
+        assert 'chartjs-chart-matrix' in content, "Chart.js matrix plugin should be included"
+    
+    def test_js_has_session_and_heatmap_functions(self):
+        """Test that JS has session and heatmap rendering functions"""
+        with open('static/js/time_analysis.js', encoding='utf-8') as f:
+            content = f.read()
+        
+        assert 'renderSessionAnalysis' in content, "renderSessionAnalysis should be present"
+        assert 'renderSessionHeatmap' in content, "renderSessionHeatmap should be present"
+        assert 'getHeatColor' in content, "getHeatColor should be present"
+        assert 'new Chart' in content, "Chart.js instantiation should be present"
+        assert 'sessionHeatmapChart' in content, "sessionHeatmapChart property should be present"
+    
+    def test_js_has_hourly_analysis_function(self):
+        """Test that JS has hourly analysis rendering function"""
+        with open('static/js/time_analysis.js', encoding='utf-8') as f:
+            content = f.read()
+        
+        assert 'renderHourlyAnalysis' in content, "renderHourlyAnalysis should be present"
+        assert 'hourlyGrid' in content, "hourlyGrid reference should be present"
+        assert 'hour-card' in content, "hour-card class should be used"
+    
+    def test_js_creates_session_cards_with_real_data(self):
+        """Test that JS creates session cards with real V2 data"""
+        with open('static/js/time_analysis.js', encoding='utf-8') as f:
+            content = f.read()
+        
+        assert 'createSessionCard' in content, "createSessionCard method should be present"
+        assert 'session-title' in content, "session-title class should be used"
+        assert 'session-metric' in content, "session-metric class should be used"
+        assert 'data-hot-hours-for' in content, "data-hot-hours-for attribute should be present"
+        assert 'data-cold-hours-for' in content, "data-cold-hours-for attribute should be present"
+    
+    def test_css_has_new_section_styles(self):
+        """Test that CSS has new section and grid styles"""
+        with open('static/css/time_analysis.css', encoding='utf-8') as f:
+            content = f.read()
+        
+        assert '.ta-section' in content, "ta-section class should be defined"
+        assert '.ta-section-title' in content, "ta-section-title class should be defined"
+        assert '.session-card' in content, "session-card class should be defined"
+        assert '.heatmap-container' in content, "heatmap-container class should be defined"
+        assert '.hourly-grid' in content, "hourly-grid class should be defined"
+        assert '.hour-card' in content, "hour-card class should be defined"
+    
+    def test_heatmap_uses_fintech_color_scheme(self):
+        """Test that heatmap color function uses fintech blue-violet-magenta scheme"""
+        with open('static/js/time_analysis.js', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Check for color values in getHeatColor
+        assert '#4C66FF' in content, "Blue color should be present"
+        assert '#8E54FF' in content, "Violet color should be present"
+        assert '#FF00FF' in content, "Magenta color should be present"
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
 
@@ -1261,3 +1337,184 @@ class TestSafeBestCalculations:
         assert analysis['best_month'] is not None
         assert analysis['best_month']['month'] == 'February'  # Highest expectancy (2.2)
         assert analysis['best_month']['expectancy'] == 2.2
+
+
+
+# ============================================================================
+# CHUNK 7A - HEADER METRICS & CONTROLS V2 MIGRATION TESTS
+# ============================================================================
+
+class TestChunk7AHeaderV2Migration:
+    """Tests for V2 migration of header metrics and controls"""
+    
+    def test_dataset_dropdown_removed(self):
+        """Test that the dataset dropdown has been completely removed"""
+        with open("templates/time_analysis.html") as f:
+            content = f.read()
+        
+        assert "dataset-toggle" not in content, "dataset-toggle ID should be removed"
+        assert "Dataset V1" not in content, "Dataset V1 text should be removed"
+        assert "Dataset V2" not in content, "Dataset V2 text should be removed"
+        assert "dataset-selector" not in content, "dataset-selector class should be removed"
+    
+    def test_header_metric_placeholders_present(self):
+        """Test that header metric IDs are present with correct naming"""
+        with open("templates/time_analysis.html") as f:
+            content = f.read()
+        
+        # Check for new camelCase IDs
+        assert "winRateValue" in content, "winRateValue ID should be present"
+        assert "expectancyValue" in content, "expectancyValue ID should be present"
+        assert "avgRValue" in content, "avgRValue ID should be present"
+        assert "totalTradesValue" in content, "totalTradesValue ID should be present"
+        assert "bestSessionValue" in content, "bestSessionValue ID should be present"
+    
+    def test_header_has_modern_layout(self):
+        """Test that header has modern ta-header layout structure"""
+        with open("templates/time_analysis.html") as f:
+            content = f.read()
+        
+        assert "ta-header" in content, "ta-header class should be present"
+        assert "ta-header-left" in content, "ta-header-left class should be present"
+        assert "ta-header-right" in content, "ta-header-right class should be present"
+        assert "ta-subtitle" in content, "ta-subtitle class should be present"
+        assert "ta-filter-row" in content, "ta-filter-row class should be present"
+        assert "ta-stat-row" in content, "ta-stat-row class should be present"
+    
+    def test_filter_controls_present(self):
+        """Test that filter controls are present in template"""
+        with open("templates/time_analysis.html") as f:
+            content = f.read()
+        
+        assert "startDateInput" in content, "startDateInput should be present"
+        assert "endDateInput" in content, "endDateInput should be present"
+        assert "sessionFilter" in content, "sessionFilter should be present"
+        assert "directionFilter" in content, "directionFilter should be present"
+    
+    def test_js_contains_render_header_metrics(self):
+        """Test that JS contains renderHeaderMetrics method"""
+        with open("static/js/time_analysis.js") as f:
+            content = f.read()
+        
+        assert "renderHeaderMetrics" in content, "renderHeaderMetrics method should be present"
+    
+    def test_js_uses_new_element_ids(self):
+        """Test that JS uses the new camelCase element IDs"""
+        with open("static/js/time_analysis.js") as f:
+            content = f.read()
+        
+        # Check for new IDs in renderHeaderMetrics
+        assert "winRateValue" in content, "JS should reference winRateValue"
+        assert "expectancyValue" in content, "JS should reference expectancyValue"
+        assert "avgRValue" in content, "JS should reference avgRValue"
+        assert "totalTradesValue" in content, "JS should reference totalTradesValue"
+        assert "bestSessionValue" in content, "JS should reference bestSessionValue"
+    
+    def test_js_has_setup_filters_method(self):
+        """Test that JS has setupFilters method"""
+        with open("static/js/time_analysis.js") as f:
+            content = f.read()
+        
+        assert "setupFilters" in content, "setupFilters method should be present"
+        assert "startDateInput" in content, "JS should reference startDateInput"
+        assert "endDateInput" in content, "JS should reference endDateInput"
+        assert "sessionFilter" in content, "JS should reference sessionFilter"
+        assert "directionFilter" in content, "JS should reference directionFilter"
+        assert "TODO: apply V2 filters" in content, "Filter handler should have TODO stub"
+    
+    def test_css_has_new_header_styles(self):
+        """Test that CSS has new header layout styles"""
+        with open("static/css/time_analysis.css") as f:
+            content = f.read()
+        
+        assert ".ta-header" in content, "CSS should define ta-header class"
+        assert ".ta-header-left" in content, "CSS should define ta-header-left class"
+        assert ".ta-header-right" in content, "CSS should define ta-header-right class"
+        assert ".ta-subtitle" in content, "CSS should define ta-subtitle class"
+        assert ".ta-filter-row" in content, "CSS should define ta-filter-row class"
+        assert ".ta-stat-row" in content, "CSS should define ta-stat-row class"
+    
+    def test_render_all_calls_header_metrics(self):
+        """Test that renderAll calls renderHeaderMetrics"""
+        with open("static/js/time_analysis.js") as f:
+            content = f.read()
+        
+        # Find renderAll method
+        assert "renderAll()" in content, "renderAll method should exist"
+        
+        # Check it calls renderHeaderMetrics
+        render_all_section = content[content.find("renderAll()"):content.find("renderAll()") + 500]
+        assert "renderHeaderMetrics" in render_all_section, "renderAll should call renderHeaderMetrics"
+
+
+
+class TestChunk7CTemporalAnalytics:
+    """Tests for CHUNK 7C - Temporal Analytics (Day/Week/Month/Macro/R-Distribution)"""
+    
+    def test_template_has_temporal_grids(self):
+        """Test that template has all temporal analytics grid containers"""
+        with open("templates/time_analysis.html", encoding="utf-8") as f:
+            c = f.read()
+        assert 'id="dayOfWeekGrid"' in c, "dayOfWeekGrid should be present"
+        assert 'id="weekOfMonthGrid"' in c, "weekOfMonthGrid should be present"
+        assert 'id="monthOfYearGrid"' in c, "monthOfYearGrid should be present"
+        assert 'id="macroGrid"' in c, "macroGrid should be present"
+        assert 'id="rDistCanvas"' in c, "rDistCanvas should be present"
+    
+    def test_js_has_temporal_render_functions(self):
+        """Test that JS has all temporal rendering functions"""
+        with open("static/js/time_analysis.js", encoding="utf-8") as f:
+            c = f.read()
+        assert "renderDayOfWeek" in c, "renderDayOfWeek function should be present"
+        assert "renderWeekOfMonth" in c, "renderWeekOfMonth function should be present"
+        assert "renderMonthOfYear" in c, "renderMonthOfYear function should be present"
+        assert "renderMacroWindows" in c, "renderMacroWindows function should be present"
+        assert "renderRDistribution" in c, "renderRDistribution function should be present"
+    
+    def test_js_render_all_calls_temporal_functions(self):
+        """Test that renderAll() calls all temporal rendering functions"""
+        with open("static/js/time_analysis.js", encoding="utf-8") as f:
+            c = f.read()
+        
+        # Find renderAll method
+        render_all_start = c.find('renderAll()')
+        assert render_all_start != -1, "renderAll method should exist"
+        
+        # Get renderAll method content (next 500 chars should be enough)
+        render_all_section = c[render_all_start:render_all_start + 500]
+        
+        assert 'this.renderDayOfWeek()' in render_all_section, "renderAll should call renderDayOfWeek"
+        assert 'this.renderWeekOfMonth()' in render_all_section, "renderAll should call renderWeekOfMonth"
+        assert 'this.renderMonthOfYear()' in render_all_section, "renderAll should call renderMonthOfYear"
+        assert 'this.renderMacroWindows()' in render_all_section, "renderAll should call renderMacroWindows"
+        assert 'this.renderRDistribution()' in render_all_section, "renderAll should call renderRDistribution"
+    
+    def test_js_uses_chart_js_for_mini_charts(self):
+        """Test that JS creates Chart.js mini sparklines"""
+        with open("static/js/time_analysis.js", encoding="utf-8") as f:
+            c = f.read()
+        
+        # Check for Chart.js instantiation in temporal functions
+        assert 'new Chart(ctx, {' in c, "Chart.js should be instantiated"
+        assert 'dowMini' in c, "Day of Week mini charts should be created"
+        assert 'womMini' in c, "Week of Month mini charts should be created"
+        assert 'moyMini' in c, "Month of Year mini charts should be created"
+        
+        # Check for mini-chart class usage
+        assert 'mini-chart' in c, "mini-chart class should be used"
+    
+    def test_js_uses_v2_data_fields(self):
+        """Test that JS uses correct V2 data field names"""
+        with open("static/js/time_analysis.js", encoding="utf-8") as f:
+            c = f.read()
+        
+        # Check for V2 field usage
+        assert 'day_of_week' in c, "Should reference day_of_week data"
+        assert 'week_of_month' in c, "Should reference week_of_month data"
+        assert 'monthly' in c, "Should reference monthly data"
+        assert 'macro' in c, "Should reference macro data"
+        
+        # Check for metric field usage
+        assert 'expectancy' in c, "Should use expectancy field"
+        assert 'win_rate' in c, "Should use win_rate field"
+        assert 'avg_r' in c, "Should use avg_r field"

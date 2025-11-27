@@ -79,16 +79,74 @@ body {
     z-index: 100;
 }
 
-.header-container {
+.ta-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
     max-width: 1920px;
     margin: 0 auto;
 }
 
-.title-row {
+.ta-header-left {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ta-header-left .page-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+}
+
+.ta-subtitle {
+    margin-top: 4px;
+    font-size: 13px;
+    color: #9ca3af;
+    opacity: 0.9;
+}
+
+.ta-header-right {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.ta-filter-row {
+    display: flex;
+    gap: 8px;
     align-items: center;
-    margin-bottom: var(--spacing-lg);
+}
+
+.ta-filter-row input[type="date"],
+.ta-filter-row select {
+    background: #14161c;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: #d7e1f8;
+    font-size: 13px;
+}
+
+.ta-filter-row input[type="date"]:focus,
+.ta-filter-row select:focus {
+    outline: none;
+    border-color: #4c66ff;
+}
+
+.ta-stat-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .page-title {
@@ -102,60 +160,7 @@ body {
     background-clip: text;
 }
 
-.header-controls {
-    display: flex;
-    gap: var(--spacing-lg);
-    align-items: center;
-}
 
-.dataset-selector,
-.date-range-selector {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.dataset-selector label,
-.date-range-selector label {
-    font-size: 13px;
-    color: var(--text-muted);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.dataset-selector select,
-.date-range-selector input {
-    background: var(--bg-card-hover);
-    border: 1px solid rgba(76, 102, 255, 0.2);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-sm) var(--spacing-md);
-    color: var(--text-primary);
-    font-size: 13px;
-    font-weight: 500;
-    transition: all var(--transition-fast);
-}
-
-.dataset-selector select:hover,
-.date-range-selector input:hover {
-    border-color: var(--accent-start);
-}
-
-.dataset-selector select:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.date-range-selector span {
-    color: var(--text-muted);
-    font-size: 12px;
-}
-
-.metric-summary {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: var(--spacing-lg);
-}
 
 .metric-block {
     background: var(--bg-card-hover);
@@ -197,6 +202,21 @@ body {
 /* ============================================================================
    SECTION HEADERS
    ============================================================================ */
+.ta-section {
+    margin-top: 24px;
+    max-width: 1920px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0 var(--spacing-lg);
+}
+
+.ta-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f2f3f5;
+    margin-bottom: 10px;
+}
+
 .section-header {
     max-width: 1920px;
     margin: 0 auto var(--spacing-lg);
@@ -261,8 +281,31 @@ body {
 
 .session-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--spacing-lg);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.session-card {
+    background: linear-gradient(180deg, #0d1b33 0%, #0a1324 100%);
+    border-radius: 10px;
+    border: 1px solid #1e2a44;
+    padding: 12px;
+    color: #d7e1f8;
+    font-size: 13px;
+}
+
+.session-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.session-metric {
+    font-size: 12px;
+    opacity: 0.85;
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2px;
 }
 
 .session-heatmap-container {
@@ -333,7 +376,41 @@ body {
 }
 
 /* ============================================================================
-   REGION C: HOUR-OF-DAY ANALYTICS
+   REGION C: HEATMAP CONTAINER
+   ============================================================================ */
+.heatmap-container {
+    background: #0b1020;
+    border-radius: 10px;
+    border: 1px solid #1f2937;
+    padding: 12px;
+    min-height: 260px;
+}
+
+/* ============================================================================
+   REGION D: HOURLY PERFORMANCE
+   ============================================================================ */
+.hourly-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+}
+
+.hour-card {
+    background: #0d1018;
+    border-radius: 8px;
+    border: 1px solid #1e293b;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: #d7e1f8;
+}
+
+.hour-label {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+/* ============================================================================
+   REGION C: HOUR-OF-DAY ANALYTICS (LEGACY - KEEP FOR NOW)
    ============================================================================ */
 .hod-section {
     max-width: 1920px;
@@ -477,4 +554,60 @@ body {
     .session-cards-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* ============================================================================
+   REGION E-H: TEMPORAL ANALYTICS (DAY/WEEK/MONTH/MACRO)
+   ============================================================================ */
+.dow-grid,
+.wom-grid,
+.moy-grid,
+.macro-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+}
+
+.dow-card,
+.wom-card,
+.moy-card,
+.macro-card {
+    background: #0d1018;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    padding: 10px;
+    color: #d7e1f8;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.dow-card:hover,
+.wom-card:hover,
+.moy-card:hover,
+.macro-card:hover {
+    border-color: #4C66FF;
+    transform: translateY(-2px);
+}
+
+.card-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #f2f3f5;
+    font-size: 13px;
+}
+
+.mini-chart {
+    width: 100%;
+    height: 40px;
+    margin-top: 6px;
+}
+
+/* ============================================================================
+   REGION I: R-MULTIPLE DISTRIBUTION
+   ============================================================================ */
+.r-dist-container {
+    background: #0b1020;
+    border-radius: 10px;
+    padding: 12px;
+    min-height: 180px;
 }
