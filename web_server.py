@@ -729,9 +729,14 @@ if robust_ws_handler:
     register_websocket_handlers(socketio, robust_ws_handler)
     logger.info("✅ Robust WebSocket handler initialized")
 
-# Register robust automated signals API endpoints
+# Register automated signals API endpoints
 if db_enabled:
+    # Register original V2 endpoints first (adds missing routes)
+    register_automated_signals_api(app, db)
+    
+    # Then register robust versions (override overlapping routes with better implementations)
     register_automated_signals_api_robust(app, db)
+    
     register_diagnostics_api(app)
     register_system_health_api(app, db)
     register_signal_integrity_api(app)
