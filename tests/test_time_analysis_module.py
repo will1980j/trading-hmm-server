@@ -535,3 +535,83 @@ class TestAbortedTransactionResilience:
             "FreshDBWrapper.conn should be the provided connection"
         assert hasattr(wrapper.conn, 'cursor'), \
             "FreshDBWrapper.conn should have cursor method"
+
+
+
+class TestSessionNormalization:
+    """Tests for H1.3 Chunk 7 - Session name normalization"""
+    
+    def test_normalize_session_name(self):
+        """Test that normalize_session_name works correctly"""
+        from time_analyzer import normalize_session_name
+        
+        assert normalize_session_name("Asia") == "ASIA"
+        assert normalize_session_name("ASIA") == "ASIA"
+        assert normalize_session_name("Asia Session") == "ASIA"
+        assert normalize_session_name("London") == "LONDON"
+        assert normalize_session_name("LONDON") == "LONDON"
+        assert normalize_session_name("NY Pre Market") == "NY PRE"
+        assert normalize_session_name("NY_PRE") == "NY PRE"
+        assert normalize_session_name("NY PRE") == "NY PRE"
+        assert normalize_session_name("NY AM") == "NY AM"
+        assert normalize_session_name("NY_AM") == "NY AM"
+        assert normalize_session_name("NY Lunch") == "NY LUNCH"
+        assert normalize_session_name("NY_LUNCH") == "NY LUNCH"
+        assert normalize_session_name("NY PM") == "NY PM"
+        assert normalize_session_name("NY_PM") == "NY PM"
+    
+    def test_api_sessions_are_normalized(self):
+        """Test that all sessions in API output are normalized"""
+        import web_server
+        
+        web_server.app.config['TESTING'] = True
+        web_server.app.config['LOGIN_DISABLED'] = True
+        
+        with web_server.app.test_client() as client:
+            res = client.get('/api/time-analysis')
+            
+            if res.status_code == 200:
+                data = res.get_json()
+                
+                # Check session analysis has normalized names
+                if 'session' in data and data['session']:
+                    valid_sessions = ["ASIA", "LONDON", "NY PRE", "NY AM", "NY LUNCH", "NY PM", "Unknown"]
+                    for s in data['session']:
+                        assert s['session'] in valid_sessions, \
+                            f"Session '{s['session']}' is not normalized"
+    
+    def test_hotspot_session_normalization(self):
+        """Test that hotspot sessions are normalized"""
+        import web_server
+        
+        web_server.app.config['TESTING'] = True
+        web_server.app.config['LOGIN_DISABLED'] = True
+        
+        with web_server.app.test_client() as client:
+            res = client.get('/api/time-analysis')
+            
+            if res.status_code == 200:
+                data = res.get_json()
+                
+                # Check hotspot sessions have normalized names
+                if 'session_hotspots' in data and 'sessions' in data['session_hotspots']:
+                    h = data['session_hotspots']['sessions']
+                    valid_sessions = ["ASIA", "LONDON", "NY PRE", "NY AM", "NY LUNCH", "NY PM"]
+                    
+                    for key in h.keys():
+                        assert key in valid_sessions, \
+                            f"Hotspot session '{key}' is not normalized"
+    
+    def test_javascript_has_normalize_method(self):
+        """Test that JavaScript has normalizeSession method"""
+        js_path = os.path.join('static', 'js', 'time_analysis.js')
+        
+        with open(js_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        assert 'normalizeSession' in content, \
+            "JavaScript should have normalizeSession method"
+        assert '"ASIA"' in content, \
+            "JavaScript should have ASIA in normalization map"
+        assert '"NY PRE"' in content, \
+            "JavaScript should have NY PRE in normalization map"

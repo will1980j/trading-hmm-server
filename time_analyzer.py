@@ -8,6 +8,31 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Canonical session name mapping
+SESSION_MAP = {
+    "Asia": "ASIA",
+    "ASIA": "ASIA",
+    "Asia Session": "ASIA",
+    "London": "LONDON",
+    "LONDON": "LONDON",
+    "NY Pre Market": "NY PRE",
+    "NY_PRE": "NY PRE",
+    "NY PRE": "NY PRE",
+    "NY AM": "NY AM",
+    "NY_AM": "NY AM",
+    "NY Lunch": "NY LUNCH",
+    "NY_LUNCH": "NY LUNCH",
+    "NY LUNCH": "NY LUNCH",
+    "NY PM": "NY PM",
+    "NY_PM": "NY PM"
+}
+
+def normalize_session_name(name):
+    """Normalize session name to canonical format"""
+    if not name:
+        return name
+    return SESSION_MAP.get(name.strip(), name.strip())
+
 def analyze_time_performance(db):
     """Analyze trading performance across all time windows"""
     
@@ -29,6 +54,11 @@ def analyze_time_performance(db):
     trades = cursor.fetchall()
     
     logger.error(f"🔥 H1.3 DEBUG: Retrieved {len(trades)} trades from DB")
+    
+    # Normalize session names in all trades
+    for t in trades:
+        if 'session' in t and t['session']:
+            t['session'] = normalize_session_name(t['session'])
     
     if not trades:
         return generate_empty_analysis()

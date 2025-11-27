@@ -11,6 +11,22 @@ class TimeAnalysis {
         this.init();
     }
     
+    normalizeSession(name) {
+        const map = {
+            "Asia": "ASIA",
+            "ASIA": "ASIA",
+            "London": "LONDON",
+            "LONDON": "LONDON",
+            "NY Pre Market": "NY PRE",
+            "NY PRE": "NY PRE",
+            "NY AM": "NY AM",
+            "NY Lunch": "NY LUNCH",
+            "NY LUNCH": "NY LUNCH",
+            "NY PM": "NY PM"
+        };
+        return map[name] || name;
+    }
+    
     async init() {
         console.log('🚀 Time Analysis - H1.3 Initialized (Canonical API)');
         
@@ -200,12 +216,14 @@ class TimeAnalysis {
         const hotspots = this.data.session_hotspots.sessions;
         
         Object.keys(hotspots).forEach(sessionName => {
+            const norm = this.normalizeSession(sessionName);
             const sessionData = hotspots[sessionName];
             const hotHours = sessionData.hot_hours || [];
             const coldHours = sessionData.cold_hours || [];
             
-            const hotEls = document.querySelectorAll(`[data-hot-hours-for="${sessionName}"]`);
-            const coldEls = document.querySelectorAll(`[data-cold-hours-for="${sessionName}"]`);
+            // Use normalized name for data attribute lookup
+            const hotEls = document.querySelectorAll(`[data-hot-hours-for="${norm}"]`);
+            const coldEls = document.querySelectorAll(`[data-cold-hours-for="${norm}"]`);
             
             hotEls.forEach(el => el.textContent = hotHours.length ? hotHours.join(', ') : '--');
             coldEls.forEach(el => el.textContent = coldHours.length ? coldHours.join(', ') : '--');
