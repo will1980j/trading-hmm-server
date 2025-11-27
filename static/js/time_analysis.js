@@ -3,6 +3,24 @@
 // Uses /api/time-analysis as single source of truth
 // ============================================================================
 
+// ===== Register Matrix Controller for Chart.js 4 =====
+if (window.Chart && window.Chart.controllers && window.Chart.registry) {
+    const keys = Object.keys(window).filter(k => k.toLowerCase().includes('matrix'));
+    for (const k of keys) {
+        const obj = window[k];
+        if (!obj) continue;
+        
+        // Register all matrix exports (controllers, elements, scales)
+        Object.values(obj).forEach(item => {
+            try {
+                Chart.register(item);
+            } catch (e) {
+                // ignore non-Chart components
+            }
+        });
+    }
+}
+
 class TimeAnalysis {
     constructor() {
         this.isLoading = false;
@@ -228,6 +246,11 @@ class TimeAnalysis {
                 });
             }
         });
+        
+        if (!Chart.registry.controllers.has('matrix')) {
+            console.warn("⚠️ Matrix controller not registered — skipping heatmap");
+            return;
+        }
         
         if (!this.sessionHeatmapChart) {
             this.sessionHeatmapChart = new Chart(canvas.getContext('2d'), {
