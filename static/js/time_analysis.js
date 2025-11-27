@@ -247,7 +247,16 @@ class TimeAnalysis {
             }
         });
         
-        if (!Chart.registry.controllers.has('matrix')) {
+        // Correct Chart.js v4 detection for Matrix controller
+        let matrixController = null;
+        try {
+            matrixController = Chart.registry.getController('matrix');
+        } catch (e) {
+            console.warn("⚠️ Matrix controller registry lookup failed — skipping heatmap");
+            return;
+        }
+        
+        if (!matrixController) {
             console.warn("⚠️ Matrix controller not registered — skipping heatmap");
             return;
         }
