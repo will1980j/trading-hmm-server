@@ -1095,3 +1095,169 @@ class TestAnalyzeTimePerformanceSourceSelection:
             assert "v1" in str(e).lower() or "v2" in str(e).lower(), f"Error should mention valid options: {e}"
         except Exception as e:
             assert False, f"Expected ValueError but got {type(e).__name__}: {e}"
+
+
+
+# ============================================================================
+# SAFE BEST_* CALCULATIONS TESTS (CHUNK 9)
+# ============================================================================
+
+class TestSafeBestCalculations:
+    """Tests for safe best_* calculations that don't crash on empty lists"""
+    
+    def test_best_values_do_not_crash_on_empty_lists(self, monkeypatch):
+        """Test that best_* calculations don't crash when analysis functions return empty lists"""
+        from time_analyzer import analyze_time_performance
+        
+        # Force analyze_* functions to return empty lists
+        def fake_analyze_hourly(trades):
+            return []
+        
+        def fake_analyze_session(trades):
+            return []
+        
+        def fake_analyze_day_of_week(trades):
+            return []
+        
+        def fake_analyze_monthly(trades):
+            return []
+        
+        def fake_analyze_week_of_month(trades):
+            return []
+        
+        def fake_analyze_session_hotspots(hourly, session, trades):
+            return {'sessions': {}}
+        
+        def fake_analyze_macro(trades):
+            return []
+        
+        # Mock all analysis functions to return empty lists
+        monkeypatch.setattr('time_analyzer.analyze_hourly', fake_analyze_hourly)
+        monkeypatch.setattr('time_analyzer.analyze_session', fake_analyze_session)
+        monkeypatch.setattr('time_analyzer.analyze_day_of_week', fake_analyze_day_of_week)
+        monkeypatch.setattr('time_analyzer.analyze_monthly', fake_analyze_monthly)
+        monkeypatch.setattr('time_analyzer.analyze_week_of_month', fake_analyze_week_of_month)
+        monkeypatch.setattr('time_analyzer.analyze_session_hotspots', fake_analyze_session_hotspots)
+        monkeypatch.setattr('time_analyzer.analyze_macro', fake_analyze_macro)
+        
+        # Mock load_v2_trades to return minimal trade data
+        def fake_load_v2_trades(db):
+            return [{'r_value': 1.0}]  # Need at least one trade for overall_expectancy
+        
+        monkeypatch.setattr('time_analyzer.load_v2_trades', fake_load_v2_trades)
+        
+        # Mock db
+        class FakeDB:
+            class conn:
+                @staticmethod
+                def cursor():
+                    return None
+        
+        # This should not crash even with empty analysis results
+        analysis = analyze_time_performance(FakeDB(), source="v2")
+        
+        # Verify all best_* keys are present
+        assert 'best_hour' in analysis, "best_hour key should be present"
+        assert 'best_session' in analysis, "best_session key should be present"
+        assert 'best_day' in analysis, "best_day key should be present"
+        assert 'best_month' in analysis, "best_month key should be present"
+        
+        # All should have N/A values when lists are empty
+        assert analysis['best_hour']['hour'] == 'N/A', "best_hour should be N/A when hourly analysis is empty"
+        assert analysis['best_hour']['expectancy'] == 0, "best_hour expectancy should be 0"
+        
+        assert analysis['best_session']['session'] == 'N/A', "best_session should be N/A when session analysis is empty"
+        assert analysis['best_session']['expectancy'] == 0, "best_session expectancy should be 0"
+        
+        assert analysis['best_day']['day'] == 'N/A', "best_day should be N/A when day analysis is empty"
+        assert analysis['best_day']['expectancy'] == 0, "best_day expectancy should be 0"
+        
+        assert analysis['best_month']['month'] == 'N/A', "best_month should be N/A when monthly analysis is empty"
+        assert analysis['best_month']['expectancy'] == 0, "best_month expectancy should be 0"
+        
+        # Verify other keys are still present
+        assert 'hourly' in analysis
+        assert 'session' in analysis
+        assert 'day_of_week' in analysis
+        assert 'monthly' in analysis
+        assert 'overall_expectancy' in analysis
+    
+    def test_best_values_work_with_non_empty_lists(self, monkeypatch):
+        """Test that best_* calculations still work correctly when lists have data"""
+        from time_analyzer import analyze_time_performance
+        
+        # Create mock analysis results with expectancy values
+        def fake_analyze_hourly(trades):
+            return [
+                {'hour': 9, 'expectancy': 1.5, 'trades': 10},
+                {'hour': 10, 'expectancy': 2.0, 'trades': 8},  # Best
+                {'hour': 11, 'expectancy': 1.2, 'trades': 12}
+            ]
+        
+        def fake_analyze_session(trades):
+            return [
+                {'session': 'NY AM', 'expectancy': 1.8, 'trades': 15},  # Best
+                {'session': 'LONDON', 'expectancy': 1.3, 'trades': 20}
+            ]
+        
+        def fake_analyze_day_of_week(trades):
+            return [
+                {'day': 'Monday', 'expectancy': 1.1, 'trades': 5},
+                {'day': 'Tuesday', 'expectancy': 2.5, 'trades': 8}  # Best
+            ]
+        
+        def fake_analyze_monthly(trades):
+            return [
+                {'month': 'January', 'expectancy': 1.7, 'trades': 25},
+                {'month': 'February', 'expectancy': 2.2, 'trades': 18}  # Best
+            ]
+        
+        def fake_analyze_week_of_month(trades):
+            return [{'week': 1, 'expectancy': 1.0, 'trades': 5}]
+        
+        def fake_analyze_session_hotspots(hourly, session, trades):
+            return {'sessions': {}}
+        
+        def fake_analyze_macro(trades):
+            return []
+        
+        # Mock all analysis functions
+        monkeypatch.setattr('time_analyzer.analyze_hourly', fake_analyze_hourly)
+        monkeypatch.setattr('time_analyzer.analyze_session', fake_analyze_session)
+        monkeypatch.setattr('time_analyzer.analyze_day_of_week', fake_analyze_day_of_week)
+        monkeypatch.setattr('time_analyzer.analyze_monthly', fake_analyze_monthly)
+        monkeypatch.setattr('time_analyzer.analyze_week_of_month', fake_analyze_week_of_month)
+        monkeypatch.setattr('time_analyzer.analyze_session_hotspots', fake_analyze_session_hotspots)
+        monkeypatch.setattr('time_analyzer.analyze_macro', fake_analyze_macro)
+        
+        # Mock load_v2_trades to return some data
+        def fake_load_v2_trades(db):
+            return [{'r_value': 1.5}]
+        
+        monkeypatch.setattr('time_analyzer.load_v2_trades', fake_load_v2_trades)
+        
+        # Mock db
+        class FakeDB:
+            class conn:
+                @staticmethod
+                def cursor():
+                    return None
+        
+        analysis = analyze_time_performance(FakeDB(), source="v2")
+        
+        # Verify best_* values are correctly identified (highest expectancy)
+        assert analysis['best_hour'] is not None
+        assert analysis['best_hour']['hour'] == '10:00'  # Highest expectancy (2.0)
+        assert analysis['best_hour']['expectancy'] == 2.0
+        
+        assert analysis['best_session'] is not None
+        assert analysis['best_session']['session'] == 'NY AM'  # Highest expectancy (1.8)
+        assert analysis['best_session']['expectancy'] == 1.8
+        
+        assert analysis['best_day'] is not None
+        assert analysis['best_day']['day'] == 'Tuesday'  # Highest expectancy (2.5)
+        assert analysis['best_day']['expectancy'] == 2.5
+        
+        assert analysis['best_month'] is not None
+        assert analysis['best_month']['month'] == 'February'  # Highest expectancy (2.2)
+        assert analysis['best_month']['expectancy'] == 2.2

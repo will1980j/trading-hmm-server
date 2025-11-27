@@ -241,11 +241,11 @@ def analyze_time_performance(db, source="v2"):
     all_r_values = [t['r_value'] for t in trades]
     overall_expectancy = statistics.mean(all_r_values)
     
-    # Find best performers
-    best_hour = max(hourly, key=lambda x: x['expectancy'])
-    best_session = max(session, key=lambda x: x['expectancy'])
-    best_day = max(day_of_week, key=lambda x: x['expectancy'])
-    best_month = max(monthly, key=lambda x: x['expectancy']) if monthly else {'month': 'N/A'}
+    # Find best performers (safe guards against empty lists)
+    best_hour = max(hourly, key=lambda x: x['expectancy']) if hourly else {'hour': 'N/A', 'expectancy': 0}
+    best_session = max(session, key=lambda x: x['expectancy']) if session else {'session': 'N/A', 'expectancy': 0}
+    best_day = max(day_of_week, key=lambda x: x['expectancy']) if day_of_week else {'day': 'N/A', 'expectancy': 0}
+    best_month = max(monthly, key=lambda x: x['expectancy']) if monthly else {'month': 'N/A', 'expectancy': 0}
     
     # Analyze session hotspots
     logger.error("🔥 H1.3 DEBUG: Starting analyze_session_hotspots()")
@@ -265,7 +265,7 @@ def analyze_time_performance(db, source="v2"):
         'day_of_week': day_of_week,
         'week_of_month': week_of_month,
         'monthly': monthly,
-        'best_hour': {'hour': f"{best_hour['hour']}:00", 'expectancy': best_hour['expectancy']},
+        'best_hour': {'hour': f"{best_hour['hour']}:00" if isinstance(best_hour['hour'], int) else best_hour['hour'], 'expectancy': best_hour['expectancy']},
         'best_session': {'session': best_session['session'], 'expectancy': best_session['expectancy']},
         'best_day': {'day': best_day['day'], 'expectancy': best_day['expectancy']},
         'best_month': {'month': best_month['month'], 'expectancy': best_month.get('expectancy', 0)},
