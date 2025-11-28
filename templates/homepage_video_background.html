@@ -89,21 +89,21 @@
 
 <section class="workspace-grid">
 {% for module in [
-# CORE PLATFORM (H1.1–H1.3)
+{# CORE PLATFORM (H1.1–H1.3) #}
 ('🎯', 'Main Dashboard', 'H1.2 — Central command center for system monitoring and navigation', '/main-dashboard', 'H1.2', 'active', 'H1-2'),
 ('📊', 'Automated Signals Engine', 'H1.1 — Core automated signals engine and lifecycle dashboard', '/automated-signals-dashboard', 'H1.1 CORE', 'active', 'H1-1A'),
 ('⏰', 'Time Analysis', 'H1.3 — Completed temporal pattern and session performance analytics', '/time-analysis', 'H1.3 COMPLETE', 'active', 'H1-3'),
-# ANALYTICS & SUPPORT MODULES
+{# ANALYTICS & SUPPORT MODULES #}
 ('💰', 'Financial Summary', 'H1.5 — Performance and financial reporting', '/financial-summary', 'H1.5', 'active', 'H1-5'),
 ('📊', 'Reporting Hub', 'H1.6 — Advanced reporting and business intelligence', '/reporting-hub', 'H1.6', 'active', 'H1-6'),
-# STRATEGY & ML LAYER (FUTURE)
+{# STRATEGY & ML LAYER (FUTURE) #}
 ('⚡', 'Strategy Optimizer', 'H2 — Advanced optimization and backtesting engine', '/strategy-optimizer', 'H2', 'active', 'H2-18'),
 ('📈', 'Strategy Compare', 'H2 — Compare and analyze multiple trading strategies', '/strategy-comparison', 'H2', 'active', 'H2-19'),
 ('🧠', 'ML Intelligence Hub', 'H5 — Machine learning insights and predictive analytics (future ML layer)', '/ml-dashboard', 'H5 FUTURE', 'future', 'H5-ML'),
-# OPERATIONS & PROP LAYER
+{# OPERATIONS & PROP LAYER #}
 ('📋', 'Trade Manager', 'H2 — Trade execution and position management', '/trade-manager', 'H2', 'active', 'H2-TRADE'),
 ('💼', 'Prop Portfolio', 'H8 — Prop firm portfolio management and compliance', '/prop-portfolio', 'H8', 'active', 'H8-PROP'),
-# AI BUSINESS LAYER (COMING SOON)
+{# AI BUSINESS LAYER (COMING SOON) #}
 ('🧭', 'AI Business Advisor', 'H9 — AI-driven capital allocation & business intelligence (coming soon)', '/ai-business-advisor', 'H9 FUTURE', 'future', 'H9-25')
 ] %}
 <div class="workspace-card workspace-card--{{ module[5] }}" data-module-code="{{ module[6] }}">
