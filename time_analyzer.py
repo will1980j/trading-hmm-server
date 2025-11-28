@@ -522,7 +522,24 @@ def analyze_session_hotspots(hourly_data, session_data, trades):
     
     for trade in trades:
         try:
-            time_str = str(trade['time']) if trade['time'] else ''
+            # Handle V1-style trades (with 'time')
+            if 'time' in trade and trade['time']:
+                time_str = str(trade['time'])
+            # Handle V2-style trades (with 'timestamp')
+            elif 'timestamp' in trade and trade['timestamp']:
+                try:
+                    time_str = trade['timestamp'].strftime("%H:%M")
+                except Exception:
+                    time_str = ""
+            # Handle V2-style trades (with 'hour')
+            elif 'hour' in trade:
+                try:
+                    time_str = f"{int(trade['hour']):02d}:00"
+                except Exception:
+                    time_str = ""
+            else:
+                time_str = ""
+            
             if not time_str or ':' not in time_str:
                 continue
             
