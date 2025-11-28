@@ -338,6 +338,43 @@ try:
     db_enabled = True
     logger.info("Database connected successfully")
     
+    # ============================================================
+    # EARLY DATABASE MIGRATION HOOK (runs before anything else)
+    # ============================================================
+    try:
+        cur = db.conn.cursor()
+        print("[DB-MIGRATION] Starting early table creation...")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS execution_tasks (
+                id SERIAL PRIMARY KEY,
+                trade_id VARCHAR(64),
+                event_type VARCHAR(50),
+                payload JSONB,
+                attempts INTEGER DEFAULT 0,
+                status VARCHAR(20) DEFAULT 'PENDING',
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                last_error TEXT,
+                last_attempt_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS execution_logs (
+                id SERIAL PRIMARY KEY,
+                task_id INTEGER,
+                log_message TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+        db.conn.commit()
+        cur.close()
+        print("[DB-MIGRATION] SUCCESS: execution tables verified/created")
+    except Exception as e:
+        print("[DB-MIGRATION] ERROR:", e)
+    # ============================================================
+    # END EARLY MIGRATION HOOK
+    # ============================================================
+    
     # Auto-add missing columns if needed
     if db and db.conn:
         try:
