@@ -409,15 +409,16 @@ class TestChunk7BSessionHourlyAnalytics:
         assert 'ta-section-title' in content, "ta-section-title class should be present"
     
     def test_template_includes_chartjs_libraries(self):
-        """Test that template includes Chart.js and matrix plugin"""
+        """Test that template includes Chart.js (plugin-free)"""
         with open('templates/time_analysis.html', encoding='utf-8') as f:
             content = f.read()
         
         assert 'chart.js' in content.lower(), "Chart.js should be included"
-        assert 'chartjs-chart-matrix' in content, "Chart.js matrix plugin should be included"
+        assert 'chartjs-chart-matrix' not in content, "Matrix plugin should NOT be included (plugin-free)"
+        assert 'esm.run' not in content, "esm.run CDN should NOT be used (plugin-free)"
     
     def test_js_has_session_and_heatmap_functions(self):
-        """Test that JS has session and heatmap rendering functions"""
+        """Test that JS has session and heatmap rendering functions (plugin-free scatter)"""
         with open('static/js/time_analysis.js', encoding='utf-8') as f:
             content = f.read()
         
@@ -426,6 +427,12 @@ class TestChunk7BSessionHourlyAnalytics:
         assert 'getHeatColor' in content, "getHeatColor should be present"
         assert 'new Chart' in content, "Chart.js instantiation should be present"
         assert 'sessionHeatmapChart' in content, "sessionHeatmapChart property should be present"
+        
+        # Verify plugin-free scatter approach
+        assert "type: 'scatter'" in content, "Should use scatter chart type (plugin-free)"
+        assert "pointStyle: 'rectRounded'" in content, "Should use rectRounded for square markers"
+        assert 'type: \'matrix\'' not in content, "Should NOT use matrix chart type"
+        assert 'Chart.registry' not in content, "Should NOT have matrix registration code"
     
     def test_js_has_hourly_analysis_function(self):
         """Test that JS has hourly analysis rendering function"""

@@ -3,24 +3,6 @@
 // Uses /api/time-analysis as single source of truth
 // ============================================================================
 
-// ===== Register Matrix Controller for Chart.js 4 =====
-if (window.Chart && window.Chart.controllers && window.Chart.registry) {
-    const keys = Object.keys(window).filter(k => k.toLowerCase().includes('matrix'));
-    for (const k of keys) {
-        const obj = window[k];
-        if (!obj) continue;
-        
-        // Register all matrix exports (controllers, elements, scales)
-        Object.values(obj).forEach(item => {
-            try {
-                Chart.register(item);
-            } catch (e) {
-                // ignore non-Chart components
-            }
-        });
-    }
-}
-
 class TimeAnalysis {
     constructor() {
         this.isLoading = false;
@@ -229,101 +211,94 @@ class TimeAnalysis {
         const sessions = this.data.session_hotspots.sessions;
         const sessionRows = ["ASIA", "LONDON", "NY PRE", "NY AM", "NY LUNCH", "NY PM"];
         
-        const data = [];
+        // Build scatter data: one square per (session, hour)
+        const points = [];
         sessionRows.forEach((name, yIndex) => {
             const s = sessions[name];
             if (!s) return;
             
-            const hotHours = (s.hot_hours || []).map(h => parseInt((h || '').split(':')[0], 10));
-            const avgR = s.avg_r || 0;
+            const hotHours = (s.hot_hours || []).map(h => {
+                const parts = (h || '').split(':');
+                return parseInt(parts[0], 10);
+            });
             
-            for (let hour = 0; hour < 24; hour++) {
-                if (!hotHours.includes(hour)) continue;
-                data.push({
+            hotHours.forEach(hour => {
+                const val = s.avg_r || 0;
+                points.push({
                     x: hour,
                     y: yIndex,
-                    v: avgR
+                    r: 8,    // marker radius (square size)
+                    v: val,  // used for color mapping
+                    session: name
                 });
-            }
+            });
         });
         
-        // Correct Chart.js v4 detection for Matrix controller
-        let matrixController = null;
-        try {
-            matrixController = Chart.registry.getController('matrix');
-        } catch (e) {
-            console.warn("⚠️ Matrix controller registry lookup failed — skipping heatmap");
+        // If no points, skip rendering gracefully
+        if (!points.length) {
+            console.warn("⚠️ No hotspot data for heatmap — nothing to render.");
             return;
         }
         
-        if (!matrixController) {
-            console.warn("⚠️ Matrix controller not registered — skipping heatmap");
-            return;
+        const ctx = canvas.getContext('2d');
+        
+        if (this.sessionHeatmapChart) {
+            this.sessionHeatmapChart.destroy();
         }
         
-        if (!this.sessionHeatmapChart) {
-            this.sessionHeatmapChart = new Chart(canvas.getContext('2d'), {
-                type: 'matrix',
-                data: {
-                    datasets: [{
-                        label: 'Session × Hour R',
-                        data,
-                        borderWidth: 1,
-                        borderColor: '#1e293b',
-                        backgroundColor: (ctx) => {
-                            const value = ctx.raw.v || 0;
-                            return this.getHeatColor(value);
+        this.sessionHeatmapChart = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Session × Hour R',
+                    data: points,
+                    pointRadius: ctx => ctx.raw.r,
+                    pointHoverRadius: 10,
+                    pointBackgroundColor: ctx => this.getHeatColor(ctx.raw.v),
+                    pointStyle: 'rectRounded',
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        min: 0,
+                        max: 23,
+                        ticks: {
+                            stepSize: 1,
+                            callback: v => `${v}:00`
                         },
-                        width: ctx => 16,
-                        height: ctx => 16,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            type: 'linear',
-                            position: 'bottom',
-                            ticks: {
-                                stepSize: 1,
-                                callback: v => `${v}:00`
-                            },
-                            grid: { color: '#1f2933' }
-                        },
-                        y: {
-                            type: 'linear',
-                            ticks: {
-                                stepSize: 1,
-                                callback: (v) => sessionRows[v] || ''
-                            },
-                            grid: { color: '#1f2933' }
-                        }
+                        grid: { color: '#1f2933' }
                     },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: ctx => {
-                                    const rowName = sessionRows[ctx.raw.y] || '';
-                                    const h = ctx.raw.x;
-                                    const val = ctx.raw.v.toFixed ? ctx.raw.v.toFixed(2) : ctx.raw.v;
-                                    return `${rowName} ${h}:00 — ${val}R`;
-                                }
-                            }
+                    y: {
+                        type: 'linear',
+                        min: -0.5,
+                        max: sessionRows.length - 0.5,
+                        ticks: {
+                            stepSize: 1,
+                            callback: v => sessionRows[v] || ''
                         },
-                        title: {
-                            display: false
+                        grid: { color: '#1f2933' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const rowName = ctx.raw.session;
+                                const h = ctx.raw.x;
+                                const val = ctx.raw.v?.toFixed ? ctx.raw.v.toFixed(2) : ctx.raw.v;
+                                return `${rowName} ${h}:00 — ${val}R`;
+                            }
                         }
                     }
                 }
-            });
-        } else {
-            this.sessionHeatmapChart.data.datasets[0].data = data;
-            this.sessionHeatmapChart.update();
-        }
-        
-        console.log('🔥 Session Heatmap rendered:', data.length, 'hot hour cells');
+            }
+        });
     }
     
     getHeatColor(value) {
