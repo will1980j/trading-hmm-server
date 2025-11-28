@@ -57,13 +57,123 @@ Each MODULE contains SUBMODULES or STAGES.
 
 ## PHASE 1 — Core Platform & UI/UX Modernization
 
-Modules:
-- H1.1 Homepage Command Center ⭐ H1 (Module 15) ✅
-- H1.2 Main Dashboard ⭐ H1 (Module 16)
-- H1.3 Time Analysis ⭐ H1 (Module 17)
-- H1.4 ML Intelligence Hub ⭐ H1 (Module 20)
-- H1.5 Financial Summary ⭐ H1 (Module 21)
-- H1.6 Reporting Center ⭐ H1 (Module 22)
+### H1.1 — Core Platform Foundation ✅
+
+**Status:** COMPLETE
+
+**Modules:**
+- Homepage Command Center (Module 15) ✅
+- Automated Signals Engine (Always-On Ingestion) ✅
+- Automated Signals Dashboard (Lifecycle Viewer) ✅
+- Real-Time Event Processor (ENTRY / MFE_UPDATE / BE_TRIGGERED / EXIT_SL) ✅
+- Automated Signals Storage (`automated_signals` table) ✅
+- Webhook Processing Pipeline ✅
+- Live Data Integrity Checker ✅
+
+**Functional Notes:**
+- Automated Signals Engine runs continuously regardless of roadmap stage
+- Dashboard is visible immediately but certain analytics remain locked
+- This system is the primary dataset generator for all future modules
+- All signal lifecycle events (ENTRY, MFE_UPDATE, BE_TRIGGERED, EXIT_SL) are captured in real-time
+- Foundation for ML training, strategy optimization, and execution automation
+
+---
+
+### H1.2 — Main Dashboard ⭐ H1 (Module 16)
+
+**Status:** IN PROGRESS
+
+**Description:** Primary command center with two-column layout, real-time KPIs, and session-aware analytics.
+
+**Panels:**
+- Active Signals (lifecycle-driven)
+- Live Trades (H1 essentials)
+- Prop-Firm Status (H1-limited)
+- Automation Engine (locked)
+- P&L Today (expanded)
+- Session Performance (full upgrade)
+- Signal Quality (real metrics)
+- Risk Snapshot (with warnings)
+
+---
+
+### H1.3 — Time Analysis ⭐ H1 (Module 17) ✅
+
+**Status:** COMPLETE
+
+**Description:** Fully integrated with Automated Signals ingestion. Real-time, session-aware temporal analysis.
+
+**Features:**
+- Session performance tracking
+- Intraday heatmaps
+- Hot hours analysis
+- Feeds ML features in later phases
+
+**Notes:**
+- Integrated with Automated Signals Engine
+- Real-time data processing
+- Session-aware analytics
+- Foundation for ML temporal features
+
+---
+
+### H1.4 — Automated Signals Dashboard Redesign (H1.2 Mirror Aesthetic)
+
+**Status:** PLANNED
+
+**Description:** Complete redesign of Automated Signals Dashboard to mirror H1.2 Main Dashboard aesthetic and structure.
+
+#### H1.4A — Layout Overhaul (Mirror H1.2)
+- Two-column responsive grid
+- Deep-blue fintech theme
+- Card structure identical to main-dashboard
+- Neon-accent typography
+- Professional spacing and hierarchy
+
+#### H1.4B — Real-Time Panels
+- **Active Signals Panel:** Currently running signals with live MFE tracking
+- **Live Trades Panel:** Active positions with entry/SL/MFE/BE status
+- **Completed Trades Panel:** Historical signals with final outcomes
+- **Signal Lifecycle Summary:** Event timeline and state transitions
+
+#### H1.4C — Stats Summary
+- Total signals today / week
+- Win/loss distribution
+- Avg MFE / BE impact
+- Session breakdown
+- R-multiple distribution
+- Lifecycle event counts
+
+#### H1.4D — Roadmap-Locked Future Analytics
+🔒 **Execution Quality Engine** (H2.26)
+🔒 **Trade Outcome Predictor** (H2.27)
+🔒 **Market Regime Classifier** (H2.28)
+🔒 **Entry Confirmation Confidence** (H2.29)
+🔒 **MFE Distribution Engine** (H2.30)
+🔒 **BE Efficiency Analysis** (H2.31)
+
+---
+
+### H1.5 — ML Intelligence Hub ⭐ H1 (Module 20)
+
+**Status:** PLANNED
+
+---
+
+### H1.6 — Financial Summary ⭐ H1 (Module 21)
+
+**Status:** PLANNED
+
+---
+
+### H1.7 — Reporting Center ⭐ H1 (Module 22)
+
+**Status:** PLANNED
+
+---
+
+### Authentication & Navigation Modules
+
 - H2.1 Secure Authentication System ⭐ H2
 - H2.2 Navigation Framework ⭐ H2
 - H2.3 User/Session Manager ⭐ H2

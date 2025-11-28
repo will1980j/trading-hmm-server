@@ -89,17 +89,22 @@
 
 <section class="workspace-grid">
 {% for module in [
-('🎯', 'Main Dashboard', 'Central command center for system monitoring and quick navigation', '/main-dashboard', 'H1.2', 'active', 'H1-2'),
-('📊', 'Automated Signals', 'Real-time signal monitoring with Phase 2B integration', '/automated-signals', 'ULTRA', 'active', 'M-ULTRA'),
-('🧠', 'ML Intelligence Hub', 'Machine learning insights and predictive analytics', '/ml-dashboard', 'Module 20', 'active', 'M-20'),
-('⚡', 'Strategy Optimizer', 'Advanced strategy optimization and backtesting', '/strategy-optimizer', 'Module 18', 'active', 'M-18'),
-('📈', 'Strategy Compare', 'Compare and analyze multiple trading strategies', '/strategy-comparison', 'Module 19', 'active', 'M-19'),
-('⏰', 'Time Analysis', 'Temporal pattern analysis and session optimization', '/time-analysis', 'Module 17', 'active', 'M-17'),
-('📋', 'Trade Manager', 'Trade execution and position management', '/trade-manager', 'Beta', 'active', 'B-TRADE'),
-('💰', 'Financial Summary', 'Comprehensive financial reporting and analytics', '/financial-summary', 'Module 21', 'active', 'M-21'),
-('📊', 'Reporting Hub', 'Advanced reporting and business intelligence', '/reporting-hub', 'Module 22', 'active', 'M-22'),
-('💼', 'Prop Portfolio', 'Prop firm portfolio management and compliance', '/prop-portfolio', 'Beta', 'active', 'B-PROP'),
-('🧭', 'AI Business Advisor', 'AI-driven capital allocation & business intelligence (coming soon)', '/ai-business-advisor', 'Module 25', 'future', 'M-25')
+# CORE PLATFORM (H1.1–H1.3)
+('🎯', 'Main Dashboard', 'H1.2 — Central command center for system monitoring and navigation', '/main-dashboard', 'H1.2', 'active', 'H1-2'),
+('📊', 'Automated Signals Engine', 'H1.1 — Core automated signals engine and lifecycle dashboard', '/automated-signals-dashboard', 'H1.1 CORE', 'active', 'H1-1A'),
+('⏰', 'Time Analysis', 'H1.3 — Completed temporal pattern and session performance analytics', '/time-analysis', 'H1.3 COMPLETE', 'active', 'H1-3'),
+# ANALYTICS & SUPPORT MODULES
+('💰', 'Financial Summary', 'H1.5 — Performance and financial reporting', '/financial-summary', 'H1.5', 'active', 'H1-5'),
+('📊', 'Reporting Hub', 'H1.6 — Advanced reporting and business intelligence', '/reporting-hub', 'H1.6', 'active', 'H1-6'),
+# STRATEGY & ML LAYER (FUTURE)
+('⚡', 'Strategy Optimizer', 'H2 — Advanced optimization and backtesting engine', '/strategy-optimizer', 'H2', 'active', 'H2-18'),
+('📈', 'Strategy Compare', 'H2 — Compare and analyze multiple trading strategies', '/strategy-comparison', 'H2', 'active', 'H2-19'),
+('🧠', 'ML Intelligence Hub', 'H5 — Machine learning insights and predictive analytics (future ML layer)', '/ml-dashboard', 'H5 FUTURE', 'future', 'H5-ML'),
+# OPERATIONS & PROP LAYER
+('📋', 'Trade Manager', 'H2 — Trade execution and position management', '/trade-manager', 'H2', 'active', 'H2-TRADE'),
+('💼', 'Prop Portfolio', 'H8 — Prop firm portfolio management and compliance', '/prop-portfolio', 'H8', 'active', 'H8-PROP'),
+# AI BUSINESS LAYER (COMING SOON)
+('🧭', 'AI Business Advisor', 'H9 — AI-driven capital allocation & business intelligence (coming soon)', '/ai-business-advisor', 'H9 FUTURE', 'future', 'H9-25')
 ] %}
 <div class="workspace-card workspace-card--{{ module[5] }}" data-module-code="{{ module[6] }}">
 <div class="card-header">
