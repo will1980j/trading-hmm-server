@@ -112,6 +112,32 @@
             <!-- LEFT COLUMN -->
             <div class="col-lg-6 mb-4">
                 
+                <!-- ACTIVE SIGNALS PANEL (H1 - LIFECYCLE DRIVEN) -->
+                <div class="dashboard-card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Active Signals</h3>
+                        <span class="card-badge" id="active-count">0</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="active-signals-container" class="signals-container">
+                            <div class="empty-state">No active signals</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LIVE TRADES PANEL (H1 ESSENTIALS) -->
+                <div class="dashboard-card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Live Trades</h3>
+                        <span class="card-badge" id="live-count">0</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="live-trades-container" class="trades-container">
+                            <div class="empty-state">No live trades</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- PROP-FIRM STATUS PANEL (H1-LIMITED) - REPOSITIONED FROM RIGHT COLUMN -->
                 <div class="dashboard-card mb-4">
                     <div class="card-header">
@@ -149,32 +175,6 @@
                             {{ roadmap_locked("h3_14_model_registry", "Execution Queue Engine") }}
                             {{ roadmap_locked("h3_9_execution_safety_sandbox", "Strategy Confirmation Engine") }}
                             {{ roadmap_locked("h3_12_pre_trade_checks", "Automated Entry Engine") }}
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- ACTIVE SIGNALS PANEL (H1 - LIFECYCLE DRIVEN) -->
-                <div class="dashboard-card mb-4">
-                    <div class="card-header">
-                        <h3 class="card-title">Active Signals</h3>
-                        <span class="card-badge" id="active-count">0</span>
-                    </div>
-                    <div class="card-body">
-                        <div id="active-signals-container" class="signals-container">
-                            <div class="empty-state">No active signals</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- LIVE TRADES PANEL (H1 ESSENTIALS) -->
-                <div class="dashboard-card mb-4">
-                    <div class="card-header">
-                        <h3 class="card-title">Live Trades</h3>
-                        <span class="card-badge" id="live-count">0</span>
-                    </div>
-                    <div class="card-body">
-                        <div id="live-trades-container" class="trades-container">
-                            <div class="empty-state">No live trades</div>
                         </div>
                     </div>
                 </div>
