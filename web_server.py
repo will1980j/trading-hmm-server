@@ -947,21 +947,22 @@ else:
 ACCOUNT_STATE_MANAGER = AccountStateManager()
 
 # Initialize and start ExecutionRouter (Stage 13B - Execution Queue)
+# TEMPORARILY DISABLED FOR DB MIGRATION
 execution_router = None
-if db_enabled:
-    try:
-        execution_router = ExecutionRouter(
-            poll_interval=2.0,
-            batch_size=20,
-            dry_run=EXECUTION_DRY_RUN,
-            logger=logger,
-            account_state_manager=ACCOUNT_STATE_MANAGER,
-        )
-        execution_router.start()
-    except Exception as e:
-        logger.error(f"Failed to start ExecutionRouter: {e}", exc_info=True)
-else:
-    logger.warning("⚠️ ExecutionRouter not started: database not enabled")
+# if db_enabled:
+#     try:
+#         execution_router = ExecutionRouter(
+#             poll_interval=2.0,
+#             batch_size=20,
+#             dry_run=EXECUTION_DRY_RUN,
+#             logger=logger,
+#             account_state_manager=ACCOUNT_STATE_MANAGER,
+#         )
+#         execution_router.start()
+#     except Exception as e:
+#         logger.error(f"Failed to start ExecutionRouter: {e}", exc_info=True)
+# else:
+#     logger.warning("⚠️ ExecutionRouter not started: database not enabled")
 
 # Read HTML files and serve them
 def read_html_file(filename):
