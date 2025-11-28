@@ -720,7 +720,6 @@ from signal_integrity_verifier import register_signal_integrity_api
 
 # Keep legacy handler imports for backward compatibility
 from realtime_signal_handler import RealtimeSignalHandler
-from automated_signals_api import register_automated_signals_api
 
 # Initialize robust WebSocket handler
 robust_ws_handler = RobustWebSocketHandler(socketio, db) if db_enabled else None
@@ -731,10 +730,7 @@ if robust_ws_handler:
 
 # Register automated signals API endpoints
 if db_enabled:
-    # Register original V2 endpoints first (adds missing routes)
-    register_automated_signals_api(app, db)
-    
-    # Then register robust versions (override overlapping routes with better implementations)
+    # Register robust API endpoints
     register_automated_signals_api_robust(app, db)
     
     register_diagnostics_api(app)
