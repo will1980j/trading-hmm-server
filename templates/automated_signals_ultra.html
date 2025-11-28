@@ -7,197 +7,379 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/automated_signals_ultra.css') }}">
 </head>
 <body>
-    <!-- REGION A: SIGNAL FEED HEADER -->
-    <header class="ultra-header">
-        <div class="header-main">
-            <h1 class="ultra-title">Automated Signals ULTRA</h1>
-            <div class="status-pill live">LIVE</div>
-        </div>
-        
-        <div class="header-controls">
-            <div class="dataset-selector">
-                <button class="dataset-btn active" data-dataset="v1">V1</button>
-                <button class="dataset-btn" data-dataset="v2">V2</button>
-            </div>
-            
-            <div class="session-switcher">
-                <select id="sessionSelect">
-                    <option value="london">London</option>
-                    <option value="ny" selected>New York</option>
-                    <option value="asia">Asia</option>
-                </select>
-            </div>
-            
-            <div class="timestamp" id="liveTimestamp">--:--:--</div>
-        </div>
-        
-        <div class="metrics-row">
-            <div class="metric-item">
-                <span class="metric-label">Signals Today</span>
-                <span class="metric-value" id="signalsToday">0</span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Confirmed</span>
-                <span class="metric-value" id="confirmedSignals">0</span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Active Trades</span>
-                <span class="metric-value" id="activeTrades">0</span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Avg R</span>
-                <span class="metric-value" id="avgR">0.0</span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">MFE High</span>
-                <span class="metric-value" id="mfeHigh">0.0</span>
-            </div>
-        </div>
-    </header>
-
-    <div class="ultra-container">
-        <!-- REGION E: LEFT COLLAPSIBLE FILTERS/HISTORY -->
-        <aside class="filters-panel" id="filtersPanel">
-            <div class="panel-header">
-                <h3>Filters & History</h3>
-                <button class="collapse-btn" id="collapseFilters">←</button>
-            </div>
-            
-            <div class="filter-section">
-                <h4>Filters</h4>
-                
-                <div class="filter-group">
-                    <label>Session</label>
-                    <select id="filterSession">
-                        <option value="all">All Sessions</option>
-                        <option value="london">London</option>
-                        <option value="ny">New York</option>
-                        <option value="asia">Asia</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group">
-                    <label>Direction</label>
-                    <select id="filterDirection">
-                        <option value="all">All</option>
-                        <option value="long">Long</option>
-                        <option value="short">Short</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group">
-                    <label>Status</label>
-                    <select id="filterStatus">
-                        <option value="all">All</option>
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="be">Breakeven</option>
-                        <option value="mfe">MFE</option>
-                        <option value="exit">Exit</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group">
-                    <label>Time Window</label>
-                    <select id="filterTime">
-                        <option value="today">Today</option>
-                        <option value="week">This Week</option>
-                        <option value="month">This Month</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group">
-                    <label>R Range</label>
-                    <input type="range" id="rRangeMin" min="-5" max="5" step="0.1" value="-5">
-                    <input type="range" id="rRangeMax" min="-5" max="5" step="0.1" value="5">
-                    <div class="range-display">
-                        <span id="rRangeDisplay">-5.0 to 5.0</span>
+    <div class="container-fluid mt-4 px-4">
+        <!-- PAGE HEADER -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h1 class="h3 mb-1">Automated Signals Engine</h1>
+                        <p class="text-muted mb-0">H1.1 &mdash; Core lifecycle dashboard for all signals and trades</p>
                     </div>
-                </div>
-                
-                <div class="filter-group">
-                    <label>MFE Range</label>
-                    <input type="range" id="mfeRangeMin" min="0" max="10" step="0.1" value="0">
-                    <input type="range" id="mfeRangeMax" min="0" max="10" step="0.1" value="10">
-                    <div class="range-display">
-                        <span id="mfeRangeDisplay">0.0 to 10.0</span>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="text-end">
+                            <div class="small text-muted">Last Webhook</div>
+                            <div id="ase-last-webhook" class="fw-semibold">--:--:--</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="small text-muted">Signals Today</div>
+                            <div id="ase-signals-today" class="fw-semibold">0</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="small text-muted">Active Trades</div>
+                            <div id="ase-active-count" class="fw-semibold">0</div>
+                        </div>
+                        <div>
+                            <span id="ase-health-pill" class="badge rounded-pill bg-secondary">Engine Status: Loading...</span>
+                        </div>
                     </div>
                 </div>
             </div>
-            
-            <div class="history-section">
-                <h4>History</h4>
-                <div class="recent-signals" id="recentSignals">
-                    <!-- Recent signals populated by JS -->
-                </div>
-                <button class="load-older-btn" id="loadOlderBtn">Load Older Signals</button>
-            </div>
-        </aside>
+        </div>
 
-        <!-- REGION B: LIVE SIGNAL FEED (TERMINAL PANEL) -->
-        <main class="signal-feed">
-            <div class="feed-header">
-                <h2>Live Signal Feed</h2>
-                <div class="feed-controls">
-                    <button class="auto-scroll-btn active" id="autoScrollBtn">Auto Scroll</button>
-                    <button class="clear-feed-btn" id="clearFeedBtn">Clear</button>
-                </div>
+        <!-- TOP TABS -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <ul class="nav nav-tabs" id="automatedSignalsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="live-tab" data-bs-toggle="tab" 
+                                data-bs-target="#tab-live" type="button" role="tab" 
+                                aria-controls="tab-live" aria-selected="true">⚡ Live Signals</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="cancelled-tab" data-bs-toggle="tab" 
+                                data-bs-target="#tab-cancelled" type="button" role="tab" 
+                                aria-controls="tab-cancelled" aria-selected="false">❌ Cancelled Signals</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" 
+                                data-bs-target="#tab-analytics" type="button" role="tab" 
+                                aria-controls="tab-analytics" aria-selected="false">📊 Signal Analytics</button>
+                    </li>
+                </ul>
             </div>
-            
-            <div class="signal-cards-container" id="signalCardsContainer">
-                <!-- Signal cards populated by JS -->
-            </div>
-        </main>
+        </div>
 
-        <!-- REGION C: SIGNAL DETAILS RIGHT PANEL -->
-        <aside class="details-panel" id="detailsPanel">
-            <div class="panel-header">
-                <h3>Signal Details</h3>
-                <button class="close-btn" id="closeDetailsBtn">×</button>
-            </div>
-            
-            <div class="details-content" id="detailsContent">
-                <div class="no-selection">
-                    <p>Select a signal to view details</p>
+        <div class="tab-content" id="automatedSignalsTabContent">
+            <!-- TAB 1: LIVE SIGNALS -->
+            <div class="tab-pane fade show active" id="tab-live" role="tabpanel" aria-labelledby="live-tab">
+                <div class="row">
+                    <!-- LEFT COLUMN: TABLES + CALENDAR -->
+                    <div class="col-lg-7 mb-4">
+                        <!-- FILTER + CALENDAR PANEL -->
+                        <div class="dashboard-card mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h3 class="card-title mb-0">Filters & Trading Calendar</h3>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button class="btn btn-sm btn-outline-light" id="ase-calendar-prev">&laquo;</button>
+                                    <span id="ase-calendar-month" class="small fw-semibold">Loading...</span>
+                                    <button class="btn btn-sm btn-outline-light" id="ase-calendar-next">&raquo;</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-5">
+                                        <div id="ase-calendar-container">
+                                            <!-- Dynamic trading calendar injected by JS -->
+                                            <div class="text-muted small">Loading calendar...</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <div class="mb-3">
+                                            <label class="form-label small mb-1">Session Filter</label>
+                                            <div class="btn-group btn-group-sm" role="group" id="ase-session-filter">
+                                                <button type="button" class="btn btn-outline-light active" data-session="ALL">All</button>
+                                                <button type="button" class="btn btn-outline-light" data-session="ASIA">Asia</button>
+                                                <button type="button" class="btn btn-outline-light" data-session="LONDON">London</button>
+                                                <button type="button" class="btn btn-outline-light" data-session="NY AM">NY AM</button>
+                                                <button type="button" class="btn btn-outline-light" data-session="NY PM">NY PM</button>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small mb-1">Direction</label>
+                                            <div class="btn-group btn-group-sm" role="group" id="ase-direction-filter">
+                                                <button type="button" class="btn btn-outline-light active" data-direction="ALL">All</button>
+                                                <button type="button" class="btn btn-outline-light" data-direction="Bullish">Bullish</button>
+                                                <button type="button" class="btn btn-outline-light" data-direction="Bearish">Bearish</button>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small mb-1">Signal State</label>
+                                            <div class="btn-group btn-group-sm" role="group" id="ase-state-filter">
+                                                <button type="button" class="btn btn-outline-light active" data-state="ALL">All</button>
+                                                <button type="button" class="btn btn-outline-light" data-state="PENDING">Pending</button>
+                                                <button type="button" class="btn btn-outline-light" data-state="ACTIVE">Active</button>
+                                                <button type="button" class="btn btn-outline-light" data-state="COMPLETED">Completed</button>
+                                            </div>
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label small mb-1">Search by Trade ID</label>
+                                            <input type="text" class="form-control form-control-sm" id="ase-search-trade-id" 
+                                                   placeholder="Enter trade_id or partial...">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- LIVE SIGNALS TABLE (Pending + Active + Completed) -->
+                        <div class="dashboard-card mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h3 class="card-title mb-0">Signals & Trades</h3>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge rounded-pill bg-secondary small" id="ase-table-count">0 rows</span>
+                                    <button class="btn btn-sm btn-outline-light" id="ase-refresh-btn">Refresh</button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+                                    <table class="table table-sm table-dark mb-0" id="ase-signals-table">
+                                        <thead class="position-sticky top-0">
+                                            <tr>
+                                                <th scope="col">Status</th>
+                                                <th scope="col">Time</th>
+                                                <th scope="col">Dir</th>
+                                                <th scope="col">Session</th>
+                                                <th scope="col">Entry</th>
+                                                <th scope="col">SL</th>
+                                                <th scope="col">MFE (No BE)</th>
+                                                <th scope="col">MFE (BE)</th>
+                                                <th scope="col">R</th>
+                                                <th scope="col">Age</th>
+                                                <th scope="col">ID</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="ase-signals-tbody">
+                                            <tr>
+                                                <td colspan="11" class="text-center text-muted small py-3">Loading signals...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT COLUMN: DETAILS + SUMMARY -->
+                    <div class="col-lg-5 mb-4">
+                        <!-- TRADE DETAIL / LIFECYCLE PANEL -->
+                        <div class="dashboard-card mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h3 class="card-title mb-0">Trade Lifecycle</h3>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge rounded-pill bg-secondary small" id="ase-detail-status">No trade selected</span>
+                                    <button type="button" class="btn btn-sm btn-outline-light" id="ase-lifecycle-expand" disabled>Expand</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="ase-trade-detail-placeholder" class="text-muted small">
+                                    Select a signal from the table to view its full lifecycle journey (Entry → BE → MFE → Exit).
+                                </div>
+                                <div id="ase-trade-detail-container" style="display: none;">
+                                    <!-- JS will render the graphical lifecycle here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- STATS SUMMARY PANEL -->
+                        <div class="dashboard-card mb-4">
+                            <div class="card-header">
+                                <h3 class="card-title mb-0">Signal & Trade Summary</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <div class="small text-muted">Signals Today</div>
+                                        <div id="ase-summary-signals-today" class="fw-semibold">0</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="small text-muted">Confirmed Today</div>
+                                        <div id="ase-summary-confirmed" class="fw-semibold">0</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="small text-muted">Win Rate (Today)</div>
+                                        <div id="ase-summary-winrate" class="fw-semibold">--%</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="small text-muted">Avg MFE (No BE)</div>
+                                        <div id="ase-summary-avgmfe" class="fw-semibold">0.00R</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="small text-muted">BE Triggers</div>
+                                        <div id="ase-summary-be-count" class="fw-semibold">0</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="small text-muted">SL Events</div>
+                                        <div id="ase-summary-sl-count" class="fw-semibold">0</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- FUTURE ANALYTICS (ROADMAP LOCKED) -->
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h3 class="card-title mb-0">Future Analytics (Roadmap Locked)</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="text-muted small mb-2">Advanced analytics will unlock here as H2/H3 modules are completed.</div>
+                                <ul class="small mb-0">
+                                    <li>Execution Quality Engine (locked)</li>
+                                    <li>Signal Outcome Predictor (locked)</li>
+                                    <li>Regime Classifier (locked)</li>
+                                    <li>MFE Distribution Engine (locked)</li>
+                                    <li>BE Efficiency Analytics (locked)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </aside>
+
+            <!-- TAB 2: CANCELLED SIGNALS -->
+            <div class="tab-pane fade" id="tab-cancelled" role="tabpanel" aria-labelledby="cancelled-tab">
+                <div class="row">
+                    <div class="col-12 mb-4">
+                        <div class="dashboard-card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h3 class="card-title mb-0">Cancelled Signals</h3>
+                                <span class="badge rounded-pill bg-secondary small" id="ase-cancelled-count">0</span>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+                                    <table class="table table-sm table-dark mb-0" id="ase-cancelled-table">
+                                        <thead class="position-sticky top-0">
+                                            <tr>
+                                                <th scope="col">Time</th>
+                                                <th scope="col">Dir</th>
+                                                <th scope="col">Session</th>
+                                                <th scope="col">Reason</th>
+                                                <th scope="col">Age Before Cancel</th>
+                                                <th scope="col">ID</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="ase-cancelled-tbody">
+                                            <tr>
+                                                <td colspan="6" class="text-center text-muted small py-3">No cancelled signals loaded yet.</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: SIGNAL ANALYTICS -->
+            <div class="tab-pane fade" id="tab-analytics" role="tabpanel" aria-labelledby="analytics-tab">
+                <div class="row">
+                    <div class="col-lg-6 mb-4">
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h3 class="card-title mb-0">Signal Efficiency</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="ase-signal-efficiency-container" class="text-muted small">
+                                    Analytics will appear here once the stats integration is wired.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6 mb-4">
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h3 class="card-title mb-0">Session Performance</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="ase-session-performance-container" class="text-muted small">
+                                    Session-wise signal and trade performance will be rendered here.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6 mb-4">
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h3 class="card-title mb-0">R-Multiple Distribution</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="ase-rdist-container" class="text-muted small">
+                                    Future chart panel for R-multiple distributions.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6 mb-4">
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h3 class="card-title mb-0">Roadmap-Locked Intelligence</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="text-muted small mb-2">These analytics will unlock when the corresponding H2/H3 modules are completed in the roadmap.</div>
+                                <ul class="small mb-0">
+                                    <li>Regime Classifier</li>
+                                    <li>Entry Confidence Model</li>
+                                    <li>ML-Enhanced Signal Validation</li>
+                                    <li>Execution Quality Benchmarks</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- /.tab-content -->
     </div>
-
-    <!-- REGION D: PERFORMANCE STRIP (BOTTOM) -->
-    <footer class="performance-strip">
-        <div class="perf-metrics">
-            <div class="perf-item">
-                <span class="perf-label">Today's R</span>
-                <span class="perf-value" id="todayR">+0.0</span>
-            </div>
-            <div class="perf-item">
-                <span class="perf-label">Today's P&L</span>
-                <span class="perf-value" id="todayPnl">$0.00</span>
-            </div>
-            <div class="perf-item">
-                <span class="perf-label">Session P&L</span>
-                <span class="perf-value" id="sessionPnl">$0.00</span>
-            </div>
-            <div class="perf-item">
-                <span class="perf-label">MFE High/Low</span>
-                <span class="perf-value" id="mfeHighLow">0.0 / 0.0</span>
-            </div>
-            <div class="perf-item">
-                <span class="perf-label">BE Triggers</span>
-                <span class="perf-value" id="beTriggers">0</span>
-            </div>
-            <div class="perf-item">
-                <span class="perf-label">SL Events</span>
-                <span class="perf-value" id="slEvents">0</span>
-            </div>
-        </div>
-        
-        <div class="sparkline-container">
-            <canvas id="sparklineChart" width="200" height="40"></canvas>
-        </div>
-    </footer>
+    <!-- /.container-fluid -->
 
     <script src="{{ url_for('static', filename='js/automated_signals_ultra.js') }}"></script>
+
+    <!-- Full-Screen Lifecycle Overlay -->
+    <div id="ase-lifecycle-overlay" style="display:none; position:fixed; inset:0; background:rgba(4,10,20,0.92); z-index:1050;">
+        <div style="max-width: 1100px; margin: 40px auto; background: linear-gradient(135deg, #050816, #0b1c32); border-radius: 16px; padding: 24px; box-shadow: 0 0 40px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.08);">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="h4 mb-1" id="ase-lifecycle-title">Trade Journey</h2>
+                    <p class="text-muted small mb-0" id="ase-lifecycle-subtitle">Select a trade from the table to see its full lifecycle.</p>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-light" id="ase-lifecycle-close">Close</button>
+            </div>
+            <div class="row g-4">
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <div class="small text-muted mb-1">Lifecycle Timeline</div>
+                        <div id="ase-lifecycle-timeline" class="p-3" style="background: rgba(15,25,50,0.9); border-radius: 12px; min-height: 140px;">
+                            <!-- Timeline nodes rendered by JS -->
+                            <div class="text-muted small">No trade selected.</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="small text-muted mb-1">Event Stream</div>
+                        <div id="ase-lifecycle-events" class="p-2" style="background: rgba(10,18,36,0.9); border-radius: 8px; max-height: 200px; overflow-y: auto;">
+                            <!-- List of lifecycle events rendered by JS -->
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <div class="small text-muted mb-1">Trade Metrics</div>
+                        <div id="ase-lifecycle-metrics" class="p-3" style="background: rgba(10,18,36,0.9); border-radius: 12px;">
+                            <!-- Key metrics like Entry, SL, 1R, MFE, Final R rendered by JS -->
+                            <div class="text-muted small">No trade selected.</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="small text-muted mb-1">Notes</div>
+                        <div id="ase-lifecycle-notes" class="p-2 text-muted small" style="background: rgba(10,18,36,0.9); border-radius: 8px;">
+                            Trade-level insights will be shown here in future roadmap stages.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
