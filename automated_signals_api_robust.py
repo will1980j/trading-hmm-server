@@ -174,6 +174,24 @@ def register_automated_signals_api_robust(app, db):
                     'message': 'Table not initialized'
                 }), 200
             
+            # STEP 1: Query most recent webhook timestamp
+            cursor.execute("""
+                SELECT MAX(timestamp) FROM automated_signals;
+            """)
+            last_ts = cursor.fetchone()[0]
+            
+            # STEP 2: Compute webhook_healthy status
+            if last_ts is not None:
+                now_utc = datetime.now(pytz.UTC)
+                # Ensure last_ts is timezone-aware
+                if last_ts.tzinfo is None:
+                    last_ts = pytz.UTC.localize(last_ts)
+                delta_sec = (now_utc - last_ts).total_seconds()
+                webhook_healthy = delta_sec < 90
+            else:
+                webhook_healthy = False
+                delta_sec = None
+            
             # Get basic counts
             cursor.execute("""
                 SELECT 
@@ -191,7 +209,10 @@ def register_automated_signals_api_robust(app, db):
                 'entries': row[2] if row else 0,
                 'exits': row[3] if row else 0,
                 'active_count': (row[2] - row[3]) if row else 0,
-                'completed_count': row[3] if row else 0
+                'completed_count': row[3] if row else 0,
+                'webhook_healthy': webhook_healthy,
+                'last_webhook_timestamp': last_ts.isoformat() if last_ts else None,
+                'seconds_since_last_webhook': round(delta_sec, 1) if delta_sec is not None else None
             }
             
             return jsonify({

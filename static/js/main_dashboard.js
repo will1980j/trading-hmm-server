@@ -207,12 +207,39 @@ class MainDashboard {
     }
     
     renderHealthTopbar() {
-        const webhookHealth = this.data.stats.webhook_healthy !== false ? 'Healthy' : 'Issues';
-        const webhookClass = this.data.stats.webhook_healthy !== false ? 'healthy' : 'error';
+        // Calculate webhook health based on last signal time
+        let statusText = 'Unknown';
+        let color = '#999';
+        let webhookClass = 'unknown';
+        
+        if (this.data.stats.last_signal_time) {
+            const lastSignalTime = new Date(this.data.stats.last_signal_time);
+            const now = new Date();
+            const deltaSec = (now - lastSignalTime) / 1000;
+            
+            if (deltaSec < 90) {
+                statusText = 'Healthy';
+                color = '#00ff88';
+                webhookClass = 'healthy';
+            } else if (deltaSec >= 90 && deltaSec < 180) {
+                statusText = 'Delayed';
+                color = '#ffaa00';
+                webhookClass = 'warning';
+            } else if (deltaSec >= 180) {
+                statusText = 'Stale';
+                color = '#ff4757';
+                webhookClass = 'error';
+            }
+        } else {
+            statusText = 'No Signals';
+            color = '#ff4757';
+            webhookClass = 'error';
+        }
         
         const webhookEl = document.getElementById('webhook-health');
         if (webhookEl) {
-            webhookEl.textContent = webhookHealth;
+            webhookEl.textContent = statusText;
+            webhookEl.style.color = color;
             webhookEl.className = `health-value ${webhookClass}`;
         }
         
