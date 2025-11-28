@@ -368,14 +368,18 @@ def _get_active_trades_robust(cursor, has_signal_time):
         
         # Get all trade_ids for active trades
         cursor.execute("""
-            SELECT DISTINCT trade_id
-            FROM automated_signals
-            WHERE event_type = 'ENTRY'
-            AND trade_id NOT IN (
-                SELECT trade_id FROM automated_signals 
-                WHERE event_type LIKE 'EXIT_%'
-            )
-            ORDER BY timestamp DESC
+            SELECT trade_id
+            FROM (
+                SELECT trade_id, MAX(timestamp) AS last_event
+                FROM automated_signals
+                WHERE event_type = 'ENTRY'
+                AND trade_id NOT IN (
+                    SELECT trade_id FROM automated_signals 
+                    WHERE event_type LIKE 'EXIT_%'
+                )
+                GROUP BY trade_id
+            ) AS sub
+            ORDER BY sub.last_event DESC
             LIMIT 100;
         """)
         
@@ -462,10 +466,14 @@ def _get_completed_trades_robust(cursor, has_signal_time):
         
         # Get all trade_ids for completed trades
         cursor.execute("""
-            SELECT DISTINCT trade_id
-            FROM automated_signals
-            WHERE event_type LIKE 'EXIT_%'
-            ORDER BY timestamp DESC
+            SELECT trade_id
+            FROM (
+                SELECT trade_id, MAX(timestamp) AS last_event
+                FROM automated_signals
+                WHERE event_type LIKE 'EXIT_%'
+                GROUP BY trade_id
+            ) AS sub
+            ORDER BY sub.last_event DESC
             LIMIT 100;
         """)
         
