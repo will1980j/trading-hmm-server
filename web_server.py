@@ -12380,30 +12380,65 @@ def handle_entry_signal(data):
         if validation_error:
             return {"success": False, "error": validation_error}
         
-        # Insert into database
+        # SAFE INSERT FOR ENTRY (fully Pine-compatible)
         cursor.execute("""
             INSERT INTO automated_signals (
-                trade_id, event_type, direction, entry_price, stop_loss,
-                session, bias, risk_distance, targets, signal_date, signal_time,
-                be_mfe, no_be_mfe,
-                lifecycle_state, lifecycle_seq, lifecycle_entered_at, lifecycle_updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                      %s, %s, NOW(), NOW())
-            RETURNING id, lifecycle_state, lifecycle_seq
-        """, (
-            trade_id, 'ENTRY', direction, entry_price, stop_loss,
-            session, bias or direction, risk_distance, dumps(targets), signal_date, signal_time,
-            be_mfe, no_be_mfe,
-            'ACTIVE', 1
-        ))
+                trade_id,
+                event_type,
+                direction,
+                entry_price,
+                stop_loss,
+                session,
+                bias,
+                risk_distance,
+                targets,
+                timestamp,
+                signal_date,
+                signal_time,
+                current_price,
+                mfe,
+                be_mfe,
+                no_be_mfe,
+                telemetry
+            ) VALUES (
+                %(trade_id)s,
+                'ENTRY',
+                %(direction)s,
+                %(entry_price)s,
+                %(stop_loss)s,
+                %(session)s,
+                %(bias)s,
+                %(risk_R)s,
+                %(targets)s,
+                NOW(),
+                CURRENT_DATE,
+                NOW()::time,
+                NULL,
+                0,
+                0,
+                0,
+                %(telemetry)s
+            )
+            RETURNING id
+        """, {
+            "trade_id": trade_id,
+            "direction": direction,
+            "entry_price": entry_price,
+            "stop_loss": stop_loss,
+            "session": session,
+            "bias": bias or direction,
+            "risk_R": risk_distance,
+            "targets": dumps(targets),
+            "telemetry": dumps(data)
+        })
         
         result = cursor.fetchone()
         if not result:
             raise Exception("Insert returned no result")
             
         signal_id = result[0]
-        lifecycle_state = result[1]
-        lifecycle_seq = result[2]
+        lifecycle_state = 'ACTIVE'  # Default for new ENTRY
+        lifecycle_seq = 1  # Default for new ENTRY
         conn.commit()
         
         logger.info(f"✅ Entry signal stored: ID {signal_id}, Trade {trade_id}, Direction {direction}")
