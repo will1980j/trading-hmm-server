@@ -2,11 +2,15 @@
 Continuous Database Health Monitor
 Runs as a background service to detect and fix database issues
 """
+import os
 import time
 import logging
 from datetime import datetime
 from database.railway_db import RailwayDB
 from psycopg2 import extensions
+
+# Feature gating - matches web_server.py pattern
+ENABLE_LEGACY = os.environ.get("ENABLE_LEGACY", "false").lower() == "true"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -98,7 +102,12 @@ class DatabaseHealthMonitor:
             return False
     
     def check_recent_signals(self):
-        """Check if signals are flowing"""
+        """Check if signals are flowing (legacy live_signals table)"""
+        # Gate legacy live_signals queries
+        if not ENABLE_LEGACY:
+            logger.warning("⚠️ Legacy signal health checks disabled (ENABLE_LEGACY=false)")
+            return {"healthy": True, "message": "Legacy checks disabled"}
+        
         if not self.db or not self.db.conn:
             return None
         
