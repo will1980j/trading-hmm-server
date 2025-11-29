@@ -857,9 +857,6 @@ elif not ENABLE_PREDICTION:
 else:
     if not db_enabled or not db:
         logger.warning("⚠️ Prediction tracking unavailable (database not enabled)")
-        
-    except Exception as e:
-        logger.error(f"Failed to initialize prediction tracker: {e}")
 
 # Start real-time health monitoring
 if realtime_handler:
