@@ -184,7 +184,7 @@ def get_ny_session_info():
     }
 
 
-# STAGE 10: Replay candle helpers (DB-first + external OHLC fallback)
+# STAGE 10: Replay candle helpers (DB-first + external OHLC fallback) - GATED BEHIND ENABLE_REPLAY
 def get_replay_candles_from_db(symbol, date_str, timeframe='1m'):
     """
     Fetch replay candles from replay_candles table for a given symbol/date/timeframe.
@@ -829,7 +829,7 @@ realtime_handler = RealtimeSignalHandler(socketio, db) if db_enabled else None
 # Initialize prediction accuracy tracker
 prediction_tracker = None
 auto_outcome_updater = None
-if db_enabled and db:
+if ENABLE_PREDICTION and db_enabled and db:
     try:
         # Check if ML training is enabled
         ml_training_enabled = os.environ.get("ENABLE_ML_TRAINING", "false").lower() == "true"
@@ -848,6 +848,15 @@ if db_enabled and db:
             logger.info("✅ Auto prediction outcome updater started")
         else:
             logger.info("⚠️ ML auto-training disabled on startup (ENABLE_ML_TRAINING=false)")
+    except Exception as e:
+        logger.error(f"Error initializing prediction tracker: {str(e)}")
+        prediction_tracker = None
+        auto_outcome_updater = None
+elif not ENABLE_PREDICTION:
+    logger.warning("⚠️ Prediction tracking disabled (ENABLE_PREDICTION=false)")
+else:
+    if not db_enabled or not db:
+        logger.warning("⚠️ Prediction tracking unavailable (database not enabled)")
         
     except Exception as e:
         logger.error(f"Failed to initialize prediction tracker: {e}")
@@ -5311,7 +5320,7 @@ def ai_signal_analysis_live():
 # ⚠️ Disabled legacy utility endpoint - use Phase 2A/2B/2C API v2 equivalents
 # ============================================================================
 
-# STAGE 10: Replay candles API (READ-ONLY)
+# STAGE 10: Replay candles API (READ-ONLY) - GATED BEHIND ENABLE_REPLAY
 @app.route("/api/automated-signals/replay-candles", methods=["GET"])
 @login_required
 def get_replay_candles_api():
@@ -5322,6 +5331,12 @@ def get_replay_candles_api():
       - date (YYYY-MM-DD, required)
       - timeframe (default '1m', future-proofed)
     """
+    if not ENABLE_REPLAY:
+        return jsonify({
+            "success": False,
+            "error": "Replay engine disabled (ENABLE_REPLAY=false)"
+        }), 403
+    
     symbol = request.args.get("symbol", "NQ1!")
     date_str = request.args.get("date")
     timeframe = request.args.get("timeframe", "1m")
@@ -9124,41 +9139,44 @@ try:
 except Exception as e:
     logger.error(f"Error creating database tables: {str(e)}")
 
-# STAGE 10: Replay candles cache table (DB-first hybrid replay)
-try:
-    if db_enabled and db:
-        cursor = db.conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS replay_candles (
-                id SERIAL PRIMARY KEY,
-                symbol VARCHAR(20) NOT NULL,
-                timeframe VARCHAR(10) NOT NULL,
-                candle_date DATE NOT NULL,
-                candle_time TIME NOT NULL,
-                open DECIMAL(12,6) NOT NULL,
-                high DECIMAL(12,6) NOT NULL,
-                low DECIMAL(12,6) NOT NULL,
-                close DECIMAL(12,6) NOT NULL,
-                volume BIGINT DEFAULT 0,
-                source VARCHAR(30) DEFAULT 'db',
-                created_at TIMESTAMP DEFAULT NOW()
-            )
-        """)
-        
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_replay_candles_key
-            ON replay_candles(symbol, timeframe, candle_date, candle_time)
-        """)
-        
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_replay_candles_date
-            ON replay_candles(symbol, timeframe, candle_date)
-        """)
-        
-        db.conn.commit()
-        logger.info("Replay candles table ready with indexes")
-except Exception as e:
-    logger.error(f"Error creating replay_candles table: {str(e)}")
+# STAGE 10: Replay candles cache table (DB-first hybrid replay) - GATED BEHIND ENABLE_REPLAY
+if ENABLE_REPLAY:
+    try:
+        if db_enabled and db:
+            cursor = db.conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS replay_candles (
+                    id SERIAL PRIMARY KEY,
+                    symbol VARCHAR(20) NOT NULL,
+                    timeframe VARCHAR(10) NOT NULL,
+                    candle_date DATE NOT NULL,
+                    candle_time TIME NOT NULL,
+                    open DECIMAL(12,6) NOT NULL,
+                    high DECIMAL(12,6) NOT NULL,
+                    low DECIMAL(12,6) NOT NULL,
+                    close DECIMAL(12,6) NOT NULL,
+                    volume BIGINT DEFAULT 0,
+                    source VARCHAR(30) DEFAULT 'db',
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_replay_candles_key
+                ON replay_candles(symbol, timeframe, candle_date, candle_time)
+            """)
+            
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_replay_candles_date
+                ON replay_candles(symbol, timeframe, candle_date)
+            """)
+            
+            db.conn.commit()
+            logger.info("✅ Replay candles table ready with indexes")
+    except Exception as e:
+        logger.error(f"Error creating replay_candles table: {str(e)}")
+else:
+    logger.warning("⚠️ Replay engine disabled (ENABLE_REPLAY=false)")
 
 # Signal lab table is created in railway_db.py setup_tables()
 
