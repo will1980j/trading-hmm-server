@@ -1,4 +1,5 @@
 # Updated to support new unified layout system on all internal pages (except login/homepage which use video templates)
+import os
 from flask import Flask, render_template, render_template_string, send_from_directory, send_file, request, jsonify, session, redirect, url_for, Response
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
