@@ -12418,7 +12418,7 @@ def handle_entry_signal(data):
         risk_amount = risk_distance * contracts
         
         # Insert ENTRY into automated_signals using ONLY real columns
-        cursor.execute("""
+        insert_sql = """
             INSERT INTO automated_signals (
                 trade_id,
                 event_type,
@@ -12483,7 +12483,8 @@ def handle_entry_signal(data):
                 0
             )
             RETURNING id
-        """, {
+        """
+        params = {
             "trade_id": trade_id,
             "direction": direction,
             "entry_price": entry_price,
@@ -12501,7 +12502,16 @@ def handle_entry_signal(data):
             "risk_percent": risk_percent,
             "contracts": contracts,
             "risk_amount": risk_amount
-        })
+        }
+        try:
+            cursor.execute(insert_sql, params)
+        except Exception as e:
+            logger.error("❌ ENTRY INSERT FAILED")
+            logger.error(f"SQL ERROR: {repr(e)}")
+            logger.error(f"QUERY: {insert_sql}")
+            logger.error(f"PARAMS: {params}")
+            conn.rollback()
+            raise
         
         result = cursor.fetchone()
         if not result:
