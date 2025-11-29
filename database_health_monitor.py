@@ -103,15 +103,21 @@ class DatabaseHealthMonitor:
     
     def check_recent_signals(self):
         """Check if signals are flowing (legacy live_signals table)"""
-        # Gate legacy live_signals queries
+        # Gate legacy live_signals queries - prevents aborted transaction state
         if not ENABLE_LEGACY:
-            logger.warning("⚠️ Legacy signal health checks disabled (ENABLE_LEGACY=false)")
-            return {"healthy": True, "message": "Legacy checks disabled"}
+            logger.debug("Legacy signal health checks skipped (ENABLE_LEGACY=false)")
+            return {"healthy": True, "skipped": True, "message": "Legacy checks disabled"}
         
         if not self.db or not self.db.conn:
             return None
         
         try:
+            # Check transaction status BEFORE executing legacy query
+            status = self.db.conn.get_transaction_status()
+            if status == extensions.TRANSACTION_STATUS_INERROR:
+                logger.warning("⚠️ Aborted transaction detected before legacy query - rolling back")
+                self.db.conn.rollback()
+            
             cursor = self.db.conn.cursor()
             cursor.execute("""
                 SELECT 
@@ -125,13 +131,19 @@ class DatabaseHealthMonitor:
             if result:
                 return {
                     'last_signal': result['last_signal'],
-                    'signals_last_hour': result['total_signals']
+                    'signals_last_hour': result['total_signals'],
+                    'healthy': True
                 }
-            return None
+            return {'healthy': True, 'signals_last_hour': 0}
             
         except Exception as e:
-            logger.error(f"❌ Error checking signals: {e}")
-            return None
+            logger.error(f"❌ Error checking legacy signals: {e}")
+            # Rollback to prevent aborted transaction state from propagating
+            try:
+                self.db.conn.rollback()
+            except:
+                pass
+            return {"healthy": False, "error": str(e)}
     
     def perform_health_check(self):
         """Perform comprehensive health check"""
@@ -166,17 +178,21 @@ class DatabaseHealthMonitor:
                 self.stats['errors'] += 1
                 return False
         
-        # Step 4: Check signal flow
+        # Step 4: Check signal flow (GATED - only runs if ENABLE_LEGACY=true)
         signal_info = self.check_recent_signals()
         if signal_info:
-            logger.info(f"📊 Signals last hour: {signal_info['signals_last_hour']}")
-            if signal_info['last_signal']:
-                time_since = datetime.now() - signal_info['last_signal'].replace(tzinfo=None)
-                minutes = int(time_since.total_seconds() / 60)
-                if minutes > 15:
-                    logger.warning(f"⚠️ No signals for {minutes} minutes")
-                else:
-                    logger.info(f"✅ Last signal: {minutes}m ago")
+            # Handle gated/skipped response
+            if signal_info.get('skipped'):
+                logger.debug("📊 Legacy signal checks skipped (ENABLE_LEGACY=false)")
+            elif 'signals_last_hour' in signal_info:
+                logger.info(f"📊 Signals last hour: {signal_info.get('signals_last_hour', 0)}")
+                if signal_info.get('last_signal'):
+                    time_since = datetime.now() - signal_info['last_signal'].replace(tzinfo=None)
+                    minutes = int(time_since.total_seconds() / 60)
+                    if minutes > 15:
+                        logger.warning(f"⚠️ No signals for {minutes} minutes")
+                    else:
+                        logger.info(f"✅ Last signal: {minutes}m ago")
         
         # Success!
         self.stats['healthy_checks'] += 1

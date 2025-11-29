@@ -60,6 +60,7 @@ ENABLE_V2 = os.environ.get("ENABLE_V2", "false").lower() == "true"
 ENABLE_REPLAY = os.environ.get("ENABLE_REPLAY", "false").lower() == "true"
 ENABLE_EXECUTION = os.environ.get("ENABLE_EXECUTION", "false").lower() == "true"
 ENABLE_TELEMETRY_LEGACY = os.environ.get("ENABLE_TELEMETRY_LEGACY", "false").lower() == "true"
+ENABLE_SCHEMA_V2 = os.environ.get("ENABLE_SCHEMA_V2", "false").lower() == "true"
 
 # H1 CORE is ALWAYS enabled (automated_signals table and related functionality)
 # These flags control OPTIONAL features only
@@ -11517,6 +11518,35 @@ def create_automated_signals_table():
             ADD COLUMN IF NOT EXISTS lifecycle_entered_at TIMESTAMP,
             ADD COLUMN IF NOT EXISTS lifecycle_updated_at TIMESTAMP;
         ''')
+        
+        # Create automated_signals_v2 staging table (H1.7 Foundation - GATED)
+        # This is an INACTIVE staging table for future migration planning only
+        # NOT referenced by any application code, NOT replacing automated_signals
+        if ENABLE_SCHEMA_V2:
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS automated_signals_v2 (
+                    id SERIAL PRIMARY KEY,
+                    trade_id VARCHAR(64) NOT NULL,
+                    event_type VARCHAR(32) NOT NULL,
+                    timestamp TIMESTAMPTZ NOT NULL,
+                    signal_date DATE,
+                    signal_time TIMETZ,
+                    direction VARCHAR(16),
+                    session VARCHAR(16),
+                    bias VARCHAR(32),
+                    entry_price NUMERIC(12,4),
+                    stop_loss NUMERIC(12,4),
+                    current_price NUMERIC(12,4),
+                    exit_price NUMERIC(12,4),
+                    mfe NUMERIC(10,4),
+                    no_be_mfe NUMERIC(10,4),
+                    be_mfe NUMERIC(10,4),
+                    final_mfe NUMERIC(10,4),
+                    risk_distance NUMERIC(12,4),
+                    targets JSONB,
+                    telemetry JSONB
+                );
+            ''')
         
         conn.commit()
         

@@ -114,6 +114,7 @@ _add_phase(
         "h1_4_automated_signals_dashboard_redesign": {"done": False, "desc": "H1.4 Automated Signals Dashboard Redesign ⭐ H1"},
         "h1_5_financial_summary": {"done": False, "desc": "H1.5 Financial Summary ⭐ H1"},
         "h1_6_reporting_center": {"done": False, "desc": "H1.6 Reporting Center ⭐ H1"},
+        "h1_7_database_foundation": {"done": False, "desc": "H1.7 Database Foundation — schema optimization, indexing plan, telemetry schema, partition strategy, ML feature-store planning"},
         "h2_1_secure_auth_system": {"done": False, "desc": "H2.1 Secure Authentication System ⭐ H2"},
         "h2_2_navigation_framework": {"done": False, "desc": "H2.2 Navigation Framework ⭐ H2"},
         "h2_3_user_session_manager": {"done": False, "desc": "H2.3 User/Session Manager ⭐ H2"},
