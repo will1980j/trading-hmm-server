@@ -12380,7 +12380,44 @@ def handle_entry_signal(data):
         if validation_error:
             return {"success": False, "error": validation_error}
         
-        # SAFE INSERT FOR ENTRY (fully Pine-compatible)
+        # Compute risk and targets from normalized payload
+        # Basic risk metric (distance in price terms)
+        if entry_price > 0 and stop_loss > 0:
+            if direction in ("LONG", "Bullish"):
+                risk_distance = entry_price - stop_loss
+            elif direction in ("SHORT", "Bearish"):
+                risk_distance = stop_loss - entry_price
+            else:
+                risk_distance = 0.0
+        else:
+            risk_distance = 0.0
+        
+        # Derive simple R-based targets from risk_distance
+        if risk_distance > 0 and direction in ("LONG", "Bullish"):
+            target_1r = entry_price + risk_distance
+            target_2r = entry_price + 2 * risk_distance
+            target_3r = entry_price + 3 * risk_distance
+            target_5r = entry_price + 5 * risk_distance
+            target_10r = entry_price + 10 * risk_distance
+            target_20r = entry_price + 20 * risk_distance
+        elif risk_distance > 0 and direction in ("SHORT", "Bearish"):
+            target_1r = entry_price - risk_distance
+            target_2r = entry_price - 2 * risk_distance
+            target_3r = entry_price - 3 * risk_distance
+            target_5r = entry_price - 5 * risk_distance
+            target_10r = entry_price - 10 * risk_distance
+            target_20r = entry_price - 20 * risk_distance
+        else:
+            target_1r = target_2r = target_3r = None
+            target_5r = target_10r = target_20r = None
+        
+        # Account / risk fields – we don't have account_size in telemetry, so keep it zero for now
+        account_size = 0.0
+        risk_percent = 0.0
+        contracts = int(data.get("position_size") or data.get("contracts") or 0)
+        risk_amount = risk_distance * contracts
+        
+        # Insert ENTRY into automated_signals using ONLY real columns
         cursor.execute("""
             INSERT INTO automated_signals (
                 trade_id,
@@ -12388,36 +12425,62 @@ def handle_entry_signal(data):
                 direction,
                 entry_price,
                 stop_loss,
-                session,
-                bias,
                 risk_distance,
-                targets,
-                timestamp,
-                signal_date,
-                signal_time,
+                target_1r,
+                target_2r,
+                target_3r,
+                target_5r,
+                target_10r,
+                target_20r,
                 current_price,
                 mfe,
+                exit_price,
+                final_mfe,
+                session,
+                bias,
+                account_size,
+                risk_percent,
+                contracts,
+                risk_amount,
+                timestamp,
+                created_at,
+                lifecycle_state,
+                lifecycle_seq,
+                lifecycle_entered_at,
+                lifecycle_updated_at,
                 be_mfe,
-                no_be_mfe,
-                telemetry
+                no_be_mfe
             ) VALUES (
                 %(trade_id)s,
                 'ENTRY',
                 %(direction)s,
                 %(entry_price)s,
                 %(stop_loss)s,
-                %(session)s,
-                %(bias)s,
-                %(risk_R)s,
-                %(targets)s,
-                NOW(),
-                CURRENT_DATE,
-                NOW()::time,
+                %(risk_distance)s,
+                %(target_1r)s,
+                %(target_2r)s,
+                %(target_3r)s,
+                %(target_5r)s,
+                %(target_10r)s,
+                %(target_20r)s,
                 NULL,
                 0,
+                NULL,
                 0,
+                %(session)s,
+                %(bias)s,
+                %(account_size)s,
+                %(risk_percent)s,
+                %(contracts)s,
+                %(risk_amount)s,
+                (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+                NOW(),
+                'ACTIVE',
+                1,
+                NOW(),
+                NOW(),
                 0,
-                %(telemetry)s
+                0
             )
             RETURNING id
         """, {
@@ -12425,11 +12488,19 @@ def handle_entry_signal(data):
             "direction": direction,
             "entry_price": entry_price,
             "stop_loss": stop_loss,
+            "risk_distance": risk_distance,
+            "target_1r": target_1r,
+            "target_2r": target_2r,
+            "target_3r": target_3r,
+            "target_5r": target_5r,
+            "target_10r": target_10r,
+            "target_20r": target_20r,
             "session": session,
             "bias": bias or direction,
-            "risk_R": risk_distance,
-            "targets": dumps(targets),
-            "telemetry": dumps(data)
+            "account_size": account_size,
+            "risk_percent": risk_percent,
+            "contracts": contracts,
+            "risk_amount": risk_amount
         })
         
         result = cursor.fetchone()
