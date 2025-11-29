@@ -35,14 +35,6 @@ class PropFirmRegistry:
         """
         :param db: instance of database.railway_db.RailwayDB (or compatible)
         """
-        import os
-        
-        # Check if prop firm features are enabled
-        if not os.environ.get("ENABLE_PROP", "false").lower() == "true":
-            logger.info("🏢 Prop firm features disabled (ENABLE_PROP=false)")
-            self.db = None
-            return
-        
         self.db = db
     
     # ---------------------------------------------------------------------

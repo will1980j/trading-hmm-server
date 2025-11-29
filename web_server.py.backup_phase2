@@ -19,16 +19,7 @@ from auth import login_required, authenticate
 from ml_insights_endpoint import get_ml_insights_response
 from gpt4_strategy_validator import validate_strategy, format_analysis_for_display
 from automated_signals_state import get_hub_data, get_trade_detail
-
-# Execution Router (Stage 13B) - gated behind ENABLE_EXECUTION flag
-try:
-    if os.environ.get("ENABLE_EXECUTION", "false").lower() == "true":
-        from execution_router import ExecutionRouter
-    else:
-        ExecutionRouter = None
-except ImportError:
-    ExecutionRouter = None
-
+from execution_router import ExecutionRouter
 from account_engine import AccountStateManager  # Stage 13G
 import math
 import pytz
@@ -47,22 +38,6 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
 import time
-
-# ============================================================================
-# FEATURE FLAGS - Control optional modules and legacy systems
-# ============================================================================
-# Set via environment variables (default: false for all optional features)
-ENABLE_LEGACY = os.environ.get("ENABLE_LEGACY", "false").lower() == "true"
-ENABLE_PREDICTION = os.environ.get("ENABLE_PREDICTION", "false").lower() == "true"
-ENABLE_PROP = os.environ.get("ENABLE_PROP", "false").lower() == "true"
-ENABLE_V2 = os.environ.get("ENABLE_V2", "false").lower() == "true"
-ENABLE_REPLAY = os.environ.get("ENABLE_REPLAY", "false").lower() == "true"
-ENABLE_EXECUTION = os.environ.get("ENABLE_EXECUTION", "false").lower() == "true"
-ENABLE_TELEMETRY_LEGACY = os.environ.get("ENABLE_TELEMETRY_LEGACY", "false").lower() == "true"
-
-# H1 CORE is ALWAYS enabled (automated_signals table and related functionality)
-# These flags control OPTIONAL features only
-# ============================================================================
 
 # --- Roadmap Completion Helper ---
 def is_complete(module_id: str) -> bool:
@@ -366,40 +341,36 @@ try:
     # ============================================================
     # EARLY DATABASE MIGRATION HOOK (runs before anything else)
     # ============================================================
-    # GATED: Execution tables only created if ENABLE_EXECUTION=true
-    if ENABLE_EXECUTION:
-        try:
-            cur = db.conn.cursor()
-            print("[DB-MIGRATION] Starting early table creation (EXECUTION ENABLED)...")
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS execution_tasks (
-                    id SERIAL PRIMARY KEY,
-                    trade_id VARCHAR(64),
-                    event_type VARCHAR(50),
-                    payload JSONB,
-                    attempts INTEGER DEFAULT 0,
-                    status VARCHAR(20) DEFAULT 'PENDING',
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    updated_at TIMESTAMP DEFAULT NOW(),
-                    last_error TEXT,
-                    last_attempt_at TIMESTAMP DEFAULT NOW()
-                );
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS execution_logs (
-                    id SERIAL PRIMARY KEY,
-                    task_id INTEGER,
-                    log_message TEXT,
-                    created_at TIMESTAMP DEFAULT NOW()
-                );
-            """)
-            db.conn.commit()
-            cur.close()
-            print("[DB-MIGRATION] SUCCESS: execution tables verified/created")
-        except Exception as e:
-            print("[DB-MIGRATION] ERROR:", e)
-    else:
-        print("[DB-MIGRATION] SKIPPED: Execution tables disabled (ENABLE_EXECUTION=false)")
+    try:
+        cur = db.conn.cursor()
+        print("[DB-MIGRATION] Starting early table creation...")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS execution_tasks (
+                id SERIAL PRIMARY KEY,
+                trade_id VARCHAR(64),
+                event_type VARCHAR(50),
+                payload JSONB,
+                attempts INTEGER DEFAULT 0,
+                status VARCHAR(20) DEFAULT 'PENDING',
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                last_error TEXT,
+                last_attempt_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS execution_logs (
+                id SERIAL PRIMARY KEY,
+                task_id INTEGER,
+                log_message TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+        db.conn.commit()
+        cur.close()
+        print("[DB-MIGRATION] SUCCESS: execution tables verified/created")
+    except Exception as e:
+        print("[DB-MIGRATION] ERROR:", e)
     # ============================================================
     # END EARLY MIGRATION HOOK
     # ============================================================
@@ -409,52 +380,48 @@ try:
         try:
             db.conn.rollback()  # Clear any aborted transactions
             cursor = db.conn.cursor()
+            cursor.execute("""
+                ALTER TABLE signal_lab_trades 
+                ADD COLUMN IF NOT EXISTS target_r_score REAL DEFAULT NULL
+            """)
+            cursor.execute("""
+                ALTER TABLE signal_lab_trades 
+                ADD COLUMN IF NOT EXISTS ml_prediction JSONB DEFAULT NULL
+            """)
             
-            # Legacy V1 table columns - GATED
-            if ENABLE_LEGACY:
-                cursor.execute("""
-                    ALTER TABLE signal_lab_trades 
-                    ADD COLUMN IF NOT EXISTS target_r_score REAL DEFAULT NULL
-                """)
-                cursor.execute("""
-                    ALTER TABLE signal_lab_trades 
-                    ADD COLUMN IF NOT EXISTS ml_prediction JSONB DEFAULT NULL
-                """)
-            
-            # Execution queue tables for multi-account routing (Stage 13B) - GATED
-            if ENABLE_EXECUTION:
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS execution_tasks (
-                        id SERIAL PRIMARY KEY,
-                        trade_id VARCHAR(100) NOT NULL,
-                        event_type VARCHAR(32) NOT NULL,
-                        status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
-                        attempts INTEGER NOT NULL DEFAULT 0,
-                        last_error TEXT,
-                        payload JSONB,
-                        last_attempt_at TIMESTAMP,
-                        created_at TIMESTAMP DEFAULT NOW(),
-                        updated_at TIMESTAMP DEFAULT NOW()
-                    )
-                """)
-                cursor.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_execution_tasks_status_created
-                    ON execution_tasks (status, created_at)
-                """)
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS execution_logs (
-                        id SERIAL PRIMARY KEY,
-                        task_id INTEGER NOT NULL REFERENCES execution_tasks(id) ON DELETE CASCADE,
-                        status VARCHAR(32) NOT NULL,
-                        response_code INTEGER,
-                        response_body TEXT,
-                        created_at TIMESTAMP DEFAULT NOW()
-                    )
-                """)
-                cursor.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_execution_logs_task_id
-                    ON execution_logs (task_id)
-                """)
+            # Execution queue tables for multi-account routing (Stage 13B)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS execution_tasks (
+                    id SERIAL PRIMARY KEY,
+                    trade_id VARCHAR(100) NOT NULL,
+                    event_type VARCHAR(32) NOT NULL,
+                    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+                    attempts INTEGER NOT NULL DEFAULT 0,
+                    last_error TEXT,
+                    payload JSONB,
+                    last_attempt_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_execution_tasks_status_created
+                ON execution_tasks (status, created_at)
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS execution_logs (
+                    id SERIAL PRIMARY KEY,
+                    task_id INTEGER NOT NULL REFERENCES execution_tasks(id) ON DELETE CASCADE,
+                    status VARCHAR(32) NOT NULL,
+                    response_code INTEGER,
+                    response_body TEXT,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_execution_logs_task_id
+                ON execution_logs (task_id)
+            """)
             
             db.conn.commit()
             logger.info("✅ Ensured required columns exist")
@@ -1002,46 +969,37 @@ if db_enabled and db:
 else:
     logger.warning("⚠️ Database health monitor skipped: database not available")
 
-# Initialize Prop Firm Registry and seed baseline data - GATED (Stage 13)
-if ENABLE_PROP and db_enabled and db:
+# Initialize Prop Firm Registry and seed baseline data
+if db_enabled and db:
     try:
         prop_registry = PropFirmRegistry(db)
         prop_registry.ensure_schema_and_seed()
-        logger.info("✅ PropFirmRegistry initialized (ENABLE_PROP=true)")
     except Exception as e:
         logger.error(f"❌ Failed to initialize PropFirmRegistry: {e}", exc_info=True)
         prop_registry = None
 else:
-    if not ENABLE_PROP:
-        logger.info("⚠️ PropFirmRegistry disabled (ENABLE_PROP=false)")
-    else:
-        logger.warning("⚠️ PropFirmRegistry not initialized: database not available")
-    prop_registry = None
+    logger.warning("⚠️ PropFirmRegistry not initialized: database not available")
 
 # Stage 13G: shared account state manager
 ACCOUNT_STATE_MANAGER = AccountStateManager()
 
-# Initialize and start ExecutionRouter (Stage 13B - Execution Queue) - GATED
-if ENABLE_EXECUTION and ExecutionRouter is not None and db_enabled:
-    try:
-        execution_router = ExecutionRouter(
-            poll_interval=2.0,
-            batch_size=20,
-            dry_run=EXECUTION_DRY_RUN,
-            logger=logger,
-            account_state_manager=ACCOUNT_STATE_MANAGER,
-        )
-        execution_router.start()
-        logger.info("✅ ExecutionRouter started (ENABLE_EXECUTION=true)")
-    except Exception as e:
-        logger.error(f"❌ Failed to start ExecutionRouter: {e}", exc_info=True)
-        execution_router = None
-else:
-    if not ENABLE_EXECUTION:
-        logger.info("⚠️ ExecutionRouter disabled (ENABLE_EXECUTION=false)")
-    else:
-        logger.warning("⚠️ ExecutionRouter not started: requirements not met")
-    execution_router = None
+# Initialize and start ExecutionRouter (Stage 13B - Execution Queue)
+# TEMPORARILY DISABLED FOR DB MIGRATION
+execution_router = None
+# if db_enabled:
+#     try:
+#         execution_router = ExecutionRouter(
+#             poll_interval=2.0,
+#             batch_size=20,
+#             dry_run=EXECUTION_DRY_RUN,
+#             logger=logger,
+#             account_state_manager=ACCOUNT_STATE_MANAGER,
+#         )
+#         execution_router.start()
+#     except Exception as e:
+#         logger.error(f"Failed to start ExecutionRouter: {e}", exc_info=True)
+# else:
+#     logger.warning("⚠️ ExecutionRouter not started: database not enabled")
 
 # Read HTML files and serve them
 def read_html_file(filename):
