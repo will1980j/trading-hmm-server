@@ -406,6 +406,27 @@ try:
     # END EARLY MIGRATION HOOK
     # ============================================================
     
+    # EARLY MIGRATION — ensure telemetry log table exists BEFORE any webhook logic
+    try:
+        cur = db.conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS telemetry_automated_signals_log (
+                id SERIAL PRIMARY KEY,
+                received_at TIMESTAMPTZ DEFAULT NOW(),
+                raw_payload JSONB,
+                fused_event JSONB,
+                validation_error TEXT,
+                handler_result JSONB,
+                processing_time_ms INTEGER,
+                ai_detail JSONB,
+                ai_rl_score JSONB
+            );
+        """)
+        db.conn.commit()
+        logger.info("✅ telemetry_automated_signals_log table ensured")
+    except Exception as e:
+        logger.error(f"❌ Failed to ensure telemetry_automated_signals_log: {e}")
+    
     # Auto-add missing columns if needed
     if db and db.conn:
         try:
