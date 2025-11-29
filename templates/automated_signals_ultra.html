@@ -13,21 +13,21 @@
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div>
-                        <h1 class="h3 mb-1">Automated Signals Engine</h1>
-                        <p class="text-muted mb-0">H1.1 &mdash; Core lifecycle dashboard for all signals and trades</p>
+                        <h1 class="h3 mb-1 ultra-title">Automated Signals Engine</h1>
+                        <p class="ultra-muted mb-0">H1.1 &mdash; Core lifecycle dashboard for all signals and trades</p>
                     </div>
                     <div class="d-flex align-items-center gap-3">
                         <div class="text-end">
-                            <div class="small text-muted">Last Webhook</div>
-                            <div id="ase-last-webhook" class="fw-semibold">--:--:--</div>
+                            <div class="small ultra-muted ultra-metric-label">Last Webhook</div>
+                            <div id="ase-last-webhook" class="fw-semibold ultra-metric-value">--:--:--</div>
                         </div>
                         <div class="text-end">
-                            <div class="small text-muted">Signals Today</div>
-                            <div id="ase-signals-today" class="fw-semibold">0</div>
+                            <div class="small ultra-muted ultra-metric-label">Signals Today</div>
+                            <div id="ase-signals-today" class="fw-semibold ultra-metric-value">0</div>
                         </div>
                         <div class="text-end">
-                            <div class="small text-muted">Active Trades</div>
-                            <div id="ase-active-count" class="fw-semibold">0</div>
+                            <div class="small ultra-muted ultra-metric-label">Active Trades</div>
+                            <div id="ase-active-count" class="fw-semibold ultra-metric-value">0</div>
                         </div>
                         <div>
                             <span id="ase-health-pill" class="badge rounded-pill bg-secondary">Engine Status: Loading...</span>
@@ -42,17 +42,17 @@
             <div class="col-12">
                 <ul class="nav nav-tabs" id="automatedSignalsTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="live-tab" data-bs-toggle="tab" 
+                        <button class="nav-link ultra-tab ultra-tab-active active" id="live-tab" data-bs-toggle="tab" 
                                 data-bs-target="#tab-live" type="button" role="tab" 
                                 aria-controls="tab-live" aria-selected="true">⚡ Live Signals</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="cancelled-tab" data-bs-toggle="tab" 
+                        <button class="nav-link ultra-tab ultra-tab-inactive" id="cancelled-tab" data-bs-toggle="tab" 
                                 data-bs-target="#tab-cancelled" type="button" role="tab" 
                                 aria-controls="tab-cancelled" aria-selected="false">❌ Cancelled Signals</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" 
+                        <button class="nav-link ultra-tab ultra-tab-inactive" id="analytics-tab" data-bs-toggle="tab" 
                                 data-bs-target="#tab-analytics" type="button" role="tab" 
                                 aria-controls="tab-analytics" aria-selected="false">📊 Signal Analytics</button>
                     </li>
@@ -67,13 +67,13 @@
                     <!-- LEFT COLUMN: TABLES + CALENDAR -->
                     <div class="col-lg-7 mb-4">
                         <!-- FILTER + CALENDAR PANEL -->
-                        <div class="dashboard-card mb-4">
+                        <div class="dashboard-card ultra-card mb-4">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <h3 class="card-title mb-0">Filters & Trading Calendar</h3>
+                                <h3 class="card-title mb-0 ultra-section-header">Filters & Trading Calendar</h3>
                                 <div class="d-flex align-items-center gap-2">
-                                    <button class="btn btn-sm btn-outline-light" id="ase-calendar-prev">&laquo;</button>
-                                    <span id="ase-calendar-month" class="small fw-semibold">Loading...</span>
-                                    <button class="btn btn-sm btn-outline-light" id="ase-calendar-next">&raquo;</button>
+                                    <button class="btn btn-sm btn-outline-light ultra-btn" id="ase-calendar-prev">&laquo;</button>
+                                    <span id="ase-calendar-month" class="small fw-semibold ultra-text">Loading...</span>
+                                    <button class="btn btn-sm btn-outline-light ultra-btn" id="ase-calendar-next">&raquo;</button>
                                 </div>
                             </div>
                             <div class="card-body">
@@ -84,37 +84,37 @@
                                             <div class="text-muted small">Loading calendar...</div>
                                         </div>
                                     </div>
-                                    <div class="col-md-7">
+                                    <div class="col-md-7 ultra-filter-block">
                                         <div class="mb-3">
-                                            <label class="form-label small mb-1">Session Filter</label>
+                                            <label class="form-label small mb-1 ultra-filter-label">Session Filter</label>
                                             <div class="btn-group btn-group-sm" role="group" id="ase-session-filter">
-                                                <button type="button" class="btn btn-outline-light active" data-session="ALL">All</button>
-                                                <button type="button" class="btn btn-outline-light" data-session="ASIA">Asia</button>
-                                                <button type="button" class="btn btn-outline-light" data-session="LONDON">London</button>
-                                                <button type="button" class="btn btn-outline-light" data-session="NY AM">NY AM</button>
-                                                <button type="button" class="btn btn-outline-light" data-session="NY PM">NY PM</button>
+                                                <button type="button" class="btn btn-outline-light ultra-btn active" data-session="ALL">All</button>
+                                                <button type="button" class="btn btn-outline-light ultra-btn" data-session="ASIA">Asia</button>
+                                                <button type="button" class="btn btn-outline-light ultra-btn" data-session="LONDON">London</button>
+                                                <button type="button" class="btn btn-outline-light ultra-btn" data-session="NY AM">NY AM</button>
+                                                <button type="button" class="btn btn-outline-light ultra-btn" data-session="NY PM">NY PM</button>
                                             </div>
                                         </div>
                                         <div class="mb-3">
-                                            <label class="form-label small mb-1">Direction</label>
+                                            <label class="form-label small mb-1 ultra-filter-label">Direction</label>
                                             <div class="btn-group btn-group-sm" role="group" id="ase-direction-filter">
-                                                <button type="button" class="btn btn-outline-light active" data-direction="ALL">All</button>
-                                                <button type="button" class="btn btn-outline-light" data-direction="Bullish">Bullish</button>
-                                                <button type="button" class="btn btn-outline-light" data-direction="Bearish">Bearish</button>
+                                                <button type="button" class="btn btn-outline-light ultra-btn active" data-direction="ALL">All</button>
+                                                <button type="button" class="btn btn-outline-light ultra-btn" data-direction="Bullish">Bullish</button>
+                                                <button type="button" class="btn btn-outline-light ultra-btn" data-direction="Bearish">Bearish</button>
                                             </div>
                                         </div>
                                         <div class="mb-3">
-                                            <label class="form-label small mb-1">Signal State</label>
+                                            <label class="form-label small mb-1 ultra-filter-label">Signal State</label>
                                             <div class="btn-group btn-group-sm" role="group" id="ase-state-filter">
-                                                <button type="button" class="btn btn-outline-light active" data-state="ALL">All</button>
-                                                <button type="button" class="btn btn-outline-light" data-state="PENDING">Pending</button>
-                                                <button type="button" class="btn btn-outline-light" data-state="ACTIVE">Active</button>
-                                                <button type="button" class="btn btn-outline-light" data-state="COMPLETED">Completed</button>
+                                                <button type="button" class="btn btn-outline-light ultra-btn active" data-state="ALL">All</button>
+                                                <button type="button" class="btn btn-outline-light ultra-btn" data-state="PENDING">Pending</button>
+                                                <button type="button" class="btn btn-outline-light ultra-btn" data-state="ACTIVE">Active</button>
+                                                <button type="button" class="btn btn-outline-light ultra-btn" data-state="COMPLETED">Completed</button>
                                             </div>
                                         </div>
                                         <div class="mb-0">
-                                            <label class="form-label small mb-1">Search by Trade ID</label>
-                                            <input type="text" class="form-control form-control-sm" id="ase-search-trade-id" 
+                                            <label class="form-label small mb-1 ultra-filter-label">Search by Trade ID</label>
+                                            <input type="text" class="form-control form-control-sm ultra-input" id="ase-search-trade-id" 
                                                    placeholder="Enter trade_id or partial...">
                                         </div>
                                     </div>
@@ -123,17 +123,17 @@
                         </div>
 
                         <!-- LIVE SIGNALS TABLE (Pending + Active + Completed) -->
-                        <div class="dashboard-card mb-4">
+                        <div class="dashboard-card ultra-card mb-4">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <h3 class="card-title mb-0">Signals & Trades</h3>
+                                <h3 class="card-title mb-0 ultra-section-header">Signals & Trades</h3>
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="badge rounded-pill bg-secondary small" id="ase-table-count">0 rows</span>
-                                    <button class="btn btn-sm btn-outline-light" id="ase-refresh-btn">Refresh</button>
+                                    <span class="badge rounded-pill bg-secondary small ultra-text" id="ase-table-count">0 rows</span>
+                                    <button class="btn btn-sm btn-outline-light ultra-btn" id="ase-refresh-btn">Refresh</button>
                                 </div>
                             </div>
                             <div class="card-body p-0">
                                 <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
-                                    <table class="table table-sm table-dark mb-0" id="ase-signals-table">
+                                    <table class="table table-sm table-dark mb-0 ultra-table" id="ase-signals-table">
                                         <thead class="position-sticky top-0">
                                             <tr>
                                                 <th scope="col">Status</th>
@@ -163,18 +163,18 @@
                     <!-- RIGHT COLUMN: DETAILS + SUMMARY -->
                     <div class="col-lg-5 mb-4">
                         <!-- TRADE DETAIL / LIFECYCLE PANEL -->
-                        <div class="dashboard-card mb-4">
+                        <div class="dashboard-card ultra-card ultra-panel mb-4">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h3 class="card-title mb-0">Trade Lifecycle</h3>
+                                    <h3 class="card-title mb-0 ultra-section-header">Trade Lifecycle</h3>
                                 </div>
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="badge rounded-pill bg-secondary small" id="ase-detail-status">No trade selected</span>
-                                    <button type="button" class="btn btn-sm btn-outline-light" id="ase-lifecycle-expand" disabled>Expand</button>
+                                    <span class="badge rounded-pill bg-secondary small ultra-text" id="ase-detail-status">No trade selected</span>
+                                    <button type="button" class="btn btn-sm btn-outline-light ultra-btn" id="ase-lifecycle-expand" disabled>Expand</button>
                                 </div>
                             </div>
                             <div class="card-body">
-                                <div id="ase-trade-detail-placeholder" class="text-muted small">
+                                <div id="ase-trade-detail-placeholder" class="ultra-muted small">
                                     Select a signal from the table to view its full lifecycle journey (Entry → BE → MFE → Exit).
                                 </div>
                                 <div id="ase-trade-detail-container" style="display: none;">
@@ -184,53 +184,53 @@
                         </div>
 
                         <!-- STATS SUMMARY PANEL -->
-                        <div class="dashboard-card mb-4">
+                        <div class="dashboard-card ultra-card mb-4">
                             <div class="card-header">
-                                <h3 class="card-title mb-0">Signal & Trade Summary</h3>
+                                <h3 class="card-title mb-0 ultra-section-header">Signal & Trade Summary</h3>
                             </div>
                             <div class="card-body">
                                 <div class="row g-3">
                                     <div class="col-6">
-                                        <div class="small text-muted">Signals Today</div>
-                                        <div id="ase-summary-signals-today" class="fw-semibold">0</div>
+                                        <div class="small ultra-muted ultra-metric-label">Signals Today</div>
+                                        <div id="ase-summary-signals-today" class="fw-semibold ultra-metric-value">0</div>
                                     </div>
                                     <div class="col-6">
-                                        <div class="small text-muted">Confirmed Today</div>
-                                        <div id="ase-summary-confirmed" class="fw-semibold">0</div>
+                                        <div class="small ultra-muted ultra-metric-label">Confirmed Today</div>
+                                        <div id="ase-summary-confirmed" class="fw-semibold ultra-metric-value">0</div>
                                     </div>
                                     <div class="col-6">
-                                        <div class="small text-muted">Win Rate (Today)</div>
-                                        <div id="ase-summary-winrate" class="fw-semibold">--%</div>
+                                        <div class="small ultra-muted ultra-metric-label">Win Rate (Today)</div>
+                                        <div id="ase-summary-winrate" class="fw-semibold ultra-badge-green">--%</div>
                                     </div>
                                     <div class="col-6">
-                                        <div class="small text-muted">Avg MFE (No BE)</div>
-                                        <div id="ase-summary-avgmfe" class="fw-semibold">0.00R</div>
+                                        <div class="small ultra-muted ultra-metric-label">Avg MFE (No BE)</div>
+                                        <div id="ase-summary-avgmfe" class="fw-semibold ultra-badge-green">0.00R</div>
                                     </div>
                                     <div class="col-6">
-                                        <div class="small text-muted">BE Triggers</div>
-                                        <div id="ase-summary-be-count" class="fw-semibold">0</div>
+                                        <div class="small ultra-muted ultra-metric-label">BE Triggers</div>
+                                        <div id="ase-summary-be-count" class="fw-semibold ultra-badge-amber">0</div>
                                     </div>
                                     <div class="col-6">
-                                        <div class="small text-muted">SL Events</div>
-                                        <div id="ase-summary-sl-count" class="fw-semibold">0</div>
+                                        <div class="small ultra-muted ultra-metric-label">SL Events</div>
+                                        <div id="ase-summary-sl-count" class="fw-semibold ultra-badge-red">0</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- FUTURE ANALYTICS (ROADMAP LOCKED) -->
-                        <div class="dashboard-card">
+                        <div class="dashboard-card ultra-card">
                             <div class="card-header">
-                                <h3 class="card-title mb-0">Future Analytics (Roadmap Locked)</h3>
+                                <h3 class="card-title mb-0 ultra-section-header">Future Analytics (Roadmap Locked)</h3>
                             </div>
                             <div class="card-body">
-                                <div class="text-muted small mb-2">Advanced analytics will unlock here as H2/H3 modules are completed.</div>
-                                <ul class="small mb-0">
-                                    <li>Execution Quality Engine (locked)</li>
-                                    <li>Signal Outcome Predictor (locked)</li>
-                                    <li>Regime Classifier (locked)</li>
-                                    <li>MFE Distribution Engine (locked)</li>
-                                    <li>BE Efficiency Analytics (locked)</li>
+                                <div class="ultra-muted small mb-2">Advanced analytics will unlock here as H2/H3 modules are completed.</div>
+                                <ul class="small mb-0 ultra-locked">
+                                    <li><span class="ultra-lock-icon">🔒</span> Execution Quality Engine (locked)</li>
+                                    <li><span class="ultra-lock-icon">🔒</span> Signal Outcome Predictor (locked)</li>
+                                    <li><span class="ultra-lock-icon">🔒</span> Regime Classifier (locked)</li>
+                                    <li><span class="ultra-lock-icon">🔒</span> MFE Distribution Engine (locked)</li>
+                                    <li><span class="ultra-lock-icon">🔒</span> BE Efficiency Analytics (locked)</li>
                                 </ul>
                             </div>
                         </div>
@@ -242,14 +242,14 @@
             <div class="tab-pane fade" id="tab-cancelled" role="tabpanel" aria-labelledby="cancelled-tab">
                 <div class="row">
                     <div class="col-12 mb-4">
-                        <div class="dashboard-card">
+                        <div class="dashboard-card ultra-card">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <h3 class="card-title mb-0">Cancelled Signals</h3>
-                                <span class="badge rounded-pill bg-secondary small" id="ase-cancelled-count">0</span>
+                                <h3 class="card-title mb-0 ultra-section-header">Cancelled Signals</h3>
+                                <span class="badge rounded-pill bg-secondary small ultra-text" id="ase-cancelled-count">0</span>
                             </div>
                             <div class="card-body p-0">
                                 <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
-                                    <table class="table table-sm table-dark mb-0" id="ase-cancelled-table">
+                                    <table class="table table-sm table-dark mb-0 ultra-table" id="ase-cancelled-table">
                                         <thead class="position-sticky top-0">
                                             <tr>
                                                 <th scope="col">Time</th>
@@ -277,53 +277,53 @@
             <div class="tab-pane fade" id="tab-analytics" role="tabpanel" aria-labelledby="analytics-tab">
                 <div class="row">
                     <div class="col-lg-6 mb-4">
-                        <div class="dashboard-card">
+                        <div class="dashboard-card ultra-card">
                             <div class="card-header">
-                                <h3 class="card-title mb-0">Signal Efficiency</h3>
+                                <h3 class="card-title mb-0 ultra-section-header">Signal Efficiency</h3>
                             </div>
                             <div class="card-body">
-                                <div id="ase-signal-efficiency-container" class="text-muted small">
+                                <div id="ase-signal-efficiency-container" class="ultra-muted small">
                                     Analytics will appear here once the stats integration is wired.
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="col-lg-6 mb-4">
-                        <div class="dashboard-card">
+                        <div class="dashboard-card ultra-card">
                             <div class="card-header">
-                                <h3 class="card-title mb-0">Session Performance</h3>
+                                <h3 class="card-title mb-0 ultra-section-header">Session Performance</h3>
                             </div>
                             <div class="card-body">
-                                <div id="ase-session-performance-container" class="text-muted small">
+                                <div id="ase-session-performance-container" class="ultra-muted small">
                                     Session-wise signal and trade performance will be rendered here.
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="col-lg-6 mb-4">
-                        <div class="dashboard-card">
+                        <div class="dashboard-card ultra-card">
                             <div class="card-header">
-                                <h3 class="card-title mb-0">R-Multiple Distribution</h3>
+                                <h3 class="card-title mb-0 ultra-section-header">R-Multiple Distribution</h3>
                             </div>
                             <div class="card-body">
-                                <div id="ase-rdist-container" class="text-muted small">
+                                <div id="ase-rdist-container" class="ultra-muted small">
                                     Future chart panel for R-multiple distributions.
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="col-lg-6 mb-4">
-                        <div class="dashboard-card">
+                        <div class="dashboard-card ultra-card">
                             <div class="card-header">
-                                <h3 class="card-title mb-0">Roadmap-Locked Intelligence</h3>
+                                <h3 class="card-title mb-0 ultra-section-header">Roadmap-Locked Intelligence</h3>
                             </div>
                             <div class="card-body">
-                                <div class="text-muted small mb-2">These analytics will unlock when the corresponding H2/H3 modules are completed in the roadmap.</div>
-                                <ul class="small mb-0">
-                                    <li>Regime Classifier</li>
-                                    <li>Entry Confidence Model</li>
-                                    <li>ML-Enhanced Signal Validation</li>
-                                    <li>Execution Quality Benchmarks</li>
+                                <div class="ultra-muted small mb-2">These analytics will unlock when the corresponding H2/H3 modules are completed in the roadmap.</div>
+                                <ul class="small mb-0 ultra-locked">
+                                    <li><span class="ultra-lock-icon">🔒</span> Regime Classifier</li>
+                                    <li><span class="ultra-lock-icon">🔒</span> Entry Confidence Model</li>
+                                    <li><span class="ultra-lock-icon">🔒</span> ML-Enhanced Signal Validation</li>
+                                    <li><span class="ultra-lock-icon">🔒</span> Execution Quality Benchmarks</li>
                                 </ul>
                             </div>
                         </div>
