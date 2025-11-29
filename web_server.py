@@ -9031,12 +9031,13 @@ Focus on data-driven insights."""
         }), 200
 
 # Add economic news cache table creation and market context columns
+# GATED: prop_firms, live_signals ALTER, signal_lab_trades ALTER are LEGACY
 try:
-    if db_enabled and db:
+    if db_enabled and db and ENABLE_PROP:
         cursor = db.conn.cursor()
         
         # ------------------------------------------------------------------
-        # Stage 13: Prop Firm Registry schema (idempotent)
+        # Stage 13: Prop Firm Registry schema (idempotent) - LEGACY/PROP GATED
         # ------------------------------------------------------------------
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS prop_firms (
@@ -9101,7 +9102,17 @@ try:
             )
         """)
         
-        # Add HTF and session columns to live_signals table
+        db.conn.commit()
+        logger.info("Prop firm tables ready")
+except Exception as e:
+    logger.error(f"Error creating prop firm tables: {str(e)}")
+
+# LEGACY TABLE ALTERATIONS - GATED BEHIND ENABLE_LEGACY
+try:
+    if db_enabled and db and ENABLE_LEGACY:
+        cursor = db.conn.cursor()
+        
+        # Add HTF and session columns to live_signals table (LEGACY)
         cursor.execute("""
             ALTER TABLE live_signals 
             ADD COLUMN IF NOT EXISTS htf_aligned BOOLEAN DEFAULT FALSE,
@@ -9109,7 +9120,7 @@ try:
             ADD COLUMN IF NOT EXISTS session VARCHAR(50) DEFAULT 'Unknown'
         """)
         
-        # Add market context enrichment columns to live_signals table
+        # Add market context enrichment columns to live_signals table (LEGACY)
         cursor.execute("""
             ALTER TABLE live_signals 
             ADD COLUMN IF NOT EXISTS market_context JSONB,
@@ -9117,14 +9128,14 @@ try:
             ADD COLUMN IF NOT EXISTS context_recommendations JSONB
         """)
         
-        # Add active_trade and htf_aligned columns to signal_lab_trades table
+        # Add active_trade and htf_aligned columns to signal_lab_trades table (LEGACY)
         cursor.execute("""
             ALTER TABLE signal_lab_trades 
             ADD COLUMN IF NOT EXISTS active_trade BOOLEAN DEFAULT FALSE,
             ADD COLUMN IF NOT EXISTS htf_aligned BOOLEAN DEFAULT FALSE
         """)
         
-        # Add market context columns to signal_lab_trades table
+        # Add market context columns to signal_lab_trades table (LEGACY)
         cursor.execute("""
             ALTER TABLE signal_lab_trades 
             ADD COLUMN IF NOT EXISTS market_context JSONB,
@@ -9133,9 +9144,11 @@ try:
         """)
         
         db.conn.commit()
-        logger.info("Database tables ready with HTF, market context, and ML prediction columns")
+        logger.info("Legacy tables altered with HTF, market context, and ML prediction columns")
+    elif not ENABLE_LEGACY:
+        logger.warning("⚠️ Legacy table alterations skipped (ENABLE_LEGACY=false)")
 except Exception as e:
-    logger.error(f"Error creating database tables: {str(e)}")
+    logger.error(f"Error altering legacy tables: {str(e)}")
 
 # STAGE 10: Replay candles cache table (DB-first hybrid replay) - GATED BEHIND ENABLE_REPLAY
 if ENABLE_REPLAY:
@@ -11193,7 +11206,16 @@ def receive_realtime_price():
 
 @app.route('/api/deploy-dual-schema', methods=['POST'])
 def deploy_dual_schema():
-    """Deploy dual indicator schema via web endpoint"""
+    """Deploy dual indicator schema via web endpoint - LEGACY/V2 GATED"""
+    # Gate legacy dual-indicator schema behind ENABLE_V2
+    if not ENABLE_V2:
+        logger.warning("Dual schema deployment skipped (ENABLE_V2=false)")
+        return jsonify({
+            "success": False,
+            "error": "Dual schema deployment disabled (ENABLE_V2=false)",
+            "gated": True
+        }), 403
+    
     try:
         from database.railway_db import RailwayDB
         
@@ -11206,9 +11228,9 @@ def deploy_dual_schema():
         
         cursor = railway_db.conn.cursor()
         
-        # Schema SQL
+        # Schema SQL - LEGACY dual-indicator tables
         schema_sql = """
-        -- Real-time price updates table (1-second TradingView data)
+        -- Real-time price updates table (1-second TradingView data) - LEGACY
         CREATE TABLE IF NOT EXISTS realtime_prices (
             id SERIAL PRIMARY KEY,
             symbol VARCHAR(10) NOT NULL DEFAULT 'NQ',
