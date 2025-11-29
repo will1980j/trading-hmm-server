@@ -1,12 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Automated Signals ULTRA</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/automated_signals_ultra.css') }}">
-</head>
-<body>
+{% extends 'layout.html' %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main_dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/automated_signals_ultra.css') }}">
+{% endblock %}
+
+{% block content %}
     <div class="container-fluid mt-4 px-4">
         <!-- PAGE HEADER -->
         <div class="row mb-3">
@@ -335,8 +335,6 @@
     </div>
     <!-- /.container-fluid -->
 
-    <script src="{{ url_for('static', filename='js/automated_signals_ultra.js') }}"></script>
-
     <!-- Full-Screen Lifecycle Overlay -->
     <div id="ase-lifecycle-overlay" style="display:none; position:fixed; inset:0; background:rgba(4,10,20,0.92); z-index:1050;">
         <div style="max-width: 1100px; margin: 40px auto; background: linear-gradient(135deg, #050816, #0b1c32); border-radius: 16px; padding: 24px; box-shadow: 0 0 40px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.08);">
@@ -381,5 +379,8 @@
             </div>
         </div>
     </div>
-</body>
-</html>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/automated_signals_ultra.js') }}"></script>
+{% endblock %}
