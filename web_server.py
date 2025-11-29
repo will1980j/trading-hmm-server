@@ -11532,6 +11532,21 @@ def create_automated_signals_table():
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_event_type ON automated_signals(event_type);')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_timestamp ON automated_signals(timestamp);')
         
+        # Create telemetry logging table (prevents transaction abort)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS telemetry_automated_signals_log (
+                id SERIAL PRIMARY KEY,
+                received_at TIMESTAMP DEFAULT NOW(),
+                raw_payload JSONB,
+                fused_event JSONB,
+                validation_error TEXT,
+                handler_result JSONB,
+                processing_time_ms INTEGER,
+                ai_detail JSONB,
+                ai_rl_score JSONB
+            );
+        """)
+        
         # Ensure lifecycle columns exist for state machine tracking
         cursor.execute('''
             ALTER TABLE automated_signals
