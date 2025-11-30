@@ -3,9 +3,8 @@
  * Production-safe implementation with real endpoints only
  */
 
-// DEBUG: Immediate execution test - this runs as soon as script loads
+// Script loaded successfully
 console.log("[ASE] ========== SCRIPT LOADED ==========");
-alert("ASE JS LOADED - If you see this, the script is working!");
 
 const AutomatedSignalsUltra = {
     data: null,
@@ -443,8 +442,15 @@ AutomatedSignalsUltra.renderSummaryStats = function() {
 
 // DOM ready hook
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("[ASE] DOMContentLoaded fired");
+    console.log("[ASE] AutomatedSignalsUltra exists:", !!window.AutomatedSignalsUltra);
+    console.log("[ASE] init is function:", typeof AutomatedSignalsUltra.init === 'function');
+    
     if (window.AutomatedSignalsUltra && typeof AutomatedSignalsUltra.init === 'function') {
+        console.log("[ASE] Calling init()...");
         AutomatedSignalsUltra.init();
+    } else {
+        console.error("[ASE] FAILED to call init - object or function missing!");
     }
     
     // Wire Close button for lifecycle overlay
