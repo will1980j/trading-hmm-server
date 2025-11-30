@@ -11662,7 +11662,12 @@ def test_automated_signals_lifecycle():
         }
         
         try:
-            canonical = normalize_automated_signal_payload(entry_payload)
+            # Parse and fuse payload using the same functions as the real webhook
+            parsed = as_parse_automated_signal_payload(entry_payload)
+            if isinstance(parsed, dict) and parsed.get("success") is False:
+                results.append({"step": "ENTRY", "status": "FAIL", "error": parsed.get("error")})
+                return jsonify({"test_results": results, "overall": "FAIL", "trade_id": trade_id})
+            canonical = as_fuse_automated_payload_sources(entry_payload, parsed)
             result = handle_entry_signal(canonical)
             if result.get("success"):
                 results.append({"step": "ENTRY", "status": "PASS", "result": f"ID={result.get('signal_id')}"})
@@ -11683,7 +11688,8 @@ def test_automated_signals_lifecycle():
         }
         
         try:
-            canonical = normalize_automated_signal_payload(mfe_payload)
+            parsed = as_parse_automated_signal_payload(mfe_payload)
+            canonical = as_fuse_automated_payload_sources(mfe_payload, parsed) if not (isinstance(parsed, dict) and parsed.get("success") is False) else mfe_payload
             result = handle_mfe_update(canonical)
             if result.get("success"):
                 results.append({"step": "MFE_UPDATE", "status": "PASS", "result": "MFE updated"})
@@ -11701,7 +11707,8 @@ def test_automated_signals_lifecycle():
         }
         
         try:
-            canonical = normalize_automated_signal_payload(be_payload)
+            parsed = as_parse_automated_signal_payload(be_payload)
+            canonical = as_fuse_automated_payload_sources(be_payload, parsed) if not (isinstance(parsed, dict) and parsed.get("success") is False) else be_payload
             result = handle_be_trigger(canonical)
             if result.get("success"):
                 results.append({"step": "BE_TRIGGERED", "status": "PASS", "result": "BE trigger stored"})
@@ -11720,7 +11727,8 @@ def test_automated_signals_lifecycle():
         }
         
         try:
-            canonical = normalize_automated_signal_payload(exit_payload)
+            parsed = as_parse_automated_signal_payload(exit_payload)
+            canonical = as_fuse_automated_payload_sources(exit_payload, parsed) if not (isinstance(parsed, dict) and parsed.get("success") is False) else exit_payload
             result = handle_exit_signal(canonical, "BE")
             if result.get("success"):
                 results.append({"step": "EXIT_BE", "status": "PASS", "result": "Exit stored"})
@@ -11969,17 +11977,18 @@ def as_fuse_automated_payload_sources(raw_data, parsed):
     # Base canonical object — always begins with parsed
     fused = dict(parsed)
     
-    # 1. Strategy metadata (if exists)
+    # 1. Copy ALL raw data fields that aren't already in fused
+    # This ensures entry_price, stop_loss, direction, session, bias, etc. are available
     if isinstance(raw_data, dict):
-        for k in ("strategy_name", "strategy_version", "engine_version"):
-            if k in raw_data and k not in fused:
-                fused[k] = raw_data[k]
+        for k, v in raw_data.items():
+            if k not in fused and k != "attributes":
+                fused[k] = v
     
-    # 2. Attributes.* metadata (if present)
+    # 2. Attributes.* metadata (if present) - copy all attributes
     attrs = raw_data.get("attributes") if isinstance(raw_data.get("attributes"), dict) else None
     if attrs:
         for k, v in attrs.items():
-            if k not in fused and k not in ("event_type", "trade_id"):
+            if k not in fused:
                 fused[k] = v
     
     # 3. Core field consistency check

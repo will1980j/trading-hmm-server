@@ -137,7 +137,7 @@ inclusion: always
 
 ## Project Overview
 
-I have a comprehensive cloud-based NASDAQ day trading analytics platform built with Amazon Q assistance, deployed at `web-production-cd33.up.railway.app/`. This is a multi-faceted trading platform designed to optimize scalping strategies on the NASDAQ using advanced analytics, real-time data processing, and machine learning as one of several key features.
+I have a comprehensive cloud-based NASDAQ day trading analytics platform built with Amazon Q assistance, deployed at `web-production-f8c3.up.railway.app/`. This is a multi-faceted trading platform designed to optimize scalping strategies on the NASDAQ using advanced analytics, real-time data processing, and machine learning as one of several key features.
 
 ## 🚨 **CRITICAL CLOUD-FIRST DEVELOPMENT RULE** 🚨
 
@@ -186,7 +186,7 @@ I have a comprehensive cloud-based NASDAQ day trading analytics platform built w
 - **Monitoring:** Railway dashboard shows build status and logs
 
 ### **TESTING PRIORITY:**
-- **Primary:** Production Railway testing (`web-production-cd33.up.railway.app`)
+- **Primary:** Production Railway testing (`web-production-f8c3.up.railway.app`)
 - **Secondary:** Local development (for iteration only)
 - **Rule:** If Railway fails, local success is irrelevant
 
@@ -194,7 +194,7 @@ I have a comprehensive cloud-based NASDAQ day trading analytics platform built w
 
 ## 🌐 **COMPLETE WEBAPP STRUCTURE**
 
-**Production URL:** `https://web-production-cd33.up.railway.app/`
+**Production URL:** `https://web-production-f8c3.up.railway.app/`
 
 ### **11 Core Trading Tools:**
 1. **🏠 Main Dashboard** - `/signal-lab-dashboard` (Primary Signal Lab)
@@ -1391,22 +1391,22 @@ SIGNAL:Bullish:4156.25:85.0:1H:Bullish 15M:Bullish 5M:Bullish:FVG:1698765432000
 ## Important URLs
 
 ### Core Platform URLs
-- **Production:** `https://web-production-cd33.up.railway.app/`
-- **Webhook Endpoint:** `https://web-production-cd33.up.railway.app/api/live-signals-v2`
+- **Production:** `https://web-production-f8c3.up.railway.app/`
+- **Webhook Endpoint:** `https://web-production-f8c3.up.railway.app/api/live-signals-v2`
 
 ### 12 Tool Dashboard Links
-- 🤖 **ML Intelligence Hub:** `https://web-production-cd33.up.railway.app/ml-dashboard`
-- 📶 **Live Signals Dashboard:** `https://web-production-cd33.up.railway.app/live-signals-dashboard`
-- 🏠 **Main Dashboard:** `https://web-production-cd33.up.railway.app/signal-lab-dashboard`
-- 🧪 **Signal Lab:** `https://web-production-cd33.up.railway.app/signal-analysis-lab`
-- ⏰ **Time Analysis:** `https://web-production-cd33.up.railway.app/time-analysis`
-- 🎯 **Strategy Optimizer:** `https://web-production-cd33.up.railway.app/strategy-optimizer`
-- 🏆 **Compare (Strategy Comparison):** `https://web-production-cd33.up.railway.app/strategy-comparison`
-- 🧠 **AI Business Advisor:** `https://web-production-cd33.up.railway.app/ai-business-advisor`
-- 💼 **Prop Portfolio:** `https://web-production-cd33.up.railway.app/prop-portfolio`
-- 📋 **Trade Manager:** `https://web-production-cd33.up.railway.app/trade-manager`
-- 💰 **Financial Summary:** `https://web-production-cd33.up.railway.app/financial-summary`
-- 📊 **Reports:** `https://web-production-cd33.up.railway.app/reporting-hub`
+- 🤖 **ML Intelligence Hub:** `https://web-production-f8c3.up.railway.app/ml-dashboard`
+- 📶 **Live Signals Dashboard:** `https://web-production-f8c3.up.railway.app/live-signals-dashboard`
+- 🏠 **Main Dashboard:** `https://web-production-f8c3.up.railway.app/signal-lab-dashboard`
+- 🧪 **Signal Lab:** `https://web-production-f8c3.up.railway.app/signal-analysis-lab`
+- ⏰ **Time Analysis:** `https://web-production-f8c3.up.railway.app/time-analysis`
+- 🎯 **Strategy Optimizer:** `https://web-production-f8c3.up.railway.app/strategy-optimizer`
+- 🏆 **Compare (Strategy Comparison):** `https://web-production-f8c3.up.railway.app/strategy-comparison`
+- 🧠 **AI Business Advisor:** `https://web-production-f8c3.up.railway.app/ai-business-advisor`
+- 💼 **Prop Portfolio:** `https://web-production-f8c3.up.railway.app/prop-portfolio`
+- 📋 **Trade Manager:** `https://web-production-f8c3.up.railway.app/trade-manager`
+- 💰 **Financial Summary:** `https://web-production-f8c3.up.railway.app/financial-summary`
+- 📊 **Reports:** `https://web-production-f8c3.up.railway.app/reporting-hub`
 
 ---
 
