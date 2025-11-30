@@ -12553,9 +12553,7 @@ def handle_entry_signal(data):
                 final_mfe,
                 signal_date,
                 signal_time,
-                timestamp,
-                lifecycle_state,
-                lifecycle_seq
+                timestamp
             ) VALUES (
                 %(trade_id)s,
                 'ENTRY',
@@ -12574,9 +12572,7 @@ def handle_entry_signal(data):
                 0,
                 CURRENT_DATE,
                 CURRENT_TIME,
-                NOW(),
-                'ACTIVE',
-                1
+                NOW()
             )
             RETURNING id
         """
@@ -13828,11 +13824,7 @@ def reconstruct_automated_trades(limit=100, trade_id=None):
                 final_mfe,
                 signal_date,
                 signal_time,
-                timestamp,
-                lifecycle_state,
-                lifecycle_seq,
-                lifecycle_entered_at,
-                lifecycle_updated_at
+                timestamp
             FROM automated_signals
         """
         if where_clauses:
@@ -13867,10 +13859,6 @@ def reconstruct_automated_trades(limit=100, trade_id=None):
                 "final_no_be_mfe": None,
                 "max_no_be_mfe": None,
                 "max_be_mfe": None,
-                "lifecycle_state": row.get("lifecycle_state"),
-                "lifecycle_seq": row.get("lifecycle_seq"),
-                "lifecycle_entered_at": row.get("lifecycle_entered_at"),
-                "lifecycle_updated_at": row.get("lifecycle_updated_at"),
                 "events": []
             })
             
@@ -13919,15 +13907,6 @@ def reconstruct_automated_trades(limit=100, trade_id=None):
                     trade["max_be_mfe"] = be_val
             
             # Keep latest lifecycle snapshot using highest lifecycle_seq
-            current_seq = row.get("lifecycle_seq")
-            if current_seq is not None:
-                prev_seq = trade.get("lifecycle_seq")
-                if prev_seq is None or current_seq > prev_seq:
-                    trade["lifecycle_seq"] = current_seq
-                    trade["lifecycle_state"] = row.get("lifecycle_state")
-                    trade["lifecycle_entered_at"] = row.get("lifecycle_entered_at")
-                    trade["lifecycle_updated_at"] = row.get("lifecycle_updated_at")
-        
         # Turn dict into list and apply trade-level limit
         trade_list = list(trades.values())
         
@@ -13939,16 +13918,9 @@ def reconstruct_automated_trades(limit=100, trade_id=None):
         if limit and len(trade_list) > limit:
             trade_list = trade_list[:limit]
         
-        # Derive high-level status from lifecycle_state with safe fallback
+        # Derive status from presence of EXIT timestamp
         for t in trade_list:
-            state = (t.get("lifecycle_state") or "").upper()
-            if state == "EXITED":
-                t["status"] = "COMPLETED"
-            elif state == "ACTIVE":
-                t["status"] = "ACTIVE"
-            else:
-                # Fallback: infer from presence of EXIT timestamp
-                t["status"] = "COMPLETED" if t.get("exit_timestamp") else "ACTIVE"
+            t["status"] = "COMPLETED" if t.get("exit_timestamp") else "ACTIVE"
         
         return {
             "success": True,
