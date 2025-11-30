@@ -305,16 +305,40 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             return 'ultra-badge-red';
         };
         
-        // Age: only update for ACTIVE trades, show final age for completed
+        // Age: live update for ACTIVE, static duration for COMPLETED
         let ageStr = "--";
         if (row.status === 'ACTIVE' && row.timestamp) {
+            // Active trades: show live updating age
             const t = new Date(row.timestamp);
             const diffSec = (Date.now() - t.getTime()) / 1000;
             const mins = Math.floor(diffSec / 60);
             const secs = Math.floor(diffSec % 60);
             ageStr = `${mins}m ${secs}s`;
-        } else if (row.status === 'COMPLETED') {
-            ageStr = "Done";
+        } else if (row.status === 'COMPLETED' && row.timestamp) {
+            // Completed trades: show final duration (entry to exit)
+            // Use duration_seconds if available, otherwise estimate from timestamp
+            if (row.duration_seconds) {
+                const mins = Math.floor(row.duration_seconds / 60);
+                const secs = Math.floor(row.duration_seconds % 60);
+                ageStr = `${mins}m ${secs}s`;
+            } else if (row.exit_timestamp && row.timestamp) {
+                const entryTime = new Date(row.timestamp);
+                const exitTime = new Date(row.exit_timestamp);
+                const diffSec = (exitTime.getTime() - entryTime.getTime()) / 1000;
+                if (diffSec > 0) {
+                    const mins = Math.floor(diffSec / 60);
+                    const secs = Math.floor(diffSec % 60);
+                    ageStr = `${mins}m ${secs}s`;
+                } else {
+                    ageStr = "< 1m";
+                }
+            } else {
+                // Fallback: show time since entry (but won't update)
+                const t = new Date(row.timestamp);
+                const diffSec = (Date.now() - t.getTime()) / 1000;
+                const mins = Math.floor(diffSec / 60);
+                ageStr = `~${mins}m`;
+            }
         }
         
         let timeStr = "--";
@@ -511,35 +535,35 @@ AutomatedSignalsUltra.renderSideDetail = function(detail) {
     const exitPrice = detail.exit_price != null ? parseFloat(detail.exit_price).toFixed(2) : 'N/A';
     
     container.innerHTML = `
-        <div class="small text-muted mb-2">Trade ID: ${detail.trade_id || 'N/A'}</div>
+        <div class="small ultra-muted mb-2">Trade ID: <span class="ultra-text">${detail.trade_id || 'N/A'}</span></div>
         <div class="mb-2">
             <span class="badge me-1 ${direction === 'Bullish' ? 'bg-info' : direction === 'Bearish' ? 'bg-danger' : 'bg-secondary'}">${direction}</span>
             <span class="badge bg-dark text-uppercase">${session}</span>
         </div>
         <div class="row g-2 small">
             <div class="col-6">
-                <div class="text-muted">Entry</div>
-                <div>${entry}</div>
+                <div class="ultra-muted">Entry</div>
+                <div class="ultra-text">${entry}</div>
             </div>
             <div class="col-6">
-                <div class="text-muted">Stop Loss</div>
-                <div>${sl}</div>
+                <div class="ultra-muted">Stop Loss</div>
+                <div class="ultra-text">${sl}</div>
             </div>
             <div class="col-6">
-                <div class="text-muted">Current MFE</div>
-                <div>${currentMFE}</div>
+                <div class="ultra-muted">Current MFE</div>
+                <div class="ultra-badge-green">${currentMFE}</div>
             </div>
             <div class="col-6">
-                <div class="text-muted">Final MFE</div>
-                <div>${finalMFE}</div>
+                <div class="ultra-muted">Final MFE</div>
+                <div class="ultra-badge-green">${finalMFE}</div>
             </div>
             <div class="col-6">
-                <div class="text-muted">Exit Price</div>
-                <div>${exitPrice}</div>
+                <div class="ultra-muted">Exit Price</div>
+                <div class="ultra-text">${exitPrice}</div>
             </div>
             <div class="col-6">
-                <div class="text-muted">Exit Reason</div>
-                <div>${detail.exit_reason || 'N/A'}</div>
+                <div class="ultra-muted">Exit Reason</div>
+                <div class="ultra-text">${detail.exit_reason || 'N/A'}</div>
             </div>
         </div>
     `;

@@ -347,3 +347,54 @@ input.ultra-input:focus {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.6; }
 }
+
+/* ----------- LIFECYCLE TIMELINE ----------- */
+.lifecycle-timeline {
+    position: relative;
+    padding-left: 8px;
+}
+
+.lifecycle-event {
+    position: relative;
+    padding: 8px 0;
+}
+
+.lifecycle-connector {
+    position: absolute;
+    left: 6px;
+    height: 16px;
+    width: 2px;
+    background: rgba(226, 232, 240, 0.3);
+    margin-top: -8px;
+}
+
+/* Lifecycle overlay text colors - ensure bright text */
+#ase-lifecycle-overlay .ultra-text,
+#ase-lifecycle-overlay .text-muted,
+#ase-trade-lifecycle-container .ultra-text,
+#ase-trade-lifecycle-container .text-muted {
+    color: #e2e8f0 !important;
+}
+
+#ase-lifecycle-overlay .ultra-muted,
+#ase-trade-lifecycle-container .ultra-muted {
+    color: rgba(226, 232, 240, 0.7) !important;
+}
+
+/* Trade detail panel text brightness */
+#ase-trade-detail-container .ultra-text {
+    color: #e2e8f0 !important;
+}
+
+#ase-trade-detail-container .ultra-muted {
+    color: rgba(226, 232, 240, 0.7) !important;
+}
+
+/* Lifecycle metrics panel */
+#ase-lifecycle-metrics .text-muted {
+    color: rgba(226, 232, 240, 0.7) !important;
+}
+
+#ase-lifecycle-metrics .small {
+    color: #e2e8f0;
+}
