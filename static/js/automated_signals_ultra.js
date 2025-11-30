@@ -52,6 +52,15 @@ AutomatedSignalsUltra.init = function() {
     // Wire filter buttons
     AutomatedSignalsUltra.wireFilters();
     
+    // Wire refresh button
+    const refreshBtn = document.getElementById('ase-refresh-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            AutomatedSignalsUltra.fetchDashboardData();
+            AutomatedSignalsUltra.fetchCalendarData();
+        });
+    }
+    
     // Poll every 7 seconds
     if (AutomatedSignalsUltra.timer) {
         clearInterval(AutomatedSignalsUltra.timer);
@@ -216,11 +225,20 @@ AutomatedSignalsUltra.renderHeaderStats = function() {
     }
 };
 
+AutomatedSignalsUltra.selectedTrades = new Set();
+
 AutomatedSignalsUltra.renderSignalsTable = function() {
     const tbody = document.getElementById('ase-signals-tbody');
     const counter = document.getElementById('ase-table-count');
+    const dateLabel = document.getElementById('ase-table-date');
     
     if (!tbody) return;
+    
+    // Update date display
+    if (dateLabel) {
+        const today = new Date();
+        dateLabel.textContent = `— ${today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`;
+    }
     
     const active = AutomatedSignalsUltra.data?.active_trades ?? [];
     const completed = AutomatedSignalsUltra.data?.completed_trades ?? [];
@@ -243,40 +261,28 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
     const f = AutomatedSignalsUltra.filters;
     
     rows = rows.filter(row => {
-        // Date filter (from calendar click)
         if (AutomatedSignalsUltra.selectedDate) {
             const rowDate = row.signal_date || (row.timestamp ? row.timestamp.split('T')[0] : null);
             if (rowDate !== AutomatedSignalsUltra.selectedDate) return false;
         }
-        
-        // Session filter
         if (f.session !== 'ALL' && row.session !== f.session) return false;
-        
-        // Direction filter
         if (f.direction !== 'ALL' && row.direction !== f.direction) return false;
-        
-        // State filter
         if (f.state !== 'ALL' && row.status !== f.state) return false;
-        
-        // Search filter
         if (f.searchId && row.trade_id && !row.trade_id.toLowerCase().includes(f.searchId)) return false;
-        
         return true;
     });
     
-    // Clear table
     tbody.innerHTML = "";
     
     if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center ultra-muted py-3">No signals match filters.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center ultra-muted py-3">No signals match filters.</td></tr>`;
         if (counter) counter.textContent = "0 rows";
         return;
     }
     
-    // Populate rows
     for (const row of rows) {
         const tr = document.createElement('tr');
-        tr.style.cursor = 'pointer';
+        tr.dataset.tradeId = row.trade_id;
         
         const dir = row.direction || "--";
         const entry = row.entry_price ? parseFloat(row.entry_price).toFixed(2) : "N/A";
@@ -284,61 +290,143 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         const mfeNoBE = row.no_be_mfe != null ? parseFloat(row.no_be_mfe).toFixed(2) : "N/A";
         const mfeBE = row.be_mfe != null ? parseFloat(row.be_mfe).toFixed(2) : "N/A";
         
-        // Status badge styling
         let statusClass = 'ultra-badge-blue';
         if (row.status === 'ACTIVE') statusClass = 'ultra-badge-green';
         else if (row.status === 'COMPLETED') statusClass = 'ultra-badge-amber';
-        else if (row.status === 'PENDING') statusClass = 'ultra-badge-blue';
         
-        // Direction badge
         let dirClass = dir === 'Bullish' ? 'ultra-badge-green' : dir === 'Bearish' ? 'ultra-badge-red' : 'ultra-muted';
         
-        // MFE coloring
-        let mfeClass = 'ultra-text';
-        const mfeVal = parseFloat(mfeNoBE);
-        if (!isNaN(mfeVal)) {
-            if (mfeVal >= 1) mfeClass = 'ultra-badge-green';
-            else if (mfeVal >= 0) mfeClass = 'ultra-badge-amber';
-            else mfeClass = 'ultra-badge-red';
-        }
+        // MFE coloring for both columns
+        const getMfeClass = (val) => {
+            const v = parseFloat(val);
+            if (isNaN(v)) return 'ultra-muted';
+            if (v >= 1) return 'ultra-badge-green';
+            if (v >= 0) return 'ultra-badge-amber';
+            return 'ultra-badge-red';
+        };
         
-        // Age calculation
+        // Age: only update for ACTIVE trades, show final age for completed
         let ageStr = "--";
-        if (row.timestamp) {
+        if (row.status === 'ACTIVE' && row.timestamp) {
             const t = new Date(row.timestamp);
             const diffSec = (Date.now() - t.getTime()) / 1000;
             const mins = Math.floor(diffSec / 60);
             const secs = Math.floor(diffSec % 60);
             ageStr = `${mins}m ${secs}s`;
+        } else if (row.status === 'COMPLETED') {
+            ageStr = "Done";
         }
         
-        // Time display
         let timeStr = "--";
         if (row.timestamp) {
             const t = new Date(row.timestamp);
             timeStr = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
         
+        const isChecked = AutomatedSignalsUltra.selectedTrades.has(row.trade_id);
+        
         tr.innerHTML = `
+            <td><input type="checkbox" class="trade-checkbox trade-row-checkbox" data-trade-id="${row.trade_id}" ${isChecked ? 'checked' : ''}></td>
             <td><span class="${statusClass}">${row.status}</span></td>
             <td class="ultra-muted">${timeStr}</td>
             <td><span class="${dirClass}">${dir}</span></td>
             <td class="ultra-muted">${row.session ?? "--"}</td>
             <td>${entry}</td>
             <td>${sl}</td>
-            <td><span class="${mfeClass}">${mfeNoBE}R</span></td>
+            <td><span class="${getMfeClass(mfeBE)}">${mfeBE}R</span></td>
+            <td><span class="${getMfeClass(mfeNoBE)}">${mfeNoBE}R</span></td>
             <td class="ultra-muted">${ageStr}</td>
         `;
         
-        // Click → detail loader
-        tr.addEventListener('click', () => {
-            AutomatedSignalsUltra.loadTradeDetail(row.trade_id);
+        // Click on row (not checkbox) loads detail
+        tr.addEventListener('click', (e) => {
+            if (e.target.type !== 'checkbox') {
+                AutomatedSignalsUltra.loadTradeDetail(row.trade_id);
+            }
         });
         
         tbody.appendChild(tr);
     }
     
     if (counter) counter.textContent = `${rows.length} rows`;
+    
+    // Wire checkbox events
+    AutomatedSignalsUltra.wireCheckboxes();
+};
+
+AutomatedSignalsUltra.wireCheckboxes = function() {
+    const selectAll = document.getElementById('ase-select-all');
+    const deleteBtn = document.getElementById('ase-delete-selected');
+    
+    // Select all checkbox
+    if (selectAll) {
+        selectAll.addEventListener('change', () => {
+            const checkboxes = document.querySelectorAll('.trade-row-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = selectAll.checked;
+                if (selectAll.checked) {
+                    AutomatedSignalsUltra.selectedTrades.add(cb.dataset.tradeId);
+                } else {
+                    AutomatedSignalsUltra.selectedTrades.delete(cb.dataset.tradeId);
+                }
+            });
+            AutomatedSignalsUltra.updateDeleteButton();
+        });
+    }
+    
+    // Individual checkboxes
+    document.querySelectorAll('.trade-row-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+            if (cb.checked) {
+                AutomatedSignalsUltra.selectedTrades.add(cb.dataset.tradeId);
+            } else {
+                AutomatedSignalsUltra.selectedTrades.delete(cb.dataset.tradeId);
+            }
+            AutomatedSignalsUltra.updateDeleteButton();
+        });
+    });
+    
+    // Delete button
+    if (deleteBtn) {
+        deleteBtn.onclick = () => AutomatedSignalsUltra.deleteSelectedTrades();
+    }
+};
+
+AutomatedSignalsUltra.updateDeleteButton = function() {
+    const deleteBtn = document.getElementById('ase-delete-selected');
+    if (deleteBtn) {
+        const count = AutomatedSignalsUltra.selectedTrades.size;
+        deleteBtn.disabled = count === 0;
+        deleteBtn.textContent = count > 0 ? `🗑 Delete (${count})` : '🗑 Delete';
+    }
+};
+
+AutomatedSignalsUltra.deleteSelectedTrades = async function() {
+    const tradeIds = Array.from(AutomatedSignalsUltra.selectedTrades);
+    if (tradeIds.length === 0) return;
+    
+    if (!confirm(`Delete ${tradeIds.length} trade(s)? This cannot be undone.`)) return;
+    
+    let deleted = 0;
+    for (const tradeId of tradeIds) {
+        try {
+            const resp = await fetch(`/api/automated-signals/delete/${encodeURIComponent(tradeId)}`, {
+                method: 'DELETE'
+            });
+            if (resp.ok) deleted++;
+        } catch (err) {
+            console.error(`Failed to delete ${tradeId}:`, err);
+        }
+    }
+    
+    AutomatedSignalsUltra.selectedTrades.clear();
+    AutomatedSignalsUltra.updateDeleteButton();
+    
+    // Refresh data
+    AutomatedSignalsUltra.fetchDashboardData();
+    AutomatedSignalsUltra.fetchCalendarData();
+    
+    console.log(`[ASE] Deleted ${deleted}/${tradeIds.length} trades`);
 };
 
 AutomatedSignalsUltra.loadTradeDetail = async function(trade_id) {

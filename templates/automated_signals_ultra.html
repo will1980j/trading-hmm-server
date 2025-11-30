@@ -81,8 +81,8 @@
                                     <div class="text-muted small">Loading calendar...</div>
                                 </div>
                                 <div class="d-flex justify-content-center gap-3 mt-2" style="font-size: 10px;">
-                                    <span><span class="calendar-legend-dot" style="background: #00ff88;"></span> Completed</span>
-                                    <span><span class="calendar-legend-dot" style="background: #ff4757;"></span> Active</span>
+                                    <span><span class="calendar-legend-dot" style="background: #3b82f6;"></span> Completed</span>
+                                    <span><span class="calendar-legend-dot" style="background: #00ff88;"></span> Active</span>
                                     <span id="ase-selected-date-label" class="ultra-muted" style="margin-left: 8px;">Click a day to filter</span>
                                 </div>
                             </div>
@@ -130,30 +130,36 @@
                         <!-- LIVE SIGNALS TABLE (Pending + Active + Completed) -->
                         <div class="dashboard-card ultra-card mb-4">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <h3 class="card-title mb-0 ultra-section-header">Signals & Trades</h3>
                                 <div class="d-flex align-items-center gap-2">
+                                    <h3 class="card-title mb-0 ultra-section-header" style="font-size: 0.95rem;">Signals & Trades</h3>
+                                    <span id="ase-table-date" class="ultra-muted small"></span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button class="btn ultra-btn-danger" id="ase-delete-selected" disabled title="Delete selected trades">🗑 Delete</button>
                                     <span class="badge rounded-pill bg-secondary small ultra-text" id="ase-table-count">0 rows</span>
                                     <button class="btn btn-sm btn-outline-light ultra-btn" id="ase-refresh-btn">Refresh</button>
                                 </div>
                             </div>
                             <div class="card-body p-0">
                                 <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
-                                    <table class="ultra-table" id="ase-signals-table" style="font-size: 12px;">
+                                    <table class="ultra-table" id="ase-signals-table" style="font-size: 11px;">
                                         <thead class="position-sticky top-0" style="background: rgba(25,30,60,0.95);">
                                             <tr>
+                                                <th style="width: 30px;"><input type="checkbox" class="trade-checkbox" id="ase-select-all" title="Select all"></th>
                                                 <th>Status</th>
                                                 <th>Time</th>
-                                                <th>Direction</th>
+                                                <th>Dir</th>
                                                 <th>Session</th>
                                                 <th>Entry</th>
                                                 <th>Stop</th>
-                                                <th>MFE</th>
+                                                <th title="MFE with Break-Even at 1R">BE=1</th>
+                                                <th title="MFE without Break-Even">No BE</th>
                                                 <th>Age</th>
                                             </tr>
                                         </thead>
                                         <tbody id="ase-signals-tbody">
                                             <tr>
-                                                <td colspan="8" class="text-center ultra-muted py-3">Loading signals...</td>
+                                                <td colspan="10" class="text-center ultra-muted py-3">Loading signals...</td>
                                             </tr>
                                         </tbody>
                                     </table>
