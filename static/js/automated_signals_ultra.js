@@ -173,7 +173,7 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
     tbody.innerHTML = "";
     
     if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted small py-3">No signals available.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center ultra-muted py-3">No signals available.</td></tr>`;
         if (counter) counter.textContent = "0 rows";
         return;
     }
@@ -181,11 +181,31 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
     // Populate rows
     for (const row of rows) {
         const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        
         const dir = row.direction || "--";
         const entry = row.entry_price ? parseFloat(row.entry_price).toFixed(2) : "N/A";
         const sl = row.stop_loss ? parseFloat(row.stop_loss).toFixed(2) : "N/A";
-        const mfeNoBE = row.no_be_mfe ? parseFloat(row.no_be_mfe).toFixed(2) + "R" : "N/A";
-        const mfeBE = row.be_mfe ? parseFloat(row.be_mfe).toFixed(2) + "R" : "N/A";
+        const mfeNoBE = row.no_be_mfe != null ? parseFloat(row.no_be_mfe).toFixed(2) : "N/A";
+        const mfeBE = row.be_mfe != null ? parseFloat(row.be_mfe).toFixed(2) : "N/A";
+        
+        // Status badge styling
+        let statusClass = 'ultra-badge-blue';
+        if (row.status === 'ACTIVE') statusClass = 'ultra-badge-green';
+        else if (row.status === 'COMPLETED') statusClass = 'ultra-badge-amber';
+        else if (row.status === 'PENDING') statusClass = 'ultra-badge-blue';
+        
+        // Direction badge
+        let dirClass = dir === 'Bullish' ? 'ultra-badge-green' : dir === 'Bearish' ? 'ultra-badge-red' : 'ultra-muted';
+        
+        // MFE coloring
+        let mfeClass = 'ultra-text';
+        const mfeVal = parseFloat(mfeNoBE);
+        if (!isNaN(mfeVal)) {
+            if (mfeVal >= 1) mfeClass = 'ultra-badge-green';
+            else if (mfeVal >= 0) mfeClass = 'ultra-badge-amber';
+            else mfeClass = 'ultra-badge-red';
+        }
         
         // Age calculation
         let ageStr = "--";
@@ -197,18 +217,22 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             ageStr = `${mins}m ${secs}s`;
         }
         
+        // Time display
+        let timeStr = "--";
+        if (row.timestamp) {
+            const t = new Date(row.timestamp);
+            timeStr = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        
         tr.innerHTML = `
-            <td>${row.status}</td>
-            <td>${row.timestamp ?? "--"}</td>
-            <td>${dir}</td>
-            <td>${row.session ?? "--"}</td>
+            <td><span class="${statusClass}">${row.status}</span></td>
+            <td class="ultra-muted">${timeStr}</td>
+            <td><span class="${dirClass}">${dir}</span></td>
+            <td class="ultra-muted">${row.session ?? "--"}</td>
             <td>${entry}</td>
             <td>${sl}</td>
-            <td>${mfeNoBE}</td>
-            <td>${mfeBE}</td>
-            <td>${row.no_be_mfe ?? 0}</td>
-            <td>${ageStr}</td>
-            <td>${row.trade_id ?? "--"}</td>
+            <td><span class="${mfeClass}">${mfeNoBE}R</span></td>
+            <td class="ultra-muted">${ageStr}</td>
         `;
         
         // Click → detail loader
@@ -528,16 +552,16 @@ AutomatedSignalsUltra.renderCalendar = function() {
     }
     
     let html = `
-        <table class="table table-sm table-dark mb-0" style="font-size: 11px;">
+        <table class="ultra-table" style="font-size: 12px;">
             <thead>
                 <tr>
-                    <th class="text-center p-1">S</th>
-                    <th class="text-center p-1">M</th>
-                    <th class="text-center p-1">T</th>
-                    <th class="text-center p-1">W</th>
-                    <th class="text-center p-1">T</th>
-                    <th class="text-center p-1">F</th>
-                    <th class="text-center p-1">S</th>
+                    <th class="text-center" style="padding: 8px 4px;">S</th>
+                    <th class="text-center" style="padding: 8px 4px;">M</th>
+                    <th class="text-center" style="padding: 8px 4px;">T</th>
+                    <th class="text-center" style="padding: 8px 4px;">W</th>
+                    <th class="text-center" style="padding: 8px 4px;">T</th>
+                    <th class="text-center" style="padding: 8px 4px;">F</th>
+                    <th class="text-center" style="padding: 8px 4px;">S</th>
                 </tr>
             </thead>
             <tbody>
@@ -553,36 +577,41 @@ AutomatedSignalsUltra.renderCalendar = function() {
         html += '<tr>';
         for (let dow = 0; dow < 7; dow++) {
             if ((week === 0 && dow < firstDay) || dayCount > daysInMonth) {
-                html += '<td class="p-1"></td>';
+                html += '<td style="padding: 6px;"></td>';
             } else {
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayCount).padStart(2, '0')}`;
                 const dayData = dataByDate[dateStr];
                 
-                let cellClass = 'text-center p-1';
-                let cellStyle = 'cursor: pointer;';
+                let cellStyle = 'text-align: center; padding: 6px; border-radius: 4px; cursor: pointer; transition: 0.2s;';
                 let tooltip = '';
+                let badgeHtml = '';
                 
+                // Today highlight
                 if (dateStr === todayStr) {
-                    cellStyle += ' border: 1px solid #00aaff;';
+                    cellStyle += ' border: 2px solid #3b82f6; box-shadow: 0 0 8px rgba(59,130,246,0.5);';
                 }
                 
                 if (dayData) {
                     const trades = dayData.trade_count || 0;
                     const avgMFE = dayData.avg_no_be_mfe_R || dayData.avg_max_mfe_R || 0;
                     
-                    // Color based on performance
+                    // Color based on performance - using ultra theme colors
                     if (avgMFE >= 1) {
-                        cellStyle += ' background: rgba(0, 255, 136, 0.3);';
+                        cellStyle += ' background: rgba(0, 255, 136, 0.25); color: #00ff88;';
                     } else if (avgMFE >= 0) {
-                        cellStyle += ' background: rgba(255, 217, 61, 0.3);';
+                        cellStyle += ' background: rgba(251, 191, 36, 0.25); color: #fbbf24;';
                     } else {
-                        cellStyle += ' background: rgba(255, 71, 87, 0.3);';
+                        cellStyle += ' background: rgba(255, 71, 87, 0.25); color: #ff4757;';
                     }
                     
-                    tooltip = `${trades} trades, ${avgMFE.toFixed(2)}R avg`;
+                    tooltip = `${trades} trade${trades !== 1 ? 's' : ''}, ${avgMFE.toFixed(2)}R avg`;
+                    badgeHtml = `<div style="font-size: 9px; opacity: 0.8;">${trades}</div>`;
                 }
                 
-                html += `<td class="${cellClass}" style="${cellStyle}" title="${tooltip}">${dayCount}</td>`;
+                html += `<td style="${cellStyle}" title="${tooltip}">
+                    <div style="font-weight: 600;">${dayCount}</div>
+                    ${badgeHtml}
+                </td>`;
                 dayCount++;
             }
         }
