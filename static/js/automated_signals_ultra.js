@@ -6,10 +6,15 @@
 // Script loaded successfully
 console.log("[ASE] ========== SCRIPT LOADED ==========");
 
-const AutomatedSignalsUltra = {
+// Define globally on window to ensure accessibility
+window.AutomatedSignalsUltra = {
     data: null,
     timer: null,
+    lastDetail: null
 };
+
+// Local reference for convenience
+const AutomatedSignalsUltra = window.AutomatedSignalsUltra;
 
 AutomatedSignalsUltra.init = function() {
     console.log("[ASE] Initializing Automated Signals Engine dashboard...");
