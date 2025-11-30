@@ -433,17 +433,10 @@ def register_automated_signals_api_robust(app, db):
                     'message': f'Trade {trade_id} not found'
                 }), 404
             
-            # Convert to events list
+            # Convert to events list - keep datetime objects for build_trade_state
             events = []
             for row in rows:
                 event = dict(row)
-                # Convert datetime objects to strings
-                if event.get('signal_date'):
-                    event['signal_date'] = event['signal_date'].isoformat()
-                if event.get('signal_time'):
-                    event['signal_time'] = event['signal_time'].isoformat()
-                if event.get('timestamp'):
-                    event['timestamp'] = event['timestamp'].isoformat()
                 events.append(event)
             
             # Build trade state
@@ -458,44 +451,58 @@ def register_automated_signals_api_robust(app, db):
                     'message': 'Could not build trade state'
                 }), 500
             
-            # Build detailed response
+            # Helper to safely convert to float
+            def safe_float(val):
+                if val is None:
+                    return None
+                try:
+                    return float(val)
+                except (TypeError, ValueError):
+                    return None
+            
+            # Build detailed response - aligned with build_trade_state output
             detail = {
                 'trade_id': trade_state['trade_id'],
                 'direction': trade_state['direction'],
                 'session': trade_state['session'],
                 'status': trade_state['status'],
-                'entry_price': float(trade_state['entry_price']) if trade_state['entry_price'] else None,
-                'stop_loss': float(trade_state['stop_loss']) if trade_state['stop_loss'] else None,
-                'current_mfe': float(trade_state['current_mfe']) if trade_state['current_mfe'] else None,
-                'final_mfe': float(trade_state['final_mfe']) if trade_state['final_mfe'] else None,
-                'exit_price': float(trade_state['exit_price']) if trade_state['exit_price'] else None,
-                'exit_reason': trade_state['exit_reason'],
-                'be_triggered': trade_state['be_triggered'],
-                'targets': trade_state['targets'],
-                'setup': trade_state['setup'],
-                'market_state_entry': trade_state['market_state'],
+                'entry_price': safe_float(trade_state.get('entry_price')),
+                'stop_loss': safe_float(trade_state.get('stop_loss')),
+                'current_mfe': safe_float(trade_state.get('no_be_mfe_R') or trade_state.get('be_mfe_R')),
+                'final_mfe': safe_float(trade_state.get('final_mfe_R')),
+                'exit_price': safe_float(trade_state.get('exit_price')),
+                'exit_reason': trade_state.get('completed_reason'),
+                'be_triggered': trade_state.get('status') == 'BE_PROTECTED',
+                'targets': trade_state.get('targets'),
+                'setup': {
+                    'family': trade_state.get('setup_family'),
+                    'variant': trade_state.get('setup_variant'),
+                    'id': trade_state.get('setup_id'),
+                    'signal_strength': trade_state.get('setup_strength')
+                },
+                'market_state_entry': {
+                    'trend_regime': trade_state.get('market_trend_regime'),
+                    'volatility_regime': trade_state.get('market_vol_regime')
+                },
                 'events': []
             }
             
-            # Add events with telemetry
+            # Add events timeline
             for event in events:
-                event_data = {
-                    'event_type': event['event_type'],
-                    'timestamp': event['timestamp'],
-                    'mfe_R': float(event['mfe']) if event.get('mfe') else None,
-                    'mae_R': None,  # Not yet tracked
-                    'current_price': float(event['current_price']) if event.get('current_price') else None
-                }
+                # Safely convert timestamp
+                ts = event.get('timestamp')
+                ts_str = ts.isoformat() if hasattr(ts, 'isoformat') else str(ts) if ts else None
                 
-                # Add telemetry if available
-                if event.get('telemetry'):
-                    tel = event['telemetry']
-                    event_data['telemetry'] = {
-                        'mfe_R': tel.get('mfe_R'),
-                        'mae_R': tel.get('mae_R'),
-                        'final_mfe_R': tel.get('final_mfe_R'),
-                        'exit_reason': tel.get('exit_reason')
-                    }
+                event_data = {
+                    'event_type': event.get('event_type'),
+                    'timestamp': ts_str,
+                    'be_mfe_R': safe_float(event.get('be_mfe')),
+                    'no_be_mfe_R': safe_float(event.get('no_be_mfe')),
+                    'mfe_R': safe_float(event.get('mfe')),
+                    'mae_R': None,
+                    'current_price': safe_float(event.get('current_price')),
+                    'exit_price': safe_float(event.get('exit_price'))
+                }
                 
                 detail['events'].append(event_data)
             
