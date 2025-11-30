@@ -398,3 +398,66 @@ input.ultra-input:focus {
 #ase-lifecycle-metrics .small {
     color: #e2e8f0;
 }
+
+/* ----------- LIFECYCLE CHART (D3) ----------- */
+#ase-lifecycle-chart {
+    overflow: hidden;
+}
+
+#ase-lifecycle-svg {
+    display: block;
+}
+
+#ase-lifecycle-svg .domain {
+    stroke: rgba(148, 163, 184, 0.3);
+}
+
+#ase-lifecycle-svg .tick line {
+    stroke: rgba(148, 163, 184, 0.2);
+}
+
+#ase-lifecycle-svg .tick text {
+    fill: #94a3b8;
+    font-size: 11px;
+}
+
+/* Lifecycle overlay improvements */
+#ase-lifecycle-overlay h2,
+#ase-lifecycle-overlay h3,
+#ase-lifecycle-overlay h4 {
+    color: #e2e8f0 !important;
+}
+
+#ase-lifecycle-overlay p,
+#ase-lifecycle-overlay span,
+#ase-lifecycle-overlay div {
+    color: #e2e8f0;
+}
+
+#ase-lifecycle-events::-webkit-scrollbar {
+    width: 6px;
+}
+
+#ase-lifecycle-events::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 3px;
+}
+
+#ase-lifecycle-events::-webkit-scrollbar-thumb {
+    background: rgba(59, 130, 246, 0.4);
+    border-radius: 3px;
+}
+
+#ase-lifecycle-events::-webkit-scrollbar-thumb:hover {
+    background: rgba(59, 130, 246, 0.6);
+}
+
+/* MFE point hover effect */
+#ase-lifecycle-svg .mfe-point {
+    transition: r 0.15s ease;
+    cursor: pointer;
+}
+
+#ase-lifecycle-svg .mfe-point:hover {
+    r: 8;
+}

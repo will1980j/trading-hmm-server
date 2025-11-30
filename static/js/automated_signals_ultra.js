@@ -431,16 +431,27 @@ AutomatedSignalsUltra.deleteSelectedTrades = async function() {
     
     if (!confirm(`Delete ${tradeIds.length} trade(s)? This cannot be undone.`)) return;
     
-    let deleted = 0;
-    for (const tradeId of tradeIds) {
-        try {
-            const resp = await fetch(`/api/automated-signals/delete/${encodeURIComponent(tradeId)}`, {
-                method: 'DELETE'
-            });
-            if (resp.ok) deleted++;
-        } catch (err) {
-            console.error(`Failed to delete ${tradeId}:`, err);
+    try {
+        // Use bulk delete endpoint with POST
+        const resp = await fetch('/api/automated-signals/bulk-delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ trade_ids: tradeIds })
+        });
+        
+        const result = await resp.json();
+        
+        if (resp.ok && result.success) {
+            console.log(`[ASE] Deleted ${result.deleted_count || tradeIds.length} trades`);
+        } else {
+            console.error('[ASE] Delete failed:', result.error || 'Unknown error');
+            alert('Delete failed: ' + (result.error || 'Unknown error'));
         }
+    } catch (err) {
+        console.error('[ASE] Delete error:', err);
+        alert('Delete failed: ' + err.message);
     }
     
     AutomatedSignalsUltra.selectedTrades.clear();
@@ -449,8 +460,6 @@ AutomatedSignalsUltra.deleteSelectedTrades = async function() {
     // Refresh data
     AutomatedSignalsUltra.fetchDashboardData();
     AutomatedSignalsUltra.fetchCalendarData();
-    
-    console.log(`[ASE] Deleted ${deleted}/${tradeIds.length} trades`);
 };
 
 AutomatedSignalsUltra.loadTradeDetail = async function(trade_id) {
@@ -572,73 +581,288 @@ AutomatedSignalsUltra.renderSideDetail = function(detail) {
 AutomatedSignalsUltra.renderLifecycleOverlay = function(detail) {
     const titleEl = document.getElementById('ase-lifecycle-title');
     const subtitleEl = document.getElementById('ase-lifecycle-subtitle');
-    const timelineEl = document.getElementById('ase-lifecycle-timeline');
     const eventsEl = document.getElementById('ase-lifecycle-events');
     const metricsEl = document.getElementById('ase-lifecycle-metrics');
+    const liveIndicator = document.getElementById('ase-chart-live-indicator');
     
-    if (!timelineEl || !eventsEl || !metricsEl) return;
+    if (!eventsEl || !metricsEl) return;
     
+    // Update header
     if (titleEl) {
         titleEl.textContent = `Trade Journey — ${detail.trade_id || 'N/A'}`;
     }
-    
     if (subtitleEl) {
-        subtitleEl.textContent = `${detail.direction || 'UNKNOWN'} • ${detail.session || 'N/A'} • Status: ${detail.status || 'N/A'}`;
+        const dirColor = detail.direction === 'Bullish' ? '#22c55e' : detail.direction === 'Bearish' ? '#ef4444' : '#94a3b8';
+        subtitleEl.innerHTML = `<span style="color:${dirColor}">${detail.direction || 'UNKNOWN'}</span> • ${detail.session || 'N/A'} • Status: <span style="color:#3b82f6">${detail.status || 'N/A'}</span>`;
     }
     
-    // Events timeline
+    // Live indicator
+    if (liveIndicator) {
+        liveIndicator.style.color = detail.status === 'ACTIVE' ? '#22c55e' : '#64748b';
+        liveIndicator.textContent = detail.status === 'ACTIVE' ? '● Live' : '○ Completed';
+    }
+    
+    // Render D3 Chart
+    AutomatedSignalsUltra.renderLifecycleChart(detail);
+    
+    // Render Events List
     const events = detail.events || [];
     if (events.length === 0) {
-        timelineEl.innerHTML = `<div class="text-muted small">No lifecycle events available.</div>`;
-        eventsEl.innerHTML = '';
+        eventsEl.innerHTML = `<div style="color:rgba(226,232,240,0.5); font-size:13px;">No lifecycle events available.</div>`;
     } else {
-        // Simple linear node rendering
-        const nodes = events.map((ev, idx) => {
-            const etype = ev.event_type || 'EVENT';
-            let color = '#7f8c8d';
-            if (etype === 'ENTRY' || etype === 'SIGNAL_CREATED') color = '#00aaff';
-            else if (etype === 'BE_TRIGGERED') color = '#ffd93d';
-            else if (etype.startsWith('EXIT')) color = '#ff4757';
-            else if (etype === 'MFE_UPDATE') color = '#21e6c1';
-            
-            return `<div class="text-center" style="flex:1;">
-                <div style="width: 12px; height: 12px; border-radius: 999px; margin: 0 auto 4px auto; background:${color};"></div>
-                <div class="small text-muted" style="font-size: 10px;">${etype}</div>
-            </div>`;
-        }).join('');
-        
-        timelineEl.innerHTML = `<div class="d-flex align-items-center justify-content-between" style="gap: 8px;">${nodes}</div>`;
-        
-        // Event list
         const evRows = events.map(ev => {
             const ts = ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--';
-            const mfeR = ev.mfe != null ? `${parseFloat(ev.mfe).toFixed(2)}R` : (ev.telemetry?.mfe_R != null ? `${parseFloat(ev.telemetry.mfe_R).toFixed(2)}R` : 'N/A');
+            const date = ev.timestamp ? new Date(ev.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
+            const mfeR = ev.mfe != null ? parseFloat(ev.mfe).toFixed(2) : (ev.telemetry?.mfe_R != null ? parseFloat(ev.telemetry.mfe_R).toFixed(2) : null);
             
-            return `<div class="d-flex justify-content-between small mb-1">
-                <span class="text-muted">${ts}</span>
-                <span>${ev.event_type || 'EVENT'}</span>
-                <span class="text-muted">${mfeR}</span>
+            let eventColor = '#94a3b8';
+            const etype = ev.event_type || 'EVENT';
+            if (etype === 'ENTRY' || etype === 'SIGNAL_CREATED') eventColor = '#3b82f6';
+            else if (etype === 'BE_TRIGGERED') eventColor = '#eab308';
+            else if (etype.startsWith('EXIT')) eventColor = '#ef4444';
+            else if (etype === 'MFE_UPDATE') eventColor = '#22c55e';
+            
+            const mfeDisplay = mfeR !== null ? `<span style="color:${parseFloat(mfeR) >= 1 ? '#22c55e' : parseFloat(mfeR) >= 0 ? '#eab308' : '#ef4444'}">${mfeR}R</span>` : '<span style="color:#64748b">--</span>';
+            
+            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; margin-bottom:4px; background:rgba(255,255,255,0.03); border-radius:6px; border-left:3px solid ${eventColor};">
+                <span style="color:#94a3b8; font-size:12px;">${date} ${ts}</span>
+                <span style="color:#e2e8f0; font-size:13px; font-weight:500;">${etype}</span>
+                ${mfeDisplay}
             </div>`;
         }).join('');
-        
         eventsEl.innerHTML = evRows;
     }
     
-    // Metrics
+    // Render Metrics
     const entry = detail.entry_price != null ? parseFloat(detail.entry_price).toFixed(2) : 'N/A';
     const sl = detail.stop_loss != null ? parseFloat(detail.stop_loss).toFixed(2) : 'N/A';
-    const currentMFE = detail.current_mfe != null ? detail.current_mfe.toFixed(2) + 'R' : 'N/A';
-    const finalMFE = detail.final_mfe != null ? detail.final_mfe.toFixed(2) + 'R' : 'N/A';
+    const riskDist = detail.risk_distance != null ? parseFloat(detail.risk_distance).toFixed(2) : 'N/A';
+    const currentMFE = detail.current_mfe != null ? detail.current_mfe.toFixed(2) : (detail.no_be_mfe != null ? parseFloat(detail.no_be_mfe).toFixed(2) : 'N/A');
+    const beMFE = detail.be_mfe != null ? parseFloat(detail.be_mfe).toFixed(2) : 'N/A';
     const exitPrice = detail.exit_price != null ? parseFloat(detail.exit_price).toFixed(2) : 'N/A';
     
     metricsEl.innerHTML = `
-        <div class="small text-muted mb-2">Core Metrics</div>
-        <div class="small mb-1"><span class="text-muted">Entry:</span> ${entry}</div>
-        <div class="small mb-1"><span class="text-muted">Stop Loss:</span> ${sl}</div>
-        <div class="small mb-1"><span class="text-muted">Current MFE:</span> ${currentMFE}</div>
-        <div class="small mb-1"><span class="text-muted">Final MFE:</span> ${finalMFE}</div>
-        <div class="small mb-1"><span class="text-muted">Exit Price:</span> ${exitPrice}</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div style="background:rgba(59,130,246,0.1); padding:10px; border-radius:8px;">
+                <div style="color:#64748b; font-size:11px; text-transform:uppercase;">Entry</div>
+                <div style="color:#e2e8f0; font-size:16px; font-weight:600;">${entry}</div>
+            </div>
+            <div style="background:rgba(239,68,68,0.1); padding:10px; border-radius:8px;">
+                <div style="color:#64748b; font-size:11px; text-transform:uppercase;">Stop Loss</div>
+                <div style="color:#ef4444; font-size:16px; font-weight:600;">${sl}</div>
+            </div>
+            <div style="background:rgba(34,197,94,0.1); padding:10px; border-radius:8px;">
+                <div style="color:#64748b; font-size:11px; text-transform:uppercase;">Current MFE</div>
+                <div style="color:#22c55e; font-size:16px; font-weight:600;">${currentMFE}R</div>
+            </div>
+            <div style="background:rgba(234,179,8,0.1); padding:10px; border-radius:8px;">
+                <div style="color:#64748b; font-size:11px; text-transform:uppercase;">BE MFE</div>
+                <div style="color:#eab308; font-size:16px; font-weight:600;">${beMFE}R</div>
+            </div>
+            <div style="background:rgba(148,163,184,0.1); padding:10px; border-radius:8px;">
+                <div style="color:#64748b; font-size:11px; text-transform:uppercase;">Risk (1R)</div>
+                <div style="color:#94a3b8; font-size:16px; font-weight:600;">${riskDist} pts</div>
+            </div>
+            <div style="background:rgba(148,163,184,0.1); padding:10px; border-radius:8px;">
+                <div style="color:#64748b; font-size:11px; text-transform:uppercase;">Exit Price</div>
+                <div style="color:#94a3b8; font-size:16px; font-weight:600;">${exitPrice}</div>
+            </div>
+        </div>
     `;
+};
+
+// D3.js Chart Rendering
+AutomatedSignalsUltra.renderLifecycleChart = function(detail) {
+    const container = document.getElementById('ase-lifecycle-chart');
+    const svg = d3.select('#ase-lifecycle-svg');
+    if (!container || !svg) return;
+    
+    // Clear previous
+    svg.selectAll('*').remove();
+    
+    const events = detail.events || [];
+    if (events.length === 0) {
+        svg.append('text')
+            .attr('x', '50%')
+            .attr('y', '50%')
+            .attr('text-anchor', 'middle')
+            .attr('fill', 'rgba(226,232,240,0.4)')
+            .attr('font-size', '14px')
+            .text('No MFE data available for chart');
+        return;
+    }
+    
+    // Chart dimensions
+    const width = container.clientWidth || 800;
+    const height = 320;
+    const margin = { top: 30, right: 60, bottom: 50, left: 60 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+    
+    svg.attr('width', width).attr('height', height);
+    
+    // Parse data points with MFE values
+    const dataPoints = events
+        .filter(ev => ev.mfe != null || ev.telemetry?.mfe_R != null)
+        .map(ev => ({
+            time: new Date(ev.timestamp),
+            mfe: ev.mfe != null ? parseFloat(ev.mfe) : parseFloat(ev.telemetry.mfe_R),
+            type: ev.event_type
+        }))
+        .sort((a, b) => a.time - b.time);
+    
+    if (dataPoints.length === 0) {
+        svg.append('text')
+            .attr('x', '50%')
+            .attr('y', '50%')
+            .attr('text-anchor', 'middle')
+            .attr('fill', 'rgba(226,232,240,0.4)')
+            .attr('font-size', '14px')
+            .text('No MFE data points to display');
+        return;
+    }
+    
+    // Scales
+    const xExtent = d3.extent(dataPoints, d => d.time);
+    const xScale = d3.scaleTime()
+        .domain([xExtent[0], new Date(Math.max(xExtent[1].getTime(), Date.now()))])
+        .range([0, innerWidth]);
+    
+    const maxMFE = Math.max(3, d3.max(dataPoints, d => d.mfe) + 0.5);
+    const minMFE = Math.min(-1.5, d3.min(dataPoints, d => d.mfe) - 0.5);
+    const yScale = d3.scaleLinear()
+        .domain([minMFE, maxMFE])
+        .range([innerHeight, 0]);
+    
+    const g = svg.append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+    
+    // Milestone lines (SL, Entry, BE, R1, R2, R3)
+    const milestones = [
+        { r: -1, label: 'SL (-1R)', color: '#ef4444', dash: '4,4' },
+        { r: 0, label: 'ENTRY (0R)', color: '#3b82f6', dash: '0' },
+        { r: 1, label: 'BE (+1R)', color: '#eab308', dash: '4,4' },
+        { r: 2, label: '+2R', color: '#22c55e', dash: '4,4' },
+        { r: 3, label: '+3R', color: '#22c55e', dash: '4,4' }
+    ];
+    
+    milestones.forEach(m => {
+        if (m.r >= minMFE && m.r <= maxMFE) {
+            g.append('line')
+                .attr('x1', 0)
+                .attr('x2', innerWidth)
+                .attr('y1', yScale(m.r))
+                .attr('y2', yScale(m.r))
+                .attr('stroke', m.color)
+                .attr('stroke-width', m.r === 0 ? 1.5 : 1)
+                .attr('stroke-dasharray', m.dash)
+                .attr('opacity', 0.4);
+            
+            g.append('text')
+                .attr('x', innerWidth + 5)
+                .attr('y', yScale(m.r) + 4)
+                .attr('fill', m.color)
+                .attr('font-size', '10px')
+                .attr('opacity', 0.7)
+                .text(m.label);
+        }
+    });
+    
+    // Line generator
+    const line = d3.line()
+        .x(d => xScale(d.time))
+        .y(d => yScale(d.mfe))
+        .curve(d3.curveMonotoneX);
+    
+    // Gradient for area
+    const gradient = svg.append('defs')
+        .append('linearGradient')
+        .attr('id', 'mfe-gradient')
+        .attr('x1', '0%').attr('y1', '0%')
+        .attr('x2', '0%').attr('y2', '100%');
+    gradient.append('stop').attr('offset', '0%').attr('stop-color', '#22c55e').attr('stop-opacity', 0.3);
+    gradient.append('stop').attr('offset', '100%').attr('stop-color', '#22c55e').attr('stop-opacity', 0.02);
+    
+    // Area under line
+    const area = d3.area()
+        .x(d => xScale(d.time))
+        .y0(yScale(0))
+        .y1(d => yScale(d.mfe))
+        .curve(d3.curveMonotoneX);
+    
+    g.append('path')
+        .datum(dataPoints)
+        .attr('fill', 'url(#mfe-gradient)')
+        .attr('d', area);
+    
+    // MFE Line
+    g.append('path')
+        .datum(dataPoints)
+        .attr('fill', 'none')
+        .attr('stroke', '#22c55e')
+        .attr('stroke-width', 2.5)
+        .attr('d', line);
+    
+    // Data points
+    g.selectAll('.mfe-point')
+        .data(dataPoints)
+        .enter()
+        .append('circle')
+        .attr('class', 'mfe-point')
+        .attr('cx', d => xScale(d.time))
+        .attr('cy', d => yScale(d.mfe))
+        .attr('r', d => d.type === 'ENTRY' || d.type.startsWith('EXIT') ? 6 : 4)
+        .attr('fill', d => {
+            if (d.type === 'ENTRY' || d.type === 'SIGNAL_CREATED') return '#3b82f6';
+            if (d.type === 'BE_TRIGGERED') return '#eab308';
+            if (d.type.startsWith('EXIT')) return '#ef4444';
+            return '#22c55e';
+        })
+        .attr('stroke', '#0a1628')
+        .attr('stroke-width', 2);
+    
+    // X Axis
+    const xAxis = d3.axisBottom(xScale)
+        .ticks(6)
+        .tickFormat(d3.timeFormat('%H:%M'));
+    
+    g.append('g')
+        .attr('transform', `translate(0,${innerHeight})`)
+        .call(xAxis)
+        .selectAll('text')
+        .attr('fill', '#94a3b8')
+        .attr('font-size', '11px');
+    
+    g.selectAll('.domain, .tick line').attr('stroke', 'rgba(148,163,184,0.3)');
+    
+    // Y Axis
+    const yAxis = d3.axisLeft(yScale)
+        .ticks(6)
+        .tickFormat(d => d + 'R');
+    
+    g.append('g')
+        .call(yAxis)
+        .selectAll('text')
+        .attr('fill', '#94a3b8')
+        .attr('font-size', '11px');
+    
+    // Axis labels
+    svg.append('text')
+        .attr('x', width / 2)
+        .attr('y', height - 8)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#64748b')
+        .attr('font-size', '11px')
+        .text('Time');
+    
+    svg.append('text')
+        .attr('transform', 'rotate(-90)')
+        .attr('x', -height / 2)
+        .attr('y', 15)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#64748b')
+        .attr('font-size', '11px')
+        .text('MFE (R-Multiple)');
 };
 
 AutomatedSignalsUltra.showLifecycleOverlay = function() {
