@@ -287,8 +287,9 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         const dir = row.direction || "--";
         const entry = row.entry_price ? parseFloat(row.entry_price).toFixed(2) : "N/A";
         const sl = row.stop_loss ? parseFloat(row.stop_loss).toFixed(2) : "N/A";
-        const mfeNoBE = row.no_be_mfe != null ? parseFloat(row.no_be_mfe).toFixed(2) : "N/A";
-        const mfeBE = row.be_mfe != null ? parseFloat(row.be_mfe).toFixed(2) : "N/A";
+        // API returns no_be_mfe_R and be_mfe_R (with _R suffix)
+        const mfeNoBE = row.no_be_mfe_R != null ? parseFloat(row.no_be_mfe_R).toFixed(2) : "N/A";
+        const mfeBE = row.be_mfe_R != null ? parseFloat(row.be_mfe_R).toFixed(2) : "N/A";
         
         let statusClass = 'ultra-badge-blue';
         if (row.status === 'ACTIVE') statusClass = 'ultra-badge-green';
@@ -479,16 +480,18 @@ AutomatedSignalsUltra.loadTradeDetail = async function(trade_id) {
     }
     
     try {
-        const resp = await fetch(`/api/automated-signals/trade-detail/${encodeURIComponent(trade_id)}`, {
+        // Correct endpoint: /api/automated-signals/trade/<trade_id>
+        const resp = await fetch(`/api/automated-signals/trade/${encodeURIComponent(trade_id)}`, {
             cache: 'no-store'
         });
         const json = await resp.json();
         
-        if (!json.success || !json.data) {
+        // The endpoint returns the detail directly (not wrapped in success/data)
+        if (json.error) {
             throw new Error(json.error || "Trade detail fetch failed");
         }
         
-        const detail = json.data;
+        const detail = json;
         
         // Side panel render
         AutomatedSignalsUltra.renderSideDetail(detail);
@@ -539,8 +542,10 @@ AutomatedSignalsUltra.renderSideDetail = function(detail) {
     const session = detail.session || 'N/A';
     const entry = detail.entry_price != null ? parseFloat(detail.entry_price).toFixed(2) : 'N/A';
     const sl = detail.stop_loss != null ? parseFloat(detail.stop_loss).toFixed(2) : 'N/A';
-    const currentMFE = detail.current_mfe != null ? detail.current_mfe.toFixed(2) + 'R' : 'N/A';
-    const finalMFE = detail.final_mfe != null ? detail.final_mfe.toFixed(2) + 'R' : 'N/A';
+    // API returns no_be_mfe_R, be_mfe_R, final_mfe_R (with _R suffix)
+    const currentMFE = detail.no_be_mfe_R != null ? parseFloat(detail.no_be_mfe_R).toFixed(2) + 'R' : 
+                       (detail.be_mfe_R != null ? parseFloat(detail.be_mfe_R).toFixed(2) + 'R' : 'N/A');
+    const finalMFE = detail.final_mfe_R != null ? parseFloat(detail.final_mfe_R).toFixed(2) + 'R' : 'N/A';
     const exitPrice = detail.exit_price != null ? parseFloat(detail.exit_price).toFixed(2) : 'N/A';
     
     container.innerHTML = `
@@ -613,7 +618,10 @@ AutomatedSignalsUltra.renderLifecycleOverlay = function(detail) {
         const evRows = events.map(ev => {
             const ts = ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--';
             const date = ev.timestamp ? new Date(ev.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
-            const mfeR = ev.mfe != null ? parseFloat(ev.mfe).toFixed(2) : (ev.telemetry?.mfe_R != null ? parseFloat(ev.telemetry.mfe_R).toFixed(2) : null);
+            // API returns mfe_R, no_be_mfe_R, be_mfe_R
+            const mfeR = ev.mfe_R != null ? parseFloat(ev.mfe_R).toFixed(2) : 
+                        (ev.no_be_mfe_R != null ? parseFloat(ev.no_be_mfe_R).toFixed(2) : 
+                        (ev.be_mfe_R != null ? parseFloat(ev.be_mfe_R).toFixed(2) : null));
             
             let eventColor = '#94a3b8';
             const etype = ev.event_type || 'EVENT';
@@ -633,12 +641,14 @@ AutomatedSignalsUltra.renderLifecycleOverlay = function(detail) {
         eventsEl.innerHTML = evRows;
     }
     
-    // Render Metrics
+    // Render Metrics - API returns be_mfe_R and no_be_mfe_R (with _R suffix)
     const entry = detail.entry_price != null ? parseFloat(detail.entry_price).toFixed(2) : 'N/A';
     const sl = detail.stop_loss != null ? parseFloat(detail.stop_loss).toFixed(2) : 'N/A';
     const riskDist = detail.risk_distance != null ? parseFloat(detail.risk_distance).toFixed(2) : 'N/A';
-    const currentMFE = detail.current_mfe != null ? detail.current_mfe.toFixed(2) : (detail.no_be_mfe != null ? parseFloat(detail.no_be_mfe).toFixed(2) : 'N/A');
-    const beMFE = detail.be_mfe != null ? parseFloat(detail.be_mfe).toFixed(2) : 'N/A';
+    // Use correct field names from API: no_be_mfe_R and be_mfe_R
+    const currentMFE = detail.no_be_mfe_R != null ? parseFloat(detail.no_be_mfe_R).toFixed(2) : 
+                       (detail.be_mfe_R != null ? parseFloat(detail.be_mfe_R).toFixed(2) : 'N/A');
+    const beMFE = detail.be_mfe_R != null ? parseFloat(detail.be_mfe_R).toFixed(2) : 'N/A';
     const exitPrice = detail.exit_price != null ? parseFloat(detail.exit_price).toFixed(2) : 'N/A';
     
     metricsEl.innerHTML = `
@@ -701,12 +711,14 @@ AutomatedSignalsUltra.renderLifecycleChart = function(detail) {
     
     svg.attr('width', width).attr('height', height);
     
-    // Parse data points with MFE values
+    // Parse data points with MFE values (API returns mfe_R, no_be_mfe_R, be_mfe_R)
     const dataPoints = events
-        .filter(ev => ev.mfe != null || ev.telemetry?.mfe_R != null)
+        .filter(ev => ev.mfe_R != null || ev.no_be_mfe_R != null || ev.be_mfe_R != null)
         .map(ev => ({
             time: new Date(ev.timestamp),
-            mfe: ev.mfe != null ? parseFloat(ev.mfe) : parseFloat(ev.telemetry.mfe_R),
+            mfe: ev.mfe_R != null ? parseFloat(ev.mfe_R) : 
+                 (ev.no_be_mfe_R != null ? parseFloat(ev.no_be_mfe_R) : 
+                 (ev.be_mfe_R != null ? parseFloat(ev.be_mfe_R) : 0)),
             type: ev.event_type
         }))
         .sort((a, b) => a.time - b.time);
