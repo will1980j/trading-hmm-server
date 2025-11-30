@@ -82,31 +82,61 @@ def register_automated_signals_api_robust(app, db):
             # ============================================
             # STEP 1: Load ALL ACTIVE trades (NO LIMIT)
             # ACTIVE = trades without any EXIT event
+            # FIX: Properly aggregate ENTRY data with latest MFE
             # ============================================
             cursor.execute("""
-                SELECT 
-                    id,
-                    trade_id,
-                    event_type,
-                    direction,
-                    entry_price,
-                    stop_loss,
-                    current_price,
-                    mfe,
-                    be_mfe,
-                    no_be_mfe,
-                    final_mfe,
-                    session,
-                    bias,
-                    timestamp
-                FROM automated_signals
-                WHERE trade_id NOT IN (
-                    SELECT DISTINCT trade_id 
-                    FROM automated_signals 
-                    WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                WITH entry_data AS (
+                    SELECT 
+                        trade_id,
+                        direction,
+                        entry_price,
+                        stop_loss,
+                        session,
+                        bias,
+                        timestamp as entry_timestamp
+                    FROM automated_signals
+                    WHERE event_type = 'ENTRY'
+                ),
+                latest_mfe AS (
+                    SELECT DISTINCT ON (trade_id)
+                        trade_id,
+                        mfe,
+                        be_mfe,
+                        no_be_mfe,
+                        current_price,
+                        timestamp as last_update
+                    FROM automated_signals
+                    WHERE event_type IN ('ENTRY', 'MFE_UPDATE', 'BE_TRIGGERED')
+                    ORDER BY trade_id, timestamp DESC
+                ),
+                active_trade_ids AS (
+                    SELECT DISTINCT trade_id
+                    FROM automated_signals
+                    WHERE event_type = 'ENTRY'
+                    AND trade_id NOT IN (
+                        SELECT DISTINCT trade_id 
+                        FROM automated_signals 
+                        WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                    )
                 )
-                AND event_type IN ('ENTRY', 'MFE_UPDATE', 'BE_TRIGGERED')
-                ORDER BY timestamp ASC
+                SELECT 
+                    e.trade_id,
+                    'ACTIVE' as trade_status,
+                    e.direction,
+                    e.entry_price,
+                    e.stop_loss,
+                    e.session,
+                    e.bias,
+                    e.entry_timestamp as timestamp,
+                    COALESCE(m.mfe, 0) as mfe,
+                    COALESCE(m.be_mfe, 0) as be_mfe,
+                    COALESCE(m.no_be_mfe, 0) as no_be_mfe,
+                    m.current_price,
+                    NULL as final_mfe
+                FROM active_trade_ids a
+                JOIN entry_data e ON a.trade_id = e.trade_id
+                LEFT JOIN latest_mfe m ON a.trade_id = m.trade_id
+                ORDER BY e.entry_timestamp DESC
             """)
             active_rows = cursor.fetchall()
             active_trades = [row_to_dict(row) for row in active_rows]
@@ -114,26 +144,50 @@ def register_automated_signals_api_robust(app, db):
             # ============================================
             # STEP 2: Load COMPLETED trades with LIMIT 500
             # COMPLETED = trades with EXIT event
+            # FIX: Join ENTRY data with EXIT data for complete info
             # ============================================
             cursor.execute("""
+                WITH entry_data AS (
+                    SELECT 
+                        trade_id,
+                        direction,
+                        entry_price,
+                        stop_loss,
+                        session,
+                        bias,
+                        timestamp as entry_timestamp
+                    FROM automated_signals
+                    WHERE event_type = 'ENTRY'
+                ),
+                exit_data AS (
+                    SELECT 
+                        trade_id,
+                        event_type as exit_type,
+                        final_mfe,
+                        mfe as exit_mfe,
+                        be_mfe as exit_be_mfe,
+                        no_be_mfe as exit_no_be_mfe,
+                        timestamp as exit_timestamp
+                    FROM automated_signals
+                    WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                )
                 SELECT 
-                    id,
-                    trade_id,
-                    event_type,
-                    direction,
-                    entry_price,
-                    stop_loss,
-                    current_price,
-                    mfe,
-                    be_mfe,
-                    no_be_mfe,
-                    final_mfe,
-                    session,
-                    bias,
-                    timestamp
-                FROM automated_signals
-                WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
-                ORDER BY timestamp DESC
+                    x.trade_id,
+                    x.exit_type as event_type,
+                    'COMPLETED' as trade_status,
+                    COALESCE(e.direction, 'UNKNOWN') as direction,
+                    e.entry_price,
+                    e.stop_loss,
+                    e.session,
+                    e.bias,
+                    x.exit_timestamp as timestamp,
+                    COALESCE(x.exit_mfe, 0) as mfe,
+                    COALESCE(x.exit_be_mfe, 0) as be_mfe,
+                    COALESCE(x.exit_no_be_mfe, 0) as no_be_mfe,
+                    x.final_mfe
+                FROM exit_data x
+                LEFT JOIN entry_data e ON x.trade_id = e.trade_id
+                ORDER BY x.exit_timestamp DESC
                 LIMIT 500
             """)
             completed_rows = cursor.fetchall()

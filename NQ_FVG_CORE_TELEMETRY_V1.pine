@@ -1,0 +1,1400 @@
+//@version=5
+strategy("NQ_FVG_CORE_TELEMETRY_V1_DEV", overlay=true, initial_capital=100000, default_qty_type=strategy.cash, commission_type=strategy.commission.cash_per_contract, commission_value=2.40, max_lines_count=500, max_labels_count=500, max_bars_back=5000, calc_on_every_tick=false, process_orders_on_close=true)
+
+// ============================================================================
+// EVENT TYPE CONSTANTS (DO NOT CHANGE - MUST MATCH DATABASE)
+// ============================================================================
+EVENT_ENTRY            = "ENTRY"
+EVENT_MFE_UPDATE       = "MFE_UPDATE"
+EVENT_BE_TRIGGERED     = "BE_TRIGGERED"
+EVENT_EXIT_BREAK_EVEN  = "EXIT_BREAK_EVEN"
+EVENT_EXIT_STOP_LOSS   = "EXIT_STOP_LOSS"
+EVENT_EXIT_TAKE_PROFIT = "EXIT_TAKE_PROFIT"   // reserved for TP exits
+EVENT_EXIT_PARTIAL     = "EXIT_PARTIAL"        // reserved for partial exits
+
+
+
+// ============================================================================
+// ACCOUNT & RISK SETTINGS
+// ============================================================================
+
+account_size = input.float(100000, "Account Size ($)", group="Risk Management")
+risk_percent = input.float(1.0, "Risk Per Trade (%)", minval=0.1, maxval=100, step=0.1, group="Risk Management")
+buffer_points = input.float(0.25, "Stop Loss Buffer (Points)", minval=0.01, step=0.01, group="Risk Management")
+
+// AUTO-DETECT CONTRACT TYPE AND POINT VALUE
+auto_detect_contract = input.bool(true, "Auto-Detect Contract Type", tooltip="Automatically detect contract type from chart symbol", group="Risk Management")
+manual_point_value = input.float(20.0, "Manual Point Value ($)", minval=0.1, tooltip="Only used if Auto-Detect is OFF", group="Risk Management")
+
+// Automatic point value detection based on symbol
+get_point_value() =>
+    string ticker = syminfo.ticker
+    float detected_value = 20.0  // Default to NQ
+    
+    // NASDAQ contracts
+    if str.contains(ticker, "MNQ")
+        detected_value := 2.0   // Micro NQ
+    else if str.contains(ticker, "NQ")
+        detected_value := 20.0  // Standard NQ
+    
+    // S&P 500 contracts
+    else if str.contains(ticker, "MES")
+        detected_value := 5.0   // Micro ES
+    else if str.contains(ticker, "ES")
+        detected_value := 50.0  // Standard ES
+    
+    // Dow Jones contracts
+    else if str.contains(ticker, "MYM")
+        detected_value := 0.5   // Micro YM
+    else if str.contains(ticker, "YM")
+        detected_value := 5.0   // Standard YM
+    
+    // Russell 2000 contracts
+    else if str.contains(ticker, "M2K")
+        detected_value := 5.0   // Micro RTY
+    else if str.contains(ticker, "RTY")
+        detected_value := 50.0  // Standard RTY
+    
+    detected_value
+
+point_value = auto_detect_contract ? get_point_value() : manual_point_value
+
+// ============================================================================
+// FVG INDICATOR SETTINGS (YOUR EXACT SETTINGS)
+// ============================================================================
+
+// HTF Timeframe selection (all OFF by default for maximum performance)
+use_daily = input.bool(false, "Daily", group="HTF Bias Filter")
+use_4h = input.bool(false, "4H", group="HTF Bias Filter")
+use_1h = input.bool(false, "1H", group="HTF Bias Filter")
+use_15m = input.bool(false, "15M", group="HTF Bias Filter")
+use_5m = input.bool(false, "5M", group="HTF Bias Filter")
+
+// Engulfing Filters
+require_engulfing = input.bool(false, "FVG + Engulfing Only", group="Signal Filter")
+require_sweep_engulfing = input.bool(false, "FVG + Sweep Engulfing Only", group="Signal Filter")
+
+// Visual settings
+show_htf_status = input.bool(false, "Show HTF Status", group="Display", tooltip="⚠️ Disable for better performance (table updates every bar)")
+show_position_table = input.bool(false, "Show Position Sizing Table", group="Display", tooltip="⚠️ Enable when needed (significantly slower performance)")
+position_table_location = input.string("Top Left", "Position Table Location", options=["Top Left", "Top Right", "Bottom Left", "Bottom Right"], group="Display")
+htf_aligned_only = input.bool(false, "HTF Aligned Triangles Only", group="Display", tooltip="Enable this with HTF filters for aligned signals only")
+triangle_size = input.string("Small", "Triangle Size", options=["Tiny", "Small", "Normal", "Large", "Huge"], group="Display")
+bull_color = input.color(color.blue, "Bullish Color", group="Display")
+bear_color = input.color(color.red, "Bearish Color", group="Display")
+neutral_color = input.color(color.gray, "Neutral Color", group="Display")
+
+// MFE Label Settings (disabled by default for performance)
+show_mfe_labels = input.bool(false, "Show MFE Labels", group="MFE Labels", tooltip="Enable to see MFE tracking (slower performance)")
+track_be_mfe = input.bool(false, "Track BE=1 MFE", group="MFE Labels", tooltip="Track MFE with breakeven at +1R (slower performance)")
+show_entry_sl_lines = input.bool(false, "Show Entry/SL Lines", group="MFE Labels", tooltip="Show entry and stop loss lines for all signals (slower performance)")
+mfe_label_size = input.string("Small", "MFE Label Size", options=["Tiny", "Small", "Normal", "Large", "Huge"], group="MFE Labels")
+mfe_active_color = input.color(color.new(color.yellow, 20), "Active Trade Background Color", group="MFE Labels", tooltip="Background color for active (running) trades")
+mfe_active_text_color = input.color(color.black, "Active Trade Text Color", group="MFE Labels", tooltip="Text color for active (running) trades")
+mfe_complete_color = input.color(color.new(color.orange, 0), "Completed Trade Background Color", group="MFE Labels", tooltip="Background color for completed (stopped out) trades")
+mfe_complete_text_color = input.color(color.white, "Completed Trade Text Color", group="MFE Labels", tooltip="Text color for completed (stopped out) trades")
+mfe_label_format = input.string("MFE: {mfe}R", "Label Format", group="MFE Labels", tooltip="Use {mfe} for MFE value")
+max_signal_history = input.int(50, "Max Signal History", minval=20, maxval=200, step=10, group="MFE Labels", tooltip="Maximum number of signals to track (higher = more history but slower performance)")
+
+// ============================================================================
+// ENGULFING DETECTION (YOUR EXACT LOGIC)
+// ============================================================================
+
+prev_open = open[1]
+prev_close = close[1]
+curr_open = open
+curr_close = close
+
+bearish_engulfing = curr_close < curr_open and prev_close > prev_open and curr_open >= prev_close and curr_close < prev_open
+bullish_engulfing = curr_close > curr_open and prev_close < prev_open and curr_open <= prev_close and curr_close > prev_open
+
+bearish_sweep_engulfing = bearish_engulfing and high > high[1] and curr_close < prev_close
+bullish_sweep_engulfing = bullish_engulfing and low < low[1] and curr_close > prev_close
+
+// ============================================================================
+// BIAS CALCULATION (YOUR EXACT LOGIC) - MATCHES ORIGINAL INDICATOR
+// ============================================================================
+
+get_bias() =>
+    var string bias = "Neutral"
+    var float ath = na
+    var float atl = na
+    var bull_fvg_highs = array.new<float>()
+    var bull_fvg_lows = array.new<float>()
+    var bear_fvg_highs = array.new<float>()
+    var bear_fvg_lows = array.new<float>()
+    var bull_ifvg_highs = array.new<float>()
+    var bull_ifvg_lows = array.new<float>()
+    var bear_ifvg_highs = array.new<float>()
+    var bear_ifvg_lows = array.new<float>()
+
+    if barstate.isconfirmed
+        ath := na(ath) ? high : math.max(ath, high)
+        atl := na(atl) ? low : math.min(atl, low)
+
+        if close > ath[1] and bias != "Bullish"
+            bias := "Bullish"
+        else if close < atl[1] and bias != "Bearish"
+            bias := "Bearish"
+
+        c2_high = high[2]
+        c2_low = low[2]
+        c0_high = high
+        c0_low = low
+
+        bullish_fvg = c2_high < c0_low
+        bearish_fvg = c2_low > c0_high
+
+        if bullish_fvg
+            array.push(bull_fvg_highs, c0_low)
+            array.push(bull_fvg_lows, c2_high)
+
+        if bearish_fvg
+            array.push(bear_fvg_highs, c2_low)
+            array.push(bear_fvg_lows, c0_high)
+
+        if array.size(bull_fvg_highs) > 0
+            for i = array.size(bull_fvg_highs) - 1 to 0
+                if close < array.get(bull_fvg_lows, i)
+                    array.push(bear_ifvg_highs, array.get(bull_fvg_highs, i))
+                    array.push(bear_ifvg_lows, array.get(bull_fvg_lows, i))
+                    array.remove(bull_fvg_highs, i)
+                    array.remove(bull_fvg_lows, i)
+                    bias := "Bearish"
+
+        if array.size(bear_fvg_highs) > 0
+            for i = array.size(bear_fvg_highs) - 1 to 0
+                if close > array.get(bear_fvg_highs, i)
+                    array.push(bull_ifvg_highs, array.get(bear_fvg_highs, i))
+                    array.push(bull_ifvg_lows, array.get(bear_fvg_lows, i))
+                    array.remove(bear_fvg_highs, i)
+                    array.remove(bear_fvg_lows, i)
+                    bias := "Bullish"
+
+        if array.size(bear_ifvg_highs) > 0
+            for i = array.size(bear_ifvg_highs) - 1 to 0
+                if close > array.get(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_lows, i)
+                    bias := "Bullish"
+
+        if array.size(bull_ifvg_highs) > 0
+            for i = array.size(bull_ifvg_highs) - 1 to 0
+                if close < array.get(bull_ifvg_lows, i)
+                    array.remove(bull_ifvg_highs, i)
+                    array.remove(bull_ifvg_lows, i)
+                    bias := "Bearish"
+
+    bias
+
+bias = get_bias()
+// Only calculate HTF bias when enabled (major performance optimization)
+daily_bias = use_daily ? request.security(syminfo.tickerid, "1D", get_bias()) : "Neutral"
+h4_bias = use_4h ? request.security(syminfo.tickerid, "240", get_bias()) : "Neutral"
+h1_bias = use_1h ? request.security(syminfo.tickerid, "60", get_bias()) : "Neutral"
+m15_bias = use_15m ? request.security(syminfo.tickerid, "15", get_bias()) : "Neutral"
+m5_bias = use_5m ? request.security(syminfo.tickerid, "5", get_bias()) : "Neutral"
+
+// HTF alignment
+daily_bull_ok = not use_daily or daily_bias == "Bullish"
+daily_bear_ok = not use_daily or daily_bias == "Bearish"
+h4_bull_ok = not use_4h or h4_bias == "Bullish"
+h4_bear_ok = not use_4h or h4_bias == "Bearish"
+h1_bull_ok = not use_1h or h1_bias == "Bullish"
+h1_bear_ok = not use_1h or h1_bias == "Bearish"
+m15_bull_ok = not use_15m or m15_bias == "Bullish"
+m15_bear_ok = not use_15m or m15_bias == "Bearish"
+m5_bull_ok = not use_5m or m5_bias == "Bullish"
+m5_bear_ok = not use_5m or m5_bias == "Bearish"
+
+htf_bullish = daily_bull_ok and h4_bull_ok and h1_bull_ok and m15_bull_ok and m5_bull_ok
+htf_bearish = daily_bear_ok and h4_bear_ok and h1_bear_ok and m15_bear_ok and m5_bear_ok
+
+// ============================================================================
+// SIGNAL GENERATION (YOUR EXACT LOGIC)
+// ============================================================================
+
+fvg_bull_signal = bias != bias[1] and bias == "Bullish" and (not htf_aligned_only or htf_bullish)
+fvg_bear_signal = bias != bias[1] and bias == "Bearish" and (not htf_aligned_only or htf_bearish)
+
+show_bull_triangle = require_sweep_engulfing ? (fvg_bull_signal and bullish_sweep_engulfing) : require_engulfing ? (fvg_bull_signal and bullish_engulfing) : fvg_bull_signal
+show_bear_triangle = require_sweep_engulfing ? (fvg_bear_signal and bearish_sweep_engulfing) : require_engulfing ? (fvg_bear_signal and bearish_engulfing) : fvg_bear_signal
+
+// ============================================================================
+// PIVOT DETECTION (Supports 3-candle and 4-candle double-bottom/top pivots)
+// ============================================================================
+
+is_pivot_low(index) =>
+    // Standard 3-candle pivot: low[index] < both adjacent lows
+    bool is_3candle_pivot = low[index] < low[index-1] and low[index] < low[index+1]
+    
+    // 4-candle double-bottom pivot: two candles share equal low, flanked by higher lows
+    // Check if current candle and next candle share same low, with higher lows on outside
+    bool is_4candle_pivot = false
+    if index >= 1 and index <= bar_index - 2
+        // Pattern: [higher] [equal_low] [equal_low] [higher]
+        is_4candle_pivot := low[index] == low[index+1] and low[index] < low[index-1] and low[index] < low[index+2]
+    
+    is_3candle_pivot or is_4candle_pivot
+
+is_pivot_high(index) =>
+    // Standard 3-candle pivot: high[index] > both adjacent highs
+    bool is_3candle_pivot = high[index] > high[index-1] and high[index] > high[index+1]
+    
+    // 4-candle double-top pivot: two candles share equal high, flanked by lower highs
+    // Check if current candle and next candle share same high, with lower highs on outside
+    bool is_4candle_pivot = false
+    if index >= 1 and index <= bar_index - 2
+        // Pattern: [lower] [equal_high] [equal_high] [lower]
+        is_4candle_pivot := high[index] == high[index+1] and high[index] > high[index-1] and high[index] > high[index+2]
+    
+    is_3candle_pivot or is_4candle_pivot
+
+// ============================================================================
+// POSITION SIZING & STOP LOSS AUTOMATION
+// ============================================================================
+
+var float signal_candle_high = na
+var float signal_candle_low = na
+var int signal_bar_index = na
+var int signal_candle_time = na  // Store signal candle time for webhook
+var string active_signal = "None"
+var bool waiting_for_confirmation = false
+
+var float entry_price = na
+var float stop_loss_price = na
+var float risk_distance = na
+var int contract_size = na
+var bool trade_ready = false
+var bool confirmed_this_bar = false
+
+// Multi-signal MFE tracking arrays
+var array<float> signal_entries = array.new<float>()
+var array<float> signal_stops = array.new<float>()
+var array<float> signal_risks = array.new<float>()
+var array<string> signal_directions = array.new<string>()
+var array<float> signal_mfes = array.new<float>()
+var array<float> signal_be_mfes = array.new<float>()  // MFE at BE=1 trigger
+var array<bool> signal_be_triggered = array.new<bool>()  // Track if BE was triggered
+var array<bool> signal_be_stopped = array.new<bool>()  // Track if BE=1 strategy hit entry after BE trigger (persistent)
+var array<bool> signal_no_be_stopped = array.new<bool>()  // Track if No BE strategy hit original SL (persistent)
+var array<bool> signal_completes = array.new<bool>()
+var array<label> signal_labels = array.new<label>()
+var array<int> signal_entry_times = array.new<int>()
+var array<float> signal_lowest_lows = array.new<float>()  // Track lowest low since signal (for bullish)
+var array<float> signal_highest_highs = array.new<float>()  // Track highest high since signal (for bearish)
+var array<bool> signal_has_entered = array.new<bool>()  // Track if trade has actually entered (after confirmation)
+var array<int> signal_entry_bar_index = array.new<int>()  // Track bar_index when ENTRY webhook was sent
+
+// CRITICAL: Track bar index when events occur (prevents historical webhook spam)
+var array<int> signal_entry_bar = array.new<int>()  // Bar when entry confirmed
+var array<int> signal_be_trigger_bar = array.new<int>()  // Bar when BE triggered (-1 if not triggered)
+var array<int> signal_completion_bar = array.new<int>()  // Bar when trade completed (-1 if still active)
+var array<bool> signal_entry_webhook_sent = array.new<bool>()  // Track if ENTRY webhook has been sent
+var array<bool> signal_is_realtime = array.new<bool>()  // Track if signal occurred on real-time bar (eligible for webhooks)
+
+// Store line references to manage them like MFE labels
+var array<line> entry_lines = array.new<line>()
+var array<line> sl_lines = array.new<line>()
+
+// Reset confirmation flag at start of each bar
+confirmed_this_bar := false
+
+// Detect new signals (only if not already waiting for same direction)
+if show_bull_triangle and active_signal != "Bullish"
+    signal_candle_high := high
+    signal_candle_low := low
+    signal_bar_index := bar_index
+    signal_candle_time := time  // Store signal candle time
+    active_signal := "Bullish"
+    waiting_for_confirmation := true
+    trade_ready := false
+    entry_price := na
+    stop_loss_price := na
+
+if show_bear_triangle and active_signal != "Bearish"
+    signal_candle_high := high
+    signal_candle_low := low
+    signal_bar_index := bar_index
+    signal_candle_time := time  // Store signal candle time
+    active_signal := "Bearish"
+    waiting_for_confirmation := true
+    trade_ready := false
+    entry_price := na
+    stop_loss_price := na
+
+// Cancel on opposite signal
+if show_bull_triangle and active_signal == "Bearish"
+    active_signal := "None"
+    waiting_for_confirmation := false
+
+if show_bear_triangle and active_signal == "Bullish"
+    active_signal := "None"
+    waiting_for_confirmation := false
+
+// ============================================================================
+// BULLISH CONFIRMATION & STOP LOSS CALCULATION
+// ============================================================================
+
+if waiting_for_confirmation and active_signal == "Bullish"
+    if close > signal_candle_high
+        waiting_for_confirmation := false
+        // Entry happens at OPEN of NEXT bar, not close of confirmation bar
+        // But we don't know next bar's open yet, so we'll update it on the next bar
+        entry_price := close  // Temporary - will be updated to next bar's open
+        
+        // Find lowest point from signal candle to current (confirmation) candle
+        int bars_since_signal = bar_index - signal_bar_index
+        float lowest_low = signal_candle_low
+        int lowest_bar_offset = bars_since_signal
+        
+        // Check all candles between signal and confirmation
+        for i = 1 to bars_since_signal - 1
+            if low[i] < lowest_low
+                lowest_low := low[i]
+                lowest_bar_offset := i
+        
+        // Check current confirmation candle
+        if low < lowest_low
+            lowest_low := low
+            lowest_bar_offset := 0
+        
+        // Apply your exact methodology
+        bool lowest_is_pivot = false
+        
+        // Check if lowest point is a pivot (including signal candle)
+        if lowest_bar_offset >= 1
+            lowest_is_pivot := is_pivot_low(lowest_bar_offset)
+        
+        if lowest_is_pivot
+            // Scenario A or B: Lowest point is a pivot (could be signal candle or between)
+            stop_loss_price := lowest_low - buffer_points
+        else
+            // Lowest point is NOT a pivot - search left 5 candles from signal for pivot
+            // This applies whether lowest is signal candle, between candles, or confirmation
+            bool found_pivot = false
+            float pivot_low = na
+            
+            // Start from 1 candle left of signal, search up to 5 candles left
+            int search_start = bars_since_signal + 1
+            int search_end = bars_since_signal + 5
+            
+            for i = search_start to math.min(search_end, bar_index - 1)
+                // Need at least 1 bar on each side for valid pivot check
+                if i >= 1 and i <= bar_index - 1
+                    // Check if this candle is a 3-candle or 4-candle pivot
+                    if is_pivot_low(i)
+                        pivot_low := low[i]
+                        found_pivot := true
+                        break
+            
+            if found_pivot
+                stop_loss_price := pivot_low - buffer_points
+            else
+                // No pivot found - use first bearish candle low in the 5-candle search
+                float bearish_candle_low = signal_candle_low
+                for i = search_start to math.min(search_end, bar_index)
+                    if close[i] < open[i]
+                        bearish_candle_low := low[i]
+                        break
+                stop_loss_price := bearish_candle_low - buffer_points
+        
+        risk_distance := entry_price - stop_loss_price
+        float risk_amount = account_size * (risk_percent / 100)
+        // For futures: risk per contract = risk_distance * point_value
+        float risk_per_contract = risk_distance * point_value
+        float calculated_contracts = risk_per_contract > 0 ? risk_amount / risk_per_contract : 0
+        // Ensure at least 1 contract (use math.max to prevent 0 contracts)
+        contract_size := calculated_contracts > 0 ? math.max(1, math.floor(calculated_contracts)) : 0
+        trade_ready := true
+        
+        // Add this signal to tracking arrays (for visual display and MFE tracking)
+        array.push(signal_entries, entry_price)
+        array.push(signal_stops, stop_loss_price)
+        array.push(signal_risks, risk_distance)
+        array.push(signal_directions, "Bullish")
+        array.push(signal_mfes, 0.0)
+        array.push(signal_be_mfes, 0.0)  // BE MFE starts at 0
+        array.push(signal_be_triggered, false)  // BE not triggered yet
+        array.push(signal_be_stopped, false)  // BE=1 strategy starts active
+        array.push(signal_no_be_stopped, false)  // No BE strategy starts active
+        array.push(signal_completes, false)
+        array.push(signal_labels, label(na))
+        array.push(signal_entry_times, time)  // Use CURRENT time (confirmation bar) for MFE tracking
+        array.push(signal_lowest_lows, entry_price)  // Initialize with entry price for accurate MFE tracking
+        array.push(signal_highest_highs, entry_price)  // Initialize with entry price for accurate MFE tracking
+        array.push(signal_has_entered, false)  // Will be set to true on NEXT bar (after entry)
+        array.push(signal_entry_bar_index, bar_index)  // CRITICAL: Track bar_index for minimum duration checks
+        array.push(signal_entry_webhook_sent, false)  // ENTRY webhook not sent yet
+        array.push(signal_is_realtime, barstate.isrealtime)  // Track if signal is eligible for webhooks
+        
+        // CRITICAL: Track bar index when events occur (prevents historical webhook spam)
+        array.push(signal_entry_bar, bar_index)  // Entry confirmed THIS bar
+        array.push(signal_be_trigger_bar, -1)  // BE not triggered yet
+        array.push(signal_completion_bar, -1)  // Trade not completed yet
+        
+        // CRITICAL FIX: Mark as confirmed but DON'T reset trade_ready yet
+        // Let webhook code execute first, then reset on next bar
+        confirmed_this_bar := true
+
+// ============================================================================
+// BEARISH CONFIRMATION & STOP LOSS CALCULATION
+// ============================================================================
+
+if waiting_for_confirmation and active_signal == "Bearish"
+    if close < signal_candle_low
+        waiting_for_confirmation := false
+        entry_price := close
+        
+        // Find highest point from signal candle to current (confirmation) candle
+        int bars_since_signal = bar_index - signal_bar_index
+        float highest_high = signal_candle_high
+        int highest_bar_offset = bars_since_signal
+        
+        // Check all candles between signal and confirmation
+        for i = 1 to bars_since_signal - 1
+            if high[i] > highest_high
+                highest_high := high[i]
+                highest_bar_offset := i
+        
+        // Check current confirmation candle
+        if high > highest_high
+            highest_high := high
+            highest_bar_offset := 0
+        
+        // Apply your exact methodology
+        bool highest_is_pivot = false
+        
+        // Check if highest point is a pivot (including signal candle)
+        if highest_bar_offset >= 1
+            highest_is_pivot := is_pivot_high(highest_bar_offset)
+        
+        if highest_is_pivot
+            // Scenario A or B: Highest point is a pivot (could be signal candle or between)
+            stop_loss_price := highest_high + buffer_points
+        else
+            // Highest point is NOT a pivot - search left 5 candles from signal for pivot
+            // This applies whether highest is signal candle, between candles, or confirmation
+            bool found_pivot = false
+            float pivot_high = na
+            
+            // Start from 1 candle left of signal, search up to 5 candles left
+            int search_start = bars_since_signal + 1
+            int search_end = bars_since_signal + 5
+            
+            for i = search_start to math.min(search_end, bar_index - 1)
+                // Need at least 1 bar on each side for valid pivot check
+                if i >= 1 and i <= bar_index - 1
+                    // Check if this candle is a 3-candle or 4-candle pivot
+                    if is_pivot_high(i)
+                        pivot_high := high[i]
+                        found_pivot := true
+                        break
+            
+            if found_pivot
+                stop_loss_price := pivot_high + buffer_points
+            else
+                // No pivot found - use first bullish candle high in the 5-candle search
+                float bullish_candle_high = signal_candle_high
+                for i = search_start to math.min(search_end, bar_index)
+                    if close[i] > open[i]
+                        bullish_candle_high := high[i]
+                        break
+                stop_loss_price := bullish_candle_high + buffer_points
+        
+        risk_distance := stop_loss_price - entry_price
+        float risk_amount = account_size * (risk_percent / 100)
+        // For futures: risk per contract = risk_distance * point_value
+        float risk_per_contract = risk_distance * point_value
+        float calculated_contracts = risk_per_contract > 0 ? risk_amount / risk_per_contract : 0
+        // Ensure at least 1 contract (use math.max to prevent 0 contracts)
+        contract_size := calculated_contracts > 0 ? math.max(1, math.floor(calculated_contracts)) : 0
+        trade_ready := true
+        
+        // Add this signal to tracking arrays (for visual display and MFE tracking)
+        array.push(signal_entries, entry_price)
+        array.push(signal_stops, stop_loss_price)
+        array.push(signal_risks, risk_distance)
+        array.push(signal_directions, "Bearish")
+        array.push(signal_mfes, 0.0)
+        array.push(signal_be_mfes, 0.0)  // BE MFE starts at 0
+        array.push(signal_be_triggered, false)  // BE not triggered yet
+        array.push(signal_be_stopped, false)  // BE=1 strategy starts active
+        array.push(signal_no_be_stopped, false)  // No BE strategy starts active
+        array.push(signal_completes, false)
+        array.push(signal_labels, label(na))
+        array.push(signal_entry_times, time)  // Use CURRENT time (confirmation bar) for MFE tracking
+        array.push(signal_lowest_lows, entry_price)  // Initialize with entry price for accurate MFE tracking
+        array.push(signal_highest_highs, entry_price)  // Initialize with entry price for accurate MFE tracking
+        array.push(signal_has_entered, false)  // Will be set to true on NEXT bar (after entry)
+        array.push(signal_entry_bar_index, bar_index)  // CRITICAL: Track bar_index for minimum duration checks
+        array.push(signal_entry_webhook_sent, false)  // ENTRY webhook not sent yet
+        array.push(signal_is_realtime, barstate.isrealtime)  // Track if signal is eligible for webhooks
+        
+        // CRITICAL FIX: Mark as confirmed but DON'T reset trade_ready yet
+        // Let webhook code execute first, then reset on next bar
+        confirmed_this_bar := true
+
+// ============================================================================
+// VISUALIZATION
+// ============================================================================
+
+plotshape(triangle_size == "Small" and show_bull_triangle, "Bullish Signal", shape.triangleup, location.belowbar, bull_color, size=size.small)
+plotshape(triangle_size == "Small" and show_bear_triangle, "Bearish Signal", shape.triangledown, location.abovebar, bear_color, size=size.small)
+
+// Entry/SL lines are now drawn in the MFE tracking loop below (when show_entry_sl_lines is enabled)
+// This ensures they display for ALL historical signals, matching the MFE labels
+
+// ============================================================================
+// MULTI-SIGNAL MFE TRACKING
+// ============================================================================
+
+// Loop through all tracked signals and update MFE
+// CRITICAL: This loop ALWAYS runs to calculate MFE data for webhooks
+// Visual objects (labels/lines) only created when display settings are ON
+if array.size(signal_entries) > 0
+    // Pre-calculate label size once (not per signal) - only needed if showing labels
+    string label_size_value = mfe_label_size == "Tiny" ? size.tiny : 
+                             mfe_label_size == "Small" ? size.small : 
+                             mfe_label_size == "Normal" ? size.normal : 
+                             mfe_label_size == "Large" ? size.large : size.huge
+    
+    // CRITICAL PERFORMANCE FIX: Only process last 20 signals to avoid 40-second timeout
+    int start_idx = math.max(0, array.size(signal_entries) - 20)
+    for i = start_idx to array.size(signal_entries) - 1
+        bool sig_was_complete = array.get(signal_completes, i)  // Was it complete BEFORE this bar?
+        
+        // Get signal data
+        float sig_entry = array.get(signal_entries, i)
+        float sig_stop = array.get(signal_stops, i)
+        float sig_risk = array.get(signal_risks, i)
+        string sig_dir = array.get(signal_directions, i)
+        float sig_mfe = array.get(signal_mfes, i)
+        float sig_be_mfe = array.get(signal_be_mfes, i)
+        bool sig_be_triggered = array.get(signal_be_triggered, i)
+        bool sig_be_stopped = array.get(signal_be_stopped, i)
+        bool sig_no_be_stopped = array.get(signal_no_be_stopped, i)
+        float sig_lowest_low = array.get(signal_lowest_lows, i)
+        float sig_highest_high = array.get(signal_highest_highs, i)
+        int sig_entry_time = array.get(signal_entry_times, i)
+        
+        // Mark signal as entered on the bar AFTER it was added (entry happens at open of next bar)
+        bool sig_has_entered = array.get(signal_has_entered, i)
+        if not sig_has_entered and time > sig_entry_time
+            // FIRST bar after confirmation - initialize extremes with THIS bar's OPEN (actual entry price)
+            // This ensures MFE tracking starts from actual entry, not confirmation close
+            array.set(signal_lowest_lows, i, open)
+            array.set(signal_highest_highs, i, open)
+            array.set(signal_has_entered, i, true)
+            sig_has_entered := true
+            sig_lowest_low := open
+            sig_highest_high := open
+        
+        // CRITICAL: Check if stop loss is hit on THIS bar BEFORE updating extremes
+        // This prevents capturing price movement on the bar where the trade is closed
+        bool stop_hit_this_bar = false
+        if sig_dir == "Bullish"
+            // Check if No BE stop loss is hit on this bar
+            if not sig_no_be_stopped and low <= sig_stop
+                stop_hit_this_bar := true
+            // Check if BE=1 stop (entry) is hit on this bar
+            if track_be_mfe and sig_be_triggered and not sig_be_stopped and low <= sig_entry
+                stop_hit_this_bar := true
+        else  // Bearish
+            // Check if No BE stop loss is hit on this bar
+            if not sig_no_be_stopped and high >= sig_stop
+                stop_hit_this_bar := true
+            // Check if BE=1 stop (entry) is hit on this bar
+            if track_be_mfe and sig_be_triggered and not sig_be_stopped and high >= sig_entry
+                stop_hit_this_bar := true
+        
+        // Update extreme prices ONLY if trade has entered AND stop is NOT hit on this bar
+        if sig_has_entered and not stop_hit_this_bar
+            if sig_dir == "Bullish"
+                // For bullish: track HIGHEST high (favorable) and LOWEST low (for stop check)
+                if high > sig_highest_high
+                    array.set(signal_highest_highs, i, high)
+                    sig_highest_high := high
+                if low < sig_lowest_low
+                    array.set(signal_lowest_lows, i, low)
+                    sig_lowest_low := low
+            else  // Bearish
+                // For bearish: track LOWEST low (favorable) and HIGHEST high (for stop check)
+                if low < sig_lowest_low
+                    array.set(signal_lowest_lows, i, low)
+                    sig_lowest_low := low
+                if high > sig_highest_high
+                    array.set(signal_highest_highs, i, high)
+                    sig_highest_high := high
+        
+        // Calculate current MFE for all signals (to capture maximum even after completion)
+        float current_mfe = 0.0
+        bool just_completed = false
+        bool be_just_triggered = false
+        
+        // Only process signals from last 7 days for performance
+        bool is_recent = (time - sig_entry_time) < 604800000  // 7 days in milliseconds
+        
+        // Calculate MFE using MAXIMUM favorable price movement (not current bar)
+        // MFE = Maximum Favorable Excursion (the best price achieved, not current price)
+        // CRITICAL FIX: Only calculate MFE AFTER trade has entered
+        // Entry happens when time > sig_entry_time, so on entry bar time == sig_entry_time + 1 bar
+        // We need to skip MFE calculation on the entry bar itself
+        int bars_since_entry_time = math.floor((time - sig_entry_time) / (timeframe.in_seconds() * 1000))
+        
+        // Calculate MFE for ALL signals (historical and real-time) for visual display
+        // Webhook sending is controlled separately by signal_is_realtime flag
+        if sig_has_entered and is_recent and bars_since_entry_time > 0
+            if sig_dir == "Bullish"
+                // Use highest high achieved, not current bar's high
+                current_mfe := (sig_highest_high - sig_entry) / sig_risk
+            else  // Bearish
+                // Use lowest low achieved, not current bar's low
+                current_mfe := (sig_entry - sig_lowest_low) / sig_risk
+        
+        // FIRST: Update stopped flags on ALL bars (not just incomplete trades)
+        // CRITICAL: Flag updates run regardless of is_recent to ensure historical completion detection
+        // CRITICAL FIX: Only check stops AFTER trade has entered (not on confirmation bar)
+        if sig_has_entered and sig_dir == "Bullish"
+            // ALWAYS check if No BE strategy should be stopped out (original SL hit)
+            // This runs regardless of track_be_mfe setting
+            if not sig_no_be_stopped
+                if low <= sig_stop
+                    array.set(signal_no_be_stopped, i, true)
+                    sig_no_be_stopped := true
+                    // CRITICAL: If original SL hit BEFORE BE triggered, BE=1 also stops
+                    // Both strategies have same stop until +1R is achieved
+                    if track_be_mfe and not sig_be_triggered
+                        array.set(signal_be_stopped, i, true)
+                        sig_be_stopped := true
+            
+            // Check if BE=1 strategy should be stopped out (entry hit after BE trigger)
+            // This only runs when BE tracking is enabled
+            if track_be_mfe and sig_be_triggered and not sig_be_stopped
+                if low <= sig_entry
+                    array.set(signal_be_stopped, i, true)
+                    sig_be_stopped := true
+            
+            // BE=1 trigger detection (runs on ALL bars to ensure historical detection)
+            // CRITICAL FIX: Only check BE trigger AFTER trade has entered
+            if sig_has_entered and track_be_mfe and not sig_be_triggered and is_recent and current_mfe >= 1.0
+                array.set(signal_be_triggered, i, true)
+                // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
+                float capped_be_mfe_bull = math.min(current_mfe, sig_mfe)
+                array.set(signal_be_mfes, i, capped_be_mfe_bull)
+                sig_be_triggered := true
+                sig_be_mfe := capped_be_mfe_bull
+                be_just_triggered := true
+        else  // Bearish
+            // ALWAYS check if No BE strategy should be stopped out (original SL hit)
+            // This runs regardless of track_be_mfe setting
+            // CRITICAL FIX: Only check stops AFTER trade has entered (not on confirmation bar)
+            if sig_has_entered and not sig_no_be_stopped
+                if high >= sig_stop
+                    array.set(signal_no_be_stopped, i, true)
+                    sig_no_be_stopped := true
+                    // CRITICAL: If original SL hit BEFORE BE triggered, BE=1 also stops
+                    // Both strategies have same stop until +1R is achieved
+                    if track_be_mfe and not sig_be_triggered
+                        array.set(signal_be_stopped, i, true)
+                        sig_be_stopped := true
+            
+            // Check if BE=1 strategy should be stopped out (entry hit after BE trigger)
+            // This only runs when BE tracking is enabled
+            if sig_has_entered and track_be_mfe and sig_be_triggered and not sig_be_stopped
+                if high >= sig_entry
+                    array.set(signal_be_stopped, i, true)
+                    sig_be_stopped := true
+            
+            // BE=1 trigger detection (runs on ALL bars to ensure historical detection)
+            // CRITICAL FIX: Only check BE trigger AFTER trade has entered
+            if sig_has_entered and track_be_mfe and not sig_be_triggered and is_recent and current_mfe >= 1.0
+                array.set(signal_be_triggered, i, true)
+                // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
+                float capped_be_mfe_bear = math.min(current_mfe, sig_mfe)
+                array.set(signal_be_mfes, i, capped_be_mfe_bear)
+                sig_be_triggered := true
+                sig_be_mfe := capped_be_mfe_bear
+                be_just_triggered := true
+        
+        // THEN: Check if trade should be marked complete
+        if is_recent
+            bool trade_stopped_out = false
+            if track_be_mfe
+                // With BE tracking: complete if EITHER strategy stopped
+                trade_stopped_out := sig_be_stopped or sig_no_be_stopped
+            else
+                // Without BE tracking: complete if No BE strategy stopped
+                // (sig_no_be_stopped is now always tracked regardless of track_be_mfe)
+                trade_stopped_out := sig_no_be_stopped
+            
+            // Mark as complete if not already complete
+            if trade_stopped_out and not sig_was_complete
+                array.set(signal_completes, i, true)
+                just_completed := true
+        
+        // Calculate if MFE changed (used by both strategies)
+        bool mfe_changed = current_mfe > sig_mfe
+        
+        // CRITICAL FIX: Save previous No BE MFE BEFORE updating
+        // This is needed for proper BE MFE capping
+        float previous_no_be_mfe = sig_mfe
+        
+        // Update No BE MFE - only if not stopped out yet
+        if mfe_changed and is_recent and not sig_no_be_stopped
+            array.set(signal_mfes, i, current_mfe)
+            sig_mfe := current_mfe
+        
+        // BE MFE tracking: Track MFE for BE=1 strategy
+        // CRITICAL: BE MFE NEVER FREEZES - it continues to track maximum favorable movement
+        // The ONLY difference from No BE MFE is WHEN it stops:
+        // - No BE MFE stops when: price hits original stop loss
+        // - BE=1 MFE stops when: price hits entry (after +1R) OR original stop loss (before +1R)
+        if track_be_mfe
+            // BE MFE continues to update as long as BE=1 strategy hasn't been stopped out
+            // CRITICAL FIX: Cap to PREVIOUS No BE MFE, not current (which was just updated)
+            // This allows BE MFE to track independently when BE stops first
+            if mfe_changed and is_recent and not sig_be_stopped
+                // Use current_mfe directly (don't cap to just-updated sig_mfe)
+                array.set(signal_be_mfes, i, current_mfe)
+                sig_be_mfe := current_mfe
+        
+        // Re-read final values from arrays to ensure label shows latest data
+        float final_mfe = array.get(signal_mfes, i)
+        float final_be_mfe = track_be_mfe ? array.get(signal_be_mfes, i) : 0.0
+        // Note: BE MFE may exceed No BE MFE temporarily, but will be corrected when BE stops
+        
+        // ONLY CREATE LABELS ON THE LAST BAR (current bar) to avoid performance issues
+        if barstate.islast and show_mfe_labels
+            // Delete old label
+            label old_label = array.get(signal_labels, i)
+            if not na(old_label)
+                label.delete(old_label)
+            
+            // Create new label for ALL signals (active and completed)
+            // Format: "BE_MFE, No_BE_MFE" if BE tracking enabled, otherwise just "MFE"
+            string mfe_text = ""
+            if track_be_mfe
+                string no_be_mfe_str = str.tostring(final_mfe, "#.##")
+                string be_mfe_str = str.tostring(final_be_mfe, "#.##")
+                mfe_text := be_mfe_str + ", " + no_be_mfe_str
+            else
+                string mfe_value_str = str.tostring(final_mfe, "#.##")
+                mfe_text := str.replace(mfe_label_format, "{mfe}", mfe_value_str)
+            
+            // PROPER COMPLETION DETECTION: Use tracked extreme prices
+            bool is_completed = false
+            if track_be_mfe
+                // With BE tracking: Check if EITHER strategy would be stopped out
+                bool no_be_would_stop = false
+                bool be_would_stop = false
+                
+                if sig_dir == "Bullish"
+                    // No BE stops if lowest low hit stop loss
+                    no_be_would_stop := sig_lowest_low <= sig_stop
+                    // BE stops if: reached +1R AND then lowest low hit entry
+                    be_would_stop := final_be_mfe >= 1.0 and sig_lowest_low <= sig_entry
+                else  // Bearish
+                    // No BE stops if highest high hit stop loss
+                    no_be_would_stop := sig_highest_high >= sig_stop
+                    // BE stops if: reached +1R AND then highest high hit entry
+                    be_would_stop := final_be_mfe >= 1.0 and sig_highest_high >= sig_entry
+                
+                is_completed := no_be_would_stop or be_would_stop
+            else
+                // Without BE tracking: Check if extreme price hit stop loss
+                if sig_dir == "Bullish"
+                    is_completed := sig_lowest_low <= sig_stop
+                else
+                    is_completed := sig_highest_high >= sig_stop
+            
+            color label_bg_color = is_completed ? mfe_complete_color : mfe_active_color
+            color label_text_color = is_completed ? mfe_complete_text_color : mfe_active_text_color
+            
+            label new_label = label.new(
+                 x=sig_entry_time, 
+                 y=sig_stop, 
+                 text=mfe_text, 
+                 xloc=xloc.bar_time,
+                 style=label.style_label_left,
+                 color=label_bg_color,
+                 textcolor=label_text_color,
+                 size=label_size_value)
+            
+            array.set(signal_labels, i, new_label)
+
+// Draw entry/SL lines for all signals when enabled - ONLY ON LAST BAR
+if show_entry_sl_lines and barstate.islast and array.size(signal_entries) > 0
+    // Clear old lines first
+    if array.size(entry_lines) > 0
+        for i = 0 to array.size(entry_lines) - 1
+            line.delete(array.get(entry_lines, i))
+        array.clear(entry_lines)
+    
+    if array.size(sl_lines) > 0
+        for i = 0 to array.size(sl_lines) - 1
+            line.delete(array.get(sl_lines, i))
+        array.clear(sl_lines)
+    
+    // Redraw ALL lines from stored data (same as MFE labels)
+    for i = 0 to array.size(signal_entry_times) - 1
+        int entry_time = array.get(signal_entry_times, i)
+        float entry_px = array.get(signal_entries, i)
+        float stop_px = array.get(signal_stops, i)
+        int line_end_time = entry_time + (5 * timeframe.in_seconds() * 1000)
+        
+        // Draw entry line (green)
+        line entry_line = line.new(entry_time, entry_px, line_end_time, entry_px, xloc=xloc.bar_time, extend=extend.none, color=color.new(color.green, 0), width=2, style=line.style_solid)
+        array.push(entry_lines, entry_line)
+        
+        // Draw stop loss line (red)
+        line sl_line = line.new(entry_time, stop_px, line_end_time, stop_px, xloc=xloc.bar_time, extend=extend.none, color=color.new(color.red, 0), width=2, style=line.style_solid)
+        array.push(sl_lines, sl_line)
+
+// ============================================================================
+// POSITION SIZING TABLE
+// ============================================================================
+
+if show_position_table
+    // Determine table position based on user selection
+    string table_position = position_table_location == "Top Left" ? position.top_left : 
+                           position_table_location == "Top Right" ? position.top_right : 
+                           position_table_location == "Bottom Left" ? position.bottom_left : 
+                           position.bottom_right
+    
+    // Calculate intended vs actual risk to determine if suggestion is needed
+    float intended_risk = account_size * (risk_percent / 100)
+    float actual_risk = trade_ready ? contract_size * risk_distance * point_value : 0
+    float actual_risk_pct = trade_ready ? (actual_risk / account_size) * 100 : 0
+    // Show suggestion ONLY if actual risk would exceed 0.15% (cannot trade with standard contract)
+    bool show_suggestion = trade_ready and actual_risk_pct > 0.15
+    
+    // Use var for performance - fixed 10 rows, hide row 9 when not needed
+    var table pos_table = table.new(table_position, 2, 10, border_width=2)
+    
+    table.cell(pos_table, 0, 0, "🎯 TRADE READY", text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.normal)
+    table.merge_cells(pos_table, 0, 0, 1, 0)
+    
+    string status_text = waiting_for_confirmation ? "⏳ Waiting" : trade_ready ? "✅ READY" : "⚪ No Signal"
+    color status_color = waiting_for_confirmation ? color.orange : trade_ready ? color.green : color.gray
+    table.cell(pos_table, 0, 1, "Status:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 1, status_text, text_color=color.white, bgcolor=color.new(status_color, 50))
+    
+    table.cell(pos_table, 0, 2, "Signal:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 2, active_signal, text_color=color.white, bgcolor=color.new(color.gray, 70))
+    
+    table.cell(pos_table, 0, 3, "Entry:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 3, trade_ready ? str.tostring(entry_price, "#.##") : "-", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    
+    table.cell(pos_table, 0, 4, "Stop Loss:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 4, trade_ready ? str.tostring(stop_loss_price, "#.##") : "-", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    
+    table.cell(pos_table, 0, 5, "Risk (pts):", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 5, trade_ready ? str.tostring(risk_distance, "#.##") : "-", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    
+    table.cell(pos_table, 0, 6, "📊 CONTRACTS:", text_color=color.white, bgcolor=color.new(color.blue, 30), text_size=size.large)
+    table.cell(pos_table, 1, 6, trade_ready ? str.tostring(contract_size) : "-", text_color=color.yellow, bgcolor=color.new(color.blue, 30), text_size=size.large)
+    
+    table.cell(pos_table, 0, 7, "Intended Risk:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 7, "$" + str.tostring(intended_risk, "#,###"), text_color=color.white, bgcolor=color.new(color.gray, 70))
+    
+    // Highlight actual risk if it exceeds intended risk
+    color actual_risk_color = trade_ready and actual_risk > intended_risk ? color.new(color.orange, 30) : color.new(color.gray, 70)
+    color actual_risk_text = trade_ready and actual_risk > intended_risk ? color.yellow : color.white
+    table.cell(pos_table, 0, 8, "Actual Risk:", text_color=color.white, bgcolor=actual_risk_color)
+    string actual_risk_text_str = trade_ready ? "$" + str.tostring(actual_risk, "#,###") + " (" + str.tostring(actual_risk_pct, "#.##") + "%)" : "-"
+    table.cell(pos_table, 1, 8, actual_risk_text_str, text_color=actual_risk_text, bgcolor=actual_risk_color)
+    
+    // Show suggestion row ONLY when actual risk exceeds 0.15% (cannot trade with standard contract)
+    if show_suggestion
+        // Calculate Micro contract sizing (NQ Micro = $2 per point, 1/10th of standard)
+        float micro_point_value = point_value / 10.0
+        float micro_contracts = intended_risk / (risk_distance * micro_point_value)
+        float micro_actual_risk = math.floor(micro_contracts) * risk_distance * micro_point_value
+        float micro_risk_pct = (micro_actual_risk / account_size) * 100
+        
+        table.cell(pos_table, 0, 9, "⚠️ SWITCH TO MICRO:", text_color=color.white, bgcolor=color.new(color.red, 0), text_size=size.normal)
+        string suggestion_text = str.tostring(math.floor(micro_contracts), "#") + " MNQ @ $" + str.tostring(micro_point_value, "#.#") + "/pt (" + str.tostring(micro_risk_pct, "#.##") + "%)"
+        table.cell(pos_table, 1, 9, suggestion_text, text_color=color.yellow, bgcolor=color.new(color.red, 0), text_size=size.normal)
+    else
+        // Hide row 9 with transparent cells (appears as 9-row table)
+        table.cell(pos_table, 0, 9, "", text_color=color.new(color.white, 100), bgcolor=color.new(color.white, 100))
+        table.cell(pos_table, 1, 9, "", text_color=color.new(color.white, 100), bgcolor=color.new(color.white, 100))
+
+// ============================================================================
+// HTF STATUS TABLE
+// ============================================================================
+
+if show_htf_status
+    var table htf_table = table.new(position.top_right, 3, 8, border_width=1)
+    
+    table.cell(htf_table, 0, 0, "TF", text_color=color.white, text_size=size.small)
+    table.cell(htf_table, 1, 0, "Bias", text_color=color.white, text_size=size.small)
+    table.cell(htf_table, 2, 0, "✓", text_color=color.white, text_size=size.small)
+    
+    color current_color = bias == "Bullish" ? bull_color : bias == "Bearish" ? bear_color : neutral_color
+    table.cell(htf_table, 0, 1, "1M", text_color=color.white, text_size=size.small)
+    table.cell(htf_table, 1, 1, bias, text_color=current_color, text_size=size.small)
+    table.cell(htf_table, 2, 1, "NOW", text_color=color.yellow, text_size=size.small)
+    
+    int row = 2
+    if use_5m
+        color htf_color = m5_bias == "Bullish" ? bull_color : m5_bias == "Bearish" ? bear_color : neutral_color
+        string align_status = (bias == "Bullish" and m5_bull_ok) or (bias == "Bearish" and m5_bear_ok) ? "✓" : "✗"
+        color align_color = (bias == "Bullish" and m5_bull_ok) or (bias == "Bearish" and m5_bear_ok) ? color.green : color.red
+        table.cell(htf_table, 0, row, "5M", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 1, row, m5_bias, text_color=htf_color, text_size=size.small)
+        table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+        row := row + 1
+    
+    if use_15m
+        color htf_color = m15_bias == "Bullish" ? bull_color : m15_bias == "Bearish" ? bear_color : neutral_color
+        string align_status = (bias == "Bullish" and m15_bull_ok) or (bias == "Bearish" and m15_bear_ok) ? "✓" : "✗"
+        color align_color = (bias == "Bullish" and m15_bull_ok) or (bias == "Bearish" and m15_bear_ok) ? color.green : color.red
+        table.cell(htf_table, 0, row, "15M", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 1, row, m15_bias, text_color=htf_color, text_size=size.small)
+        table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+        row := row + 1
+    
+    if use_1h
+        color htf_color = h1_bias == "Bullish" ? bull_color : h1_bias == "Bearish" ? bear_color : neutral_color
+        string align_status = (bias == "Bullish" and h1_bull_ok) or (bias == "Bearish" and h1_bear_ok) ? "✓" : "✗"
+        color align_color = (bias == "Bullish" and h1_bull_ok) or (bias == "Bearish" and h1_bear_ok) ? color.green : color.red
+        table.cell(htf_table, 0, row, "1H", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 1, row, h1_bias, text_color=htf_color, text_size=size.small)
+        table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+        row := row + 1
+    
+    if use_4h
+        color htf_color = h4_bias == "Bullish" ? bull_color : h4_bias == "Bearish" ? bear_color : neutral_color
+        string align_status = (bias == "Bullish" and h4_bull_ok) or (bias == "Bearish" and h4_bear_ok) ? "✓" : "✗"
+        color align_color = (bias == "Bullish" and h4_bull_ok) or (bias == "Bearish" and h4_bear_ok) ? color.green : color.red
+        table.cell(htf_table, 0, row, "4H", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 1, row, h4_bias, text_color=htf_color, text_size=size.small)
+        table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+        row := row + 1
+    
+    if use_daily
+        color htf_color = daily_bias == "Bullish" ? bull_color : daily_bias == "Bearish" ? bear_color : neutral_color
+        string align_status = (bias == "Bullish" and daily_bull_ok) or (bias == "Bearish" and daily_bear_ok) ? "✓" : "✗"
+        color align_color = (bias == "Bullish" and daily_bull_ok) or (bias == "Bearish" and daily_bear_ok) ? color.green : color.red
+        table.cell(htf_table, 0, row, "1D", text_color=color.white, text_size=size.small)
+        table.cell(htf_table, 1, row, daily_bias, text_color=htf_color, text_size=size.small)
+        table.cell(htf_table, 2, row, align_status, text_color=align_color, text_size=size.small)
+
+
+// ============================================================================
+// AUTOMATED SIGNAL LAB WEBHOOK ALERTS
+// ============================================================================
+
+// Helper function to determine session
+get_session() =>
+    // CRITICAL: Use America/New_York timezone to match session definitions
+    hour_val = hour(time, "America/New_York")
+    minute_val = minute(time, "America/New_York")
+    session_name = "Other"
+    
+    // ASIA: 20:00-23:59 Eastern
+    if hour_val >= 20 and hour_val <= 23
+        session_name := "ASIA"
+    // LONDON: 00:00-05:59 Eastern
+    else if hour_val >= 0 and hour_val <= 5
+        session_name := "LONDON"
+    // NY PRE: 06:00-08:29 Eastern
+    else if hour_val >= 6 and (hour_val < 8 or (hour_val == 8 and minute_val < 30))
+        session_name := "NY PRE"
+    // NY AM: 08:30-11:59 Eastern
+    else if (hour_val == 8 and minute_val >= 30) or (hour_val >= 9 and hour_val < 12)
+        session_name := "NY AM"
+    // NY LUNCH: 12:00-12:59 Eastern
+    else if hour_val == 12
+        session_name := "NY LUNCH"
+    // NY PM: 13:00-15:59 Eastern
+    else if hour_val >= 13 and hour_val < 16
+        session_name := "NY PM"
+    // Everything else (16:00-19:59) is "Other"
+    session_name
+
+// Helper function to create signal ID
+// ============================================================================
+// TRADE ID BUILDER (CANONICAL FORMAT)
+// ============================================================================
+// Format: YYYYMMDD_HHMMSSMMM_DIRECTION
+// Example: 20251120_170200000_BULLISH
+f_buildTradeId(datetime, direction) =>
+    year_str = str.tostring(year(datetime))
+    month_str = str.tostring(month(datetime), "00")
+    day_str = str.tostring(dayofmonth(datetime), "00")
+    hour_str = str.tostring(hour(datetime), "00")
+    minute_str = str.tostring(minute(datetime), "00")
+    second_str = str.tostring(second(datetime), "00")
+    millis_str = str.tostring(datetime % 1000, "000")  // Milliseconds for uniqueness
+    date_str = year_str + month_str + day_str
+    time_str = hour_str + minute_str + second_str + millis_str
+    date_str + "_" + time_str + "_" + str.upper(direction)
+
+
+// ============================================================================
+// TELEMETRY CONFIGURATION
+// ============================================================================
+telemetry_schema_version   = input.string("1.0.0", "Telemetry Schema Version")
+telemetry_engine_version   = input.string("1.0.0", "Telemetry Engine Version")
+telemetry_strategy_name    = input.string("NQ_FVG_CORE", "Strategy Name")
+telemetry_strategy_id      = input.string("NQ_FVG_CORE", "Strategy ID")
+telemetry_strategy_version = input.string("2025.11.20", "Strategy Version")
+telemetry_symbol_override  = input.symbol("", "Symbol Override")
+
+// ============================================================================
+// HELPER FUNCTIONS (TOP-LEVEL)
+// ============================================================================
+
+// Zero-pad helper for timestamps
+pad(x) =>
+    x < 10 ? "0" + str.tostring(x) : str.tostring(x)
+
+// ============================================================================
+// ISO 8601 TIMESTAMP BUILDER
+// ============================================================================
+// Outputs UTC timestamps like "2025-11-18T17:02:00Z"
+f_isoTimestamp(timeMs) =>
+    y  = year(timeMs)
+    mo = month(timeMs)
+    d  = dayofmonth(timeMs)
+    h  = hour(timeMs)
+    mi = minute(timeMs)
+    s  = second(timeMs)
+    str.tostring(y) + "-" + pad(mo) + "-" + pad(d) + "T" + pad(h) + ":" + pad(mi) + ":" + pad(s) + "Z"
+
+// ============================================================================
+// SESSION CLASSIFIER
+// ============================================================================
+// Must match backend session model EXACTLY
+f_sessionLabel(timeMs) =>
+    // Convert current time to US/Eastern
+    t = timenow
+    ny = timestamp("America/New_York", year(t), month(t), dayofmonth(t), hour(t), minute(t))
+    h = hour(ny)
+    m = minute(ny)
+    
+    // Session logic (MUST MATCH BACKEND):
+    // ASIA:     20:00 - 23:59 ET
+    // LONDON:   00:00 - 05:59 ET
+    // NY PRE:   06:00 - 08:29 ET
+    // NY AM:    08:30 - 11:59 ET
+    // NY LUNCH: 12:00 - 12:59 ET
+    // NY PM:    13:00 - 15:59 ET
+    session = h >= 20 ? "ASIA" : h < 6 ? "LONDON" : h < 8 or (h == 8 and m < 30) ? "NY PRE" : (h == 8 and m >= 30) or h < 12 ? "NY AM" : h == 12 ? "NY LUNCH" : h < 16 ? "NY PM" : "AFTER_HOURS"
+    session
+
+// ============================================================================
+// JSON HELPER FUNCTIONS
+// ============================================================================
+// ============================================================================
+// ============================================================================
+// ============================================================================
+// ============================================================================
+// MAIN TELEMETRY PAYLOAD BUILDER
+// ============================================================================
+// Number → JSON safe
+f_num(x) =>
+    na(x) ? "null" : str.tostring(x)
+
+// String → JSON safe
+f_str(x) =>
+    x == "" or na(x) ? "null" : '"' + x + '"'
+
+// Symbol helper (SAFE)
+f_symbol() =>
+    telemetry_symbol_override != "" ? telemetry_symbol_override : syminfo.ticker
+
+
+f_buildPayload(
+     eventType, tradeId, dir,
+     entryPrice, stopPrice, bePrice,
+     riskR, posSize, mfeR, maeR,
+     finalMfeR, exitPrice, exitReason,
+     tp1, tp2, tp3,
+     setupFam, setupVar, htfBias,
+     symbol, timeframeStr
+ ) =>
+    sym  = f_symbol()
+    ts   = f_isoTimestamp(time)
+    sess = f_sessionLabel(time)
+
+    payload =
+         '{"schema_version":"' + telemetry_schema_version +
+         '","engine_version":"' + telemetry_engine_version +
+         '","strategy_name":"' + telemetry_strategy_name +
+         '","strategy_id":"' + telemetry_strategy_id +
+         '","strategy_version":"' + telemetry_strategy_version +
+         '","trade_id":"' + tradeId +
+         '","event_type":"' + eventType +
+         '","event_timestamp":"' + ts +
+         '","symbol":"' + symbol +
+         '","exchange":"' + syminfo.ticker +
+         '","timeframe":"' + timeframeStr +
+         '","session":"' + sess +
+         '","direction":' + f_str(dir) +
+         ',"entry_price":' + f_num(entryPrice) +
+         ',"stop_loss":' + f_num(stopPrice) +
+         ',"risk_R":' + f_num(riskR) +
+         ',"position_size":' + f_num(posSize) +
+         ',"be_price":' + f_num(bePrice) +
+         ',"mfe_R":' + f_num(mfeR) +
+         ',"mae_R":' + f_num(maeR) +
+         ',"final_mfe_R":' + f_num(finalMfeR) +
+         ',"exit_price":' + f_num(exitPrice) +
+         ',"exit_timestamp":null' +
+         ',"exit_reason":' + f_str(exitReason) +
+
+         ',"targets":{"tp1_price":' + f_num(tp1) +
+             ',"tp2_price":' + f_num(tp2) +
+             ',"tp3_price":' + f_num(tp3) +
+             ',"target_Rs":[' + f_num(1.0) + ',' + f_num(2.0) + ',' + f_num(3.0) + ']}' +
+
+         ',"setup":{"setup_family":"' + setupFam +
+             '","setup_variant":"' + setupVar +
+             '","setup_id":"' + setupFam + '_' + setupVar +
+             '","signal_strength":75' +
+             ',"confidence_components":{"trend_alignment":' +
+                 f_num(htfBias == "Bullish" or htfBias == "Bearish" ? 1.0 : 0.5) +
+                 ',"structure_quality":0.8,"volatility_fit":0.7}}' +
+
+         ',"market_state":{"trend_regime":"' + htfBias +
+             '","trend_score":' + f_num(htfBias == "Bullish" or htfBias == "Bearish" ? 0.8 : 0.3) +
+             ',"volatility_regime":"NORMAL"' +
+             ',"atr":null,"atr_percentile_20d":null,"daily_range_percentile_20d":null' +
+             ',"price_location":{"vs_daily_open":null,"vs_vwap":null,"distance_to_HTF_level_points":null}' +
+             ',"structure":{"swing_state":"UNKNOWN","bos_choch_signal":"NONE","liquidity_context":"NEUTRAL"}}' +
+         '}'
+
+    payload
+
+
+// Variables to track webhook sending for MULTIPLE signals
+var array<string> active_signal_ids = array.new_string(0)
+var array<int> active_signal_indices = array.new_int(0)  // BULLETPROOF: Store signal array index for each active signal
+var array<bool> be_trigger_sent_flags = array.new_bool(0)
+var array<bool> completion_sent_flags = array.new_bool(0)
+var bool webhook_sent_this_bar = false
+
+// Helper function to find signal index by ID
+find_signal_index(signal_id) =>
+    int found_index = -1
+    if array.size(active_signal_ids) > 0
+        for i = 0 to array.size(active_signal_ids) - 1
+            if array.get(active_signal_ids, i) == signal_id
+                found_index := i
+                break
+    found_index
+
+// Reset webhook flag on new bar
+if barstate.isconfirmed
+    webhook_sent_this_bar := false
+
+// 1. SIGNAL CREATION WEBHOOK
+// Send when new trade is ready (entry conditions met)
+// CRITICAL: Only send webhooks for real-time signals to prevent historical replay spam
+if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) > 0
+    // Get the most recent signal (just added)
+    int last_index = array.size(signal_entries) - 1
+    
+    // CRITICAL: Only send webhook if this signal occurred on a real-time bar
+    bool sig_is_realtime = array.get(signal_is_realtime, last_index)
+    
+    if sig_is_realtime
+        float sig_entry = array.get(signal_entries, last_index)
+        float sig_stop = array.get(signal_stops, last_index)
+        float sig_risk = array.get(signal_risks, last_index)
+        string sig_dir = array.get(signal_directions, last_index)
+        
+        signal_direction = sig_dir  // "Bullish" or "Bearish"
+        signal_id = f_buildTradeId(time, signal_direction)
+        current_session = get_session()
+        
+        // Calculate target prices using signal data from arrays
+        target_1r = signal_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
+        target_2r = signal_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
+        target_3r = signal_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
+        
+        // Create JSON payload using SIGNAL CANDLE time (not current bar time)
+        // Force US/Eastern timezone for consistency with session validation
+        // CRITICAL: Backend expects event_type "ENTRY" not "signal_created"
+        // Calculate target prices
+
+        
+        // Determine setup family and variant
+        setup_family = "FVG_CORE"
+        setup_variant = htf_bullish or htf_bearish ? "HTF_ALIGNED" : "STANDARD"
+        
+        // Build telemetry payload for ENTRY event
+        entry_payload = f_buildPayload(EVENT_ENTRY, signal_id, signal_direction, sig_entry, sig_stop, float(na), 1.0, contract_size, 0.0, 0.0, float(na), float(na), "", target_1r, target_2r, target_3r, setup_family, setup_variant, bias, syminfo.ticker, timeframe.period)
+        
+        // Send webhook
+        alert(entry_payload, alert.freq_once_per_bar_close)
+        
+        // Mark that ENTRY webhook has been sent for this signal
+        array.set(signal_entry_webhook_sent, last_index, true)
+        
+        // BULLETPROOF: Check for duplicate signal_id before adding to tracking arrays
+        int existing_idx = find_signal_index(signal_id)
+        if existing_idx < 0
+            // Signal ID is unique - add to tracking arrays
+            array.push(active_signal_ids, signal_id)
+            array.push(active_signal_indices, last_index)  // BULLETPROOF: Store the signal array index
+            array.push(be_trigger_sent_flags, false)
+            array.push(completion_sent_flags, false)
+        // NOTE: signal_entry_bar_index already pushed when signal was added to tracking arrays
+        webhook_sent_this_bar := true
+    
+    // NOW reset state for next signal (AFTER webhook sent)
+    active_signal := "None"
+    waiting_for_confirmation := false
+    trade_ready := false
+
+// 2. MFE UPDATE WEBHOOK
+// Send once per bar for ALL active signals (not just the last one)
+// CRITICAL: Only send on real-time bars to prevent historical replay spam
+if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) > 0 and array.size(active_signal_ids) > 0
+    // Loop through all active signals and send MFE updates
+    for sig_idx = 0 to array.size(active_signal_ids) - 1
+        signal_id_to_update = array.get(active_signal_ids, sig_idx)
+        
+        // BULLETPROOF: Get the actual signal array index from parallel array
+        int signal_array_idx = array.get(active_signal_indices, sig_idx)
+        
+        // Validate that signal_array_idx is within bounds
+        if signal_array_idx >= 0 and signal_array_idx < array.size(signal_entries)
+            // MODIFIED: Send MFE_UPDATE for ALL active signals, regardless of when they were created
+            // This allows the indicator to track trades even after restart/reload
+            int entry_bar = array.get(signal_entry_bar_index, signal_array_idx)
+            int bars_since_entry = bar_index - entry_bar
+            
+            // Only send MFE_UPDATE if trade has been active for at least 1 bar
+            // This prevents sending MFE on the same bar as ENTRY
+            if bars_since_entry >= 1
+                // Retrieve signal data from arrays
+                string sig_direction = array.get(signal_directions, signal_array_idx)
+                float sig_entry = array.get(signal_entries, signal_array_idx)
+                float sig_stop = array.get(signal_stops, signal_array_idx)
+                float sig_risk = array.get(signal_risks, signal_array_idx)
+                bool sig_be_triggered = array.get(signal_be_triggered, signal_array_idx)
+                
+                float current_mfe_be = array.get(signal_be_mfes, signal_array_idx)
+                float current_mfe_none = array.get(signal_mfes, signal_array_idx)
+                // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
+                current_mfe_be := math.min(current_mfe_be, current_mfe_none)
+                float current_lowest_low = array.get(signal_lowest_lows, signal_array_idx)
+                float current_highest_high = array.get(signal_highest_highs, signal_array_idx)
+                
+                // Calculate target prices for MFE update
+                float mfe_target_1r = sig_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
+                float mfe_target_2r = sig_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
+                float mfe_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
+                
+                // Build telemetry payload for MFE_UPDATE event
+                string mfe_update_payload = f_buildPayload(EVENT_MFE_UPDATE, signal_id_to_update, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, current_mfe_be, 0.0, float(na), float(na), "", mfe_target_1r, mfe_target_2r, mfe_target_3r, "FVG_CORE", "ACTIVE", bias, syminfo.ticker, timeframe.period)
+                
+                // Send MFE update once per bar (not every tick)
+                // MODIFIED: Send for ALL active signals on real-time bars only
+                if barstate.isrealtime
+                    alert(mfe_update_payload, alert.freq_once_per_bar_close)
+
+// 3. BE TRIGGER WEBHOOK
+// Send when BE=1 is triggered for any active signal
+// CRITICAL: Only send on real-time bars to prevent historical replay spam
+if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_triggered) > 0 and array.size(active_signal_ids) > 0
+    // Loop through all active signals
+    for sig_idx = 0 to array.size(active_signal_ids) - 1
+        signal_id_for_be = array.get(active_signal_ids, sig_idx)
+        be_sent_flag = array.get(be_trigger_sent_flags, sig_idx)
+        
+        // BULLETPROOF: Get the actual signal array index from parallel array
+        int signal_array_idx = array.get(active_signal_indices, sig_idx)
+        
+        // Validate that signal_array_idx is within bounds
+        if signal_array_idx >= 0 and signal_array_idx < array.size(signal_be_triggered)
+            // MODIFIED: Send BE_TRIGGERED for ALL active signals that hit +1R
+            if not be_sent_flag
+                bool be_was_triggered = array.get(signal_be_triggered, signal_array_idx)
+                
+                if be_was_triggered
+                    // Retrieve signal data from arrays
+                    string sig_direction = array.get(signal_directions, signal_array_idx)
+                    float sig_entry = array.get(signal_entries, signal_array_idx)
+                    float sig_stop = array.get(signal_stops, signal_array_idx)
+                    float sig_risk = array.get(signal_risks, signal_array_idx)
+                    
+                    float current_be_mfe = array.get(signal_be_mfes, signal_array_idx)
+                    float current_no_be_mfe = array.get(signal_mfes, signal_array_idx)
+                    // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
+                    current_be_mfe := math.min(current_be_mfe, current_no_be_mfe)
+                    
+                    // Calculate target prices for BE trigger
+                    float be_target_1r = sig_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
+                    float be_target_2r = sig_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
+                    float be_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
+                    
+                    // Build telemetry payload for BE_TRIGGERED event
+                    string be_trigger_payload = f_buildPayload(EVENT_BE_TRIGGERED, signal_id_for_be, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, current_be_mfe, 0.0, float(na), float(na), "", be_target_1r, be_target_2r, be_target_3r, "FVG_CORE", "BE_PROTECTED", bias, syminfo.ticker, timeframe.period)
+                    
+                    // Send BE trigger webhook
+                    alert(be_trigger_payload, alert.freq_once_per_bar_close)
+                    array.set(be_trigger_sent_flags, sig_idx, true)
+
+// 4. COMPLETION WEBHOOK
+// Send when any signal is completed (stop loss hit)
+// CRITICAL: Only send on real-time bars to prevent historical replay spam
+if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped) > 0 and array.size(signal_no_be_stopped) > 0 and array.size(active_signal_ids) > 0
+    // BULLETPROOF: Loop BACKWARDS to prevent array out of bounds when removing elements
+    for sig_idx = array.size(active_signal_ids) - 1 to 0
+        signal_id_for_completion = array.get(active_signal_ids, sig_idx)
+        completion_sent_flag = array.get(completion_sent_flags, sig_idx)
+        
+        // BULLETPROOF: Get the actual signal array index from parallel array
+        int signal_array_idx = array.get(active_signal_indices, sig_idx)
+        
+        // Validate that signal_array_idx is within bounds
+        if signal_array_idx >= 0 and signal_array_idx < array.size(signal_be_stopped) and not completion_sent_flag
+            // MODIFIED: Send EXIT for ALL active signals that hit stop loss
+            bool be_stopped = array.get(signal_be_stopped, signal_array_idx)
+            bool no_be_stopped = array.get(signal_no_be_stopped, signal_array_idx)
+            int entry_bar = array.get(signal_entry_bar_index, signal_array_idx)
+            int bars_since_entry = bar_index - entry_bar
+            
+            // CRITICAL: Only send EXIT if trade has been active for at least 1 bar
+            // This prevents immediate completion on historical replay
+            if (be_stopped or no_be_stopped) and bars_since_entry >= 1
+                // Retrieve signal data from arrays
+                string sig_direction = array.get(signal_directions, signal_array_idx)
+                float sig_entry = array.get(signal_entries, signal_array_idx)
+                float sig_stop = array.get(signal_stops, signal_array_idx)
+                float sig_risk = array.get(signal_risks, signal_array_idx)
+                bool sig_be_triggered = array.get(signal_be_triggered, signal_array_idx)
+                
+                float final_be_mfe = array.get(signal_be_mfes, signal_array_idx)
+                float final_no_be_mfe = array.get(signal_mfes, signal_array_idx)
+                // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
+                final_be_mfe := math.min(final_be_mfe, final_no_be_mfe)
+                
+                string completion_reason = be_stopped ? "be_stop_loss_hit" : "original_stop_loss_hit"
+                // Determine exit event type
+                string exit_event_type = be_stopped ? EVENT_EXIT_BREAK_EVEN : EVENT_EXIT_STOP_LOSS
+                
+                // Calculate target prices for exit
+                float exit_target_1r = sig_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
+                float exit_target_2r = sig_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
+                float exit_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
+                
+                // Build telemetry payload for EXIT event
+                string completion_payload = f_buildPayload(exit_event_type, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, final_be_mfe, 0.0, be_stopped ? 0.0 : final_no_be_mfe, sig_stop, completion_reason, exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", be_stopped ? "EXIT_BE" : "EXIT_SL", bias, syminfo.ticker, timeframe.period)
+                
+                // Send completion webhook
+                alert(completion_payload, alert.freq_once_per_bar_close)
+                array.set(completion_sent_flags, sig_idx, true)
+                
+                // BULLETPROOF: Remove this signal from active tracking (all parallel arrays)
+                array.remove(active_signal_ids, sig_idx)
+                array.remove(active_signal_indices, sig_idx)  // Remove from indices array too
+                array.remove(be_trigger_sent_flags, sig_idx)
+                array.remove(completion_sent_flags, sig_idx)

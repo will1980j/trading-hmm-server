@@ -12952,9 +12952,9 @@ def handle_exit_signal(data, exit_type):
         try:
             # Strategy doesn't send exit_price, indicator does
             exit_price = float(data.get('exit_price', 0)) if data.get('exit_price') else 0
-            # Strategy sends final_be_mfe and final_no_be_mfe, indicator sends final_mfe
-            final_be_mfe = float(data.get('final_be_mfe', 0))
-            final_no_be_mfe = float(data.get('final_no_be_mfe') or data.get('final_mfe', 0))
+            # Support multiple field names: final_be_mfe, final_no_be_mfe, final_mfe, final_mfe_R, mfe_R
+            final_be_mfe = float(data.get('final_be_mfe') or data.get('final_mfe_R') or data.get('mfe_R') or 0)
+            final_no_be_mfe = float(data.get('final_no_be_mfe') or data.get('final_mfe') or data.get('final_mfe_R') or data.get('mfe_R') or 0)
         except (ValueError, TypeError) as conv_error:
             return {"success": False, "error": f"Invalid exit data: {str(conv_error)}"}
         
