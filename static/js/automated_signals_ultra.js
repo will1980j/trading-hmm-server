@@ -288,8 +288,9 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         const entry = row.entry_price ? parseFloat(row.entry_price).toFixed(2) : "N/A";
         const sl = row.stop_loss ? parseFloat(row.stop_loss).toFixed(2) : "N/A";
         // API returns no_be_mfe_R and be_mfe_R (with _R suffix)
-        const mfeNoBE = row.no_be_mfe_R != null ? parseFloat(row.no_be_mfe_R).toFixed(2) : "N/A";
-        const mfeBE = row.be_mfe_R != null ? parseFloat(row.be_mfe_R).toFixed(2) : "N/A";
+        // Format with R suffix only if we have a value, otherwise just show --
+        const mfeNoBE = row.no_be_mfe_R != null ? parseFloat(row.no_be_mfe_R).toFixed(2) + "R" : "--";
+        const mfeBE = row.be_mfe_R != null ? parseFloat(row.be_mfe_R).toFixed(2) + "R" : "--";
         
         let statusClass = 'ultra-badge-blue';
         if (row.status === 'ACTIVE') statusClass = 'ultra-badge-green';
@@ -306,7 +307,7 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             return 'ultra-badge-red';
         };
         
-        // Age: live update for ACTIVE, static duration for COMPLETED
+        // Age: live update ONLY for ACTIVE trades, static for COMPLETED
         let ageStr = "--";
         if (row.status === 'ACTIVE' && row.timestamp) {
             // Active trades: show live updating age
@@ -315,9 +316,8 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             const mins = Math.floor(diffSec / 60);
             const secs = Math.floor(diffSec % 60);
             ageStr = `${mins}m ${secs}s`;
-        } else if (row.status === 'COMPLETED' && row.timestamp) {
-            // Completed trades: show final duration (entry to exit)
-            // Use duration_seconds if available, otherwise estimate from timestamp
+        } else if (row.status === 'COMPLETED') {
+            // Completed trades: show final duration (entry to exit) - STATIC, no live counting
             if (row.duration_seconds) {
                 const mins = Math.floor(row.duration_seconds / 60);
                 const secs = Math.floor(row.duration_seconds % 60);
@@ -334,11 +334,8 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
                     ageStr = "< 1m";
                 }
             } else {
-                // Fallback: show time since entry (but won't update)
-                const t = new Date(row.timestamp);
-                const diffSec = (Date.now() - t.getTime()) / 1000;
-                const mins = Math.floor(diffSec / 60);
-                ageStr = `~${mins}m`;
+                // No duration data available for completed trade - show dash, NOT live time
+                ageStr = "--";
             }
         }
         
@@ -358,8 +355,8 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             <td class="ultra-muted">${row.session ?? "--"}</td>
             <td>${entry}</td>
             <td>${sl}</td>
-            <td><span class="${getMfeClass(mfeBE)}">${mfeBE}R</span></td>
-            <td><span class="${getMfeClass(mfeNoBE)}">${mfeNoBE}R</span></td>
+            <td><span class="${getMfeClass(mfeBE)}">${mfeBE}</span></td>
+            <td><span class="${getMfeClass(mfeNoBE)}">${mfeNoBE}</span></td>
             <td class="ultra-muted">${ageStr}</td>
         `;
         
