@@ -413,11 +413,10 @@ def register_automated_signals_api_robust(app, db):
             cursor.execute("""
                 SELECT 
                     id, trade_id, event_type, direction, entry_price,
-                    stop_loss, session, bias, risk_distance, targets,
+                    stop_loss, session, bias, risk_distance,
                     current_price, mfe, be_mfe, no_be_mfe,
                     exit_price, final_mfe,
-                    signal_date, signal_time, timestamp,
-                    telemetry
+                    signal_date, signal_time, timestamp
                 FROM automated_signals
                 WHERE trade_id = %s
                 ORDER BY timestamp ASC
