@@ -12433,6 +12433,13 @@ def handle_entry_signal(data):
         elif not direction:
             direction = 'LONG'
         
+        # Normalize direction
+        direction = direction.upper()
+        if direction == "BULLISH":
+            direction = "LONG"
+        elif direction == "BEARISH":
+            direction = "SHORT"
+        
         # Price fields (strategy uses sl_price, indicator uses stop_loss)
         try:
             entry_price = float(data.get('entry_price', 0))
@@ -12952,27 +12959,28 @@ def handle_exit_signal(data, exit_type):
             return {"success": False, "error": f"Invalid exit data: {str(conv_error)}"}
         
         # ==========================================
-        # EXIT SAFETY GUARD — DO NOT MODIFY
-        # Prevent EXIT events before ENTRY exists
+        # EXIT SAFETY GUARD
+        # Prevent EXIT events before trade exists
+        # Check for ENTRY or MFE_UPDATE (since MFE_UPDATE overwrites ENTRY event_type)
         # ==========================================
         cursor = conn.cursor()
         cursor.execute("""
             SELECT 1
             FROM automated_signals
             WHERE trade_id = %s
-              AND event_type = 'ENTRY'
+              AND event_type IN ('ENTRY', 'MFE_UPDATE')
             LIMIT 1
         """, (trade_id,))
-        entry_exists = cursor.fetchone()
+        trade_exists = cursor.fetchone()
         
-        if not entry_exists:
-            logger.warning(f"⚠️ EXIT ignored for trade_id={trade_id} — no ENTRY row found")
+        if not trade_exists:
+            logger.warning(f"⚠️ EXIT ignored for trade_id={trade_id} — no active trade found")
             return {
                 "success": True,
                 "ignored": True,
-                "reason": "EXIT_IGNORED_NO_ENTRY",
+                "reason": "EXIT_IGNORED_NO_TRADE",
                 "trade_id": trade_id,
-                "message": "EXIT update ignored — ENTRY row does not exist"
+                "message": "EXIT update ignored — no active trade found"
             }
         
         # Compute next lifecycle sequence for this trade (count existing events)
