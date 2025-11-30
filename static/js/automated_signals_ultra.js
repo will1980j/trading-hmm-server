@@ -18,6 +18,13 @@ const AutomatedSignalsUltra = window.AutomatedSignalsUltra;
 
 AutomatedSignalsUltra.currentMonth = new Date();
 AutomatedSignalsUltra.calendarData = [];
+AutomatedSignalsUltra.selectedDate = null;
+AutomatedSignalsUltra.filters = {
+    session: 'ALL',
+    direction: 'ALL',
+    state: 'ALL',
+    searchId: ''
+};
 
 AutomatedSignalsUltra.init = function() {
     console.log("[ASE] Initializing Automated Signals Engine dashboard...");
@@ -42,6 +49,9 @@ AutomatedSignalsUltra.init = function() {
         });
     }
     
+    // Wire filter buttons
+    AutomatedSignalsUltra.wireFilters();
+    
     // Poll every 7 seconds
     if (AutomatedSignalsUltra.timer) {
         clearInterval(AutomatedSignalsUltra.timer);
@@ -49,6 +59,80 @@ AutomatedSignalsUltra.init = function() {
     AutomatedSignalsUltra.timer = setInterval(() => {
         AutomatedSignalsUltra.fetchDashboardData();
     }, 7000);
+};
+
+AutomatedSignalsUltra.wireFilters = function() {
+    // Session filter
+    document.querySelectorAll('#ase-session-filter .btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('#ase-session-filter .btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            AutomatedSignalsUltra.filters.session = btn.dataset.session;
+            AutomatedSignalsUltra.renderSignalsTable();
+        });
+    });
+    
+    // Direction filter
+    document.querySelectorAll('#ase-direction-filter .btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('#ase-direction-filter .btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            AutomatedSignalsUltra.filters.direction = btn.dataset.direction;
+            AutomatedSignalsUltra.renderSignalsTable();
+        });
+    });
+    
+    // State filter
+    document.querySelectorAll('#ase-state-filter .btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('#ase-state-filter .btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            AutomatedSignalsUltra.filters.state = btn.dataset.state;
+            AutomatedSignalsUltra.renderSignalsTable();
+        });
+    });
+    
+    // Search input
+    const searchInput = document.getElementById('ase-search-trade-id');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            AutomatedSignalsUltra.filters.searchId = searchInput.value.trim().toLowerCase();
+            AutomatedSignalsUltra.renderSignalsTable();
+        });
+    }
+    
+    // Clear filters button
+    const clearBtn = document.getElementById('ase-clear-filters');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            AutomatedSignalsUltra.clearAllFilters();
+        });
+    }
+};
+
+AutomatedSignalsUltra.clearAllFilters = function() {
+    AutomatedSignalsUltra.filters = { session: 'ALL', direction: 'ALL', state: 'ALL', searchId: '' };
+    AutomatedSignalsUltra.selectedDate = null;
+    
+    // Reset button states
+    document.querySelectorAll('#ase-session-filter .btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.session === 'ALL');
+    });
+    document.querySelectorAll('#ase-direction-filter .btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.direction === 'ALL');
+    });
+    document.querySelectorAll('#ase-state-filter .btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.state === 'ALL');
+    });
+    
+    const searchInput = document.getElementById('ase-search-trade-id');
+    if (searchInput) searchInput.value = '';
+    
+    const dateLabel = document.getElementById('ase-selected-date-label');
+    if (dateLabel) dateLabel.textContent = 'Click a day to filter';
+    
+    AutomatedSignalsUltra.renderCalendar();
+    AutomatedSignalsUltra.renderSignalsTable();
 };
 
 AutomatedSignalsUltra.fetchDashboardData = async function() {
@@ -140,40 +224,51 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
     
     const active = AutomatedSignalsUltra.data?.active_trades ?? [];
     const completed = AutomatedSignalsUltra.data?.completed_trades ?? [];
-    const pending = AutomatedSignalsUltra.data?.pending_trades ?? []; // If backend adds in future
+    const pending = AutomatedSignalsUltra.data?.pending_trades ?? [];
     
-    // Combine
-    const rows = [];
+    // Combine all rows
+    let rows = [];
     
-    // Pending (optional)
     for (const sig of pending) {
-        rows.push({
-            status: "PENDING",
-            ...sig
-        });
+        rows.push({ status: "PENDING", ...sig });
     }
-    
-    // Active
     for (const sig of active) {
-        rows.push({
-            status: "ACTIVE",
-            ...sig
-        });
+        rows.push({ status: "ACTIVE", ...sig });
+    }
+    for (const sig of completed) {
+        rows.push({ status: "COMPLETED", ...sig });
     }
     
-    // Completed
-    for (const sig of completed) {
-        rows.push({
-            status: "COMPLETED",
-            ...sig
-        });
-    }
+    // Apply filters
+    const f = AutomatedSignalsUltra.filters;
+    
+    rows = rows.filter(row => {
+        // Date filter (from calendar click)
+        if (AutomatedSignalsUltra.selectedDate) {
+            const rowDate = row.signal_date || (row.timestamp ? row.timestamp.split('T')[0] : null);
+            if (rowDate !== AutomatedSignalsUltra.selectedDate) return false;
+        }
+        
+        // Session filter
+        if (f.session !== 'ALL' && row.session !== f.session) return false;
+        
+        // Direction filter
+        if (f.direction !== 'ALL' && row.direction !== f.direction) return false;
+        
+        // State filter
+        if (f.state !== 'ALL' && row.status !== f.state) return false;
+        
+        // Search filter
+        if (f.searchId && row.trade_id && !row.trade_id.toLowerCase().includes(f.searchId)) return false;
+        
+        return true;
+    });
     
     // Clear table
     tbody.innerHTML = "";
     
     if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center ultra-muted py-3">No signals available.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center ultra-muted py-3">No signals match filters.</td></tr>`;
         if (counter) counter.textContent = "0 rows";
         return;
     }
@@ -496,17 +591,15 @@ AutomatedSignalsUltra.fetchCalendarData = async function() {
         });
         const json = await resp.json();
         
-        // Handle different response formats
+        // Handle response format with completed_count and active_count
         if (json.success && json.daily_data) {
-            // Convert object to array format
             AutomatedSignalsUltra.calendarData = Object.entries(json.daily_data).map(([date, data]) => ({
                 date: date,
+                completed_count: data.completed_count || 0,
+                active_count: data.active_count || 0,
                 trade_count: data.trade_count || 0,
-                avg_no_be_mfe_R: data.trade_count > 0 ? (data.total_r / data.trade_count) : 0,
-                total_r: data.total_r || 0
+                avg_mfe: data.avg_mfe || 0
             }));
-        } else if (json.success && json.calendar) {
-            AutomatedSignalsUltra.calendarData = json.calendar;
         } else if (Array.isArray(json)) {
             AutomatedSignalsUltra.calendarData = json;
         } else {
@@ -532,8 +625,7 @@ AutomatedSignalsUltra.renderCalendar = function() {
     const month = AutomatedSignalsUltra.currentMonth.getMonth();
     
     // Update month label
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                        'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     if (monthLabel) {
         monthLabel.textContent = `${monthNames[month]} ${year}`;
     }
@@ -542,34 +634,28 @@ AutomatedSignalsUltra.renderCalendar = function() {
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     
-    // Create lookup for calendar data
+    // Create lookup for calendar data - count completed and active per day
     const dataByDate = {};
+    
+    // Process calendar data from API
     for (const item of AutomatedSignalsUltra.calendarData) {
         const dateKey = item.date || item.signal_date;
         if (dateKey) {
-            dataByDate[dateKey] = item;
+            dataByDate[dateKey] = {
+                completed: item.completed_count || 0,
+                active: item.active_count || 0
+            };
         }
     }
     
-    let html = `
-        <table class="ultra-table" style="font-size: 12px;">
-            <thead>
-                <tr>
-                    <th class="text-center" style="padding: 8px 4px;">S</th>
-                    <th class="text-center" style="padding: 8px 4px;">M</th>
-                    <th class="text-center" style="padding: 8px 4px;">T</th>
-                    <th class="text-center" style="padding: 8px 4px;">W</th>
-                    <th class="text-center" style="padding: 8px 4px;">T</th>
-                    <th class="text-center" style="padding: 8px 4px;">F</th>
-                    <th class="text-center" style="padding: 8px 4px;">S</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-    
-    let dayCount = 1;
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
+    
+    let html = `<table class="ultra-calendar"><thead><tr>
+        <th>S</th><th>M</th><th>T</th><th>W</th><th>T</th><th>F</th><th>S</th>
+    </tr></thead><tbody>`;
+    
+    let dayCount = 1;
     
     for (let week = 0; week < 6; week++) {
         if (dayCount > daysInMonth) break;
@@ -577,40 +663,28 @@ AutomatedSignalsUltra.renderCalendar = function() {
         html += '<tr>';
         for (let dow = 0; dow < 7; dow++) {
             if ((week === 0 && dow < firstDay) || dayCount > daysInMonth) {
-                html += '<td style="padding: 6px;"></td>';
+                html += '<td><div class="calendar-day-empty"></div></td>';
             } else {
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayCount).padStart(2, '0')}`;
-                const dayData = dataByDate[dateStr];
+                const dayData = dataByDate[dateStr] || { completed: 0, active: 0 };
                 
-                let cellStyle = 'text-align: center; padding: 6px; border-radius: 4px; cursor: pointer; transition: 0.2s;';
-                let tooltip = '';
-                let badgeHtml = '';
+                let classes = 'calendar-day';
+                if (dateStr === todayStr) classes += ' today';
+                if (dateStr === AutomatedSignalsUltra.selectedDate) classes += ' selected';
                 
-                // Today highlight
-                if (dateStr === todayStr) {
-                    cellStyle += ' border: 2px solid #3b82f6; box-shadow: 0 0 8px rgba(59,130,246,0.5);';
-                }
+                const completedBadge = dayData.completed > 0 
+                    ? `<span class="calendar-completed-badge">${dayData.completed}</span>` 
+                    : '';
+                const activeBadge = dayData.active > 0 
+                    ? `<span class="calendar-active-badge">${dayData.active}</span>` 
+                    : '';
                 
-                if (dayData) {
-                    const trades = dayData.trade_count || 0;
-                    const avgMFE = dayData.avg_no_be_mfe_R || dayData.avg_max_mfe_R || 0;
-                    
-                    // Color based on performance - using ultra theme colors
-                    if (avgMFE >= 1) {
-                        cellStyle += ' background: rgba(0, 255, 136, 0.25); color: #00ff88;';
-                    } else if (avgMFE >= 0) {
-                        cellStyle += ' background: rgba(251, 191, 36, 0.25); color: #fbbf24;';
-                    } else {
-                        cellStyle += ' background: rgba(255, 71, 87, 0.25); color: #ff4757;';
-                    }
-                    
-                    tooltip = `${trades} trade${trades !== 1 ? 's' : ''}, ${avgMFE.toFixed(2)}R avg`;
-                    badgeHtml = `<div style="font-size: 9px; opacity: 0.8;">${trades}</div>`;
-                }
-                
-                html += `<td style="${cellStyle}" title="${tooltip}">
-                    <div style="font-weight: 600;">${dayCount}</div>
-                    ${badgeHtml}
+                html += `<td>
+                    <div class="${classes}" data-date="${dateStr}">
+                        <div class="calendar-day-num">${dayCount}</div>
+                        ${completedBadge}
+                        ${activeBadge}
+                    </div>
                 </td>`;
                 dayCount++;
             }
@@ -620,6 +694,33 @@ AutomatedSignalsUltra.renderCalendar = function() {
     
     html += '</tbody></table>';
     container.innerHTML = html;
+    
+    // Wire click handlers for calendar days
+    container.querySelectorAll('.calendar-day').forEach(dayEl => {
+        dayEl.addEventListener('click', () => {
+            const clickedDate = dayEl.dataset.date;
+            AutomatedSignalsUltra.selectCalendarDate(clickedDate);
+        });
+    });
+};
+
+AutomatedSignalsUltra.selectCalendarDate = function(dateStr) {
+    const dateLabel = document.getElementById('ase-selected-date-label');
+    
+    // Toggle selection
+    if (AutomatedSignalsUltra.selectedDate === dateStr) {
+        AutomatedSignalsUltra.selectedDate = null;
+        if (dateLabel) dateLabel.textContent = 'Click a day to filter';
+    } else {
+        AutomatedSignalsUltra.selectedDate = dateStr;
+        if (dateLabel) {
+            const d = new Date(dateStr + 'T12:00:00');
+            dateLabel.textContent = `Showing: ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+        }
+    }
+    
+    AutomatedSignalsUltra.renderCalendar();
+    AutomatedSignalsUltra.renderSignalsTable();
 };
 
 // DOM ready hook

@@ -526,7 +526,7 @@ def register_automated_signals_api_robust(app, db):
 
     @app.route('/api/automated-signals/daily-calendar')
     def get_daily_calendar():
-        """Get daily trade data for calendar view"""
+        """Get daily trade data for calendar view with completed and active counts"""
         try:
             import os
             import psycopg2
@@ -539,45 +539,51 @@ def register_automated_signals_api_robust(app, db):
             conn = psycopg2.connect(database_url)
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
-            # Get trades grouped by date from last 90 days
+            # Get completed trades per day (last 90 days)
             cursor.execute("""
                 SELECT 
-                    DATE(timestamp) as date,
-                    direction,
-                    session,
-                    COALESCE(final_mfe, no_be_mfe, mfe, 0) as mfe,
-                    event_type
+                    DATE(timestamp AT TIME ZONE 'America/New_York') as date,
+                    COUNT(DISTINCT trade_id) as completed_count,
+                    AVG(COALESCE(final_mfe, no_be_mfe, mfe, 0)) as avg_mfe
                 FROM automated_signals
                 WHERE timestamp >= CURRENT_DATE - INTERVAL '90 days'
-                AND event_type IN ('ENTRY', 'EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN')
-                ORDER BY timestamp DESC
+                AND event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                GROUP BY DATE(timestamp AT TIME ZONE 'America/New_York')
             """)
+            completed_by_date = {row['date'].strftime('%Y-%m-%d'): row for row in cursor.fetchall()}
             
-            trades = cursor.fetchall()
+            # Get active trades per day (entry date, no exit yet)
+            cursor.execute("""
+                SELECT 
+                    DATE(e.timestamp AT TIME ZONE 'America/New_York') as date,
+                    COUNT(DISTINCT e.trade_id) as active_count
+                FROM automated_signals e
+                WHERE e.event_type = 'ENTRY'
+                AND e.timestamp >= CURRENT_DATE - INTERVAL '90 days'
+                AND e.trade_id NOT IN (
+                    SELECT DISTINCT trade_id 
+                    FROM automated_signals 
+                    WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                )
+                GROUP BY DATE(e.timestamp AT TIME ZONE 'America/New_York')
+            """)
+            active_by_date = {row['date'].strftime('%Y-%m-%d'): row['active_count'] for row in cursor.fetchall()}
+            
             cursor.close()
             conn.close()
             
-            # Group by date
+            # Merge data
+            all_dates = set(completed_by_date.keys()) | set(active_by_date.keys())
             daily_data = {}
-            for trade in trades:
-                date_val = trade['date']
-                date_str = date_val.strftime('%Y-%m-%d') if hasattr(date_val, 'strftime') else str(date_val)
-                
-                if date_str not in daily_data:
-                    daily_data[date_str] = {
-                        'trades': [],
-                        'total_r': 0,
-                        'trade_count': 0
-                    }
-                
-                mfe = float(trade['mfe']) if trade['mfe'] else 0
-                daily_data[date_str]['trades'].append({
-                    'direction': trade['direction'],
-                    'session': trade['session'],
-                    'mfe': mfe
-                })
-                daily_data[date_str]['total_r'] += mfe
-                daily_data[date_str]['trade_count'] += 1
+            
+            for date_str in all_dates:
+                completed_info = completed_by_date.get(date_str, {})
+                daily_data[date_str] = {
+                    'completed_count': completed_info.get('completed_count', 0) if completed_info else 0,
+                    'active_count': active_by_date.get(date_str, 0),
+                    'avg_mfe': float(completed_info.get('avg_mfe', 0)) if completed_info and completed_info.get('avg_mfe') else 0,
+                    'trade_count': (completed_info.get('completed_count', 0) if completed_info else 0) + active_by_date.get(date_str, 0)
+                }
             
             return jsonify({
                 'success': True,

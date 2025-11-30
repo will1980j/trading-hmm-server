@@ -66,57 +66,62 @@
                 <div class="row">
                     <!-- LEFT COLUMN: TABLES + CALENDAR -->
                     <div class="col-lg-7 mb-4">
-                        <!-- FILTER + CALENDAR PANEL -->
-                        <div class="dashboard-card ultra-card mb-4">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h3 class="card-title mb-0 ultra-section-header">Filters & Trading Calendar</h3>
+                        <!-- TRADING CALENDAR -->
+                        <div class="dashboard-card ultra-card mb-3">
+                            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                                <h3 class="card-title mb-0 ultra-section-header" style="font-size: 0.95rem;">Trading Calendar</h3>
                                 <div class="d-flex align-items-center gap-2">
-                                    <button class="btn btn-sm btn-outline-light ultra-btn" id="ase-calendar-prev">&laquo;</button>
-                                    <span id="ase-calendar-month" class="small fw-semibold ultra-text">Loading...</span>
-                                    <button class="btn btn-sm btn-outline-light ultra-btn" id="ase-calendar-next">&raquo;</button>
+                                    <button class="btn btn-sm ultra-btn-compact" id="ase-calendar-prev">&laquo;</button>
+                                    <span id="ase-calendar-month" class="small fw-semibold ultra-text" style="min-width: 100px; text-align: center;">Loading...</span>
+                                    <button class="btn btn-sm ultra-btn-compact" id="ase-calendar-next">&raquo;</button>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-md-5">
-                                        <div id="ase-calendar-container">
-                                            <!-- Dynamic trading calendar injected by JS -->
-                                            <div class="text-muted small">Loading calendar...</div>
+                            <div class="card-body py-2 px-3">
+                                <div id="ase-calendar-container">
+                                    <div class="text-muted small">Loading calendar...</div>
+                                </div>
+                                <div class="d-flex justify-content-center gap-3 mt-2" style="font-size: 10px;">
+                                    <span><span class="calendar-legend-dot" style="background: #00ff88;"></span> Completed</span>
+                                    <span><span class="calendar-legend-dot" style="background: #ff4757;"></span> Active</span>
+                                    <span id="ase-selected-date-label" class="ultra-muted" style="margin-left: 8px;">Click a day to filter</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- FILTERS ROW -->
+                        <div class="dashboard-card ultra-card mb-3">
+                            <div class="card-body py-2 px-3">
+                                <div class="d-flex flex-wrap align-items-center gap-3">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="ultra-filter-label-sm">Session:</span>
+                                        <div class="btn-group btn-group-sm" role="group" id="ase-session-filter">
+                                            <button type="button" class="btn ultra-btn-sm active" data-session="ALL">All</button>
+                                            <button type="button" class="btn ultra-btn-sm" data-session="ASIA">Asia</button>
+                                            <button type="button" class="btn ultra-btn-sm" data-session="LONDON">Lon</button>
+                                            <button type="button" class="btn ultra-btn-sm" data-session="NY AM">NY AM</button>
+                                            <button type="button" class="btn ultra-btn-sm" data-session="NY PM">NY PM</button>
                                         </div>
                                     </div>
-                                    <div class="col-md-7 ultra-filter-block">
-                                        <div class="mb-3">
-                                            <label class="form-label small mb-1 ultra-filter-label">Session Filter</label>
-                                            <div class="btn-group btn-group-sm" role="group" id="ase-session-filter">
-                                                <button type="button" class="btn btn-outline-light ultra-btn active" data-session="ALL">All</button>
-                                                <button type="button" class="btn btn-outline-light ultra-btn" data-session="ASIA">Asia</button>
-                                                <button type="button" class="btn btn-outline-light ultra-btn" data-session="LONDON">London</button>
-                                                <button type="button" class="btn btn-outline-light ultra-btn" data-session="NY AM">NY AM</button>
-                                                <button type="button" class="btn btn-outline-light ultra-btn" data-session="NY PM">NY PM</button>
-                                            </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="ultra-filter-label-sm">Dir:</span>
+                                        <div class="btn-group btn-group-sm" role="group" id="ase-direction-filter">
+                                            <button type="button" class="btn ultra-btn-sm active" data-direction="ALL">All</button>
+                                            <button type="button" class="btn ultra-btn-sm" data-direction="Bullish">Bull</button>
+                                            <button type="button" class="btn ultra-btn-sm" data-direction="Bearish">Bear</button>
                                         </div>
-                                        <div class="mb-3">
-                                            <label class="form-label small mb-1 ultra-filter-label">Direction</label>
-                                            <div class="btn-group btn-group-sm" role="group" id="ase-direction-filter">
-                                                <button type="button" class="btn btn-outline-light ultra-btn active" data-direction="ALL">All</button>
-                                                <button type="button" class="btn btn-outline-light ultra-btn" data-direction="Bullish">Bullish</button>
-                                                <button type="button" class="btn btn-outline-light ultra-btn" data-direction="Bearish">Bearish</button>
-                                            </div>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="ultra-filter-label-sm">State:</span>
+                                        <div class="btn-group btn-group-sm" role="group" id="ase-state-filter">
+                                            <button type="button" class="btn ultra-btn-sm active" data-state="ALL">All</button>
+                                            <button type="button" class="btn ultra-btn-sm" data-state="ACTIVE">Active</button>
+                                            <button type="button" class="btn ultra-btn-sm" data-state="COMPLETED">Done</button>
                                         </div>
-                                        <div class="mb-3">
-                                            <label class="form-label small mb-1 ultra-filter-label">Signal State</label>
-                                            <div class="btn-group btn-group-sm" role="group" id="ase-state-filter">
-                                                <button type="button" class="btn btn-outline-light ultra-btn active" data-state="ALL">All</button>
-                                                <button type="button" class="btn btn-outline-light ultra-btn" data-state="PENDING">Pending</button>
-                                                <button type="button" class="btn btn-outline-light ultra-btn" data-state="ACTIVE">Active</button>
-                                                <button type="button" class="btn btn-outline-light ultra-btn" data-state="COMPLETED">Completed</button>
-                                            </div>
-                                        </div>
-                                        <div class="mb-0">
-                                            <label class="form-label small mb-1 ultra-filter-label">Search by Trade ID</label>
-                                            <input type="text" class="form-control form-control-sm ultra-input" id="ase-search-trade-id" 
-                                                   placeholder="Enter trade_id or partial...">
-                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2 ms-auto">
+                                        <input type="text" class="form-control form-control-sm ultra-input-sm" id="ase-search-trade-id" 
+                                               placeholder="Search ID..." style="width: 120px;">
+                                        <button class="btn ultra-btn-sm" id="ase-clear-filters" title="Clear all filters">✕</button>
                                     </div>
                                 </div>
                             </div>
