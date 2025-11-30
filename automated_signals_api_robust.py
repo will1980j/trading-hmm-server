@@ -524,6 +524,74 @@ def register_automated_signals_api_robust(app, db):
             }), 500
 
 
+    @app.route('/api/automated-signals/daily-calendar')
+    def get_daily_calendar():
+        """Get daily trade data for calendar view"""
+        try:
+            import os
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+            
+            database_url = os.environ.get('DATABASE_URL')
+            if not database_url:
+                return jsonify({'success': False, 'error': 'no_database_url'}), 500
+            
+            conn = psycopg2.connect(database_url)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            # Get trades grouped by date from last 90 days
+            cursor.execute("""
+                SELECT 
+                    DATE(timestamp) as date,
+                    direction,
+                    session,
+                    COALESCE(final_mfe, no_be_mfe, mfe, 0) as mfe,
+                    event_type
+                FROM automated_signals
+                WHERE timestamp >= CURRENT_DATE - INTERVAL '90 days'
+                AND event_type IN ('ENTRY', 'EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN')
+                ORDER BY timestamp DESC
+            """)
+            
+            trades = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            # Group by date
+            daily_data = {}
+            for trade in trades:
+                date_val = trade['date']
+                date_str = date_val.strftime('%Y-%m-%d') if hasattr(date_val, 'strftime') else str(date_val)
+                
+                if date_str not in daily_data:
+                    daily_data[date_str] = {
+                        'trades': [],
+                        'total_r': 0,
+                        'trade_count': 0
+                    }
+                
+                mfe = float(trade['mfe']) if trade['mfe'] else 0
+                daily_data[date_str]['trades'].append({
+                    'direction': trade['direction'],
+                    'session': trade['session'],
+                    'mfe': mfe
+                })
+                daily_data[date_str]['total_r'] += mfe
+                daily_data[date_str]['trade_count'] += 1
+            
+            return jsonify({
+                'success': True,
+                'daily_data': daily_data
+            })
+            
+        except Exception as e:
+            logger.error(f"Error fetching daily calendar: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+
 def _get_active_trades_robust(cursor, has_signal_time):
     """Get active trades with telemetry support"""
     try:
