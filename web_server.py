@@ -12005,7 +12005,7 @@ def as_fuse_automated_payload_sources(raw_data, parsed):
 def as_validate_lifecycle_transition(trade_id, new_event_type, cursor):
     """
     Strict lifecycle state machine validation.
-    Ensures: ENTRY → MFE_UPDATE → EXIT_* is the ONLY allowed order.
+    Ensures: ENTRY → MFE_UPDATE/BE_TRIGGERED → EXIT_* is the ONLY allowed order.
     """
     cursor.execute("""
         SELECT event_type
@@ -12026,8 +12026,12 @@ def as_validate_lifecycle_transition(trade_id, new_event_type, cursor):
     if any(e.startswith("EXIT_") for e in history):
         return f"Illegal transition: Trade {trade_id} already exited"
     
-    # ENTRY → MFE allowed
+    # ENTRY → MFE_UPDATE allowed
     if new_event_type == "MFE_UPDATE":
+        return None
+    
+    # ENTRY → BE_TRIGGERED allowed
+    if new_event_type == "BE_TRIGGERED":
         return None
     
     # ENTRY → EXIT allowed
@@ -12490,24 +12494,25 @@ def handle_entry_signal(data):
         no_be_mfe = float(data.get('no_be_mfe', 0.0))
         
         # Deduplication guard: do not create a second ENTRY row for the same trade_id
+        # CRITICAL: Only check for existing ENTRY rows, not other event types
         cursor.execute("""
             SELECT id, event_type
             FROM automated_signals
-            WHERE trade_id = %s
+            WHERE trade_id = %s AND event_type = 'ENTRY'
             ORDER BY id ASC
             LIMIT 1
         """, (trade_id,))
         existing = cursor.fetchone()
         if existing:
             existing_id, existing_event_type = existing
-            logger.info(f"⚠️ Duplicate ENTRY ignored for trade_id={trade_id}, existing_id={existing_id}, existing_event_type={existing_event_type}")
+            logger.info(f"⚠️ Duplicate ENTRY ignored for trade_id={trade_id}, existing_id={existing_id}")
             conn.commit()
             return {
                 "success": True,
                 "duplicate": True,
                 "signal_id": existing_id,
                 "trade_id": trade_id,
-                "message": "Duplicate ENTRY ignored - trade already exists"
+                "message": "Duplicate ENTRY ignored - ENTRY already exists"
             }
         
         # 7I lifecycle validation
