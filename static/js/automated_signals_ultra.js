@@ -97,7 +97,7 @@ AutomatedSignalsUltra.renderHeaderStats = function() {
     }
     
     if (sigTodayEl) {
-        sigTodayEl.textContent = stats.total_signals ?? 0;
+        sigTodayEl.textContent = stats.today_count ?? stats.total_signals ?? 0;
     }
     
     if (activeEl) {
@@ -459,7 +459,7 @@ AutomatedSignalsUltra.renderSummaryStats = function() {
     };
     
     const el1 = document.getElementById(map.summarySignalsToday);
-    if (el1) el1.textContent = stats.total_signals ?? 0;
+    if (el1) el1.textContent = stats.today_count ?? stats.total_signals ?? 0;
     
     const el2 = document.getElementById(map.summaryConfirmed);
     if (el2) el2.textContent = stats.completed_count ?? 0;
