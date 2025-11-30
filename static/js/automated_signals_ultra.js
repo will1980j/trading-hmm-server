@@ -16,11 +16,31 @@ window.AutomatedSignalsUltra = {
 // Local reference for convenience
 const AutomatedSignalsUltra = window.AutomatedSignalsUltra;
 
+AutomatedSignalsUltra.currentMonth = new Date();
+AutomatedSignalsUltra.calendarData = [];
+
 AutomatedSignalsUltra.init = function() {
     console.log("[ASE] Initializing Automated Signals Engine dashboard...");
     
     // First load
     AutomatedSignalsUltra.fetchDashboardData();
+    AutomatedSignalsUltra.fetchCalendarData();
+    
+    // Wire calendar navigation
+    const prevBtn = document.getElementById('ase-calendar-prev');
+    const nextBtn = document.getElementById('ase-calendar-next');
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            AutomatedSignalsUltra.currentMonth.setMonth(AutomatedSignalsUltra.currentMonth.getMonth() - 1);
+            AutomatedSignalsUltra.renderCalendar();
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            AutomatedSignalsUltra.currentMonth.setMonth(AutomatedSignalsUltra.currentMonth.getMonth() + 1);
+            AutomatedSignalsUltra.renderCalendar();
+        });
+    }
     
     // Poll every 7 seconds
     if (AutomatedSignalsUltra.timer) {
@@ -443,6 +463,134 @@ AutomatedSignalsUltra.renderSummaryStats = function() {
     
     const el6 = document.getElementById(map.summarySL);
     if (el6) el6.textContent = stats.sl_count ?? 0;
+};
+
+AutomatedSignalsUltra.fetchCalendarData = async function() {
+    try {
+        const resp = await fetch('/api/automated-signals/daily-calendar', {
+            cache: 'no-store'
+        });
+        const json = await resp.json();
+        
+        // Handle different response formats
+        if (json.success && json.daily_data) {
+            // Convert object to array format
+            AutomatedSignalsUltra.calendarData = Object.entries(json.daily_data).map(([date, data]) => ({
+                date: date,
+                trade_count: data.trade_count || 0,
+                avg_no_be_mfe_R: data.trade_count > 0 ? (data.total_r / data.trade_count) : 0,
+                total_r: data.total_r || 0
+            }));
+        } else if (json.success && json.calendar) {
+            AutomatedSignalsUltra.calendarData = json.calendar;
+        } else if (Array.isArray(json)) {
+            AutomatedSignalsUltra.calendarData = json;
+        } else {
+            AutomatedSignalsUltra.calendarData = [];
+        }
+        
+        console.log("[ASE] Calendar data loaded:", AutomatedSignalsUltra.calendarData.length, "days");
+        AutomatedSignalsUltra.renderCalendar();
+    } catch (err) {
+        console.error("[ASE] Error fetching calendar data:", err);
+        AutomatedSignalsUltra.calendarData = [];
+        AutomatedSignalsUltra.renderCalendar();
+    }
+};
+
+AutomatedSignalsUltra.renderCalendar = function() {
+    const container = document.getElementById('ase-calendar-container');
+    const monthLabel = document.getElementById('ase-calendar-month');
+    
+    if (!container) return;
+    
+    const year = AutomatedSignalsUltra.currentMonth.getFullYear();
+    const month = AutomatedSignalsUltra.currentMonth.getMonth();
+    
+    // Update month label
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    if (monthLabel) {
+        monthLabel.textContent = `${monthNames[month]} ${year}`;
+    }
+    
+    // Build calendar grid
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Create lookup for calendar data
+    const dataByDate = {};
+    for (const item of AutomatedSignalsUltra.calendarData) {
+        const dateKey = item.date || item.signal_date;
+        if (dateKey) {
+            dataByDate[dateKey] = item;
+        }
+    }
+    
+    let html = `
+        <table class="table table-sm table-dark mb-0" style="font-size: 11px;">
+            <thead>
+                <tr>
+                    <th class="text-center p-1">S</th>
+                    <th class="text-center p-1">M</th>
+                    <th class="text-center p-1">T</th>
+                    <th class="text-center p-1">W</th>
+                    <th class="text-center p-1">T</th>
+                    <th class="text-center p-1">F</th>
+                    <th class="text-center p-1">S</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    let dayCount = 1;
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    for (let week = 0; week < 6; week++) {
+        if (dayCount > daysInMonth) break;
+        
+        html += '<tr>';
+        for (let dow = 0; dow < 7; dow++) {
+            if ((week === 0 && dow < firstDay) || dayCount > daysInMonth) {
+                html += '<td class="p-1"></td>';
+            } else {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayCount).padStart(2, '0')}`;
+                const dayData = dataByDate[dateStr];
+                
+                let cellClass = 'text-center p-1';
+                let cellStyle = 'cursor: pointer;';
+                let tooltip = '';
+                
+                if (dateStr === todayStr) {
+                    cellStyle += ' border: 1px solid #00aaff;';
+                }
+                
+                if (dayData) {
+                    const trades = dayData.trade_count || 0;
+                    const avgMFE = dayData.avg_no_be_mfe_R || dayData.avg_max_mfe_R || 0;
+                    
+                    // Color based on performance
+                    if (avgMFE >= 1) {
+                        cellStyle += ' background: rgba(0, 255, 136, 0.3);';
+                    } else if (avgMFE >= 0) {
+                        cellStyle += ' background: rgba(255, 217, 61, 0.3);';
+                    } else {
+                        cellStyle += ' background: rgba(255, 71, 87, 0.3);';
+                    }
+                    
+                    tooltip = `${trades} trades, ${avgMFE.toFixed(2)}R avg`;
+                }
+                
+                html += `<td class="${cellClass}" style="${cellStyle}" title="${tooltip}">${dayCount}</td>`;
+                dayCount++;
+            }
+        }
+        html += '</tr>';
+    }
+    
+    html += '</tbody></table>';
+    container.innerHTML = html;
 };
 
 // DOM ready hook
