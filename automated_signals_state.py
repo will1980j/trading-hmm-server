@@ -289,7 +289,6 @@ def _fetch_events_for_range(
         session,
         bias,
         risk_distance,
-        targets,
         current_price,
         mfe,
         exit_price,
@@ -298,8 +297,7 @@ def _fetch_events_for_range(
         signal_date,
         signal_time,
         be_mfe,
-        no_be_mfe,
-        telemetry
+        no_be_mfe
     FROM automated_signals
     {where_sql}
     ORDER BY trade_id, timestamp ASC, id ASC
@@ -493,7 +491,6 @@ def get_trade_detail(trade_id: str) -> Optional[Dict[str, Any]]:
             session,
             bias,
             risk_distance,
-            targets,
             current_price,
             mfe,
             exit_price,
@@ -502,8 +499,7 @@ def get_trade_detail(trade_id: str) -> Optional[Dict[str, Any]]:
             signal_date,
             signal_time,
             be_mfe,
-            no_be_mfe,
-            telemetry
+            no_be_mfe
         FROM automated_signals
         WHERE trade_id = %s
         ORDER BY timestamp ASC, id ASC
