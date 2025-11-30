@@ -13013,7 +13013,9 @@ def handle_exit_signal(data, exit_type):
             }
         
         # 7I lifecycle validation
-        validation_error = as_validate_lifecycle_transition(trade_id, f"EXIT_{exit_type}", cursor)
+        # Map exit_type to canonical event names: BREAK_EVEN -> EXIT_BE, STOP_LOSS -> EXIT_SL
+        canonical_exit_event = "EXIT_BE" if exit_type == "BREAK_EVEN" else "EXIT_SL"
+        validation_error = as_validate_lifecycle_transition(trade_id, canonical_exit_event, cursor)
         if validation_error:
             return {"success": False, "error": validation_error}
         
@@ -13036,7 +13038,7 @@ def handle_exit_signal(data, exit_type):
                 RETURNING id
             """, (
                 trade_id,
-                f'EXIT_{exit_type}',
+                canonical_exit_event,  # Use EXIT_BE or EXIT_SL
                 exit_price,
                 final_be_mfe,
                 final_no_be_mfe,
@@ -13056,7 +13058,7 @@ def handle_exit_signal(data, exit_type):
                 RETURNING id
             """, (
                 trade_id,
-                f'EXIT_{exit_type}',
+                canonical_exit_event,  # Use EXIT_BE or EXIT_SL
                 final_be_mfe,
                 final_no_be_mfe,
                 final_no_be_mfe  # Use no_be_mfe as final_mfe
@@ -13094,7 +13096,7 @@ def handle_exit_signal(data, exit_type):
         try:
             socketio.emit('trade_lifecycle', {
                 'trade_id': trade_id,
-                'event_type': f'EXIT_{exit_type}',
+                'event_type': canonical_exit_event,  # Use EXIT_BE or EXIT_SL
                 'lifecycle_state': lifecycle_state,
                 'lifecycle_seq': lifecycle_seq,
                 'timestamp': datetime.now().isoformat(),
@@ -13102,7 +13104,7 @@ def handle_exit_signal(data, exit_type):
                 'no_be_mfe': final_no_be_mfe,
                 'exit_type': exit_type
             }, namespace='/')
-            logger.info(f"📡 WebSocket broadcast: trade_lifecycle EXIT_{exit_type} for {trade_id}")
+            logger.info(f"📡 WebSocket broadcast: trade_lifecycle {canonical_exit_event} for {trade_id}")
         except Exception as ws_error:
             logger.warning(f"WebSocket lifecycle broadcast failed: {ws_error}")
         
