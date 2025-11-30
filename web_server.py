@@ -11638,6 +11638,132 @@ def automated_signals_webhook_alias():
     """Alias for backward compatibility with /webhook suffix"""
     return automated_signals_webhook()
 
+
+@app.route('/api/automated-signals/test-lifecycle', methods=['POST'])
+def test_automated_signals_lifecycle():
+    """Built-in lifecycle self-test for debugging the ingestion pipeline"""
+    import time
+    from datetime import datetime
+    
+    try:
+        trade_id = f"TEST_LIFECYCLE_{int(time.time())}"
+        results = []
+        
+        # Test ENTRY
+        entry_payload = {
+            "trade_id": trade_id,
+            "event_type": "ENTRY",
+            "symbol": "NQ",
+            "direction": "LONG",
+            "entry_price": "18500.00",
+            "stop_loss": "18450.00",
+            "session": "NY_AM",
+            "bias": "Bullish"
+        }
+        
+        try:
+            canonical = normalize_automated_signal_payload(entry_payload)
+            result = handle_entry_signal(canonical)
+            if result.get("success"):
+                results.append({"step": "ENTRY", "status": "PASS", "result": f"ID={result.get('signal_id')}"})
+            else:
+                results.append({"step": "ENTRY", "status": "FAIL", "error": result.get("error")})
+                return jsonify({"test_results": results, "overall": "FAIL", "trade_id": trade_id})
+        except Exception as e:
+            results.append({"step": "ENTRY", "status": "FAIL", "error": str(e)})
+            return jsonify({"test_results": results, "overall": "FAIL", "trade_id": trade_id})
+        
+        # Test MFE_UPDATE
+        mfe_payload = {
+            "trade_id": trade_id,
+            "event_type": "MFE_UPDATE",
+            "current_price": "18525.00",
+            "be_mfe": "0.5",
+            "no_be_mfe": "0.5"
+        }
+        
+        try:
+            canonical = normalize_automated_signal_payload(mfe_payload)
+            result = handle_mfe_update(canonical)
+            if result.get("success"):
+                results.append({"step": "MFE_UPDATE", "status": "PASS", "result": "MFE updated"})
+            else:
+                results.append({"step": "MFE_UPDATE", "status": "FAIL", "error": result.get("error")})
+        except Exception as e:
+            results.append({"step": "MFE_UPDATE", "status": "FAIL", "error": str(e)})
+        
+        # Test BE_TRIGGERED
+        be_payload = {
+            "trade_id": trade_id,
+            "event_type": "BE_TRIGGERED",
+            "be_mfe": "1.0",
+            "no_be_mfe": "1.0"
+        }
+        
+        try:
+            canonical = normalize_automated_signal_payload(be_payload)
+            result = handle_be_trigger(canonical)
+            if result.get("success"):
+                results.append({"step": "BE_TRIGGERED", "status": "PASS", "result": "BE trigger stored"})
+            else:
+                results.append({"step": "BE_TRIGGERED", "status": "FAIL", "error": result.get("error")})
+        except Exception as e:
+            results.append({"step": "BE_TRIGGERED", "status": "FAIL", "error": str(e)})
+        
+        # Test EXIT
+        exit_payload = {
+            "trade_id": trade_id,
+            "event_type": "EXIT_BE",
+            "exit_price": "18500.00",
+            "final_be_mfe": "1.0",
+            "final_no_be_mfe": "1.5"
+        }
+        
+        try:
+            canonical = normalize_automated_signal_payload(exit_payload)
+            result = handle_exit_signal(canonical, "BE")
+            if result.get("success"):
+                results.append({"step": "EXIT_BE", "status": "PASS", "result": "Exit stored"})
+            else:
+                results.append({"step": "EXIT_BE", "status": "FAIL", "error": result.get("error")})
+        except Exception as e:
+            results.append({"step": "EXIT_BE", "status": "FAIL", "error": str(e)})
+        
+        # Verify database records
+        try:
+            database_url = os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(database_url)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT event_type, direction, entry_price, be_mfe, no_be_mfe
+                FROM automated_signals
+                WHERE trade_id = %s
+                ORDER BY id ASC
+            """, (trade_id,))
+            rows = cursor.fetchall()
+            conn.close()
+            
+            if len(rows) >= 3:
+                results.append({"step": "DATABASE_VERIFY", "status": "PASS", "result": f"Found {len(rows)} records"})
+                overall = "PASS" if all(r.get("status") == "PASS" for r in results) else "PARTIAL"
+            else:
+                results.append({"step": "DATABASE_VERIFY", "status": "FAIL", "result": f"Only {len(rows)} records found"})
+                overall = "FAIL"
+        except Exception as e:
+            results.append({"step": "DATABASE_VERIFY", "status": "FAIL", "error": str(e)})
+            overall = "FAIL"
+        
+        return jsonify({
+            "test_trade_id": trade_id,
+            "test_results": results,
+            "overall": overall,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e), "overall": "FAIL"}), 500
+
+
 def _validate_trade_id(raw_trade_id, format_kind, event_type):
     """
     Strict validation for incoming trade IDs to prevent malformed or 'ghost' trades.
@@ -12380,44 +12506,13 @@ def handle_entry_signal(data):
         if validation_error:
             return {"success": False, "error": validation_error}
         
-        # Compute risk and targets from normalized payload
-        # Basic risk metric (distance in price terms)
-        if entry_price > 0 and stop_loss > 0:
-            if direction in ("LONG", "Bullish"):
-                risk_distance = entry_price - stop_loss
-            elif direction in ("SHORT", "Bearish"):
-                risk_distance = stop_loss - entry_price
-            else:
-                risk_distance = 0.0
-        else:
-            risk_distance = 0.0
+        # risk_distance is already computed earlier in the function (around line 12320)
+        # No need to recompute - just use the existing value
         
-        # Derive simple R-based targets from risk_distance
-        if risk_distance > 0 and direction in ("LONG", "Bullish"):
-            target_1r = entry_price + risk_distance
-            target_2r = entry_price + 2 * risk_distance
-            target_3r = entry_price + 3 * risk_distance
-            target_5r = entry_price + 5 * risk_distance
-            target_10r = entry_price + 10 * risk_distance
-            target_20r = entry_price + 20 * risk_distance
-        elif risk_distance > 0 and direction in ("SHORT", "Bearish"):
-            target_1r = entry_price - risk_distance
-            target_2r = entry_price - 2 * risk_distance
-            target_3r = entry_price - 3 * risk_distance
-            target_5r = entry_price - 5 * risk_distance
-            target_10r = entry_price - 10 * risk_distance
-            target_20r = entry_price - 20 * risk_distance
-        else:
-            target_1r = target_2r = target_3r = None
-            target_5r = target_10r = target_20r = None
-        
-        # Account / risk fields – we don't have account_size in telemetry, so keep it zero for now
-        account_size = 0.0
-        risk_percent = 0.0
-        contracts = int(data.get("position_size") or data.get("contracts") or 0)
-        risk_amount = risk_distance * contracts
-        
-        # Insert ENTRY into automated_signals using ONLY real columns
+        # Insert ENTRY into automated_signals using ONLY columns that exist in the schema
+        # Schema columns: id, trade_id, event_type, direction, entry_price, stop_loss,
+        #                 session, bias, risk_distance, targets (JSONB), current_price,
+        #                 mfe, be_mfe, no_be_mfe, exit_price, final_mfe, signal_date, signal_time, timestamp
         insert_sql = """
             INSERT INTO automated_signals (
                 trade_id,
@@ -12426,30 +12521,18 @@ def handle_entry_signal(data):
                 entry_price,
                 stop_loss,
                 risk_distance,
-                target_1r,
-                target_2r,
-                target_3r,
-                target_5r,
-                target_10r,
-                target_20r,
-                current_price,
-                mfe,
-                exit_price,
-                final_mfe,
+                targets,
                 session,
                 bias,
-                account_size,
-                risk_percent,
-                contracts,
-                risk_amount,
-                timestamp,
-                created_at,
-                lifecycle_state,
-                lifecycle_seq,
-                lifecycle_entered_at,
-                lifecycle_updated_at,
+                current_price,
+                mfe,
                 be_mfe,
-                no_be_mfe
+                no_be_mfe,
+                exit_price,
+                final_mfe,
+                signal_date,
+                signal_time,
+                timestamp
             ) VALUES (
                 %(trade_id)s,
                 'ENTRY',
@@ -12457,30 +12540,18 @@ def handle_entry_signal(data):
                 %(entry_price)s,
                 %(stop_loss)s,
                 %(risk_distance)s,
-                %(target_1r)s,
-                %(target_2r)s,
-                %(target_3r)s,
-                %(target_5r)s,
-                %(target_10r)s,
-                %(target_20r)s,
-                NULL,
-                0,
-                NULL,
-                0,
+                %(targets)s,
                 %(session)s,
                 %(bias)s,
-                %(account_size)s,
-                %(risk_percent)s,
-                %(contracts)s,
-                %(risk_amount)s,
-                (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-                NOW(),
-                'ACTIVE',
-                1,
-                NOW(),
-                NOW(),
+                NULL,
                 0,
-                0
+                0,
+                0,
+                NULL,
+                0,
+                CURRENT_DATE,
+                CURRENT_TIME,
+                NOW()
             )
             RETURNING id
         """
@@ -12490,18 +12561,9 @@ def handle_entry_signal(data):
             "entry_price": entry_price,
             "stop_loss": stop_loss,
             "risk_distance": risk_distance,
-            "target_1r": target_1r,
-            "target_2r": target_2r,
-            "target_3r": target_3r,
-            "target_5r": target_5r,
-            "target_10r": target_10r,
-            "target_20r": target_20r,
+            "targets": dumps(targets) if targets else None,
             "session": session,
-            "bias": bias or direction,
-            "account_size": account_size,
-            "risk_percent": risk_percent,
-            "contracts": contracts,
-            "risk_amount": risk_amount
+            "bias": bias or direction
         }
         try:
             cursor.execute(insert_sql, params)
@@ -12669,6 +12731,10 @@ def handle_mfe_update(data):
                 "message": "MFE update ignored — trade already exited"
             }
         
+        # Update MFE using ONLY columns that exist in the schema
+        # Schema columns: id, trade_id, event_type, direction, entry_price, stop_loss,
+        #                 session, bias, risk_distance, targets (JSONB), current_price,
+        #                 mfe, be_mfe, no_be_mfe, exit_price, final_mfe, signal_date, signal_time, timestamp
         cursor.execute("""
             UPDATE automated_signals
             SET 
@@ -12677,17 +12743,10 @@ def handle_mfe_update(data):
                 mfe = %s,
                 be_mfe = %s,
                 no_be_mfe = %s,
-                timestamp = NOW(),
-                lifecycle_state = COALESCE(lifecycle_state, 'ACTIVE'),
-                lifecycle_seq = COALESCE(lifecycle_seq, 0) + 1,
-                lifecycle_entered_at = CASE
-                    WHEN lifecycle_state IS NULL THEN NOW()
-                    ELSE lifecycle_entered_at
-                END,
-                lifecycle_updated_at = NOW()
+                timestamp = NOW()
             WHERE trade_id = %s
               AND event_type IN ('ENTRY', 'MFE_UPDATE')
-            RETURNING id, lifecycle_state, lifecycle_seq
+            RETURNING id
         """, (
             current_price,
             no_be_mfe,
@@ -12710,8 +12769,8 @@ def handle_mfe_update(data):
             }
         
         signal_id = result[0]
-        lifecycle_state = result[1]
-        lifecycle_seq = result[2]
+        lifecycle_state = 'ACTIVE'  # Default for MFE_UPDATE
+        lifecycle_seq = 2  # Default for MFE_UPDATE
         conn.commit()
         
         logger.info(f"✅ MFE update stored: Trade {trade_id}, BE={be_mfe}R, No BE={no_be_mfe}R @ {current_price}")
@@ -12799,14 +12858,14 @@ def handle_be_trigger(data):
         except (ValueError, TypeError) as conv_error:
             return {"success": False, "error": f"Invalid BE data: {str(conv_error)}"}
         
-        # Store BE trigger event
+        # Store BE trigger event using schema-compatible columns
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO automated_signals (
-                trade_id, event_type, mfe
-            ) VALUES (%s, %s, %s)
+                trade_id, event_type, mfe, be_mfe, no_be_mfe, timestamp
+            ) VALUES (%s, %s, %s, %s, %s, NOW())
             RETURNING id
-        """, (trade_id, 'BE_TRIGGERED', be_mfe))
+        """, (trade_id, 'BE_TRIGGERED', be_mfe, be_mfe, no_be_mfe))
         
         result = cursor.fetchone()
         if not result:
@@ -12902,9 +12961,9 @@ def handle_exit_signal(data, exit_type):
                 "message": "EXIT update ignored — ENTRY row does not exist"
             }
         
-        # Compute next lifecycle sequence for this trade
+        # Compute next lifecycle sequence for this trade (count existing events)
         cursor.execute("""
-            SELECT MAX(lifecycle_seq)
+            SELECT COUNT(*)
             FROM automated_signals
             WHERE trade_id = %s
         """, (trade_id,))
@@ -12937,6 +12996,10 @@ def handle_exit_signal(data, exit_type):
             return {"success": False, "error": validation_error}
         
         # Store exit signal with BOTH MFE values
+        # Using ONLY columns that exist in the schema:
+        # id, trade_id, event_type, direction, entry_price, stop_loss,
+        # session, bias, risk_distance, targets (JSONB), current_price,
+        # mfe, be_mfe, no_be_mfe, exit_price, final_mfe, signal_date, signal_time, timestamp
         if exit_price > 0:
             cursor.execute("""
                 INSERT INTO automated_signals (
@@ -12945,12 +13008,9 @@ def handle_exit_signal(data, exit_type):
                     exit_price,
                     be_mfe,
                     no_be_mfe,
-                    lifecycle_state,
-                    lifecycle_seq,
-                    lifecycle_entered_at,
-                    lifecycle_updated_at
-                ) VALUES (%s, %s, %s, %s, %s,
-                          %s, %s, NOW(), NOW())
+                    final_mfe,
+                    timestamp
+                ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
                 RETURNING id
             """, (
                 trade_id,
@@ -12958,8 +13018,7 @@ def handle_exit_signal(data, exit_type):
                 exit_price,
                 final_be_mfe,
                 final_no_be_mfe,
-                'EXITED',
-                next_lifecycle_seq
+                final_no_be_mfe  # Use no_be_mfe as final_mfe
             ))
         else:
             # No exit price (strategy format)
@@ -12969,20 +13028,16 @@ def handle_exit_signal(data, exit_type):
                     event_type,
                     be_mfe,
                     no_be_mfe,
-                    lifecycle_state,
-                    lifecycle_seq,
-                    lifecycle_entered_at,
-                    lifecycle_updated_at
-                ) VALUES (%s, %s, %s, %s,
-                          %s, %s, NOW(), NOW())
+                    final_mfe,
+                    timestamp
+                ) VALUES (%s, %s, %s, %s, %s, NOW())
                 RETURNING id
             """, (
                 trade_id,
                 f'EXIT_{exit_type}',
                 final_be_mfe,
                 final_no_be_mfe,
-                'EXITED',
-                next_lifecycle_seq
+                final_no_be_mfe  # Use no_be_mfe as final_mfe
             ))
         
         result = cursor.fetchone()
@@ -12991,15 +13046,9 @@ def handle_exit_signal(data, exit_type):
             
         signal_id = result[0]
         
-        # Get lifecycle state and seq for the new lifecycle event
-        cursor.execute("""
-            SELECT lifecycle_state, lifecycle_seq
-            FROM automated_signals
-            WHERE id = %s
-        """, (signal_id,))
-        lifecycle_row = cursor.fetchone()
-        lifecycle_state = lifecycle_row[0] if lifecycle_row else None
-        lifecycle_seq = lifecycle_row[1] if lifecycle_row else None
+        # Set default lifecycle values (columns don't exist in schema)
+        lifecycle_state = 'EXITED'
+        lifecycle_seq = next_lifecycle_seq
         
         conn.commit()
         
