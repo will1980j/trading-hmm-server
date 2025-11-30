@@ -81,7 +81,7 @@ def register_automated_signals_api_robust(app, db):
             
             # ============================================
             # STEP 1: Load ALL ACTIVE trades (NO LIMIT)
-            # ACTIVE = trades without any EXIT event
+            # ACTIVE = lifecycle_state='ACTIVE' OR lifecycle_seq=1 (for ENTRY rows)
             # ============================================
             cursor.execute("""
                 SELECT 
@@ -98,14 +98,16 @@ def register_automated_signals_api_robust(app, db):
                     final_mfe,
                     session,
                     bias,
-                    timestamp
+                    timestamp,
+                    lifecycle_state,
+                    lifecycle_seq
                 FROM automated_signals
-                WHERE trade_id NOT IN (
+                WHERE (lifecycle_state = 'ACTIVE' OR lifecycle_seq = 1)
+                AND trade_id NOT IN (
                     SELECT DISTINCT trade_id 
                     FROM automated_signals 
                     WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
                 )
-                AND event_type IN ('ENTRY', 'MFE_UPDATE', 'BE_TRIGGERED')
                 ORDER BY timestamp ASC
             """)
             active_rows = cursor.fetchall()
@@ -130,7 +132,9 @@ def register_automated_signals_api_robust(app, db):
                     final_mfe,
                     session,
                     bias,
-                    timestamp
+                    timestamp,
+                    lifecycle_state,
+                    lifecycle_seq
                 FROM automated_signals
                 WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
                 ORDER BY timestamp DESC

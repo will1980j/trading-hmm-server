@@ -12553,7 +12553,9 @@ def handle_entry_signal(data):
                 final_mfe,
                 signal_date,
                 signal_time,
-                timestamp
+                timestamp,
+                lifecycle_state,
+                lifecycle_seq
             ) VALUES (
                 %(trade_id)s,
                 'ENTRY',
@@ -12572,7 +12574,9 @@ def handle_entry_signal(data):
                 0,
                 CURRENT_DATE,
                 CURRENT_TIME,
-                NOW()
+                NOW(),
+                'ACTIVE',
+                1
             )
             RETURNING id
         """
