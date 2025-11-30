@@ -16,14 +16,19 @@ def register_automated_signals_api_robust(app, db):
     @app.route('/api/automated-signals/dashboard-data')
     def get_dashboard_data_robust():
         """
-        Get complete dashboard data with robust error handling
-        Handles multiple data scenarios and provides meaningful fallbacks
+        Get complete dashboard data from automated_signals table.
+        
+        STRICT PATCH:
+        - Returns ALL active trades (no limit) so they never disappear
+        - Returns capped completed trades (last 500) for pagination
+        - Only uses automated_signals table
+        - NO legacy tables: live_signals, signal_lab_trades, enhanced_signals_v2
         """
         try:
-            # Use fresh connection instead of db.conn
             import os
             import psycopg2
             from psycopg2.extras import RealDictCursor
+            from decimal import Decimal
             
             database_url = os.environ.get('DATABASE_URL')
             if not database_url:
@@ -31,14 +36,14 @@ def register_automated_signals_api_robust(app, db):
                     'success': False,
                     'error': 'no_database_url',
                     'active_trades': [],
-                    'completed_trades': []
+                    'completed_trades': [],
+                    'stats': _get_empty_stats_ultra()
                 }), 500
             
             conn = psycopg2.connect(database_url)
-            # Use regular cursor for simple queries, RealDictCursor for data queries
             cursor = conn.cursor()
             
-            # Strategy 1: Check table existence
+            # Check table existence
             cursor.execute("""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
@@ -49,84 +54,187 @@ def register_automated_signals_api_robust(app, db):
             
             if not table_exists:
                 logger.warning("automated_signals table does not exist")
+                cursor.close()
+                conn.close()
                 return jsonify({
                     'success': False,
                     'error': 'table_not_found',
-                    'message': 'Automated signals table not initialized',
                     'active_trades': [],
                     'completed_trades': [],
-                    'stats': _get_empty_stats(),
-                    'hourly_distribution': {},
-                    'session_breakdown': {}
+                    'stats': _get_empty_stats_ultra()
                 }), 200
             
-            # Strategy 2: Check for any data
-            cursor.execute("SELECT COUNT(*) FROM automated_signals;")
-            total_records = cursor.fetchone()[0]
-            
-            if total_records == 0:
-                logger.info("automated_signals table is empty")
-                return jsonify({
-                    'success': True,
-                    'message': 'No signals received yet',
-                    'active_trades': [],
-                    'completed_trades': [],
-                    'stats': _get_empty_stats(),
-                    'hourly_distribution': {},
-                    'session_breakdown': {},
-                    'timestamp': datetime.now(pytz.UTC).isoformat()
-                }), 200
-            
-            # Strategy 3: Get column information
-            cursor.execute("""
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = 'automated_signals'
-                ORDER BY ordinal_position;
-            """)
-            columns = [row[0] for row in cursor.fetchall()]
-            has_signal_time = 'signal_date' in columns and 'signal_time' in columns
-            
-            logger.info(f"Table has {total_records} records, columns: {columns}")
-            
-            # Close regular cursor and open RealDictCursor for data queries
             cursor.close()
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
-            # Strategy 4: Get active trades with comprehensive error handling
-            active_trades = _get_active_trades_robust(cursor, has_signal_time)
+            # Helper to convert row to JSON-serializable dict
+            def row_to_dict(row):
+                result = {}
+                for key, value in row.items():
+                    if isinstance(value, Decimal):
+                        result[key] = float(value)
+                    elif hasattr(value, 'isoformat'):
+                        result[key] = value.isoformat()
+                    else:
+                        result[key] = value
+                return result
             
-            # Strategy 5: Get completed trades
-            completed_trades = _get_completed_trades_robust(cursor, has_signal_time)
+            # ============================================
+            # STEP 1: Load ALL ACTIVE trades (NO LIMIT)
+            # ACTIVE = trades without any EXIT event
+            # ============================================
+            cursor.execute("""
+                SELECT 
+                    id,
+                    trade_id,
+                    event_type,
+                    direction,
+                    entry_price,
+                    stop_loss,
+                    current_price,
+                    mfe,
+                    be_mfe,
+                    no_be_mfe,
+                    final_mfe,
+                    session,
+                    bias,
+                    timestamp
+                FROM automated_signals
+                WHERE trade_id NOT IN (
+                    SELECT DISTINCT trade_id 
+                    FROM automated_signals 
+                    WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                )
+                AND event_type IN ('ENTRY', 'MFE_UPDATE', 'BE_TRIGGERED')
+                ORDER BY timestamp ASC
+            """)
+            active_rows = cursor.fetchall()
+            active_trades = [row_to_dict(row) for row in active_rows]
             
-            # Strategy 6: Calculate statistics
-            stats = _calculate_stats_robust(cursor, active_trades, completed_trades)
+            # ============================================
+            # STEP 2: Load COMPLETED trades with LIMIT 500
+            # COMPLETED = trades with EXIT event
+            # ============================================
+            cursor.execute("""
+                SELECT 
+                    id,
+                    trade_id,
+                    event_type,
+                    direction,
+                    entry_price,
+                    stop_loss,
+                    current_price,
+                    mfe,
+                    be_mfe,
+                    no_be_mfe,
+                    final_mfe,
+                    session,
+                    bias,
+                    timestamp
+                FROM automated_signals
+                WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                ORDER BY timestamp DESC
+                LIMIT 500
+            """)
+            completed_rows = cursor.fetchall()
+            completed_trades = [row_to_dict(row) for row in completed_rows]
             
-            # Strategy 7: Get distributions
-            hourly_dist = _get_hourly_distribution_robust(cursor)
-            session_breakdown = _get_session_breakdown_robust(cursor)
+            # ============================================
+            # STEP 3: Calculate stats
+            # ============================================
+            
+            # Today's count (Eastern Time)
+            cursor.execute("""
+                SELECT COUNT(DISTINCT trade_id) as count
+                FROM automated_signals
+                WHERE event_type = 'ENTRY'
+                AND timestamp AT TIME ZONE 'America/New_York' >= CURRENT_DATE AT TIME ZONE 'America/New_York'
+            """)
+            today_count = cursor.fetchone()['count'] or 0
+            
+            # Active count (unique trades without EXIT)
+            cursor.execute("""
+                SELECT COUNT(DISTINCT trade_id) as count
+                FROM automated_signals
+                WHERE event_type = 'ENTRY'
+                AND trade_id NOT IN (
+                    SELECT DISTINCT trade_id 
+                    FROM automated_signals 
+                    WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                )
+            """)
+            active_count = cursor.fetchone()['count'] or 0
+            
+            # Completed count (total, not just returned)
+            cursor.execute("""
+                SELECT COUNT(DISTINCT trade_id) as count
+                FROM automated_signals
+                WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+            """)
+            completed_count = cursor.fetchone()['count'] or 0
+            
+            # Last webhook timestamp
+            cursor.execute("""
+                SELECT MAX(timestamp) as last_ts FROM automated_signals
+            """)
+            last_ts_row = cursor.fetchone()
+            last_webhook_timestamp = last_ts_row['last_ts'].isoformat() if last_ts_row and last_ts_row['last_ts'] else None
+            
+            # Webhook healthy check (within 5 minutes = 300 seconds)
+            webhook_healthy = False
+            if last_ts_row and last_ts_row['last_ts']:
+                last_ts = last_ts_row['last_ts']
+                if last_ts.tzinfo is None:
+                    last_ts = pytz.UTC.localize(last_ts)
+                now_utc = datetime.now(pytz.UTC)
+                delta_sec = (now_utc - last_ts).total_seconds()
+                webhook_healthy = delta_sec < 300
+            
+            # Average MFE from completed trades
+            cursor.execute("""
+                SELECT AVG(COALESCE(final_mfe, mfe)) as avg_mfe
+                FROM automated_signals
+                WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+            """)
+            avg_mfe_row = cursor.fetchone()
+            avg_mfe = float(avg_mfe_row['avg_mfe']) if avg_mfe_row and avg_mfe_row['avg_mfe'] else 0.0
+            
+            # Win rate (final_mfe > 0 is a win)
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) FILTER (WHERE COALESCE(final_mfe, mfe, 0) > 0) as wins,
+                    COUNT(*) as total
+                FROM automated_signals
+                WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+            """)
+            win_row = cursor.fetchone()
+            wins = win_row['wins'] or 0
+            total_exits = win_row['total'] or 0
+            win_rate = (wins / total_exits * 100) if total_exits > 0 else 0.0
+            
+            stats = {
+                'today_count': today_count,
+                'active_count': active_count,
+                'completed_count': completed_count,
+                'last_webhook_timestamp': last_webhook_timestamp,
+                'webhook_healthy': webhook_healthy,
+                'avg_mfe': round(avg_mfe, 2),
+                'win_rate': round(win_rate, 1)
+            }
             
             cursor.close()
             conn.close()
             
-            # Create response with cache-busting headers
+            # Build response matching Ultra JS expectations
             response = jsonify({
                 'success': True,
                 'active_trades': active_trades,
                 'completed_trades': completed_trades,
                 'stats': stats,
-                'hourly_distribution': hourly_dist,
-                'session_breakdown': session_breakdown,
-                'timestamp': datetime.now(pytz.UTC).isoformat(),
-                'debug_info': {
-                    'total_records': total_records,
-                    'has_signal_time_columns': has_signal_time,
-                    'active_count': len(active_trades),
-                    'completed_count': len(completed_trades)
-                }
+                'timestamp': datetime.utcnow().isoformat() + 'Z'
             })
             
-            # CRITICAL: Add cache-busting headers to prevent stale data
+            # Cache-busting headers
             response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '0'
@@ -140,14 +248,10 @@ def register_automated_signals_api_robust(app, db):
                 'success': False,
                 'error': 'query_failed',
                 'message': error_msg,
-                'error_type': type(e).__name__,
-                'error_details': str(e),
                 'active_trades': [],
                 'completed_trades': [],
-                'stats': _get_empty_stats(),
-                'hourly_distribution': {},
-                'session_breakdown': {}
-            }), 200  # Return 200 to prevent frontend errors
+                'stats': _get_empty_stats_ultra()
+            }), 200
     
     @app.route('/api/automated-signals/stats')
     def get_stats_robust():
@@ -669,4 +773,17 @@ def _get_empty_stats():
         'win_count': 0,
         'win_rate': 0.0,
         'success_rate': 0.0
+    }
+
+
+def _get_empty_stats_ultra():
+    """Return empty stats structure for Ultra dashboard"""
+    return {
+        'today_count': 0,
+        'active_count': 0,
+        'completed_count': 0,
+        'last_webhook_timestamp': None,
+        'webhook_healthy': False,
+        'avg_mfe': 0.0,
+        'win_rate': 0.0
     }
