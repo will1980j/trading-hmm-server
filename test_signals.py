@@ -2,7 +2,8 @@ import requests
 import time
 
 ENDPOINT = "https://web-production-f8c3.up.railway.app/api/automated-signals/webhook"
-TRADE_ID = "TEST_LIFECYCLE_001"
+# Use unique trade ID each run to avoid "already exited" errors
+TRADE_ID = f"TEST_LIFECYCLE_{int(time.time())}"
 
 def send(event):
     print(f"\n➡ Sending {event['event_type']}...")

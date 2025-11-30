@@ -12756,10 +12756,12 @@ def handle_mfe_update(data):
         # Schema columns: id, trade_id, event_type, direction, entry_price, stop_loss,
         #                 session, bias, risk_distance, targets (JSONB), current_price,
         #                 mfe, be_mfe, no_be_mfe, exit_price, final_mfe, signal_date, signal_time, timestamp
+        # 
+        # CRITICAL FIX: Do NOT overwrite event_type - keep 'ENTRY' intact for lifecycle validation
+        # The lifecycle validator checks for 'ENTRY' in history, so we must preserve it
         cursor.execute("""
             UPDATE automated_signals
             SET 
-                event_type = 'MFE_UPDATE',
                 current_price = %s,
                 mfe = %s,
                 be_mfe = %s,
@@ -12881,6 +12883,12 @@ def handle_be_trigger(data):
         
         # Store BE trigger event using schema-compatible columns
         cursor = conn.cursor()
+        
+        # 7I lifecycle validation - ensure ENTRY exists before BE_TRIGGERED
+        validation_error = as_validate_lifecycle_transition(trade_id, "BE_TRIGGERED", cursor)
+        if validation_error:
+            return {"success": False, "error": validation_error}
+        
         cursor.execute("""
             INSERT INTO automated_signals (
                 trade_id, event_type, mfe, be_mfe, no_be_mfe, timestamp
