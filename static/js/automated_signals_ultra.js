@@ -3,6 +3,10 @@
  * Production-safe implementation with real endpoints only
  */
 
+// DEBUG: Immediate execution test - this runs as soon as script loads
+console.log("[ASE] ========== SCRIPT LOADED ==========");
+alert("ASE JS LOADED - If you see this, the script is working!");
+
 const AutomatedSignalsUltra = {
     data: null,
     timer: null,
