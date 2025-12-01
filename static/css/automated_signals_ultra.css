@@ -271,9 +271,15 @@ input.ultra-input:focus {
 }
 
 .calendar-day.selected {
-    background: rgba(59, 130, 246, 0.35);
-    border: 1px solid #3b82f6;
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    background: rgba(255, 255, 255, 0.15);
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+}
+
+/* Keep selected day number WHITE to distinguish from blue completed badges */
+.calendar-day.selected .calendar-day-num {
+    color: #ffffff !important;
+    font-weight: 700;
 }
 
 .calendar-day.today {

@@ -1173,7 +1173,7 @@ AutomatedSignalsUltra.selectCalendarDate = async function(dateStr) {
         AutomatedSignalsUltra.selectedDate = null;
         if (dateLabel) dateLabel.textContent = 'Click a day to filter';
         // Reload default data (no date filter)
-        await AutomatedSignalsUltra.loadData();
+        await AutomatedSignalsUltra.fetchDashboardData();
     } else {
         AutomatedSignalsUltra.selectedDate = dateStr;
         if (dateLabel) {

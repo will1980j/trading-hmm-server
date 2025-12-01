@@ -14650,7 +14650,9 @@ def get_automated_signals_stats():
 
 @app.route('/api/automated-signals/daily-calendar', methods=['GET'])
 def get_daily_calendar():
-    """Get daily trade data for calendar view with completed and active counts"""
+    """Get daily trade data for calendar view with completed and active counts
+    CRITICAL: Use signal_date (Eastern Time) NOT timestamp (UTC) to ensure correct date alignment with TradingView
+    """
     try:
         import psycopg2
         from psycopg2.extras import RealDictCursor
@@ -14663,40 +14665,39 @@ def get_daily_calendar():
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # Get completed trades per day (last 90 days)
-        # A trade is "completed" only when EXIT_SL occurs (both strategies done)
-        # EXIT_BE only completes BE=1 strategy, No BE continues until EXIT_SL
-        # Use NY Eastern timezone for CURRENT_DATE to ensure correct date boundaries
+        # CRITICAL FIX: Use signal_date (Eastern Time) instead of timestamp (UTC)
+        # This ensures calendar dates match TradingView's Eastern Time zone
         cursor.execute("""
             SELECT 
-                DATE(timestamp AT TIME ZONE 'America/New_York') as date,
+                signal_date as date,
                 COUNT(DISTINCT trade_id) as completed_count,
                 AVG(COALESCE(final_mfe, no_be_mfe, mfe, 0)) as avg_mfe
             FROM automated_signals
-            WHERE timestamp >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York')::date - INTERVAL '90 days'
+            WHERE signal_date >= (CURRENT_DATE AT TIME ZONE 'America/New_York') - INTERVAL '90 days'
             AND event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
-            GROUP BY DATE(timestamp AT TIME ZONE 'America/New_York')
+            AND signal_date IS NOT NULL
+            GROUP BY signal_date
         """)
-        completed_by_date = {row['date'].strftime('%Y-%m-%d'): row for row in cursor.fetchall()}
+        completed_by_date = {row['date'].strftime('%Y-%m-%d') if hasattr(row['date'], 'strftime') else str(row['date']): row for row in cursor.fetchall()}
         
         # Get active trades per day (entry date, no EXIT_SL yet)
-        # A trade is "active" if the No BE strategy hasn't completed (no EXIT_SL)
-        # EXIT_BE only completes the BE=1 strategy, No BE continues until EXIT_SL
-        # Use NY Eastern timezone for CURRENT_DATE to ensure correct date boundaries
+        # CRITICAL FIX: Use signal_date (Eastern Time) instead of timestamp (UTC)
         cursor.execute("""
             SELECT 
-                DATE(e.timestamp AT TIME ZONE 'America/New_York') as date,
+                e.signal_date as date,
                 COUNT(DISTINCT e.trade_id) as active_count
             FROM automated_signals e
             WHERE e.event_type = 'ENTRY'
-            AND e.timestamp >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York')::date - INTERVAL '90 days'
+            AND e.signal_date >= (CURRENT_DATE AT TIME ZONE 'America/New_York') - INTERVAL '90 days'
+            AND e.signal_date IS NOT NULL
             AND e.trade_id NOT IN (
                 SELECT DISTINCT trade_id 
                 FROM automated_signals 
                 WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
             )
-            GROUP BY DATE(e.timestamp AT TIME ZONE 'America/New_York')
+            GROUP BY e.signal_date
         """)
-        active_by_date = {row['date'].strftime('%Y-%m-%d'): row['active_count'] for row in cursor.fetchall()}
+        active_by_date = {row['date'].strftime('%Y-%m-%d') if hasattr(row['date'], 'strftime') else str(row['date']): row['active_count'] for row in cursor.fetchall()}
         
         cursor.close()
         conn.close()
