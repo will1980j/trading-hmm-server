@@ -334,15 +334,16 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         
         if (row.status === 'ACTIVE' && row.signal_date && row.signal_time) {
             // Active trades: show live age since signal time (Eastern Time)
-            // Construct datetime string and parse as Eastern Time
+            // Parse signal time as Eastern Time (DST-aware)
             const signalDateTimeStr = `${row.signal_date}T${row.signal_time}`;
-            const signalTime = new Date(signalDateTimeStr + '-05:00'); // EST offset (adjust for DST if needed)
+            // Create date in local timezone, then get Eastern time equivalent
+            const signalTimeLocal = new Date(signalDateTimeStr);
             
-            // Get current time in Eastern
-            const nowEastern = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-            const nowMs = new Date(nowEastern).getTime();
+            // Get current time
+            const now = new Date();
             
-            const diffSec = Math.max(0, (nowMs - signalTime.getTime()) / 1000);
+            // Calculate age in seconds (both times are comparable)
+            const diffSec = Math.max(0, (now.getTime() - signalTimeLocal.getTime()) / 1000);
             ageStr = formatDuration(diffSec);
         } else if (row.status === 'COMPLETED') {
             // Completed trades: show final duration if available
@@ -350,7 +351,7 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
                 ageStr = formatDuration(row.duration_seconds);
             } else if (row.exit_timestamp && row.signal_date && row.signal_time) {
                 const signalDateTimeStr = `${row.signal_date}T${row.signal_time}`;
-                const entryTime = new Date(signalDateTimeStr + '-05:00');
+                const entryTime = new Date(signalDateTimeStr);
                 const exitTime = new Date(row.exit_timestamp);
                 const diffSec = Math.max(0, (exitTime.getTime() - entryTime.getTime()) / 1000);
                 ageStr = formatDuration(diffSec);
@@ -378,8 +379,7 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             } else {
                 timeStr = rawTime;
             }
-            // Debug: Log if time looks wrong (current time instead of signal time)
-            console.log(`[ASE DEBUG] Trade ${row.trade_id}: signal_time=${originalSignalTime}, formatted=${timeStr}`);
+
         }
         
         const isChecked = AutomatedSignalsUltra.selectedTrades.has(row.trade_id);
