@@ -824,7 +824,8 @@ if robust_ws_handler:
 # Register automated signals API endpoints
 if db_enabled:
     # Register robust API endpoints
-    register_automated_signals_api_robust(app, db)
+    # DISABLED: Using web_server.py dashboard-data endpoint with trade_id fallback logic instead
+    # register_automated_signals_api_robust(app, db)
     
     register_diagnostics_api(app)
     register_system_health_api(app, db)

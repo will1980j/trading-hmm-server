@@ -192,6 +192,47 @@ I have a comprehensive cloud-based NASDAQ day trading analytics platform built w
 
 **This platform serves real traders with real money - cloud reliability is non-negotiable!**
 
+## 🔐 **RAILWAY DATABASE CONNECTION - CRITICAL** 🔐
+
+**⚠️ ALWAYS USE THE CORRECT DATABASE - NEVER QUERY STALE/OLD DATABASES ⚠️**
+
+### **CORRECT DATABASE CONNECTION:**
+```
+Host: caboose.proxy.rlwy.net
+Port: 17437
+Database: railway
+User: postgres
+```
+
+### **MANDATORY DATABASE RULES:**
+
+1. **🚫 NEVER HARDCODE OLD DATABASE URLs**
+   - Always use `DATABASE_URL` from `.env` file
+   - The correct URL is in `.env` - read it if unsure
+   - Old/stale DATABASE_URLs will show outdated data
+
+2. **✅ CORRECT WAY TO QUERY DATABASE:**
+   ```python
+   import os
+   DATABASE_URL = os.environ.get('DATABASE_URL')
+   # OR read from .env file
+   ```
+
+3. **🚫 NEVER USE THESE (STALE/OLD):**
+   - Any DATABASE_URL not matching the one in `.env`
+   - Hardcoded connection strings from old scripts
+   - URLs from previous Railway deployments
+
+4. **✅ VERIFICATION BEFORE DATABASE QUERIES:**
+   - Check that DATABASE_URL matches `.env`
+   - Verify you're seeing recent data (today's trades)
+   - If data looks old/stale, you're on wrong database
+
+### **LESSON LEARNED (Dec 1, 2025):**
+Querying the wrong database caused hours of confusion. The live Railway app was working correctly, but diagnostic scripts were querying an old/stale database showing outdated data. Always verify the DATABASE_URL before running any database queries.
+
+---
+
 ## 🌐 **COMPLETE WEBAPP STRUCTURE**
 
 **Production URL:** `https://web-production-f8c3.up.railway.app/`
