@@ -1165,23 +1165,46 @@ AutomatedSignalsUltra.renderCalendar = function() {
     });
 };
 
-AutomatedSignalsUltra.selectCalendarDate = function(dateStr) {
+AutomatedSignalsUltra.selectCalendarDate = async function(dateStr) {
     const dateLabel = document.getElementById('ase-selected-date-label');
     
     // Toggle selection
     if (AutomatedSignalsUltra.selectedDate === dateStr) {
         AutomatedSignalsUltra.selectedDate = null;
         if (dateLabel) dateLabel.textContent = 'Click a day to filter';
+        // Reload default data (no date filter)
+        await AutomatedSignalsUltra.loadData();
     } else {
         AutomatedSignalsUltra.selectedDate = dateStr;
         if (dateLabel) {
             const d = new Date(dateStr + 'T12:00:00');
             dateLabel.textContent = `Showing: ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
         }
+        // Fetch data for the selected date
+        await AutomatedSignalsUltra.loadDataForDate(dateStr);
     }
     
     AutomatedSignalsUltra.renderCalendar();
     AutomatedSignalsUltra.renderSignalsTable();
+};
+
+// Fetch data for a specific date
+AutomatedSignalsUltra.loadDataForDate = async function(dateStr) {
+    try {
+        console.log('[ASE] Loading data for date:', dateStr);
+        const resp = await fetch(`/api/automated-signals/dashboard-data?date=${dateStr}`, {
+            credentials: 'same-origin'
+        });
+        if (!resp.ok) {
+            console.error('[ASE] Failed to load data for date:', dateStr);
+            return;
+        }
+        const json = await resp.json();
+        AutomatedSignalsUltra.data = json;
+        console.log('[ASE] Loaded', (json.active_trades?.length || 0) + (json.completed_trades?.length || 0), 'trades for', dateStr);
+    } catch (err) {
+        console.error('[ASE] Error loading data for date:', err);
+    }
 };
 
 // DOM ready hook

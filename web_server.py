@@ -14231,18 +14231,28 @@ def get_automated_signals_canonical():
 
 @app.route('/api/automated-signals/dashboard-data', methods=['GET'])
 def get_automated_signals_dashboard_data():
-    """Get all signals for dashboard display"""
+    """Get all signals for dashboard display. Optionally filter by date."""
     try:
         database_url = os.environ.get('DATABASE_URL')
         if not database_url:
             return jsonify({"success": False, "error": "DATABASE_URL not configured"}), 500
         
+        # Optional date filter (format: YYYY-MM-DD)
+        date_filter = request.args.get('date')
+        
         conn = psycopg2.connect(database_url)
         cursor = conn.cursor()
         
+        # Build date filter clause
+        date_clause = ""
+        date_params = []
+        if date_filter:
+            date_clause = "AND e.signal_date = %s"
+            date_params = [date_filter]
+        
         # Get all ENTRY signals with MFE values (active trades)
         # NOTE: MFE values are stored directly on the ENTRY row by handle_mfe_update
-        cursor.execute("""
+        query = f"""
             SELECT e.id, e.trade_id, e.event_type, 
                    e.direction,
                    e.entry_price,
@@ -14262,9 +14272,11 @@ def get_automated_signals_dashboard_data():
                 WHERE ex.trade_id = e.trade_id
                 AND ex.event_type LIKE 'EXIT_%'
             )
+            {date_clause}
             ORDER BY e.timestamp DESC
             LIMIT 100
-        """)
+        """
+        cursor.execute(query, date_params)
         
         active_trades = []
         for row in cursor.fetchall():
@@ -14306,7 +14318,12 @@ def get_automated_signals_dashboard_data():
         
         # Get all EXIT signals (completed trades) with MFE values
         # Join with ENTRY to get signal_date, signal_time, and entry details
-        cursor.execute("""
+        # Build date filter for completed trades (filter on entry's signal_date)
+        completed_date_clause = ""
+        if date_filter:
+            completed_date_clause = "AND en.signal_date = %s"
+        
+        completed_query = f"""
             SELECT ex.id, ex.trade_id, ex.event_type,
                    COALESCE(en.direction, ex.direction) as direction,
                    COALESCE(en.entry_price, ex.entry_price) as entry_price,
@@ -14323,9 +14340,11 @@ def get_automated_signals_dashboard_data():
             FROM automated_signals ex
             LEFT JOIN automated_signals en ON ex.trade_id = en.trade_id AND en.event_type = 'ENTRY'
             WHERE ex.event_type LIKE 'EXIT_%%'
+            {completed_date_clause}
             ORDER BY ex.timestamp DESC
             LIMIT 100
-        """)
+        """
+        cursor.execute(completed_query, date_params)
         
         completed_trades = []
         for row in cursor.fetchall():
@@ -14611,26 +14630,28 @@ def get_daily_calendar():
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # Get completed trades per day (last 90 days)
+        # Use NY Eastern timezone for CURRENT_DATE to ensure correct date boundaries
         cursor.execute("""
             SELECT 
                 DATE(timestamp AT TIME ZONE 'America/New_York') as date,
                 COUNT(DISTINCT trade_id) as completed_count,
                 AVG(COALESCE(final_mfe, no_be_mfe, mfe, 0)) as avg_mfe
             FROM automated_signals
-            WHERE timestamp >= CURRENT_DATE - INTERVAL '90 days'
+            WHERE timestamp >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York')::date - INTERVAL '90 days'
             AND event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
             GROUP BY DATE(timestamp AT TIME ZONE 'America/New_York')
         """)
         completed_by_date = {row['date'].strftime('%Y-%m-%d'): row for row in cursor.fetchall()}
         
         # Get active trades per day (entry date, no exit yet)
+        # Use NY Eastern timezone for CURRENT_DATE to ensure correct date boundaries
         cursor.execute("""
             SELECT 
                 DATE(e.timestamp AT TIME ZONE 'America/New_York') as date,
                 COUNT(DISTINCT e.trade_id) as active_count
             FROM automated_signals e
             WHERE e.event_type = 'ENTRY'
-            AND e.timestamp >= CURRENT_DATE - INTERVAL '90 days'
+            AND e.timestamp >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York')::date - INTERVAL '90 days'
             AND e.trade_id NOT IN (
                 SELECT DISTINCT trade_id 
                 FROM automated_signals 
