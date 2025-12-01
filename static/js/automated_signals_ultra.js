@@ -317,15 +317,15 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         let noBeStatus = 'ACTIVE';
         
         if (row.event_type === 'EXIT_BE') {
-            beStatus = 'DONE';  // BE=1 exited at entry
+            beStatus = 'COMPLETE';  // BE=1 exited at entry
             noBeStatus = 'ACTIVE';  // No BE still running
         } else if (row.event_type === 'EXIT_SL') {
-            beStatus = 'DONE';  // Both done
-            noBeStatus = 'DONE';
+            beStatus = 'COMPLETE';  // Both done
+            noBeStatus = 'COMPLETE';
         } else if (row.status === 'COMPLETED') {
             // Fallback for older data without event_type
-            beStatus = 'DONE';
-            noBeStatus = 'DONE';
+            beStatus = 'COMPLETE';
+            noBeStatus = 'COMPLETE';
         }
         
         // MFE coloring for both columns
@@ -419,11 +419,11 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         const dirBadgeClass = dir === 'Bullish' ? 'direction-badge-bullish' : 
                               dir === 'Bearish' ? 'direction-badge-bearish' : 'ultra-muted';
         
-        // Build dual status badges
-        const beStatusClass = beStatus === 'ACTIVE' ? 'ultra-badge-green' : 'ultra-badge-amber';
-        const noBeStatusClass = noBeStatus === 'ACTIVE' ? 'ultra-badge-green' : 'ultra-badge-amber';
-        const beMfeDisplay = beStatus === 'DONE' ? mfeBE : mfeBE;
-        const noBeMfeDisplay = noBeStatus === 'DONE' ? mfeNoBE : mfeNoBE;
+        // Build dual status badges - only highlight ACTIVE (green), COMPLETE is muted
+        const beStatusClass = beStatus === 'ACTIVE' ? 'ultra-badge-green' : 'ultra-badge-muted';
+        const noBeStatusClass = noBeStatus === 'ACTIVE' ? 'ultra-badge-green' : 'ultra-badge-muted';
+        const beMfeDisplay = mfeBE;
+        const noBeMfeDisplay = mfeNoBE;
         
         tr.innerHTML = `
             <td><input type="checkbox" class="trade-checkbox trade-row-checkbox" data-trade-id="${row.trade_id}" ${isChecked ? 'checked' : ''}></td>

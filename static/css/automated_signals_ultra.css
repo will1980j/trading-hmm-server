@@ -574,3 +574,9 @@ input.ultra-input:focus {
     color: #f59e0b;
     border: 1px solid rgba(245, 158, 11, 0.4);
 }
+
+.dual-status-badge.ultra-badge-muted {
+    background: rgba(100, 116, 139, 0.15);
+    color: #64748b;
+    border: 1px solid rgba(100, 116, 139, 0.3);
+}
