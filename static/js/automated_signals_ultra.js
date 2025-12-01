@@ -360,11 +360,14 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         }
         
         // Time display: Use signal_time from TradingView (already in Eastern Time)
+        // CRITICAL FIX: Use the ORIGINAL signal_time, never derive from current time
         let timeStr = "--";
-        if (row.signal_time) {
-            // signal_time is already in Eastern Time format like "05:28:00"
-            // Parse and format nicely
-            const parts = row.signal_time.split(':');
+        const originalSignalTime = row.signal_time;  // Preserve original value
+        if (originalSignalTime) {
+            // signal_time is already in Eastern Time format like "05:28:00" or "07:01:00"
+            // Parse and format nicely as HH:MM AM/PM
+            const rawTime = String(originalSignalTime);
+            const parts = rawTime.split(':');
             if (parts.length >= 2) {
                 let hour = parseInt(parts[0], 10);
                 const min = parts[1];
@@ -373,8 +376,10 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
                 if (hour === 0) hour = 12;
                 timeStr = `${hour.toString().padStart(2, '0')}:${min} ${ampm}`;
             } else {
-                timeStr = row.signal_time;
+                timeStr = rawTime;
             }
+            // Debug: Log if time looks wrong (current time instead of signal time)
+            console.log(`[ASE DEBUG] Trade ${row.trade_id}: signal_time=${originalSignalTime}, formatted=${timeStr}`);
         }
         
         const isChecked = AutomatedSignalsUltra.selectedTrades.has(row.trade_id);
