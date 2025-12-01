@@ -333,27 +333,43 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         };
         
         if (row.status === 'ACTIVE' && row.signal_date && row.signal_time) {
-            // Active trades: show live age since signal time (Eastern Time)
-            // Parse signal time as Eastern Time (DST-aware)
-            const signalDateTimeStr = `${row.signal_date}T${row.signal_time}`;
-            // Create date in local timezone, then get Eastern time equivalent
-            const signalTimeLocal = new Date(signalDateTimeStr);
-            
-            // Get current time
+            // Active trades: show live age since signal time
+            // signal_date and signal_time are in Eastern Time from the API
+            // We need to get current Eastern time and compare
             const now = new Date();
+            const nowEastern = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
             
-            // Calculate age in seconds (both times are comparable)
-            const diffSec = Math.max(0, (now.getTime() - signalTimeLocal.getTime()) / 1000);
+            // Parse signal time components
+            const [year, month, day] = row.signal_date.split('-').map(Number);
+            const timeParts = row.signal_time.split(':').map(Number);
+            const signalHour = timeParts[0] || 0;
+            const signalMin = timeParts[1] || 0;
+            const signalSec = timeParts[2] || 0;
+            
+            // Create signal time as if it were in the same timezone as nowEastern
+            const signalTimeEastern = new Date(year, month - 1, day, signalHour, signalMin, signalSec);
+            
+            // Calculate age in seconds
+            const diffSec = Math.max(0, (nowEastern.getTime() - signalTimeEastern.getTime()) / 1000);
             ageStr = formatDuration(diffSec);
         } else if (row.status === 'COMPLETED') {
-            // Completed trades: show final duration if available
+            // Completed trades: show duration from entry to exit
             if (row.duration_seconds) {
                 ageStr = formatDuration(row.duration_seconds);
             } else if (row.exit_timestamp && row.signal_date && row.signal_time) {
-                const signalDateTimeStr = `${row.signal_date}T${row.signal_time}`;
-                const entryTime = new Date(signalDateTimeStr);
+                // Parse exit timestamp (ISO format with timezone)
                 const exitTime = new Date(row.exit_timestamp);
-                const diffSec = Math.max(0, (exitTime.getTime() - entryTime.getTime()) / 1000);
+                const exitEastern = new Date(exitTime.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+                
+                // Parse signal time components
+                const [year, month, day] = row.signal_date.split('-').map(Number);
+                const timeParts = row.signal_time.split(':').map(Number);
+                const signalHour = timeParts[0] || 0;
+                const signalMin = timeParts[1] || 0;
+                const signalSec = timeParts[2] || 0;
+                
+                const signalTimeEastern = new Date(year, month - 1, day, signalHour, signalMin, signalSec);
+                const diffSec = Math.max(0, (exitEastern.getTime() - signalTimeEastern.getTime()) / 1000);
                 ageStr = formatDuration(diffSec);
             } else {
                 ageStr = "--";
