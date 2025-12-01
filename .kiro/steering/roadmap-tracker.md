@@ -102,6 +102,22 @@ When user confirms a module is COMPLETE:
 
 ---
 
+## 🚨🚨🚨 CRITICAL: AUTOMATED SIGNALS DASHBOARD FILES 🚨🚨🚨
+
+**The `/automated-signals` route serves `automated_signals_ultra.html`, NOT `automated_signals_dashboard.html`!**
+
+| What to Edit | Correct File |
+|--------------|--------------|
+| **Template** | `templates/automated_signals_ultra.html` |
+| **JavaScript** | `static/js/automated_signals_ultra.js` |
+| **CSS** | `static/css/automated_signals_ultra.css` |
+
+**🚫 WRONG FILE:** `templates/automated_signals_dashboard.html` - NOT SERVED BY ANY ROUTE
+
+**ALWAYS check `web_server.py` to verify which template a route serves before editing!**
+
+---
+
 ## 🔗 MODULE COMPLETION CHECKLIST
 
 When marking a module complete, verify:

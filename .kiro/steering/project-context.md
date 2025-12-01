@@ -25,6 +25,45 @@ inclusion: always
 
 ---
 
+## 🚨🚨🚨 **CRITICAL: ROUTE-TO-TEMPLATE MAPPING** 🚨🚨🚨
+
+**⚠️ BEFORE EDITING ANY DASHBOARD/PAGE, VERIFY WHICH TEMPLATE IS ACTUALLY SERVED ⚠️**
+
+### **MANDATORY VERIFICATION STEP:**
+Before editing ANY template file, you MUST check `web_server.py` to see which template the route actually serves.
+
+### **AUTOMATED SIGNALS DASHBOARD - CRITICAL MAPPING:**
+
+| URL Route | Template Served | JS File | CSS File |
+|-----------|-----------------|---------|----------|
+| `/automated-signals` | `templates/automated_signals_ultra.html` | `static/js/automated_signals_ultra.js` | `static/css/automated_signals_ultra.css` |
+| `/automated-signals-dashboard` | **DOES NOT EXIST** - redirects or 404 | N/A | N/A |
+| `/automated-signals-option1` | `trading_floor_command_center.html` | N/A | N/A |
+| `/automated-signals-option2` | `automated_signals_dashboard_option2.html` | N/A | N/A |
+| `/automated-signals-option3` | `automated_signals_dashboard_option3.html` | N/A | N/A |
+
+### **🚫 WRONG FILE - DO NOT EDIT FOR LIVE DASHBOARD:**
+- `templates/automated_signals_dashboard.html` - **THIS IS NOT SERVED BY ANY ACTIVE ROUTE**
+
+### **✅ CORRECT FILES FOR `/automated-signals` ROUTE:**
+- **Template:** `templates/automated_signals_ultra.html`
+- **JavaScript:** `static/js/automated_signals_ultra.js`
+- **CSS:** `static/css/automated_signals_ultra.css`
+
+### **VERIFICATION COMMAND:**
+Before editing, always run:
+```
+grep -n "automated-signals" web_server.py | head -20
+```
+Or search in `web_server.py` for the route to confirm which template is rendered.
+
+### **WHY THIS MATTERS:**
+On Dec 2, 2025, hours were wasted editing `automated_signals_dashboard.html` when the actual route `/automated-signals` serves `automated_signals_ultra.html`. The changes never deployed because the wrong file was edited.
+
+**RULE: ALWAYS VERIFY THE ROUTE → TEMPLATE MAPPING BEFORE EDITING ANY FILE!**
+
+---
+
 ## 🚨 **MANDATORY WORK VALIDATION RULE** 🚨
 
 **⚠️ NEVER CLAIM WORK IS COMPLETE WITHOUT VERIFICATION ⚠️**
