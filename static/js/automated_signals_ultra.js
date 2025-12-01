@@ -236,10 +236,15 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
     
     if (!tbody) return;
     
-    // Update date display
+    // Update date display - use NY Eastern timezone (handles DST automatically)
     if (dateLabel) {
         const today = new Date();
-        dateLabel.textContent = `— ${today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`;
+        dateLabel.textContent = `— ${today.toLocaleDateString('en-US', { 
+            weekday: 'short', 
+            month: 'short', 
+            day: 'numeric',
+            timeZone: 'America/New_York'
+        })}`;
     }
     
     const active = AutomatedSignalsUltra.data?.active_trades ?? [];
