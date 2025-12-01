@@ -12493,8 +12493,23 @@ def handle_entry_signal(data):
                 }
         
         # Get signal date and time from webhook (signal candle time, not current time)
+        # The indicator sends event_timestamp in ISO format, parse it
         signal_date = data.get('date')  # Format: "2024-01-15"
         signal_time = data.get('time')  # Format: "10:00:00"
+        
+        # If date/time not provided, try to parse from event_timestamp
+        if not signal_date or not signal_time:
+            event_timestamp = data.get('event_timestamp')
+            if event_timestamp:
+                try:
+                    # Parse ISO timestamp: "2025-12-01T10:30:00-05:00" or "2025-12-01T10:30:00"
+                    from dateutil import parser as date_parser
+                    parsed_ts = date_parser.parse(event_timestamp)
+                    signal_date = parsed_ts.strftime('%Y-%m-%d')
+                    signal_time = parsed_ts.strftime('%H:%M:%S')
+                    logger.info(f"📅 Parsed event_timestamp: date={signal_date}, time={signal_time}")
+                except Exception as parse_err:
+                    logger.warning(f"Could not parse event_timestamp '{event_timestamp}': {parse_err}")
         
         # Get initial MFE values (both start at 0 for new signals)
         be_mfe = float(data.get('be_mfe', 0.0))
@@ -14252,9 +14267,26 @@ def get_automated_signals_dashboard_data():
         
         active_trades = []
         for row in cursor.fetchall():
+            trade_id = row[1]
+            signal_date = row[9].isoformat() if row[9] else None
+            signal_time = row[10].isoformat() if row[10] else None
+            
+            # Fallback: Extract date/time from trade_id if not in DB
+            # Trade ID format: YYYYMMDD_HHMMSS000_DIRECTION
+            if not signal_date or not signal_time:
+                try:
+                    parts = trade_id.split('_')
+                    if len(parts) >= 2:
+                        date_str = parts[0]  # YYYYMMDD
+                        time_str = parts[1][:6]  # HHMMSS (strip trailing 000)
+                        signal_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+                        signal_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
+                except:
+                    pass
+            
             active_trades.append({
                 "id": row[0],
-                "trade_id": row[1],
+                "trade_id": trade_id,
                 "event_type": row[2],
                 "direction": row[3],
                 "entry_price": float(row[4]) if row[4] else None,
@@ -14262,8 +14294,8 @@ def get_automated_signals_dashboard_data():
                 "session": row[6],
                 "bias": row[7],
                 "timestamp": row[8].isoformat() if row[8] else None,
-                "signal_date": row[9].isoformat() if row[9] else None,
-                "signal_time": row[10].isoformat() if row[10] else None,
+                "signal_date": signal_date,
+                "signal_time": signal_time,
                 "be_mfe": float(row[11]) if row[11] is not None else 0.0,
                 "no_be_mfe": float(row[12]) if row[12] is not None else 0.0,
                 "current_price": float(row[13]) if row[13] else None,
@@ -14296,9 +14328,26 @@ def get_automated_signals_dashboard_data():
         
         completed_trades = []
         for row in cursor.fetchall():
+            trade_id = row[1]
+            signal_date = row[9].isoformat() if row[9] else None
+            signal_time = row[10].isoformat() if row[10] else None
+            
+            # Fallback: Extract date/time from trade_id if not in DB
+            # Trade ID format: YYYYMMDD_HHMMSS000_DIRECTION
+            if not signal_date or not signal_time:
+                try:
+                    parts = trade_id.split('_')
+                    if len(parts) >= 2:
+                        date_str = parts[0]  # YYYYMMDD
+                        time_str = parts[1][:6]  # HHMMSS (strip trailing 000)
+                        signal_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+                        signal_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
+                except:
+                    pass
+            
             completed_trades.append({
                 "id": row[0],
-                "trade_id": row[1],
+                "trade_id": trade_id,
                 "event_type": row[2],
                 "direction": row[3],
                 "entry_price": float(row[4]) if row[4] else None,
@@ -14306,8 +14355,8 @@ def get_automated_signals_dashboard_data():
                 "session": row[6],
                 "bias": row[7],
                 "exit_timestamp": row[8].isoformat() if row[8] else None,
-                "signal_date": row[9].isoformat() if row[9] else None,
-                "signal_time": row[10].isoformat() if row[10] else None,
+                "signal_date": signal_date,
+                "signal_time": signal_time,
                 "entry_timestamp": row[11].isoformat() if row[11] else None,
                 "be_mfe": float(row[12]) if row[12] is not None else 0.0,
                 "no_be_mfe": float(row[13]) if row[13] is not None else 0.0,

@@ -140,3 +140,28 @@ These changes need to be deployed to Railway via GitHub Desktop:
 ## Note on Historical Data
 
 Existing MFE_UPDATE events in the database have NULL/0 values because they were processed before this fix. Only new events will have correct MFE values.
+
+## Additional Fixes Applied
+
+### 6. Parse event_timestamp for signal_date/signal_time
+The indicator sends `event_timestamp` in ISO format, not separate `date`/`time` fields.
+Fixed `handle_entry_signal` to parse `event_timestamp` and extract date/time.
+
+### 7. Fallback to trade_id for date/time
+Added fallback logic to extract signal date/time from trade_id format (`YYYYMMDD_HHMMSS000_DIRECTION`) when not stored in database.
+
+### 8. Purged Orphaned Trades
+Deleted 20 orphaned trades (426 events) from Nov 21 that were stuck as "ACTIVE" because they never received EXIT events. These were 9+ days old and cluttering the dashboard.
+
+## Root Cause of "Many Active Trades"
+
+The dashboard was showing old orphaned trades from Nov 21 that never received EXIT events. These trades appeared as "ACTIVE" with:
+- Incorrect times (showing Nov 21 times, not today)
+- 0 MFE values (no MFE_UPDATE events received)
+- 11+ hour "Age" (actually 9+ days old)
+
+**Solution:** Purged stale data and fixed the backend to properly parse timestamps.
+
+## TradingView Webhook Status
+
+⚠️ **No webhooks received today (Dec 1)** - The indicator may not be sending alerts or the webhook URL may need verification in TradingView alert settings.
