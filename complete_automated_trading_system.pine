@@ -1138,6 +1138,8 @@ var array<string> active_signal_ids = array.new_string(0)
 var array<int> active_signal_indices = array.new_int(0)  // BULLETPROOF: Store signal array index for each active signal
 var array<bool> be_trigger_sent_flags = array.new_bool(0)
 var array<bool> completion_sent_flags = array.new_bool(0)
+var array<bool> be_exit_sent_flags = array.new_bool(0)   // Track if EXIT_BE was sent (separate from EXIT_SL)
+var array<bool> sl_exit_sent_flags = array.new_bool(0)   // Track if EXIT_SL was sent
 var bool webhook_sent_this_bar = false
 
 // Helper function to find signal index by ID
@@ -1206,6 +1208,8 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
             array.push(active_signal_indices, last_index)  // BULLETPROOF: Store the signal array index
             array.push(be_trigger_sent_flags, false)
             array.push(completion_sent_flags, false)
+            array.push(be_exit_sent_flags, false)   // Track EXIT_BE separately
+            array.push(sl_exit_sent_flags, false)   // Track EXIT_SL separately
         // NOTE: signal_entry_bar_index already pushed when signal was added to tracking arrays
         webhook_sent_this_bar := true
     
@@ -1304,59 +1308,62 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_trigger
                     alert(be_trigger_payload, alert.freq_once_per_bar_close)
                     array.set(be_trigger_sent_flags, sig_idx, true)
 
-// 4. COMPLETION WEBHOOK
-// Send when any signal is completed (stop loss hit)
-// CRITICAL: Only send on real-time bars to prevent historical replay spam
+// 4. DUAL EXIT WEBHOOKS
+// Send EXIT_BE when BE stop is hit (for BE=1 strategy)
+// Send EXIT_SL when original stop is hit (for No BE strategy)
+// CRITICAL: Both events are sent separately for proper dual-status tracking
 if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped) > 0 and array.size(signal_no_be_stopped) > 0 and array.size(active_signal_ids) > 0
     // BULLETPROOF: Loop BACKWARDS to prevent array out of bounds when removing elements
     for sig_idx = array.size(active_signal_ids) - 1 to 0
         signal_id_for_completion = array.get(active_signal_ids, sig_idx)
-        completion_sent_flag = array.get(completion_sent_flags, sig_idx)
+        bool be_exit_sent = array.get(be_exit_sent_flags, sig_idx)
+        bool sl_exit_sent = array.get(sl_exit_sent_flags, sig_idx)
         
         // BULLETPROOF: Get the actual signal array index from parallel array
         int signal_array_idx = array.get(active_signal_indices, sig_idx)
         
         // Validate that signal_array_idx is within bounds
-        if signal_array_idx >= 0 and signal_array_idx < array.size(signal_be_stopped) and not completion_sent_flag
-            // MODIFIED: Send EXIT for ALL active signals that hit stop loss
+        if signal_array_idx >= 0 and signal_array_idx < array.size(signal_be_stopped)
             bool be_stopped = array.get(signal_be_stopped, signal_array_idx)
             bool no_be_stopped = array.get(signal_no_be_stopped, signal_array_idx)
             int entry_bar = array.get(signal_entry_bar_index, signal_array_idx)
             int bars_since_entry = bar_index - entry_bar
             
-            // CRITICAL: Only send EXIT if trade has been active for at least 1 bar
-            // This prevents immediate completion on historical replay
-            if (be_stopped or no_be_stopped) and bars_since_entry >= 1
-                // Retrieve signal data from arrays
+            // Only process if trade has been active for at least 1 bar
+            if bars_since_entry >= 1
+                // Retrieve signal data from arrays (needed for both exit types)
                 string sig_direction = array.get(signal_directions, signal_array_idx)
                 float sig_entry = array.get(signal_entries, signal_array_idx)
                 float sig_stop = array.get(signal_stops, signal_array_idx)
                 float sig_risk = array.get(signal_risks, signal_array_idx)
                 bool sig_be_triggered = array.get(signal_be_triggered, signal_array_idx)
-                
                 float final_be_mfe = array.get(signal_be_mfes, signal_array_idx)
                 float final_no_be_mfe = array.get(signal_mfes, signal_array_idx)
-                // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
                 final_be_mfe := math.min(final_be_mfe, final_no_be_mfe)
                 
-                string completion_reason = be_stopped ? "be_stop_loss_hit" : "original_stop_loss_hit"
-                // Determine exit event type
-                string exit_event_type = be_stopped ? EVENT_EXIT_BREAK_EVEN : EVENT_EXIT_STOP_LOSS
-                
-                // Calculate target prices for exit
+                // Calculate target prices
                 float exit_target_1r = sig_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
                 float exit_target_2r = sig_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
                 float exit_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
                 
-                // Build telemetry payload for EXIT event
-                string completion_payload = f_buildPayload(exit_event_type, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, final_be_mfe, 0.0, be_stopped ? 0.0 : final_no_be_mfe, sig_stop, completion_reason, exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", be_stopped ? "EXIT_BE" : "EXIT_SL", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+                // SEND EXIT_BE when BE stop is hit (BE=1 strategy completed)
+                if be_stopped and not be_exit_sent
+                    string be_payload = f_buildPayload(EVENT_EXIT_BREAK_EVEN, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, final_be_mfe, 0.0, float(na), sig_entry, "be_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_BE", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+                    alert(be_payload, alert.freq_once_per_bar_close)
+                    array.set(be_exit_sent_flags, sig_idx, true)
                 
-                // Send completion webhook
-                alert(completion_payload, alert.freq_once_per_bar_close)
-                array.set(completion_sent_flags, sig_idx, true)
+                // SEND EXIT_SL when original stop is hit (No BE strategy completed)
+                if no_be_stopped and not sl_exit_sent
+                    string sl_payload = f_buildPayload(EVENT_EXIT_STOP_LOSS, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, final_be_mfe, 0.0, final_no_be_mfe, sig_stop, "original_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_SL", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+                    alert(sl_payload, alert.freq_once_per_bar_close)
+                    array.set(sl_exit_sent_flags, sig_idx, true)
                 
-                // BULLETPROOF: Remove this signal from active tracking (all parallel arrays)
-                array.remove(active_signal_ids, sig_idx)
-                array.remove(active_signal_indices, sig_idx)  // Remove from indices array too
-                array.remove(be_trigger_sent_flags, sig_idx)
-                array.remove(completion_sent_flags, sig_idx)
+                // Only remove from tracking when BOTH exits have been sent (or No BE hit which ends everything)
+                // If no_be_stopped, the trade is fully complete for both strategies
+                if no_be_stopped and array.get(sl_exit_sent_flags, sig_idx)
+                    array.remove(active_signal_ids, sig_idx)
+                    array.remove(active_signal_indices, sig_idx)
+                    array.remove(be_trigger_sent_flags, sig_idx)
+                    array.remove(completion_sent_flags, sig_idx)
+                    array.remove(be_exit_sent_flags, sig_idx)
+                    array.remove(sl_exit_sent_flags, sig_idx)

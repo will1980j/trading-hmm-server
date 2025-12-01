@@ -233,6 +233,46 @@
             color: #8b5cf6;
         }
 
+        /* Dual Status Display */
+        .dual-status {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .status-mini {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-mini.status-active {
+            background: rgba(251, 191, 36, 0.3);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.5);
+            animation: pulse-status 2s infinite;
+        }
+
+        .status-mini.status-complete {
+            background: rgba(100, 100, 100, 0.2);
+            color: #94a3b8;
+            border: 1px solid rgba(100, 100, 100, 0.3);
+        }
+
+        .status-mini.status-pending {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        @keyframes pulse-status {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
+            50% { opacity: 0.8; box-shadow: 0 0 8px 2px rgba(251, 191, 36, 0.2); }
+        }
+
         /* Activity Feed */
         .activity-panel {
             background: rgba(255, 255, 255, 0.05);
@@ -686,13 +726,14 @@
                                 <th>Entry</th>
                                 <th>Stop Loss</th>
                                 <th>Session</th>
-                                <th>MFE</th>
+                                <th>BE MFE</th>
+                                <th>No BE MFE</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody id="signalsTableBody">
                             <tr>
-                                <td colspan="7">
+                                <td colspan="8">
                                     <div class="empty-state">
                                         <div class="empty-state-icon">📊</div>
                                         <div>Waiting for automated signals...</div>
@@ -844,18 +885,24 @@
             tbody.innerHTML = filteredSignals.slice(0, 50).map(signal => {
                 const direction = signal.bias || signal.direction;
                 const status = signal.trade_status || signal.status || 'pending';
-<<<<<<< HEAD
                 // Use the dual MFE values from API
                 const be_mfe = signal.be_mfe || 0;
                 const no_be_mfe = signal.no_be_mfe || 0;
-=======
-                const mfe = signal.final_mfe || signal.current_mfe || signal.mfe;
->>>>>>> parent of 309257e (s)
                 const timestamp = signal.created_at || signal.timestamp;
+                
+                // Determine BE and No BE status for dual display
+                const isActive = status === 'ACTIVE' || status === 'CONFIRMED';
+                const isCompleted = status === 'COMPLETED' || status === 'RESOLVED';
+                const beStatus = signal.be_status || (isCompleted ? 'COMPLETE' : (isActive ? 'ACTIVE' : 'PENDING'));
+                const noBeStatus = signal.no_be_status || (isCompleted ? 'COMPLETE' : (isActive ? 'ACTIVE' : 'PENDING'));
+                
+                // Only highlight ACTIVE status, not COMPLETE
+                const beStatusClass = beStatus === 'ACTIVE' ? 'status-active' : (beStatus === 'COMPLETE' ? 'status-complete' : 'status-pending');
+                const noBeStatusClass = noBeStatus === 'ACTIVE' ? 'status-active' : (noBeStatus === 'COMPLETE' ? 'status-complete' : 'status-pending');
                 
                 return `
                     <tr>
-                        <td>${signal.time || (timestamp ? formatTime(timestamp) : '-')}</td>
+                        <td>${signal.time || signal.signal_time || (timestamp ? formatTime(timestamp) : '-')}</td>
                         <td>
                             <span class="direction-badge ${direction ? direction.toLowerCase() : 'neutral'}">
                                 ${direction || '-'}
@@ -864,16 +911,13 @@
                         <td>${signal.entry_price ? signal.entry_price.toFixed(2) : '-'}</td>
                         <td>${signal.stop_loss_price || signal.stop_loss ? (signal.stop_loss_price || signal.stop_loss).toFixed(2) : '-'}</td>
                         <td>${signal.session || '-'}</td>
-<<<<<<< HEAD
-                        <td>${be_mfe > 0 ? be_mfe.toFixed(2) + 'R' : '-'}</td>
-                        <td>${no_be_mfe > 0 ? no_be_mfe.toFixed(2) + 'R' : '-'}</td>
-=======
-                        <td>${mfe ? mfe.toFixed(2) + 'R' : '-'}</td>
->>>>>>> parent of 309257e (s)
+                        <td>${be_mfe > 0 ? be_mfe.toFixed(2) + 'R' : '0.00R'}</td>
+                        <td>${no_be_mfe > 0 ? no_be_mfe.toFixed(2) + 'R' : '0.00R'}</td>
                         <td>
-                            <span class="status-badge ${status.toLowerCase()}">
-                                ${status}
-                            </span>
+                            <div class="dual-status">
+                                <span class="status-mini ${beStatusClass}">BE: ${beStatus}</span>
+                                <span class="status-mini ${noBeStatusClass}">NO BE: ${noBeStatus}</span>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -970,8 +1014,8 @@
                         activeByDate[dateStr]++;
                     }
                     
-                    // Calculate stats
-                    const mfe = signal.final_mfe || signal.current_mfe || 0;
+                    // Calculate stats using dual MFE values
+                    const mfe = signal.be_mfe || signal.no_be_mfe || signal.final_mfe || signal.current_mfe || 0;
                     statsByDate[dateStr].totalMFE += mfe;
                     statsByDate[dateStr].count++;
                 }
