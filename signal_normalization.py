@@ -94,10 +94,12 @@ def normalize_signal_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         # Pass through other fields
         normalized['trade_id'] = payload.get('trade_id', '')
         normalized['bias'] = payload.get('bias', '')
-        normalized['mfe'] = _safe_float(payload.get('mfe'))
-        normalized['be_mfe'] = _safe_float(payload.get('be_mfe'))
-        normalized['no_be_mfe'] = _safe_float(payload.get('no_be_mfe'))
-        normalized['final_mfe'] = _safe_float(payload.get('final_mfe'))
+        # Support multiple MFE field names: mfe_R (indicator), be_mfe/no_be_mfe (strategy), mfe (legacy)
+        mfe_r_value = _safe_float(payload.get('mfe_R'))
+        normalized['mfe'] = _safe_float(payload.get('mfe')) or mfe_r_value
+        normalized['be_mfe'] = _safe_float(payload.get('be_mfe')) or mfe_r_value
+        normalized['no_be_mfe'] = _safe_float(payload.get('no_be_mfe')) or mfe_r_value
+        normalized['final_mfe'] = _safe_float(payload.get('final_mfe')) or _safe_float(payload.get('final_mfe_R')) or mfe_r_value
         normalized['risk_distance'] = _safe_float(payload.get('risk_distance'))
         
         # Pass through target fields

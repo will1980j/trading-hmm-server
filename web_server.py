@@ -12570,12 +12570,28 @@ def handle_entry_signal(data):
                 0,
                 NULL,
                 0,
-                CURRENT_DATE,
-                CURRENT_TIME,
+                %(signal_date)s,
+                %(signal_time)s,
                 NOW()
             )
             RETURNING id
         """
+        # Parse signal_date and signal_time from webhook
+        parsed_signal_date = None
+        parsed_signal_time = None
+        if signal_date:
+            try:
+                from datetime import datetime as dt
+                parsed_signal_date = dt.strptime(signal_date, '%Y-%m-%d').date()
+            except:
+                parsed_signal_date = None
+        if signal_time:
+            try:
+                from datetime import datetime as dt
+                parsed_signal_time = dt.strptime(signal_time, '%H:%M:%S').time()
+            except:
+                parsed_signal_time = None
+        
         params = {
             "trade_id": trade_id,
             "direction": direction,
@@ -12584,7 +12600,9 @@ def handle_entry_signal(data):
             "risk_distance": risk_distance,
             "targets": dumps(targets) if targets else None,
             "session": session,
-            "bias": bias or direction
+            "bias": bias or direction,
+            "signal_date": parsed_signal_date,
+            "signal_time": parsed_signal_time
         }
         try:
             cursor.execute(insert_sql, params)
@@ -12712,14 +12730,13 @@ def handle_mfe_update(data):
         
         try:
             current_price = float(data.get('current_price', 0))
-            # Strategy sends be_mfe and no_be_mfe separately
-            be_mfe = float(data.get('be_mfe', 0))
-            no_be_mfe = float(data.get('no_be_mfe', 0))
-            # Fallback to legacy mfe field if new fields not present
-            if be_mfe == 0 and no_be_mfe == 0:
-                legacy_mfe = float(data.get('mfe', 0))
-                be_mfe = legacy_mfe
-                no_be_mfe = legacy_mfe
+            # Support multiple field names from different payload formats:
+            # - Indicator sends: mfe_R (single value used for both)
+            # - Strategy sends: be_mfe, no_be_mfe separately
+            # - Legacy: mfe
+            be_mfe = float(data.get('be_mfe') or data.get('mfe_R') or data.get('mfe') or 0)
+            no_be_mfe = float(data.get('no_be_mfe') or data.get('mfe_R') or data.get('mfe') or 0)
+            logger.info(f"📊 MFE values parsed: be_mfe={be_mfe}, no_be_mfe={no_be_mfe}, current_price={current_price}")
         except (ValueError, TypeError) as conv_error:
             return {"success": False, "error": f"Invalid MFE data: {str(conv_error)}"}
         
@@ -14207,34 +14224,22 @@ def get_automated_signals_dashboard_data():
         conn = psycopg2.connect(database_url)
         cursor = conn.cursor()
         
-        # Get all ENTRY signals with latest MFE values (active trades)
+        # Get all ENTRY signals with MFE values (active trades)
+        # NOTE: MFE values are stored directly on the ENTRY row by handle_mfe_update
         cursor.execute("""
-            WITH latest_mfe AS (
-                SELECT DISTINCT ON (trade_id) 
-                    trade_id, be_mfe, no_be_mfe
-                FROM automated_signals
-                WHERE event_type = 'MFE_UPDATE'
-                ORDER BY trade_id, timestamp DESC
-            ),
-            trade_direction AS (
-                SELECT DISTINCT ON (trade_id)
-                    trade_id, direction, entry_price, stop_loss, session, bias
-                FROM automated_signals
-                WHERE direction IS NOT NULL
-                ORDER BY trade_id, timestamp ASC
-            )
             SELECT e.id, e.trade_id, e.event_type, 
-                   COALESCE(e.direction, d.direction) as direction,
-                   COALESCE(e.entry_price, d.entry_price) as entry_price,
-                   COALESCE(e.stop_loss, d.stop_loss) as stop_loss,
-                   COALESCE(e.session, d.session) as session,
-                   COALESCE(e.bias, d.bias) as bias,
-                   e.timestamp, e.signal_date, e.signal_time,
-                   COALESCE(m.be_mfe, 0.0) as be_mfe,
-                   COALESCE(m.no_be_mfe, 0.0) as no_be_mfe
+                   e.direction,
+                   e.entry_price,
+                   e.stop_loss,
+                   e.session,
+                   e.bias,
+                   e.timestamp, 
+                   e.signal_date, 
+                   e.signal_time,
+                   COALESCE(e.be_mfe, 0.0) as be_mfe,
+                   COALESCE(e.no_be_mfe, 0.0) as no_be_mfe,
+                   e.current_price
             FROM automated_signals e
-            LEFT JOIN latest_mfe m ON e.trade_id = m.trade_id
-            LEFT JOIN trade_direction d ON e.trade_id = d.trade_id
             WHERE e.event_type = 'ENTRY'
             AND NOT EXISTS (
                 SELECT 1 FROM automated_signals ex
@@ -14257,36 +14262,35 @@ def get_automated_signals_dashboard_data():
                 "session": row[6],
                 "bias": row[7],
                 "timestamp": row[8].isoformat() if row[8] else None,
-                "date": row[9].isoformat() if row[9] else None,
-                "time": row[10].isoformat() if row[10] else None,
+                "signal_date": row[9].isoformat() if row[9] else None,
+                "signal_time": row[10].isoformat() if row[10] else None,
                 "be_mfe": float(row[11]) if row[11] is not None else 0.0,
                 "no_be_mfe": float(row[12]) if row[12] is not None else 0.0,
+                "current_price": float(row[13]) if row[13] else None,
                 "status": "ACTIVE",
                 "trade_status": "ACTIVE"
             })
         
         # Get all EXIT signals (completed trades) with MFE values
+        # Join with ENTRY to get signal_date, signal_time, and entry details
         cursor.execute("""
-            WITH trade_direction AS (
-                SELECT DISTINCT ON (trade_id)
-                    trade_id, direction, entry_price, stop_loss, session, bias
-                FROM automated_signals
-                WHERE direction IS NOT NULL
-                ORDER BY trade_id, timestamp ASC
-            )
-            SELECT e.id, e.trade_id, e.event_type,
-                   COALESCE(e.direction, d.direction) as direction,
-                   COALESCE(e.entry_price, d.entry_price) as entry_price,
-                   COALESCE(e.stop_loss, d.stop_loss) as stop_loss,
-                   COALESCE(e.session, d.session) as session,
-                   COALESCE(e.bias, d.bias) as bias,
-                   e.timestamp, 
-                   COALESCE(e.be_mfe, 0.0) as be_mfe,
-                   COALESCE(e.no_be_mfe, 0.0) as no_be_mfe
-            FROM automated_signals e
-            LEFT JOIN trade_direction d ON e.trade_id = d.trade_id
-            WHERE e.event_type LIKE 'EXIT_%'
-            ORDER BY e.timestamp DESC
+            SELECT ex.id, ex.trade_id, ex.event_type,
+                   COALESCE(en.direction, ex.direction) as direction,
+                   COALESCE(en.entry_price, ex.entry_price) as entry_price,
+                   COALESCE(en.stop_loss, ex.stop_loss) as stop_loss,
+                   COALESCE(en.session, ex.session) as session,
+                   COALESCE(en.bias, ex.bias) as bias,
+                   ex.timestamp as exit_timestamp,
+                   en.signal_date,
+                   en.signal_time,
+                   en.timestamp as entry_timestamp,
+                   COALESCE(ex.be_mfe, en.be_mfe, 0.0) as be_mfe,
+                   COALESCE(ex.no_be_mfe, en.no_be_mfe, 0.0) as no_be_mfe,
+                   COALESCE(ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) as final_mfe
+            FROM automated_signals ex
+            LEFT JOIN automated_signals en ON ex.trade_id = en.trade_id AND en.event_type = 'ENTRY'
+            WHERE ex.event_type LIKE 'EXIT_%%'
+            ORDER BY ex.timestamp DESC
             LIMIT 100
         """)
         
@@ -14301,9 +14305,13 @@ def get_automated_signals_dashboard_data():
                 "stop_loss": float(row[5]) if row[5] else None,
                 "session": row[6],
                 "bias": row[7],
-                "timestamp": row[8].isoformat() if row[8] else None,
-                "be_mfe": float(row[9]) if row[9] is not None else 0.0,
-                "no_be_mfe": float(row[10]) if row[10] is not None else 0.0,
+                "exit_timestamp": row[8].isoformat() if row[8] else None,
+                "signal_date": row[9].isoformat() if row[9] else None,
+                "signal_time": row[10].isoformat() if row[10] else None,
+                "entry_timestamp": row[11].isoformat() if row[11] else None,
+                "be_mfe": float(row[12]) if row[12] is not None else 0.0,
+                "no_be_mfe": float(row[13]) if row[13] is not None else 0.0,
+                "final_mfe": float(row[14]) if row[14] is not None else 0.0,
                 "status": "COMPLETED",
                 "trade_status": "COMPLETED"
             })
