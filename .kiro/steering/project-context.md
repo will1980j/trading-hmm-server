@@ -32,18 +32,92 @@ inclusion: always
 ### **MANDATORY VERIFICATION STEP:**
 Before editing ANY template file, you MUST check `web_server.py` to see which template the route actually serves.
 
-### **AUTOMATED SIGNALS DASHBOARD - CRITICAL MAPPING:**
+### **COMPLETE ROUTE-TO-TEMPLATE MAPPING:**
+
+#### **🚨 MAIN DASHBOARDS (MOST LIKELY TO BE EDITED):**
 
 | URL Route | Template Served | JS File | CSS File |
 |-----------|-----------------|---------|----------|
+| `/homepage` | `templates/homepage_video_background.html` | `static/js/homepage.js` | `static/css/homepage.css` |
+| `/main-dashboard` | `templates/main_dashboard.html` | `static/js/main_dashboard.js` | `static/css/main_dashboard.css` |
 | `/automated-signals` | `templates/automated_signals_ultra.html` | `static/js/automated_signals_ultra.js` | `static/css/automated_signals_ultra.css` |
-| `/automated-signals-dashboard` | **DOES NOT EXIST** - redirects or 404 | N/A | N/A |
-| `/automated-signals-option1` | `trading_floor_command_center.html` | N/A | N/A |
-| `/automated-signals-option2` | `automated_signals_dashboard_option2.html` | N/A | N/A |
-| `/automated-signals-option3` | `automated_signals_dashboard_option3.html` | N/A | N/A |
+| `/signal-lab-dashboard` | `templates/signal_lab_dashboard.html` | `static/js/signal_lab.js` | `static/css/signal_lab.css` |
+| `/time-analysis` | `templates/time_analysis.html` | `static/js/time_analysis.js` | `static/css/time_analysis.css` |
 
-### **🚫 WRONG FILE - DO NOT EDIT FOR LIVE DASHBOARD:**
-- `templates/automated_signals_dashboard.html` - **THIS IS NOT SERVED BY ANY ACTIVE ROUTE**
+#### **🔧 SPECIALIZED DASHBOARDS:**
+
+| URL Route | Template Served | JS File | CSS File |
+|-----------|-----------------|---------|----------|
+| `/strategy-optimizer` | `templates/strategy_optimizer.html` | `static/js/strategy_optimizer.js` | `static/css/strategy_optimizer.css` |
+| `/strategy-comparison` | `templates/compare.html` | `static/js/compare.js` | `static/css/compare.css` |
+| `/compare` | `templates/compare.html` | `static/js/compare.js` | `static/css/compare.css` |
+| `/ml-dashboard` | `templates/ml_hub.html` | `static/js/ml_hub.js` | `static/css/ml_hub.css` |
+| `/ml-hub` | `templates/ml_hub.html` | `static/js/ml_hub.js` | `static/css/ml_hub.css` |
+| `/ai-business-advisor` | `templates/ai_business_dashboard.html` | N/A | N/A |
+| `/trade-manager` | `templates/trade_manager.html` | N/A | N/A |
+
+#### **🔬 SIGNAL LAB VARIANTS (CONFUSING NAMES!):**
+
+| URL Route | Template Served | Notes |
+|-----------|-----------------|-------|
+| `/signal-lab-dashboard` | `templates/signal_lab_dashboard.html` | **MAIN Signal Lab** |
+| `/signal-lab-v2` | `signal_lab_v2_dashboard.html` (ROOT) | **NOT in templates folder!** |
+| `/signal-analysis-lab` | `templates/signal_analysis_lab.html` | Different from signal-lab-dashboard |
+| `/signal-analysis-5m` | `signal-analysis-5m.html` (ROOT) | **NOT in templates folder!** |
+| `/signal-analysis-15m` | `signal_analysis_15m.html` (ROOT) | **NOT in templates folder!** |
+
+#### **🔬 AUTOMATED SIGNALS VARIANTS:**
+
+| URL Route | Template Served | Notes |
+|-----------|-----------------|-------|
+| `/automated-signals` | `templates/automated_signals_ultra.html` | **MAIN - USE THIS** |
+| `/automated-signals-ultra` | `templates/automated_signals_ultra.html` | Same as above |
+| `/automated-signals-telemetry` | `templates/automated_signals_telemetry.html` | Telemetry view |
+| `/automated-signals-replay` | `templates/automated_signals_replay.html` | Replay view |
+| `/automated-signals-predictive` | `templates/automated_signals_predictive.html` | Predictive view |
+| `/automated-signals-option1` | `trading_floor_command_center.html` (ROOT) | **NOT in templates!** |
+| `/automated-signals-option2` | `automated_signals_dashboard_option2.html` (ROOT) | **NOT in templates!** |
+| `/automated-signals-option3` | `automated_signals_dashboard_option3.html` (ROOT) | **NOT in templates!** |
+| `/automated-signals-hub-preview` | `templates/automated_signals_hub_work/automated_signals_dashboard.html` | Subfolder! |
+
+#### **🔐 AUTH & MISC PAGES:**
+
+| URL Route | Template Served | Notes |
+|-----------|-----------------|-------|
+| `/login` | `templates/login_video_background.html` | Main login |
+| `/login-professional` | `login_professional.html` (ROOT) | **NOT in templates!** |
+| `/login-css` | `login_css_animated.html` (ROOT) | **NOT in templates!** |
+| `/login-interactive` | `login_interactive_js.html` (ROOT) | **NOT in templates!** |
+| `/webhook-monitor` | `webhook_monitor.html` (ROOT) | **NOT in templates!** |
+| `/nasdaq-ml` | `nasdaq_ml_dashboard.html` (ROOT) | **NOT in templates!** |
+| `/live-diagnostics` | `live_diagnostics_terminal.html` (ROOT) | **NOT in templates!** |
+| `/1m-execution` | `1m_execution_dashboard.html` (ROOT) | **NOT in templates!** |
+| `/diagnose-1m-signals` | `diagnose_1m_signals.html` (ROOT) | **NOT in templates!** |
+
+#### **⚠️ ROOT vs TEMPLATES FOLDER - CRITICAL DISTINCTION:**
+
+**`render_template()` = reads from `templates/` folder**
+**`read_html_file()` = reads from ROOT folder**
+
+**Files in ROOT folder (NOT in templates/):**
+- `signal_lab_v2_dashboard.html`
+- `signal-analysis-5m.html`
+- `signal_analysis_15m.html`
+- `trading_floor_command_center.html`
+- `automated_signals_dashboard_option2.html`
+- `automated_signals_dashboard_option3.html`
+- `login_professional.html`
+- `login_css_animated.html`
+- `login_interactive_js.html`
+- `webhook_monitor.html`
+- `nasdaq_ml_dashboard.html`
+- `live_diagnostics_terminal.html`
+- `1m_execution_dashboard.html`
+- `diagnose_1m_signals.html`
+
+### **🚫 ORPHANED FILES - NOT SERVED BY ANY ROUTE:**
+- `templates/automated_signals_dashboard.html` - **NEVER EDIT THIS!**
+- `automated_signals_dashboard.html` (root) - **ALSO ORPHANED!**
 
 ### **✅ CORRECT FILES FOR `/automated-signals` ROUTE:**
 - **Template:** `templates/automated_signals_ultra.html`
