@@ -65,8 +65,10 @@ AutomatedSignalsUltra.init = function() {
     if (AutomatedSignalsUltra.timer) {
         clearInterval(AutomatedSignalsUltra.timer);
     }
+    // Auto-refresh ALL dashboard components together (not just the table)
     AutomatedSignalsUltra.timer = setInterval(() => {
         AutomatedSignalsUltra.fetchDashboardData();
+        AutomatedSignalsUltra.fetchCalendarData();
     }, 7000);
 };
 
@@ -320,65 +322,59 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             return 'ultra-badge-red';
         };
         
-        // Age: live update ONLY for ACTIVE trades, static for COMPLETED
+        // Age: Calculate from signal_date + signal_time (Eastern Time)
         let ageStr = "--";
-        if (row.status === 'ACTIVE' && row.timestamp) {
-            // Active trades: show live updating age since entry
-            const t = new Date(row.timestamp);
-            const nowMs = Date.now();
-            const diffSec = Math.max(0, (nowMs - t.getTime()) / 1000);
+        
+        // Helper to format duration
+        const formatDuration = (diffSec) => {
+            if (diffSec < 60) return `${Math.floor(diffSec)}s`;
+            if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ${Math.floor(diffSec % 60)}s`;
+            return `${Math.floor(diffSec / 3600)}h ${Math.floor((diffSec % 3600) / 60)}m`;
+        };
+        
+        if (row.status === 'ACTIVE' && row.signal_date && row.signal_time) {
+            // Active trades: show live age since signal time (Eastern Time)
+            // Construct datetime string and parse as Eastern Time
+            const signalDateTimeStr = `${row.signal_date}T${row.signal_time}`;
+            const signalTime = new Date(signalDateTimeStr + '-05:00'); // EST offset (adjust for DST if needed)
             
-            // Format nicely based on duration
-            if (diffSec < 60) {
-                ageStr = `${Math.floor(diffSec)}s`;
-            } else if (diffSec < 3600) {
-                const mins = Math.floor(diffSec / 60);
-                const secs = Math.floor(diffSec % 60);
-                ageStr = `${mins}m ${secs}s`;
-            } else {
-                const hours = Math.floor(diffSec / 3600);
-                const mins = Math.floor((diffSec % 3600) / 60);
-                ageStr = `${hours}h ${mins}m`;
-            }
+            // Get current time in Eastern
+            const nowEastern = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+            const nowMs = new Date(nowEastern).getTime();
+            
+            const diffSec = Math.max(0, (nowMs - signalTime.getTime()) / 1000);
+            ageStr = formatDuration(diffSec);
         } else if (row.status === 'COMPLETED') {
-            // Completed trades: show final duration (entry to exit) - STATIC, no live counting
+            // Completed trades: show final duration if available
             if (row.duration_seconds) {
-                const secs = row.duration_seconds;
-                if (secs < 60) {
-                    ageStr = `${Math.floor(secs)}s`;
-                } else if (secs < 3600) {
-                    ageStr = `${Math.floor(secs / 60)}m ${Math.floor(secs % 60)}s`;
-                } else {
-                    ageStr = `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
-                }
-            } else if (row.exit_timestamp && row.timestamp) {
-                const entryTime = new Date(row.timestamp);
+                ageStr = formatDuration(row.duration_seconds);
+            } else if (row.exit_timestamp && row.signal_date && row.signal_time) {
+                const signalDateTimeStr = `${row.signal_date}T${row.signal_time}`;
+                const entryTime = new Date(signalDateTimeStr + '-05:00');
                 const exitTime = new Date(row.exit_timestamp);
                 const diffSec = Math.max(0, (exitTime.getTime() - entryTime.getTime()) / 1000);
-                if (diffSec < 60) {
-                    ageStr = `${Math.floor(diffSec)}s`;
-                } else if (diffSec < 3600) {
-                    ageStr = `${Math.floor(diffSec / 60)}m ${Math.floor(diffSec % 60)}s`;
-                } else {
-                    ageStr = `${Math.floor(diffSec / 3600)}h ${Math.floor((diffSec % 3600) / 60)}m`;
-                }
+                ageStr = formatDuration(diffSec);
             } else {
-                // No duration data available for completed trade - show dash
                 ageStr = "--";
             }
         }
         
-        // Time display: Convert to NY Eastern Time (auto-handles DST)
+        // Time display: Use signal_time from TradingView (already in Eastern Time)
         let timeStr = "--";
-        if (row.timestamp) {
-            const t = new Date(row.timestamp);
-            // Format in America/New_York timezone to match TradingView signal candle time
-            timeStr = t.toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: true,
-                timeZone: 'America/New_York'
-            });
+        if (row.signal_time) {
+            // signal_time is already in Eastern Time format like "05:28:00"
+            // Parse and format nicely
+            const parts = row.signal_time.split(':');
+            if (parts.length >= 2) {
+                let hour = parseInt(parts[0], 10);
+                const min = parts[1];
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                if (hour > 12) hour -= 12;
+                if (hour === 0) hour = 12;
+                timeStr = `${hour.toString().padStart(2, '0')}:${min} ${ampm}`;
+            } else {
+                timeStr = row.signal_time;
+            }
         }
         
         const isChecked = AutomatedSignalsUltra.selectedTrades.has(row.trade_id);

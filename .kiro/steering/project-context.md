@@ -194,29 +194,72 @@ I have a comprehensive cloud-based NASDAQ day trading analytics platform built w
 
 ## 🔐 **RAILWAY DATABASE CONNECTION - CRITICAL** 🔐
 
-**⚠️ ALWAYS USE THE CORRECT DATABASE - NEVER QUERY STALE/OLD DATABASES ⚠️**
+**⚠️ LOCAL .env DATABASE_URL IS NOT THE PRODUCTION DATABASE ⚠️**
 
-### **CORRECT DATABASE CONNECTION:**
+### **CRITICAL UNDERSTANDING:**
+
+The local `.env` file contains a DATABASE_URL, but **Railway has its own DATABASE_URL environment variable** that may point to a DIFFERENT database. The Railway app uses Railway's environment variables, NOT the local `.env` file.
+
+### **TWO DIFFERENT DATABASES:**
+1. **Local .env DATABASE_URL** - May be stale/old, used only for local development
+2. **Railway's DATABASE_URL** - The ACTUAL production database the live app uses
+
+### **🚫 NEVER DO THIS:**
+```python
+# WRONG - This queries the LOCAL .env database, NOT production!
+import psycopg2
+conn = psycopg2.connect(DATABASE_URL_FROM_LOCAL_ENV)
+cursor.execute("DELETE FROM automated_signals")  # Deletes from WRONG database!
 ```
-Host: caboose.proxy.rlwy.net
-Port: 17437
-Database: railway
-User: postgres
+
+### **✅ CORRECT WAY TO MODIFY PRODUCTION DATA:**
+
+**Option 1: Use the Railway App's API Endpoints (PREFERRED)**
+```python
+import requests
+
+# To delete trades - use the bulk delete endpoint
+trade_ids = ['trade_1', 'trade_2']
+response = requests.post(
+    'https://web-production-f8c3.up.railway.app/api/automated-signals/bulk-delete',
+    json={'trade_ids': trade_ids}
+)
+
+# To query data - use the dashboard API
+response = requests.get(
+    'https://web-production-f8c3.up.railway.app/api/automated-signals/dashboard-data'
+)
+data = response.json()
 ```
 
-### **MANDATORY DATABASE RULES:**
+**Option 2: Get trade_ids from API, then delete via API**
+```python
+import requests
 
-1. **🚫 NEVER HARDCODE OLD DATABASE URLs**
-   - Always use `DATABASE_URL` from `.env` file
-   - The correct URL is in `.env` - read it if unsure
-   - Old/stale DATABASE_URLs will show outdated data
+# Step 1: Get current trades from production API
+r = requests.get('https://web-production-f8c3.up.railway.app/api/automated-signals/dashboard-data')
+data = r.json()
+trade_ids = [t['trade_id'] for t in data.get('active_trades', [])]
+trade_ids += [t['trade_id'] for t in data.get('completed_trades', [])]
 
-2. **✅ CORRECT WAY TO QUERY DATABASE:**
-   ```python
-   import os
-   DATABASE_URL = os.environ.get('DATABASE_URL')
-   # OR read from .env file
-   ```
+# Step 2: Delete via production API
+r = requests.post(
+    'https://web-production-f8c3.up.railway.app/api/automated-signals/bulk-delete',
+    json={'trade_ids': trade_ids}
+)
+print(r.json())  # Shows actual deletion count
+```
+
+### **VERIFICATION:**
+After any database operation, ALWAYS verify via the production API:
+```python
+import requests
+r = requests.get('https://web-production-f8c3.up.railway.app/api/automated-signals/stats-live')
+print(r.json())  # Shows actual production database state
+```
+
+### **LESSON LEARNED (Dec 1, 2025):**
+Direct database queries using the local `.env` DATABASE_URL deleted 551 rows from a stale/old database while the production app continued showing data from the REAL production database. Always use the Railway app's API endpoints for production data operations.
 
 3. **🚫 NEVER USE THESE (STALE/OLD):**
    - Any DATABASE_URL not matching the one in `.env`
