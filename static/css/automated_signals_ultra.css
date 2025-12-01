@@ -461,3 +461,84 @@ input.ultra-input:focus {
 #ase-lifecycle-svg .mfe-point:hover {
     r: 8;
 }
+
+
+/* ----------- DIRECTION BADGES (Matrix/Red-Pill Style) ----------- */
+.direction-badge-bullish {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(34, 197, 94, 0.1));
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.2);
+    text-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+}
+
+.direction-badge-bearish {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(239, 68, 68, 0.1));
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
+    text-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+
+/* ----------- CALENDAR TODAY HIGHLIGHT (Enhanced) ----------- */
+.calendar-day.calendar-today {
+    background: rgba(59, 130, 246, 0.15);
+    border: 2px solid #3b82f6 !important;
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.4), inset 0 0 8px rgba(59, 130, 246, 0.1);
+    animation: today-pulse 2s infinite;
+}
+
+.calendar-day.calendar-today .calendar-day-num {
+    color: #3b82f6;
+    font-weight: 700;
+}
+
+@keyframes today-pulse {
+    0%, 100% { 
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.4), inset 0 0 8px rgba(59, 130, 246, 0.1);
+    }
+    50% { 
+        box-shadow: 0 0 18px rgba(59, 130, 246, 0.6), inset 0 0 12px rgba(59, 130, 246, 0.15);
+    }
+}
+
+/* ----------- IMPROVED TABLE ROW HOVER ----------- */
+.ultra-table tbody tr {
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ultra-table tbody tr:hover {
+    background: rgba(59, 130, 246, 0.12);
+    box-shadow: inset 0 0 15px rgba(59, 130, 246, 0.1);
+}
+
+/* ----------- MFE VALUE STYLING ----------- */
+.mfe-positive {
+    color: #22c55e;
+    font-weight: 600;
+}
+
+.mfe-negative {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.mfe-neutral {
+    color: #fbbf24;
+    font-weight: 600;
+}

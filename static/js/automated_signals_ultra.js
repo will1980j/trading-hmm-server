@@ -266,7 +266,15 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             if (rowDate !== AutomatedSignalsUltra.selectedDate) return false;
         }
         if (f.session !== 'ALL' && row.session !== f.session) return false;
-        if (f.direction !== 'ALL' && row.direction !== f.direction) return false;
+        
+        // Direction filter: normalize LONG/SHORT to Bullish/Bearish for comparison
+        if (f.direction !== 'ALL') {
+            let rowDir = row.direction || '';
+            if (rowDir.toUpperCase() === 'LONG') rowDir = 'Bullish';
+            else if (rowDir.toUpperCase() === 'SHORT') rowDir = 'Bearish';
+            if (rowDir !== f.direction) return false;
+        }
+        
         if (f.state !== 'ALL' && row.status !== f.state) return false;
         if (f.searchId && row.trade_id && !row.trade_id.toLowerCase().includes(f.searchId)) return false;
         return true;
@@ -284,19 +292,24 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         const tr = document.createElement('tr');
         tr.dataset.tradeId = row.trade_id;
         
-        const dir = row.direction || "--";
+        // Normalize direction: API may return LONG/SHORT or Bullish/Bearish
+        let dir = row.direction || "--";
+        if (dir.toUpperCase() === 'LONG') dir = 'Bullish';
+        else if (dir.toUpperCase() === 'SHORT') dir = 'Bearish';
+        
         const entry = row.entry_price ? parseFloat(row.entry_price).toFixed(2) : "N/A";
         const sl = row.stop_loss ? parseFloat(row.stop_loss).toFixed(2) : "N/A";
-        // API returns no_be_mfe_R and be_mfe_R (with _R suffix)
-        // Format with R suffix only if we have a value, otherwise just show --
-        const mfeNoBE = row.no_be_mfe_R != null ? parseFloat(row.no_be_mfe_R).toFixed(2) + "R" : "--";
-        const mfeBE = row.be_mfe_R != null ? parseFloat(row.be_mfe_R).toFixed(2) + "R" : "--";
+        
+        // API returns be_mfe and no_be_mfe (without _R suffix) - fix field names
+        // Also check mfe as fallback for older data
+        const beMfeVal = row.be_mfe ?? row.be_mfe_R ?? row.mfe ?? null;
+        const noBeMfeVal = row.no_be_mfe ?? row.no_be_mfe_R ?? row.mfe ?? null;
+        const mfeBE = beMfeVal != null ? parseFloat(beMfeVal).toFixed(2) + "R" : "--";
+        const mfeNoBE = noBeMfeVal != null ? parseFloat(noBeMfeVal).toFixed(2) + "R" : "--";
         
         let statusClass = 'ultra-badge-blue';
         if (row.status === 'ACTIVE') statusClass = 'ultra-badge-green';
         else if (row.status === 'COMPLETED') statusClass = 'ultra-badge-amber';
-        
-        let dirClass = dir === 'Bullish' ? 'ultra-badge-green' : dir === 'Bearish' ? 'ultra-badge-red' : 'ultra-muted';
         
         // MFE coloring for both columns
         const getMfeClass = (val) => {
@@ -310,48 +323,75 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         // Age: live update ONLY for ACTIVE trades, static for COMPLETED
         let ageStr = "--";
         if (row.status === 'ACTIVE' && row.timestamp) {
-            // Active trades: show live updating age
+            // Active trades: show live updating age since entry
             const t = new Date(row.timestamp);
-            const diffSec = (Date.now() - t.getTime()) / 1000;
-            const mins = Math.floor(diffSec / 60);
-            const secs = Math.floor(diffSec % 60);
-            ageStr = `${mins}m ${secs}s`;
+            const nowMs = Date.now();
+            const diffSec = Math.max(0, (nowMs - t.getTime()) / 1000);
+            
+            // Format nicely based on duration
+            if (diffSec < 60) {
+                ageStr = `${Math.floor(diffSec)}s`;
+            } else if (diffSec < 3600) {
+                const mins = Math.floor(diffSec / 60);
+                const secs = Math.floor(diffSec % 60);
+                ageStr = `${mins}m ${secs}s`;
+            } else {
+                const hours = Math.floor(diffSec / 3600);
+                const mins = Math.floor((diffSec % 3600) / 60);
+                ageStr = `${hours}h ${mins}m`;
+            }
         } else if (row.status === 'COMPLETED') {
             // Completed trades: show final duration (entry to exit) - STATIC, no live counting
             if (row.duration_seconds) {
-                const mins = Math.floor(row.duration_seconds / 60);
-                const secs = Math.floor(row.duration_seconds % 60);
-                ageStr = `${mins}m ${secs}s`;
+                const secs = row.duration_seconds;
+                if (secs < 60) {
+                    ageStr = `${Math.floor(secs)}s`;
+                } else if (secs < 3600) {
+                    ageStr = `${Math.floor(secs / 60)}m ${Math.floor(secs % 60)}s`;
+                } else {
+                    ageStr = `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
+                }
             } else if (row.exit_timestamp && row.timestamp) {
                 const entryTime = new Date(row.timestamp);
                 const exitTime = new Date(row.exit_timestamp);
-                const diffSec = (exitTime.getTime() - entryTime.getTime()) / 1000;
-                if (diffSec > 0) {
-                    const mins = Math.floor(diffSec / 60);
-                    const secs = Math.floor(diffSec % 60);
-                    ageStr = `${mins}m ${secs}s`;
+                const diffSec = Math.max(0, (exitTime.getTime() - entryTime.getTime()) / 1000);
+                if (diffSec < 60) {
+                    ageStr = `${Math.floor(diffSec)}s`;
+                } else if (diffSec < 3600) {
+                    ageStr = `${Math.floor(diffSec / 60)}m ${Math.floor(diffSec % 60)}s`;
                 } else {
-                    ageStr = "< 1m";
+                    ageStr = `${Math.floor(diffSec / 3600)}h ${Math.floor((diffSec % 3600) / 60)}m`;
                 }
             } else {
-                // No duration data available for completed trade - show dash, NOT live time
+                // No duration data available for completed trade - show dash
                 ageStr = "--";
             }
         }
         
+        // Time display: Convert to NY Eastern Time (auto-handles DST)
         let timeStr = "--";
         if (row.timestamp) {
             const t = new Date(row.timestamp);
-            timeStr = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            // Format in America/New_York timezone to match TradingView signal candle time
+            timeStr = t.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: true,
+                timeZone: 'America/New_York'
+            });
         }
         
         const isChecked = AutomatedSignalsUltra.selectedTrades.has(row.trade_id);
+        
+        // Direction badge with Matrix/red-pill styling like Trade Lifecycle panel
+        const dirBadgeClass = dir === 'Bullish' ? 'direction-badge-bullish' : 
+                              dir === 'Bearish' ? 'direction-badge-bearish' : 'ultra-muted';
         
         tr.innerHTML = `
             <td><input type="checkbox" class="trade-checkbox trade-row-checkbox" data-trade-id="${row.trade_id}" ${isChecked ? 'checked' : ''}></td>
             <td><span class="${statusClass}">${row.status}</span></td>
             <td class="ultra-muted">${timeStr}</td>
-            <td><span class="${dirClass}">${dir}</span></td>
+            <td><span class="${dirBadgeClass}">${dir}</span></td>
             <td class="ultra-muted">${row.session ?? "--"}</td>
             <td>${entry}</td>
             <td>${sl}</td>
@@ -535,14 +575,21 @@ AutomatedSignalsUltra.renderSideDetail = function(detail) {
     const container = document.getElementById('ase-trade-detail-container');
     if (!container) return;
     
-    const direction = detail.direction || 'UNKNOWN';
+    // Normalize direction: API may return LONG/SHORT or Bullish/Bearish
+    let direction = detail.direction || 'UNKNOWN';
+    if (direction.toUpperCase() === 'LONG') direction = 'Bullish';
+    else if (direction.toUpperCase() === 'SHORT') direction = 'Bearish';
+    
     const session = detail.session || 'N/A';
     const entry = detail.entry_price != null ? parseFloat(detail.entry_price).toFixed(2) : 'N/A';
     const sl = detail.stop_loss != null ? parseFloat(detail.stop_loss).toFixed(2) : 'N/A';
-    // API returns no_be_mfe_R, be_mfe_R, final_mfe_R (with _R suffix)
-    const currentMFE = detail.no_be_mfe_R != null ? parseFloat(detail.no_be_mfe_R).toFixed(2) + 'R' : 
-                       (detail.be_mfe_R != null ? parseFloat(detail.be_mfe_R).toFixed(2) + 'R' : 'N/A');
-    const finalMFE = detail.final_mfe_R != null ? parseFloat(detail.final_mfe_R).toFixed(2) + 'R' : 'N/A';
+    // API returns no_be_mfe, be_mfe, final_mfe (without _R suffix) - fix field names
+    const noBeMfeVal = detail.no_be_mfe ?? detail.no_be_mfe_R ?? detail.mfe ?? null;
+    const beMfeVal = detail.be_mfe ?? detail.be_mfe_R ?? detail.mfe ?? null;
+    const finalMfeVal = detail.final_mfe ?? detail.final_mfe_R ?? null;
+    const currentMFE = noBeMfeVal != null ? parseFloat(noBeMfeVal).toFixed(2) + 'R' : 
+                       (beMfeVal != null ? parseFloat(beMfeVal).toFixed(2) + 'R' : 'N/A');
+    const finalMFE = finalMfeVal != null ? parseFloat(finalMfeVal).toFixed(2) + 'R' : 'N/A';
     const exitPrice = detail.exit_price != null ? parseFloat(detail.exit_price).toFixed(2) : 'N/A';
     
     container.innerHTML = `
@@ -589,13 +636,18 @@ AutomatedSignalsUltra.renderLifecycleOverlay = function(detail) {
     
     if (!eventsEl || !metricsEl) return;
     
+    // Normalize direction for display
+    let displayDir = detail.direction || 'UNKNOWN';
+    if (displayDir.toUpperCase() === 'LONG') displayDir = 'Bullish';
+    else if (displayDir.toUpperCase() === 'SHORT') displayDir = 'Bearish';
+    
     // Update header
     if (titleEl) {
         titleEl.textContent = `Trade Journey — ${detail.trade_id || 'N/A'}`;
     }
     if (subtitleEl) {
-        const dirColor = detail.direction === 'Bullish' ? '#22c55e' : detail.direction === 'Bearish' ? '#ef4444' : '#94a3b8';
-        subtitleEl.innerHTML = `<span style="color:${dirColor}">${detail.direction || 'UNKNOWN'}</span> • ${detail.session || 'N/A'} • Status: <span style="color:#3b82f6">${detail.status || 'N/A'}</span>`;
+        const dirColor = displayDir === 'Bullish' ? '#22c55e' : displayDir === 'Bearish' ? '#ef4444' : '#94a3b8';
+        subtitleEl.innerHTML = `<span style="color:${dirColor}">${displayDir}</span> • ${detail.session || 'N/A'} • Status: <span style="color:#3b82f6">${detail.status || 'N/A'}</span>`;
     }
     
     // Live indicator
@@ -613,12 +665,19 @@ AutomatedSignalsUltra.renderLifecycleOverlay = function(detail) {
         eventsEl.innerHTML = `<div style="color:rgba(226,232,240,0.5); font-size:13px;">No lifecycle events available.</div>`;
     } else {
         const evRows = events.map(ev => {
-            const ts = ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--';
-            const date = ev.timestamp ? new Date(ev.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
-            // API returns mfe_R, no_be_mfe_R, be_mfe_R
-            const mfeR = ev.mfe_R != null ? parseFloat(ev.mfe_R).toFixed(2) : 
-                        (ev.no_be_mfe_R != null ? parseFloat(ev.no_be_mfe_R).toFixed(2) : 
-                        (ev.be_mfe_R != null ? parseFloat(ev.be_mfe_R).toFixed(2) : null));
+            // Format time in NY Eastern timezone to match TradingView
+            const ts = ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString('en-US', { 
+                hour: '2-digit', minute: '2-digit', second: '2-digit', 
+                hour12: true, timeZone: 'America/New_York' 
+            }) : '--:--:--';
+            const date = ev.timestamp ? new Date(ev.timestamp).toLocaleDateString('en-US', { 
+                month: 'short', day: 'numeric', timeZone: 'America/New_York' 
+            }) : '';
+            // API returns mfe, no_be_mfe, be_mfe (without _R suffix)
+            const mfeR = ev.mfe != null ? parseFloat(ev.mfe).toFixed(2) : 
+                        (ev.no_be_mfe != null ? parseFloat(ev.no_be_mfe).toFixed(2) : 
+                        (ev.be_mfe != null ? parseFloat(ev.be_mfe).toFixed(2) : 
+                        (ev.mfe_R != null ? parseFloat(ev.mfe_R).toFixed(2) : null)));
             
             let eventColor = '#94a3b8';
             const etype = ev.event_type || 'EVENT';
@@ -638,14 +697,15 @@ AutomatedSignalsUltra.renderLifecycleOverlay = function(detail) {
         eventsEl.innerHTML = evRows;
     }
     
-    // Render Metrics - API returns be_mfe_R and no_be_mfe_R (with _R suffix)
+    // Render Metrics - API returns be_mfe and no_be_mfe (without _R suffix)
     const entry = detail.entry_price != null ? parseFloat(detail.entry_price).toFixed(2) : 'N/A';
     const sl = detail.stop_loss != null ? parseFloat(detail.stop_loss).toFixed(2) : 'N/A';
     const riskDist = detail.risk_distance != null ? parseFloat(detail.risk_distance).toFixed(2) : 'N/A';
-    // Use correct field names from API: no_be_mfe_R and be_mfe_R
-    const currentMFE = detail.no_be_mfe_R != null ? parseFloat(detail.no_be_mfe_R).toFixed(2) : 
-                       (detail.be_mfe_R != null ? parseFloat(detail.be_mfe_R).toFixed(2) : 'N/A');
-    const beMFE = detail.be_mfe_R != null ? parseFloat(detail.be_mfe_R).toFixed(2) : 'N/A';
+    // Use correct field names from API: no_be_mfe and be_mfe (without _R suffix)
+    const noBeMfeMetric = detail.no_be_mfe ?? detail.no_be_mfe_R ?? detail.mfe ?? null;
+    const beMfeMetric = detail.be_mfe ?? detail.be_mfe_R ?? detail.mfe ?? null;
+    const currentMFE = noBeMfeMetric != null ? parseFloat(noBeMfeMetric).toFixed(2) : 'N/A';
+    const beMFE = beMfeMetric != null ? parseFloat(beMfeMetric).toFixed(2) : 'N/A';
     const exitPrice = detail.exit_price != null ? parseFloat(detail.exit_price).toFixed(2) : 'N/A';
     
     metricsEl.innerHTML = `
@@ -708,14 +768,15 @@ AutomatedSignalsUltra.renderLifecycleChart = function(detail) {
     
     svg.attr('width', width).attr('height', height);
     
-    // Parse data points with MFE values (API returns mfe_R, no_be_mfe_R, be_mfe_R)
+    // Parse data points with MFE values (API returns mfe, no_be_mfe, be_mfe without _R suffix)
     const dataPoints = events
-        .filter(ev => ev.mfe_R != null || ev.no_be_mfe_R != null || ev.be_mfe_R != null)
+        .filter(ev => ev.mfe != null || ev.no_be_mfe != null || ev.be_mfe != null || ev.mfe_R != null)
         .map(ev => ({
             time: new Date(ev.timestamp),
-            mfe: ev.mfe_R != null ? parseFloat(ev.mfe_R) : 
-                 (ev.no_be_mfe_R != null ? parseFloat(ev.no_be_mfe_R) : 
-                 (ev.be_mfe_R != null ? parseFloat(ev.be_mfe_R) : 0)),
+            mfe: ev.mfe != null ? parseFloat(ev.mfe) : 
+                 (ev.no_be_mfe != null ? parseFloat(ev.no_be_mfe) : 
+                 (ev.be_mfe != null ? parseFloat(ev.be_mfe) : 
+                 (ev.mfe_R != null ? parseFloat(ev.mfe_R) : 0))),
             type: ev.event_type
         }))
         .sort((a, b) => a.time - b.time);
@@ -993,8 +1054,15 @@ AutomatedSignalsUltra.renderCalendar = function() {
         }
     }
     
+    // Get today's date in NY Eastern timezone (handles DST automatically)
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const nyFormatter = new Intl.DateTimeFormat('en-CA', { 
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    const todayStr = nyFormatter.format(today); // Returns YYYY-MM-DD format
     
     let html = `<table class="ultra-calendar"><thead><tr>
         <th>S</th><th>M</th><th>T</th><th>W</th><th>T</th><th>F</th><th>S</th>
@@ -1014,9 +1082,11 @@ AutomatedSignalsUltra.renderCalendar = function() {
                 const dayData = dataByDate[dateStr] || { completed: 0, active: 0 };
                 
                 let classes = 'calendar-day';
-                if (dateStr === todayStr) classes += ' today';
+                // Highlight today with special styling
+                if (dateStr === todayStr) classes += ' calendar-today';
                 if (dateStr === AutomatedSignalsUltra.selectedDate) classes += ' selected';
                 
+                // Show badges for completed (blue) and active (green) trades
                 const completedBadge = dayData.completed > 0 
                     ? `<span class="calendar-completed-badge">${dayData.completed}</span>` 
                     : '';
