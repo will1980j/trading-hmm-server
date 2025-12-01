@@ -309,9 +309,24 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         const mfeBE = beMfeVal != null ? parseFloat(beMfeVal).toFixed(2) + "R" : "--";
         const mfeNoBE = noBeMfeVal != null ? parseFloat(noBeMfeVal).toFixed(2) + "R" : "--";
         
-        let statusClass = 'ultra-badge-blue';
-        if (row.status === 'ACTIVE') statusClass = 'ultra-badge-green';
-        else if (row.status === 'COMPLETED') statusClass = 'ultra-badge-amber';
+        // DUAL STATUS LOGIC: Track BE=1 and No BE strategies separately
+        // - EXIT_BE: BE=1 completed (hit entry after +1R), No BE still active
+        // - EXIT_SL: Both strategies completed (original SL hit)
+        // - ACTIVE: Both strategies still running
+        let beStatus = 'ACTIVE';
+        let noBeStatus = 'ACTIVE';
+        
+        if (row.event_type === 'EXIT_BE') {
+            beStatus = 'DONE';  // BE=1 exited at entry
+            noBeStatus = 'ACTIVE';  // No BE still running
+        } else if (row.event_type === 'EXIT_SL') {
+            beStatus = 'DONE';  // Both done
+            noBeStatus = 'DONE';
+        } else if (row.status === 'COMPLETED') {
+            // Fallback for older data without event_type
+            beStatus = 'DONE';
+            noBeStatus = 'DONE';
+        }
         
         // MFE coloring for both columns
         const getMfeClass = (val) => {
@@ -404,16 +419,25 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         const dirBadgeClass = dir === 'Bullish' ? 'direction-badge-bullish' : 
                               dir === 'Bearish' ? 'direction-badge-bearish' : 'ultra-muted';
         
+        // Build dual status badges
+        const beStatusClass = beStatus === 'ACTIVE' ? 'ultra-badge-green' : 'ultra-badge-amber';
+        const noBeStatusClass = noBeStatus === 'ACTIVE' ? 'ultra-badge-green' : 'ultra-badge-amber';
+        const beMfeDisplay = beStatus === 'DONE' ? mfeBE : mfeBE;
+        const noBeMfeDisplay = noBeStatus === 'DONE' ? mfeNoBE : mfeNoBE;
+        
         tr.innerHTML = `
             <td><input type="checkbox" class="trade-checkbox trade-row-checkbox" data-trade-id="${row.trade_id}" ${isChecked ? 'checked' : ''}></td>
-            <td><span class="${statusClass}">${row.status}</span></td>
+            <td class="dual-status-cell">
+                <span class="dual-status-badge ${beStatusClass}" title="BE=1 Strategy">BE: ${beStatus}</span>
+                <span class="dual-status-badge ${noBeStatusClass}" title="No BE Strategy">NoBE: ${noBeStatus}</span>
+            </td>
             <td class="ultra-muted">${timeStr}</td>
             <td><span class="${dirBadgeClass}">${dir}</span></td>
             <td class="ultra-muted">${row.session ?? "--"}</td>
             <td>${entry}</td>
             <td>${sl}</td>
-            <td><span class="${getMfeClass(mfeBE)}">${mfeBE}</span></td>
-            <td><span class="${getMfeClass(mfeNoBE)}">${mfeNoBE}</span></td>
+            <td><span class="${getMfeClass(mfeBE)}">${beMfeDisplay}</span></td>
+            <td><span class="${getMfeClass(mfeNoBE)}">${noBeMfeDisplay}</span></td>
             <td class="ultra-muted">${ageStr}</td>
         `;
         
