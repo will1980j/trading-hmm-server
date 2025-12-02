@@ -12785,45 +12785,58 @@ def handle_mfe_update(data):
                 "message": "MFE update ignored — trade already exited"
             }
         
-        # Update MFE using ONLY columns that exist in the schema
-        # Schema columns: id, trade_id, event_type, direction, entry_price, stop_loss,
-        #                 session, bias, risk_distance, targets (JSONB), current_price,
-        #                 mfe, be_mfe, no_be_mfe, exit_price, final_mfe, signal_date, signal_time, timestamp
-        # 
-        # CRITICAL FIX: Do NOT overwrite event_type - keep 'ENTRY' intact for lifecycle validation
-        # The lifecycle validator checks for 'ENTRY' in history, so we must preserve it
+        # INSERT new MFE_UPDATE event row (do NOT update ENTRY row)
+        # This preserves ENTRY row with 0.00 MFE and creates separate MFE_UPDATE rows
+        # The dashboard query will aggregate latest MFE values from MFE_UPDATE rows
+        
+        # Get signal_date and signal_time from ENTRY row
         cursor.execute("""
-            UPDATE automated_signals
-            SET 
-                current_price = %s,
-                mfe = %s,
-                be_mfe = %s,
-                no_be_mfe = %s,
-                timestamp = NOW()
-            WHERE trade_id = %s
-              AND event_type IN ('ENTRY', 'MFE_UPDATE')
-            RETURNING id
-        """, (
-            current_price,
-            no_be_mfe,
-            be_mfe,
-            no_be_mfe,
-            trade_id
-        ))
+            SELECT signal_date, signal_time
+            FROM automated_signals
+            WHERE trade_id = %s AND event_type = 'ENTRY'
+            LIMIT 1
+        """, (trade_id,))
         
-        result = cursor.fetchone()
-        
-        if not result:
-            # No matching ENTRY row found – ignore this MFE safely
+        entry_row = cursor.fetchone()
+        if not entry_row:
             conn.commit()
-            logger.warning(f"⚠️ MFE update ignored for trade_id={trade_id} - no active ENTRY row found")
+            logger.warning(f"⚠️ MFE update ignored for trade_id={trade_id} - no ENTRY row found")
             return {
                 "success": True,
                 "ignored": True,
-                "reason": "No active ENTRY row found for MFE_UPDATE",
+                "reason": "No ENTRY row found for MFE_UPDATE",
                 "trade_id": trade_id
             }
         
+        signal_date = entry_row[0]
+        signal_time = entry_row[1]
+        
+        # INSERT new MFE_UPDATE event
+        cursor.execute("""
+            INSERT INTO automated_signals (
+                trade_id,
+                event_type,
+                current_price,
+                mfe,
+                be_mfe,
+                no_be_mfe,
+                signal_date,
+                signal_time,
+                timestamp
+            )
+            VALUES (%s, 'MFE_UPDATE', %s, %s, %s, %s, %s, %s, NOW())
+            RETURNING id
+        """, (
+            trade_id,
+            current_price,
+            no_be_mfe,  # mfe column gets no_be_mfe for backward compatibility
+            be_mfe,
+            no_be_mfe,
+            signal_date,
+            signal_time
+        ))
+        
+        result = cursor.fetchone()
         signal_id = result[0]
         lifecycle_state = 'ACTIVE'  # Default for MFE_UPDATE
         lifecycle_seq = 2  # Default for MFE_UPDATE
