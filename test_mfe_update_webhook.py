@@ -8,10 +8,10 @@ BASE_URL = "https://web-production-f8c3.up.railway.app"
 
 # Send MFE_UPDATE for the active trade
 payload = {
-    "trade_id": "20251202_092500000_BEARISH",
+    "trade_id": "20251202_135100000_BULLISH",
     "event_type": "MFE_UPDATE",
-    "mfe_R": 0.81,
-    "current_price": 25475.0
+    "mfe_R": 1.25,
+    "current_price": 25625.0
 }
 
 print("Sending MFE_UPDATE webhook...")

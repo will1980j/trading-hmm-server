@@ -12766,11 +12766,11 @@ def handle_mfe_update(data):
         try:
             current_price = float(data.get('current_price', 0))
             # Support multiple field names from different payload formats:
-            # - Indicator sends: mfe_R (single value used for both)
+            # - Indicator sends: mfe_R (BE MFE), mae_R (No BE MFE)
             # - Strategy sends: be_mfe, no_be_mfe separately
-            # - Legacy: mfe
+            # - Legacy: mfe (fallback for both)
             be_mfe = float(data.get('be_mfe') or data.get('mfe_R') or data.get('mfe') or 0)
-            no_be_mfe = float(data.get('no_be_mfe') or data.get('mfe_R') or data.get('mfe') or 0)
+            no_be_mfe = float(data.get('no_be_mfe') or data.get('mae_R') or data.get('mfe_R') or data.get('mfe') or 0)
             logger.info(f"📊 MFE values parsed: be_mfe={be_mfe}, no_be_mfe={no_be_mfe}, current_price={current_price}")
         except (ValueError, TypeError) as conv_error:
             return {"success": False, "error": f"Invalid MFE data: {str(conv_error)}"}
