@@ -14669,18 +14669,19 @@ def get_daily_calendar():
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # Get completed trades per day (last 90 days)
-        # CRITICAL FIX: Use signal_date (Eastern Time) instead of timestamp (UTC)
-        # This ensures calendar dates match TradingView's Eastern Time zone
+        # CRITICAL: JOIN with ENTRY to get signal_date (EXIT events don't have signal_date)
+        # Use ENTRY's signal_date to determine which day the trade belongs to
         cursor.execute("""
             SELECT 
-                signal_date as date,
-                COUNT(DISTINCT trade_id) as completed_count,
-                AVG(COALESCE(final_mfe, no_be_mfe, mfe, 0)) as avg_mfe
-            FROM automated_signals
-            WHERE signal_date >= (CURRENT_DATE AT TIME ZONE 'America/New_York') - INTERVAL '90 days'
-            AND event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
-            AND signal_date IS NOT NULL
-            GROUP BY signal_date
+                e.signal_date as date,
+                COUNT(DISTINCT ex.trade_id) as completed_count,
+                AVG(COALESCE(ex.final_mfe, ex.no_be_mfe, ex.mfe, 0)) as avg_mfe
+            FROM automated_signals ex
+            INNER JOIN automated_signals e ON ex.trade_id = e.trade_id AND e.event_type = 'ENTRY'
+            WHERE e.signal_date >= (CURRENT_DATE AT TIME ZONE 'America/New_York') - INTERVAL '90 days'
+            AND ex.event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
+            AND e.signal_date IS NOT NULL
+            GROUP BY e.signal_date
         """)
         completed_by_date = {row['date'].strftime('%Y-%m-%d') if hasattr(row['date'], 'strftime') else str(row['date']): row for row in cursor.fetchall()}
         
