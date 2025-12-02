@@ -12764,27 +12764,6 @@ def handle_mfe_update(data):
         if validation_error:
             return {"success": False, "error": validation_error}
         
-        # Lifecycle enforcement: do not update MFE after EXIT
-        cursor.execute("""
-            SELECT 1
-            FROM automated_signals
-            WHERE trade_id = %s
-              AND event_type LIKE 'EXIT_%%'
-            LIMIT 1
-        """, (trade_id,))
-        exit_exists = cursor.fetchone()
-        
-        if exit_exists:
-            conn.commit()
-            logger.warning(f"⚠️ MFE update ignored for trade_id={trade_id} — trade already exited")
-            return {
-                "success": True,
-                "ignored": True,
-                "reason": "MFE_IGNORED_AFTER_EXIT",
-                "trade_id": trade_id,
-                "message": "MFE update ignored — trade already exited"
-            }
-        
         # INSERT new MFE_UPDATE event row (do NOT update ENTRY row)
         # This preserves ENTRY row with 0.00 MFE and creates separate MFE_UPDATE rows
         # The dashboard query will aggregate latest MFE values from MFE_UPDATE rows
