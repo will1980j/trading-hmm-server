@@ -180,8 +180,9 @@ AutomatedSignalsUltra.renderHeaderStats = function() {
     
     if (lastEl) {
         if (lastTs) {
-            const d = new Date(lastTs);
-            lastEl.textContent = d.toLocaleTimeString('en-US', { 
+            // Parse UTC timestamp and convert to NY Eastern
+            const utcDate = new Date(lastTs + (lastTs.includes('Z') ? '' : 'Z'));
+            lastEl.textContent = utcDate.toLocaleTimeString('en-US', { 
                 hour: '2-digit', 
                 minute: '2-digit', 
                 second: '2-digit',
