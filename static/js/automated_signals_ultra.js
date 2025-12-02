@@ -148,8 +148,13 @@ AutomatedSignalsUltra.clearAllFilters = function() {
 
 AutomatedSignalsUltra.fetchDashboardData = async function() {
     try {
-        const resp = await fetch('/api/automated-signals/dashboard-data', {
-            cache: 'no-store'
+        const resp = await fetch(`/api/automated-signals/dashboard-data?_=${Date.now()}`, {
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
         });
         const json = await resp.json();
         
