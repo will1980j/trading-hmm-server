@@ -14418,13 +14418,38 @@ def get_automated_signals_dashboard_data():
                 "trade_status": "COMPLETED"
             })
         
+        # Calculate stats for header
+        total_trades = len(active_trades) + len(completed_trades)
+        win_count = sum(1 for t in completed_trades if t.get('no_be_mfe', 0) >= 1.0)
+        win_rate = (win_count / len(completed_trades) * 100) if completed_trades else 0
+        avg_mfe = sum(t.get('no_be_mfe', 0) for t in completed_trades) / len(completed_trades) if completed_trades else 0
+        
+        # Get last webhook timestamp
+        last_webhook_ts = None
+        if active_trades:
+            last_webhook_ts = active_trades[0].get('timestamp')
+        elif completed_trades:
+            last_webhook_ts = completed_trades[0].get('exit_timestamp')
+        
+        stats = {
+            "total_signals": total_trades,
+            "active_count": len(active_trades),
+            "completed_count": len(completed_trades),
+            "win_count": win_count,
+            "win_rate": round(win_rate, 1),
+            "avg_mfe": round(avg_mfe, 2),
+            "last_webhook_timestamp": last_webhook_ts,
+            "today_count": total_trades
+        }
+        
         cursor.close()
         conn.close()
         
         return jsonify({
             "success": True,
             "active_trades": active_trades,
-            "completed_trades": completed_trades
+            "completed_trades": completed_trades,
+            "stats": stats
         }), 200
         
     except Exception as e:
