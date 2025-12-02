@@ -14244,8 +14244,6 @@ def get_automated_signals_dashboard_data():
         cursor = conn.cursor()
         
         # Get all ENTRY signals with MFE values (active trades)
-        # CRITICAL: A trade is ACTIVE if No BE strategy hasn't completed (no EXIT_SL)
-        # EXIT_BE only completes BE=1 strategy, No BE continues until EXIT_SL
         # NOTE: MFE values are stored directly on the ENTRY row by handle_mfe_update
         if date_filter:
             cursor.execute("""
@@ -14267,7 +14265,7 @@ def get_automated_signals_dashboard_data():
                 AND NOT EXISTS (
                     SELECT 1 FROM automated_signals ex
                     WHERE ex.trade_id = e.trade_id
-                    AND ex.event_type IN ('EXIT_SL', 'EXIT_STOP_LOSS')
+                    AND ex.event_type LIKE 'EXIT_%'
                 )
                 ORDER BY e.timestamp DESC
                 LIMIT 100
@@ -14291,7 +14289,7 @@ def get_automated_signals_dashboard_data():
                 AND NOT EXISTS (
                     SELECT 1 FROM automated_signals ex
                     WHERE ex.trade_id = e.trade_id
-                    AND ex.event_type IN ('EXIT_SL', 'EXIT_STOP_LOSS')
+                    AND ex.event_type LIKE 'EXIT_%'
                 )
                 ORDER BY e.timestamp DESC
                 LIMIT 100
@@ -14335,9 +14333,7 @@ def get_automated_signals_dashboard_data():
                 "trade_status": "ACTIVE"
             })
         
-        # Get all EXIT_SL signals (completed trades) with MFE values
-        # CRITICAL: Only EXIT_SL completes BOTH strategies (BE=1 and No BE)
-        # EXIT_BE only completes BE=1 strategy, No BE continues until EXIT_SL
+        # Get all EXIT signals (completed trades) with MFE values
         # Join with ENTRY to get signal_date, signal_time, and entry details
         if date_filter:
             cursor.execute("""
@@ -14356,7 +14352,7 @@ def get_automated_signals_dashboard_data():
                        COALESCE(ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) as final_mfe
                 FROM automated_signals ex
                 LEFT JOIN automated_signals en ON ex.trade_id = en.trade_id AND en.event_type = 'ENTRY'
-                WHERE ex.event_type IN ('EXIT_SL', 'EXIT_STOP_LOSS')
+                WHERE ex.event_type LIKE 'EXIT_%'
                 AND en.signal_date = %s
                 ORDER BY ex.timestamp DESC
                 LIMIT 100
@@ -14378,7 +14374,7 @@ def get_automated_signals_dashboard_data():
                        COALESCE(ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) as final_mfe
                 FROM automated_signals ex
                 LEFT JOIN automated_signals en ON ex.trade_id = en.trade_id AND en.event_type = 'ENTRY'
-                WHERE ex.event_type IN ('EXIT_SL', 'EXIT_STOP_LOSS')
+                WHERE ex.event_type LIKE 'EXIT_%'
                 ORDER BY ex.timestamp DESC
                 LIMIT 100
             """)
