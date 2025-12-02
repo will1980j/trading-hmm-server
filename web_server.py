@@ -14243,23 +14243,35 @@ def get_automated_signals_dashboard_data():
         conn = psycopg2.connect(database_url)
         cursor = conn.cursor()
         
-        # Get all ENTRY signals with MFE values (active trades)
-        # NOTE: MFE values are stored directly on the ENTRY row by handle_mfe_update
+        # Get all ENTRY signals with latest MFE values from MFE_UPDATE rows
+        # CRITICAL: ENTRY rows have 0.00 MFE, real values are in MFE_UPDATE rows
         if date_filter:
             cursor.execute("""
-                SELECT e.id, e.trade_id, e.event_type, 
-                       e.direction,
-                       e.entry_price,
-                       e.stop_loss,
-                       e.session,
-                       e.bias,
-                       e.timestamp, 
-                       e.signal_date, 
-                       e.signal_time,
-                       COALESCE(e.be_mfe, 0.0) as be_mfe,
-                       COALESCE(e.no_be_mfe, 0.0) as no_be_mfe,
-                       e.current_price
+                WITH latest_mfe AS (
+                    SELECT
+                        trade_id,
+                        MAX(timestamp) FILTER (WHERE event_type = 'MFE_UPDATE') AS last_mfe_ts,
+                        MAX(be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_be_mfe,
+                        MAX(no_be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_no_be_mfe,
+                        MAX(current_price) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_current_price
+                    FROM automated_signals
+                    GROUP BY trade_id
+                )
+                SELECT 
+                    e.id, e.trade_id, e.event_type,
+                    e.direction,
+                    e.entry_price,
+                    e.stop_loss,
+                    e.session,
+                    e.bias,
+                    e.timestamp,
+                    e.signal_date,
+                    e.signal_time,
+                    COALESCE(m.latest_be_mfe, e.be_mfe, 0.0) AS be_mfe,
+                    COALESCE(m.latest_no_be_mfe, e.no_be_mfe, 0.0) AS no_be_mfe,
+                    COALESCE(m.latest_current_price, e.current_price) AS current_price
                 FROM automated_signals e
+                LEFT JOIN latest_mfe m ON m.trade_id = e.trade_id
                 WHERE e.event_type = 'ENTRY'
                 AND e.signal_date = %s
                 AND NOT EXISTS (
@@ -14272,19 +14284,31 @@ def get_automated_signals_dashboard_data():
             """, (date_filter,))
         else:
             cursor.execute("""
-                SELECT e.id, e.trade_id, e.event_type, 
-                       e.direction,
-                       e.entry_price,
-                       e.stop_loss,
-                       e.session,
-                       e.bias,
-                       e.timestamp, 
-                       e.signal_date, 
-                       e.signal_time,
-                       COALESCE(e.be_mfe, 0.0) as be_mfe,
-                       COALESCE(e.no_be_mfe, 0.0) as no_be_mfe,
-                       e.current_price
+                WITH latest_mfe AS (
+                    SELECT
+                        trade_id,
+                        MAX(timestamp) FILTER (WHERE event_type = 'MFE_UPDATE') AS last_mfe_ts,
+                        MAX(be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_be_mfe,
+                        MAX(no_be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_no_be_mfe,
+                        MAX(current_price) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_current_price
+                    FROM automated_signals
+                    GROUP BY trade_id
+                )
+                SELECT 
+                    e.id, e.trade_id, e.event_type,
+                    e.direction,
+                    e.entry_price,
+                    e.stop_loss,
+                    e.session,
+                    e.bias,
+                    e.timestamp,
+                    e.signal_date,
+                    e.signal_time,
+                    COALESCE(m.latest_be_mfe, e.be_mfe, 0.0) AS be_mfe,
+                    COALESCE(m.latest_no_be_mfe, e.no_be_mfe, 0.0) AS no_be_mfe,
+                    COALESCE(m.latest_current_price, e.current_price) AS current_price
                 FROM automated_signals e
+                LEFT JOIN latest_mfe m ON m.trade_id = e.trade_id
                 WHERE e.event_type = 'ENTRY'
                 AND NOT EXISTS (
                     SELECT 1 FROM automated_signals ex
