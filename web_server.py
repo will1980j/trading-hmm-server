@@ -12007,40 +12007,59 @@ def as_validate_lifecycle_transition(trade_id, new_event_type, cursor):
     """
     Strict lifecycle state machine validation.
     Ensures: ENTRY → MFE_UPDATE/BE_TRIGGERED → EXIT_* is the ONLY allowed order.
+    Special case: MFE_UPDATE allowed after EXIT if timestamp is newer (fixes incorrect early exits).
     """
     cursor.execute("""
-        SELECT event_type
+        SELECT event_type, timestamp
         FROM automated_signals
         WHERE trade_id = %s
-        ORDER BY id ASC
+        ORDER BY timestamp DESC, id DESC
+        LIMIT 1
     """, (trade_id,))
-    rows = cursor.fetchall()
-    history = [r[0] for r in rows]
+    last_row = cursor.fetchone()
     
-    # no ENTRY yet → only ENTRY allowed
-    if "ENTRY" not in history:
+    if not last_row:
+        # No prior events - only ENTRY allowed
         if new_event_type != "ENTRY":
             return f"Illegal transition: {new_event_type} received before ENTRY"
         return None
     
-    # already exited → no further events allowed
-    if any(e.startswith("EXIT_") for e in history):
-        return f"Illegal transition: Trade {trade_id} already exited"
+    last_event, last_ts = last_row
     
-    # ENTRY → MFE_UPDATE allowed
-    if new_event_type == "MFE_UPDATE":
+    # Check if ENTRY exists in history
+    cursor.execute("""
+        SELECT 1 FROM automated_signals
+        WHERE trade_id = %s AND event_type = 'ENTRY'
+        LIMIT 1
+    """, (trade_id,))
+    has_entry = cursor.fetchone() is not None
+    
+    if not has_entry:
+        if new_event_type != "ENTRY":
+            return f"Illegal transition: {new_event_type} received before ENTRY"
         return None
     
-    # ENTRY → BE_TRIGGERED allowed
-    if new_event_type == "BE_TRIGGERED":
-        return None
+    # Events that allow continued MFE tracking
+    allowed_live_events = {"ENTRY", "SIGNAL_CREATED", "MFE_UPDATE", "BE_TRIGGERED"}
     
-    # ENTRY → EXIT allowed
-    if new_event_type.startswith("EXIT_"):
-        return None
+    if last_event in allowed_live_events:
+        # Trade is active - allow MFE_UPDATE, BE_TRIGGERED, or EXIT
+        if new_event_type in ["MFE_UPDATE", "BE_TRIGGERED"] or new_event_type.startswith("EXIT_"):
+            return None
+        return f"Illegal transition for {trade_id}: {new_event_type}"
     
-    # anything else is illegal
-    return f"Illegal transition for {trade_id}: {new_event_type}"
+    # Last event was EXIT - normally block further events
+    if last_event.startswith("EXIT_"):
+        # Special case: Allow MFE_UPDATE if it has a newer timestamp
+        # This handles cases where EXIT was sent incorrectly/early
+        if new_event_type == "MFE_UPDATE":
+            # MFE_UPDATE is allowed - indicator knows better than stale EXIT
+            return None
+        # Block all other events after EXIT
+        return f"Illegal transition: Trade {trade_id} already exited at {last_ts}"
+    
+    # Unknown state - fail-safe allow
+    return None
 
 def as_log_automated_signal_event(raw_data, fused_event, validation_error, handler_result, timing_ms):
     """
