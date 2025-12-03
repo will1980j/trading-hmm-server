@@ -7651,6 +7651,47 @@ def add_dual_mfe_columns():
         logger.error(f"Error adding dual MFE columns: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/add-mae-column', methods=['POST'])
+def add_mae_column():
+    """Add MAE (Maximum Adverse Excursion) column to automated_signals table"""
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({'success': False, 'error': 'DATABASE_URL not configured'}), 500
+        
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        
+        # Add MAE column
+        cursor.execute("""
+            ALTER TABLE automated_signals 
+            ADD COLUMN IF NOT EXISTS mae_global_r FLOAT DEFAULT NULL;
+        """)
+        
+        conn.commit()
+        
+        # Verify column exists
+        cursor.execute("""
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'automated_signals' 
+            AND column_name = 'mae_global_r'
+        """)
+        result = cursor.fetchone()
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Added mae_global_r column to automated_signals',
+            'column': result[0] if result else None,
+            'data_type': result[1] if result else None
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error adding MAE column: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/cleanup-signals', methods=['POST'])
 def cleanup_signals():
     """Comprehensive signal cleanup endpoint"""
@@ -11576,6 +11617,12 @@ def create_automated_signals_table():
             ADD COLUMN IF NOT EXISTS lifecycle_seq INTEGER,
             ADD COLUMN IF NOT EXISTS lifecycle_entered_at TIMESTAMP,
             ADD COLUMN IF NOT EXISTS lifecycle_updated_at TIMESTAMP;
+        ''')
+        
+        # Ensure MAE (Maximum Adverse Excursion) column exists for tracking worst drawdown
+        cursor.execute('''
+            ALTER TABLE automated_signals
+            ADD COLUMN IF NOT EXISTS mae_global_r FLOAT DEFAULT NULL;
         ''')
         
         # Create automated_signals_v2 staging table (H1.7 Foundation - GATED)

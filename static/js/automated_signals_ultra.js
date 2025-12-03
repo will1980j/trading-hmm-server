@@ -214,7 +214,35 @@ AutomatedSignalsUltra.renderHeaderStats = function() {
     }
     
     if (activeEl) {
-        activeEl.textContent = stats.active_count ?? 0;
+        // Calculate active count based on BE/NoBE status logic
+        // A trade is "active" if BE is ACTIVE OR NoBE is ACTIVE
+        const activeTrades = AutomatedSignalsUltra.data?.active_trades ?? [];
+        const completedTrades = AutomatedSignalsUltra.data?.completed_trades ?? [];
+        const allTrades = [...activeTrades, ...completedTrades];
+        
+        // Count trades where at least one strategy is still active
+        const activeCount = allTrades.filter(t => {
+            // Determine BE and NoBE status based on event_type
+            let beStatus = 'ACTIVE';
+            let noBeStatus = 'ACTIVE';
+            
+            if (t.event_type === 'EXIT_BE') {
+                beStatus = 'COMPLETE';  // BE=1 exited at entry
+                noBeStatus = 'ACTIVE';  // No BE still running
+            } else if (t.event_type === 'EXIT_SL') {
+                beStatus = 'COMPLETE';  // Both done
+                noBeStatus = 'COMPLETE';
+            } else if (t.status === 'COMPLETED') {
+                // Fallback for older data without event_type
+                beStatus = 'COMPLETE';
+                noBeStatus = 'COMPLETE';
+            }
+            
+            // Trade is active if either strategy is still active
+            return beStatus === 'ACTIVE' || noBeStatus === 'ACTIVE';
+        }).length;
+        
+        activeEl.textContent = activeCount;
     }
     
     // Health pill logic
