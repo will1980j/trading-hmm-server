@@ -14311,8 +14311,11 @@ def get_automated_signals_dashboard_data():
                 "timestamp": row[8].isoformat() if row[8] else None,
                 "signal_date": signal_date,
                 "signal_time": signal_time,
+                # Return both field names for JS compatibility
                 "be_mfe": float(row[11]) if row[11] is not None else 0.0,
                 "no_be_mfe": float(row[12]) if row[12] is not None else 0.0,
+                "be_mfe_R": float(row[11]) if row[11] is not None else 0.0,
+                "no_be_mfe_R": float(row[12]) if row[12] is not None else 0.0,
                 "current_price": float(row[13]) if row[13] else None,
                 "status": "ACTIVE",
                 "trade_status": "ACTIVE"
@@ -14396,9 +14399,13 @@ def get_automated_signals_dashboard_data():
                 "signal_date": signal_date,
                 "signal_time": signal_time,
                 "entry_timestamp": row[11].isoformat() if row[11] else None,
+                # Return both field names for JS compatibility
                 "be_mfe": float(row[12]) if row[12] is not None else 0.0,
                 "no_be_mfe": float(row[13]) if row[13] is not None else 0.0,
+                "be_mfe_R": float(row[12]) if row[12] is not None else 0.0,
+                "no_be_mfe_R": float(row[13]) if row[13] is not None else 0.0,
                 "final_mfe": float(row[14]) if row[14] is not None else 0.0,
+                "final_mfe_R": float(row[14]) if row[14] is not None else 0.0,
                 "status": "COMPLETED",
                 "trade_status": "COMPLETED"
             })
