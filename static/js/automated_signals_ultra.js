@@ -19,6 +19,7 @@ const AutomatedSignalsUltra = window.AutomatedSignalsUltra;
 AutomatedSignalsUltra.currentMonth = new Date();
 AutomatedSignalsUltra.calendarData = [];
 AutomatedSignalsUltra.selectedDate = null;
+AutomatedSignalsUltra.rawPayload = null;  // Store raw payload for debug tab
 AutomatedSignalsUltra.filters = {
     session: 'ALL',
     direction: 'ALL',
@@ -690,6 +691,19 @@ AutomatedSignalsUltra.renderLifecycleOverlay = function(detail) {
     
     if (!eventsEl || !metricsEl) return;
     
+    // Store raw payload for debug tab
+    AutomatedSignalsUltra.rawPayload = detail || null;
+    
+    // Render raw payload JSON in debug panel
+    const payloadEl = document.getElementById('ase-payload-json');
+    if (payloadEl) {
+        if (AutomatedSignalsUltra.rawPayload) {
+            payloadEl.textContent = JSON.stringify(AutomatedSignalsUltra.rawPayload, null, 2);
+        } else {
+            payloadEl.textContent = 'No payload available.';
+        }
+    }
+    
     // Normalize direction for display
     let displayDir = detail.direction || 'UNKNOWN';
     if (displayDir.toUpperCase() === 'LONG') displayDir = 'Bullish';
@@ -1233,6 +1247,71 @@ document.addEventListener('DOMContentLoaded', () => {
     if (closeBtn) {
         closeBtn.addEventListener('click', () => {
             AutomatedSignalsUltra.hideLifecycleOverlay();
+        });
+    }
+    
+    // Wire Tab Switching for Lifecycle Modal
+    const chartBtn = document.getElementById('ase-tab-chart-btn');
+    const detailsBtn = document.getElementById('ase-tab-details-btn');
+    const rawBtn = document.getElementById('ase-tab-rawpay-btn');
+    const chartContent = document.getElementById('ase-tab-chart-content');
+    const detailsContent = document.getElementById('ase-tab-details-content');
+    const rawPanel = document.getElementById('ase-raw-payload-panel');
+    const lifecycleChart = document.getElementById('ase-lifecycle-chart');
+    
+    const setActiveTab = (activeBtn) => {
+        [chartBtn, detailsBtn, rawBtn].forEach(btn => {
+            if (btn) {
+                btn.style.background = btn === activeBtn ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)';
+                btn.style.borderColor = btn === activeBtn ? 'rgba(59,130,246,0.4)' : 'rgba(255,255,255,0.2)';
+            }
+        });
+    };
+    
+    if (chartBtn) {
+        chartBtn.addEventListener('click', () => {
+            setActiveTab(chartBtn);
+            if (lifecycleChart) lifecycleChart.style.display = 'block';
+            if (chartContent) chartContent.style.display = 'block';
+            if (detailsContent) detailsContent.style.display = 'none';
+            if (rawPanel) rawPanel.style.display = 'none';
+        });
+    }
+    
+    if (detailsBtn) {
+        detailsBtn.addEventListener('click', () => {
+            setActiveTab(detailsBtn);
+            if (lifecycleChart) lifecycleChart.style.display = 'none';
+            if (chartContent) chartContent.style.display = 'none';
+            if (detailsContent) detailsContent.style.display = 'block';
+            if (rawPanel) rawPanel.style.display = 'none';
+        });
+    }
+    
+    if (rawBtn) {
+        rawBtn.addEventListener('click', () => {
+            setActiveTab(rawBtn);
+            if (lifecycleChart) lifecycleChart.style.display = 'none';
+            if (chartContent) chartContent.style.display = 'none';
+            if (detailsContent) detailsContent.style.display = 'none';
+            if (rawPanel) rawPanel.style.display = 'block';
+        });
+    }
+    
+    // Wire Copy Payload button
+    const copyBtn = document.getElementById('ase-copy-payload-btn');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+            if (!AutomatedSignalsUltra.rawPayload) return;
+            const formatted = JSON.stringify(AutomatedSignalsUltra.rawPayload, null, 2);
+            navigator.clipboard.writeText(formatted).then(() => {
+                copyBtn.textContent = '✔ Copied!';
+                setTimeout(() => {
+                    copyBtn.textContent = '📋 Copy Payload';
+                }, 1200);
+            }).catch(() => {
+                alert('Failed to copy payload.');
+            });
         });
     }
 });

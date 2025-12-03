@@ -368,20 +368,46 @@
                 </div>
             </div>
             
-            <!-- Bottom Row: Events + Metrics -->
-            <div class="row g-4">
-                <div class="col-md-7">
-                    <div style="color:#3b82f6; font-weight:600; font-size:14px; margin-bottom:8px;">📋 Event Stream</div>
-                    <div id="ase-lifecycle-events" style="background: rgba(8,16,32,0.9); border-radius: 10px; border: 1px solid rgba(59,130,246,0.15); max-height: 180px; overflow-y: auto; padding: 12px;">
-                        <div style="color:rgba(226,232,240,0.5); font-size:13px;">No events loaded.</div>
+            <!-- Tab Selector -->
+            <div class="mb-3 d-flex gap-2">
+                <button class="btn btn-sm ultra-btn active" id="ase-tab-chart-btn" style="background:rgba(59,130,246,0.3); color:#e2e8f0; border:1px solid rgba(59,130,246,0.4);">📈 Chart</button>
+                <button class="btn btn-sm ultra-btn" id="ase-tab-details-btn" style="background:rgba(255,255,255,0.1); color:#e2e8f0; border:1px solid rgba(255,255,255,0.2);">📋 Details</button>
+                <button class="btn btn-sm ultra-btn" id="ase-tab-rawpay-btn" style="background:rgba(255,255,255,0.1); color:#e2e8f0; border:1px solid rgba(255,255,255,0.2);">🧩 Raw Payload</button>
+            </div>
+
+            <!-- Tab Content: Chart (default visible) -->
+            <div id="ase-tab-chart-content">
+                <!-- Bottom Row: Events + Metrics -->
+                <div class="row g-4">
+                    <div class="col-md-7">
+                        <div style="color:#3b82f6; font-weight:600; font-size:14px; margin-bottom:8px;">📋 Event Stream</div>
+                        <div id="ase-lifecycle-events" style="background: rgba(8,16,32,0.9); border-radius: 10px; border: 1px solid rgba(59,130,246,0.15); max-height: 180px; overflow-y: auto; padding: 12px;">
+                            <div style="color:rgba(226,232,240,0.5); font-size:13px;">No events loaded.</div>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div style="color:#3b82f6; font-weight:600; font-size:14px; margin-bottom:8px;">📊 Trade Metrics</div>
+                        <div id="ase-lifecycle-metrics" style="background: rgba(8,16,32,0.9); border-radius: 10px; border: 1px solid rgba(59,130,246,0.15); padding: 14px;">
+                            <div style="color:rgba(226,232,240,0.5); font-size:13px;">No trade selected.</div>
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-5">
-                    <div style="color:#3b82f6; font-weight:600; font-size:14px; margin-bottom:8px;">📊 Trade Metrics</div>
-                    <div id="ase-lifecycle-metrics" style="background: rgba(8,16,32,0.9); border-radius: 10px; border: 1px solid rgba(59,130,246,0.15); padding: 14px;">
-                        <div style="color:rgba(226,232,240,0.5); font-size:13px;">No trade selected.</div>
-                    </div>
+            </div>
+
+            <!-- Tab Content: Details (hidden by default) -->
+            <div id="ase-tab-details-content" style="display:none;">
+                <div style="background: rgba(8,16,32,0.9); border-radius: 10px; border: 1px solid rgba(59,130,246,0.15); padding: 14px;">
+                    <div style="color:rgba(226,232,240,0.5); font-size:13px;">Trade details will appear here.</div>
                 </div>
+            </div>
+
+            <!-- Tab Content: Raw Payload (hidden by default) -->
+            <div id="ase-raw-payload-panel" style="display:none; background:rgba(8,16,32,0.95); border-radius:10px; border:1px solid rgba(59,130,246,0.15); padding:14px;">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span style="color:#3b82f6; font-weight:600; font-size:14px;">🧩 Raw Payload (Debug)</span>
+                    <button id="ase-copy-payload-btn" class="btn btn-sm" style="background:rgba(255,255,255,0.1); color:#e2e8f0; border:1px solid rgba(255,255,255,0.2);">📋 Copy Payload</button>
+                </div>
+                <pre id="ase-payload-json" style="white-space:pre-wrap; font-size:12px; color:#e2e8f0; background:rgba(0,0,0,0.3); padding:12px; border-radius:8px; max-height:360px; overflow-y:auto;">Loading...</pre>
             </div>
         </div>
     </div>
