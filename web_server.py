@@ -14426,6 +14426,15 @@ def get_automated_signals_dashboard_data():
         # DISTINCT ON ensures one row per trade_id, preferring EXIT_SL over EXIT_BE
         if date_filter:
             cursor.execute("""
+                WITH max_mfe AS (
+                    SELECT
+                        trade_id,
+                        MAX(be_mfe) AS max_be_mfe,
+                        MAX(no_be_mfe) AS max_no_be_mfe
+                    FROM automated_signals
+                    WHERE event_type = 'MFE_UPDATE'
+                    GROUP BY trade_id
+                )
                 SELECT DISTINCT ON (ex.trade_id)
                        ex.id,
                        ex.trade_id,
@@ -14440,13 +14449,15 @@ def get_automated_signals_dashboard_data():
                        en.signal_time,
                        en.timestamp AS entry_timestamp,
                        EXTRACT(EPOCH FROM (ex.timestamp - en.timestamp)) AS duration_seconds,
-                       COALESCE(ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
-                       COALESCE(ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
-                       COALESCE(ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe
+                       COALESCE(m.max_be_mfe, ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
+                       COALESCE(m.max_no_be_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
+                       COALESCE(m.max_no_be_mfe, ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe
                 FROM automated_signals ex
                 LEFT JOIN automated_signals en
                     ON ex.trade_id = en.trade_id
                     AND en.event_type = 'ENTRY'
+                LEFT JOIN max_mfe m
+                    ON ex.trade_id = m.trade_id
                 WHERE ex.event_type LIKE 'EXIT_%'
                 AND en.signal_date = %s
                 ORDER BY
@@ -14461,6 +14472,15 @@ def get_automated_signals_dashboard_data():
             """, (date_filter,))
         else:
             cursor.execute("""
+                WITH max_mfe AS (
+                    SELECT
+                        trade_id,
+                        MAX(be_mfe) AS max_be_mfe,
+                        MAX(no_be_mfe) AS max_no_be_mfe
+                    FROM automated_signals
+                    WHERE event_type = 'MFE_UPDATE'
+                    GROUP BY trade_id
+                )
                 SELECT DISTINCT ON (ex.trade_id)
                        ex.id,
                        ex.trade_id,
@@ -14475,13 +14495,15 @@ def get_automated_signals_dashboard_data():
                        en.signal_time,
                        en.timestamp AS entry_timestamp,
                        EXTRACT(EPOCH FROM (ex.timestamp - en.timestamp)) AS duration_seconds,
-                       COALESCE(ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
-                       COALESCE(ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
-                       COALESCE(ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe
+                       COALESCE(m.max_be_mfe, ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
+                       COALESCE(m.max_no_be_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
+                       COALESCE(m.max_no_be_mfe, ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe
                 FROM automated_signals ex
                 LEFT JOIN automated_signals en
                     ON ex.trade_id = en.trade_id
                     AND en.event_type = 'ENTRY'
+                LEFT JOIN max_mfe m
+                    ON ex.trade_id = m.trade_id
                 WHERE ex.event_type LIKE 'EXIT_%'
                 ORDER BY
                     ex.trade_id,
@@ -14526,13 +14548,14 @@ def get_automated_signals_dashboard_data():
                 "signal_date": signal_date,
                 "signal_time": signal_time,
                 "entry_timestamp": row[11].isoformat() if row[11] else None,
-                # Return both field names for JS compatibility
-                "be_mfe": float(row[12]) if row[12] is not None else 0.0,
-                "no_be_mfe": float(row[13]) if row[13] is not None else 0.0,
-                "be_mfe_R": float(row[12]) if row[12] is not None else 0.0,
-                "no_be_mfe_R": float(row[13]) if row[13] is not None else 0.0,
-                "final_mfe": float(row[14]) if row[14] is not None else 0.0,
-                "final_mfe_R": float(row[14]) if row[14] is not None else 0.0,
+                "duration_seconds": float(row[12]) if row[12] is not None else None,
+                # MFE values from MAX(MFE_UPDATE) via CTE - no exit_price fallback
+                "be_mfe": float(row[13]) if row[13] is not None else 0.0,
+                "no_be_mfe": float(row[14]) if row[14] is not None else 0.0,
+                "be_mfe_R": float(row[13]) if row[13] is not None else 0.0,
+                "no_be_mfe_R": float(row[14]) if row[14] is not None else 0.0,
+                "final_mfe": float(row[15]) if row[15] is not None else 0.0,
+                "final_mfe_R": float(row[15]) if row[15] is not None else 0.0,
                 "status": "COMPLETED",
                 "trade_status": "COMPLETED"
             })
