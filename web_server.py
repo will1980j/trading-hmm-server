@@ -14439,6 +14439,7 @@ def get_automated_signals_dashboard_data():
                        en.signal_date,
                        en.signal_time,
                        en.timestamp AS entry_timestamp,
+                       EXTRACT(EPOCH FROM (ex.timestamp - en.timestamp)) AS duration_seconds,
                        COALESCE(ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
                        COALESCE(ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
                        COALESCE(ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe
@@ -14473,6 +14474,7 @@ def get_automated_signals_dashboard_data():
                        en.signal_date,
                        en.signal_time,
                        en.timestamp AS entry_timestamp,
+                       EXTRACT(EPOCH FROM (ex.timestamp - en.timestamp)) AS duration_seconds,
                        COALESCE(ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
                        COALESCE(ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
                        COALESCE(ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe
