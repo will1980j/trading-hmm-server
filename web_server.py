@@ -14423,47 +14423,72 @@ def get_automated_signals_dashboard_data():
         
         # Get all EXIT signals (completed trades) with MFE values
         # Join with ENTRY to get signal_date, signal_time, and entry details
+        # DISTINCT ON ensures one row per trade_id, preferring EXIT_SL over EXIT_BE
         if date_filter:
             cursor.execute("""
-                SELECT ex.id, ex.trade_id, ex.event_type,
-                       COALESCE(en.direction, ex.direction) as direction,
-                       COALESCE(en.entry_price, ex.entry_price) as entry_price,
-                       COALESCE(en.stop_loss, ex.stop_loss) as stop_loss,
-                       COALESCE(en.session, ex.session) as session,
-                       COALESCE(en.bias, ex.bias) as bias,
-                       ex.timestamp as exit_timestamp,
+                SELECT DISTINCT ON (ex.trade_id)
+                       ex.id,
+                       ex.trade_id,
+                       ex.event_type,
+                       COALESCE(en.direction, ex.direction) AS direction,
+                       COALESCE(en.entry_price, ex.entry_price) AS entry_price,
+                       COALESCE(en.stop_loss, ex.stop_loss) AS stop_loss,
+                       COALESCE(en.session, ex.session) AS session,
+                       COALESCE(en.bias, ex.bias) AS bias,
+                       ex.timestamp AS exit_timestamp,
                        en.signal_date,
                        en.signal_time,
-                       en.timestamp as entry_timestamp,
-                       COALESCE(ex.be_mfe, en.be_mfe, 0.0) as be_mfe,
-                       COALESCE(ex.no_be_mfe, en.no_be_mfe, 0.0) as no_be_mfe,
-                       COALESCE(ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) as final_mfe
+                       en.timestamp AS entry_timestamp,
+                       COALESCE(ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
+                       COALESCE(ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
+                       COALESCE(ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe
                 FROM automated_signals ex
-                LEFT JOIN automated_signals en ON ex.trade_id = en.trade_id AND en.event_type = 'ENTRY'
+                LEFT JOIN automated_signals en
+                    ON ex.trade_id = en.trade_id
+                    AND en.event_type = 'ENTRY'
                 WHERE ex.event_type LIKE 'EXIT_%'
                 AND en.signal_date = %s
-                ORDER BY ex.timestamp DESC
+                ORDER BY
+                    ex.trade_id,
+                    CASE
+                        WHEN ex.event_type = 'EXIT_SL' THEN 1
+                        WHEN ex.event_type = 'EXIT_BREAK_EVEN' THEN 2
+                        ELSE 3
+                    END,
+                    ex.timestamp DESC
                 LIMIT 100
             """, (date_filter,))
         else:
             cursor.execute("""
-                SELECT ex.id, ex.trade_id, ex.event_type,
-                       COALESCE(en.direction, ex.direction) as direction,
-                       COALESCE(en.entry_price, ex.entry_price) as entry_price,
-                       COALESCE(en.stop_loss, ex.stop_loss) as stop_loss,
-                       COALESCE(en.session, ex.session) as session,
-                       COALESCE(en.bias, ex.bias) as bias,
-                       ex.timestamp as exit_timestamp,
+                SELECT DISTINCT ON (ex.trade_id)
+                       ex.id,
+                       ex.trade_id,
+                       ex.event_type,
+                       COALESCE(en.direction, ex.direction) AS direction,
+                       COALESCE(en.entry_price, ex.entry_price) AS entry_price,
+                       COALESCE(en.stop_loss, ex.stop_loss) AS stop_loss,
+                       COALESCE(en.session, ex.session) AS session,
+                       COALESCE(en.bias, ex.bias) AS bias,
+                       ex.timestamp AS exit_timestamp,
                        en.signal_date,
                        en.signal_time,
-                       en.timestamp as entry_timestamp,
-                       COALESCE(ex.be_mfe, en.be_mfe, 0.0) as be_mfe,
-                       COALESCE(ex.no_be_mfe, en.no_be_mfe, 0.0) as no_be_mfe,
-                       COALESCE(ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) as final_mfe
+                       en.timestamp AS entry_timestamp,
+                       COALESCE(ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
+                       COALESCE(ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
+                       COALESCE(ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe
                 FROM automated_signals ex
-                LEFT JOIN automated_signals en ON ex.trade_id = en.trade_id AND en.event_type = 'ENTRY'
+                LEFT JOIN automated_signals en
+                    ON ex.trade_id = en.trade_id
+                    AND en.event_type = 'ENTRY'
                 WHERE ex.event_type LIKE 'EXIT_%'
-                ORDER BY ex.timestamp DESC
+                ORDER BY
+                    ex.trade_id,
+                    CASE
+                        WHEN ex.event_type = 'EXIT_SL' THEN 1
+                        WHEN ex.event_type = 'EXIT_BREAK_EVEN' THEN 2
+                        ELSE 3
+                    END,
+                    ex.timestamp DESC
                 LIMIT 100
             """)
         
