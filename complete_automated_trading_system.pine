@@ -276,6 +276,7 @@ var array<float> signal_risks = array.new<float>()
 var array<string> signal_directions = array.new<string>()
 var array<float> signal_mfes = array.new<float>()
 var array<float> signal_be_mfes = array.new<float>()  // MFE at BE=1 trigger
+var array<float> signal_maes = array.new<float>()  // Global MAE in R (<= 0.0)
 var array<bool> signal_be_triggered = array.new<bool>()  // Track if BE was triggered
 var array<bool> signal_be_stopped = array.new<bool>()  // Track if BE=1 strategy hit entry after BE trigger (persistent)
 var array<bool> signal_no_be_stopped = array.new<bool>()  // Track if No BE strategy hit original SL (persistent)
@@ -427,6 +428,7 @@ if waiting_for_confirmation and active_signal == "Bullish"
         array.push(signal_directions, "Bullish")
         array.push(signal_mfes, 0.0)
         array.push(signal_be_mfes, 0.0)  // BE MFE starts at 0
+        array.push(signal_maes, 0.0)  // start with 0 adverse movement
         array.push(signal_be_triggered, false)  // BE not triggered yet
         array.push(signal_be_stopped, false)  // BE=1 strategy starts active
         array.push(signal_no_be_stopped, false)  // No BE strategy starts active
@@ -531,6 +533,7 @@ if waiting_for_confirmation and active_signal == "Bearish"
         array.push(signal_directions, "Bearish")
         array.push(signal_mfes, 0.0)
         array.push(signal_be_mfes, 0.0)  // BE MFE starts at 0
+        array.push(signal_maes, 0.0)  // start with 0 adverse movement
         array.push(signal_be_triggered, false)  // BE not triggered yet
         array.push(signal_be_stopped, false)  // BE=1 strategy starts active
         array.push(signal_no_be_stopped, false)  // No BE strategy starts active
@@ -585,6 +588,7 @@ if array.size(signal_entries) > 0
         string sig_dir = array.get(signal_directions, i)
         float sig_mfe = array.get(signal_mfes, i)
         float sig_be_mfe = array.get(signal_be_mfes, i)
+        float sig_mae = array.get(signal_maes, i)
         bool sig_be_triggered = array.get(signal_be_triggered, i)
         bool sig_be_stopped = array.get(signal_be_stopped, i)
         bool sig_no_be_stopped = array.get(signal_no_be_stopped, i)
@@ -640,6 +644,20 @@ if array.size(signal_entries) > 0
                 if high > sig_highest_high
                     array.set(signal_highest_highs, i, high)
                     sig_highest_high := high
+        
+        // --- MAE TRACKING (GLOBAL NEGATIVE R) ---
+        // Only process signals from last 7 days for performance
+        bool is_recent_mae = (time - sig_entry_time) < 604800000  // 7 days in milliseconds
+        float current_mae = sig_mae
+        if sig_has_entered and is_recent_mae
+            if sig_dir == "Bullish"
+                current_mae := (sig_lowest_low - sig_entry) / sig_risk
+            else
+                current_mae := (sig_entry - sig_highest_high) / sig_risk
+            // Keep the MOST NEGATIVE (worst adverse movement)
+            if current_mae < sig_mae
+                sig_mae := current_mae
+                array.set(signal_maes, i, sig_mae)
         
         // Calculate current MFE for all signals (to capture maximum even after completion)
         float current_mfe = 0.0
@@ -1138,12 +1156,12 @@ f_marketStateJson(trendRegime, trendScore, volRegime, atrVal, atrPct20, dayRange
 // ============================================================================
 // MAIN TELEMETRY PAYLOAD BUILDER
 // ============================================================================
-f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, posSize, mfeR, maeR, finalMfeR, exitPrice, exitReason, tp1, tp2, tp3, setupFam, setupVar, htfBias, symbol, timeframeStr, signalTimeMs) =>
+f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, posSize, mfeR, maeR, finalMfeR, exitPrice, exitReason, tp1, tp2, tp3, setupFam, setupVar, htfBias, symbol, timeframeStr, signalTimeMs, maeGlobalR) =>
     sym  = f_symbol()
     // Use signal candle time for event_timestamp (not confirmation candle time)
     ts   = f_isoTimestamp(signalTimeMs)
     sess = f_sessionLabel(signalTimeMs)
-    payload = '{"schema_version":"' + telemetry_schema_version + '","engine_version":"' + telemetry_engine_version + '","strategy_name":"' + telemetry_strategy_name + '","strategy_id":"' + telemetry_strategy_id + '","strategy_version":"' + telemetry_strategy_version + '","trade_id":"' + tradeId + '","event_type":"' + eventType + '","event_timestamp":"' + ts + '","symbol":"' + sym + '","exchange":"' + syminfo.ticker + '","timeframe":"' + timeframeStr + '","session":"' + sess + '","direction":' + f_str(dir) + ',"entry_price":' + f_num(entryPrice) + ',"stop_loss":' + f_num(stopPrice) + ',"risk_R":' + f_num(riskR) + ',"position_size":' + f_num(posSize) + ',"be_price":' + f_num(bePrice) + ',"mfe_R":' + f_num(mfeR) + ',"mae_R":' + f_num(maeR) + ',"final_mfe_R":' + f_num(finalMfeR) + ',"exit_price":' + f_num(exitPrice) + ',"exit_timestamp":null,"exit_reason":' + f_str(exitReason) + ',' + f_targetsJson(tp1, tp2, tp3, 1.0, 2.0, 3.0) + ',' + f_setupJson(setupFam, setupVar, setupFam + "_" + setupVar, 75.0, htfBias == "Bullish" or htfBias == "Bearish" ? 1.0 : 0.5, 0.8, 0.7) + ',' + f_marketStateJson(bias, bias == "Bullish" or bias == "Bearish" ? 0.8 : 0.3, "NORMAL", float(na), float(na), float(na), float(na), float(na), float(na), "UNKNOWN", "NONE", "NEUTRAL") + '}'
+    payload = '{"schema_version":"' + telemetry_schema_version + '","engine_version":"' + telemetry_engine_version + '","strategy_name":"' + telemetry_strategy_name + '","strategy_id":"' + telemetry_strategy_id + '","strategy_version":"' + telemetry_strategy_version + '","trade_id":"' + tradeId + '","event_type":"' + eventType + '","event_timestamp":"' + ts + '","symbol":"' + sym + '","exchange":"' + syminfo.ticker + '","timeframe":"' + timeframeStr + '","session":"' + sess + '","direction":' + f_str(dir) + ',"entry_price":' + f_num(entryPrice) + ',"stop_loss":' + f_num(stopPrice) + ',"risk_R":' + f_num(riskR) + ',"position_size":' + f_num(posSize) + ',"be_price":' + f_num(bePrice) + ',"mfe_R":' + f_num(mfeR) + ',"mae_R":' + f_num(maeR) + ',"final_mfe_R":' + f_num(finalMfeR) + ',"mae_R_global":' + f_num(maeGlobalR) + ',"exit_price":' + f_num(exitPrice) + ',"exit_timestamp":null,"exit_reason":' + f_str(exitReason) + ',' + f_targetsJson(tp1, tp2, tp3, 1.0, 2.0, 3.0) + ',' + f_setupJson(setupFam, setupVar, setupFam + "_" + setupVar, 75.0, htfBias == "Bullish" or htfBias == "Bearish" ? 1.0 : 0.5, 0.8, 0.7) + ',' + f_marketStateJson(bias, bias == "Bullish" or bias == "Bearish" ? 0.8 : 0.3, "NORMAL", float(na), float(na), float(na), float(na), float(na), float(na), "UNKNOWN", "NONE", "NEUTRAL") + '}'
     payload
 
 // Variables to track webhook sending for MULTIPLE signals
@@ -1174,14 +1192,14 @@ if barstate.isconfirmed
 if pending_cancel_bearish and barstate.isrealtime
     string cancel_direction = "Bearish"
     string cancel_trade_id = f_buildTradeId(signal_candle_time, cancel_direction)
-    string cancel_payload = f_buildPayload(EVENT_CANCELLED, cancel_trade_id, cancel_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), "opposite_signal_before_confirmation", float(na), float(na), float(na), "FVG_CORE", "CANCELLED", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+    string cancel_payload = f_buildPayload(EVENT_CANCELLED, cancel_trade_id, cancel_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), "opposite_signal_before_confirmation", float(na), float(na), float(na), "FVG_CORE", "CANCELLED", bias, syminfo.ticker, timeframe.period, signal_candle_time, 0.0)
     alert(cancel_payload, alert.freq_once_per_bar_close)
     pending_cancel_bearish := false
 
 if pending_cancel_bullish and barstate.isrealtime
     string cancel_direction = "Bullish"
     string cancel_trade_id = f_buildTradeId(signal_candle_time, cancel_direction)
-    string cancel_payload = f_buildPayload(EVENT_CANCELLED, cancel_trade_id, cancel_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), "opposite_signal_before_confirmation", float(na), float(na), float(na), "FVG_CORE", "CANCELLED", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+    string cancel_payload = f_buildPayload(EVENT_CANCELLED, cancel_trade_id, cancel_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), "opposite_signal_before_confirmation", float(na), float(na), float(na), "FVG_CORE", "CANCELLED", bias, syminfo.ticker, timeframe.period, signal_candle_time, 0.0)
     alert(cancel_payload, alert.freq_once_per_bar_close)
     pending_cancel_bullish := false
 
@@ -1221,7 +1239,7 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
         setup_variant = htf_bullish or htf_bearish ? "HTF_ALIGNED" : "STANDARD"
         
         // Build telemetry payload for ENTRY event
-        entry_payload = f_buildPayload(EVENT_ENTRY, signal_id, signal_direction, sig_entry, sig_stop, float(na), 1.0, contract_size, 0.0, 0.0, float(na), float(na), "", target_1r, target_2r, target_3r, setup_family, setup_variant, bias, syminfo.ticker, timeframe.period, signal_candle_time)
+        entry_payload = f_buildPayload(EVENT_ENTRY, signal_id, signal_direction, sig_entry, sig_stop, float(na), 1.0, contract_size, 0.0, 0.0, float(na), float(na), "", target_1r, target_2r, target_3r, setup_family, setup_variant, bias, syminfo.ticker, timeframe.period, signal_candle_time, 0.0)
         
         // Send webhook
         alert(entry_payload, alert.freq_once_per_bar_close)
@@ -1294,9 +1312,12 @@ if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active
             bool should_send_snapshot = is_snapshot_bar and not snapshot_already_sent and sig_has_entered
             
             if should_send_regular_update or should_send_snapshot
+                // Get global MAE for this signal
+                float sig_mae = array.get(signal_maes, signal_array_idx)
+                
                 // Build telemetry payload for MFE_UPDATE event
                 // CRITICAL: Send BOTH MFE values - BE MFE in mfeR, No BE MFE in maeR
-                string mfe_update_payload = f_buildPayload(EVENT_MFE_UPDATE, signal_id_to_update, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, current_mfe_be, current_mfe_none, float(na), float(na), "", mfe_target_1r, mfe_target_2r, mfe_target_3r, "FVG_CORE", "ACTIVE", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+                string mfe_update_payload = f_buildPayload(EVENT_MFE_UPDATE, signal_id_to_update, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, current_mfe_be, current_mfe_none, float(na), float(na), "", mfe_target_1r, mfe_target_2r, mfe_target_3r, "FVG_CORE", "ACTIVE", bias, syminfo.ticker, timeframe.period, signal_candle_time, sig_mae)
                 
                 // Send MFE update
                 alert(mfe_update_payload, alert.freq_once_per_bar_close)
@@ -1335,6 +1356,9 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_trigger
                     // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
                     current_be_mfe := math.min(current_be_mfe, current_no_be_mfe)
                     
+                    // Get global MAE for this signal
+                    float sig_mae = array.get(signal_maes, signal_array_idx)
+                    
                     // Calculate target prices for BE trigger
                     float be_target_1r = sig_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
                     float be_target_2r = sig_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
@@ -1342,7 +1366,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_trigger
                     
                     // Build telemetry payload for BE_TRIGGERED event
                     // mfe_R = BE MFE (capped at +1R since BE triggered), mae_R = No-BE MFE (continues tracking)
-                    string be_trigger_payload = f_buildPayload(EVENT_BE_TRIGGERED, signal_id_for_be, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, current_be_mfe, current_no_be_mfe, float(na), float(na), "", be_target_1r, be_target_2r, be_target_3r, "FVG_CORE", "BE_PROTECTED", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+                    string be_trigger_payload = f_buildPayload(EVENT_BE_TRIGGERED, signal_id_for_be, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, current_be_mfe, current_no_be_mfe, float(na), float(na), "", be_target_1r, be_target_2r, be_target_3r, "FVG_CORE", "BE_PROTECTED", bias, syminfo.ticker, timeframe.period, signal_candle_time, sig_mae)
                     
                     // Send BE trigger webhook
                     alert(be_trigger_payload, alert.freq_once_per_bar_close)
@@ -1381,6 +1405,9 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped
                 float final_no_be_mfe = array.get(signal_mfes, signal_array_idx)
                 final_be_mfe := math.min(final_be_mfe, final_no_be_mfe)
                 
+                // Get global MAE for this signal
+                float sig_mae = array.get(signal_maes, signal_array_idx)
+                
                 // Calculate target prices
                 float exit_target_1r = sig_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
                 float exit_target_2r = sig_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
@@ -1389,14 +1416,14 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped
                 // SEND EXIT_BE when BE stop is hit (BE=1 strategy completed)
                 // mfe_R = BE MFE (final), mae_R = No-BE MFE (final), final_mfe_R = BE MFE (relevant for this exit type)
                 if be_stopped and not be_exit_sent
-                    string be_payload = f_buildPayload(EVENT_EXIT_BREAK_EVEN, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, final_be_mfe, final_no_be_mfe, final_be_mfe, sig_entry, "be_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_BE", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+                    string be_payload = f_buildPayload(EVENT_EXIT_BREAK_EVEN, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, final_be_mfe, final_no_be_mfe, final_be_mfe, sig_entry, "be_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_BE", bias, syminfo.ticker, timeframe.period, signal_candle_time, sig_mae)
                     alert(be_payload, alert.freq_once_per_bar_close)
                     array.set(be_exit_sent_flags, sig_idx, true)
                 
                 // SEND EXIT_SL when original stop is hit (No BE strategy completed)
                 // mfe_R = BE MFE (final), mae_R = No-BE MFE (final), final_mfe_R = No-BE MFE (relevant for this exit type)
                 if no_be_stopped and not sl_exit_sent
-                    string sl_payload = f_buildPayload(EVENT_EXIT_STOP_LOSS, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, final_be_mfe, final_no_be_mfe, final_no_be_mfe, sig_stop, "original_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_SL", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+                    string sl_payload = f_buildPayload(EVENT_EXIT_STOP_LOSS, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, final_be_mfe, final_no_be_mfe, final_no_be_mfe, sig_stop, "original_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_SL", bias, syminfo.ticker, timeframe.period, signal_candle_time, sig_mae)
                     alert(sl_payload, alert.freq_once_per_bar_close)
                     array.set(sl_exit_sent_flags, sig_idx, true)
                 

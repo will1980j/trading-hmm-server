@@ -98,12 +98,15 @@ def normalize_signal_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         # TradingView sends BE and No-BE MFE values as:
         # - mfe_R  = BE-MFE
         # - mae_R  = No-BE-MFE
+        # - mae_R_global = Global MAE (worst adverse movement, always <= 0)
         # For MFE_UPDATE events, we must map these explicitly.
         mfe_r = _safe_float(payload.get('mfe_R'))
         mae_r = _safe_float(payload.get('mae_R'))
+        mae_global_r = _safe_float(payload.get('mae_R_global'))
         normalized['be_mfe'] = mfe_r
         normalized['no_be_mfe'] = mae_r
-        logger.info(f"[NORMALIZER] MFE be={mfe_r}, no_be={mae_r}")
+        normalized['mae_global_R'] = mae_global_r
+        logger.info(f"[NORMALIZER] MFE be={mfe_r}, no_be={mae_r}, mae_global={mae_global_r}")
         
         # Legacy mfe field for backward compatibility
         normalized['mfe'] = _safe_float(payload.get('mfe')) or mfe_r

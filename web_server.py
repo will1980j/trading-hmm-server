@@ -12775,17 +12775,19 @@ def handle_mfe_update(data):
         
         current_price = data.get("current_price")
         trade_id = data.get('trade_id', 'UNKNOWN')
+        mae_global_r = data.get("mae_global_R")
         
-        logger.info(f"📊 MFE INSERT: trade_id={trade_id}, be_mfe={be_mfe}, no_be_mfe={no_be_mfe}, price={current_price}")
+        logger.info(f"📊 MFE INSERT: trade_id={trade_id}, be_mfe={be_mfe}, no_be_mfe={no_be_mfe}, mae_global={mae_global_r}, price={current_price}")
         
         insert = """
-            INSERT INTO automated_signals (trade_id, event_type, be_mfe, no_be_mfe, current_price, timestamp)
-            VALUES (%s, 'MFE_UPDATE', %s, %s, %s, NOW());
+            INSERT INTO automated_signals (trade_id, event_type, be_mfe, no_be_mfe, mae_global_r, current_price, timestamp)
+            VALUES (%s, 'MFE_UPDATE', %s, %s, %s, %s, NOW());
         """
         cursor.execute(insert, (
             trade_id,
             be_mfe,
             no_be_mfe,
+            mae_global_r,
             current_price
         ))
         
@@ -12972,6 +12974,9 @@ def handle_be_trigger(data):
         try:
             be_mfe = float(data.get('be_mfe', 0))
             no_be_mfe = float(data.get('no_be_mfe', 0))
+            mae_global_r = data.get('mae_global_R')
+            if mae_global_r is not None:
+                mae_global_r = float(mae_global_r)
         except (ValueError, TypeError) as conv_error:
             return {"success": False, "error": f"Invalid BE data: {str(conv_error)}"}
         
@@ -12985,10 +12990,10 @@ def handle_be_trigger(data):
         
         cursor.execute("""
             INSERT INTO automated_signals (
-                trade_id, event_type, mfe, be_mfe, no_be_mfe, timestamp
-            ) VALUES (%s, %s, %s, %s, %s, NOW())
+                trade_id, event_type, mfe, be_mfe, no_be_mfe, mae_global_r, timestamp
+            ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
             RETURNING id
-        """, (trade_id, 'BE_TRIGGERED', be_mfe, be_mfe, no_be_mfe))
+        """, (trade_id, 'BE_TRIGGERED', be_mfe, be_mfe, no_be_mfe, mae_global_r))
         
         result = cursor.fetchone()
         if not result:
@@ -13057,6 +13062,9 @@ def handle_exit_signal(data, exit_type):
             # Support multiple field names: final_be_mfe, final_no_be_mfe, final_mfe, final_mfe_R, mfe_R
             final_be_mfe = float(data.get('final_be_mfe') or data.get('final_mfe_R') or data.get('mfe_R') or 0)
             final_no_be_mfe = float(data.get('final_no_be_mfe') or data.get('final_mfe') or data.get('final_mfe_R') or data.get('mfe_R') or 0)
+            mae_global_r = data.get('mae_global_R')
+            if mae_global_r is not None:
+                mae_global_r = float(mae_global_r)
         except (ValueError, TypeError) as conv_error:
             return {"success": False, "error": f"Invalid exit data: {str(conv_error)}"}
         
@@ -13134,9 +13142,10 @@ def handle_exit_signal(data, exit_type):
                     exit_price,
                     be_mfe,
                     no_be_mfe,
+                    mae_global_r,
                     final_mfe,
                     timestamp
-                ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
                 RETURNING id
             """, (
                 trade_id,
@@ -13144,6 +13153,7 @@ def handle_exit_signal(data, exit_type):
                 exit_price,
                 final_be_mfe,
                 final_no_be_mfe,
+                mae_global_r,
                 final_no_be_mfe  # Use no_be_mfe as final_mfe
             ))
         else:
@@ -13154,15 +13164,17 @@ def handle_exit_signal(data, exit_type):
                     event_type,
                     be_mfe,
                     no_be_mfe,
+                    mae_global_r,
                     final_mfe,
                     timestamp
-                ) VALUES (%s, %s, %s, %s, %s, NOW())
+                ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
                 RETURNING id
             """, (
                 trade_id,
                 canonical_exit_event,  # Use EXIT_BE or EXIT_SL
                 final_be_mfe,
                 final_no_be_mfe,
+                mae_global_r,
                 final_no_be_mfe  # Use no_be_mfe as final_mfe
             ))
         
@@ -14314,7 +14326,8 @@ def get_automated_signals_dashboard_data():
                         MAX(timestamp) FILTER (WHERE event_type = 'MFE_UPDATE') AS last_mfe_ts,
                         MAX(be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_be_mfe,
                         MAX(no_be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_no_be_mfe,
-                        MAX(current_price) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_current_price
+                        MAX(current_price) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_current_price,
+                        MIN(mae_global_r) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_mae_global_r
                     FROM automated_signals
                     GROUP BY trade_id
                 )
@@ -14330,7 +14343,8 @@ def get_automated_signals_dashboard_data():
                     e.signal_time,
                     COALESCE(m.latest_be_mfe, e.be_mfe, 0.0) AS be_mfe,
                     COALESCE(m.latest_no_be_mfe, e.no_be_mfe, 0.0) AS no_be_mfe,
-                    COALESCE(m.latest_current_price, e.current_price) AS current_price
+                    COALESCE(m.latest_current_price, e.current_price) AS current_price,
+                    COALESCE(m.latest_mae_global_r, e.mae_global_r) AS mae_global_r
                 FROM automated_signals e
                 LEFT JOIN latest_mfe m ON m.trade_id = e.trade_id
                 WHERE e.event_type = 'ENTRY'
@@ -14351,7 +14365,8 @@ def get_automated_signals_dashboard_data():
                         MAX(timestamp) FILTER (WHERE event_type = 'MFE_UPDATE') AS last_mfe_ts,
                         MAX(be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_be_mfe,
                         MAX(no_be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_no_be_mfe,
-                        MAX(current_price) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_current_price
+                        MAX(current_price) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_current_price,
+                        MIN(mae_global_r) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_mae_global_r
                     FROM automated_signals
                     GROUP BY trade_id
                 )
@@ -14367,7 +14382,8 @@ def get_automated_signals_dashboard_data():
                     e.signal_time,
                     COALESCE(m.latest_be_mfe, e.be_mfe, 0.0) AS be_mfe,
                     COALESCE(m.latest_no_be_mfe, e.no_be_mfe, 0.0) AS no_be_mfe,
-                    COALESCE(m.latest_current_price, e.current_price) AS current_price
+                    COALESCE(m.latest_current_price, e.current_price) AS current_price,
+                    COALESCE(m.latest_mae_global_r, e.mae_global_r) AS mae_global_r
                 FROM automated_signals e
                 LEFT JOIN latest_mfe m ON m.trade_id = e.trade_id
                 WHERE e.event_type = 'ENTRY'
@@ -14417,6 +14433,7 @@ def get_automated_signals_dashboard_data():
                 "be_mfe_R": float(row[11]) if row[11] is not None else 0.0,
                 "no_be_mfe_R": float(row[12]) if row[12] is not None else 0.0,
                 "current_price": float(row[13]) if row[13] else None,
+                "mae_global_R": float(row[14]) if row[14] is not None else None,
                 "status": "ACTIVE",
                 "trade_status": "ACTIVE"
             })
@@ -14430,7 +14447,8 @@ def get_automated_signals_dashboard_data():
                     SELECT
                         trade_id,
                         MAX(be_mfe) AS max_be_mfe,
-                        MAX(no_be_mfe) AS max_no_be_mfe
+                        MAX(no_be_mfe) AS max_no_be_mfe,
+                        MIN(mae_global_r) AS min_mae_global_r
                     FROM automated_signals
                     WHERE event_type = 'MFE_UPDATE'
                     GROUP BY trade_id
@@ -14451,7 +14469,8 @@ def get_automated_signals_dashboard_data():
                        EXTRACT(EPOCH FROM (ex.timestamp - en.timestamp)) AS duration_seconds,
                        COALESCE(m.max_be_mfe, ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
                        COALESCE(m.max_no_be_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
-                       COALESCE(m.max_no_be_mfe, ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe
+                       COALESCE(m.max_no_be_mfe, ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe,
+                       COALESCE(m.min_mae_global_r, ex.mae_global_r, en.mae_global_r) AS mae_global_r
                 FROM automated_signals ex
                 LEFT JOIN automated_signals en
                     ON ex.trade_id = en.trade_id
@@ -14476,7 +14495,8 @@ def get_automated_signals_dashboard_data():
                     SELECT
                         trade_id,
                         MAX(be_mfe) AS max_be_mfe,
-                        MAX(no_be_mfe) AS max_no_be_mfe
+                        MAX(no_be_mfe) AS max_no_be_mfe,
+                        MIN(mae_global_r) AS min_mae_global_r
                     FROM automated_signals
                     WHERE event_type = 'MFE_UPDATE'
                     GROUP BY trade_id
@@ -14497,7 +14517,8 @@ def get_automated_signals_dashboard_data():
                        EXTRACT(EPOCH FROM (ex.timestamp - en.timestamp)) AS duration_seconds,
                        COALESCE(m.max_be_mfe, ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
                        COALESCE(m.max_no_be_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
-                       COALESCE(m.max_no_be_mfe, ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe
+                       COALESCE(m.max_no_be_mfe, ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe,
+                       COALESCE(m.min_mae_global_r, ex.mae_global_r, en.mae_global_r) AS mae_global_r
                 FROM automated_signals ex
                 LEFT JOIN automated_signals en
                     ON ex.trade_id = en.trade_id
@@ -14556,6 +14577,7 @@ def get_automated_signals_dashboard_data():
                 "no_be_mfe_R": float(row[14]) if row[14] is not None else 0.0,
                 "final_mfe": float(row[15]) if row[15] is not None else 0.0,
                 "final_mfe_R": float(row[15]) if row[15] is not None else 0.0,
+                "mae_global_R": float(row[16]) if row[16] is not None else None,
                 "status": "COMPLETED",
                 "trade_status": "COMPLETED"
             })

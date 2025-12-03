@@ -308,7 +308,7 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
     tbody.innerHTML = "";
     
     if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" class="text-center ultra-muted py-3">No signals match filters.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" class="text-center ultra-muted py-3">No signals match filters.</td></tr>`;
         if (counter) counter.textContent = "0 rows";
         return;
     }
@@ -448,6 +448,9 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         const beMfeDisplay = mfeBE;
         const noBeMfeDisplay = mfeNoBE;
         
+        // MAE (Maximum Adverse Excursion) - worst drawdown in R
+        const maeVal = row.mae_global_R != null ? parseFloat(row.mae_global_R).toFixed(2) : "0.00";
+        
         tr.innerHTML = `
             <td><input type="checkbox" class="trade-checkbox trade-row-checkbox" data-trade-id="${row.trade_id}" ${isChecked ? 'checked' : ''}></td>
             <td class="dual-status-cell">
@@ -461,6 +464,7 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             <td>${sl}</td>
             <td><span class="${getMfeClass(mfeBE)}">${beMfeDisplay}</span></td>
             <td><span class="${getMfeClass(mfeNoBE)}">${noBeMfeDisplay}</span></td>
+            <td><span class="ultra-badge-red">${maeVal}R</span></td>
             <td class="ultra-muted">${ageStr}</td>
         `;
         
@@ -655,6 +659,7 @@ AutomatedSignalsUltra.renderSideDetail = function(detail) {
                        (beMfeVal != null ? parseFloat(beMfeVal).toFixed(2) + 'R' : 'N/A');
     const finalMFE = finalMfeVal != null ? parseFloat(finalMfeVal).toFixed(2) + 'R' : 'N/A';
     const exitPrice = detail.exit_price != null ? parseFloat(detail.exit_price).toFixed(2) : 'N/A';
+    const maeVal = detail.mae_global_R != null ? parseFloat(detail.mae_global_R).toFixed(2) + 'R' : 'N/A';
     
     container.innerHTML = `
         <div class="small ultra-muted mb-2">Trade ID: <span class="ultra-text">${detail.trade_id || 'N/A'}</span></div>
@@ -678,6 +683,10 @@ AutomatedSignalsUltra.renderSideDetail = function(detail) {
             <div class="col-6">
                 <div class="ultra-muted">Final MFE</div>
                 <div class="ultra-badge-green">${finalMFE}</div>
+            </div>
+            <div class="col-6">
+                <div class="ultra-muted">MAE (Worst)</div>
+                <div class="ultra-badge-red">${maeVal}</div>
             </div>
             <div class="col-6">
                 <div class="ultra-muted">Exit Price</div>
@@ -784,6 +793,7 @@ AutomatedSignalsUltra.renderLifecycleOverlay = function(detail) {
     const currentMFE = noBeMfeMetric != null ? parseFloat(noBeMfeMetric).toFixed(2) : 'N/A';
     const beMFE = beMfeMetric != null ? parseFloat(beMfeMetric).toFixed(2) : 'N/A';
     const exitPrice = detail.exit_price != null ? parseFloat(detail.exit_price).toFixed(2) : 'N/A';
+    const maeMetric = detail.mae_global_R != null ? parseFloat(detail.mae_global_R).toFixed(2) : 'N/A';
     
     metricsEl.innerHTML = `
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
@@ -802,6 +812,10 @@ AutomatedSignalsUltra.renderLifecycleOverlay = function(detail) {
             <div style="background:rgba(234,179,8,0.1); padding:10px; border-radius:8px;">
                 <div style="color:#64748b; font-size:11px; text-transform:uppercase;">BE MFE</div>
                 <div style="color:#eab308; font-size:16px; font-weight:600;">${beMFE}R</div>
+            </div>
+            <div style="background:rgba(239,68,68,0.15); padding:10px; border-radius:8px;">
+                <div style="color:#64748b; font-size:11px; text-transform:uppercase;">MAE (Worst)</div>
+                <div style="color:#ef4444; font-size:16px; font-weight:600;">${maeMetric}R</div>
             </div>
             <div style="background:rgba(148,163,184,0.1); padding:10px; border-radius:8px;">
                 <div style="color:#64748b; font-size:11px; text-transform:uppercase;">Risk (1R)</div>
