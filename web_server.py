@@ -12745,7 +12745,7 @@ def handle_entry_signal(data):
 
 
 def handle_mfe_update(data):
-    """Handle MFE update signal - supports both strategy and indicator formats"""
+    """Handle MFE update signal - simplified to directly use normalized data"""
     conn = None
     cursor = None
     try:
@@ -12756,88 +12756,29 @@ def handle_mfe_update(data):
         
         conn = psycopg2.connect(database_url)
         conn.autocommit = False
-        
-        # DUAL FORMAT SUPPORT
-        # Strategy format: signal_id, current_price, be_mfe, no_be_mfe
-        # Indicator format: trade_id, current_price, mfe
-        
-        trade_id = data.get('signal_id') or data.get('trade_id', 'UNKNOWN')
-        
-        try:
-            current_price = float(data.get('current_price', 0))
-            # Support multiple field names from different payload formats:
-            # - Indicator sends: mfe_R (BE MFE), mae_R (No BE MFE)
-            # - Strategy sends: be_mfe, no_be_mfe separately
-            # - Legacy: mfe (fallback for both)
-            be_mfe = float(data.get('be_mfe') or data.get('mfe_R') or data.get('mfe') or 0)
-            no_be_mfe = float(data.get('no_be_mfe') or data.get('mae_R') or data.get('mfe_R') or data.get('mfe') or 0)
-            logger.info(f"📊 MFE values parsed: be_mfe={be_mfe}, no_be_mfe={no_be_mfe}, current_price={current_price}")
-        except (ValueError, TypeError) as conv_error:
-            return {"success": False, "error": f"Invalid MFE data: {str(conv_error)}"}
-        
-        # Update MFE in database (store both BE and No BE values)
         cursor = conn.cursor()
         
-        # 7I lifecycle validation
-        validation_error = as_validate_lifecycle_transition(trade_id, "MFE_UPDATE", cursor)
-        if validation_error:
-            return {"success": False, "error": validation_error}
+        # Data comes pre-normalized from signal_normalization.py
+        # be_mfe = mfe_R (from indicator)
+        # no_be_mfe = mae_R (from indicator)
+        be_mfe = data.get("be_mfe")
+        no_be_mfe = data.get("no_be_mfe")
+        current_price = data.get("current_price")
+        trade_id = data.get('trade_id', 'UNKNOWN')
         
-        # INSERT new MFE_UPDATE event row (do NOT update ENTRY row)
-        # This preserves ENTRY row with 0.00 MFE and creates separate MFE_UPDATE rows
-        # The dashboard query will aggregate latest MFE values from MFE_UPDATE rows
+        logger.info(f"📊 MFE INSERT: trade_id={trade_id}, be_mfe={be_mfe}, no_be_mfe={no_be_mfe}, price={current_price}")
         
-        # Get signal_date and signal_time from ENTRY row
-        cursor.execute("""
-            SELECT signal_date, signal_time
-            FROM automated_signals
-            WHERE trade_id = %s AND event_type = 'ENTRY'
-            LIMIT 1
-        """, (trade_id,))
-        
-        entry_row = cursor.fetchone()
-        if not entry_row:
-            conn.commit()
-            logger.warning(f"⚠️ MFE update ignored for trade_id={trade_id} - no ENTRY row found")
-            return {
-                "success": True,
-                "ignored": True,
-                "reason": "No ENTRY row found for MFE_UPDATE",
-                "trade_id": trade_id
-            }
-        
-        signal_date = entry_row[0]
-        signal_time = entry_row[1]
-        
-        # INSERT new MFE_UPDATE event
-        cursor.execute("""
-            INSERT INTO automated_signals (
-                trade_id,
-                event_type,
-                current_price,
-                mfe,
-                be_mfe,
-                no_be_mfe,
-                signal_date,
-                signal_time,
-                timestamp
-            )
-            VALUES (%s, 'MFE_UPDATE', %s, %s, %s, %s, %s, %s, NOW())
-            RETURNING id
-        """, (
+        insert = """
+            INSERT INTO automated_signals (trade_id, event_type, be_mfe, no_be_mfe, current_price, timestamp)
+            VALUES (%s, 'MFE_UPDATE', %s, %s, %s, NOW());
+        """
+        cursor.execute(insert, (
             trade_id,
-            current_price,
-            no_be_mfe,  # mfe column gets no_be_mfe for backward compatibility
             be_mfe,
             no_be_mfe,
-            signal_date,
-            signal_time
+            current_price
         ))
         
-        result = cursor.fetchone()
-        signal_id = result[0]
-        lifecycle_state = 'ACTIVE'  # Default for MFE_UPDATE
-        lifecycle_seq = 2  # Default for MFE_UPDATE
         conn.commit()
         
         logger.info(f"✅ MFE update stored: Trade {trade_id}, BE={be_mfe}R, No BE={no_be_mfe}R @ {current_price}")
@@ -12860,8 +12801,8 @@ def handle_mfe_update(data):
             socketio.emit('trade_lifecycle', {
                 'trade_id': trade_id,
                 'event_type': 'MFE_UPDATE',
-                'lifecycle_state': lifecycle_state,
-                'lifecycle_seq': lifecycle_seq,
+                'lifecycle_state': 'ACTIVE',
+                'lifecycle_seq': 2,
                 'timestamp': datetime.now().isoformat(),
                 'be_mfe': be_mfe,
                 'no_be_mfe': no_be_mfe,
@@ -12872,8 +12813,7 @@ def handle_mfe_update(data):
             logger.warning(f"WebSocket lifecycle broadcast failed: {ws_error}")
         
         return {
-            "success": True,
-            "signal_id": signal_id,
+            "inserted": True,
             "trade_id": trade_id,
             "be_mfe": be_mfe,
             "no_be_mfe": no_be_mfe
