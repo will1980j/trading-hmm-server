@@ -71,6 +71,15 @@ AutomatedSignalsUltra.init = function() {
         AutomatedSignalsUltra.fetchDashboardData();
         AutomatedSignalsUltra.fetchCalendarData();
     }, 7000);
+    
+    // Wire Cancelled Signals tab - fetch data when tab is clicked
+    const cancelledTab = document.getElementById('cancelled-tab');
+    if (cancelledTab) {
+        cancelledTab.addEventListener('click', () => {
+            // Fetch cancelled signals when the Cancelled tab is activated
+            AutomatedSignalsUltra.fetchCancelledSignals();
+        });
+    }
 };
 
 AutomatedSignalsUltra.wireFilters = function() {
@@ -1227,6 +1236,94 @@ AutomatedSignalsUltra.loadDataForDate = async function(dateStr) {
     } catch (err) {
         console.error('[ASE] Error loading data for date:', err);
     }
+};
+
+// ============================================================================
+// CANCELLED SIGNALS TAB FUNCTIONS
+// ============================================================================
+
+AutomatedSignalsUltra.fetchCancelledSignals = async function() {
+    try {
+        const resp = await fetch(`/api/automated-signals/cancelled?_=${Date.now()}`, {
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
+        const json = await resp.json();
+        AutomatedSignalsUltra.renderCancelledSignals(json.cancelled || []);
+    } catch (err) {
+        console.error("[ASE] Error fetching cancelled signals:", err);
+        AutomatedSignalsUltra.renderCancelledSignals([]);
+    }
+};
+
+AutomatedSignalsUltra.renderCancelledSignals = function(rows) {
+    const tbody = document.getElementById('ase-cancelled-tbody');
+    const counter = document.getElementById('ase-cancelled-count');
+    
+    if (!tbody) return;
+    
+    tbody.innerHTML = "";
+    
+    if (!rows || rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center ultra-muted py-3">No cancelled signals recorded.</td></tr>`;
+        if (counter) counter.textContent = "0";
+        return;
+    }
+    
+    // Helper to format age
+    const fmtAge = (sec) => {
+        if (sec == null) return "--";
+        const s = Math.floor(sec);
+        if (s < 60) return `${s}s`;
+        const m = Math.floor(s / 60);
+        const rem = s % 60;
+        if (m < 60) return `${m}m ${rem}s`;
+        const h = Math.floor(m / 60);
+        const mm = m % 60;
+        return `${h}h ${mm}m`;
+    };
+    
+    rows.forEach(row => {
+        const tr = document.createElement('tr');
+        
+        // Parse timestamp for display
+        const ts = row.timestamp ? new Date(row.timestamp) : null;
+        const timeStr = ts
+            ? ts.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+                timeZone: 'America/New_York'
+            })
+            : '--:--:--';
+        
+        const dir = row.direction || "--";
+        const session = row.session || "--";
+        const reason = "Not confirmed";  // Detailed reasons available via Raw Payload
+        const age = fmtAge(row.age_seconds);
+        
+        // Direction badge styling
+        const dirBadgeClass = dir === 'Bullish' ? 'direction-badge-bullish' : 
+                              dir === 'Bearish' ? 'direction-badge-bearish' : 'ultra-muted';
+        
+        tr.innerHTML = `
+            <td class="ultra-muted">${timeStr}</td>
+            <td><span class="${dirBadgeClass}">${dir}</span></td>
+            <td>${session}</td>
+            <td class="ultra-muted">${reason}</td>
+            <td class="ultra-muted">${age}</td>
+            <td class="ultra-text small">${row.trade_id || ''}</td>
+        `;
+        
+        tbody.appendChild(tr);
+    });
+    
+    if (counter) counter.textContent = rows.length.toString();
 };
 
 // DOM ready hook

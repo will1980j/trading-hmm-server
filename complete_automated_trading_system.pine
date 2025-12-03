@@ -11,6 +11,7 @@ EVENT_EXIT_BREAK_EVEN  = "EXIT_BREAK_EVEN"
 EVENT_EXIT_STOP_LOSS   = "EXIT_STOP_LOSS"
 EVENT_EXIT_TAKE_PROFIT = "EXIT_TAKE_PROFIT"   // reserved for TP exits
 EVENT_EXIT_PARTIAL     = "EXIT_PARTIAL"        // reserved for partial exits
+EVENT_CANCELLED        = "CANCELLED"           // signal never confirmed (opposite signal before confirmation)
 
 
 
@@ -323,12 +324,22 @@ if show_bear_triangle and active_signal != "Bearish"
     entry_price := na
     stop_loss_price := na
 
-// Cancel on opposite signal
+// Cancel on opposite signal BEFORE confirmation (no ENTRY ever sent)
+// NOTE: CANCELLED webhooks are sent later in the script after f_buildTradeId and f_buildPayload are defined
+// We use a flag to track when cancellation should happen
+var bool pending_cancel_bearish = false
+var bool pending_cancel_bullish = false
+
 if show_bull_triangle and active_signal == "Bearish"
+    if waiting_for_confirmation and barstate.isrealtime
+        pending_cancel_bearish := true
+    // Clear state
     active_signal := "None"
     waiting_for_confirmation := false
 
 if show_bear_triangle and active_signal == "Bullish"
+    if waiting_for_confirmation and barstate.isrealtime
+        pending_cancel_bullish := true
     active_signal := "None"
     waiting_for_confirmation := false
 
@@ -1077,19 +1088,18 @@ f_isoTimestamp(timeMs) =>
 // ============================================================================
 // Must match backend session model EXACTLY
 f_sessionLabel(timeMs) =>
-    // Convert current time to US/Eastern
-    t = timenow
-    ny = timestamp("America/New_York", year(t), month(t), dayofmonth(t), hour(t), minute(t))
-    h = hour(ny)
-    m = minute(ny)
+    // Use the ACTUAL event timestamp (signal/entry/MFE/BE), not timenow
+    h = hour(timeMs, "America/New_York")
+    m = minute(timeMs, "America/New_York")
     
     // Session logic (MUST MATCH BACKEND):
-    // ASIA:     20:00 - 23:59 ET
-    // LONDON:   00:00 - 05:59 ET
-    // NY PRE:   06:00 - 08:29 ET
-    // NY AM:    08:30 - 11:59 ET
-    // NY LUNCH: 12:00 - 12:59 ET
-    // NY PM:    13:00 - 15:59 ET
+    // ASIA:       20:00 - 23:59 ET
+    // LONDON:     00:00 - 05:59 ET
+    // NY PRE:     06:00 - 08:29 ET
+    // NY AM:      08:30 - 11:59 ET
+    // NY LUNCH:   12:00 - 12:59 ET
+    // NY PM:      13:00 - 15:59 ET
+    // AFTER_HOURS 16:00 - 19:59 ET
     session = h >= 20 ? "ASIA" : h < 6 ? "LONDON" : h < 8 or (h == 8 and m < 30) ? "NY PRE" : (h == 8 and m >= 30) or h < 12 ? "NY AM" : h == 12 ? "NY LUNCH" : h < 16 ? "NY PM" : "AFTER_HOURS"
     session
 
@@ -1155,6 +1165,22 @@ find_signal_index(signal_id) =>
 // Reset webhook flag on new bar
 if barstate.isconfirmed
     webhook_sent_this_bar := false
+
+// CANCELLED SIGNAL WEBHOOKS
+// Send when a signal was cancelled before confirmation (opposite signal appeared)
+if pending_cancel_bearish and barstate.isrealtime
+    string cancel_direction = "Bearish"
+    string cancel_trade_id = f_buildTradeId(signal_candle_time, cancel_direction)
+    string cancel_payload = f_buildPayload(EVENT_CANCELLED, cancel_trade_id, cancel_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), "opposite_signal_before_confirmation", float(na), float(na), float(na), "FVG_CORE", "CANCELLED", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+    alert(cancel_payload, alert.freq_once_per_bar_close)
+    pending_cancel_bearish := false
+
+if pending_cancel_bullish and barstate.isrealtime
+    string cancel_direction = "Bullish"
+    string cancel_trade_id = f_buildTradeId(signal_candle_time, cancel_direction)
+    string cancel_payload = f_buildPayload(EVENT_CANCELLED, cancel_trade_id, cancel_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), "opposite_signal_before_confirmation", float(na), float(na), float(na), "FVG_CORE", "CANCELLED", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+    alert(cancel_payload, alert.freq_once_per_bar_close)
+    pending_cancel_bullish := false
 
 // 1. SIGNAL CREATION WEBHOOK
 // Send when new trade is ready (entry conditions met)

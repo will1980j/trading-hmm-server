@@ -12375,7 +12375,7 @@ def automated_signals_webhook():
             exit_type = "BREAK_EVEN" if event_type == "EXIT_BE" else "STOP_LOSS"
             result = handle_exit_signal(canonical, exit_type)
         elif event_type == "CANCELLED":
-            result = {"success": True, "message": "Signal cancelled"}
+            result = handle_cancelled_signal(canonical)
         else:
             return jsonify({
                 "success": False,
@@ -12852,6 +12852,106 @@ def handle_mfe_update(data):
                 conn.close()
             except:
                 pass
+
+
+def handle_cancelled_signal(data):
+    """
+    Store a CANCELLED signal in automated_signals.
+    These are signals that never confirmed (no ENTRY) - e.g., opposite signal appeared before confirmation.
+    """
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        logger.error("CANCELLED event: DATABASE_URL not configured")
+        return {"success": False, "error": "DATABASE_URL not configured"}
+    
+    conn = None
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cur = conn.cursor()
+        
+        trade_id = data.get("trade_id") or data.get("signal_id")
+        direction = data.get("direction")
+        session = data.get("session")
+        exit_reason = data.get("exit_reason") or data.get("cancel_reason") or "not_confirmed"
+        event_ts_str = data.get("event_timestamp")
+        
+        signal_date = None
+        signal_time = None
+        
+        # Derive signal_date & signal_time from event_timestamp if available
+        if event_ts_str:
+            try:
+                from dateutil import parser as date_parser
+                dt = date_parser.parse(event_ts_str)
+                signal_date = dt.date()
+                signal_time = dt.time()
+            except Exception as e:
+                logger.warning(f"CANCELLED event: failed to parse event_timestamp {event_ts_str}: {e}")
+        
+        cur.execute("""
+            INSERT INTO automated_signals (
+                trade_id,
+                event_type,
+                direction,
+                session,
+                entry_price,
+                stop_loss,
+                risk_distance,
+                current_price,
+                mfe,
+                be_mfe,
+                no_be_mfe,
+                exit_price,
+                final_mfe,
+                signal_date,
+                signal_time,
+                timestamp
+            ) VALUES (
+                %s, 'CANCELLED', %s, %s,
+                NULL, NULL, NULL, NULL,
+                0.0, NULL, NULL,
+                NULL, NULL,
+                %s, %s, NOW()
+            )
+        """, (
+            trade_id,
+            direction,
+            session,
+            signal_date,
+            signal_time,
+        ))
+        
+        conn.commit()
+        logger.info(f"✅ Stored CANCELLED signal for trade_id={trade_id}, direction={direction}, session={session}, reason={exit_reason}")
+        
+        # Broadcast to WebSocket clients for Activity Feed
+        try:
+            socketio.emit('signal_cancelled', {
+                'trade_id': trade_id,
+                'direction': direction,
+                'session': session,
+                'reason': exit_reason,
+                'timestamp': datetime.now().isoformat()
+            })
+            logger.info(f"📡 WebSocket broadcast: signal_cancelled for {trade_id}")
+        except Exception as ws_error:
+            logger.warning(f"WebSocket broadcast failed: {ws_error}")
+        
+        return {
+            "success": True,
+            "trade_id": trade_id,
+            "event_type": "CANCELLED",
+            "message": f"Signal cancelled: {exit_reason}"
+        }
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"Error storing CANCELLED signal: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+    finally:
+        if conn:
+            conn.close()
 
 
 def handle_be_trigger(data):
@@ -14563,6 +14663,66 @@ def purge_ghost_trades():
             "success": False,
             "error": str(e)
         }), 500
+
+
+@app.route("/api/automated-signals/cancelled", methods=["GET"])
+@login_required
+def automated_signals_cancelled():
+    """
+    Return list of cancelled signals (never confirmed).
+    Used by Cancelled Signals tab in Automated Signals ULTRA dashboard.
+    """
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        return jsonify({"cancelled": [], "error": "DATABASE_URL not configured"}), 200
+    
+    conn = None
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cur = conn.cursor()
+        
+        # Get recent CANCELLED events (limit to last 500)
+        cur.execute("""
+            SELECT
+                trade_id,
+                direction,
+                session,
+                signal_date,
+                signal_time,
+                timestamp,
+                CASE 
+                    WHEN signal_date IS NOT NULL AND signal_time IS NOT NULL 
+                    THEN EXTRACT(EPOCH FROM (timestamp - (signal_date + signal_time)))
+                    ELSE NULL
+                END AS age_seconds
+            FROM automated_signals
+            WHERE event_type = 'CANCELLED'
+            ORDER BY timestamp DESC
+            LIMIT 500
+        """)
+        rows = cur.fetchall()
+        
+        # Convert to serializable format
+        result = []
+        for row in rows:
+            item = dict(row)
+            # Convert date/time to strings for JSON
+            if item.get('signal_date'):
+                item['signal_date'] = str(item['signal_date'])
+            if item.get('signal_time'):
+                item['signal_time'] = str(item['signal_time'])
+            if item.get('timestamp'):
+                item['timestamp'] = item['timestamp'].isoformat() if hasattr(item['timestamp'], 'isoformat') else str(item['timestamp'])
+            result.append(item)
+        
+        return jsonify({"cancelled": result}), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching cancelled signals: {e}", exc_info=True)
+        return jsonify({"cancelled": [], "error": str(e)}), 200
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route('/api/automated-signals/stats-live', methods=['GET'])

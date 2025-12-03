@@ -1070,19 +1070,18 @@ f_isoTimestamp(timeMs) =>
 // ============================================================================
 // Must match backend session model EXACTLY
 f_sessionLabel(timeMs) =>
-    // Convert current time to US/Eastern
-    t = timenow
-    ny = timestamp("America/New_York", year(t), month(t), dayofmonth(t), hour(t), minute(t))
-    h = hour(ny)
-    m = minute(ny)
+    // Use the ACTUAL event timestamp (signal/entry/MFE/BE), not timenow
+    h = hour(timeMs, "America/New_York")
+    m = minute(timeMs, "America/New_York")
     
     // Session logic (MUST MATCH BACKEND):
-    // ASIA:     20:00 - 23:59 ET
-    // LONDON:   00:00 - 05:59 ET
-    // NY PRE:   06:00 - 08:29 ET
-    // NY AM:    08:30 - 11:59 ET
-    // NY LUNCH: 12:00 - 12:59 ET
-    // NY PM:    13:00 - 15:59 ET
+    // ASIA:       20:00 - 23:59 ET
+    // LONDON:     00:00 - 05:59 ET
+    // NY PRE:     06:00 - 08:29 ET
+    // NY AM:      08:30 - 11:59 ET
+    // NY LUNCH:   12:00 - 12:59 ET
+    // NY PM:      13:00 - 15:59 ET
+    // AFTER_HOURS 16:00 - 19:59 ET
     session = h >= 20 ? "ASIA" : h < 6 ? "LONDON" : h < 8 or (h == 8 and m < 30) ? "NY PRE" : (h == 8 and m >= 30) or h < 12 ? "NY AM" : h == 12 ? "NY LUNCH" : h < 16 ? "NY PM" : "AFTER_HOURS"
     session
 
