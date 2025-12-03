@@ -12763,11 +12763,16 @@ def handle_mfe_update(data):
         conn.autocommit = False
         cursor = conn.cursor()
         
-        # Data comes pre-normalized from signal_normalization.py
-        # be_mfe = mfe_R (from indicator)
-        # no_be_mfe = mae_R (from indicator)
+        # Get MFE values - try normalized fields first, then raw TradingView fields
         be_mfe = data.get("be_mfe")
         no_be_mfe = data.get("no_be_mfe")
+        
+        # Fallback: TradingView sends these under 'mfe_R' and 'mae_R'
+        if be_mfe is None:
+            be_mfe = data.get("mfe_R")
+        if no_be_mfe is None:
+            no_be_mfe = data.get("mae_R")
+        
         current_price = data.get("current_price")
         trade_id = data.get('trade_id', 'UNKNOWN')
         
