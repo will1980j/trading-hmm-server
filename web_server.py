@@ -12325,6 +12325,11 @@ def automated_signals_webhook():
         data_raw = request.get_json(force=True, silent=True)
         logger.info("🟦 RAW WEBHOOK DATA RECEIVED (7G): %s", data_raw)
         
+        if data_raw.get('event_type') == 'MFE_UPDATE':
+            print("==== RAW MFE_UPDATE PAYLOAD RECEIVED ====")
+            print(data_raw)
+            print("=========================================")
+        
         # PHASE 2A: Apply normalization layer BEFORE any DB writes
         from signal_normalization import normalize_signal_payload, validate_normalized_payload
         normalized_data = normalize_signal_payload(data_raw)
