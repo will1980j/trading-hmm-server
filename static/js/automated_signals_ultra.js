@@ -657,6 +657,12 @@ AutomatedSignalsUltra.loadTradeDetail = async function(trade_id) {
         // Store last detail for overlay reopen
         AutomatedSignalsUltra.lastDetail = detail;
         
+        // Load diagnosis panel data
+        if (typeof loadTradeDiagnosis === 'function') {
+            console.log("[ASE] Loading diagnosis for trade:", trade_id);
+            loadTradeDiagnosis(trade_id, detail);
+        }
+        
     } catch (err) {
         console.error("[ASE] Error loading trade detail:", err);
         if (statusBadge) {
@@ -1600,3 +1606,38 @@ async function loadTradeDiagnosis(tradeId, payload) {
         }
     }
 }
+
+
+// ======================================================
+// DIAGNOSIS PANEL INITIALIZATION
+// ======================================================
+
+// Ensure diagnosis panel toggle works
+document.addEventListener('DOMContentLoaded', function() {
+    // Wire up diagnosis header toggle
+    const diagHeader = document.querySelector('.diagnosis-header');
+    if (diagHeader) {
+        diagHeader.addEventListener('click', function() {
+            const content = this.nextElementSibling;
+            if (content) {
+                content.style.display = (content.style.display === 'none' || content.style.display === '') ? 'block' : 'none';
+            }
+        });
+    }
+    
+    // Wire up table row clicks to load diagnosis
+    document.querySelectorAll('.ase-trade-row').forEach(row => {
+        row.addEventListener('click', () => {
+            const tradeId = row.dataset.tradeId;
+            if (tradeId && typeof loadTradeDiagnosis === 'function') {
+                console.log("[ASE] Row clicked, loading diagnosis:", tradeId);
+                loadTradeDiagnosis(tradeId);
+            }
+        });
+    });
+    
+    console.log("[ASE] Diagnosis panel initialization complete");
+});
+
+// Make loadTradeDiagnosis globally accessible
+window.loadTradeDiagnosis = loadTradeDiagnosis;
