@@ -1500,57 +1500,23 @@ function copyFullDiagnosis() {
     navigator.clipboard.writeText(buf.join("\n"));
 }
 
-// When opening a trade detail, load unified diagnosis from backend
-async function loadTradeDiagnosis(tradeId, payload) {
+// =============================================
+// FIX 1 — PROPER DIAGNOSIS LOADER USING REAL IDs
+// =============================================
+async function loadTradeDiagnosis(tradeId) {
+    console.log("[ASE] Loading diagnosis for:", tradeId);
     try {
-        // Fetch unified diagnosis from backend
         const res = await fetch(`/api/automated-signals/diagnosis/${tradeId}`, { cache: "no-store" });
         const diag = await res.json();
         
-        // Fill raw payload field
-        const payloadEl = document.getElementById("ase-raw-payload");
-        if (payloadEl) {
-            if (diag.payload) {
-                // Try to parse and pretty-print if it's JSON
-                try {
-                    const parsed = typeof diag.payload === 'string' ? JSON.parse(diag.payload) : diag.payload;
-                    payloadEl.innerText = JSON.stringify(parsed, null, 2);
-                } catch {
-                    payloadEl.innerText = diag.payload;
-                }
-            } else if (payload) {
-                // Fallback to passed payload
-                payloadEl.innerText = JSON.stringify(payload, null, 2);
-            } else {
-                payloadEl.innerText = "No payload available";
-            }
-        }
+        // Helper to set element text content
+        const setVal = (id, v) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = (v ?? "");
+        };
         
-        // Fill DB events field
-        const dbEventsEl = document.getElementById("ase-raw-db-events");
-        if (dbEventsEl) {
-            dbEventsEl.innerText = JSON.stringify(diag.db_events || [], null, 2);
-        }
-        
-        // Fill backend logs field
-        const logsEl = document.getElementById("ase-backend-logs");
-        if (logsEl) {
-            logsEl.innerText = diag.logs || "No logs available";
-        }
-        
-        // Fill lifecycle summary field
-        const summaryEl = document.getElementById("ase-lifecycle-summary");
-        if (summaryEl) {
-            summaryEl.innerText = diag.summary || "No summary available";
-        }
-        
-        // Fill discrepancy analysis field
-        const discrepancyEl = document.getElementById("ase-diagnosis-report");
-        if (discrepancyEl) {
-            discrepancyEl.innerText = diag.discrepancy || "No discrepancy analysis available";
-        }
-        
-        // Build pipeline map from db_events
+        // Match EXACT HTML IDs from the template
+        // Pipeline map - build from db_events
         const pipelineEl = document.getElementById("ase-pipeline-map");
         if (pipelineEl && diag.db_events) {
             const events = diag.db_events;
@@ -1565,20 +1531,16 @@ async function loadTradeDiagnosis(tradeId, payload) {
             const hasExitSl = events.some(e => e.event_type === "EXIT_SL" || e.event_type === "EXIT_STOP_LOSS");
             const hasBeTrigger = events.some(e => e.event_type === "BE_TRIGGERED");
             
-            // Entry
             lines.push(hasEntry ? ok("ENTRY Event Present") : fail("Missing ENTRY Event"));
             
-            // MFE updates
             if (mfeUpdates.length > 0)
                 lines.push(ok(`MFE_UPDATE Events: ${mfeUpdates.length}`));
             else
                 lines.push(warn("No MFE_UPDATE Events — Dashboard will show 0.00R"));
             
-            // BE Trigger
             if (hasBeTrigger)
                 lines.push(ok("BE_TRIGGERED Event Present"));
             
-            // Exits
             if (hasExitBe || hasExitSl) {
                 const arr = [];
                 if (hasExitBe) arr.push("EXIT_BE");
@@ -1588,52 +1550,79 @@ async function loadTradeDiagnosis(tradeId, payload) {
                 lines.push(warn("No Exit Events — trade may appear ACTIVE incorrectly"));
             }
             
-            // Logs
             lines.push(diag.logs && diag.logs.length > 20 ? ok("Backend Logs Present") : warn("No Backend Logs"));
             
-            pipelineEl.innerText = lines.join("\n");
+            pipelineEl.textContent = lines.join("\n");
         }
+        
+        // Raw payload
+        const payloadEl = document.getElementById("ase-raw-payload");
+        if (payloadEl) {
+            if (diag.payload) {
+                try {
+                    const parsed = typeof diag.payload === 'string' ? JSON.parse(diag.payload) : diag.payload;
+                    payloadEl.textContent = JSON.stringify(parsed, null, 2);
+                } catch {
+                    payloadEl.textContent = diag.payload;
+                }
+            } else {
+                payloadEl.textContent = "No payload available";
+            }
+        }
+        
+        // DB events
+        setVal("ase-raw-db-events", JSON.stringify(diag.db_events || [], null, 2));
+        
+        // Backend logs
+        setVal("ase-backend-logs", diag.logs || "No logs available");
+        
+        // Lifecycle summary
+        setVal("ase-lifecycle-summary", diag.summary || "No summary available");
+        
+        // Discrepancy analysis
+        setVal("ase-diagnosis-report", diag.discrepancy || "No discrepancy analysis available");
         
         console.log(`[ASE] Diagnosis loaded for trade ${tradeId}`);
         
     } catch (err) {
         console.error("[ASE] Diagnosis load failed:", err);
-        
-        // Show error in UI
         const pipelineEl = document.getElementById("ase-pipeline-map");
         if (pipelineEl) {
-            pipelineEl.innerText = `🔴 Failed to load diagnosis: ${err.message}`;
+            pipelineEl.textContent = `🔴 Failed to load diagnosis: ${err.message}`;
         }
     }
 }
 
+// Make globally accessible
+window.loadTradeDiagnosis = loadTradeDiagnosis;
 
-// ======================================================
-// DIAGNOSIS PANEL INITIALIZATION
-// ======================================================
-
-// Ensure diagnosis panel toggle works
-document.addEventListener('DOMContentLoaded', function() {
-    // Wire up diagnosis header toggle
-    const diagHeader = document.querySelector('.diagnosis-header');
-    if (diagHeader) {
-        diagHeader.addEventListener('click', function() {
-            const content = this.nextElementSibling;
-            if (content) {
-                content.style.display = (content.style.display === 'none' || content.style.display === '') ? 'block' : 'none';
-            }
-        });
+// =====================================================
+// FIX 2 — EXPAND/COLLAPSE HANDLER FOR DIAGNOSIS PANEL
+// =====================================================
+document.addEventListener("click", function(e) {
+    if (e.target.classList.contains("diagnosis-header")) {
+        const content = document.querySelector(".diagnosis-content");
+        if (!content) return;
+        const isOpen = content.style.display !== "none";
+        content.style.display = isOpen ? "none" : "block";
+        e.target.textContent = (isOpen ? "▼" : "▲") + " Trade Lifecycle Diagnosis";
     }
-    
-    // Wire up table row clicks to load diagnosis
-    document.querySelectorAll('.ase-trade-row').forEach(row => {
-        row.addEventListener('click', () => {
+});
+
+// =====================================================
+// FIX 3 — DIAGNOSIS PANEL INITIALIZATION ON DOM READY
+// =====================================================
+document.addEventListener('DOMContentLoaded', function() {
+    // Wire up table row clicks to load diagnosis (for dynamically added rows)
+    document.addEventListener('click', function(e) {
+        const row = e.target.closest('.ase-trade-row');
+        if (row) {
             const tradeId = row.dataset.tradeId;
             if (tradeId && typeof loadTradeDiagnosis === 'function') {
                 console.log("[ASE] Row clicked, loading diagnosis:", tradeId);
                 loadTradeDiagnosis(tradeId);
             }
-        });
+        }
     });
     
     console.log("[ASE] Diagnosis panel initialization complete");
