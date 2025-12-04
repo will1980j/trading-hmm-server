@@ -81,17 +81,6 @@ AutomatedSignalsUltra.init = function() {
         });
     }
     
-    // Wire diagnosis accordion toggle
-    const diagHeader = document.querySelector(".diagnosis-header");
-    const diagContent = document.querySelector(".diagnosis-content");
-    if (diagHeader && diagContent) {
-        diagContent.style.display = "none";
-        diagHeader.addEventListener("click", () => {
-            const isOpen = diagContent.style.display !== "none";
-            diagContent.style.display = isOpen ? "none" : "block";
-            diagHeader.textContent = (isOpen ? "▼" : "▲") + " Trade Lifecycle Diagnosis";
-        });
-    }
 };
 
 // ============================================================================
@@ -1592,18 +1581,16 @@ window.loadTradeDiagnosis = function(tradeId) {
 };
 
 // =====================================================
-// EXPAND/COLLAPSE HANDLER FOR DIAGNOSIS PANEL
+// SIMPLE DIAGNOSIS DROPDOWN TOGGLE (FINAL WORKING VERSION)
 // =====================================================
 document.addEventListener("click", function(e) {
-    // DEBUG: log EVERY CLICK ON THE PAGE
-    console.log("[DIAG] Global click detected on:", e.target);
     const header = e.target.closest(".diagnosis-header");
-    if (header) {
-        console.log("[DIAG] FIXED HEADER CLICK");
-        const section = header.closest(".diagnosis-section");
-        const content = section.querySelector(".diagnosis-content");
-        const isOpen = content.style.display !== "none" && content.style.display !== "";
-        content.style.display = isOpen ? "none" : "block";
-        header.textContent = (isOpen ? "▼" : "▲") + " Trade Lifecycle Diagnosis";
-    }
+    if (!header) return;
+    const section = header.closest(".diagnosis-section");
+    if (!section) return;
+    const content = section.querySelector(".diagnosis-content");
+    if (!content) return;
+    // Toggle panel
+    const open = content.style.display !== "none" && content.style.display !== "";
+    content.style.display = open ? "none" : "block";
 });
