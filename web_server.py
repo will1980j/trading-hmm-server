@@ -1068,6 +1068,11 @@ def inject_roadmap_helpers():
     """Inject roadmap helper functions into all templates"""
     return dict(is_complete=is_complete)
 
+@app.context_processor
+def inject_timestamp():
+    # Forces fresh JS every deploy
+    return {"build_ts": datetime.utcnow().strftime("%Y%m%d%H%M%S")}
+
 # Initialize SocketIO with automatic async mode detection
 # Railway will use threading mode (compatible with all Python versions)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
