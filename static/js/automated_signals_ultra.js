@@ -1599,9 +1599,15 @@ document.addEventListener("click", function(e) {
     console.log("[DIAG] Global click detected on:", e.target);
     if (e.target.classList.contains("diagnosis-header")) {
         console.log("[DIAG] DIAGNOSIS HEADER CLICKED!");
-        const content = e.target.nextElementSibling;
+        // DIRECT lookup — safer, guaranteed, bypasses DOM structure issues
+        const section = e.target.closest(".diagnosis-section");
+        if (!section) {
+            console.warn("[DIAG] No .diagnosis-section parent found.");
+            return;
+        }
+        const content = section.querySelector(".diagnosis-content");
         if (!content) {
-            console.warn("[DIAG] No nextElementSibling found for diagnosis-header.");
+            console.warn("[DIAG] .diagnosis-content not found under diagnosis-section.");
             return;
         }
         const isOpen = content.style.display !== "none" && content.style.display !== "";
