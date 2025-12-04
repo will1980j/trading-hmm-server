@@ -1597,33 +1597,13 @@ window.loadTradeDiagnosis = function(tradeId) {
 document.addEventListener("click", function(e) {
     // DEBUG: log EVERY CLICK ON THE PAGE
     console.log("[DIAG] Global click detected on:", e.target);
-    if (e.target.classList.contains("diagnosis-header")) {
-        console.log("[DIAG] DIAGNOSIS HEADER CLICKED!");
-        // DIRECT lookup — safer, guaranteed, bypasses DOM structure issues
-        const section = e.target.closest(".diagnosis-section");
-        if (!section) {
-            console.warn("[DIAG] No .diagnosis-section parent found.");
-            return;
-        }
+    const header = e.target.closest(".diagnosis-header");
+    if (header) {
+        console.log("[DIAG] FIXED HEADER CLICK");
+        const section = header.closest(".diagnosis-section");
         const content = section.querySelector(".diagnosis-content");
-        if (!content) {
-            console.warn("[DIAG] .diagnosis-content not found under diagnosis-section.");
-            return;
-        }
-        console.log("[DIAG] FORCING CONTENT VISIBLE");
-        content.style.display = "block";
-        content.style.opacity = "1";
-        content.style.maxHeight = "none";
-        content.style.height = "auto";
-        content.style.overflow = "visible";
-        content.style.visibility = "visible";
-        // Also force parent visibility
-        if (section) {
-            section.style.display = "block";
-            section.style.visibility = "visible";
-            section.style.overflow = "visible";
-        }
-        console.log("[DIAG] CONTENT NODE:", content);
-        console.log("[DIAG] CONTENT BOUNDING BOX:", content.getBoundingClientRect());
+        const isOpen = content.style.display !== "none" && content.style.display !== "";
+        content.style.display = isOpen ? "none" : "block";
+        header.textContent = (isOpen ? "▼" : "▲") + " Trade Lifecycle Diagnosis";
     }
 });
