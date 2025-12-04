@@ -106,6 +106,243 @@ def log_event_fail(prefix, trade_id, err):
     msg = f"[{prefix} INSERT FAIL] trade_id={trade_id} ERROR={err}"
     print(msg)
     append_trade_log(trade_id, msg)
+
+
+# ============================================================================
+# UNIFIED EVENT HANDLER - Single point of INSERT for all automated_signals
+# ============================================================================
+def handle_automated_event(event_type, data, raw_payload_str=None):
+    """
+    Unified handler for ALL automated_signals events.
+    This is the ONLY function that performs INSERTs into automated_signals.
+    
+    Args:
+        event_type: ENTRY, MFE_UPDATE, BE_TRIGGERED, EXIT_BE, EXIT_SL, CANCELLED
+        data: Normalized/canonical payload dict
+        raw_payload_str: JSON string of original raw payload (for diagnosis)
+    
+    Returns:
+        dict with success status and details
+    """
+    trade_id = data.get('trade_id') or data.get('signal_id') or 'UNKNOWN'
+    prefix = event_type
+    
+    # Log raw and normalized payloads
+    logger.info(f"[UNIFIED] {event_type} raw_payload: {raw_payload_str[:500] if raw_payload_str else 'None'}...")
+    logger.info(f"[UNIFIED] {event_type} normalized: trade_id={trade_id}, be_mfe={data.get('be_mfe')}, no_be_mfe={data.get('no_be_mfe')}, mae={data.get('mae_global_R')}")
+    
+    # Append to in-memory trade logs
+    append_trade_log(trade_id, f"[{event_type}] Received: be_mfe={data.get('be_mfe')}, no_be_mfe={data.get('no_be_mfe')}, mae={data.get('mae_global_R')}")
+    
+    conn = None
+    cursor = None
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return {"success": False, "error": "DATABASE_URL not configured"}
+        
+        conn = psycopg2.connect(database_url)
+        conn.autocommit = False
+        cursor = conn.cursor()
+        
+        # Extract ALL fields with safe defaults
+        direction = data.get('direction') or data.get('bias') or None
+        if direction:
+            direction = direction.upper()
+            if direction == "BULLISH":
+                direction = "LONG"
+            elif direction == "BEARISH":
+                direction = "SHORT"
+        
+        entry_price = None
+        stop_loss = None
+        risk_distance = None
+        exit_price = None
+        current_price = None
+        
+        try:
+            if data.get('entry_price'):
+                entry_price = float(data.get('entry_price'))
+            if data.get('stop_loss') or data.get('sl_price'):
+                stop_loss = float(data.get('stop_loss') or data.get('sl_price'))
+            if data.get('risk_distance'):
+                risk_distance = float(data.get('risk_distance'))
+            elif entry_price and stop_loss:
+                risk_distance = abs(entry_price - stop_loss)
+            if data.get('exit_price'):
+                exit_price = float(data.get('exit_price'))
+            if data.get('current_price'):
+                current_price = float(data.get('current_price'))
+        except (ValueError, TypeError):
+            pass
+        
+        session = data.get('session') or None
+        bias = data.get('bias') or direction or None
+        
+        # MFE/MAE fields
+        be_mfe = None
+        no_be_mfe = None
+        mae_global_r = None
+        final_mfe = None
+        mfe = None
+        
+        try:
+            if data.get('be_mfe') is not None:
+                be_mfe = float(data.get('be_mfe'))
+            if data.get('no_be_mfe') is not None:
+                no_be_mfe = float(data.get('no_be_mfe'))
+            if data.get('mae_global_R') is not None:
+                mae_global_r = float(data.get('mae_global_R'))
+            if data.get('final_mfe') is not None:
+                final_mfe = float(data.get('final_mfe'))
+            elif data.get('final_be_mfe') is not None:
+                final_mfe = float(data.get('final_be_mfe'))
+            if data.get('mfe') is not None:
+                mfe = float(data.get('mfe'))
+            elif be_mfe is not None:
+                mfe = be_mfe
+        except (ValueError, TypeError):
+            pass
+        
+        # Date/time fields
+        signal_date = None
+        signal_time = None
+        if data.get('date'):
+            try:
+                from datetime import datetime as dt
+                signal_date = dt.strptime(data.get('date'), '%Y-%m-%d').date()
+            except:
+                pass
+        if data.get('time'):
+            try:
+                from datetime import datetime as dt
+                signal_time = dt.strptime(data.get('time'), '%H:%M:%S').time()
+            except:
+                pass
+        
+        # Targets (JSONB)
+        targets = data.get('targets')
+        targets_json = None
+        if targets:
+            try:
+                targets_json = json.dumps(targets) if isinstance(targets, dict) else targets
+            except:
+                pass
+        
+        # Ensure raw_payload is a string
+        if raw_payload_str is None:
+            raw_payload_str = json.dumps(data)
+        
+        # UNIFIED INSERT - all fields populated
+        insert_sql = """
+            INSERT INTO automated_signals (
+                trade_id,
+                event_type,
+                direction,
+                entry_price,
+                stop_loss,
+                risk_distance,
+                targets,
+                session,
+                bias,
+                current_price,
+                mfe,
+                be_mfe,
+                no_be_mfe,
+                mae_global_r,
+                exit_price,
+                final_mfe,
+                signal_date,
+                signal_time,
+                timestamp,
+                raw_payload
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s
+            )
+            RETURNING id
+        """
+        
+        params = (
+            trade_id,
+            event_type,
+            direction,
+            entry_price,
+            stop_loss,
+            risk_distance,
+            targets_json,
+            session,
+            bias,
+            current_price,
+            mfe,
+            be_mfe,
+            no_be_mfe,
+            mae_global_r,
+            exit_price,
+            final_mfe,
+            signal_date,
+            signal_time,
+            raw_payload_str
+        )
+        
+        cursor.execute(insert_sql, params)
+        result = cursor.fetchone()
+        
+        if not result:
+            raise Exception("Insert returned no result")
+        
+        signal_id = result[0]
+        conn.commit()
+        
+        # Log success
+        log_msg = f"id={signal_id} be_mfe={be_mfe} no_be_mfe={no_be_mfe} mae={mae_global_r}"
+        log_event_insert(prefix, trade_id, log_msg)
+        append_trade_log(trade_id, f"[{event_type}] INSERT OK: {log_msg}")
+        
+        # Write to server.log for diagnosis
+        try:
+            with open("server.log", "a") as logf:
+                logf.write(f"[WEBHOOK] {trade_id} {event_type} – {raw_payload_str}\n")
+        except Exception as log_err:
+            logger.warning(f"Could not write to server.log: {log_err}")
+        
+        return {
+            "success": True,
+            "signal_id": signal_id,
+            "trade_id": trade_id,
+            "event_type": event_type,
+            "be_mfe": be_mfe,
+            "no_be_mfe": no_be_mfe,
+            "mae_global_r": mae_global_r
+        }
+        
+    except Exception as e:
+        error_msg = str(e) if e and str(e) else f"Unknown error: {type(e).__name__}"
+        log_event_fail(prefix, trade_id, error_msg)
+        append_trade_log(trade_id, f"[{event_type}] INSERT FAIL: {error_msg}")
+        logger.error(f"[UNIFIED] {event_type} error: {error_msg}", exc_info=True)
+        
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+        
+        return {"success": False, "error": error_msg}
+    
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
+
+
 # ============================================================================
 
 # --- Roadmap Completion Helper ---
@@ -12453,18 +12690,38 @@ def automated_signals_webhook():
         format_kind = canonical["format_kind"]
         logger.info(f"📥 Parsed (7G): event_type={event_type}, trade_id={canonical['trade_id']}, format={format_kind}")
         
-        # ROUTING
+        # Store raw payload JSON for diagnosis
+        raw_payload_str = json.dumps(data_raw)
+        
+        # ROUTING - Use unified handler for simple events, specialized handlers for complex ones
         if event_type == "ENTRY":
+            # ENTRY needs special deduplication and lifecycle logic
             result = handle_entry_signal(canonical)
         elif event_type == "MFE_UPDATE":
-            result = handle_mfe_update(canonical)
+            # Use UNIFIED handler for MFE_UPDATE to ensure all fields are stored
+            result = handle_automated_event("MFE_UPDATE", canonical, raw_payload_str)
+            # Also broadcast WebSocket update
+            try:
+                trade_id = canonical.get('trade_id')
+                socketio.emit('mfe_update', {
+                    'trade_id': trade_id,
+                    'be_mfe': canonical.get('be_mfe'),
+                    'no_be_mfe': canonical.get('no_be_mfe'),
+                    'current_price': canonical.get('current_price'),
+                    'timestamp': datetime.now().isoformat()
+                })
+            except Exception as ws_err:
+                logger.warning(f"WebSocket MFE broadcast failed: {ws_err}")
         elif event_type == "BE_TRIGGERED":
-            result = handle_be_trigger(canonical)
+            # Use UNIFIED handler for BE_TRIGGERED to ensure all fields are stored
+            result = handle_automated_event("BE_TRIGGERED", canonical, raw_payload_str)
         elif event_type in ("EXIT_BE", "EXIT_SL"):
+            # EXIT needs special lifecycle validation and WebSocket broadcasts
             exit_type = "BREAK_EVEN" if event_type == "EXIT_BE" else "STOP_LOSS"
             result = handle_exit_signal(canonical, exit_type)
         elif event_type == "CANCELLED":
-            result = handle_cancelled_signal(canonical)
+            # Use UNIFIED handler for CANCELLED
+            result = handle_automated_event("CANCELLED", canonical, raw_payload_str)
         else:
             return jsonify({
                 "success": False,
