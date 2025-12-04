@@ -190,6 +190,70 @@
                                 <div id="ase-trade-detail-container" style="display: none;">
                                     <!-- JS will render the graphical lifecycle here -->
                                 </div>
+                                
+                                <!-- Trade Lifecycle Diagnosis Section -->
+                                <div class="diagnosis-section">
+                                    <h3 class="diagnosis-header">▼ Trade Lifecycle Diagnosis</h3>
+                                    <div class="diagnosis-content" style="display:none; margin-top:8px;">
+                                        <h4>Ingestion Pipeline</h4>
+                                        <pre id="ase-pipeline-map" class="diagnosis-pre"></pre>
+                                        <hr>
+                                        <h4>Raw Webhook Payload</h4>
+                                        <pre id="ase-raw-payload" class="diagnosis-pre"></pre>
+                                        <button class="copy-btn" onclick="copyDiagnosis('ase-raw-payload')">Copy Payload</button>
+                                        <hr>
+                                        <h4>Raw Database Events</h4>
+                                        <pre id="ase-raw-db-events" class="diagnosis-pre"></pre>
+                                        <button class="copy-btn" onclick="copyDiagnosis('ase-raw-db-events')">Copy DB Events</button>
+                                        <hr>
+                                        <h4>Backend Logs</h4>
+                                        <pre id="ase-backend-logs" class="diagnosis-pre"></pre>
+                                        <button class="copy-btn" onclick="copyDiagnosis('ase-backend-logs')">Copy Logs</button>
+                                        <hr>
+                                        <h4>Lifecycle Summary (Reconstructed)</h4>
+                                        <pre id="ase-lifecycle-summary" class="diagnosis-pre"></pre>
+                                        <hr>
+                                        <h4>Discrepancy Analysis</h4>
+                                        <pre id="ase-diagnosis-report" class="diagnosis-pre"></pre>
+                                        <hr>
+                                        <button class="copy-btn" onclick="copyFullDiagnosis()">Copy Full Diagnosis Report</button>
+                                    </div>
+                                </div>
+                                
+                                <style>
+                                .diagnosis-pre {
+                                    background:#111827;
+                                    padding:10px;
+                                    border-radius:6px;
+                                    color:#e5e7eb;
+                                    max-height:260px;
+                                    overflow-y:auto;
+                                    white-space:pre-wrap;
+                                    font-size:12px;
+                                    border:1px solid #374151;
+                                }
+                                .copy-btn {
+                                    background:#1f2937;
+                                    padding:6px 12px;
+                                    margin-top:5px;
+                                    border-radius:4px;
+                                    color:#e5e7eb;
+                                    cursor:pointer;
+                                    font-size:12px;
+                                    border:1px solid #4b5563;
+                                }
+                                .copy-btn:hover { background:#111827; }
+                                .diagnosis-header {
+                                    cursor:pointer;
+                                    margin-top:15px;
+                                    background:#111827;
+                                    padding:8px;
+                                    border-radius:6px;
+                                    border:1px solid #374151;
+                                    color:#e5e7eb;
+                                    font-size:14px;
+                                }
+                                </style>
                             </div>
                         </div>
 

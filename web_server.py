@@ -48,6 +48,19 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
 import time
+from collections import defaultdict, deque
+
+# In-memory trade logs for lifecycle debugging
+TRADE_LOGS = defaultdict(lambda: deque(maxlen=200))
+MAX_TRACKED_TRADES = 1000
+
+def append_trade_log(trade_id, message):
+    if not trade_id:
+        return
+    if len(TRADE_LOGS) > MAX_TRACKED_TRADES and trade_id not in TRADE_LOGS:
+        oldest_key = next(iter(TRADE_LOGS.keys()))
+        TRADE_LOGS.pop(oldest_key, None)
+    TRADE_LOGS[trade_id].append(message)
 
 # ============================================================================
 # FEATURE FLAGS - Control optional modules and legacy systems
@@ -64,6 +77,35 @@ ENABLE_SCHEMA_V2 = os.environ.get("ENABLE_SCHEMA_V2", "false").lower() == "true"
 
 # H1 CORE is ALWAYS enabled (automated_signals table and related functionality)
 # These flags control OPTIONAL features only
+# ============================================================================
+
+# ============================================================================
+# GLOBAL LOGGING HELPERS - Webhook event tracing
+# ============================================================================
+def log_event_received(prefix, data):
+    """Log incoming webhook event with key fields for debugging"""
+    try:
+        trade_id = data.get("trade_id")
+        msg = (f"[{prefix} RECEIVED] trade_id={trade_id} "
+               f"type={data.get('event_type')} "
+               f"be_mfe={data.get('be_mfe')} no_be_mfe={data.get('no_be_mfe')} "
+               f"mae_global_R={data.get('mae_global_R')}")
+        print(msg)
+        append_trade_log(trade_id, msg)
+    except Exception as e:
+        print(f"[{prefix} LOGGING ERROR] {e}")
+
+def log_event_insert(prefix, trade_id, extra=""):
+    """Log successful database insert"""
+    msg = f"[{prefix} INSERT OK] trade_id={trade_id} {extra}"
+    print(msg)
+    append_trade_log(trade_id, msg)
+
+def log_event_fail(prefix, trade_id, err):
+    """Log failed database insert"""
+    msg = f"[{prefix} INSERT FAIL] trade_id={trade_id} ERROR={err}"
+    print(msg)
+    append_trade_log(trade_id, msg)
 # ============================================================================
 
 # --- Roadmap Completion Helper ---
@@ -12445,6 +12487,9 @@ def automated_signals_webhook():
 
 def handle_entry_signal(data):
     """Handle trade entry signal - supports both strategy and indicator formats"""
+    prefix = "ENTRY"
+    log_event_received(prefix, data)
+    
     conn = None
     cursor = None
     try:
@@ -12710,6 +12755,7 @@ def handle_entry_signal(data):
         lifecycle_seq = 1  # Default for new ENTRY
         conn.commit()
         
+        log_event_insert(prefix, trade_id, f"direction={direction} entry={entry_price} sl={stop_loss}")
         logger.info(f"✅ Entry signal stored: ID {signal_id}, Trade {trade_id}, Direction {direction}")
         
         # Broadcast to WebSocket clients for Activity Feed
@@ -12773,6 +12819,7 @@ def handle_entry_signal(data):
         
     except Exception as e:
         error_msg = str(e) if e and str(e) else f"Unknown error: {type(e).__name__}"
+        log_event_fail(prefix, data.get('signal_id') or data.get('trade_id', 'UNKNOWN'), error_msg)
         logger.error(f"Entry signal error: {error_msg}")
         
         if conn:
@@ -12798,6 +12845,9 @@ def handle_entry_signal(data):
 
 def handle_mfe_update(data):
     """Handle MFE update signal - simplified to directly use normalized data"""
+    prefix = "MFE_UPDATE"
+    log_event_received(prefix, data)
+    
     conn = None
     cursor = None
     try:
@@ -12840,6 +12890,7 @@ def handle_mfe_update(data):
         
         conn.commit()
         
+        log_event_insert(prefix, trade_id, f"be_mfe={be_mfe} no_be_mfe={no_be_mfe}")
         logger.info(f"✅ MFE update stored: Trade {trade_id}, BE={be_mfe}R, No BE={no_be_mfe}R @ {current_price}")
         
         # Broadcast to WebSocket clients for Activity Feed
@@ -12880,6 +12931,7 @@ def handle_mfe_update(data):
         
     except Exception as e:
         error_msg = str(e) if e and str(e) else f"Unknown error: {type(e).__name__}"
+        log_event_fail(prefix, data.get('trade_id', 'UNKNOWN'), error_msg)
         logger.error(f"MFE update error: {error_msg}")
         
         if conn:
@@ -12908,6 +12960,9 @@ def handle_cancelled_signal(data):
     Store a CANCELLED signal in automated_signals.
     These are signals that never confirmed (no ENTRY) - e.g., opposite signal appeared before confirmation.
     """
+    prefix = "CANCELLED"
+    log_event_received(prefix, data)
+    
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         logger.error("CANCELLED event: DATABASE_URL not configured")
@@ -12971,6 +13026,7 @@ def handle_cancelled_signal(data):
         ))
         
         conn.commit()
+        log_event_insert(prefix, trade_id, f"direction={direction} session={session}")
         logger.info(f"✅ Stored CANCELLED signal for trade_id={trade_id}, direction={direction}, session={session}, reason={exit_reason}")
         
         # Broadcast to WebSocket clients for Activity Feed
@@ -12996,6 +13052,7 @@ def handle_cancelled_signal(data):
     except Exception as e:
         if conn:
             conn.rollback()
+        log_event_fail(prefix, data.get("trade_id") or data.get("signal_id"), str(e))
         logger.error(f"Error storing CANCELLED signal: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
     finally:
@@ -13005,6 +13062,9 @@ def handle_cancelled_signal(data):
 
 def handle_be_trigger(data):
     """Handle break-even trigger signal (when price reaches +1R)"""
+    prefix = "BE_TRIGGERED"
+    log_event_received(prefix, data)
+    
     conn = None
     cursor = None
     try:
@@ -13049,6 +13109,7 @@ def handle_be_trigger(data):
         signal_id = result[0]
         conn.commit()
         
+        log_event_insert(prefix, trade_id, f"be_mfe={be_mfe} no_be_mfe={no_be_mfe}")
         logger.info(f"✅ BE trigger stored: Trade {trade_id}, BE MFE {be_mfe}R, No BE MFE {no_be_mfe}R")
         
         return {
@@ -13061,6 +13122,7 @@ def handle_be_trigger(data):
         
     except Exception as e:
         error_msg = str(e) if e and str(e) else f"Unknown error: {type(e).__name__}"
+        log_event_fail(prefix, data.get('signal_id') or data.get('trade_id', 'UNKNOWN'), error_msg)
         logger.error(f"BE trigger error: {error_msg}")
         
         if conn:
@@ -13086,6 +13148,9 @@ def handle_be_trigger(data):
 
 def handle_exit_signal(data, exit_type):
     """Handle trade exit signal (SL or BE) - supports both strategy and indicator formats"""
+    prefix = f"EXIT_{exit_type.upper()}" if exit_type else "EXIT"
+    log_event_received(prefix, data)
+    
     conn = None
     cursor = None
     try:
@@ -13237,6 +13302,7 @@ def handle_exit_signal(data, exit_type):
         
         conn.commit()
         
+        log_event_insert(prefix, trade_id, f"be_mfe={final_be_mfe} no_be_mfe={final_no_be_mfe} mae={mae_global_r}")
         logger.info(f"✅ Exit signal stored: Trade {trade_id}, Type {exit_type}, BE MFE {final_be_mfe}R, No BE MFE {final_no_be_mfe}R")
         
         # Broadcast to WebSocket clients for Activity Feed
@@ -13297,6 +13363,7 @@ def handle_exit_signal(data, exit_type):
         
     except Exception as e:
         error_msg = str(e) if e and str(e) else f"Unknown error: {type(e).__name__}"
+        log_event_fail(prefix, data.get('signal_id') or data.get('trade_id', 'UNKNOWN'), error_msg)
         logger.error(f"Exit signal error: {error_msg}")
         
         if conn:
@@ -13900,6 +13967,24 @@ def debug_automated_signals():
     except Exception as e:
         logger.error(f"Debug error: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/diag/automated-signals/logs/<trade_id>", methods=["GET"])
+@login_required
+def diag_trade_logs(trade_id):
+    """Get in-memory lifecycle logs for a specific trade_id"""
+    try:
+        logs = list(TRADE_LOGS.get(trade_id, []))
+        return jsonify({
+            "success": True,
+            "trade_id": trade_id,
+            "logs": logs,
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 
 @app.route('/api/automated-signals/integrity-report', methods=['GET'])
