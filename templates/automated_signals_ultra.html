@@ -4,6 +4,40 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main_dashboard.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/automated_signals_ultra.css') }}">
+<style>
+.diagnosis-pre {
+    background:#111827;
+    padding:10px;
+    border-radius:6px;
+    color:#e5e7eb;
+    max-height:260px;
+    overflow-y:auto;
+    white-space:pre-wrap;
+    font-size:12px;
+    border:1px solid #374151;
+}
+.copy-btn {
+    background:#1f2937;
+    padding:6px 12px;
+    margin-top:5px;
+    border-radius:4px;
+    color:#e5e7eb;
+    cursor:pointer;
+    font-size:12px;
+    border:1px solid #4b5563;
+}
+.copy-btn:hover { background:#111827; }
+.diagnosis-header {
+    cursor:pointer;
+    margin-top:15px;
+    background:#111827;
+    padding:8px;
+    border-radius:6px;
+    border:1px solid #374151;
+    color:#e5e7eb;
+    font-size:14px;
+}
+</style>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 {% endblock %}
 
@@ -219,41 +253,6 @@
                                         <button class="copy-btn" onclick="copyFullDiagnosis()">Copy Full Diagnosis Report</button>
                                     </div>
                                 </div>
-                                
-                                <style>
-                                .diagnosis-pre {
-                                    background:#111827;
-                                    padding:10px;
-                                    border-radius:6px;
-                                    color:#e5e7eb;
-                                    max-height:260px;
-                                    overflow-y:auto;
-                                    white-space:pre-wrap;
-                                    font-size:12px;
-                                    border:1px solid #374151;
-                                }
-                                .copy-btn {
-                                    background:#1f2937;
-                                    padding:6px 12px;
-                                    margin-top:5px;
-                                    border-radius:4px;
-                                    color:#e5e7eb;
-                                    cursor:pointer;
-                                    font-size:12px;
-                                    border:1px solid #4b5563;
-                                }
-                                .copy-btn:hover { background:#111827; }
-                                .diagnosis-header {
-                                    cursor:pointer;
-                                    margin-top:15px;
-                                    background:#111827;
-                                    padding:8px;
-                                    border-radius:6px;
-                                    border:1px solid #374151;
-                                    color:#e5e7eb;
-                                    font-size:14px;
-                                }
-                                </style>
                             </div>
                         </div>
 
