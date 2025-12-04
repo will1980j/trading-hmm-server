@@ -1595,9 +1595,15 @@ window.loadTradeDiagnosis = function(tradeId) {
 // EXPAND/COLLAPSE HANDLER FOR DIAGNOSIS PANEL
 // =====================================================
 document.addEventListener("click", function(e) {
+    // DEBUG: log EVERY CLICK ON THE PAGE
+    console.log("[DIAG] Global click detected on:", e.target);
     if (e.target.classList.contains("diagnosis-header")) {
+        console.log("[DIAG] DIAGNOSIS HEADER CLICKED!");
         const content = e.target.nextElementSibling;
-        if (!content) return;
+        if (!content) {
+            console.warn("[DIAG] No nextElementSibling found for diagnosis-header.");
+            return;
+        }
         const isOpen = content.style.display !== "none" && content.style.display !== "";
         content.style.display = isOpen ? "none" : "block";
         e.target.textContent = (isOpen ? "▼" : "▲") + " Trade Lifecycle Diagnosis";
