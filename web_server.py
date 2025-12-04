@@ -12523,15 +12523,17 @@ def handle_entry_signal(data):
                 final_mfe DECIMAL(10,4),
                 signal_date DATE,
                 signal_time TIME,
-                timestamp TIMESTAMP DEFAULT NOW()
+                timestamp TIMESTAMP DEFAULT NOW(),
+                raw_payload JSONB
             )
         """)
         
-        # Ensure be_mfe and no_be_mfe columns exist (for existing tables)
+        # Ensure be_mfe, no_be_mfe, and raw_payload columns exist (for existing tables)
         cursor.execute("""
             ALTER TABLE automated_signals 
             ADD COLUMN IF NOT EXISTS be_mfe DECIMAL(10,4),
-            ADD COLUMN IF NOT EXISTS no_be_mfe DECIMAL(10,4)
+            ADD COLUMN IF NOT EXISTS no_be_mfe DECIMAL(10,4),
+            ADD COLUMN IF NOT EXISTS raw_payload JSONB
         """)
         conn.commit()
         logger.info("✅ Table automated_signals ready")
@@ -12665,7 +12667,7 @@ def handle_entry_signal(data):
         # Insert ENTRY into automated_signals using ONLY columns that exist in the schema
         # Schema columns: id, trade_id, event_type, direction, entry_price, stop_loss,
         #                 session, bias, risk_distance, targets (JSONB), current_price,
-        #                 mfe, be_mfe, no_be_mfe, exit_price, final_mfe, signal_date, signal_time, timestamp
+        #                 mfe, be_mfe, no_be_mfe, exit_price, final_mfe, signal_date, signal_time, timestamp, raw_payload
         insert_sql = """
             INSERT INTO automated_signals (
                 trade_id,
@@ -12685,7 +12687,8 @@ def handle_entry_signal(data):
                 final_mfe,
                 signal_date,
                 signal_time,
-                timestamp
+                timestamp,
+                raw_payload
             ) VALUES (
                 %(trade_id)s,
                 'ENTRY',
@@ -12704,7 +12707,8 @@ def handle_entry_signal(data):
                 0,
                 %(signal_date)s,
                 %(signal_time)s,
-                NOW()
+                NOW(),
+                %(raw_payload)s
             )
             RETURNING id
         """
@@ -12724,6 +12728,9 @@ def handle_entry_signal(data):
             except:
                 parsed_signal_time = None
         
+        # Serialize raw payload for storage
+        raw_payload_json = json.dumps(data)
+        
         params = {
             "trade_id": trade_id,
             "direction": direction,
@@ -12734,8 +12741,16 @@ def handle_entry_signal(data):
             "session": session,
             "bias": bias or direction,
             "signal_date": parsed_signal_date,
-            "signal_time": parsed_signal_time
+            "signal_time": parsed_signal_time,
+            "raw_payload": raw_payload_json
         }
+        
+        # Log to server.log for diagnosis
+        try:
+            with open("server.log", "a") as logf:
+                logf.write(f"[WEBHOOK] {trade_id} ENTRY – {raw_payload_json}\n")
+        except Exception as log_err:
+            logger.warning(f"Could not write to server.log: {log_err}")
         try:
             cursor.execute(insert_sql, params)
         except Exception as e:
@@ -12876,17 +12891,28 @@ def handle_mfe_update(data):
         
         logger.info(f"📊 MFE INSERT: trade_id={trade_id}, be_mfe={be_mfe}, no_be_mfe={no_be_mfe}, mae_global={mae_global_r}, price={current_price}")
         
+        # Serialize raw payload for storage
+        raw_payload_json = json.dumps(data)
+        
         insert = """
-            INSERT INTO automated_signals (trade_id, event_type, be_mfe, no_be_mfe, mae_global_r, current_price, timestamp)
-            VALUES (%s, 'MFE_UPDATE', %s, %s, %s, %s, NOW());
+            INSERT INTO automated_signals (trade_id, event_type, be_mfe, no_be_mfe, mae_global_r, current_price, timestamp, raw_payload)
+            VALUES (%s, 'MFE_UPDATE', %s, %s, %s, %s, NOW(), %s);
         """
         cursor.execute(insert, (
             trade_id,
             be_mfe,
             no_be_mfe,
             mae_global_r,
-            current_price
+            current_price,
+            raw_payload_json
         ))
+        
+        # Log to server.log for diagnosis
+        try:
+            with open("server.log", "a") as logf:
+                logf.write(f"[WEBHOOK] {trade_id} MFE_UPDATE – {raw_payload_json}\n")
+        except Exception as log_err:
+            logger.warning(f"Could not write to server.log: {log_err}")
         
         conn.commit()
         
@@ -12992,6 +13018,9 @@ def handle_cancelled_signal(data):
             except Exception as e:
                 logger.warning(f"CANCELLED event: failed to parse event_timestamp {event_ts_str}: {e}")
         
+        # Serialize raw payload for storage
+        raw_payload_json = json.dumps(data)
+        
         cur.execute("""
             INSERT INTO automated_signals (
                 trade_id,
@@ -13009,13 +13038,14 @@ def handle_cancelled_signal(data):
                 final_mfe,
                 signal_date,
                 signal_time,
-                timestamp
+                timestamp,
+                raw_payload
             ) VALUES (
                 %s, 'CANCELLED', %s, %s,
                 NULL, NULL, NULL, NULL,
                 0.0, NULL, NULL,
                 NULL, NULL,
-                %s, %s, NOW()
+                %s, %s, NOW(), %s
             )
         """, (
             trade_id,
@@ -13023,9 +13053,18 @@ def handle_cancelled_signal(data):
             session,
             signal_date,
             signal_time,
+            raw_payload_json,
         ))
         
         conn.commit()
+        
+        # Log to server.log for diagnosis
+        try:
+            with open("server.log", "a") as logf:
+                logf.write(f"[WEBHOOK] {trade_id} CANCELLED – {raw_payload_json}\n")
+        except Exception as log_err:
+            logger.warning(f"Could not write to server.log: {log_err}")
+        
         log_event_insert(prefix, trade_id, f"direction={direction} session={session}")
         logger.info(f"✅ Stored CANCELLED signal for trade_id={trade_id}, direction={direction}, session={session}, reason={exit_reason}")
         
@@ -13095,12 +13134,15 @@ def handle_be_trigger(data):
         if validation_error:
             return {"success": False, "error": validation_error}
         
+        # Serialize raw payload for storage
+        raw_payload_json = json.dumps(data)
+        
         cursor.execute("""
             INSERT INTO automated_signals (
-                trade_id, event_type, mfe, be_mfe, no_be_mfe, mae_global_r, timestamp
-            ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                trade_id, event_type, mfe, be_mfe, no_be_mfe, mae_global_r, timestamp, raw_payload
+            ) VALUES (%s, %s, %s, %s, %s, %s, NOW(), %s)
             RETURNING id
-        """, (trade_id, 'BE_TRIGGERED', be_mfe, be_mfe, no_be_mfe, mae_global_r))
+        """, (trade_id, 'BE_TRIGGERED', be_mfe, be_mfe, no_be_mfe, mae_global_r, raw_payload_json))
         
         result = cursor.fetchone()
         if not result:
@@ -13108,6 +13150,13 @@ def handle_be_trigger(data):
             
         signal_id = result[0]
         conn.commit()
+        
+        # Log to server.log for diagnosis
+        try:
+            with open("server.log", "a") as logf:
+                logf.write(f"[WEBHOOK] {trade_id} BE_TRIGGERED – {raw_payload_json}\n")
+        except Exception as log_err:
+            logger.warning(f"Could not write to server.log: {log_err}")
         
         log_event_insert(prefix, trade_id, f"be_mfe={be_mfe} no_be_mfe={no_be_mfe}")
         logger.info(f"✅ BE trigger stored: Trade {trade_id}, BE MFE {be_mfe}R, No BE MFE {no_be_mfe}R")
@@ -13241,11 +13290,14 @@ def handle_exit_signal(data, exit_type):
         if validation_error:
             return {"success": False, "error": validation_error}
         
+        # Serialize raw payload for storage
+        raw_payload_json = json.dumps(data)
+        
         # Store exit signal with BOTH MFE values
         # Using ONLY columns that exist in the schema:
         # id, trade_id, event_type, direction, entry_price, stop_loss,
         # session, bias, risk_distance, targets (JSONB), current_price,
-        # mfe, be_mfe, no_be_mfe, exit_price, final_mfe, signal_date, signal_time, timestamp
+        # mfe, be_mfe, no_be_mfe, exit_price, final_mfe, signal_date, signal_time, timestamp, raw_payload
         if exit_price > 0:
             cursor.execute("""
                 INSERT INTO automated_signals (
@@ -13256,8 +13308,9 @@ def handle_exit_signal(data, exit_type):
                     no_be_mfe,
                     mae_global_r,
                     final_mfe,
-                    timestamp
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                    timestamp,
+                    raw_payload
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), %s)
                 RETURNING id
             """, (
                 trade_id,
@@ -13266,7 +13319,8 @@ def handle_exit_signal(data, exit_type):
                 final_be_mfe,
                 final_no_be_mfe,
                 mae_global_r,
-                final_no_be_mfe  # Use no_be_mfe as final_mfe
+                final_no_be_mfe,  # Use no_be_mfe as final_mfe
+                raw_payload_json
             ))
         else:
             # No exit price (strategy format)
@@ -13278,8 +13332,9 @@ def handle_exit_signal(data, exit_type):
                     no_be_mfe,
                     mae_global_r,
                     final_mfe,
-                    timestamp
-                ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                    timestamp,
+                    raw_payload
+                ) VALUES (%s, %s, %s, %s, %s, %s, NOW(), %s)
                 RETURNING id
             """, (
                 trade_id,
@@ -13287,8 +13342,16 @@ def handle_exit_signal(data, exit_type):
                 final_be_mfe,
                 final_no_be_mfe,
                 mae_global_r,
-                final_no_be_mfe  # Use no_be_mfe as final_mfe
+                final_no_be_mfe,  # Use no_be_mfe as final_mfe
+                raw_payload_json
             ))
+        
+        # Log to server.log for diagnosis
+        try:
+            with open("server.log", "a") as logf:
+                logf.write(f"[WEBHOOK] {trade_id} {canonical_exit_event} – {raw_payload_json}\n")
+        except Exception as log_err:
+            logger.warning(f"Could not write to server.log: {log_err}")
         
         result = cursor.fetchone()
         if not result:
@@ -13985,6 +14048,124 @@ def diag_trade_logs(trade_id):
             "success": False,
             "error": str(e)
         }), 500
+
+
+# ======================================================
+# NEW: Trade Diagnosis Endpoint
+# Route: /api/automated-signals/diagnosis/<trade_id>
+# ======================================================
+@app.route("/api/automated-signals/diagnosis/<trade_id>", methods=["GET"])
+@login_required
+def get_trade_diagnosis(trade_id):
+    result = {
+        "payload": None,
+        "db_events": [],
+        "logs": "",
+        "summary": "",
+        "discrepancy": ""
+    }
+
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+
+    # ------------------------------
+    # 1. RAW PAYLOAD (latest webhook)
+    # ------------------------------
+    try:
+        with psycopg2.connect(DATABASE_URL) as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT raw_payload
+                    FROM automated_signals
+                    WHERE trade_id=%s
+                    ORDER BY timestamp DESC
+                    LIMIT 1;
+                """, (trade_id,))
+                row = cur.fetchone()
+                result["payload"] = row["raw_payload"] if row else None
+    except Exception as e:
+        result["payload"] = f"ERROR: {e}"
+
+    # ------------------------------
+    # 2. RAW DATABASE EVENTS
+    # ------------------------------
+    try:
+        with psycopg2.connect(DATABASE_URL) as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT *
+                    FROM automated_signals
+                    WHERE trade_id=%s
+                    ORDER BY timestamp ASC;
+                """, (trade_id,))
+                rows = cur.fetchall()
+                # Convert to JSON-serializable format
+                db_events = []
+                for row in rows:
+                    event = {}
+                    for key, value in row.items():
+                        if hasattr(value, 'isoformat'):
+                            event[key] = value.isoformat()
+                        elif isinstance(value, (int, float, str, bool, type(None))):
+                            event[key] = value
+                        else:
+                            event[key] = str(value)
+                    db_events.append(event)
+                result["db_events"] = db_events
+    except Exception as e:
+        result["db_events"] = [{"error": str(e)}]
+
+    # ------------------------------
+    # 3. BACKEND LOGS
+    # ------------------------------
+    try:
+        log_path = "server.log"
+        if os.path.exists(log_path):
+            with open(log_path, "r") as f:
+                lines = f.readlines()
+            trade_lines = [l for l in lines if trade_id in l]
+            result["logs"] = "".join(trade_lines[-200:])
+        else:
+            # Try in-memory logs
+            mem_logs = list(TRADE_LOGS.get(trade_id, []))
+            if mem_logs:
+                result["logs"] = "\n".join(mem_logs)
+            else:
+                result["logs"] = "No server.log file found and no in-memory logs."
+    except Exception as e:
+        result["logs"] = f"ERROR reading logs: {e}"
+
+    # ------------------------------
+    # 4. LIFECYCLE SUMMARY
+    # ------------------------------
+    try:
+        summary = []
+        for e in result["db_events"]:
+            summary.append(f"{e.get('timestamp')} – {e.get('event_type')} – MFE={e.get('be_mfe')} / NoBE MFE={e.get('no_be_mfe')} / MAE={e.get('mae_global_r')}")
+        result["summary"] = "\n".join(summary)
+    except Exception as e:
+        result["summary"] = f"ERROR constructing summary: {e}"
+
+    # ------------------------------
+    # 5. DISCREPANCY ANALYSIS
+    # ------------------------------
+    try:
+        missing_mfe = not any(ev.get("event_type") == "MFE_UPDATE" for ev in result["db_events"])
+        missing_exit = not any(ev.get("event_type") in ("EXIT_BE", "EXIT_SL", "EXIT_BREAK_EVEN", "EXIT_STOP_LOSS") for ev in result["db_events"])
+        missing_be = not any(ev.get("event_type") == "BE_TRIGGERED" for ev in result["db_events"])
+        notes = []
+        if missing_mfe:
+            notes.append("❌ No MFE_UPDATE events detected. Live MFE may be broken.")
+        if missing_exit:
+            notes.append("❌ No exit events detected. Trade may appear stuck ACTIVE.")
+        if missing_be:
+            notes.append("⚠️ No BE_TRIGGERED event seen, but BE status recorded.")
+        if not notes:
+            notes.append("✔ No discrepancies detected.")
+        result["discrepancy"] = "\n".join(notes)
+    except Exception as e:
+        result["discrepancy"] = f"ERROR generating discrepancy analysis: {e}"
+
+    return jsonify(result)
 
 
 @app.route('/api/automated-signals/integrity-report', methods=['GET'])
@@ -15231,6 +15412,50 @@ if register_automation_routes:
     logger.info("✅ Full automation webhook routes registered")
 else:
     logger.warning("⚠️ Full automation webhook routes not available")
+
+
+# ============================================================================
+# STARTUP MIGRATION: Ensure raw_payload column exists
+# ============================================================================
+def run_startup_migrations():
+    """Run idempotent database migrations on startup"""
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        logger.warning("⚠️ DATABASE_URL not set, skipping startup migrations")
+        return
+    
+    try:
+        conn = psycopg2.connect(database_url)
+        conn.autocommit = True
+        cur = conn.cursor()
+        
+        # Check if raw_payload column exists
+        cur.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'automated_signals' 
+            AND column_name = 'raw_payload'
+        """)
+        
+        if not cur.fetchone():
+            logger.info("🔧 Adding raw_payload column to automated_signals table...")
+            cur.execute("""
+                ALTER TABLE automated_signals 
+                ADD COLUMN IF NOT EXISTS raw_payload TEXT
+            """)
+            logger.info("✅ raw_payload column added successfully")
+        else:
+            logger.info("✅ raw_payload column already exists")
+        
+        cur.close()
+        conn.close()
+    except Exception as e:
+        logger.error(f"❌ Startup migration failed: {e}")
+
+
+# Run migrations on module load
+run_startup_migrations()
+
 
 if __name__ == '__main__':
     # Start real-time price handler for 1-second TradingView data

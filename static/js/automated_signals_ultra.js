@@ -1494,141 +1494,109 @@ function copyFullDiagnosis() {
     navigator.clipboard.writeText(buf.join("\n"));
 }
 
-// When opening a trade detail, load unified diagnosis
-function loadTradeDiagnosis(tradeId, payload) {
-    // Raw payload
-    document.getElementById("ase-raw-payload").innerText =
-        JSON.stringify(payload, null, 2);
-
-    let dbEvents = [];
-    let backendLogs = [];
-
-    // DB events
-    fetch(`/api/diag/automated-signals/trade/${tradeId}`)
-        .then(r => r.json())
-        .then(j => {
-            if (j.success) dbEvents = j.events;
-            document.getElementById("ase-raw-db-events").innerText =
-                JSON.stringify(dbEvents, null, 2);
-        });
-
-    // Backend logs
-    fetch(`/api/diag/automated-signals/logs/${tradeId}`)
-        .then(r => r.json())
-        .then(j => {
-            if (j.success) backendLogs = j.logs;
-            document.getElementById("ase-backend-logs").innerText =
-                (backendLogs.length ? backendLogs.join("\n") : "No logs.");
-        });
-
-    // Lifecycle summary builder
-    function buildLifecycleSummary(payload, events) {
-        const summary = {
-            trade_id: payload.trade_id,
-            direction: payload.direction,
-            entry_price: payload.entry_price,
-            stop_loss: payload.stop_loss,
-            entry_time: payload.entry_time,
-            status: payload.status,
-            final_be_mfe_R: payload.max_be_mfe_R ?? null,
-            final_no_be_mfe_R: payload.max_no_be_mfe_R ?? null,
-            mae_global_R: payload.mae_global_R ?? null,
-            events_in_db: events.length,
-            has_entry: false,
-            has_be_trigger: false,
-            has_exit_be: false,
-            has_exit_sl: false
-        };
-        events.forEach(ev => {
-            if (ev.event_type === "ENTRY") summary.has_entry = true;
-            if (ev.event_type === "BE_TRIGGERED") summary.has_be_trigger = true;
-            if (ev.event_type === "EXIT_BREAK_EVEN") summary.has_exit_be = true;
-            if (ev.event_type === "EXIT_STOP_LOSS") summary.has_exit_sl = true;
-        });
-        return summary;
-    }
-
-    // Build pipeline map
-    function buildPipelineMap(payload, events, logs, summary) {
-        const lines = [];
-        const ok = t => `🟢 ${t}`;
-        const warn = t => `🟡 ${t}`;
-        const fail = t => `🔴 ${t}`;
-
-        const hasPayload = !!payload.trade_id;
-        const hasDb = events.length > 0;
-        const hasLogs = logs.length > 0;
-        const mfeUpdates = events.filter(ev => ev.event_type === "MFE_UPDATE");
-        const hasExitBe = events.some(ev => ev.event_type === "EXIT_BREAK_EVEN");
-        const hasExitSl = events.some(ev => ev.event_type === "EXIT_STOP_LOSS");
-
-        // Payload
-        lines.push(hasPayload ? ok("TradingView Payload Present")
-            : fail("Missing TradingView Payload"));
-
-        // Logs
-        lines.push(hasLogs ? ok("Backend Logs Present")
-            : warn("No Backend Logs (may be before logging patch)."));
-
-        // DB events
-        lines.push(hasDb ? ok(`Database Events: ${events.length}`)
-            : fail("No Database Events (insert failure or missing webhooks)."));
-
-        // MFE updates
-        if (mfeUpdates.length > 0)
-            lines.push(ok(`MFE_UPDATE Events: ${mfeUpdates.length}`));
-        else
-            lines.push(warn("No MFE_UPDATE Events — Dashboard will show 0.00R."));
-
-        // Exits
-        if (hasExitBe || hasExitSl) {
-            const arr = [];
-            if (hasExitBe) arr.push("EXIT_BE");
-            if (hasExitSl) arr.push("EXIT_SL");
-            lines.push(ok("Exit Events: " + arr.join(", ")));
-        } else {
-            lines.push(warn("No Exit Events — trade may appear ACTIVE incorrectly."));
+// When opening a trade detail, load unified diagnosis from backend
+async function loadTradeDiagnosis(tradeId, payload) {
+    try {
+        // Fetch unified diagnosis from backend
+        const res = await fetch(`/api/automated-signals/diagnosis/${tradeId}`, { cache: "no-store" });
+        const diag = await res.json();
+        
+        // Fill raw payload field
+        const payloadEl = document.getElementById("ase-raw-payload");
+        if (payloadEl) {
+            if (diag.payload) {
+                // Try to parse and pretty-print if it's JSON
+                try {
+                    const parsed = typeof diag.payload === 'string' ? JSON.parse(diag.payload) : diag.payload;
+                    payloadEl.innerText = JSON.stringify(parsed, null, 2);
+                } catch {
+                    payloadEl.innerText = diag.payload;
+                }
+            } else if (payload) {
+                // Fallback to passed payload
+                payloadEl.innerText = JSON.stringify(payload, null, 2);
+            } else {
+                payloadEl.innerText = "No payload available";
+            }
         }
-
-        return lines;
+        
+        // Fill DB events field
+        const dbEventsEl = document.getElementById("ase-raw-db-events");
+        if (dbEventsEl) {
+            dbEventsEl.innerText = JSON.stringify(diag.db_events || [], null, 2);
+        }
+        
+        // Fill backend logs field
+        const logsEl = document.getElementById("ase-backend-logs");
+        if (logsEl) {
+            logsEl.innerText = diag.logs || "No logs available";
+        }
+        
+        // Fill lifecycle summary field
+        const summaryEl = document.getElementById("ase-lifecycle-summary");
+        if (summaryEl) {
+            summaryEl.innerText = diag.summary || "No summary available";
+        }
+        
+        // Fill discrepancy analysis field
+        const discrepancyEl = document.getElementById("ase-diagnosis-report");
+        if (discrepancyEl) {
+            discrepancyEl.innerText = diag.discrepancy || "No discrepancy analysis available";
+        }
+        
+        // Build pipeline map from db_events
+        const pipelineEl = document.getElementById("ase-pipeline-map");
+        if (pipelineEl && diag.db_events) {
+            const events = diag.db_events;
+            const lines = [];
+            const ok = t => `🟢 ${t}`;
+            const warn = t => `🟡 ${t}`;
+            const fail = t => `🔴 ${t}`;
+            
+            const hasEntry = events.some(e => e.event_type === "ENTRY");
+            const mfeUpdates = events.filter(e => e.event_type === "MFE_UPDATE");
+            const hasExitBe = events.some(e => e.event_type === "EXIT_BE" || e.event_type === "EXIT_BREAK_EVEN");
+            const hasExitSl = events.some(e => e.event_type === "EXIT_SL" || e.event_type === "EXIT_STOP_LOSS");
+            const hasBeTrigger = events.some(e => e.event_type === "BE_TRIGGERED");
+            
+            // Entry
+            lines.push(hasEntry ? ok("ENTRY Event Present") : fail("Missing ENTRY Event"));
+            
+            // MFE updates
+            if (mfeUpdates.length > 0)
+                lines.push(ok(`MFE_UPDATE Events: ${mfeUpdates.length}`));
+            else
+                lines.push(warn("No MFE_UPDATE Events — Dashboard will show 0.00R"));
+            
+            // BE Trigger
+            if (hasBeTrigger)
+                lines.push(ok("BE_TRIGGERED Event Present"));
+            
+            // Exits
+            if (hasExitBe || hasExitSl) {
+                const arr = [];
+                if (hasExitBe) arr.push("EXIT_BE");
+                if (hasExitSl) arr.push("EXIT_SL");
+                lines.push(ok("Exit Events: " + arr.join(", ")));
+            } else {
+                lines.push(warn("No Exit Events — trade may appear ACTIVE incorrectly"));
+            }
+            
+            // Logs
+            lines.push(diag.logs && diag.logs.length > 20 ? ok("Backend Logs Present") : warn("No Backend Logs"));
+            
+            pipelineEl.innerText = lines.join("\n");
+        }
+        
+        console.log(`[ASE] Diagnosis loaded for trade ${tradeId}`);
+        
+    } catch (err) {
+        console.error("[ASE] Diagnosis load failed:", err);
+        
+        // Show error in UI
+        const pipelineEl = document.getElementById("ase-pipeline-map");
+        if (pipelineEl) {
+            pipelineEl.innerText = `🔴 Failed to load diagnosis: ${err.message}`;
+        }
     }
-
-    // Discrepancy analysis
-    function runDiscrepancyAnalysis(payload, events, logs, summary) {
-        const arr = [];
-        const mfeUpdates = events.filter(e => e.event_type === "MFE_UPDATE");
-        const hasExit = events.some(e =>
-            e.event_type === "EXIT_BREAK_EVEN" ||
-            e.event_type === "EXIT_STOP_LOSS"
-        );
-
-        if (payload.max_no_be_mfe_R > 0 && mfeUpdates.length === 0)
-            arr.push("❌ Payload shows positive MFE but DB has no MFE_UPDATE rows.");
-
-        if (!hasExit && (summary.status || "").toUpperCase() !== "ACTIVE")
-            arr.push("❌ Status not ACTIVE but no EXIT events found.");
-
-        if (logs.length === 0)
-            arr.push("⚠ No backend logs detected for this trade.");
-
-        if (arr.length === 0)
-            arr.push("✔ No discrepancies detected.");
-
-        return arr;
-    }
-
-    // After slight delay, compute summaries
-    setTimeout(() => {
-        const summary = buildLifecycleSummary(payload, dbEvents);
-        document.getElementById("ase-lifecycle-summary").innerText =
-            JSON.stringify(summary, null, 2);
-
-        const pipeline = buildPipelineMap(payload, dbEvents, backendLogs, summary);
-        document.getElementById("ase-pipeline-map").innerText =
-            pipeline.join("\n");
-
-        const diag = runDiscrepancyAnalysis(payload, dbEvents, backendLogs, summary);
-        document.getElementById("ase-diagnosis-report").innerText =
-            diag.join("\n");
-    }, 300);
 }
