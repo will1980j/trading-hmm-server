@@ -1610,8 +1610,20 @@ document.addEventListener("click", function(e) {
             console.warn("[DIAG] .diagnosis-content not found under diagnosis-section.");
             return;
         }
-        const isOpen = content.style.display !== "none" && content.style.display !== "";
-        content.style.display = isOpen ? "none" : "block";
-        e.target.textContent = (isOpen ? "▼" : "▲") + " Trade Lifecycle Diagnosis";
+        console.log("[DIAG] FORCING CONTENT VISIBLE");
+        content.style.display = "block";
+        content.style.opacity = "1";
+        content.style.maxHeight = "none";
+        content.style.height = "auto";
+        content.style.overflow = "visible";
+        content.style.visibility = "visible";
+        // Also force parent visibility
+        if (section) {
+            section.style.display = "block";
+            section.style.visibility = "visible";
+            section.style.overflow = "visible";
+        }
+        console.log("[DIAG] CONTENT NODE:", content);
+        console.log("[DIAG] CONTENT BOUNDING BOX:", content.getBoundingClientRect());
     }
 });
