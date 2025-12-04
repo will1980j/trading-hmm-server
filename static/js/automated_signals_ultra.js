@@ -80,6 +80,93 @@ AutomatedSignalsUltra.init = function() {
             AutomatedSignalsUltra.fetchCancelledSignals();
         });
     }
+    
+    // Wire diagnosis accordion toggle
+    const diagHeader = document.querySelector(".diagnosis-header");
+    const diagContent = document.querySelector(".diagnosis-content");
+    if (diagHeader && diagContent) {
+        diagContent.style.display = "none";
+        diagHeader.addEventListener("click", () => {
+            const isOpen = diagContent.style.display !== "none";
+            diagContent.style.display = isOpen ? "none" : "block";
+            diagHeader.textContent = (isOpen ? "▼" : "▲") + " Trade Lifecycle Diagnosis";
+        });
+    }
+};
+
+// ============================================================================
+// DIAGNOSIS LOADER - Fetches and displays trade lifecycle diagnosis
+// ============================================================================
+AutomatedSignalsUltra.loadDiagnosis = async function(tradeId) {
+    console.log("[ASE] Loading diagnosis for trade:", tradeId);
+    try {
+        const res = await fetch(`/api/automated-signals/diagnosis/${tradeId}`, { cache: "no-store" });
+        const diag = await res.json();
+        
+        const setText = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val || "";
+        };
+        
+        // Build pipeline map from db_events
+        const pipelineEl = document.getElementById("ase-pipeline-map");
+        if (pipelineEl && diag.db_events) {
+            const events = diag.db_events;
+            const lines = [];
+            const ok = t => `🟢 ${t}`;
+            const warn = t => `🟡 ${t}`;
+            const fail = t => `🔴 ${t}`;
+            
+            const hasEntry = events.some(e => e.event_type === "ENTRY");
+            const mfeUpdates = events.filter(e => e.event_type === "MFE_UPDATE");
+            const hasExitBe = events.some(e => e.event_type === "EXIT_BE" || e.event_type === "EXIT_BREAK_EVEN");
+            const hasExitSl = events.some(e => e.event_type === "EXIT_SL" || e.event_type === "EXIT_STOP_LOSS");
+            const hasBeTrigger = events.some(e => e.event_type === "BE_TRIGGERED");
+            
+            lines.push(hasEntry ? ok("ENTRY Event Present") : fail("Missing ENTRY Event"));
+            lines.push(mfeUpdates.length > 0 ? ok(`MFE_UPDATE Events: ${mfeUpdates.length}`) : warn("No MFE_UPDATE Events"));
+            if (hasBeTrigger) lines.push(ok("BE_TRIGGERED Event Present"));
+            if (hasExitBe || hasExitSl) {
+                const arr = [];
+                if (hasExitBe) arr.push("EXIT_BE");
+                if (hasExitSl) arr.push("EXIT_SL");
+                lines.push(ok("Exit Events: " + arr.join(", ")));
+            } else {
+                lines.push(warn("No Exit Events"));
+            }
+            lines.push(diag.logs && diag.logs.length > 20 ? ok("Backend Logs Present") : warn("No Backend Logs"));
+            
+            pipelineEl.textContent = lines.join("\n");
+        }
+        
+        // Raw payload
+        const payloadEl = document.getElementById("ase-raw-payload");
+        if (payloadEl) {
+            if (diag.payload) {
+                try {
+                    const parsed = typeof diag.payload === 'string' ? JSON.parse(diag.payload) : diag.payload;
+                    payloadEl.textContent = JSON.stringify(parsed, null, 2);
+                } catch {
+                    payloadEl.textContent = diag.payload;
+                }
+            } else {
+                payloadEl.textContent = "No payload available";
+            }
+        }
+        
+        setText("ase-raw-db-events", JSON.stringify(diag.db_events || [], null, 2));
+        setText("ase-backend-logs", diag.logs || "No logs available");
+        setText("ase-lifecycle-summary", diag.summary || "No summary available");
+        setText("ase-diagnosis-report", diag.discrepancy || "No discrepancy analysis available");
+        
+        console.log(`[ASE] Diagnosis loaded for trade ${tradeId}`);
+    } catch (err) {
+        console.error("[ASE] Diagnosis load failed:", err);
+        const pipelineEl = document.getElementById("ase-pipeline-map");
+        if (pipelineEl) {
+            pipelineEl.textContent = `🔴 Failed to load diagnosis: ${err.message}`;
+        }
+    }
 };
 
 AutomatedSignalsUltra.wireFilters = function() {
@@ -657,10 +744,9 @@ AutomatedSignalsUltra.loadTradeDetail = async function(trade_id) {
         // Store last detail for overlay reopen
         AutomatedSignalsUltra.lastDetail = detail;
         
-        // Load diagnosis panel data
-        if (typeof loadTradeDiagnosis === 'function') {
-            console.log("[ASE] Loading diagnosis for trade:", trade_id);
-            loadTradeDiagnosis(trade_id, detail);
+        // Load diagnosis panel data using namespace method
+        if (typeof AutomatedSignalsUltra.loadDiagnosis === 'function') {
+            AutomatedSignalsUltra.loadDiagnosis(trade_id);
         }
         
     } catch (err) {
@@ -1465,14 +1551,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // TRADE LIFECYCLE DIAGNOSIS FUNCTIONS
 // ============================================================================
 
-// Toggle unified diagnosis accordion
-document.addEventListener("click", function (e) {
-    if (e.target.classList.contains("diagnosis-header")) {
-        const content = e.target.nextElementSibling;
-        content.style.display = (content.style.display === "none" || content.style.display === "") ? "block" : "none";
-    }
-});
-
 function copyDiagnosis(id) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -1500,133 +1578,28 @@ function copyFullDiagnosis() {
     navigator.clipboard.writeText(buf.join("\n"));
 }
 
-// =============================================
-// FIX 1 — PROPER DIAGNOSIS LOADER USING REAL IDs
-// =============================================
-async function loadTradeDiagnosis(tradeId) {
-    console.log("[ASE] Loading diagnosis for:", tradeId);
-    try {
-        const res = await fetch(`/api/automated-signals/diagnosis/${tradeId}`, { cache: "no-store" });
-        const diag = await res.json();
-        
-        // Helper to set element text content
-        const setVal = (id, v) => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = (v ?? "");
-        };
-        
-        // Match EXACT HTML IDs from the template
-        // Pipeline map - build from db_events
-        const pipelineEl = document.getElementById("ase-pipeline-map");
-        if (pipelineEl && diag.db_events) {
-            const events = diag.db_events;
-            const lines = [];
-            const ok = t => `🟢 ${t}`;
-            const warn = t => `🟡 ${t}`;
-            const fail = t => `🔴 ${t}`;
-            
-            const hasEntry = events.some(e => e.event_type === "ENTRY");
-            const mfeUpdates = events.filter(e => e.event_type === "MFE_UPDATE");
-            const hasExitBe = events.some(e => e.event_type === "EXIT_BE" || e.event_type === "EXIT_BREAK_EVEN");
-            const hasExitSl = events.some(e => e.event_type === "EXIT_SL" || e.event_type === "EXIT_STOP_LOSS");
-            const hasBeTrigger = events.some(e => e.event_type === "BE_TRIGGERED");
-            
-            lines.push(hasEntry ? ok("ENTRY Event Present") : fail("Missing ENTRY Event"));
-            
-            if (mfeUpdates.length > 0)
-                lines.push(ok(`MFE_UPDATE Events: ${mfeUpdates.length}`));
-            else
-                lines.push(warn("No MFE_UPDATE Events — Dashboard will show 0.00R"));
-            
-            if (hasBeTrigger)
-                lines.push(ok("BE_TRIGGERED Event Present"));
-            
-            if (hasExitBe || hasExitSl) {
-                const arr = [];
-                if (hasExitBe) arr.push("EXIT_BE");
-                if (hasExitSl) arr.push("EXIT_SL");
-                lines.push(ok("Exit Events: " + arr.join(", ")));
-            } else {
-                lines.push(warn("No Exit Events — trade may appear ACTIVE incorrectly"));
-            }
-            
-            lines.push(diag.logs && diag.logs.length > 20 ? ok("Backend Logs Present") : warn("No Backend Logs"));
-            
-            pipelineEl.textContent = lines.join("\n");
-        }
-        
-        // Raw payload
-        const payloadEl = document.getElementById("ase-raw-payload");
-        if (payloadEl) {
-            if (diag.payload) {
-                try {
-                    const parsed = typeof diag.payload === 'string' ? JSON.parse(diag.payload) : diag.payload;
-                    payloadEl.textContent = JSON.stringify(parsed, null, 2);
-                } catch {
-                    payloadEl.textContent = diag.payload;
-                }
-            } else {
-                payloadEl.textContent = "No payload available";
-            }
-        }
-        
-        // DB events
-        setVal("ase-raw-db-events", JSON.stringify(diag.db_events || [], null, 2));
-        
-        // Backend logs
-        setVal("ase-backend-logs", diag.logs || "No logs available");
-        
-        // Lifecycle summary
-        setVal("ase-lifecycle-summary", diag.summary || "No summary available");
-        
-        // Discrepancy analysis
-        setVal("ase-diagnosis-report", diag.discrepancy || "No discrepancy analysis available");
-        
-        console.log(`[ASE] Diagnosis loaded for trade ${tradeId}`);
-        
-    } catch (err) {
-        console.error("[ASE] Diagnosis load failed:", err);
-        const pipelineEl = document.getElementById("ase-pipeline-map");
-        if (pipelineEl) {
-            pipelineEl.textContent = `🔴 Failed to load diagnosis: ${err.message}`;
-        }
-    }
-}
+// =====================================================
+// DIAGNOSIS PANEL - Global helpers for copy buttons
+// The main diagnosis loading is handled by AutomatedSignalsUltra.loadDiagnosis()
+// which is called from loadTradeDetail() when a trade row is clicked.
+// =====================================================
 
-// Make globally accessible
-window.loadTradeDiagnosis = loadTradeDiagnosis;
+// Expose namespace method globally for any external callers
+window.loadTradeDiagnosis = function(tradeId) {
+    if (typeof AutomatedSignalsUltra !== 'undefined' && AutomatedSignalsUltra.loadDiagnosis) {
+        AutomatedSignalsUltra.loadDiagnosis(tradeId);
+    }
+};
 
 // =====================================================
-// FIX 2 — EXPAND/COLLAPSE HANDLER FOR DIAGNOSIS PANEL
+// EXPAND/COLLAPSE HANDLER FOR DIAGNOSIS PANEL
 // =====================================================
 document.addEventListener("click", function(e) {
     if (e.target.classList.contains("diagnosis-header")) {
-        const content = document.querySelector(".diagnosis-content");
+        const content = e.target.nextElementSibling;
         if (!content) return;
-        const isOpen = content.style.display !== "none";
+        const isOpen = content.style.display !== "none" && content.style.display !== "";
         content.style.display = isOpen ? "none" : "block";
         e.target.textContent = (isOpen ? "▼" : "▲") + " Trade Lifecycle Diagnosis";
     }
 });
-
-// =====================================================
-// FIX 3 — DIAGNOSIS PANEL INITIALIZATION ON DOM READY
-// =====================================================
-document.addEventListener('DOMContentLoaded', function() {
-    // Wire up table row clicks to load diagnosis (for dynamically added rows)
-    document.addEventListener('click', function(e) {
-        const row = e.target.closest('.ase-trade-row');
-        if (row) {
-            const tradeId = row.dataset.tradeId;
-            if (tradeId && typeof loadTradeDiagnosis === 'function') {
-                console.log("[ASE] Row clicked, loading diagnosis:", tradeId);
-                loadTradeDiagnosis(tradeId);
-            }
-        }
-    });
-    
-    console.log("[ASE] Diagnosis panel initialization complete");
-});
-
-// Make loadTradeDiagnosis globally accessible
-window.loadTradeDiagnosis = loadTradeDiagnosis;
