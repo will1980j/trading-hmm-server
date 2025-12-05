@@ -367,15 +367,10 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
                 signal_date,
                 signal_time,
                 timestamp,
-                raw_payload,
-                payload_ts,
-                ingress_ts,
-                latency_ms,
-                drift_ms
+                raw_payload
             ) VALUES (
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             RETURNING id
         """
@@ -399,12 +394,8 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
             final_mfe,
             signal_date,
             signal_time,
-            event_ts_clean,  # Use payload timestamp instead of NOW()
-            raw_payload_str,
-            payload_ts_raw,
-            ingress_ts,
-            latency_ms,
-            drift_ms
+            event_ts_clean,   # payload event_timestamp goes straight into `timestamp`
+            raw_payload_str
         )
         
         cursor.execute(insert_sql, params)
@@ -15135,7 +15126,7 @@ def get_automated_signals_dashboard_data():
                     e.stop_loss,
                     e.session,
                     e.bias,
-                    COALESCE(e.payload_ts, e.timestamp) AS event_ts,
+                    e.timestamp AS event_ts,
                     e.signal_date,
                     e.signal_time,
                     COALESCE(m.latest_be_mfe, e.be_mfe, 0.0) AS be_mfe,
@@ -15151,7 +15142,7 @@ def get_automated_signals_dashboard_data():
                     WHERE ex.trade_id = e.trade_id
                     AND ex.event_type LIKE 'EXIT_%'
                 )
-                ORDER BY m.last_mfe_ts ASC, COALESCE(e.payload_ts, e.timestamp) DESC, e.trade_id ASC
+                ORDER BY m.last_mfe_ts ASC, e.timestamp DESC, e.trade_id ASC
                 LIMIT 100
             """, (date_filter,))
         else:
@@ -15174,7 +15165,7 @@ def get_automated_signals_dashboard_data():
                     e.stop_loss,
                     e.session,
                     e.bias,
-                    COALESCE(e.payload_ts, e.timestamp) AS event_ts,
+                    e.timestamp AS event_ts,
                     e.signal_date,
                     e.signal_time,
                     COALESCE(m.latest_be_mfe, e.be_mfe, 0.0) AS be_mfe,
@@ -15189,7 +15180,7 @@ def get_automated_signals_dashboard_data():
                     WHERE ex.trade_id = e.trade_id
                     AND ex.event_type LIKE 'EXIT_%'
                 )
-                ORDER BY m.last_mfe_ts ASC, COALESCE(e.payload_ts, e.timestamp) DESC, e.trade_id ASC
+                ORDER BY m.last_mfe_ts ASC, e.timestamp DESC, e.trade_id ASC
                 LIMIT 100
             """)
         
@@ -15320,11 +15311,11 @@ def get_automated_signals_dashboard_data():
                        COALESCE(en.stop_loss, ex.stop_loss) AS stop_loss,
                        COALESCE(en.session, ex.session) AS session,
                        COALESCE(en.bias, ex.bias) AS bias,
-                       COALESCE(ex.payload_ts, ex.timestamp) AS exit_timestamp,
+                       ex.timestamp AS exit_timestamp,
                        en.signal_date,
                        en.signal_time,
-                       COALESCE(en.payload_ts, en.timestamp) AS entry_timestamp,
-                       EXTRACT(EPOCH FROM (COALESCE(ex.payload_ts, ex.timestamp) - COALESCE(en.payload_ts, en.timestamp))) AS duration_seconds,
+                       en.timestamp AS entry_timestamp,
+                       EXTRACT(EPOCH FROM (ex.timestamp - en.timestamp)) AS duration_seconds,
                        COALESCE(m.max_be_mfe, ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
                        COALESCE(m.max_no_be_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
                        COALESCE(m.max_no_be_mfe, ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe,
@@ -15344,7 +15335,7 @@ def get_automated_signals_dashboard_data():
                         WHEN ex.event_type = 'EXIT_BREAK_EVEN' THEN 2
                         ELSE 3
                     END,
-                    COALESCE(ex.payload_ts, ex.timestamp) DESC, ex.trade_id ASC
+                    ex.timestamp DESC, ex.trade_id ASC
                 LIMIT 100
             """, (date_filter,))
         else:
@@ -15368,11 +15359,11 @@ def get_automated_signals_dashboard_data():
                        COALESCE(en.stop_loss, ex.stop_loss) AS stop_loss,
                        COALESCE(en.session, ex.session) AS session,
                        COALESCE(en.bias, ex.bias) AS bias,
-                       COALESCE(ex.payload_ts, ex.timestamp) AS exit_timestamp,
+                       ex.timestamp AS exit_timestamp,
                        en.signal_date,
                        en.signal_time,
-                       COALESCE(en.payload_ts, en.timestamp) AS entry_timestamp,
-                       EXTRACT(EPOCH FROM (COALESCE(ex.payload_ts, ex.timestamp) - COALESCE(en.payload_ts, en.timestamp))) AS duration_seconds,
+                       en.timestamp AS entry_timestamp,
+                       EXTRACT(EPOCH FROM (ex.timestamp - en.timestamp)) AS duration_seconds,
                        COALESCE(m.max_be_mfe, ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
                        COALESCE(m.max_no_be_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
                        COALESCE(m.max_no_be_mfe, ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe,
@@ -15391,7 +15382,7 @@ def get_automated_signals_dashboard_data():
                         WHEN ex.event_type = 'EXIT_BREAK_EVEN' THEN 2
                         ELSE 3
                     END,
-                    COALESCE(ex.payload_ts, ex.timestamp) DESC, ex.trade_id ASC
+                    ex.timestamp DESC, ex.trade_id ASC
                 LIMIT 100
             """)
         
