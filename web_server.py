@@ -285,9 +285,12 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
         if raw_mfe < 0:
             append_trade_log(trade_id, "⚠ TELEMETRY WARNING: MFE was negative, auto-corrected.")
         
-        # Date/time fields
+        # Date/time fields - derive from event_ts for ALL events (not just ENTRY)
+        # This ensures signal_date and signal_time are always populated
         signal_date = None
         signal_time = None
+        
+        # First try payload date/time fields
         if data.get('date'):
             try:
                 from datetime import datetime as dt
@@ -298,6 +301,17 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
             try:
                 from datetime import datetime as dt
                 signal_time = dt.strptime(data.get('time'), '%H:%M:%S').time()
+            except:
+                pass
+        
+        # Fallback: derive from event_ts_utc (convert back to NY for display)
+        if signal_date is None or signal_time is None:
+            try:
+                ny_event_dt = event_ts_utc.astimezone(ny_tz)
+                if signal_date is None:
+                    signal_date = ny_event_dt.date()
+                if signal_time is None:
+                    signal_time = ny_event_dt.time()
             except:
                 pass
         
@@ -15221,6 +15235,13 @@ def get_automated_signals_dashboard_data():
             be_mfe_val = max(0.0, be_mfe_val)
             no_be_mfe_val = max(0.0, no_be_mfe_val)
             
+            # Compute event_ts (prefer signal_date + signal_time, fallback to timestamp)
+            event_ts = None
+            if signal_date and signal_time:
+                event_ts = f"{signal_date}T{signal_time}"
+            elif row[8]:
+                event_ts = row[8].isoformat()
+            
             active_trades.append({
                 "id": row[0],
                 "trade_id": trade_id,
@@ -15233,6 +15254,7 @@ def get_automated_signals_dashboard_data():
                 "timestamp": row[8].isoformat() if row[8] else None,
                 "signal_date": signal_date,
                 "signal_time": signal_time,
+                "event_ts": event_ts,
                 # Return both field names for JS compatibility
                 "be_mfe": be_mfe_val,
                 "no_be_mfe": no_be_mfe_val,
@@ -15393,6 +15415,13 @@ def get_automated_signals_dashboard_data():
             no_be_mfe_val = max(0.0, no_be_mfe_val)
             final_mfe_val = max(0.0, final_mfe_val)
             
+            # Compute event_ts (prefer signal_date + signal_time, fallback to entry_timestamp)
+            event_ts = None
+            if signal_date and signal_time:
+                event_ts = f"{signal_date}T{signal_time}"
+            elif row[11]:
+                event_ts = row[11].isoformat()
+            
             completed_trades.append({
                 "id": row[0],
                 "trade_id": trade_id,
@@ -15405,6 +15434,7 @@ def get_automated_signals_dashboard_data():
                 "exit_timestamp": row[8].isoformat() if row[8] else None,
                 "signal_date": signal_date,
                 "signal_time": signal_time,
+                "event_ts": event_ts,
                 "entry_timestamp": row[11].isoformat() if row[11] else None,
                 "duration_seconds": float(row[12]) if row[12] is not None else None,
                 # MFE values from MAX(MFE_UPDATE) via CTE - no exit_price fallback
