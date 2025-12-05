@@ -560,7 +560,9 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
     
     rows = rows.filter(row => {
         if (AutomatedSignalsUltra.selectedDate) {
-            const rowDate = row.signal_date || (row.event_ts ? row.event_ts.split('T')[0] : null);
+            const rowDate = row.signal_date
+                || (row.timestamp_ny ? row.timestamp_ny.split(" ")[0] : null)
+                || (row.event_ts ? row.event_ts.split("T")[0] : null);
             if (rowDate !== AutomatedSignalsUltra.selectedDate) return false;
         }
         if (f.session !== 'ALL' && row.session !== f.session) return false;
@@ -578,10 +580,20 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         return true;
     });
     
-    // Sort rows by event timestamp (UTC), newest first
+    // Sort rows by true UTC timestamp (newest first)
+    const parseUtcTs = (row) => {
+        if (row.timestamp_utc) {
+            const base = row.timestamp_utc.split('.')[0];
+            return new Date(base.replace(' ', 'T') + 'Z').getTime();
+        }
+        if (row.event_ts) {
+            return new Date(row.event_ts.replace(' ', 'T') + 'Z').getTime();
+        }
+        return 0;
+    };
     rows.sort((a, b) => {
-        const aTs = a.event_ts ? new Date(a.event_ts).getTime() : 0;
-        const bTs = b.event_ts ? new Date(b.event_ts).getTime() : 0;
+        const aTs = parseUtcTs(a);
+        const bTs = parseUtcTs(b);
         return bTs - aTs;
     });
     
@@ -640,9 +652,6 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             return 'ultra-badge-red';
         };
         
-        // Age: Calculate from signal_date + signal_time (Eastern Time)
-        let ageStr = "--";
-        
         // Helper to format duration (smart units)
         const formatDuration = (diffSec) => {
             const s = Math.max(0, Math.floor(diffSec));
@@ -664,32 +673,45 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             return `${d}d${remH > 0 ? ` ${remH}h` : ""}`;
         };
         
-        // --- AGE COMPUTATION USING event_ts ---
-        if (row.status === 'ACTIVE' && row.event_ts) {
-            // Active trades: show live age since event_ts
-            const nowNy = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
-            const now = new Date(nowNy);
-            const start = new Date(row.event_ts);
-            const diffSec = Math.max(0, (now.getTime() - start.getTime()) / 1000);
-            ageStr = formatDuration(diffSec);
-        } else if (row.status === 'COMPLETED') {
-            // Completed trades: show duration from entry to exit
-            if (row.duration_seconds) {
-                ageStr = formatDuration(row.duration_seconds);
-            } else if (row.exit_timestamp && row.event_ts) {
-                const exitTime = new Date(row.exit_timestamp);
-                const entryTime = new Date(row.event_ts);
-                const diffSec = Math.max(0, (exitTime.getTime() - entryTime.getTime()) / 1000);
+        // Age based on UTC timestamp (timestamp_utc preferred)
+        let ageStr = "--";
+        const baseTsStr = row.timestamp_utc || (row.event_ts ? row.event_ts.replace(" ", "T") + "Z" : null);
+        if (baseTsStr) {
+            let eventDate;
+            try {
+                const iso = baseTsStr.includes("T") ? baseTsStr : baseTsStr.replace(" ", "T");
+                const normalized = iso.endsWith("Z") ? iso : iso + "Z";
+                eventDate = new Date(normalized);
+            } catch {
+                eventDate = null;
+            }
+            if (eventDate && !Number.isNaN(eventDate.getTime())) {
+                const diffSec = Math.max(0, (Date.now() - eventDate.getTime()) / 1000);
                 ageStr = formatDuration(diffSec);
-            } else {
-                ageStr = "--";
             }
         }
         
-        // Correct timestamp rendering: use event_ts in NY timezone
+        // Display timestamp using timestamp_ny (pre-converted NY time)
         let timeStr = "--";
-        if (row.event_ts) {
-            const d = new Date(row.event_ts);
+        if (row.timestamp_ny) {
+            const [datePart, timePart] = row.timestamp_ny.split(" ");
+            if (datePart && timePart) {
+                const [y, m, d] = datePart.split("-").map(Number);
+                const [hh, mm] = timePart.split(":");
+                let hour = parseInt(hh, 10);
+                let minute = mm;
+                let ampm = "AM";
+                if (hour >= 12) { ampm = "PM"; if (hour > 12) hour -= 12; }
+                if (hour === 0) hour = 12;
+                const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+                const monthName = monthNames[(m || 1) - 1];
+                const dayStr = String(d).padStart(2, "0");
+                const hourStr = String(hour).padStart(2, "0");
+                const minStr = String(minute || "00").padStart(2, "0");
+                timeStr = `${monthName} ${dayStr}, ${y}, ${hourStr}:${minStr} ${ampm}`;
+            }
+        } else if (row.event_ts) {
+            const d = new Date(row.event_ts.replace(" ", "T") + "Z");
             timeStr = d.toLocaleString("en-US", {
                 timeZone: "America/New_York",
                 year: "numeric",
