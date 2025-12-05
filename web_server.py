@@ -15222,14 +15222,25 @@ def get_automated_signals_dashboard_data():
         elif completed_trades:
             last_webhook_ts = completed_trades[0].get('exit_timestamp')
         
-        # Enforce MFE logical consistency
+        # Enforce MFE logical consistency (safe .get() to avoid KeyError)
         for t in active_trades + completed_trades:
-            if t["be_mfe_R"] is None or t["be_mfe_R"] < 0:
+            be_mfe = t.get("be_mfe_R")
+            if be_mfe is None or be_mfe < 0:
                 t["be_mfe_R"] = 0.0
-            if t["no_be_mfe_R"] is None or t["no_be_mfe_R"] < 0:
+            no_be_mfe = t.get("no_be_mfe_R")
+            if no_be_mfe is None or no_be_mfe < 0:
                 t["no_be_mfe_R"] = 0.0
-            if t["final_mfe_R"] is None and t.get("event_type") in ("EXIT_BE", "EXIT_SL"):
-                t["final_mfe_R"] = t["no_be_mfe_R"]
+            final_mfe = t.get("final_mfe_R")
+            evt = t.get("event_type")
+            # Only enforce this rule for completed trades
+            if evt in ("EXIT_BE", "EXIT_SL"):
+                if final_mfe is None:
+                    # fallback: use no_be_mfe_R or be_mfe_R
+                    t["final_mfe_R"] = (
+                        t.get("no_be_mfe_R")
+                        or t.get("be_mfe_R")
+                        or 0.0
+                    )
         
         # BE/NoBE state resolver
         def resolve_dual_state(row):
