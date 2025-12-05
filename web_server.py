@@ -253,6 +253,22 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
         if raw_payload_str is None:
             raw_payload_str = json.dumps(data)
         
+        # Ensure EXIT events always override older lifecycle state
+        cursor.execute("""
+            DELETE FROM automated_signals
+            WHERE trade_id = %s
+            AND event_type IN ('MFE_UPDATE')
+            AND timestamp > %s
+        """, (trade_id, event_ts_clean))
+        
+        # Ensure EXIT_SL removes any EXIT_BE duplicates
+        cursor.execute("""
+            DELETE FROM automated_signals
+            WHERE trade_id = %s
+            AND event_type = 'EXIT_BE'
+            AND %s = 'EXIT_SL'
+        """, (trade_id, event_type))
+        
         # UNIFIED INSERT - all fields populated
         # Uses event_timestamp from payload (not NOW()) for accurate timing
         insert_sql = """
@@ -1793,6 +1809,20 @@ def automated_signals_trade_detail_api(trade_id):
     # If no detail returned
     if detail is None:
         return jsonify({"error": "trade_not_found"}), 404
+    
+    # Authoritative state decision
+    def resolve_authoritative_state(events):
+        has_sl = any(e["event_type"] == "EXIT_SL" for e in events)
+        has_be = any(e["event_type"] == "EXIT_BE" for e in events)
+        if has_sl:
+            return "COMPLETED"
+        if has_be:
+            return "ACTIVE"
+        return "ACTIVE"
+    
+    # Apply to detailed trade endpoint
+    if "events" in detail:
+        detail["authoritative_status"] = resolve_authoritative_state(detail["events"])
     
     # Otherwise assume detail is a dict-like JSON-serializable object
     return jsonify(detail), 200
@@ -15191,6 +15221,28 @@ def get_automated_signals_dashboard_data():
             last_webhook_ts = active_trades[0].get('timestamp')
         elif completed_trades:
             last_webhook_ts = completed_trades[0].get('exit_timestamp')
+        
+        # Enforce MFE logical consistency
+        for t in active_trades + completed_trades:
+            if t["be_mfe_R"] is None or t["be_mfe_R"] < 0:
+                t["be_mfe_R"] = 0.0
+            if t["no_be_mfe_R"] is None or t["no_be_mfe_R"] < 0:
+                t["no_be_mfe_R"] = 0.0
+            if t["final_mfe_R"] is None and t.get("event_type") in ("EXIT_BE", "EXIT_SL"):
+                t["final_mfe_R"] = t["no_be_mfe_R"]
+        
+        # BE/NoBE state resolver
+        def resolve_dual_state(row):
+            et = row.get("event_type", "")
+            if et == "EXIT_SL":
+                return "COMPLETED"
+            if et == "EXIT_BE":
+                return "ACTIVE"   # No BE still active
+            return row.get("status", "ACTIVE")
+        
+        # Apply resolver
+        for t in active_trades + completed_trades:
+            t["status"] = resolve_dual_state(t)
         
         stats = {
             "total_signals": total_trades,
