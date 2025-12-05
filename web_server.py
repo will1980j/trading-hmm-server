@@ -179,22 +179,30 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
         session = data.get('session') or None
         bias = data.get('bias') or direction or None
         
-        # MFE/MAE fields
-        be_mfe = None
-        no_be_mfe = None
-        mae_global_r = None
-        final_mfe = None
-        mfe = None
+        # Canonical MFE fields (in R)
+        be_mfe = data.get("be_mfe") or data.get("be_mfe_R") or data.get("mfe_R")
+        no_be_mfe = data.get("no_be_mfe") or data.get("no_be_mfe_R") or data.get("mae_R")
+        final_mfe = data.get("final_mfe") or data.get("final_mfe_R")
         
+        # Global MAE (worst adverse excursion in R over the whole trade)
+        mae_global_r = data.get("mae_global_R")
+        if mae_global_r is None:
+            mae_global_r = data.get("mae_R_global")
+        if mae_global_r is not None:
+            try:
+                mae_global_r = float(mae_global_r)
+            except Exception:
+                mae_global_r = None
+        
+        # Convert MFE fields to float safely
+        mfe = None
         try:
-            if data.get('be_mfe') is not None:
-                be_mfe = float(data.get('be_mfe'))
-            if data.get('no_be_mfe') is not None:
-                no_be_mfe = float(data.get('no_be_mfe'))
-            if data.get('mae_global_R') is not None:
-                mae_global_r = float(data.get('mae_global_R'))
-            if data.get('final_mfe') is not None:
-                final_mfe = float(data.get('final_mfe'))
+            if be_mfe is not None:
+                be_mfe = float(be_mfe)
+            if no_be_mfe is not None:
+                no_be_mfe = float(no_be_mfe)
+            if final_mfe is not None:
+                final_mfe = float(final_mfe)
             elif data.get('final_be_mfe') is not None:
                 final_mfe = float(data.get('final_be_mfe'))
             if data.get('mfe') is not None:

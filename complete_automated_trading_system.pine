@@ -296,6 +296,38 @@ var array<bool> signal_entry_webhook_sent = array.new<bool>()  // Track if ENTRY
 var array<bool> signal_is_realtime = array.new<bool>()  // Track if signal occurred on real-time bar (eligible for webhooks)
 var array<bool> signal_snapshot_sent = array.new<bool>()  // Track if one-off MFE snapshot has been sent (for non-realtime bars)
 
+// ============================================================================
+// TELEMETRY ENGINE STATE (Option B - Single Active Trade Lifecycle)
+// ============================================================================
+// Whether telemetry is currently active for an open trade
+var bool telemetry_active = false
+var string telemetry_direction = ""
+
+// Trade identifiers for telemetry lifecycle
+var string telemetry_trade_id = ""
+var int    telemetry_entry_time = na        // milliseconds timestamp
+var float  telemetry_entry_price = na
+var float  telemetry_stop_price = na
+
+// Telemetry MFE/MAE tracking (independent from chart arrays)
+var float telemetry_max_mfe = 0.0
+var float telemetry_mae_global = 0.0
+
+// Telemetry BE trigger state
+var bool telemetry_be_triggered = false
+
+// Flags to ensure each webhook is sent EXACTLY once
+var bool telemetry_entry_sent = false
+var bool telemetry_be_sent = false
+var bool telemetry_exit_be_sent = false
+var bool telemetry_exit_sl_sent = false
+
+// Guard to avoid sending telemetry on historical bars
+var bool telemetry_initialized_this_session = false
+// ============================================================================
+// END TELEMETRY STATE BLOCK
+// ============================================================================
+
 // Store line references to manage them like MFE labels
 var array<line> entry_lines = array.new<line>()
 var array<line> sl_lines = array.new<line>()
@@ -1153,16 +1185,56 @@ f_setupJson(setupFamily, setupVariant, setupId, strength, trendScore, structureS
 f_marketStateJson(trendRegime, trendScore, volRegime, atrVal, atrPct20, dayRangePct20, priceVsOpen, priceVsVwap, distHTF, swingState, bosChoCh, liquCtx) =>
     '"market_state":{"trend_regime":"' + trendRegime + '","trend_score":' + f_num(trendScore) + ',"volatility_regime":"' + volRegime + '","atr":' + f_num(atrVal) + ',"atr_percentile_20d":' + f_num(atrPct20) + ',"daily_range_percentile_20d":' + f_num(dayRangePct20) + ',"price_location":{"vs_daily_open":' + f_num(priceVsOpen) + ',"vs_vwap":' + f_num(priceVsVwap) + ',"distance_to_HTF_level_points":' + f_num(distHTF) + '},"structure":{"swing_state":"' + swingState + '","bos_choch_signal":"' + bosChoCh + '","liquidity_context":"' + liquCtx + '"}}'
 
-// ============================================================================
-// MAIN TELEMETRY PAYLOAD BUILDER
-// ============================================================================
-f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, posSize, mfeR, maeR, finalMfeR, exitPrice, exitReason, tp1, tp2, tp3, setupFam, setupVar, htfBias, symbol, timeframeStr, signalTimeMs, maeGlobalR) =>
-    sym  = f_symbol()
-    // Use signal candle time for event_timestamp (not confirmation candle time)
-    ts   = f_isoTimestamp(signalTimeMs)
-    sess = f_sessionLabel(signalTimeMs)
-    payload = '{"schema_version":"' + telemetry_schema_version + '","engine_version":"' + telemetry_engine_version + '","strategy_name":"' + telemetry_strategy_name + '","strategy_id":"' + telemetry_strategy_id + '","strategy_version":"' + telemetry_strategy_version + '","trade_id":"' + tradeId + '","event_type":"' + eventType + '","event_timestamp":"' + ts + '","symbol":"' + sym + '","exchange":"' + syminfo.ticker + '","timeframe":"' + timeframeStr + '","session":"' + sess + '","direction":' + f_str(dir) + ',"entry_price":' + f_num(entryPrice) + ',"stop_loss":' + f_num(stopPrice) + ',"risk_R":' + f_num(riskR) + ',"position_size":' + f_num(posSize) + ',"be_price":' + f_num(bePrice) + ',"mfe_R":' + f_num(mfeR) + ',"mae_R":' + f_num(maeR) + ',"final_mfe_R":' + f_num(finalMfeR) + ',"mae_R_global":' + f_num(maeGlobalR) + ',"exit_price":' + f_num(exitPrice) + ',"exit_timestamp":null,"exit_reason":' + f_str(exitReason) + ',' + f_targetsJson(tp1, tp2, tp3, 1.0, 2.0, 3.0) + ',' + f_setupJson(setupFam, setupVar, setupFam + "_" + setupVar, 75.0, htfBias == "Bullish" or htfBias == "Bearish" ? 1.0 : 0.5, 0.8, 0.7) + ',' + f_marketStateJson(bias, bias == "Bullish" or bias == "Bearish" ? 0.8 : 0.3, "NORMAL", float(na), float(na), float(na), float(na), float(na), float(na), "UNKNOWN", "NONE", "NEUTRAL") + '}'
-    payload
+// ---------------------------------------------------------------------------
+// JSON FIELD BUILDER (Compact, Pine-Safe)
+// ---------------------------------------------------------------------------
+jsonField(name, value) =>
+    '"' + name + '":' + value + ','
+
+// helper to wrap JSON object without trailing comma
+jsonWrap(payload) =>
+    "{" + str.replace_all(payload, ",}", "}") + "}"
+
+// ---------------------------------------------------------------------------
+// COMPACT JSON PAYLOAD BUILDER (Pine-Safe, No Size Limits)
+// ---------------------------------------------------------------------------
+f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, posSize, mfeR, maeR, maeGlobalR, finalMfeR, exitPrice, exitReason, tp1, tp2, tp3, setupFam, setupVar, htfBias, symbol, timeframeStr, signalTimeMs) =>
+    ts = f_isoTimestamp(signalTimeMs)
+    session = f_sessionLabel(signalTimeMs)
+    sym = f_symbol()
+    string p = ""
+    p += jsonField("schema_version", '"' + telemetry_schema_version + '"')
+    p += jsonField("engine_version", '"' + telemetry_engine_version + '"')
+    p += jsonField("strategy_name", '"' + telemetry_strategy_name + '"')
+    p += jsonField("strategy_id", '"' + telemetry_strategy_id + '"')
+    p += jsonField("strategy_version", '"' + telemetry_strategy_version + '"')
+    p += jsonField("trade_id", '"' + tradeId + '"')
+    p += jsonField("event_type", '"' + eventType + '"')
+    p += jsonField("event_timestamp", '"' + ts + '"')
+    p += jsonField("symbol", '"' + sym + '"')
+    p += jsonField("exchange", '"' + symbol + '"')
+    p += jsonField("timeframe", '"' + timeframeStr + '"')
+    p += jsonField("session", '"' + session + '"')
+    p += jsonField("direction", f_str(dir))
+    p += jsonField("entry_price", f_num(entryPrice))
+    p += jsonField("stop_loss", f_num(stopPrice))
+    p += jsonField("risk_R", f_num(riskR))
+    p += jsonField("position_size", f_num(posSize))
+    p += jsonField("be_price", f_num(bePrice))
+    p += jsonField("mfe_R", f_num(mfeR))
+    p += jsonField("mae_R", f_num(maeR))
+    p += jsonField("mae_R_global", f_num(maeGlobalR))
+    p += jsonField("final_mfe_R", f_num(finalMfeR))
+    p += jsonField("exit_price", f_num(exitPrice))
+    p += jsonField("exit_timestamp", "null")
+    p += jsonField("exit_reason", f_str(exitReason))
+    // Targets block remains embedded compactly
+    p += '"targets":{"tp1_price":' + f_num(tp1) + ',"tp2_price":' + f_num(tp2) + ',"tp3_price":' + f_num(tp3) + ',"target_Rs":[1,2,3]},'
+    // Setup block compact
+    p += '"setup":{"setup_family":"' + setupFam + '","setup_variant":"' + setupVar + '","setup_id":"' + setupFam + "_" + setupVar + '","signal_strength":75},'
+    // Market state block (compact)
+    p += '"market_state":{"trend_regime":"' + htfBias + '","trend_score":' + f_num(1.0) + ',"volatility_regime":"NORMAL"}'
+    jsonWrap(p)
 
 // Variables to track webhook sending for MULTIPLE signals
 var array<string> active_signal_ids = array.new_string(0)
@@ -1192,14 +1264,14 @@ if barstate.isconfirmed
 if pending_cancel_bearish and barstate.isrealtime
     string cancel_direction = "Bearish"
     string cancel_trade_id = f_buildTradeId(signal_candle_time, cancel_direction)
-    string cancel_payload = f_buildPayload(EVENT_CANCELLED, cancel_trade_id, cancel_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), "opposite_signal_before_confirmation", float(na), float(na), float(na), "FVG_CORE", "CANCELLED", bias, syminfo.ticker, timeframe.period, signal_candle_time, 0.0)
+    string cancel_payload = f_buildPayload(EVENT_CANCELLED, cancel_trade_id, cancel_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), float(na), "opposite_signal_before_confirmation", float(na), float(na), float(na), "FVG_CORE", "CANCELLED", bias, syminfo.ticker, timeframe.period, signal_candle_time)
     alert(cancel_payload, alert.freq_once_per_bar_close)
     pending_cancel_bearish := false
 
 if pending_cancel_bullish and barstate.isrealtime
     string cancel_direction = "Bullish"
     string cancel_trade_id = f_buildTradeId(signal_candle_time, cancel_direction)
-    string cancel_payload = f_buildPayload(EVENT_CANCELLED, cancel_trade_id, cancel_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), "opposite_signal_before_confirmation", float(na), float(na), float(na), "FVG_CORE", "CANCELLED", bias, syminfo.ticker, timeframe.period, signal_candle_time, 0.0)
+    string cancel_payload = f_buildPayload(EVENT_CANCELLED, cancel_trade_id, cancel_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), float(na), "opposite_signal_before_confirmation", float(na), float(na), float(na), "FVG_CORE", "CANCELLED", bias, syminfo.ticker, timeframe.period, signal_candle_time)
     alert(cancel_payload, alert.freq_once_per_bar_close)
     pending_cancel_bullish := false
 
@@ -1239,10 +1311,35 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
         setup_variant = htf_bullish or htf_bearish ? "HTF_ALIGNED" : "STANDARD"
         
         // Build telemetry payload for ENTRY event
-        entry_payload = f_buildPayload(EVENT_ENTRY, signal_id, signal_direction, sig_entry, sig_stop, float(na), 1.0, contract_size, 0.0, 0.0, float(na), float(na), "", target_1r, target_2r, target_3r, setup_family, setup_variant, bias, syminfo.ticker, timeframe.period, signal_candle_time, 0.0)
+        entry_payload = f_buildPayload(EVENT_ENTRY, signal_id, signal_direction, sig_entry, sig_stop, float(na), 1.0, contract_size, 0.0, 0.0, float(na), float(na), float(na), "", target_1r, target_2r, target_3r, setup_family, setup_variant, bias, syminfo.ticker, timeframe.period, signal_candle_time)
         
         // Send webhook
         alert(entry_payload, alert.freq_once_per_bar_close)
+        
+        // ============================================================================
+        // TELEMETRY ENGINE — ENTRY INITIALIZATION
+        // ============================================================================
+        telemetry_active := true
+        telemetry_trade_id := signal_id
+        // ENTRY timestamp is the signal candle time already used for trade_id
+        telemetry_entry_time := signal_candle_time
+        telemetry_entry_price := sig_entry
+        telemetry_direction := signal_direction
+        telemetry_stop_price  := sig_stop
+        // Reset telemetry tracking values
+        telemetry_max_mfe := 0.0
+        telemetry_mae_global := 0.0
+        telemetry_be_triggered := false
+        // Reset webhook sent flags
+        telemetry_entry_sent := true          // entry already sent
+        telemetry_be_sent := false
+        telemetry_exit_be_sent := false
+        telemetry_exit_sl_sent := false
+        // Mark telemetry session as initialized
+        telemetry_initialized_this_session := true
+        // ============================================================================
+        // END TELEMETRY ENTRY INITIALIZATION
+        // ============================================================================
         
         // Mark that ENTRY webhook has been sent for this signal
         array.set(signal_entry_webhook_sent, last_index, true)
@@ -1317,7 +1414,7 @@ if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active
                 
                 // Build telemetry payload for MFE_UPDATE event
                 // CRITICAL: Send BOTH MFE values - BE MFE in mfeR, No BE MFE in maeR
-                string mfe_update_payload = f_buildPayload(EVENT_MFE_UPDATE, signal_id_to_update, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, current_mfe_be, current_mfe_none, float(na), float(na), "", mfe_target_1r, mfe_target_2r, mfe_target_3r, "FVG_CORE", "ACTIVE", bias, syminfo.ticker, timeframe.period, signal_candle_time, sig_mae)
+                string mfe_update_payload = f_buildPayload(EVENT_MFE_UPDATE, signal_id_to_update, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, current_mfe_be, current_mfe_none, sig_mae, float(na), float(na), "", mfe_target_1r, mfe_target_2r, mfe_target_3r, "FVG_CORE", "ACTIVE", bias, syminfo.ticker, timeframe.period, signal_candle_time)
                 
                 // Send MFE update
                 alert(mfe_update_payload, alert.freq_once_per_bar_close)
@@ -1325,6 +1422,79 @@ if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active
                 // Mark snapshot as sent if this was a snapshot update
                 if should_send_snapshot and signal_array_idx < array.size(signal_snapshot_sent)
                     array.set(signal_snapshot_sent, signal_array_idx, true)
+
+// ============================================================================
+// TELEMETRY ENGINE — MFE_UPDATE SENDER
+// ============================================================================
+if telemetry_active and barstate.isrealtime
+    // Compute current MFE / MAE
+    float telem_mfe = na
+    float telem_mae = na
+    if telemetry_entry_price != na and telemetry_stop_price != na
+        float rr = telemetry_entry_price - telemetry_stop_price
+        if rr != 0
+            if telemetry_direction == "Bullish" or telemetry_direction == "LONG"
+                telem_mfe := (high - telemetry_entry_price) / rr
+                telem_mae := (low - telemetry_entry_price) / rr
+            else
+                telem_mfe := (telemetry_entry_price - low) / rr
+                telem_mae := (telemetry_entry_price - high) / rr
+    // Update telemetry maxima
+    if telem_mfe != na and telem_mfe > telemetry_max_mfe
+        telemetry_max_mfe := telem_mfe
+    if telem_mae != na and telem_mae < telemetry_mae_global
+        telemetry_mae_global := telem_mae
+    // Send webhook
+    if telemetry_entry_sent and not telemetry_exit_be_sent and not telemetry_exit_sl_sent
+        string mfe_payload = f_buildPayload(EVENT_MFE_UPDATE, telemetry_trade_id, telemetry_direction, telemetry_entry_price, telemetry_stop_price, telemetry_be_triggered ? telemetry_entry_price : float(na), 1.0, contract_size, telemetry_max_mfe, telemetry_max_mfe, telemetry_mae_global, float(na), float(na), "", 0.0, 0.0, 0.0, "FVG_CORE", "ACTIVE", bias, syminfo.ticker, timeframe.period, time)
+        alert(mfe_payload, alert.freq_once_per_bar_close)
+// END TELEMETRY MFE_UPDATE ENGINE
+
+// ============================================================================
+// TELEMETRY ENGINE — BE_TRIGGERED SENDER
+// ============================================================================
+if telemetry_active and barstate.isrealtime
+    if not telemetry_be_triggered and telemetry_max_mfe >= 1.0
+        telemetry_be_triggered := true
+        if not telemetry_be_sent
+            string be_payload = f_buildPayload(EVENT_BE_TRIGGERED, telemetry_trade_id, telemetry_direction, telemetry_entry_price, telemetry_stop_price, telemetry_entry_price, 1.0, contract_size, telemetry_max_mfe, telemetry_max_mfe, telemetry_mae_global, float(na), float(na), "be_triggered", 0.0, 0.0, 0.0, "FVG_CORE", "BE_PROTECTED", bias, syminfo.ticker, timeframe.period, time)
+            alert(be_payload, alert.freq_once_per_bar_close)
+            telemetry_be_sent := true
+// END TELEMETRY BE_TRIGGERED ENGINE
+
+// ============================================================================
+// TELEMETRY ENGINE — EXIT_BE SENDER
+// ============================================================================
+if telemetry_active and telemetry_be_triggered and barstate.isrealtime
+    if not telemetry_exit_be_sent and not telemetry_exit_sl_sent
+        bool be_stop_hit = false
+        if telemetry_direction == "Bullish" or telemetry_direction == "LONG"
+            be_stop_hit := (low <= telemetry_entry_price)
+        else
+            be_stop_hit := (high >= telemetry_entry_price)
+        if be_stop_hit
+            string exit_be_payload = f_buildPayload(EVENT_EXIT_BREAK_EVEN, telemetry_trade_id, telemetry_direction, telemetry_entry_price, telemetry_stop_price, telemetry_entry_price, 1.0, contract_size, telemetry_max_mfe, telemetry_max_mfe, telemetry_mae_global, telemetry_max_mfe, telemetry_entry_price, "be_stop_loss_hit", 0.0, 0.0, 0.0, "FVG_CORE", "EXIT_BE", bias, syminfo.ticker, timeframe.period, time)
+            alert(exit_be_payload, alert.freq_once_per_bar_close)
+            telemetry_exit_be_sent := true
+            telemetry_active := false
+// END TELEMETRY EXIT_BE ENGINE
+
+// ============================================================================
+// TELEMETRY ENGINE — EXIT_SL SENDER
+// ============================================================================
+if telemetry_active and barstate.isrealtime
+    if not telemetry_exit_sl_sent and not telemetry_exit_be_sent
+        bool sl_hit = false
+        if telemetry_direction == "Bullish" or telemetry_direction == "LONG"
+            sl_hit := (low <= telemetry_stop_price)
+        else
+            sl_hit := (high >= telemetry_stop_price)
+        if sl_hit
+            string exit_sl_payload = f_buildPayload(EVENT_EXIT_STOP_LOSS, telemetry_trade_id, telemetry_direction, telemetry_entry_price, telemetry_stop_price, telemetry_be_triggered ? telemetry_entry_price : float(na), 1.0, contract_size, telemetry_max_mfe, telemetry_max_mfe, telemetry_mae_global, telemetry_max_mfe, telemetry_stop_price, "original_stop_loss_hit", 0.0, 0.0, 0.0, "FVG_CORE", "EXIT_SL", bias, syminfo.ticker, timeframe.period, time)
+            alert(exit_sl_payload, alert.freq_once_per_bar_close)
+            telemetry_exit_sl_sent := true
+            telemetry_active := false
+// END TELEMETRY EXIT_SL ENGINE
 
 // 3. BE TRIGGER WEBHOOK
 // Send when BE=1 is triggered for any active signal
@@ -1366,7 +1536,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_trigger
                     
                     // Build telemetry payload for BE_TRIGGERED event
                     // mfe_R = BE MFE (capped at +1R since BE triggered), mae_R = No-BE MFE (continues tracking)
-                    string be_trigger_payload = f_buildPayload(EVENT_BE_TRIGGERED, signal_id_for_be, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, current_be_mfe, current_no_be_mfe, float(na), float(na), "", be_target_1r, be_target_2r, be_target_3r, "FVG_CORE", "BE_PROTECTED", bias, syminfo.ticker, timeframe.period, signal_candle_time, sig_mae)
+                    string be_trigger_payload = f_buildPayload(EVENT_BE_TRIGGERED, signal_id_for_be, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, current_be_mfe, current_no_be_mfe, sig_mae, float(na), float(na), "", be_target_1r, be_target_2r, be_target_3r, "FVG_CORE", "BE_PROTECTED", bias, syminfo.ticker, timeframe.period, signal_candle_time)
                     
                     // Send BE trigger webhook
                     alert(be_trigger_payload, alert.freq_once_per_bar_close)
@@ -1416,14 +1586,14 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped
                 // SEND EXIT_BE when BE stop is hit (BE=1 strategy completed)
                 // mfe_R = BE MFE (final), mae_R = No-BE MFE (final), final_mfe_R = BE MFE (relevant for this exit type)
                 if be_stopped and not be_exit_sent
-                    string be_payload = f_buildPayload(EVENT_EXIT_BREAK_EVEN, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, final_be_mfe, final_no_be_mfe, final_be_mfe, sig_entry, "be_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_BE", bias, syminfo.ticker, timeframe.period, signal_candle_time, sig_mae)
+                    string be_payload = f_buildPayload(EVENT_EXIT_BREAK_EVEN, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, final_be_mfe, final_no_be_mfe, sig_mae, final_be_mfe, sig_entry, "be_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_BE", bias, syminfo.ticker, timeframe.period, signal_candle_time)
                     alert(be_payload, alert.freq_once_per_bar_close)
                     array.set(be_exit_sent_flags, sig_idx, true)
                 
                 // SEND EXIT_SL when original stop is hit (No BE strategy completed)
                 // mfe_R = BE MFE (final), mae_R = No-BE MFE (final), final_mfe_R = No-BE MFE (relevant for this exit type)
                 if no_be_stopped and not sl_exit_sent
-                    string sl_payload = f_buildPayload(EVENT_EXIT_STOP_LOSS, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, final_be_mfe, final_no_be_mfe, final_no_be_mfe, sig_stop, "original_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_SL", bias, syminfo.ticker, timeframe.period, signal_candle_time, sig_mae)
+                    string sl_payload = f_buildPayload(EVENT_EXIT_STOP_LOSS, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, final_be_mfe, final_no_be_mfe, sig_mae, final_no_be_mfe, sig_stop, "original_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_SL", bias, syminfo.ticker, timeframe.period, signal_candle_time)
                     alert(sl_payload, alert.freq_once_per_bar_close)
                     array.set(sl_exit_sent_flags, sig_idx, true)
                 
@@ -1436,3 +1606,29 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped
                     array.remove(completion_sent_flags, sig_idx)
                     array.remove(be_exit_sent_flags, sig_idx)
                     array.remove(sl_exit_sent_flags, sig_idx)
+
+// ============================================================================
+// TELEMETRY ENGINE — SAFETY RESET ON FIRST BAR
+// ============================================================================
+// When the script (re)loads on a chart, we do NOT want to resume a half-
+// initialized telemetry state from a prior run. Visual MFE/labels maintain
+// their own state, but telemetry should start fresh and only track trades
+// that occur after this session begins.
+// ============================================================================
+if barstate.isfirst
+    telemetry_active := false
+    telemetry_trade_id := ""
+    telemetry_entry_time := na
+    telemetry_entry_price := na
+    telemetry_stop_price := na
+    telemetry_max_mfe := 0.0
+    telemetry_mae_global := 0.0
+    telemetry_be_triggered := false
+    telemetry_entry_sent := false
+    telemetry_be_sent := false
+    telemetry_exit_be_sent := false
+    telemetry_exit_sl_sent := false
+    telemetry_initialized_this_session := false
+// ============================================================================
+// END TELEMETRY SAFETY RESET
+// ============================================================================
