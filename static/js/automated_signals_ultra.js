@@ -27,6 +27,26 @@ AutomatedSignalsUltra.filters = {
     searchId: ''
 };
 
+// Format TradingView date + time in ET (matching chart)
+AutomatedSignalsUltra.formatDateTime = function(dateStr, timeStr) {
+    if (!dateStr || !timeStr) return "--";
+
+    // Combine into ISO and force-treat as Eastern Time
+    const iso = `${dateStr}T${timeStr}`;
+    const dt = new Date(iso + "Z");  // TradingView timestamps are ET but missing Z
+
+    const options = {
+        timeZone: "America/New_York",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true
+    };
+
+    return dt.toLocaleString("en-US", options).replace(",", "");
+};
+
 AutomatedSignalsUltra.init = function() {
     console.log("[ASE] Initializing Automated Signals Engine dashboard...");
     
@@ -147,6 +167,21 @@ AutomatedSignalsUltra.loadDiagnosis = async function(tradeId) {
         setText("ase-backend-logs", diag.logs || "No logs available");
         setText("ase-lifecycle-summary", diag.summary || "No summary available");
         setText("ase-diagnosis-report", diag.discrepancy || "No discrepancy analysis available");
+        
+        // BE / No-BE lifecycle cues (if backend provided them)
+        if (diag.be_state || diag.no_be_state || diag.next_exit) {
+            const extra = [];
+            extra.push("------ BE / No-BE Lifecycle ------");
+            if (diag.be_state)    extra.push("BE leg:  " + diag.be_state);
+            if (diag.no_be_state) extra.push("No-BE leg: " + diag.no_be_state);
+            if (diag.next_exit)   extra.push("Next exit: " + diag.next_exit);
+            
+            const summaryEl = document.getElementById("ase-lifecycle-summary");
+            if (summaryEl) {
+                const current = summaryEl.textContent || "";
+                summaryEl.textContent = (current ? current + "\n\n" : "") + extra.join("\n");
+            }
+        }
         
         console.log(`[ASE] Diagnosis loaded for trade ${tradeId}`);
     } catch (err) {
@@ -467,11 +502,27 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         // Age: Calculate from signal_date + signal_time (Eastern Time)
         let ageStr = "--";
         
-        // Helper to format duration
+        // SMART AGE FORMATTER
         const formatDuration = (diffSec) => {
-            if (diffSec < 60) return `${Math.floor(diffSec)}s`;
-            if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ${Math.floor(diffSec % 60)}s`;
-            return `${Math.floor(diffSec / 3600)}h ${Math.floor((diffSec % 3600) / 60)}m`;
+            if (diffSec == null || isNaN(diffSec)) return "--";
+
+            const s = Math.floor(diffSec);
+            if (s < 60) return `${s}s`;
+
+            const m = Math.floor(s / 60);
+            if (m < 60) return `${m}m ${s % 60}s`;
+
+            const h = Math.floor(m / 60);
+            if (h < 24) return `${h}h ${m % 60}m`;
+
+            const d = Math.floor(h / 24);
+            if (d < 7) return `${d}d ${h % 24}h`;
+
+            if (d < 365) return `${d}d`;
+
+            // Years for very long trades (unlikely but safe)
+            const yr = (d / 365).toFixed(1);
+            return `${yr}y`;
         };
         
         if (row.status === 'ACTIVE' && row.signal_date && row.signal_time) {
@@ -561,7 +612,7 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
                 <span class="dual-status-badge ${beStatusClass}" title="BE=1 Strategy">BE: ${beStatus}</span>
                 <span class="dual-status-badge ${noBeStatusClass}" title="No BE Strategy">NoBE: ${noBeStatus}</span>
             </td>
-            <td class="ultra-muted">${timeStr}</td>
+            <td class="ultra-muted">${AutomatedSignalsUltra.formatDateTime(row.signal_date, row.signal_time)}</td>
             <td><span class="${dirBadgeClass}">${dir}</span></td>
             <td class="ultra-muted">${row.session ?? "--"}</td>
             <td>${entry}</td>

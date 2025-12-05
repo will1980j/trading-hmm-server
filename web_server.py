@@ -14462,24 +14462,79 @@ def get_trade_diagnosis(trade_id):
     # ------------------------------
     # 5. DISCREPANCY ANALYSIS
     # ------------------------------
+    discrepancy_lines = []
+    be_state = "UNKNOWN"
+    no_be_state = "UNKNOWN"
+    next_exit_hint = "UNKNOWN"
     try:
         missing_mfe = not any(ev.get("event_type") == "MFE_UPDATE" for ev in result["db_events"])
         missing_exit = not any(ev.get("event_type") in ("EXIT_BE", "EXIT_SL", "EXIT_BREAK_EVEN", "EXIT_STOP_LOSS") for ev in result["db_events"])
         missing_be = not any(ev.get("event_type") == "BE_TRIGGERED" for ev in result["db_events"])
-        notes = []
         if missing_mfe:
-            notes.append("❌ No MFE_UPDATE events detected. Live MFE may be broken.")
+            discrepancy_lines.append("❌ No MFE_UPDATE events detected. Live MFE may be broken.")
         if missing_exit:
-            notes.append("❌ No exit events detected. Trade may appear stuck ACTIVE.")
+            discrepancy_lines.append("❌ No exit events detected. Trade may appear stuck ACTIVE.")
         if missing_be:
-            notes.append("⚠️ No BE_TRIGGERED event seen, but BE status recorded.")
-        if not notes:
-            notes.append("✔ No discrepancies detected.")
-        result["discrepancy"] = "\n".join(notes)
+            discrepancy_lines.append("⚠️ No BE_TRIGGERED event seen, but BE status recorded.")
+        if not discrepancy_lines:
+            discrepancy_lines.append("✔ No discrepancies detected.")
+        
+        # --------------------------------------------------
+        # BE / No-BE lifecycle classification
+        # --------------------------------------------------
+        events = result["db_events"]
+        has_be_trigger = any(ev.get("event_type") == "BE_TRIGGERED" for ev in events)
+        has_exit_be = any(ev.get("event_type") in ("EXIT_BE", "EXIT_BREAK_EVEN") for ev in events)
+        has_exit_sl = any(ev.get("event_type") in ("EXIT_SL", "EXIT_STOP_LOSS") for ev in events)
+        
+        # BE leg state
+        if has_exit_sl:
+            be_state = "COMPLETED (stopped at original SL)"
+        elif has_exit_be:
+            be_state = "COMPLETED (BE exit at entry)"
+        elif has_be_trigger:
+            be_state = "ACTIVE (BE triggered at +1R, waiting for return to entry or SL)"
+        else:
+            be_state = "NOT TRIGGERED (trade has not reached +1R yet)"
+        
+        # No-BE leg state
+        if has_exit_sl:
+            no_be_state = "COMPLETED (original SL hit)"
+        else:
+            no_be_state = "ACTIVE (tracking until SL or manual exit)"
+        
+        # Next expected exit event (high-level hint)
+        if has_exit_sl:
+            next_exit_hint = "None — trade fully completed via original SL."
+        elif has_exit_be and not has_exit_sl:
+            next_exit_hint = "No-BE leg still active — expect EXIT_SL if price hits original stop."
+        elif has_be_trigger and not (has_exit_be or has_exit_sl):
+            next_exit_hint = "BE triggered — expect EXIT_BE if price returns to entry, or EXIT_SL if it hits original stop."
+        else:
+            next_exit_hint = "Trade has not reached +1R yet — expect MFE_UPDATEs until BE is triggered or SL/TP logic completes."
+        
+        # Append lifecycle info to discrepancy analysis for quick reading
+        discrepancy_lines.append("")
+        discrepancy_lines.append(f"BE leg state: {be_state}")
+        discrepancy_lines.append(f"No-BE leg state: {no_be_state}")
+        discrepancy_lines.append(f"Next expected exit: {next_exit_hint}")
+        
+        result["discrepancy"] = "\n".join(discrepancy_lines)
     except Exception as e:
         result["discrepancy"] = f"ERROR generating discrepancy analysis: {e}"
 
-    return jsonify(result)
+    return jsonify({
+        "success": True,
+        "trade_id": trade_id,
+        "payload": result["payload"],
+        "db_events": result["db_events"],
+        "logs": result["logs"],
+        "summary": result["summary"],
+        "discrepancy": result["discrepancy"],
+        "be_state": be_state,
+        "no_be_state": no_be_state,
+        "next_exit": next_exit_hint,
+    })
 
 
 @app.route('/api/automated-signals/integrity-report', methods=['GET'])
