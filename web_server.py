@@ -108,6 +108,18 @@ def log_event_fail(prefix, trade_id, err):
     append_trade_log(trade_id, msg)
 
 
+def normalize_mae(value, direction, entry_price, current_price):
+    """Normalize MAE value - must ALWAYS be <= 0"""
+    try:
+        if value is None:
+            return 0.0
+        v = float(value)
+        # MAE must ALWAYS be <= 0
+        return min(0.0, v)
+    except:
+        return 0.0
+
+
 # ============================================================================
 # UNIFIED EVENT HANDLER - Single point of INSERT for all automated_signals
 # ============================================================================
@@ -200,22 +212,9 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
         mae_global_r = data.get("mae_global_R")
         if mae_global_r is None:
             mae_global_r = data.get("mae_R_global")
-        if mae_global_r is not None:
-            try:
-                mae_global_r = float(mae_global_r)
-            except Exception:
-                mae_global_r = None
         
-        # === MAE SANITY ENFORCEMENT ===
-        # MAE must always be <= 0.0 (never positive)
-        try:
-            if mae_global_r is not None:
-                mae_global_r = float(mae_global_r)
-                if mae_global_r > 0:
-                    mae_global_r = 0.0
-        except Exception:
-            # If the MAE value cannot be parsed, force it to 0.0
-            mae_global_r = 0.0
+        # Normalize MAE using helper (ensures <= 0.0)
+        mae_global_r = normalize_mae(mae_global_r, direction, entry_price, current_price)
         
         # Convert MFE fields to float safely
         mfe = None
@@ -234,6 +233,31 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
                 mfe = be_mfe
         except (ValueError, TypeError):
             pass
+        
+        # --- TELEMETRY SANITY CHECKS ---
+        def clamp(val, default):
+            try:
+                return float(val)
+            except:
+                return default
+        
+        # Store raw values for logging before clamping
+        raw_mae = clamp(mae_global_r, 0.0)
+        raw_mfe = clamp(mfe, 0.0)
+        
+        # MFE must never be negative
+        mfe = max(0.0, clamp(mfe, 0.0))
+        be_mfe = max(0.0, clamp(be_mfe, 0.0))
+        no_be_mfe = max(0.0, clamp(no_be_mfe, 0.0))
+        
+        # MAE must never be positive
+        mae_global_r = min(0.0, clamp(mae_global_r, 0.0))
+        
+        # If telemetry misbehaves log it
+        if raw_mae > 0:
+            append_trade_log(trade_id, "⚠ TELEMETRY WARNING: MAE was positive, auto-corrected.")
+        if raw_mfe < 0:
+            append_trade_log(trade_id, "⚠ TELEMETRY WARNING: MFE was negative, auto-corrected.")
         
         # Date/time fields
         signal_date = None
@@ -15109,10 +15133,32 @@ def get_automated_signals_dashboard_data():
                     pass
             
             mae_val = float(row[14]) if row[14] is not None else None
+            be_mfe_val = float(row[11]) if row[11] is not None else 0.0
+            no_be_mfe_val = float(row[12]) if row[12] is not None else 0.0
+            row_event_type = row[2]
+            
+            # ENFORCE MAE POLARITY (MAE must be <= 0 always)
+            if mae_val is None:
+                mae_val = 0.0
+            else:
+                mae_val = min(0.0, float(mae_val))
+            
+            # ENFORCE BE/NoBE dual-leg consistency
+            if row_event_type == "BE_TRIGGERED":
+                # BE-leg frozen, No-BE continues
+                if be_mfe_val is not None:
+                    be_mfe_val = max(0.0, float(be_mfe_val))
+                if no_be_mfe_val is not None:
+                    no_be_mfe_val = max(0.0, float(no_be_mfe_val))
+            
+            # MFE must never be negative
+            be_mfe_val = max(0.0, be_mfe_val)
+            no_be_mfe_val = max(0.0, no_be_mfe_val)
+            
             active_trades.append({
                 "id": row[0],
                 "trade_id": trade_id,
-                "event_type": row[2],
+                "event_type": row_event_type,
                 "direction": row[3],
                 "entry_price": float(row[4]) if row[4] else None,
                 "stop_loss": float(row[5]) if row[5] else None,
@@ -15122,10 +15168,10 @@ def get_automated_signals_dashboard_data():
                 "signal_date": signal_date,
                 "signal_time": signal_time,
                 # Return both field names for JS compatibility
-                "be_mfe": float(row[11]) if row[11] is not None else 0.0,
-                "no_be_mfe": float(row[12]) if row[12] is not None else 0.0,
-                "be_mfe_R": float(row[11]) if row[11] is not None else 0.0,
-                "no_be_mfe_R": float(row[12]) if row[12] is not None else 0.0,
+                "be_mfe": be_mfe_val,
+                "no_be_mfe": no_be_mfe_val,
+                "be_mfe_R": be_mfe_val,
+                "no_be_mfe_R": no_be_mfe_val,
                 "current_price": float(row[13]) if row[13] else None,
                 "mae_global_R": mae_val,
                 "mae": mae_val,  # Alias for frontend compatibility
@@ -15252,10 +15298,39 @@ def get_automated_signals_dashboard_data():
                     pass
             
             mae_val = float(row[16]) if row[16] is not None else None
+            be_mfe_val = float(row[13]) if row[13] is not None else 0.0
+            no_be_mfe_val = float(row[14]) if row[14] is not None else 0.0
+            final_mfe_val = float(row[15]) if row[15] is not None else 0.0
+            row_event_type = row[2]
+            
+            # ENFORCE MAE POLARITY (MAE must be <= 0 always)
+            if mae_val is None:
+                mae_val = 0.0
+            else:
+                mae_val = min(0.0, float(mae_val))
+            
+            # ENFORCE BE/NoBE dual-leg consistency
+            if row_event_type == "BE_TRIGGERED":
+                # BE-leg frozen, No-BE continues
+                if be_mfe_val is not None:
+                    be_mfe_val = max(0.0, float(be_mfe_val))
+                if no_be_mfe_val is not None:
+                    no_be_mfe_val = max(0.0, float(no_be_mfe_val))
+            
+            if row_event_type in ("EXIT_BE", "EXIT_SL"):
+                # Exit events must finalize MFE values
+                if final_mfe_val is not None:
+                    final_mfe_val = max(0.0, float(final_mfe_val))
+            
+            # MFE must never be negative
+            be_mfe_val = max(0.0, be_mfe_val)
+            no_be_mfe_val = max(0.0, no_be_mfe_val)
+            final_mfe_val = max(0.0, final_mfe_val)
+            
             completed_trades.append({
                 "id": row[0],
                 "trade_id": trade_id,
-                "event_type": row[2],
+                "event_type": row_event_type,
                 "direction": row[3],
                 "entry_price": float(row[4]) if row[4] else None,
                 "stop_loss": float(row[5]) if row[5] else None,
@@ -15267,12 +15342,12 @@ def get_automated_signals_dashboard_data():
                 "entry_timestamp": row[11].isoformat() if row[11] else None,
                 "duration_seconds": float(row[12]) if row[12] is not None else None,
                 # MFE values from MAX(MFE_UPDATE) via CTE - no exit_price fallback
-                "be_mfe": float(row[13]) if row[13] is not None else 0.0,
-                "no_be_mfe": float(row[14]) if row[14] is not None else 0.0,
-                "be_mfe_R": float(row[13]) if row[13] is not None else 0.0,
-                "no_be_mfe_R": float(row[14]) if row[14] is not None else 0.0,
-                "final_mfe": float(row[15]) if row[15] is not None else 0.0,
-                "final_mfe_R": float(row[15]) if row[15] is not None else 0.0,
+                "be_mfe": be_mfe_val,
+                "no_be_mfe": no_be_mfe_val,
+                "be_mfe_R": be_mfe_val,
+                "no_be_mfe_R": no_be_mfe_val,
+                "final_mfe": final_mfe_val,
+                "final_mfe_R": final_mfe_val,
                 "mae_global_R": mae_val,
                 "mae": mae_val,  # Alias for frontend compatibility
                 "status": "COMPLETED",

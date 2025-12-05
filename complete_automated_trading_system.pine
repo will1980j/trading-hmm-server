@@ -1199,6 +1199,9 @@ jsonWrap(payload) =>
 // COMPACT JSON PAYLOAD BUILDER (Pine-Safe, No Size Limits)
 // ---------------------------------------------------------------------------
 f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, posSize, mfeR, maeR, maeGlobalR, finalMfeR, exitPrice, exitReason, tp1, tp2, tp3, setupFam, setupVar, htfBias, symbol, timeframeStr, signalTimeMs) =>
+    // --- Enforce MAE is never positive ---
+    float maeR_clean = math.min(nz(maeR, 0.0), 0.0)
+    float maeGlobalR_clean = math.min(nz(maeGlobalR, 0.0), 0.0)
     ts = f_isoTimestamp(signalTimeMs)
     session = f_sessionLabel(signalTimeMs)
     sym = f_symbol()
@@ -1222,8 +1225,8 @@ f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, p
     p += jsonField("position_size", f_num(posSize))
     p += jsonField("be_price", f_num(bePrice))
     p += jsonField("mfe_R", f_num(mfeR))
-    p += jsonField("mae_R", f_num(maeR))
-    p += jsonField("mae_R_global", f_num(maeGlobalR))
+    p += jsonField("mae_R", f_num(maeR_clean))
+    p += jsonField("mae_R_global", f_num(maeGlobalR_clean))
     p += jsonField("final_mfe_R", f_num(finalMfeR))
     p += jsonField("exit_price", f_num(exitPrice))
     p += jsonField("exit_timestamp", "null")
@@ -1411,6 +1414,8 @@ if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active
             if should_send_regular_update or should_send_snapshot
                 // Get global MAE for this signal
                 float sig_mae = array.get(signal_maes, signal_array_idx)
+                // --- Ensure MAE is never positive ---
+                sig_mae := math.min(sig_mae, 0.0)
                 
                 // Build telemetry payload for MFE_UPDATE event
                 // CRITICAL: Send BOTH MFE values - BE MFE in mfeR, No BE MFE in maeR
@@ -1436,10 +1441,12 @@ if telemetry_active and barstate.isrealtime
         float sig_entry = array.get(signal_entries, telem_signal_idx)
         float sig_risk = array.get(signal_risks, telem_signal_idx)
         string sig_dir = array.get(signal_directions, telem_signal_idx)
-        // MAE global = drawdown in R from peak adverse move
+        // MAE global = drawdown in R from peak adverse move (ALWAYS <= 0)
         float mae_source_low = array.get(signal_lowest_lows, telem_signal_idx)
         float mae_source_high = array.get(signal_highest_highs, telem_signal_idx)
-        float true_mae_global = sig_dir == "Bullish" ? (sig_entry - mae_source_low) / sig_risk : (mae_source_high - sig_entry) / sig_risk
+        // --- Correct MAE calculation ---
+        float true_mae_global = sig_dir == "Bullish" ? (mae_source_low - sig_entry) / sig_risk : (sig_entry - mae_source_high) / sig_risk
+        true_mae_global := math.min(true_mae_global, 0.0)
         // Telemetry MFE = No-BE MFE (this matches dashboard rules)
         telemetry_max_mfe := true_no_be_mfe
         telemetry_mae_global := true_mae_global
@@ -1487,7 +1494,9 @@ if telemetry_active and telemetry_be_triggered and barstate.isrealtime
             string sig_dir_exit = exit_be_idx >= 0 ? array.get(signal_directions, exit_be_idx) : telemetry_direction
             float mae_source_low_exit = exit_be_idx >= 0 ? array.get(signal_lowest_lows, exit_be_idx) : 0.0
             float mae_source_high_exit = exit_be_idx >= 0 ? array.get(signal_highest_highs, exit_be_idx) : 0.0
-            float true_mae_global_exit = sig_dir_exit == "Bullish" ? (sig_entry_exit - mae_source_low_exit) / sig_risk_exit : (mae_source_high_exit - sig_entry_exit) / sig_risk_exit
+            // --- Correct MAE calculation ---
+            float true_mae_global_exit = sig_dir_exit == "Bullish" ? (mae_source_low_exit - sig_entry_exit) / sig_risk_exit : (sig_entry_exit - mae_source_high_exit) / sig_risk_exit
+            true_mae_global_exit := math.min(true_mae_global_exit, 0.0)
             string exit_be_payload = f_buildPayload(EVENT_EXIT_BREAK_EVEN, telemetry_trade_id, telemetry_direction, telemetry_entry_price, telemetry_stop_price, telemetry_entry_price, 1.0, contract_size, true_be_mfe_exit, true_no_be_mfe_exit, true_mae_global_exit, true_be_mfe_exit, telemetry_entry_price, "be_stop_loss_hit", 0.0, 0.0, 0.0, "FVG_CORE", "EXIT_BE", bias, syminfo.ticker, timeframe.period, time)
             alert(exit_be_payload, alert.freq_once_per_bar_close)
             telemetry_exit_be_sent := true
@@ -1514,7 +1523,9 @@ if telemetry_active and barstate.isrealtime
             string sig_dir_sl = exit_sl_idx >= 0 ? array.get(signal_directions, exit_sl_idx) : telemetry_direction
             float mae_source_low_sl = exit_sl_idx >= 0 ? array.get(signal_lowest_lows, exit_sl_idx) : 0.0
             float mae_source_high_sl = exit_sl_idx >= 0 ? array.get(signal_highest_highs, exit_sl_idx) : 0.0
-            float true_mae_global_sl = sig_dir_sl == "Bullish" ? (sig_entry_sl - mae_source_low_sl) / sig_risk_sl : (mae_source_high_sl - sig_entry_sl) / sig_risk_sl
+            // --- Correct MAE calculation ---
+            float true_mae_global_sl = sig_dir_sl == "Bullish" ? (mae_source_low_sl - sig_entry_sl) / sig_risk_sl : (sig_entry_sl - mae_source_high_sl) / sig_risk_sl
+            true_mae_global_sl := math.min(true_mae_global_sl, 0.0)
             string exit_sl_payload = f_buildPayload(EVENT_EXIT_STOP_LOSS, telemetry_trade_id, telemetry_direction, telemetry_entry_price, telemetry_stop_price, telemetry_be_triggered ? telemetry_entry_price : float(na), 1.0, contract_size, true_be_mfe_sl, true_no_be_mfe_sl, true_mae_global_sl, true_no_be_mfe_sl, telemetry_stop_price, "original_stop_loss_hit", 0.0, 0.0, 0.0, "FVG_CORE", "EXIT_SL", bias, syminfo.ticker, timeframe.period, time)
             alert(exit_sl_payload, alert.freq_once_per_bar_close)
             telemetry_exit_sl_sent := true
@@ -1553,6 +1564,8 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_trigger
                     
                     // Get global MAE for this signal
                     float sig_mae = array.get(signal_maes, signal_array_idx)
+                    // --- Ensure MAE is never positive ---
+                    sig_mae := math.min(sig_mae, 0.0)
                     
                     // Calculate target prices for BE trigger
                     float be_target_1r = sig_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
@@ -1602,6 +1615,8 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped
                 
                 // Get global MAE for this signal
                 float sig_mae = array.get(signal_maes, signal_array_idx)
+                // --- Ensure MAE is never positive ---
+                sig_mae := math.min(sig_mae, 0.0)
                 
                 // Calculate target prices
                 float exit_target_1r = sig_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk

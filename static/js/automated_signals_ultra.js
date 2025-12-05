@@ -183,6 +183,22 @@ AutomatedSignalsUltra.loadDiagnosis = async function(tradeId) {
             }
         }
         
+        // --- MAE DIAGNOSIS ---
+        if (diag.db_events && diag.db_events.length > 0) {
+            let maes = diag.db_events.map(e => parseFloat(e.mae_global_r)).filter(v => !isNaN(v));
+            let minMae = Math.min(...maes);
+            let maxMae = Math.max(...maes);
+            let maeReport = "";
+            maeReport += "MAE Range: " + minMae.toFixed(4) + " → " + maxMae.toFixed(4) + "\n";
+            if (maxMae > 0) {
+                maeReport += "❌ MAE polarity violation detected (positive MAE value).\n";
+            }
+            const maePanel = document.getElementById("ase-diagnosis-report");
+            if (maePanel) {
+                maePanel.textContent += "\n" + maeReport;
+            }
+        }
+        
         console.log(`[ASE] Diagnosis loaded for trade ${tradeId}`);
     } catch (err) {
         console.error("[ASE] Diagnosis load failed:", err);
