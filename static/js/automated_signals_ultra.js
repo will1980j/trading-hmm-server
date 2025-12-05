@@ -670,34 +670,37 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             return `${d}d${remH > 0 ? ` ${remH}h` : ""}`;
         };
         
-        // Age based on UTC timestamp (event_ts is now the single source)
+        // Age = time from entry to exit (completed trades) OR entry to now (active trades)
         let ageStr = "--";
-        if (row.event_ts) {
-            let eventDate;
-            try {
-                // Handle both ISO format (2025-12-06T08:30:00+00:00) and space-separated (2025-12-06 08:30:00)
-                let tsStr = row.event_ts.replace(" ", "T");
-                // Only add Z if no timezone info present
-                if (!tsStr.includes("+") && !tsStr.includes("Z") && !tsStr.match(/[+-]\d{2}:\d{2}$/)) {
-                    tsStr += "Z";
-                }
-                eventDate = new Date(tsStr);
-            } catch {
-                eventDate = null;
+        const entryTs = row.entry_ts || row.event_ts;   // event_ts is the ENTRY event for active trades
+        const exitTs = row.exit_ts || null;             // completed trades have exit_ts
+        const parseTs = (ts) => {
+            if (!ts) return null;
+            const iso = ts.includes("Z") ? ts : ts.replace(" ", "T") + "Z";
+            const d = new Date(iso);
+            return isNaN(d.getTime()) ? null : d;
+        };
+        const entryDate = parseTs(entryTs);
+        const exitDate  = parseTs(exitTs);
+        if (entryDate) {
+            let diffSeconds;
+            if (exitDate) {
+                // COMPLETED → use entry → exit
+                diffSeconds = Math.max(0, (exitDate - entryDate) / 1000);
+            } else {
+                // ACTIVE → use entry → NOW
+                diffSeconds = Math.max(0, (Date.now() - entryDate.getTime()) / 1000);
             }
-            if (eventDate && !Number.isNaN(eventDate.getTime())) {
-                const diffSec = Math.max(0, (Date.now() - eventDate.getTime()) / 1000);
-                ageStr = formatDuration(diffSec);
-            }
+            ageStr = formatDuration(diffSeconds);
         }
         
+        // Always treat backend event_ts as UTC and convert to NY time
         let timeStr = "--";
         if (row.event_ts) {
-            // NORMALIZE TO UTC ISO ALWAYS
-            const ts = row.event_ts.includes("Z")
+            const iso = row.event_ts.includes("Z")
                 ? row.event_ts
                 : row.event_ts.replace(" ", "T") + "Z";
-            const d = new Date(ts);
+            const d = new Date(iso);
             timeStr = d.toLocaleString("en-US", {
                 timeZone: "America/New_York",
                 year: "numeric",
