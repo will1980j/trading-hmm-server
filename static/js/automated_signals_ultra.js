@@ -101,24 +101,32 @@ AutomatedSignalsUltra.describeLatency = function(ms) {
     return `${(ms/1000).toFixed(1)}s`;
 };
 
-// Format TradingView date + time in ET (matching chart)
-AutomatedSignalsUltra.formatDateTime = function(dateStr, timeStr) {
-    if (!dateStr || !timeStr) return "--";
-
-    // Combine into ISO and force-treat as Eastern Time
-    const iso = `${dateStr}T${timeStr}`;
-    const dt = new Date(iso + "Z");  // TradingView timestamps are ET but missing Z
-
-    const options = {
+// Universal NY time converter
+AutomatedSignalsUltra.formatSignalDateTime = function(row) {
+    // Always use event_ts if available
+    const src = row.event_ts || (row.signal_date + "T" + row.signal_time);
+    if (!src) return "--";
+    
+    // Ensure UTC
+    const dt = new Date(src + "Z");
+    
+    // Convert to NY
+    const ny = dt.toLocaleString("en-US", {
         timeZone: "America/New_York",
+        year: "numeric",
         month: "short",
         day: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
         hour12: true
-    };
+    });
+    
+    return ny;
+};
 
-    return dt.toLocaleString("en-US", options).replace(",", "");
+// Legacy wrapper for backward compatibility
+AutomatedSignalsUltra.formatDateTime = function(dateStr, timeStr) {
+    return AutomatedSignalsUltra.formatSignalDateTime({ signal_date: dateStr, signal_time: timeStr });
 };
 
 AutomatedSignalsUltra.init = function() {
@@ -748,7 +756,7 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
                 <span class="dual-status-badge ${beStatusClass}" title="BE=1 Strategy">BE: ${beStatus}</span>
                 <span class="dual-status-badge ${noBeStatusClass}" title="No BE Strategy">NoBE: ${noBeStatus}</span>
             </td>
-            <td class="ultra-muted">${AutomatedSignalsUltra.formatDateTime(row.signal_date, row.signal_time)}</td>
+            <td class="ultra-muted">${AutomatedSignalsUltra.formatSignalDateTime(row)}</td>
             <td><span class="${dirBadgeClass}">${dir}</span></td>
             <td class="ultra-muted">${row.session ?? "--"}</td>
             <td>${entry}</td>
