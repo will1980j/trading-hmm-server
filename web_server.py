@@ -139,22 +139,43 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
     trade_id = data.get('trade_id') or data.get('signal_id') or 'UNKNOWN'
     prefix = event_type
     
-    # Extract and normalize event_timestamp from payload
+    # --- TIMESTAMP NORMALIZATION (NY → UTC) ---
+    ny_tz = pytz.timezone("America/New_York")
     raw_ts = data.get("event_timestamp") or data.get("timestamp")
-    event_ts_clean = None
     if raw_ts:
         try:
-            ts_str = raw_ts.replace("Z", "")
-            # TradingView timestamps are already in New York local time.
-            from zoneinfo import ZoneInfo
-            ny = ZoneInfo("America/New_York")
-            utc = ZoneInfo("UTC")
-            local_dt = datetime.fromisoformat(ts_str).replace(tzinfo=ny)
-            event_ts_clean = local_dt.astimezone(utc)
-        except Exception:
-            event_ts_clean = datetime.utcnow()
+            # Strip trailing Z if present
+            ts_clean = raw_ts.replace("Z", "")
+            # Parse as naive local time first
+            naive_dt = datetime.fromisoformat(ts_clean)
+            # Localize to NY timezone
+            ny_dt = ny_tz.localize(naive_dt)
+            # Convert to UTC
+            event_ts_utc = ny_dt.astimezone(pytz.UTC)
+        except Exception as e:
+            print("Timestamp parse error:", e)
+            event_ts_utc = datetime.utcnow().replace(tzinfo=pytz.UTC)
     else:
-        event_ts_clean = datetime.utcnow()
+        event_ts_utc = datetime.utcnow().replace(tzinfo=pytz.UTC)
+    # Normalize to pure ISO8601 UTC string (what PostgreSQL expects)
+    event_ts_clean = event_ts_utc.isoformat()
+    
+    # Record payload timestamp (before conversion)
+    payload_ts_raw = raw_ts
+    
+    # Ingress timestamp (actual server receive time)
+    ingress_ts = datetime.utcnow()
+    
+    # Latency: server ingress - payload timestamp
+    try:
+        latency_delta = ingress_ts - event_ts_utc.replace(tzinfo=None)
+        latency_ms = int(latency_delta.total_seconds() * 1000)
+    except Exception:
+        latency_ms = None
+    
+    # Drift: db side timestamp should be >= payload timestamp
+    # If db timestamp ends up earlier → negative drift_ms
+    drift_ms = latency_ms if latency_ms is not None else None
     
     # Log raw and normalized payloads
     logger.info(f"[UNIFIED] {event_type} raw_payload: {raw_payload_str[:500] if raw_payload_str else 'None'}...")
@@ -332,10 +353,15 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
                 signal_date,
                 signal_time,
                 timestamp,
-                raw_payload
+                raw_payload,
+                payload_ts,
+                ingress_ts,
+                latency_ms,
+                drift_ms
             ) VALUES (
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s
             )
             RETURNING id
         """
@@ -360,7 +386,11 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
             signal_date,
             signal_time,
             event_ts_clean,  # Use payload timestamp instead of NOW()
-            raw_payload_str
+            raw_payload_str,
+            payload_ts_raw,
+            ingress_ts,
+            latency_ms,
+            drift_ms
         )
         
         cursor.execute(insert_sql, params)
@@ -12001,6 +12031,30 @@ def create_automated_signals_table():
             ADD COLUMN IF NOT EXISTS mae_global_r FLOAT DEFAULT NULL;
         ''')
         
+        # Ensure latency tracking columns exist
+        def ensure_latency_columns(conn):
+            cur = conn.cursor()
+            try:
+                cur.execute("ALTER TABLE automated_signals ADD COLUMN payload_ts TIMESTAMP NULL")
+            except Exception:
+                pass
+            try:
+                cur.execute("ALTER TABLE automated_signals ADD COLUMN ingress_ts TIMESTAMP NULL")
+            except Exception:
+                pass
+            try:
+                cur.execute("ALTER TABLE automated_signals ADD COLUMN latency_ms INTEGER NULL")
+            except Exception:
+                pass
+            try:
+                cur.execute("ALTER TABLE automated_signals ADD COLUMN drift_ms INTEGER NULL")
+            except Exception:
+                pass
+            conn.commit()
+        
+        # Call migration
+        ensure_latency_columns(conn)
+        
         # Create automated_signals_v2 staging table (H1.7 Foundation - GATED)
         # This is an INACTIVE staging table for future migration planning only
         # NOT referenced by any application code, NOT replacing automated_signals
@@ -14463,6 +14517,8 @@ def get_trade_diagnosis(trade_id):
                             event[key] = value
                         else:
                             event[key] = str(value)
+                    # Add unified event timestamp (prefer payload_ts over timestamp)
+                    event["event_ts"] = event.get("payload_ts") or event.get("timestamp")
                     db_events.append(event)
                 result["db_events"] = db_events
     except Exception as e:
@@ -14558,6 +14614,11 @@ def get_trade_diagnosis(trade_id):
         discrepancy_lines.append(f"BE leg state: {be_state}")
         discrepancy_lines.append(f"No-BE leg state: {no_be_state}")
         discrepancy_lines.append(f"Next expected exit: {next_exit_hint}")
+        
+        # Detect clock drift from latency columns
+        drifts = [ev for ev in result["db_events"] if (ev.get("drift_ms") or 0) < -500]
+        if drifts:
+            discrepancy_lines.append(f"\n⚠ Clock drift detected in {len(drifts)} events (db timestamp earlier than payload timestamp).")
         
         result["discrepancy"] = "\n".join(discrepancy_lines)
     except Exception as e:

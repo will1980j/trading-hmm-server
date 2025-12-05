@@ -27,6 +27,80 @@ AutomatedSignalsUltra.filters = {
     searchId: ''
 };
 
+// --- GLOBAL TIMEZONE HELPERS ---
+AutomatedSignalsUltra.toNY = function(isoString) {
+    try {
+        if (!isoString) return null;
+        const dateUtc = new Date(isoString); // interpreted as UTC
+        return dateUtc.toLocaleString("en-US", {
+            timeZone: "America/New_York",
+            hour12: false
+        });
+    } catch (err) {
+        console.error("[ASE] NY time conversion failed:", err, isoString);
+        return isoString;
+    }
+};
+
+AutomatedSignalsUltra.toNYTime = function(isoString) {
+    try {
+        const dateUtc = new Date(isoString);
+        return dateUtc.toLocaleTimeString("en-US", {
+            timeZone: "America/New_York",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false
+        });
+    } catch (err) {
+        return "--:--:--";
+    }
+};
+
+AutomatedSignalsUltra.toNYDate = function(isoString) {
+    try {
+        const dateUtc = new Date(isoString);
+        return dateUtc.toLocaleDateString("en-US", {
+            timeZone: "America/New_York",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+        });
+    } catch (err) {
+        return "--/--/----";
+    }
+};
+
+AutomatedSignalsUltra.toUTC = function(isoString) {
+    try {
+        if (!isoString) return null;
+        const d = new Date(isoString);
+        return d.toISOString().replace("T", " ").replace("Z", "");
+    } catch (err) {
+        console.error("[ASE] Failed UTC convert:", err);
+        return isoString;
+    }
+};
+
+AutomatedSignalsUltra.computeLatencyMs = function(payloadTs, dbTs) {
+    try {
+        if (!payloadTs || !dbTs) return null;
+        const p = new Date(payloadTs);
+        const d = new Date(dbTs);
+        return d - p; // milliseconds
+    } catch {
+        return null;
+    }
+};
+
+AutomatedSignalsUltra.describeLatency = function(ms) {
+    if (ms == null) return "";
+    if (ms < 0) return `⚠ clock drift (db < payload by ${Math.abs(ms)} ms)`;
+    if (ms < 500) return `${ms} ms`;
+    if (ms < 2000) return `${(ms/1000).toFixed(2)}s`;
+    return `${(ms/1000).toFixed(1)}s`;
+};
+
 // Format TradingView date + time in ET (matching chart)
 AutomatedSignalsUltra.formatDateTime = function(dateStr, timeStr) {
     if (!dateStr || !timeStr) return "--";
@@ -163,10 +237,54 @@ AutomatedSignalsUltra.loadDiagnosis = async function(tradeId) {
             }
         }
         
-        setText("ase-raw-db-events", JSON.stringify(diag.db_events || [], null, 2));
+        if (diag.db_events) {
+            const enriched = diag.db_events.map(ev => {
+                const utc = AutomatedSignalsUltra.toUTC(ev.timestamp);
+                const ny  = AutomatedSignalsUltra.toNY(ev.timestamp);
+                const payloadTs = ev.raw_payload && ev.raw_payload.event_timestamp
+                    ? ev.raw_payload.event_timestamp
+                    : (ev.event_timestamp || null);
+                const latency = AutomatedSignalsUltra.computeLatencyMs(payloadTs, ev.timestamp);
+                return {
+                    ...ev,
+                    timestamp_utc: utc,
+                    timestamp_ny: ny,
+                    payload_timestamp: payloadTs,
+                    latency_ms: latency,
+                    latency_human: AutomatedSignalsUltra.describeLatency(latency)
+                };
+            });
+            setText("ase-raw-db-events", JSON.stringify(enriched, null, 2));
+        } else {
+            setText("ase-raw-db-events", "No DB events available.");
+        }
         setText("ase-backend-logs", diag.logs || "No logs available");
-        setText("ase-lifecycle-summary", diag.summary || "No summary available");
-        setText("ase-diagnosis-report", diag.discrepancy || "No discrepancy analysis available");
+        if (diag.summary_rows) {
+            const pretty = diag.summary_rows.map(r => {
+                const utc = AutomatedSignalsUltra.toUTC(r.timestamp);
+                const ny  = AutomatedSignalsUltra.toNY(r.timestamp);
+                return `${r.timestamp}  (NY: ${ny})  –  ${r.event_type}  –  MFE=${r.mfe} / NoBE=${r.no_be_mfe} / MAE=${r.mae}`;
+            }).join("\n");
+            setText("ase-lifecycle-summary", pretty);
+        } else {
+            setText("ase-lifecycle-summary", diag.summary || "No summary available");
+        }
+        let driftNote = "";
+        if (diag.db_events && diag.db_events.length > 0) {
+            const drifts = diag.db_events.filter(ev => {
+                const payloadTs = ev.raw_payload && ev.raw_payload.event_timestamp
+                    ? ev.raw_payload.event_timestamp
+                    : (ev.event_timestamp || null);
+                if (!payloadTs) return false;
+                const diff = AutomatedSignalsUltra.computeLatencyMs(payloadTs, ev.timestamp);
+                return diff < -500; // drift > 500 ms backwards
+            });
+            if (drifts.length > 0) {
+                driftNote = `\n⚠ Clock drift detected in ${drifts.length} events (db timestamp earlier than payload timestamp).`;
+            }
+        }
+        setText("ase-diagnosis-report",
+            (diag.discrepancy || "No discrepancy analysis available") + driftNote);
         
         // BE / No-BE lifecycle cues (if backend provided them)
         if (diag.be_state || diag.no_be_state || diag.next_exit) {
@@ -322,15 +440,7 @@ AutomatedSignalsUltra.renderHeaderStats = function() {
     
     if (lastEl) {
         if (lastTs) {
-            // Parse UTC timestamp and convert to NY Eastern
-            const utcDate = new Date(lastTs + (lastTs.includes('Z') ? '' : 'Z'));
-            lastEl.textContent = utcDate.toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit', 
-                second: '2-digit',
-                hour12: true,
-                timeZone: 'America/New_York'
-            });
+            lastEl.textContent = AutomatedSignalsUltra.toNYTime(lastTs);
         } else {
             lastEl.textContent = "--:--:--";
         }
@@ -460,6 +570,20 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         return true;
     });
     
+    // Sort rows by signal timestamp (newest first)
+    // Prefer signal_date + signal_time (TradingView / NY time)
+    rows.sort((a, b) => {
+        const aKey = (a.signal_date && a.signal_time) ? `${a.signal_date}T${a.signal_time}` : (a.event_ts || "");
+        const bKey = (b.signal_date && b.signal_time) ? `${b.signal_date}T${b.signal_time}` : (b.event_ts || "");
+        if (!aKey && !bKey) return 0;
+        if (!aKey) return 1;
+        if (!bKey) return -1;
+        // Descending (newest first)
+        if (aKey < bKey) return 1;
+        if (aKey > bKey) return -1;
+        return 0;
+    });
+    
     tbody.innerHTML = "";
     
     if (rows.length === 0) {
@@ -518,29 +642,28 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         // Age: Calculate from signal_date + signal_time (Eastern Time)
         let ageStr = "--";
         
-        // SMART AGE FORMATTER
+        // Helper to format duration (smart units)
         const formatDuration = (diffSec) => {
-            if (diffSec == null || isNaN(diffSec)) return "--";
-
-            const s = Math.floor(diffSec);
-            if (s < 60) return `${s}s`;
-
+            const s = Math.max(0, Math.floor(diffSec));
+            if (s < 60) {
+                return `${s}s`;
+            }
             const m = Math.floor(s / 60);
-            if (m < 60) return `${m}m ${s % 60}s`;
-
+            const remS = s % 60;
+            if (m < 60) {
+                return `${m}m${remS > 0 ? ` ${remS}s` : ""}`;
+            }
             const h = Math.floor(m / 60);
-            if (h < 24) return `${h}h ${m % 60}m`;
-
+            const remM = m % 60;
+            if (h < 48) {
+                return `${h}h${remM > 0 ? ` ${remM}m` : ""}`;
+            }
             const d = Math.floor(h / 24);
-            if (d < 7) return `${d}d ${h % 24}h`;
-
-            if (d < 365) return `${d}d`;
-
-            // Years for very long trades (unlikely but safe)
-            const yr = (d / 365).toFixed(1);
-            return `${yr}y`;
+            const remH = h % 24;
+            return `${d}d${remH > 0 ? ` ${remH}h` : ""}`;
         };
         
+        // --- AGE COMPUTATION USING SIGNAL_DATE + SIGNAL_TIME (NY) ---
         if (row.status === 'ACTIVE' && row.signal_date && row.signal_time) {
             // Active trades: show live age since signal time
             // signal_date and signal_time are in Eastern Time from the API
@@ -586,25 +709,22 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         }
         
         // Time display: Use signal_time from TradingView (already in Eastern Time)
-        // CRITICAL FIX: Use the ORIGINAL signal_time, never derive from current time
+        // CRITICAL: Use the ORIGINAL signal_time string, NEVER reinterpret with browser timezone
         let timeStr = "--";
-        const originalSignalTime = row.signal_time;  // Preserve original value
+        const originalSignalTime = row.signal_time;  // e.g. "07:05:00" in America/New_York
         if (originalSignalTime) {
-            // signal_time is already in Eastern Time format like "05:28:00" or "07:01:00"
-            // Parse and format nicely as HH:MM AM/PM
             const rawTime = String(originalSignalTime);
-            const parts = rawTime.split(':');
+            const parts = rawTime.split(":");
             if (parts.length >= 2) {
                 let hour = parseInt(parts[0], 10);
                 const min = parts[1];
-                const ampm = hour >= 12 ? 'PM' : 'AM';
+                const ampm = hour >= 12 ? "PM" : "AM";
                 if (hour > 12) hour -= 12;
                 if (hour === 0) hour = 12;
-                timeStr = `${hour.toString().padStart(2, '0')}:${min} ${ampm}`;
+                timeStr = `${hour.toString().padStart(2, "0")}:${min} ${ampm}`;
             } else {
                 timeStr = rawTime;
             }
-
         }
         
         const isChecked = AutomatedSignalsUltra.selectedTrades.has(row.trade_id);
@@ -927,14 +1047,10 @@ AutomatedSignalsUltra.renderLifecycleOverlay = function(detail) {
         eventsEl.innerHTML = `<div style="color:rgba(226,232,240,0.5); font-size:13px;">No lifecycle events available.</div>`;
     } else {
         const evRows = events.map(ev => {
-            // Format time in NY Eastern timezone to match TradingView
-            const ts = ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString('en-US', { 
-                hour: '2-digit', minute: '2-digit', second: '2-digit', 
-                hour12: true, timeZone: 'America/New_York' 
-            }) : '--:--:--';
-            const date = ev.timestamp ? new Date(ev.timestamp).toLocaleDateString('en-US', { 
-                month: 'short', day: 'numeric', timeZone: 'America/New_York' 
-            }) : '';
+            const ts = ev.timestamp ? AutomatedSignalsUltra.toNYTime(ev.timestamp)
+                : '--:--:--';
+            const date = ev.timestamp ? AutomatedSignalsUltra.toNYDate(ev.timestamp)
+                : '';
             // API returns mfe, no_be_mfe, be_mfe (without _R suffix)
             const mfeR = ev.mfe != null ? parseFloat(ev.mfe).toFixed(2) : 
                         (ev.no_be_mfe != null ? parseFloat(ev.no_be_mfe).toFixed(2) : 
