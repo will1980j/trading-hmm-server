@@ -13814,7 +13814,7 @@ def predictive_trade_view(trade_id):
             SELECT *
             FROM automated_signals
             WHERE trade_id = %s
-            ORDER BY id ASC
+            ORDER BY timestamp ASC
         """, (trade_id,))
         lifecycle_rows = cur.fetchall()
         
@@ -14951,7 +14951,7 @@ def get_automated_signals_dashboard_data():
                     WHERE ex.trade_id = e.trade_id
                     AND ex.event_type LIKE 'EXIT_%'
                 )
-                ORDER BY e.timestamp DESC
+                ORDER BY m.last_mfe_ts ASC, e.timestamp DESC, e.trade_id ASC
                 LIMIT 100
             """, (date_filter,))
         else:
@@ -14989,7 +14989,7 @@ def get_automated_signals_dashboard_data():
                     WHERE ex.trade_id = e.trade_id
                     AND ex.event_type LIKE 'EXIT_%'
                 )
-                ORDER BY e.timestamp DESC
+                ORDER BY m.last_mfe_ts ASC, e.timestamp DESC, e.trade_id ASC
                 LIMIT 100
             """)
         
@@ -15083,7 +15083,7 @@ def get_automated_signals_dashboard_data():
                         WHEN ex.event_type = 'EXIT_BREAK_EVEN' THEN 2
                         ELSE 3
                     END,
-                    ex.timestamp DESC
+                    ex.timestamp DESC, ex.trade_id ASC
                 LIMIT 100
             """, (date_filter,))
         else:
@@ -15130,7 +15130,7 @@ def get_automated_signals_dashboard_data():
                         WHEN ex.event_type = 'EXIT_BREAK_EVEN' THEN 2
                         ELSE 3
                     END,
-                    ex.timestamp DESC
+                    ex.timestamp DESC, ex.trade_id ASC
                 LIMIT 100
             """)
         
@@ -15654,7 +15654,7 @@ def get_recent_automated_signals():
                 END as status
             FROM automated_signals
             WHERE timestamp >= NOW() - INTERVAL '24 hours'
-            ORDER BY timestamp DESC
+            ORDER BY timestamp DESC, trade_id ASC
             LIMIT 100
         """)
         
