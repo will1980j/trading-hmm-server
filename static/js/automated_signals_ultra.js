@@ -693,13 +693,11 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         
         let timeStr = "--";
         if (row.event_ts) {
-            // Handle both ISO format (2025-12-06T08:30:00+00:00) and space-separated (2025-12-06 08:30:00)
-            let tsStr = row.event_ts.replace(" ", "T");
-            // Only add Z if no timezone info present
-            if (!tsStr.includes("+") && !tsStr.includes("Z") && !tsStr.match(/[+-]\d{2}:\d{2}$/)) {
-                tsStr += "Z";
-            }
-            const d = new Date(tsStr);
+            // NORMALIZE TO UTC ISO ALWAYS
+            const ts = row.event_ts.includes("Z")
+                ? row.event_ts
+                : row.event_ts.replace(" ", "T") + "Z";
+            const d = new Date(ts);
             timeStr = d.toLocaleString("en-US", {
                 timeZone: "America/New_York",
                 year: "numeric",
