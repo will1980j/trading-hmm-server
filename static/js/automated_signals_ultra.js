@@ -560,7 +560,7 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
     
     rows = rows.filter(row => {
         if (AutomatedSignalsUltra.selectedDate) {
-            const rowDate = row.signal_date || (row.timestamp ? row.timestamp.split('T')[0] : null);
+            const rowDate = row.signal_date || (row.event_ts ? row.event_ts.split('T')[0] : null);
             if (rowDate !== AutomatedSignalsUltra.selectedDate) return false;
         }
         if (f.session !== 'ALL' && row.session !== f.session) return false;
@@ -1604,17 +1604,19 @@ AutomatedSignalsUltra.renderCancelledSignals = function(rows) {
     rows.forEach(row => {
         const tr = document.createElement('tr');
         
-        // Parse timestamp for display
-        const ts = row.timestamp ? new Date(row.timestamp) : null;
-        const timeStr = ts
-            ? ts.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
+        // Parse timestamp for display using event_ts
+        const ts = row.event_ts;
+        let timeStr = "--:--:--";
+        if (ts) {
+            const d = new Date(ts + "Z");   // Force correct UTC interpretation
+            timeStr = d.toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
                 hour12: true,
-                timeZone: 'America/New_York'
-            })
-            : '--:--:--';
+                timeZone: "America/New_York"
+            });
+        }
         
         const dir = row.direction || "--";
         const session = row.session || "--";
