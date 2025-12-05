@@ -145,7 +145,12 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
     if raw_ts:
         try:
             ts_str = raw_ts.replace("Z", "")
-            event_ts_clean = datetime.fromisoformat(ts_str)
+            # TradingView timestamps are already in New York local time.
+            from zoneinfo import ZoneInfo
+            ny = ZoneInfo("America/New_York")
+            utc = ZoneInfo("UTC")
+            local_dt = datetime.fromisoformat(ts_str).replace(tzinfo=ny)
+            event_ts_clean = local_dt.astimezone(utc)
         except Exception:
             event_ts_clean = datetime.utcnow()
     else:
