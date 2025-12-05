@@ -15135,7 +15135,7 @@ def get_automated_signals_dashboard_data():
                     e.stop_loss,
                     e.session,
                     e.bias,
-                    e.timestamp,
+                    COALESCE(e.payload_ts, e.timestamp) AS event_ts,
                     e.signal_date,
                     e.signal_time,
                     COALESCE(m.latest_be_mfe, e.be_mfe, 0.0) AS be_mfe,
@@ -15151,7 +15151,7 @@ def get_automated_signals_dashboard_data():
                     WHERE ex.trade_id = e.trade_id
                     AND ex.event_type LIKE 'EXIT_%'
                 )
-                ORDER BY m.last_mfe_ts ASC, e.timestamp DESC, e.trade_id ASC
+                ORDER BY m.last_mfe_ts ASC, COALESCE(e.payload_ts, e.timestamp) DESC, e.trade_id ASC
                 LIMIT 100
             """, (date_filter,))
         else:
@@ -15174,7 +15174,7 @@ def get_automated_signals_dashboard_data():
                     e.stop_loss,
                     e.session,
                     e.bias,
-                    e.timestamp,
+                    COALESCE(e.payload_ts, e.timestamp) AS event_ts,
                     e.signal_date,
                     e.signal_time,
                     COALESCE(m.latest_be_mfe, e.be_mfe, 0.0) AS be_mfe,
@@ -15189,9 +15189,28 @@ def get_automated_signals_dashboard_data():
                     WHERE ex.trade_id = e.trade_id
                     AND ex.event_type LIKE 'EXIT_%'
                 )
-                ORDER BY m.last_mfe_ts ASC, e.timestamp DESC, e.trade_id ASC
+                ORDER BY m.last_mfe_ts ASC, COALESCE(e.payload_ts, e.timestamp) DESC, e.trade_id ASC
                 LIMIT 100
             """)
+        
+        # ==================================
+        #  FIXED TIMEZONE CONVERSION LOGIC
+        # ==================================
+        ny_tz = pytz.timezone("America/New_York")
+        utc_tz = pytz.timezone("UTC")
+        
+        def to_utc(dt):
+            if dt is None:
+                return None
+            if isinstance(dt, str):
+                dt = datetime.fromisoformat(dt.replace("Z", ""))
+            return utc_tz.localize(dt) if dt.tzinfo is None else dt.astimezone(utc_tz)
+        
+        def to_ny(dt):
+            dt_utc = to_utc(dt)
+            if dt_utc is None:
+                return None
+            return dt_utc.astimezone(ny_tz)
         
         active_trades = []
         for row in cursor.fetchall():
@@ -15242,6 +15261,14 @@ def get_automated_signals_dashboard_data():
             elif row[8]:
                 event_ts = row[8].isoformat()
             
+            # event_ts is always row[8] in ACTIVE trades
+            # Convert to UTC and NY correctly
+            raw_event_ts = row[8]
+            ts_utc = to_utc(raw_event_ts)
+            ts_ny = to_ny(raw_event_ts)
+            timestamp_utc_str = ts_utc.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] if ts_utc else None
+            timestamp_ny_str = ts_ny.strftime("%Y-%m-%d %H:%M:%S") if ts_ny else None
+            
             active_trades.append({
                 "id": row[0],
                 "trade_id": trade_id,
@@ -15252,6 +15279,8 @@ def get_automated_signals_dashboard_data():
                 "session": row[6],
                 "bias": row[7],
                 "timestamp": row[8].isoformat() if row[8] else None,
+                "timestamp_utc": timestamp_utc_str,
+                "timestamp_ny": timestamp_ny_str,
                 "signal_date": signal_date,
                 "signal_time": signal_time,
                 "event_ts": event_ts,
@@ -15291,11 +15320,11 @@ def get_automated_signals_dashboard_data():
                        COALESCE(en.stop_loss, ex.stop_loss) AS stop_loss,
                        COALESCE(en.session, ex.session) AS session,
                        COALESCE(en.bias, ex.bias) AS bias,
-                       ex.timestamp AS exit_timestamp,
+                       COALESCE(ex.payload_ts, ex.timestamp) AS exit_timestamp,
                        en.signal_date,
                        en.signal_time,
-                       en.timestamp AS entry_timestamp,
-                       EXTRACT(EPOCH FROM (ex.timestamp - en.timestamp)) AS duration_seconds,
+                       COALESCE(en.payload_ts, en.timestamp) AS entry_timestamp,
+                       EXTRACT(EPOCH FROM (COALESCE(ex.payload_ts, ex.timestamp) - COALESCE(en.payload_ts, en.timestamp))) AS duration_seconds,
                        COALESCE(m.max_be_mfe, ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
                        COALESCE(m.max_no_be_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
                        COALESCE(m.max_no_be_mfe, ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe,
@@ -15315,7 +15344,7 @@ def get_automated_signals_dashboard_data():
                         WHEN ex.event_type = 'EXIT_BREAK_EVEN' THEN 2
                         ELSE 3
                     END,
-                    ex.timestamp DESC, ex.trade_id ASC
+                    COALESCE(ex.payload_ts, ex.timestamp) DESC, ex.trade_id ASC
                 LIMIT 100
             """, (date_filter,))
         else:
@@ -15339,11 +15368,11 @@ def get_automated_signals_dashboard_data():
                        COALESCE(en.stop_loss, ex.stop_loss) AS stop_loss,
                        COALESCE(en.session, ex.session) AS session,
                        COALESCE(en.bias, ex.bias) AS bias,
-                       ex.timestamp AS exit_timestamp,
+                       COALESCE(ex.payload_ts, ex.timestamp) AS exit_timestamp,
                        en.signal_date,
                        en.signal_time,
-                       en.timestamp AS entry_timestamp,
-                       EXTRACT(EPOCH FROM (ex.timestamp - en.timestamp)) AS duration_seconds,
+                       COALESCE(en.payload_ts, en.timestamp) AS entry_timestamp,
+                       EXTRACT(EPOCH FROM (COALESCE(ex.payload_ts, ex.timestamp) - COALESCE(en.payload_ts, en.timestamp))) AS duration_seconds,
                        COALESCE(m.max_be_mfe, ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
                        COALESCE(m.max_no_be_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
                        COALESCE(m.max_no_be_mfe, ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe,
@@ -15362,7 +15391,7 @@ def get_automated_signals_dashboard_data():
                         WHEN ex.event_type = 'EXIT_BREAK_EVEN' THEN 2
                         ELSE 3
                     END,
-                    ex.timestamp DESC, ex.trade_id ASC
+                    COALESCE(ex.payload_ts, ex.timestamp) DESC, ex.trade_id ASC
                 LIMIT 100
             """)
         
@@ -15422,6 +15451,21 @@ def get_automated_signals_dashboard_data():
             elif row[11]:
                 event_ts = row[11].isoformat()
             
+            # event_ts is row[8] (exit_timestamp) for COMPLETED trades
+            # entry_timestamp is row[11]
+            # Convert to UTC and NY correctly
+            raw_exit_ts = row[8]
+            raw_entry_ts = row[11]
+            exit_ts_utc = to_utc(raw_exit_ts)
+            exit_ts_ny = to_ny(raw_exit_ts)
+            entry_ts_utc = to_utc(raw_entry_ts)
+            entry_ts_ny = to_ny(raw_entry_ts)
+            
+            exit_timestamp_utc_str = exit_ts_utc.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] if exit_ts_utc else None
+            exit_timestamp_ny_str = exit_ts_ny.strftime("%Y-%m-%d %H:%M:%S") if exit_ts_ny else None
+            entry_timestamp_utc_str = entry_ts_utc.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] if entry_ts_utc else None
+            entry_timestamp_ny_str = entry_ts_ny.strftime("%Y-%m-%d %H:%M:%S") if entry_ts_ny else None
+            
             completed_trades.append({
                 "id": row[0],
                 "trade_id": trade_id,
@@ -15432,10 +15476,16 @@ def get_automated_signals_dashboard_data():
                 "session": row[6],
                 "bias": row[7],
                 "exit_timestamp": row[8].isoformat() if row[8] else None,
+                "exit_timestamp_utc": exit_timestamp_utc_str,
+                "exit_timestamp_ny": exit_timestamp_ny_str,
                 "signal_date": signal_date,
                 "signal_time": signal_time,
                 "event_ts": event_ts,
                 "entry_timestamp": row[11].isoformat() if row[11] else None,
+                "entry_timestamp_utc": entry_timestamp_utc_str,
+                "entry_timestamp_ny": entry_timestamp_ny_str,
+                "timestamp_utc": entry_timestamp_utc_str,  # Alias for consistency with active trades
+                "timestamp_ny": entry_timestamp_ny_str,    # Alias for consistency with active trades
                 "duration_seconds": float(row[12]) if row[12] is not None else None,
                 # MFE values from MAX(MFE_UPDATE) via CTE - no exit_price fallback
                 "be_mfe": be_mfe_val,
