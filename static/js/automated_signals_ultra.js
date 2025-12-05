@@ -582,7 +582,13 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
     // Sort rows by timestamp (newest first)
     const parseTs = (row) => {
         if (row.event_ts) {
-            return new Date(row.event_ts.replace(" ", "T") + "Z").getTime();
+            // Handle both ISO format (2025-12-06T08:30:00+00:00) and space-separated (2025-12-06 08:30:00)
+            let tsStr = row.event_ts.replace(" ", "T");
+            // Only add Z if no timezone info present
+            if (!tsStr.includes("+") && !tsStr.includes("Z") && !tsStr.match(/[+-]\d{2}:\d{2}$/)) {
+                tsStr += "Z";
+            }
+            return new Date(tsStr).getTime();
         }
         return 0;
     };
@@ -664,15 +670,18 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             return `${d}d${remH > 0 ? ` ${remH}h` : ""}`;
         };
         
-        // Age based on UTC timestamp (timestamp_utc preferred)
+        // Age based on UTC timestamp (event_ts is now the single source)
         let ageStr = "--";
-        const baseTsStr = row.timestamp_utc || (row.event_ts ? row.event_ts.replace(" ", "T") + "Z" : null);
-        if (baseTsStr) {
+        if (row.event_ts) {
             let eventDate;
             try {
-                const iso = baseTsStr.includes("T") ? baseTsStr : baseTsStr.replace(" ", "T");
-                const normalized = iso.endsWith("Z") ? iso : iso + "Z";
-                eventDate = new Date(normalized);
+                // Handle both ISO format (2025-12-06T08:30:00+00:00) and space-separated (2025-12-06 08:30:00)
+                let tsStr = row.event_ts.replace(" ", "T");
+                // Only add Z if no timezone info present
+                if (!tsStr.includes("+") && !tsStr.includes("Z") && !tsStr.match(/[+-]\d{2}:\d{2}$/)) {
+                    tsStr += "Z";
+                }
+                eventDate = new Date(tsStr);
             } catch {
                 eventDate = null;
             }
@@ -684,7 +693,13 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         
         let timeStr = "--";
         if (row.event_ts) {
-            const d = new Date(row.event_ts.replace(" ", "T") + "Z");
+            // Handle both ISO format (2025-12-06T08:30:00+00:00) and space-separated (2025-12-06 08:30:00)
+            let tsStr = row.event_ts.replace(" ", "T");
+            // Only add Z if no timezone info present
+            if (!tsStr.includes("+") && !tsStr.includes("Z") && !tsStr.match(/[+-]\d{2}:\d{2}$/)) {
+                tsStr += "Z";
+            }
+            const d = new Date(tsStr);
             timeStr = d.toLocaleString("en-US", {
                 timeZone: "America/New_York",
                 year: "numeric",
@@ -1569,7 +1584,13 @@ AutomatedSignalsUltra.renderCancelledSignals = function(rows) {
         const ts = row.event_ts;
         let timeStr = "--:--:--";
         if (ts) {
-            const d = new Date(ts + "Z");   // Force correct UTC interpretation
+            // Handle both ISO format (2025-12-06T08:30:00+00:00) and space-separated (2025-12-06 08:30:00)
+            let tsStr = ts.replace(" ", "T");
+            // Only add Z if no timezone info present
+            if (!tsStr.includes("+") && !tsStr.includes("Z") && !tsStr.match(/[+-]\d{2}:\d{2}$/)) {
+                tsStr += "Z";
+            }
+            const d = new Date(tsStr);
             timeStr = d.toLocaleTimeString("en-US", {
                 hour: "2-digit",
                 minute: "2-digit",

@@ -15252,9 +15252,9 @@ def get_automated_signals_dashboard_data():
                 "stop_loss": float(row[5]) if row[5] is not None else None,
                 "session": row[6],
                 "bias": row[7],
-                "event_ts": row[8],  # single timestamp source
-                "signal_date": row[9],
-                "signal_time": row[10],
+                "event_ts": row[8].isoformat() if row[8] else None,  # UTC timestamp as ISO string
+                "signal_date": row[9].isoformat() if row[9] else None,
+                "signal_time": row[10].strftime("%H:%M:%S") if row[10] else None,
                 "be_mfe": float(row[11] or 0.0),
                 "be_mfe_R": float(row[11] or 0.0),
                 "no_be_mfe": float(row[12] or 0.0),
@@ -15376,10 +15376,11 @@ def get_automated_signals_dashboard_data():
                 "stop_loss": float(row[5]) if row[5] is not None else None,
                 "session": row[6],
                 "bias": row[7],
-                "exit_ts": row[8],
-                "signal_date": row[9],
-                "signal_time": row[10],
-                "entry_ts": row[11],
+                "exit_ts": row[8].isoformat() if row[8] else None,  # UTC timestamp as ISO string
+                "event_ts": row[8].isoformat() if row[8] else None,  # alias for frontend compatibility
+                "signal_date": row[9].isoformat() if row[9] else None,
+                "signal_time": row[10].strftime("%H:%M:%S") if row[10] else None,
+                "entry_ts": row[11].isoformat() if row[11] else None,  # UTC timestamp as ISO string
                 "duration_seconds": float(row[12] or 0.0),
                 "be_mfe": float(row[13] or 0.0),
                 "be_mfe_R": float(row[13] or 0.0),
