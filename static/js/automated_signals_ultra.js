@@ -561,7 +561,6 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
     rows = rows.filter(row => {
         if (AutomatedSignalsUltra.selectedDate) {
             const rowDate = row.signal_date
-                || (row.timestamp_ny ? row.timestamp_ny.split(" ")[0] : null)
                 || (row.event_ts ? row.event_ts.split("T")[0] : null);
             if (rowDate !== AutomatedSignalsUltra.selectedDate) return false;
         }
@@ -580,22 +579,14 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         return true;
     });
     
-    // Sort rows by true UTC timestamp (newest first)
-    const parseUtcTs = (row) => {
-        if (row.timestamp_utc) {
-            const base = row.timestamp_utc.split('.')[0];
-            return new Date(base.replace(' ', 'T') + 'Z').getTime();
-        }
+    // Sort rows by timestamp (newest first)
+    const parseTs = (row) => {
         if (row.event_ts) {
-            return new Date(row.event_ts.replace(' ', 'T') + 'Z').getTime();
+            return new Date(row.event_ts.replace(" ", "T") + "Z").getTime();
         }
         return 0;
     };
-    rows.sort((a, b) => {
-        const aTs = parseUtcTs(a);
-        const bTs = parseUtcTs(b);
-        return bTs - aTs;
-    });
+    rows.sort((a, b) => parseTs(b) - parseTs(a));
     
     tbody.innerHTML = "";
     
@@ -691,26 +682,8 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             }
         }
         
-        // Display timestamp using timestamp_ny (pre-converted NY time)
         let timeStr = "--";
-        if (row.timestamp_ny) {
-            const [datePart, timePart] = row.timestamp_ny.split(" ");
-            if (datePart && timePart) {
-                const [y, m, d] = datePart.split("-").map(Number);
-                const [hh, mm] = timePart.split(":");
-                let hour = parseInt(hh, 10);
-                let minute = mm;
-                let ampm = "AM";
-                if (hour >= 12) { ampm = "PM"; if (hour > 12) hour -= 12; }
-                if (hour === 0) hour = 12;
-                const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-                const monthName = monthNames[(m || 1) - 1];
-                const dayStr = String(d).padStart(2, "0");
-                const hourStr = String(hour).padStart(2, "0");
-                const minStr = String(minute || "00").padStart(2, "0");
-                timeStr = `${monthName} ${dayStr}, ${y}, ${hourStr}:${minStr} ${ampm}`;
-            }
-        } else if (row.event_ts) {
+        if (row.event_ts) {
             const d = new Date(row.event_ts.replace(" ", "T") + "Z");
             timeStr = d.toLocaleString("en-US", {
                 timeZone: "America/New_York",
@@ -719,7 +692,7 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
                 day: "2-digit",
                 hour: "2-digit",
                 minute: "2-digit",
-                hour12: true
+                hour12: true,
             });
         }
         
