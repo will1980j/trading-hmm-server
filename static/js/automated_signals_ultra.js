@@ -45,6 +45,37 @@ document.addEventListener("DOMContentLoaded", () => {
     if (copyBtn) copyBtn.onclick = AutomatedSignalsUltra.copyEcho;
 });
 
+// ────────────────────
+// Signal Integrity API
+// ────────────────────
+AutomatedSignalsUltra.integrity = {
+    enabled: true,
+    last: []
+};
+
+AutomatedSignalsUltra.loadIntegrity = async function() {
+    try {
+        const r = await fetch("/api/automated-signals/integrity");
+        const j = await r.json();
+        AutomatedSignalsUltra.integrity.last = j.issues || [];
+        const panel = document.getElementById("ase-integrity-panel");
+        const area = document.getElementById("ase-integrity-log");
+        if (panel && area) {
+            panel.style.display = "block";
+            area.textContent = (j.issues || []).length
+                ? j.issues.join("\n")
+                : "No issues detected.";
+        }
+    } catch (err) {
+        console.error("[INTEGRITY] Error:", err);
+    }
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+    const btn = document.getElementById("ase-integrity-refresh");
+    if (btn) btn.onclick = AutomatedSignalsUltra.loadIntegrity;
+});
+
 // --- GLOBAL TIMEZONE HELPERS ---
 AutomatedSignalsUltra.toNY = function(isoString) {
     try {
@@ -492,6 +523,12 @@ AutomatedSignalsUltra.fetchDashboardData = async function() {
         } else if (echoPanel) {
             echoPanel.style.display = "none";
         }
+        // ─────────────────────────────────────────────
+        
+        // ─────────────────────────────────────────────
+        // SIGNAL INTEGRITY CHECK
+        // ─────────────────────────────────────────────
+        await AutomatedSignalsUltra.loadIntegrity();
         // ─────────────────────────────────────────────
     } catch (err) {
         console.error("[ASE] Error fetching dashboard data:", err);

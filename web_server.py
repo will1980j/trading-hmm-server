@@ -63,6 +63,103 @@ def append_trade_log(trade_id, message):
         TRADE_LOGS.pop(oldest_key, None)
     TRADE_LOGS[trade_id].append(message)
 
+# Real-time event stream monitor state
+# Tracks last event + basic telemetry per trade_id for sequencing checks
+STREAM_STATE = defaultdict(dict)   # trade_id -> { last_event_type, last_event_ts, last_mfe, last_mae, be_triggered }
+STREAM_ISSUES = defaultdict(list)  # trade_id -> [ { "event_type": ..., "timestamp": ..., "issue": ... } ]
+
+def record_stream_issue(trade_id: str, event_type: str, ts, issue: str) -> None:
+    """Record a real-time stream issue for downstream diagnosis."""
+    try:
+        entry = {
+            "trade_id": trade_id,
+            "event_type": event_type,
+            "timestamp": ts,
+            "issue": issue,
+        }
+        STREAM_ISSUES[trade_id].append(entry)
+        # Keep last 50 issues per trade
+        if len(STREAM_ISSUES[trade_id]) > 50:
+            STREAM_ISSUES[trade_id] = STREAM_ISSUES[trade_id][-50:]
+        logger.warning("[STREAM_MONITOR] %s %s – %s", trade_id, event_type, issue)
+    except Exception as e:
+        logger.error("Failed to record stream issue: %s", e)
+
+def monitor_realtime_event(trade_id: str, event_type: str, normalized: dict, raw_payload=None) -> None:
+    """
+    Lightweight real-time stream validator.
+    Runs BEFORE DB insert to avoid masking ingestion bugs.
+    Only observes and records issues, never mutates core behavior.
+    """
+    try:
+        state = STREAM_STATE[trade_id]
+        last_type = state.get("last_event_type")
+        last_ts = state.get("last_event_ts")
+
+        # Prefer normalized timestamps if present, else fallback to raw event_timestamp
+        ts = normalized.get("event_timestamp") or normalized.get("event_ts") or (
+            raw_payload.get("event_timestamp") if isinstance(raw_payload, dict) else None
+        )
+
+        # Parse MFE/MAE R values if present
+        mfe_r = normalized.get("no_be_mfe_R")
+        if mfe_r is None:
+            mfe_r = normalized.get("mfe_R")
+        mae_global_r = normalized.get("mae_global_R")
+
+        # === Basic sequencing checks ===
+        if event_type in ("MFE_UPDATE", "BE_TRIGGERED", "EXIT_BE", "EXIT_SL") and last_type is None:
+            record_stream_issue(trade_id, event_type, ts, "Received lifecycle event before ENTRY")
+
+        if last_ts and ts:
+            # If timestamps go backwards, that's suspicious
+            try:
+                prev = datetime.fromisoformat(last_ts.replace("Z", "").replace(" ", "T"))
+                curr = datetime.fromisoformat(ts.replace("Z", "").replace(" ", "T"))
+                if curr < prev:
+                    record_stream_issue(trade_id, event_type, ts, "Event timestamp older than previous event")
+            except Exception:
+                # Non-fatal; just ignore parse issues here
+                pass
+
+        # === BE / MFE rules ===
+        # If BE_TRIGGERED, we expect MFE >= 1R (within some tolerance)
+        if event_type == "BE_TRIGGERED" and mfe_r is not None:
+            try:
+                if float(mfe_r) < 0.95:
+                    record_stream_issue(trade_id, event_type, ts, f"BE_TRIGGERED with MFE_R={mfe_r} < 1R")
+            except Exception:
+                pass
+
+        # EXIT_BE / EXIT_SL without BE_TRIGGERED
+        if event_type in ("EXIT_BE", "EXIT_SL") and not state.get("be_triggered") and last_type is not None:
+            # It's allowed to exit without BE trigger, but we flag it for investigation
+            record_stream_issue(trade_id, event_type, ts, "Exit event without prior BE_TRIGGERED in stream state")
+
+        # MAE global should be <= 0 by convention; if positive, we flag it
+        if mae_global_r is not None:
+            try:
+                if float(mae_global_r) > 1e-6:
+                    record_stream_issue(trade_id, event_type, ts, f"mae_global_R={mae_global_r} > 0 (expected <= 0)")
+            except Exception:
+                pass
+
+        # === Update state ===
+        state["last_event_type"] = event_type
+        if ts:
+            state["last_event_ts"] = ts
+        if mfe_r is not None:
+            state["last_mfe"] = float(mfe_r)
+        if mae_global_r is not None:
+            state["last_mae"] = float(mae_global_r)
+        if event_type == "BE_TRIGGERED":
+            state["be_triggered"] = True
+
+        STREAM_STATE[trade_id] = state
+
+    except Exception as e:
+        logger.error("Stream monitor failed for trade %s event %s: %s", trade_id, event_type, e)
+
 # ============================================================================
 # FEATURE FLAGS - Control optional modules and legacy systems
 # ============================================================================
@@ -12825,6 +12922,21 @@ def automated_signals_webhook():
         format_kind = canonical["format_kind"]
         logger.info(f"📥 Parsed (7G): event_type={event_type}, trade_id={canonical['trade_id']}, format={format_kind}")
         
+        # Real-time event stream monitor (non-blocking)
+        try:
+            normalized_for_monitor = dict(canonical) if canonical else {}
+            raw_event_ts = normalized_for_monitor.get("event_timestamp") or data_raw.get("event_timestamp")
+            if raw_event_ts:
+                normalized_for_monitor["event_timestamp"] = raw_event_ts
+            monitor_realtime_event(
+                trade_id=normalized_for_monitor.get("trade_id") or data_raw.get("trade_id", ""),
+                event_type=normalized_for_monitor.get("event_type") or data_raw.get("event_type", ""),
+                normalized=normalized_for_monitor,
+                raw_payload=data_raw,
+            )
+        except Exception as mon_e:
+            logger.error("Real-time stream monitor error: %s", mon_e)
+        
         # Store raw payload JSON for diagnosis
         raw_payload_str = json.dumps(data_raw)
         
@@ -15526,6 +15638,117 @@ def bulk_delete_automated_signals():
             "success": False,
             "error": str(e)
         }), 500
+
+
+@app.route('/api/automated-signals/integrity')
+def automated_signals_integrity_check():
+    """Check signal integrity for common issues."""
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({"error": "DATABASE_URL not configured"}), 500
+        
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT
+                trade_id,
+                event_type,
+                timestamp,
+                be_mfe,
+                no_be_mfe,
+                mae_global_r
+            FROM automated_signals
+            ORDER BY trade_id ASC, timestamp ASC
+        """)
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        # Build timeline per trade
+        trades = {}
+        for (tid, etype, ts, be, nobe, mae) in rows:
+            trades.setdefault(tid, []).append({
+                "event": etype,
+                "ts": ts,
+                "be": float(be or 0),
+                "nobe": float(nobe or 0),
+                "mae": float(mae or 0)
+            })
+        
+        issues = []
+        for tid, events in trades.items():
+            # Must start with ENTRY
+            if events[0]["event"] != "ENTRY":
+                issues.append(f"{tid}: Missing ENTRY (first event is {events[0]['event']})")
+            
+            # Must end with EXIT_* if completed
+            if any(e["event"].startswith("EXIT") for e in events):
+                if not events[-1]["event"].startswith("EXIT"):
+                    issues.append(f"{tid}: EXIT out of order (not last event).")
+            
+            # Check same timestamp duplicates
+            ts_set = set()
+            for e in events:
+                if e["ts"] in ts_set:
+                    issues.append(f"{tid}: Duplicate timestamp detected at {e['ts']}.")
+                ts_set.add(e["ts"])
+            
+            # Check monotonic ordering
+            for i in range(1, len(events)):
+                if events[i]["ts"] < events[i-1]["ts"]:
+                    issues.append(f"{tid}: Non-monotonic timestamp at {events[i]['ts']}.")
+            
+            # Check MFE must not decrease
+            max_seen = -9999
+            for e in events:
+                if e["event"] == "MFE_UPDATE":
+                    if e["nobe"] < max_seen:
+                        issues.append(f"{tid}: MFE decreased at {e['ts']}.")
+                    max_seen = max(max_seen, e["nobe"])
+            
+            # Check MAE must NEVER be positive
+            for e in events:
+                if e["mae"] > 0:
+                    issues.append(f"{tid}: MAE positive ({e['mae']}) at {e['ts']}.")
+            
+            # BE_TRIGGERED must follow ENTRY and MFE >= 1
+            for e in events:
+                if e["event"] == "BE_TRIGGERED":
+                    prev_mfe = max(ev["nobe"] for ev in events if ev["ts"] <= e["ts"])
+                    if prev_mfe < 1:
+                        issues.append(f"{tid}: BE_TRIGGERED without 1R at {e['ts']}.")
+            
+            # EXIT_BE requires price return to entry exactly (validated backend)
+            if any(e["event"] == "EXIT_BE" for e in events):
+                # Nothing to validate against price here, but placeholder
+                pass
+        
+        return jsonify({"issues": issues})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/automated-signals/stream-monitor/<trade_id>", methods=["GET"])
+@login_required
+def get_stream_monitor_state(trade_id):
+    """
+    Real-time stream monitor state for a given trade_id.
+    Does NOT hit the DB; uses in-memory STREAM_STATE + STREAM_ISSUES.
+    """
+    state = STREAM_STATE.get(trade_id, {})
+    issues = STREAM_ISSUES.get(trade_id, [])
+    return jsonify({
+        "trade_id": trade_id,
+        "last_event_type": state.get("last_event_type"),
+        "last_event_ts": state.get("last_event_ts"),
+        "last_mfe": state.get("last_mfe"),
+        "last_mae": state.get("last_mae"),
+        "be_triggered": bool(state.get("be_triggered", False)),
+        "issues": issues,
+        "issue_count": len(issues),
+        "success": True,
+    })
 
 
 @app.route('/api/automated-signals/purge-ghosts', methods=['POST'])
