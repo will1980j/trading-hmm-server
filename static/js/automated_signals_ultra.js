@@ -27,6 +27,24 @@ AutomatedSignalsUltra.filters = {
     searchId: ''
 };
 
+// ────────────────
+// Backend Echo API
+// ────────────────
+AutomatedSignalsUltra.echo = {
+    enabled: true,     // set to false if you want to hide panel
+    lastJson: null
+};
+
+AutomatedSignalsUltra.copyEcho = function() {
+    if (!AutomatedSignalsUltra.echo.lastJson) return;
+    navigator.clipboard.writeText(JSON.stringify(AutomatedSignalsUltra.echo.lastJson, null, 2));
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+    const copyBtn = document.querySelector("#ase-echo-copy-btn");
+    if (copyBtn) copyBtn.onclick = AutomatedSignalsUltra.copyEcho;
+});
+
 // --- GLOBAL TIMEZONE HELPERS ---
 AutomatedSignalsUltra.toNY = function(isoString) {
     try {
@@ -425,6 +443,56 @@ AutomatedSignalsUltra.fetchDashboardData = async function() {
         AutomatedSignalsUltra.renderHeaderStats();
         AutomatedSignalsUltra.renderSignalsTable();
         AutomatedSignalsUltra.renderSummaryStats();
+        
+        // ─────────────────────────────────────────────
+        // PHASE 7 — Timestamp Diagnostics
+        // ─────────────────────────────────────────────
+        console.group("[TS-DIAG] Timestamp Validation");
+        // Raw payload timestamps
+        console.log("RAW ACTIVE TRADES:", json.active_trades);
+        // Validate each timestamp for parse correctness
+        json.active_trades.forEach((t, idx) => {
+            const ts = t.event_ts;
+            const iso = ts ? (ts.includes("Z") ? ts : ts.replace(" ", "T") + "Z") : null;
+            const parsed = iso ? new Date(iso) : null;
+            const valid = parsed && !Number.isNaN(parsed.getTime());
+            console.log(`ROW ${idx}`, {
+                event_ts: t.event_ts,
+                entry_ts: t.entry_ts,
+                exit_ts: t.exit_ts,
+                timestamp_utc: t.timestamp_utc,
+                timestamp_ny: t.timestamp_ny,
+                parsed_ok: valid,
+                parsed_date: parsed,
+            });
+        });
+        // Check sorting results
+        console.log("[TS-SORT] Current sort keys:",
+            json.active_trades.map(t => t.event_ts));
+        // Check human-rendered times in DOM after next paint
+        setTimeout(() => {
+            console.group("[TS-DIAG] DOM Rendered Timestamps");
+            document.querySelectorAll("#ase-signals-tbody tr").forEach((row, idx) => {
+                console.log(`DOM ROW ${idx}:`, row.innerText);
+            });
+            console.groupEnd();
+        }, 250);
+        console.groupEnd();
+        // ─────────────────────────────────────────────
+        
+        // ─────────────────────────────────────────────
+        // BACKEND ECHO PANEL
+        // ─────────────────────────────────────────────
+        AutomatedSignalsUltra.echo.lastJson = json;
+        const echoPanel = document.getElementById("ase-echo-panel");
+        const echoArea = document.getElementById("ase-echo-json");
+        if (AutomatedSignalsUltra.echo.enabled && echoPanel && echoArea) {
+            echoPanel.style.display = "block";
+            echoArea.textContent = JSON.stringify(json, null, 2);
+        } else if (echoPanel) {
+            echoPanel.style.display = "none";
+        }
+        // ─────────────────────────────────────────────
     } catch (err) {
         console.error("[ASE] Error fetching dashboard data:", err);
         const pill = document.getElementById('ase-health-pill');
