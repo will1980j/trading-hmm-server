@@ -578,18 +578,11 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         return true;
     });
     
-    // Sort rows by signal timestamp (newest first)
-    // Prefer signal_date + signal_time (TradingView / NY time)
+    // Sort rows by event timestamp (UTC), newest first
     rows.sort((a, b) => {
-        const aKey = (a.signal_date && a.signal_time) ? `${a.signal_date}T${a.signal_time}` : (a.event_ts || "");
-        const bKey = (b.signal_date && b.signal_time) ? `${b.signal_date}T${b.signal_time}` : (b.event_ts || "");
-        if (!aKey && !bKey) return 0;
-        if (!aKey) return 1;
-        if (!bKey) return -1;
-        // Descending (newest first)
-        if (aKey < bKey) return 1;
-        if (aKey > bKey) return -1;
-        return 0;
+        const aTs = a.event_ts ? new Date(a.event_ts).getTime() : 0;
+        const bTs = b.event_ts ? new Date(b.event_ts).getTime() : 0;
+        return bTs - aTs;
     });
     
     tbody.innerHTML = "";
@@ -671,68 +664,41 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             return `${d}d${remH > 0 ? ` ${remH}h` : ""}`;
         };
         
-        // --- AGE COMPUTATION USING SIGNAL_DATE + SIGNAL_TIME (NY) ---
-        if (row.status === 'ACTIVE' && row.signal_date && row.signal_time) {
-            // Active trades: show live age since signal time
-            // signal_date and signal_time are in Eastern Time from the API
-            // We need to get current Eastern time and compare
-            const now = new Date();
-            const nowEastern = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-            
-            // Parse signal time components
-            const [year, month, day] = row.signal_date.split('-').map(Number);
-            const timeParts = row.signal_time.split(':').map(Number);
-            const signalHour = timeParts[0] || 0;
-            const signalMin = timeParts[1] || 0;
-            const signalSec = timeParts[2] || 0;
-            
-            // Create signal time as if it were in the same timezone as nowEastern
-            const signalTimeEastern = new Date(year, month - 1, day, signalHour, signalMin, signalSec);
-            
-            // Calculate age in seconds
-            const diffSec = Math.max(0, (nowEastern.getTime() - signalTimeEastern.getTime()) / 1000);
+        // --- AGE COMPUTATION USING event_ts ---
+        if (row.status === 'ACTIVE' && row.event_ts) {
+            // Active trades: show live age since event_ts
+            const nowNy = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
+            const now = new Date(nowNy);
+            const start = new Date(row.event_ts);
+            const diffSec = Math.max(0, (now.getTime() - start.getTime()) / 1000);
             ageStr = formatDuration(diffSec);
         } else if (row.status === 'COMPLETED') {
             // Completed trades: show duration from entry to exit
             if (row.duration_seconds) {
                 ageStr = formatDuration(row.duration_seconds);
-            } else if (row.exit_timestamp && row.signal_date && row.signal_time) {
-                // Parse exit timestamp (ISO format with timezone)
+            } else if (row.exit_timestamp && row.event_ts) {
                 const exitTime = new Date(row.exit_timestamp);
-                const exitEastern = new Date(exitTime.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-                
-                // Parse signal time components
-                const [year, month, day] = row.signal_date.split('-').map(Number);
-                const timeParts = row.signal_time.split(':').map(Number);
-                const signalHour = timeParts[0] || 0;
-                const signalMin = timeParts[1] || 0;
-                const signalSec = timeParts[2] || 0;
-                
-                const signalTimeEastern = new Date(year, month - 1, day, signalHour, signalMin, signalSec);
-                const diffSec = Math.max(0, (exitEastern.getTime() - signalTimeEastern.getTime()) / 1000);
+                const entryTime = new Date(row.event_ts);
+                const diffSec = Math.max(0, (exitTime.getTime() - entryTime.getTime()) / 1000);
                 ageStr = formatDuration(diffSec);
             } else {
                 ageStr = "--";
             }
         }
         
-        // Time display: Use signal_time from TradingView (already in Eastern Time)
-        // CRITICAL: Use the ORIGINAL signal_time string, NEVER reinterpret with browser timezone
+        // Correct timestamp rendering: use event_ts in NY timezone
         let timeStr = "--";
-        const originalSignalTime = row.signal_time;  // e.g. "07:05:00" in America/New_York
-        if (originalSignalTime) {
-            const rawTime = String(originalSignalTime);
-            const parts = rawTime.split(":");
-            if (parts.length >= 2) {
-                let hour = parseInt(parts[0], 10);
-                const min = parts[1];
-                const ampm = hour >= 12 ? "PM" : "AM";
-                if (hour > 12) hour -= 12;
-                if (hour === 0) hour = 12;
-                timeStr = `${hour.toString().padStart(2, "0")}:${min} ${ampm}`;
-            } else {
-                timeStr = rawTime;
-            }
+        if (row.event_ts) {
+            const d = new Date(row.event_ts);
+            timeStr = d.toLocaleString("en-US", {
+                timeZone: "America/New_York",
+                year: "numeric",
+                month: "short",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true
+            });
         }
         
         const isChecked = AutomatedSignalsUltra.selectedTrades.has(row.trade_id);
