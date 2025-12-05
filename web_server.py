@@ -127,6 +127,18 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
     trade_id = data.get('trade_id') or data.get('signal_id') or 'UNKNOWN'
     prefix = event_type
     
+    # Extract and normalize event_timestamp from payload
+    raw_ts = data.get("event_timestamp") or data.get("timestamp")
+    event_ts_clean = None
+    if raw_ts:
+        try:
+            ts_str = raw_ts.replace("Z", "")
+            event_ts_clean = datetime.fromisoformat(ts_str)
+        except Exception:
+            event_ts_clean = datetime.utcnow()
+    else:
+        event_ts_clean = datetime.utcnow()
+    
     # Log raw and normalized payloads
     logger.info(f"[UNIFIED] {event_type} raw_payload: {raw_payload_str[:500] if raw_payload_str else 'None'}...")
     logger.info(f"[UNIFIED] {event_type} normalized: trade_id={trade_id}, be_mfe={data.get('be_mfe')}, no_be_mfe={data.get('no_be_mfe')}, mae={data.get('mae_global_R')}")
@@ -242,6 +254,7 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
             raw_payload_str = json.dumps(data)
         
         # UNIFIED INSERT - all fields populated
+        # Uses event_timestamp from payload (not NOW()) for accurate timing
         insert_sql = """
             INSERT INTO automated_signals (
                 trade_id,
@@ -266,7 +279,7 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
                 raw_payload
             ) VALUES (
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             RETURNING id
         """
@@ -290,6 +303,7 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
             final_mfe,
             signal_date,
             signal_time,
+            event_ts_clean,  # Use payload timestamp instead of NOW()
             raw_payload_str
         )
         
