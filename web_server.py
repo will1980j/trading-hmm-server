@@ -206,6 +206,17 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
             except Exception:
                 mae_global_r = None
         
+        # === MAE SANITY ENFORCEMENT ===
+        # MAE must always be <= 0.0 (never positive)
+        try:
+            if mae_global_r is not None:
+                mae_global_r = float(mae_global_r)
+                if mae_global_r > 0:
+                    mae_global_r = 0.0
+        except Exception:
+            # If the MAE value cannot be parsed, force it to 0.0
+            mae_global_r = 0.0
+        
         # Convert MFE fields to float safely
         mfe = None
         try:
@@ -15097,6 +15108,7 @@ def get_automated_signals_dashboard_data():
                 except:
                     pass
             
+            mae_val = float(row[14]) if row[14] is not None else None
             active_trades.append({
                 "id": row[0],
                 "trade_id": trade_id,
@@ -15115,7 +15127,8 @@ def get_automated_signals_dashboard_data():
                 "be_mfe_R": float(row[11]) if row[11] is not None else 0.0,
                 "no_be_mfe_R": float(row[12]) if row[12] is not None else 0.0,
                 "current_price": float(row[13]) if row[13] else None,
-                "mae_global_R": float(row[14]) if row[14] is not None else None,
+                "mae_global_R": mae_val,
+                "mae": mae_val,  # Alias for frontend compatibility
                 "status": "ACTIVE",
                 "trade_status": "ACTIVE"
             })
@@ -15238,6 +15251,7 @@ def get_automated_signals_dashboard_data():
                 except:
                     pass
             
+            mae_val = float(row[16]) if row[16] is not None else None
             completed_trades.append({
                 "id": row[0],
                 "trade_id": trade_id,
@@ -15259,7 +15273,8 @@ def get_automated_signals_dashboard_data():
                 "no_be_mfe_R": float(row[14]) if row[14] is not None else 0.0,
                 "final_mfe": float(row[15]) if row[15] is not None else 0.0,
                 "final_mfe_R": float(row[15]) if row[15] is not None else 0.0,
-                "mae_global_R": float(row[16]) if row[16] is not None else None,
+                "mae_global_R": mae_val,
+                "mae": mae_val,  # Alias for frontend compatibility
                 "status": "COMPLETED",
                 "trade_status": "COMPLETED"
             })
@@ -15309,6 +15324,19 @@ def get_automated_signals_dashboard_data():
         # Apply resolver
         for t in active_trades + completed_trades:
             t["status"] = resolve_dual_state(t)
+        
+        # === PATCH: MAE SANITY ENFORCEMENT FOR API RESPONSES ===
+        for t in active_trades + completed_trades:
+            mae = t.get("mae_global_R")
+            if mae is not None:
+                try:
+                    mae = float(mae)
+                    if mae > 0:
+                        t["mae_global_R"] = 0.0
+                        t["mae"] = 0.0
+                except:
+                    t["mae_global_R"] = 0.0
+                    t["mae"] = 0.0
         
         stats = {
             "total_signals": total_trades,
