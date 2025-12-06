@@ -572,3 +572,174 @@ def get_trade_detail(trade_id: str) -> Optional[Dict[str, Any]]:
         "events": events_timeline,
     }
     return detail
+
+
+# ============================================================
+# TRADE INTEGRITY ENGINE — PHASE 1 (backend only)
+# ============================================================
+
+def check_trade_integrity(events, state):
+    """
+    Return a dict with 8 categories of integrity checks.
+    Each category is:
+        { "ok": True/False, "reasons": [list of str] }
+    """
+    results = {
+        "signal":         {"ok": True, "reasons": []},
+        "lifecycle":      {"ok": True, "reasons": []},
+        "mfe_updates":    {"ok": True, "reasons": []},
+        "be_strategy":    {"ok": True, "reasons": []},
+        "no_be_strategy": {"ok": True, "reasons": []},
+        "mae":            {"ok": True, "reasons": []},
+        "timestamps":     {"ok": True, "reasons": []},
+        "telemetry":      {"ok": True, "reasons": []},
+    }
+    
+    # --------------------
+    # Helper accessors
+    # --------------------
+    types = [e.get("event_type") for e in events]
+    entry_events = [e for e in events if e.get("event_type") == "ENTRY"]
+    exit_events  = [e for e in events if e.get("event_type") in ("EXIT_STOP_LOSS","EXIT_BREAK_EVEN","EXIT_SL","EXIT_BE")]
+    mfe_updates  = [e for e in events if e.get("event_type") == "MFE_UPDATE"]
+    
+    # Quick helpers
+    def fail(cat, msg):
+        results[cat]["ok"] = False
+        results[cat]["reasons"].append(msg)
+    
+    # Extract timestamps
+    ts_list = [e.get("timestamp") for e in events if e.get("timestamp")]
+    
+    # ============================================================
+    # CATEGORY 1: SIGNAL INTEGRITY
+    # ============================================================
+    sig_date = state.get("signal_date")
+    sig_time = state.get("signal_time")
+    if not sig_date or not sig_time:
+        fail("signal", "Missing signal_date or signal_time.")
+    
+    # Signal vs entry time consistency (if available)
+    try:
+        from datetime import datetime
+        import pytz
+        if sig_date and sig_time and events:
+            signal_dt = datetime.fromisoformat(f"{sig_date}T{sig_time}")
+            first_ts = events[0]["timestamp"]
+            if first_ts:
+                diff_sec = abs((signal_dt - first_ts).total_seconds())
+                if diff_sec > 300:  # > 5 minutes difference
+                    fail("signal", f"Signal time differs from first event by {diff_sec:.1f}s.")
+    except:
+        pass
+    
+    # ============================================================
+    # CATEGORY 2: LIFECYCLE
+    # ============================================================
+    if len(entry_events) != 1:
+        fail("lifecycle", f"Expected exactly 1 ENTRY event, found {len(entry_events)}.")
+    
+    if exit_events and not entry_events:
+        fail("lifecycle", "EXIT event present without ENTRY.")
+    
+    # ORDER CHECK
+    if entry_events and exit_events:
+        if exit_events[0]["timestamp"] < entry_events[0]["timestamp"]:
+            fail("lifecycle", "EXIT timestamp precedes ENTRY timestamp.")
+    
+    # ============================================================
+    # CATEGORY 3: MFE UPDATES (GENERAL)
+    # ============================================================
+    if entry_events and exit_events:
+        if len(mfe_updates) == 0:
+            fail("mfe_updates", "Completed trade has no MFE_UPDATE events.")
+    
+    # ============================================================
+    # CATEGORY 4: BE STRATEGY INTEGRITY
+    # ============================================================
+    be_vals = [e.get("be_mfe") for e in events if e.get("be_mfe") is not None]
+    be_triggered = any(e.get("event_type") == "BE_TRIGGERED" for e in events)
+    
+    # BE MFE never moves
+    if len(be_vals) > 0:
+        if max(be_vals) == min(be_vals) == 0:
+            fail("be_strategy", "BE MFE never moves from 0.")
+    
+    # Missing BE_TRIGGERED when No-BE >= 1R
+    nobe_vals = [e.get("no_be_mfe") for e in events if e.get("no_be_mfe") is not None]
+    if nobe_vals and max(nobe_vals) >= 1.0 and not be_triggered:
+        fail("be_strategy", "No BE_TRIGGERED event despite No-BE MFE >= 1R.")
+    
+    # BE exit must be final_mfe == 0 for BE leg (if present)
+    if exit_events:
+        if exit_events[0].get("event_type") in ("EXIT_BE","EXIT_BREAK_EVEN"):
+            if state.get("final_mfe_R") not in (0, 0.0, None):
+                fail("be_strategy", f"BE exit final_mfe_R expected 0, got {state.get('final_mfe_R')}.")
+    
+    # ============================================================
+    # CATEGORY 5: NO-BE STRATEGY INTEGRITY
+    # ============================================================
+    if entry_events and exit_events:
+        if len(nobe_vals) == 0:
+            fail("no_be_strategy", "No No-BE MFE values recorded for completed trade.")
+        else:
+            if max(nobe_vals) == 0:
+                fail("no_be_strategy", "No-BE MFE never moves from 0.")
+    
+    # ============================================================
+    # CATEGORY 6: MAE INTEGRITY
+    # ============================================================
+    mae_vals = [e.get("mae_R") or e.get("mae_global_r") for e in events 
+                if (e.get("mae_R") or e.get("mae_global_r") is not None)]
+    
+    if entry_events and exit_events:
+        if len(mae_vals) == 0:
+            fail("mae", "No MAE recorded for completed trade.")
+    
+    # Polarity
+    for mv in mae_vals:
+        try:
+            if mv is not None and float(mv) > 0:
+                fail("mae", "MAE polarity violation (MAE > 0).")
+        except:
+            pass
+    
+    # ============================================================
+    # CATEGORY 7: TIMESTAMP CONSISTENCY
+    # ============================================================
+    # Monotonic check
+    for i in range(1, len(ts_list)):
+        if ts_list[i] < ts_list[i-1]:
+            fail("timestamps", "Non-monotonic timestamps detected.")
+    
+    # ============================================================
+    # CATEGORY 8: TELEMETRY INTEGRITY
+    # ============================================================
+    # Required fields
+    required_fields = ["entry_price","stop_loss","risk_distance"]
+    for f in required_fields:
+        if state.get(f) in (None, 0, 0.0):
+            fail("telemetry", f"Missing or zero telemetry field: {f}.")
+    
+    return results
+
+
+def build_integrity_report_for_trade(events, state):
+    """
+    Build unified integrity payload with:
+    - category results
+    - a flattened list of all failure reasons
+    """
+    results = check_trade_integrity(events, state)
+    
+    all_failures = []
+    for cat, r in results.items():
+        if not r["ok"]:
+            for msg in r["reasons"]:
+                all_failures.append(f"{cat}: {msg}")
+    
+    return {
+        "categories": results,
+        "all_failures": all_failures,
+        "healthy": len(all_failures) == 0
+    }
