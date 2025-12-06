@@ -12879,6 +12879,12 @@ def automated_signals_webhook():
     All validation is delegated to as_validate_parsed_payload().
     Routes clean canonical events to correct handlers.
     """
+    # === DEBUG: PRINT LIVE SOURCE ===
+    import inspect
+    logger.warning("[WEBHOOK_SOURCE_BEGIN]")
+    for line in inspect.getsource(automated_signals_webhook).split("\n"):
+        logger.warning(f"[SRC] {line}")
+    logger.warning("[WEBHOOK_SOURCE_END]")
     # === DEBUG: PRINT LIVE FUNCTION MARKER ===
     logger.warning("[WEBHOOK_VERSION] This is the LIVE webhook running in production.")
     import time
