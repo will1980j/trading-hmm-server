@@ -1,4 +1,5 @@
 # Updated to support new unified layout system on all internal pages (except login/homepage which use video templates)
+FORCE_REBUILD_MARKER_C3 = "C3-DEPLOY-FORCE-REBUILD"
 import os
 from flask import Flask, render_template, render_template_string, send_from_directory, send_file, request, jsonify, session, redirect, url_for, Response
 from flask_cors import CORS
@@ -1324,9 +1325,10 @@ if robust_ws_handler:
     register_websocket_handlers(socketio, robust_ws_handler)
     logger.info("✅ Robust WebSocket handler initialized")
 
-# Register automated signals API endpoints
+# Register robust Automated Signals API (Phase 2A, integrity engine, repair endpoints)
 if db_enabled:
-    # Register robust API endpoints (includes integrity-v2 and integrity-repair routes)
+    logger.warning("⚠️ Registering robust Automated Signals API (Phase 2A enabled)")
+    from automated_signals_api_robust import register_automated_signals_api_robust
     register_automated_signals_api_robust(app, db)
     
     register_diagnostics_api(app)
