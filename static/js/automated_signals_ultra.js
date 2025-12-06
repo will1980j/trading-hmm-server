@@ -869,9 +869,22 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             ageStr = formatDuration(diffSeconds);
         }
         
-        // Always treat backend event_ts as UTC and convert to NY time
+        // Prefer true TradingView signal timestamp (signal_date + signal_time)
         let timeStr = "--";
-        if (row.event_ts) {
+        if (row.signal_date && row.signal_time) {
+            const iso = row.signal_date + "T" + row.signal_time + "Z";
+            const d = new Date(iso);
+            timeStr = d.toLocaleString("en-US", {
+                timeZone: "America/New_York",
+                year: "numeric",
+                month: "short",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+            });
+        } else if (row.event_ts) {
+            // Fallback: use DB event timestamp
             const iso = row.event_ts.includes("Z")
                 ? row.event_ts
                 : row.event_ts.replace(" ", "T") + "Z";
