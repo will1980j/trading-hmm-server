@@ -13241,7 +13241,7 @@ def handle_entry_signal(data):
             "entry_price": entry_price,
             "stop_loss": stop_loss,
             "risk_distance": risk_distance,
-            "targets": dumps(targets) if targets else None,
+            "targets": json.dumps(targets) if targets else None,
             "session": session,
             "bias": bias or direction,
             "signal_date": parsed_signal_date,
