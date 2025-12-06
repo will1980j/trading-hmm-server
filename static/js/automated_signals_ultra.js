@@ -720,6 +720,33 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
     // Combine all rows
     let rows = [];
     
+    // --- HEALTH INDEX MAP ---
+    // Build a quick lookup for integrity issues per trade_id.
+    const healthMap = {};
+    if (AutomatedSignalsUltra.integrity?.last) {
+        for (const issue of AutomatedSignalsUltra.integrity.last) {
+            const tid = (issue.trade_id || issue.id || issue).toString();
+            if (!healthMap[tid]) healthMap[tid] = [];
+            healthMap[tid].push(issue);
+        }
+    }
+    
+    // Health scoring logic:
+    function getHealthStatus(tradeId) {
+        const issues = healthMap[tradeId] || [];
+        if (issues.length === 0) return { icon: "🟢", label: "Healthy" };
+        
+        // If missing MFE_UPDATE OR missing MAE → critical
+        if (issues.some(x => x.toString().includes("Missing MFE_UPDATE")
+            || x.toString().includes("No MAE")
+            || x.toString().includes("Too few lifecycle"))) {
+            return { icon: "🔴", label: "Critical" };
+        }
+        
+        // Otherwise warning
+        return { icon: "🟡", label: "Warning" };
+    }
+    
     for (const sig of pending) {
         rows.push({ status: "PENDING", ...sig });
     }
@@ -930,6 +957,10 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         
         tr.innerHTML = `
             <td><input type="checkbox" class="trade-checkbox trade-row-checkbox" data-trade-id="${row.trade_id}" ${isChecked ? 'checked' : ''}></td>
+            <td class="health-cell">${(() => {
+                const h = getHealthStatus(row.trade_id);
+                return `<span title="${h.label}">${h.icon}</span>`;
+            })()}</td>
             <td class="dual-status-cell">
                 <span class="dual-status-badge ${beStatusClass}" title="BE=1 Strategy">BE: ${beStatus}</span>
                 <span class="dual-status-badge ${noBeStatusClass}" title="No BE Strategy">NoBE: ${noBeStatus}</span>

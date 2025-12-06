@@ -15831,6 +15831,32 @@ def automated_signals_integrity_check():
                 # Nothing to validate against price here, but placeholder
                 pass
         
+        # --- MISSING DATA CHECKS (NEW) ---
+        for trade_id, evs in trades.items():
+            types = [e["event"] for e in evs]
+            
+            # 1. Missing MFE_UPDATE entirely
+            if "ENTRY" in types and ("EXIT_STOP_LOSS" in types or "EXIT_BREAK_EVEN" in types):
+                if "MFE_UPDATE" not in types:
+                    issues.append(f"{trade_id}: Missing MFE_UPDATE events")
+            
+            # 2. Missing No-BE MFE values
+            has_nobe = any(e["nobe"] not in (None, 0.0) for e in evs)
+            if not has_nobe:
+                issues.append(f"{trade_id}: No No-BE MFE recorded")
+            
+            # 3. Missing MAE values
+            has_mae = any(e["mae"] not in (None, 0.0) for e in evs)
+            if not has_mae:
+                issues.append(f"{trade_id}: No MAE recorded")
+            
+            # 4. ENTRY + EXIT but only 1–2 events total
+            if ("ENTRY" in types and ("EXIT_STOP_LOSS" in types or "EXIT_BREAK_EVEN" in types)
+                and len(evs) <= 2):
+                issues.append(f"{trade_id}: Too few lifecycle events (ENTRY + EXIT but nothing in between)")
+        
+        # --- END MISSING DATA CHECKS ---
+        
         return jsonify({"issues": issues})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
