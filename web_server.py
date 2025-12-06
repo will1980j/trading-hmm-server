@@ -15750,62 +15750,10 @@ def bulk_delete_automated_signals():
 
 @app.route('/api/automated-signals/integrity', methods=['GET'])
 def automated_signals_integrity():
-    """
-    Guaranteed integrity endpoint.
-    Pulls all automated_signals events,
-    builds trade states,
-    and runs the Phase 1 integrity engine.
-    """
-    try:
-        import os
-        import psycopg2
-        from psycopg2.extras import RealDictCursor
-        from automated_signals_state import build_trade_state, build_integrity_report_for_trade
-        
-        database_url = os.environ.get('DATABASE_URL')
-        conn = psycopg2.connect(database_url)
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        cursor.execute("""
-            SELECT
-                id, trade_id, event_type, direction, entry_price,
-                stop_loss, session, bias, risk_distance,
-                current_price, mfe, be_mfe, no_be_mfe,
-                exit_price, final_mfe,
-                signal_date, signal_time, timestamp
-            FROM automated_signals
-            ORDER BY trade_id, timestamp ASC;
-        """)
-        rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        
-        grouped = {}
-        for r in rows:
-            tid = r["trade_id"]
-            grouped.setdefault(tid, []).append(r)
-        
-        issues = []
-        for trade_id, evs in grouped.items():
-            state = build_trade_state(evs)
-            if not state:
-                continue
-            
-            rep = build_integrity_report_for_trade(evs, state)
-            issues.append({
-                "trade_id": trade_id,
-                "healthy": rep["healthy"],
-                "failures": rep["all_failures"],
-                "categories": rep["categories"]
-            })
-        
-        return jsonify({"issues": issues}), 200
-        
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
+    # Disabled duplicate endpoint.
+    # Real implementation lives in automated_signals_api_robust.py:get_integrity_report.
+    from flask import jsonify
+    return jsonify({"error": "Integrity endpoint overridden. Use robust API version."}), 500
 
 
 @app.route("/api/automated-signals/stream-monitor/<trade_id>", methods=["GET"])

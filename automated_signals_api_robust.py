@@ -853,7 +853,7 @@ def _get_hourly_distribution_robust(cursor):
         logger.error(f"Error getting hourly distribution: {e}", exc_info=True)
         return {}
 
-    @app.route('/api/automated-signals/integrity')
+    @app.route('/api/automated-signals/integrity-v2')
     def get_integrity_report():
         """
         Returns full integrity results for all trades using the new
