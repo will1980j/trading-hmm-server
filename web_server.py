@@ -12913,10 +12913,16 @@ def automated_signals_webhook():
         
         # 2. Filesystem dump block
         if data_raw and data_raw.get("debug") == "dump_fs":
-            import os
+            import os, inspect
+            # 1. Dump filesystem
             for root, dirs, files in os.walk(".", topdown=True):
                 logger.warning(f"[FS] {root} dirs={dirs} files={files}")
-            return jsonify({"success": True, "debug": "filesystem_dumped"}), 200
+            # 2. Print LIVE webhook source file
+            try:
+                logger.warning(f"[LIVE_WEBHOOK_FILE] {inspect.getsourcefile(automated_signals_webhook)}")
+            except Exception as e:
+                logger.warning(f"[LIVE_WEBHOOK_FILE_ERROR] {e}")
+            return jsonify({"success": True, "debug": "filesystem_and_source_dumped"}), 200
         
         # 3. Apply Phase 2A normalization
         from signal_normalization import normalize_signal_payload, validate_normalized_payload
