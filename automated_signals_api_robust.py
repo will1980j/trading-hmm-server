@@ -853,6 +853,65 @@ def _get_hourly_distribution_robust(cursor):
         logger.error(f"Error getting hourly distribution: {e}", exc_info=True)
         return {}
 
+    @app.route('/api/automated-signals/integrity')
+    def get_integrity_report():
+        """
+        Returns full integrity results for all trades using the new
+        check_trade_integrity() and build_integrity_report_for_trade() engine.
+        """
+        try:
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+            from automated_signals_state import build_trade_state, build_integrity_report_for_trade
+            import os
+            
+            database_url = os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(database_url)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            # Fetch all events for all trades
+            cursor.execute("""
+                SELECT
+                    id, trade_id, event_type, direction, entry_price,
+                    stop_loss, session, bias, risk_distance,
+                    current_price, mfe, be_mfe, no_be_mfe,
+                    exit_price, final_mfe,
+                    signal_date, signal_time, timestamp
+                FROM automated_signals
+                ORDER BY trade_id, timestamp ASC;
+            """)
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            # Group by trade_id
+            grouped = {}
+            for r in rows:
+                tid = r["trade_id"]
+                grouped.setdefault(tid, []).append(r)
+            
+            issues = []
+            for trade_id, evs in grouped.items():
+                state = build_trade_state(evs)
+                if not state:
+                    continue
+                
+                rep = build_integrity_report_for_trade(evs, state)
+                issues.append({
+                    "trade_id": trade_id,
+                    "healthy": rep["healthy"],
+                    "failures": rep["all_failures"],
+                    "categories": rep["categories"]
+                })
+            
+            return jsonify({"issues": issues}), 200
+            
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "error": str(e)
+            }), 500
+
 def _get_session_breakdown_robust(cursor):
     """Get session breakdown with error handling"""
     try:
