@@ -15223,6 +15223,61 @@ def get_automated_signals_canonical():
         }), 500
 
 
+# =====================================================
+# DEBUG ENDPOINT - Raw DB dump for a specific trade
+# =====================================================
+@app.route('/api/automated-signals/debug-dump/<trade_id>', methods=['GET'])
+def debug_dump_trade(trade_id):
+    """DEBUG: Raw database dump for a specific trade_id. No normalization."""
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({"success": False, "error": "DATABASE_URL not configured"}), 500
+        
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT id, trade_id, event_type, timestamp, signal_date, signal_time,
+                   be_mfe, no_be_mfe, mae_global_r, raw_payload
+            FROM automated_signals
+            WHERE trade_id = %s
+            ORDER BY timestamp ASC;
+        """, (trade_id,))
+        
+        columns = ['id', 'trade_id', 'event_type', 'timestamp', 'signal_date', 
+                   'signal_time', 'be_mfe', 'no_be_mfe', 'mae_global_r', 'raw_payload']
+        rows = []
+        for row in cursor.fetchall():
+            row_dict = {}
+            for i, col in enumerate(columns):
+                val = row[i]
+                # Convert datetime/time objects to strings
+                if hasattr(val, 'isoformat'):
+                    val = val.isoformat()
+                elif hasattr(val, 'strftime'):
+                    val = val.strftime('%H:%M:%S')
+                row_dict[col] = val
+            rows.append(row_dict)
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "trade_id": trade_id,
+            "row_count": len(rows),
+            "rows": rows
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 @app.route('/api/automated-signals/dashboard-data', methods=['GET'])
 def get_automated_signals_dashboard_data():
     """Get all signals for dashboard display. Optionally filter by date."""
@@ -15336,8 +15391,11 @@ def get_automated_signals_dashboard_data():
                 return None
             return dt_utc.astimezone(ny_tz)
         
+        # Store raw SQL results in named variable for debug traceability
+        active_rows = cursor.fetchall()
+        
         active_trades = []
-        for row in cursor.fetchall():
+        for row in active_rows:
             trade_id = row[1]
             signal_date = row[9].isoformat() if row[9] else None
             signal_time = row[10].isoformat() if row[10] else None
@@ -15478,8 +15536,11 @@ def get_automated_signals_dashboard_data():
                 LIMIT 100
             """)
         
+        # Store raw SQL results in named variable for debug traceability
+        completed_rows = cursor.fetchall()
+        
         completed_trades = []
-        for row in cursor.fetchall():
+        for row in completed_rows:
             completed_trades.append({
                 "id": row[0],
                 "trade_id": row[1],
@@ -15507,6 +15568,15 @@ def get_automated_signals_dashboard_data():
                 "status": "COMPLETED",
                 "trade_status": "COMPLETED",
             })
+        
+        # DEBUG LOG: Prove SQL was executed and show raw row counts
+        logger.info(
+            "[DASHBOARD_SQL_DEBUG] active_rows=%d completed_rows=%d first_active_ids=%s first_completed_ids=%s",
+            len(active_rows),
+            len(completed_rows),
+            [r[1] for r in active_rows[:5]],
+            [r[1] for r in completed_rows[:5]],
+        )
         
         # Calculate stats for header
         total_trades = len(active_trades) + len(completed_trades)
@@ -15567,6 +15637,31 @@ def get_automated_signals_dashboard_data():
                     t["mae_global_R"] = 0.0
                     t["mae"] = 0.0
         
+        # DEBUG: Raw database verification
+        conn2 = psycopg2.connect(database_url)
+        cursor2 = conn2.cursor()
+        cursor2.execute("SELECT COUNT(*) FROM automated_signals")
+        total_db_rows = cursor2.fetchone()[0]
+        
+        cursor2.execute("""
+            SELECT id, trade_id, event_type, timestamp, signal_date, signal_time
+            FROM automated_signals
+            ORDER BY timestamp DESC
+            LIMIT 10
+        """)
+        debug_sample_rows = []
+        for row in cursor2.fetchall():
+            debug_sample_rows.append({
+                "id": row[0],
+                "trade_id": row[1],
+                "event_type": row[2],
+                "timestamp": row[3].isoformat() if row[3] else None,
+                "signal_date": row[4].isoformat() if hasattr(row[4], 'isoformat') else row[4],
+                "signal_time": row[5].strftime('%H:%M:%S') if hasattr(row[5], 'strftime') else row[5]
+            })
+        cursor2.close()
+        conn2.close()
+        
         stats = {
             "total_signals": total_trades,
             "active_count": len(active_trades),
@@ -15575,7 +15670,10 @@ def get_automated_signals_dashboard_data():
             "win_rate": round(win_rate, 1),
             "avg_mfe": round(avg_mfe, 2),
             "last_webhook_timestamp": last_webhook_ts,
-            "today_count": total_trades
+            "today_count": total_trades,
+            # DEBUG fields
+            "debug_total_db_rows": total_db_rows,
+            "debug_sample_rows": debug_sample_rows
         }
         
         cursor.close()
@@ -15585,7 +15683,14 @@ def get_automated_signals_dashboard_data():
             "success": True,
             "active_trades": active_trades,
             "completed_trades": completed_trades,
-            "stats": stats
+            "stats": stats,
+            "debug": {
+                "source": "sql_only",
+                "active_sql_count": len(active_rows),
+                "completed_sql_count": len(completed_rows),
+                "active_sql_trade_ids": [r[1] for r in active_rows[:20]],
+                "completed_sql_trade_ids": [r[1] for r in completed_rows[:20]],
+            },
         }), 200
         
     except Exception as e:

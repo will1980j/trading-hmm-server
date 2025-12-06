@@ -900,7 +900,11 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         const noBeMfeDisplay = mfeNoBE;
         
         // MAE (Maximum Adverse Excursion) - worst drawdown in R
-        const maeVal = row.mae_global_R != null ? parseFloat(row.mae_global_R).toFixed(2) : "0.00";
+        // MAE uses backend field "mae_global_r" (lowercase r)
+        const rawMae = row.mae_global_r ?? row.mae_global_R ?? row.mae ?? null;
+        const maeVal = rawMae != null
+            ? parseFloat(rawMae).toFixed(2)
+            : "0.00";
         
         tr.innerHTML = `
             <td><input type="checkbox" class="trade-checkbox trade-row-checkbox" data-trade-id="${row.trade_id}" ${isChecked ? 'checked' : ''}></td>
