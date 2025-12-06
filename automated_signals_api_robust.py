@@ -963,6 +963,56 @@ def _get_hourly_distribution_robust(cursor):
             "success": True,
             "fixed_entries": total_fixed
         }), 200
+    
+    @app.route('/api/automated-signals/integrity-repair/mae', methods=['POST'])
+    def repair_missing_mae():
+        """
+        Repairs missing MAE (Maximum Adverse Excursion) for completed trades.
+        Uses reconstruction logic from recover_missing_mae().
+        """
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        import os
+        from automated_signals_state import recover_missing_mae
+        
+        db = os.environ.get("DATABASE_PUBLIC_URL") or os.environ.get("DATABASE_URL")
+        conn = psycopg2.connect(db)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT * FROM automated_signals
+            ORDER BY trade_id, timestamp ASC;
+        """)
+        rows = cursor.fetchall()
+        
+        grouped = {}
+        for r in rows:
+            grouped.setdefault(r["trade_id"], []).append(r)
+        
+        repairs = []
+        fixed = 0
+        for tid, events in grouped.items():
+            needs_update, old_mae, new_mae = recover_missing_mae(events)
+            if not needs_update:
+                continue
+            
+            cursor.execute("""
+                UPDATE automated_signals
+                SET mae_global_r = %s
+                WHERE trade_id = %s AND event_type LIKE 'EXIT%%';
+            """, (new_mae, tid))
+            repairs.append({"trade_id": tid, "old": old_mae, "new": new_mae})
+            fixed += 1
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "fixed_trades": fixed,
+            "repairs": repairs
+        }), 200
 
 def _get_session_breakdown_robust(cursor):
     """Get session breakdown with error handling"""

@@ -795,3 +795,57 @@ def recover_missing_entry_timestamps(events_list):
         candidate_ts.date(),
         candidate_ts.time().replace(microsecond=0)
     )
+
+
+def recover_missing_mae(events):
+    """
+    Repairs missing MAE (Maximum Adverse Excursion) for completed trades.
+    Scans MFE_UPDATE events for mae_global_r values and finds the worst (most negative).
+    
+    Returns tuple:
+        (needs_update: bool, old_mae: float or None, new_mae: float or None)
+    """
+    # Check if trade has EXIT event
+    has_exit = any(e.get("event_type") in ("EXIT_BE", "EXIT_SL", "EXIT_STOP_LOSS", "EXIT_BREAK_EVEN") 
+                   for e in events)
+    if not has_exit:
+        return (False, None, None)
+    
+    # Get current MAE from EXIT event
+    exit_event = None
+    for e in events:
+        if e.get("event_type") in ("EXIT_BE", "EXIT_SL", "EXIT_STOP_LOSS", "EXIT_BREAK_EVEN"):
+            exit_event = e
+            break
+    
+    if not exit_event:
+        return (False, None, None)
+    
+    current_mae = exit_event.get("mae_global_r")
+    
+    # If MAE already exists and is non-zero, no update needed
+    if current_mae is not None and current_mae != 0:
+        return (False, current_mae, current_mae)
+    
+    # Scan MFE_UPDATE events for mae_global_r values
+    mae_values = []
+    for e in events:
+        if e.get("event_type") == "MFE_UPDATE":
+            mae = e.get("mae_global_r")
+            if mae is not None:
+                try:
+                    mae_values.append(float(mae))
+                except:
+                    pass
+    
+    if not mae_values:
+        return (False, current_mae, None)
+    
+    # MAE is the worst (most negative) adverse excursion
+    worst_mae = min(mae_values)
+    
+    # Ensure MAE is never positive
+    if worst_mae > 0:
+        worst_mae = 0.0
+    
+    return (True, current_mae, worst_mae)
