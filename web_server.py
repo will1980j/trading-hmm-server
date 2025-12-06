@@ -12941,7 +12941,7 @@ def automated_signals_webhook():
         raw_payload_str = json.dumps(data_raw)
         
         # ROUTING - Use unified handler for simple events, specialized handlers for complex ones
-        if event_type == "ENTRY":
+        if event_type in ("ENTRY", "SIGNAL_CREATED"):
             # ENTRY needs special deduplication and lifecycle logic
             result = handle_entry_signal(canonical)
         elif event_type == "MFE_UPDATE":
