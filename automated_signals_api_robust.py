@@ -866,6 +866,7 @@ def _get_hourly_distribution_robust(cursor):
             import os
             
             database_url = os.environ.get('DATABASE_URL')
+            logger.warning(f"[INTEGRITY_DB_URL] Using DATABASE_URL = {database_url}")
             conn = psycopg2.connect(database_url)
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             

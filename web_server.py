@@ -12999,6 +12999,7 @@ def handle_entry_signal(data):
     try:
         # Get fresh database connection
         database_url = os.environ.get('DATABASE_URL')
+        logger.warning(f"[ENTRY_DB_URL] Using DATABASE_URL = {database_url}")
         if not database_url:
             return {"success": False, "error": "DATABASE_URL not configured"}
         
