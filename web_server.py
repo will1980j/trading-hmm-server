@@ -12873,59 +12873,49 @@ def ai_reinforcement_score(lifecycle_events, ai_detail):
 
 def automated_signals_webhook():
     """
-    Unified webhook with strict telemetry enforcement (Upgrade 7G).
-    Enhanced with Phase 2A normalization layer.
-    All raw payload parsing is delegated to as_parse_automated_signal_payload().
-    All validation is delegated to as_validate_parsed_payload().
-    Routes clean canonical events to correct handlers.
+    Unified webhook with strict telemetry enforcement (Upgrade 7G + Phase 2A).
+    - Normalizes raw TradingView payloads
+    - Parses into canonical structure
+    - Validates telemetry
+    - Routes to ENTRY / MFE_UPDATE / BE_TRIGGERED / EXIT_* / CANCELLED handlers
     """
-    # === DEBUG: PRINT LIVE SOURCE ===
-    import inspect
-    logger.warning("[WEBHOOK_SOURCE_BEGIN]")
-    for line in inspect.getsource(automated_signals_webhook).split("\n"):
-        logger.warning(f"[SRC] {line}")
-    logger.warning("[WEBHOOK_SOURCE_END]")
-    # === DEBUG: PRINT LIVE FUNCTION MARKER ===
-    logger.warning("[WEBHOOK_VERSION] This is the LIVE webhook running in production.")
     import time
     t0 = time.time()
     
     try:
+        # 1. Get raw JSON payload
         data_raw = request.get_json(force=True, silent=True)
         logger.info("🟦 RAW WEBHOOK DATA RECEIVED (7G): %s", data_raw)
         
-        # === DEBUG: FILESYSTEM DUMP ===
+        # 2. Filesystem dump block
         if data_raw and data_raw.get("debug") == "dump_fs":
             import os
             for root, dirs, files in os.walk(".", topdown=True):
                 logger.warning(f"[FS] {root} dirs={dirs} files={files}")
             return jsonify({"success": True, "debug": "filesystem_dumped"}), 200
         
-        if data_raw.get('event_type') == 'MFE_UPDATE':
-            print("==== RAW MFE_UPDATE PAYLOAD RECEIVED ====")
-            print(data_raw)
-            print("=========================================")
-        
-        # PHASE 2A: Apply normalization layer BEFORE any DB writes
+        # 3. Apply Phase 2A normalization
         from signal_normalization import normalize_signal_payload, validate_normalized_payload
         normalized_data = normalize_signal_payload(data_raw)
         
-        # Validate normalized payload
+        # 4. Validate normalized
         is_valid, validation_error = validate_normalized_payload(normalized_data)
         if not is_valid:
             logger.warning(f"[WEBHOOK] Normalization validation failed: {validation_error}")
-            # Continue with original data for backward compatibility
-            data_to_parse = data_raw
+            data_to_parse = data_raw  # Fallback to raw payload
         else:
             logger.info(f"[WEBHOOK] Normalization successful: direction={normalized_data.get('direction')}, session={normalized_data.get('session')}")
-            # Use normalized data for downstream processing
             data_to_parse = normalized_data
         
-        # Continue with existing logic using normalized data
+        # 5. Parse
         parsed = as_parse_automated_signal_payload(data_to_parse)
         
-        if isinstance(parsed, dict) and parsed.get("success") is False:
-            return jsonify(parsed), 400
+        # 6. Validate parser output
+        if isinstance(parsed, dict) and parsed.get("validation_error"):
+            ve = parsed["validation_error"]
+            t1 = time.time()
+            as_log_automated_signal_event(data_raw, parsed, ve, {"error": ve}, (t1 - t0) * 1000)
+            return jsonify({"success": False, "error": ve}), 400
         
         validation_error = as_validate_parsed_payload(parsed)
         if validation_error:
@@ -12933,23 +12923,20 @@ def automated_signals_webhook():
             as_log_automated_signal_event(data_raw, parsed, validation_error, {"error": validation_error}, (t1 - t0) * 1000)
             return jsonify({"success": False, "error": validation_error}), 400
         
-        # 7H multi-source fusion
+        # 7. FUSE canonical payload
         canonical = as_fuse_automated_payload_sources(data_raw, parsed)
         
         event_type = canonical["event_type"]
-        format_kind = canonical["format_kind"]
-        logger.info(f"📥 Parsed (7G): event_type={event_type}, trade_id={canonical['trade_id']}, format={format_kind}")
+        trade_id = canonical.get("trade_id") or "UNKNOWN"
+        format_kind = canonical.get("format_kind")
+        logger.info(f"📥 Parsed (7G): event_type={event_type}, trade_id={trade_id}, format={format_kind}")
         
         # Real-time event stream monitor (non-blocking)
         try:
-            normalized_for_monitor = dict(canonical) if canonical else {}
-            raw_event_ts = normalized_for_monitor.get("event_timestamp") or data_raw.get("event_timestamp")
-            if raw_event_ts:
-                normalized_for_monitor["event_timestamp"] = raw_event_ts
             monitor_realtime_event(
-                trade_id=normalized_for_monitor.get("trade_id") or data_raw.get("trade_id", ""),
-                event_type=normalized_for_monitor.get("event_type") or data_raw.get("event_type", ""),
-                normalized=normalized_for_monitor,
+                trade_id=canonical.get("trade_id") or "",
+                event_type=canonical.get("event_type") or "",
+                normalized=canonical,
                 raw_payload=data_raw,
             )
         except Exception as mon_e:
@@ -12958,53 +12945,52 @@ def automated_signals_webhook():
         # Store raw payload JSON for diagnosis
         raw_payload_str = json.dumps(data_raw)
         
-        # ROUTING - Use unified handler for simple events, specialized handlers for complex ones
-        if event_type in ("ENTRY", "SIGNAL_CREATED"):
-            # ENTRY needs special deduplication and lifecycle logic
+        # 8. Route event
+        if canonical["event_type"] == "ENTRY":
             result = handle_entry_signal(canonical)
-        elif event_type == "MFE_UPDATE":
-            # Use UNIFIED handler for MFE_UPDATE to ensure all fields are stored
+        elif canonical["event_type"] == "MFE_UPDATE":
             result = handle_automated_event("MFE_UPDATE", canonical, raw_payload_str)
-            # Also broadcast WebSocket update
+            # Broadcast WebSocket MFE update
             try:
-                trade_id = canonical.get('trade_id')
-                socketio.emit('mfe_update', {
-                    'trade_id': trade_id,
-                    'be_mfe': canonical.get('be_mfe'),
-                    'no_be_mfe': canonical.get('no_be_mfe'),
-                    'current_price': canonical.get('current_price'),
-                    'timestamp': datetime.now().isoformat()
+                socketio.emit("mfe_update", {
+                    "trade_id": canonical.get("trade_id"),
+                    "be_mfe": canonical.get("be_mfe"),
+                    "no_be_mfe": canonical.get("no_be_mfe"),
+                    "current_price": canonical.get("current_price"),
+                    "timestamp": datetime.now().isoformat()
                 })
             except Exception as ws_err:
                 logger.warning(f"WebSocket MFE broadcast failed: {ws_err}")
-        elif event_type == "BE_TRIGGERED":
-            # Use UNIFIED handler for BE_TRIGGERED to ensure all fields are stored
+        elif canonical["event_type"] == "BE_TRIGGERED":
             result = handle_automated_event("BE_TRIGGERED", canonical, raw_payload_str)
-        elif event_type in ("EXIT_BE", "EXIT_SL"):
-            # EXIT needs special lifecycle validation and WebSocket broadcasts
-            exit_type = "BREAK_EVEN" if event_type == "EXIT_BE" else "STOP_LOSS"
+        elif canonical["event_type"] in ("EXIT_BE", "EXIT_SL"):
+            exit_type = "BREAK_EVEN" if canonical["event_type"] == "EXIT_BE" else "STOP_LOSS"
             result = handle_exit_signal(canonical, exit_type)
-        elif event_type == "CANCELLED":
-            # Use UNIFIED handler for CANCELLED
+        elif canonical["event_type"] == "CANCELLED":
             result = handle_automated_event("CANCELLED", canonical, raw_payload_str)
         else:
-            return jsonify({
-                "success": False,
-                "error": f"Unhandled event_type: {event_type}"
-            }), 400
+            err = f"Unhandled event_type: {canonical['event_type']}"
+            t1 = time.time()
+            as_log_automated_signal_event(data_raw, canonical, err, {"error": err}, (t1 - t0) * 1000)
+            return jsonify({"success": False, "error": err}), 400
         
+        # Log event to telemetry table
         t1 = time.time()
         as_log_automated_signal_event(data_raw, canonical, None, result, (t1 - t0) * 1000)
         return jsonify(result), 200 if result.get("success") else 500
     
     except Exception as e:
-        logger.error(f"❌ Automated signals webhook error (7G): {str(e)}", exc_info=True)
+        err_msg = str(e) if str(e) else repr(e)
+        logger.error(f"❌ Automated signals webhook error (7G): {err_msg}", exc_info=True)
         t1 = time.time()
-        as_log_automated_signal_event(data_raw if 'data_raw' in locals() else None, None, "exception", {"error": str(e)}, (t1 - t0) * 1000)
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
+        as_log_automated_signal_event(
+            data_raw if "data_raw" in locals() else None,
+            None,
+            "exception",
+            {"error": err_msg},
+            (t1 - t0) * 1000
+        )
+        return jsonify({"success": False, "error": err_msg}), 500
 
 
 def handle_entry_signal(data):
