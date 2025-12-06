@@ -374,6 +374,39 @@ AutomatedSignalsUltra.loadDiagnosis = async function(tradeId) {
             }
         }
         
+        // Load Stream Monitor Issues
+        fetch(`/api/automated-signals/stream-monitor/${tradeId}`)
+            .then(r => r.json())
+            .then(d => {
+                const box = document.getElementById("ase-stream-monitor-report");
+                if (!box) return;
+                
+                if (!d || Object.keys(d).length === 0) {
+                    box.textContent = "No stream data available.";
+                    return;
+                }
+                
+                let msg = "";
+                msg += `Last Event: ${d.last_event_type || "--"}\n`;
+                msg += `Last Timestamp: ${d.last_event_ts || "--"}\n`;
+                msg += `Last MFE: ${d.last_mfe ?? "--"}\n`;
+                msg += `Last MAE: ${d.last_mae ?? "--"}\n`;
+                msg += `BE Triggered: ${d.be_triggered ? "YES" : "NO"}\n`;
+                msg += `\nIssues (${d.issue_count}):\n`;
+                
+                if (d.issues && d.issues.length > 0) {
+                    msg += d.issues.map(x => "- " + (typeof x === 'string' ? x : x.issue || JSON.stringify(x))).join("\n");
+                } else {
+                    msg += "None detected.";
+                }
+                
+                box.textContent = msg;
+            })
+            .catch(() => {
+                const box = document.getElementById("ase-stream-monitor-report");
+                if (box) box.textContent = "Stream monitor unavailable.";
+            });
+        
         console.log(`[ASE] Diagnosis loaded for trade ${tradeId}`);
     } catch (err) {
         console.error("[ASE] Diagnosis load failed:", err);
