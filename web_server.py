@@ -22,6 +22,9 @@ from ml_insights_endpoint import get_ml_insights_response
 from gpt4_strategy_validator import validate_strategy, format_analysis_for_display
 from automated_signals_state import get_hub_data, get_trade_detail
 
+# Register robust automated signals API routes
+import automated_signals_api_robust
+
 # Execution Router (Stage 13B) - gated behind ENABLE_EXECUTION flag
 try:
     if os.environ.get("ENABLE_EXECUTION", "false").lower() == "true":
