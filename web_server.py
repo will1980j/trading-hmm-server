@@ -16089,85 +16089,13 @@ def get_automated_signals_stats():
         return response, 200
 
 
-@app.route('/api/automated-signals/daily-calendar', methods=['GET'])
-def get_daily_calendar():
-    """Get daily trade data for calendar view with completed and active counts
-    CRITICAL: Use signal_date (Eastern Time) NOT timestamp (UTC) to ensure correct date alignment with TradingView
-    """
-    try:
-        import psycopg2
-        from psycopg2.extras import RealDictCursor
-        
-        database_url = os.environ.get('DATABASE_URL')
-        if not database_url:
-            return jsonify({'success': False, 'error': 'no_database_url'}), 500
-        
-        conn = psycopg2.connect(database_url)
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        # Get completed trades per day (last 90 days)
-        # CRITICAL: JOIN with ENTRY to get signal_date (EXIT events don't have signal_date)
-        # Use ENTRY's signal_date to determine which day the trade belongs to
-        cursor.execute("""
-            SELECT 
-                e.signal_date as date,
-                COUNT(DISTINCT ex.trade_id) as completed_count,
-                AVG(COALESCE(ex.final_mfe, ex.no_be_mfe, ex.mfe, 0)) as avg_mfe
-            FROM automated_signals ex
-            INNER JOIN automated_signals e ON ex.trade_id = e.trade_id AND e.event_type = 'ENTRY'
-            WHERE e.signal_date >= (CURRENT_DATE AT TIME ZONE 'America/New_York') - INTERVAL '90 days'
-            AND ex.event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
-            AND e.signal_date IS NOT NULL
-            GROUP BY e.signal_date
-        """)
-        completed_by_date = {row['date'].strftime('%Y-%m-%d') if hasattr(row['date'], 'strftime') else str(row['date']): row for row in cursor.fetchall()}
-        
-        # Get active trades per day (entry date, no EXIT_SL yet)
-        # CRITICAL FIX: Use signal_date (Eastern Time) instead of timestamp (UTC)
-        cursor.execute("""
-            SELECT 
-                e.signal_date as date,
-                COUNT(DISTINCT e.trade_id) as active_count
-            FROM automated_signals e
-            WHERE e.event_type = 'ENTRY'
-            AND e.signal_date >= (CURRENT_DATE AT TIME ZONE 'America/New_York') - INTERVAL '90 days'
-            AND e.signal_date IS NOT NULL
-            AND e.trade_id NOT IN (
-                SELECT DISTINCT trade_id 
-                FROM automated_signals 
-                WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
-            )
-            GROUP BY e.signal_date
-        """)
-        active_by_date = {row['date'].strftime('%Y-%m-%d') if hasattr(row['date'], 'strftime') else str(row['date']): row['active_count'] for row in cursor.fetchall()}
-        
-        cursor.close()
-        conn.close()
-        
-        # Merge data
-        all_dates = set(completed_by_date.keys()) | set(active_by_date.keys())
-        daily_data = {}
-        
-        for date_str in all_dates:
-            completed_info = completed_by_date.get(date_str, {})
-            daily_data[date_str] = {
-                'completed_count': completed_info.get('completed_count', 0) if completed_info else 0,
-                'active_count': active_by_date.get(date_str, 0),
-                'avg_mfe': float(completed_info.get('avg_mfe', 0)) if completed_info and completed_info.get('avg_mfe') else 0,
-                'trade_count': (completed_info.get('completed_count', 0) if completed_info else 0) + active_by_date.get(date_str, 0)
-            }
-        
-        return jsonify({
-            'success': True,
-            'daily_data': daily_data
-        })
-        
-    except Exception as e:
-        logger.error(f"Error fetching daily calendar: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+### DISABLED — replaced by robust API version ###
+# @app.route('/api/automated-signals/daily-calendar', methods=['GET'])
+# def get_daily_calendar():
+#     """
+#     Disabled because robust API now owns this endpoint.
+#     """
+#     return jsonify({"error": "Disabled"}), 410
 
 
 @app.route('/api/automated-signals/delete-trades', methods=['POST'])
