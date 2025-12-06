@@ -13120,24 +13120,42 @@ def handle_entry_signal(data):
                     "20R": round(entry_price - (20 * risk_distance), 2)
                 }
         
-        # Get signal date and time from webhook (signal candle time, not current time)
-        # The indicator sends event_timestamp in ISO format, parse it
-        signal_date = data.get('date')  # Format: "2024-01-15"
-        signal_time = data.get('time')  # Format: "10:00:00"
+        # --- PHASE A: Unified timestamp extraction ---
+        signal_date = None
+        signal_time = None
         
-        # If date/time not provided, try to parse from event_timestamp
-        if not signal_date or not signal_time:
-            event_timestamp = data.get('event_timestamp')
-            if event_timestamp:
-                try:
-                    # Parse ISO timestamp: "2025-12-01T10:30:00-05:00" or "2025-12-01T10:30:00"
-                    from dateutil import parser as date_parser
-                    parsed_ts = date_parser.parse(event_timestamp)
-                    signal_date = parsed_ts.strftime('%Y-%m-%d')
-                    signal_time = parsed_ts.strftime('%H:%M:%S')
-                    logger.info(f"📅 Parsed event_timestamp: date={signal_date}, time={signal_time}")
-                except Exception as parse_err:
-                    logger.warning(f"Could not parse event_timestamp '{event_timestamp}': {parse_err}")
+        # PRIORITY 1: event_timestamp field (telemetry)
+        ts_raw = data.get("event_timestamp")
+        
+        # PRIORITY 2: TradingView "timestamp" field
+        if not ts_raw:
+            ts_raw = data.get("timestamp")
+        
+        # PRIORITY 3: manual fields (date + time)
+        if not ts_raw and data.get("date") and data.get("time"):
+            try:
+                ts_raw = f"{data['date']}T{data['time']}"
+            except:
+                ts_raw = None
+        
+        parsed_ts = None
+        if ts_raw:
+            try:
+                from dateutil import parser as date_parser
+                parsed_ts = date_parser.parse(ts_raw)
+                signal_date = parsed_ts.date()
+                signal_time = parsed_ts.time()
+                logger.info(f"[ENTRY_TS] Parsed entry timestamp OK: {parsed_ts}")
+            except Exception as e:
+                logger.warning(f"[ENTRY_TS] Failed to parse '{ts_raw}': {e}")
+        
+        # FINAL FAILSAFE: use NOW() (server time)
+        if not parsed_ts:
+            from datetime import datetime as dt
+            parsed_ts = dt.utcnow()
+            signal_date = parsed_ts.date()
+            signal_time = parsed_ts.time()
+            logger.warning(f"[ENTRY_TS] Using UTC NOW() fallback: {parsed_ts}")
         
         # Get initial MFE values (both start at 0 for new signals)
         be_mfe = float(data.get('be_mfe', 0.0))
@@ -13221,22 +13239,6 @@ def handle_entry_signal(data):
             )
             RETURNING id
         """
-        # Parse signal_date and signal_time from webhook
-        parsed_signal_date = None
-        parsed_signal_time = None
-        if signal_date:
-            try:
-                from datetime import datetime as dt
-                parsed_signal_date = dt.strptime(signal_date, '%Y-%m-%d').date()
-            except:
-                parsed_signal_date = None
-        if signal_time:
-            try:
-                from datetime import datetime as dt
-                parsed_signal_time = dt.strptime(signal_time, '%H:%M:%S').time()
-            except:
-                parsed_signal_time = None
-        
         # Serialize raw payload for storage
         raw_payload_json = json.dumps(data)
         
@@ -13249,8 +13251,8 @@ def handle_entry_signal(data):
             "targets": json.dumps(targets) if targets else None,
             "session": session,
             "bias": bias or direction,
-            "signal_date": parsed_signal_date,
-            "signal_time": parsed_signal_time,
+            "signal_date": signal_date,
+            "signal_time": signal_time,
             "raw_payload": raw_payload_json
         }
         
