@@ -12879,12 +12879,21 @@ def automated_signals_webhook():
     All validation is delegated to as_validate_parsed_payload().
     Routes clean canonical events to correct handlers.
     """
+    # === DEBUG: PRINT LIVE FUNCTION MARKER ===
+    logger.warning("[WEBHOOK_VERSION] This is the LIVE webhook running in production.")
     import time
     t0 = time.time()
     
     try:
         data_raw = request.get_json(force=True, silent=True)
         logger.info("🟦 RAW WEBHOOK DATA RECEIVED (7G): %s", data_raw)
+        
+        # === DEBUG: FILESYSTEM DUMP ===
+        if data_raw and data_raw.get("debug") == "dump_fs":
+            import os
+            for root, dirs, files in os.walk(".", topdown=True):
+                logger.warning(f"[FS] {root} dirs={dirs} files={files}")
+            return jsonify({"success": True, "debug": "filesystem_dumped"}), 200
         
         if data_raw.get('event_type') == 'MFE_UPDATE':
             print("==== RAW MFE_UPDATE PAYLOAD RECEIVED ====")
