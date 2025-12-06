@@ -234,6 +234,47 @@ AutomatedSignalsUltra.init = function() {
     
 };
 
+// Toggle Signal Integrity Monitor panel
+document.addEventListener("click", (e) => {
+    const t = e.target.closest("#ase-signal-monitor-toggle");
+    if (!t) return;
+    
+    const panel = document.getElementById("ase-signal-monitor-panel");
+    const open = panel.style.display !== "none";
+    
+    panel.style.display = open ? "none" : "block";
+    t.textContent = (open ? "▼" : "▲") + " Signal Integrity Monitor";
+    
+    if (!open) {
+        AutomatedSignalsUltra.loadSignalIntegrityMonitor();
+    }
+});
+
+// Signal Integrity Monitor loader
+AutomatedSignalsUltra.loadSignalIntegrityMonitor = function () {
+    const panel = document.getElementById("ase-signal-monitor-panel");
+    if (!panel) return;
+    
+    panel.textContent = "Loading…";
+    
+    fetch("/api/automated-signals/integrity")
+        .then(r => r.json())
+        .then(data => {
+            if (!data || !data.issues) {
+                panel.textContent = "No issues detected.";
+                return;
+            }
+            if (data.issues.length === 0) {
+                panel.textContent = "No issues detected.";
+                return;
+            }
+            panel.textContent = data.issues.join("\n");
+        })
+        .catch(() => {
+            panel.textContent = "Error loading monitor data.";
+        });
+};
+
 // ============================================================================
 // DIAGNOSIS LOADER - Fetches and displays trade lifecycle diagnosis
 // ============================================================================
