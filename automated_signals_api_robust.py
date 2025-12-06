@@ -912,6 +912,57 @@ def _get_hourly_distribution_robust(cursor):
                 "success": False,
                 "error": str(e)
             }), 500
+    
+    @app.route('/api/automated-signals/integrity-repair/timestamps', methods=['POST'])
+    def repair_entry_timestamps():
+        """
+        Repairs missing signal_date and signal_time for ENTRY events.
+        Uses reconstruction logic from recover_missing_entry_timestamps().
+        """
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        import os
+        from automated_signals_state import recover_missing_entry_timestamps
+        
+        db = os.environ.get("DATABASE_PUBLIC_URL") or os.environ.get("DATABASE_URL")
+        conn = psycopg2.connect(db)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Fetch all events grouped
+        cursor.execute("""
+            SELECT
+                id, trade_id, event_type, signal_date, signal_time, raw_payload, timestamp
+            FROM automated_signals
+            ORDER BY trade_id, timestamp ASC;
+        """)
+        rows = cursor.fetchall()
+        
+        # Group by trade_id
+        grouped = {}
+        for r in rows:
+            grouped.setdefault(r["trade_id"], []).append(r)
+        
+        total_fixed = 0
+        for trade_id, events in grouped.items():
+            needs_update, new_date, new_time = recover_missing_entry_timestamps(events)
+            if not needs_update:
+                continue
+            
+            cursor.execute("""
+                UPDATE automated_signals
+                SET signal_date = %s, signal_time = %s
+                WHERE trade_id = %s AND event_type = 'ENTRY';
+            """, (new_date, new_time, trade_id))
+            total_fixed += 1
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "fixed_entries": total_fixed
+        }), 200
 
 def _get_session_breakdown_robust(cursor):
     """Get session breakdown with error handling"""

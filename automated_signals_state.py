@@ -743,3 +743,55 @@ def build_integrity_report_for_trade(events, state):
         "all_failures": all_failures,
         "healthy": len(all_failures) == 0
     }
+
+
+def recover_missing_entry_timestamps(events_list):
+    """
+    Repairs ENTRY rows missing signal_date or signal_time.
+    Uses the earliest available event_timestamp from MFE_UPDATE,
+    BE_TRIGGERED, EXIT_BE, or EXIT_SL events in raw_payload.
+    
+    Returns tuple:
+        (needs_update: bool, recovered_date: date or None, recovered_time: time or None)
+    """
+    import json
+    from dateutil import parser as date_parser
+    
+    # Filter ENTRY event
+    entry = None
+    for ev in events_list:
+        if ev.get("event_type") == "ENTRY":
+            entry = ev
+            break
+    
+    if not entry:
+        return (False, None, None)
+    
+    if entry.get("signal_date") and entry.get("signal_time"):
+        return (False, None, None)
+    
+    # Find earliest downstream event with valid timestamp
+    candidate_ts = None
+    for ev in events_list:
+        if ev.get("event_type") in ("MFE_UPDATE", "BE_TRIGGERED", "EXIT_BE", "EXIT_SL"):
+            raw = ev.get("raw_payload")
+            if not raw:
+                continue
+            try:
+                payload = json.loads(raw)
+                ts = payload.get("event_timestamp")
+                if ts:
+                    parsed = date_parser.parse(ts)
+                    if candidate_ts is None or parsed < candidate_ts:
+                        candidate_ts = parsed
+            except:
+                continue
+    
+    if not candidate_ts:
+        return (False, None, None)
+    
+    return (
+        True,
+        candidate_ts.date(),
+        candidate_ts.time().replace(microsecond=0)
+    )
