@@ -15747,119 +15747,64 @@ def bulk_delete_automated_signals():
         }), 500
 
 
-@app.route('/api/automated-signals/integrity')
-def automated_signals_integrity_check():
-    """Check signal integrity for common issues."""
+@app.route('/api/automated-signals/integrity', methods=['GET'])
+def automated_signals_integrity():
+    """
+    Guaranteed integrity endpoint.
+    Pulls all automated_signals events,
+    builds trade states,
+    and runs the Phase 1 integrity engine.
+    """
     try:
-        database_url = os.environ.get('DATABASE_URL')
-        if not database_url:
-            return jsonify({"error": "DATABASE_URL not configured"}), 500
+        import os
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        from automated_signals_state import build_trade_state, build_integrity_report_for_trade
         
+        database_url = os.environ.get('DATABASE_URL')
         conn = psycopg2.connect(database_url)
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
         cursor.execute("""
             SELECT
-                trade_id,
-                event_type,
-                timestamp,
-                be_mfe,
-                no_be_mfe,
-                mae_global_r
+                id, trade_id, event_type, direction, entry_price,
+                stop_loss, session, bias, risk_distance,
+                current_price, mfe, be_mfe, no_be_mfe,
+                exit_price, final_mfe,
+                signal_date, signal_time, timestamp
             FROM automated_signals
-            ORDER BY trade_id ASC, timestamp ASC
+            ORDER BY trade_id, timestamp ASC;
         """)
         rows = cursor.fetchall()
         cursor.close()
         conn.close()
         
-        # Build timeline per trade
-        trades = {}
-        for (tid, etype, ts, be, nobe, mae) in rows:
-            trades.setdefault(tid, []).append({
-                "event": etype,
-                "ts": ts,
-                "be": float(be or 0),
-                "nobe": float(nobe or 0),
-                "mae": float(mae or 0)
-            })
+        grouped = {}
+        for r in rows:
+            tid = r["trade_id"]
+            grouped.setdefault(tid, []).append(r)
         
         issues = []
-        for tid, events in trades.items():
-            # Must start with ENTRY
-            if events[0]["event"] != "ENTRY":
-                issues.append(f"{tid}: Missing ENTRY (first event is {events[0]['event']})")
+        for trade_id, evs in grouped.items():
+            state = build_trade_state(evs)
+            if not state:
+                continue
             
-            # Must end with EXIT_* if completed
-            if any(e["event"].startswith("EXIT") for e in events):
-                if not events[-1]["event"].startswith("EXIT"):
-                    issues.append(f"{tid}: EXIT out of order (not last event).")
-            
-            # Check same timestamp duplicates
-            ts_set = set()
-            for e in events:
-                if e["ts"] in ts_set:
-                    issues.append(f"{tid}: Duplicate timestamp detected at {e['ts']}.")
-                ts_set.add(e["ts"])
-            
-            # Check monotonic ordering
-            for i in range(1, len(events)):
-                if events[i]["ts"] < events[i-1]["ts"]:
-                    issues.append(f"{tid}: Non-monotonic timestamp at {events[i]['ts']}.")
-            
-            # Check MFE must not decrease
-            max_seen = -9999
-            for e in events:
-                if e["event"] == "MFE_UPDATE":
-                    if e["nobe"] < max_seen:
-                        issues.append(f"{tid}: MFE decreased at {e['ts']}.")
-                    max_seen = max(max_seen, e["nobe"])
-            
-            # Check MAE must NEVER be positive
-            for e in events:
-                if e["mae"] > 0:
-                    issues.append(f"{tid}: MAE positive ({e['mae']}) at {e['ts']}.")
-            
-            # BE_TRIGGERED must follow ENTRY and MFE >= 1
-            for e in events:
-                if e["event"] == "BE_TRIGGERED":
-                    prev_mfe = max(ev["nobe"] for ev in events if ev["ts"] <= e["ts"])
-                    if prev_mfe < 1:
-                        issues.append(f"{tid}: BE_TRIGGERED without 1R at {e['ts']}.")
-            
-            # EXIT_BE requires price return to entry exactly (validated backend)
-            if any(e["event"] == "EXIT_BE" for e in events):
-                # Nothing to validate against price here, but placeholder
-                pass
+            rep = build_integrity_report_for_trade(evs, state)
+            issues.append({
+                "trade_id": trade_id,
+                "healthy": rep["healthy"],
+                "failures": rep["all_failures"],
+                "categories": rep["categories"]
+            })
         
-        # --- MISSING DATA CHECKS (NEW) ---
-        for trade_id, evs in trades.items():
-            types = [e["event"] for e in evs]
-            
-            # 1. Missing MFE_UPDATE entirely
-            if "ENTRY" in types and ("EXIT_STOP_LOSS" in types or "EXIT_BREAK_EVEN" in types):
-                if "MFE_UPDATE" not in types:
-                    issues.append(f"{trade_id}: Missing MFE_UPDATE events")
-            
-            # 2. Missing No-BE MFE values
-            has_nobe = any(e["nobe"] not in (None, 0.0) for e in evs)
-            if not has_nobe:
-                issues.append(f"{trade_id}: No No-BE MFE recorded")
-            
-            # 3. Missing MAE values
-            has_mae = any(e["mae"] not in (None, 0.0) for e in evs)
-            if not has_mae:
-                issues.append(f"{trade_id}: No MAE recorded")
-            
-            # 4. ENTRY + EXIT but only 1–2 events total
-            if ("ENTRY" in types and ("EXIT_STOP_LOSS" in types or "EXIT_BREAK_EVEN" in types)
-                and len(evs) <= 2):
-                issues.append(f"{trade_id}: Too few lifecycle events (ENTRY + EXIT but nothing in between)")
+        return jsonify({"issues": issues}), 200
         
-        # --- END MISSING DATA CHECKS ---
-        
-        return jsonify({"issues": issues})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 
 @app.route("/api/automated-signals/stream-monitor/<trade_id>", methods=["GET"])
