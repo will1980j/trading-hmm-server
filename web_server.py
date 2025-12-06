@@ -15365,8 +15365,9 @@ def get_automated_signals_dashboard_data():
                 "session": row[6],
                 "bias": row[7],
                 "event_ts": row[8].isoformat() if row[8] else None,  # UTC timestamp as ISO string
-                "signal_date": row[9].isoformat() if hasattr(row[9], "isoformat") else row[9],
-                "signal_time": row[10].strftime("%H:%M:%S") if hasattr(row[10], "strftime") else row[10],
+                # True TradingView signal timestamp
+                "signal_date": row[8].isoformat().split("T")[0] if row[8] else None,
+                "signal_time": row[8].isoformat().split("T")[1][:8] if row[8] else None,
                 "be_mfe": float(row[11] or 0.0),
                 "be_mfe_R": float(row[11] or 0.0),
                 "no_be_mfe": float(row[12] or 0.0),
@@ -15490,8 +15491,9 @@ def get_automated_signals_dashboard_data():
                 "bias": row[7],
                 "exit_ts": row[8].isoformat() if row[8] else None,  # UTC timestamp as ISO string
                 "event_ts": row[8].isoformat() if row[8] else None,  # alias for frontend compatibility
-                "signal_date": row[9].isoformat() if hasattr(row[9], "isoformat") else row[9],
-                "signal_time": row[10].strftime("%H:%M:%S") if hasattr(row[10], "strftime") else row[10],
+                # True TradingView signal timestamp from entry_ts
+                "signal_date": row[11].isoformat().split("T")[0] if row[11] else None,
+                "signal_time": row[11].isoformat().split("T")[1][:8] if row[11] else None,
                 "entry_ts": row[11].isoformat() if hasattr(row[11], "isoformat") else row[11],
                 "duration_seconds": float(row[12] or 0.0),
                 "be_mfe": float(row[13] or 0.0),

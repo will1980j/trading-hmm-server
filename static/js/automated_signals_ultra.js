@@ -41,7 +41,7 @@ AutomatedSignalsUltra.copyEcho = function() {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-    const copyBtn = document.querySelector("#ase-echo-copy-btn");
+    const copyBtn = document.querySelector("#ase-backend-echo-copy");
     if (copyBtn) copyBtn.onclick = AutomatedSignalsUltra.copyEcho;
 });
 
@@ -586,16 +586,12 @@ AutomatedSignalsUltra.fetchDashboardData = async function() {
         // ─────────────────────────────────────────────
         
         // ─────────────────────────────────────────────
-        // BACKEND ECHO PANEL
+        // BACKEND ECHO PANEL (Collapsed by default)
         // ─────────────────────────────────────────────
         AutomatedSignalsUltra.echo.lastJson = json;
-        const echoPanel = document.getElementById("ase-echo-panel");
-        const echoArea = document.getElementById("ase-echo-json");
-        if (AutomatedSignalsUltra.echo.enabled && echoPanel && echoArea) {
-            echoPanel.style.display = "block";
+        const echoArea = document.getElementById("ase-backend-echo-content");
+        if (AutomatedSignalsUltra.echo.enabled && echoArea) {
             echoArea.textContent = JSON.stringify(json, null, 2);
-        } else if (echoPanel) {
-            echoPanel.style.display = "none";
         }
         // ─────────────────────────────────────────────
         
@@ -1948,4 +1944,20 @@ document.addEventListener("click", function(e) {
     // Toggle panel
     const open = content.style.display !== "none" && content.style.display !== "";
     content.style.display = open ? "none" : "block";
+});
+
+// =====================================================
+// BACKEND DATA ECHO COLLAPSE LOGIC
+// =====================================================
+document.addEventListener("DOMContentLoaded", () => {
+    const header = document.getElementById("ase-backend-echo-header");
+    const body = document.getElementById("ase-backend-echo-body");
+
+    if (header && body) {
+        header.addEventListener("click", () => {
+            const open = body.style.display !== "none";
+            body.style.display = open ? "none" : "block";
+            header.textContent = (open ? "▶" : "▼") + " Backend Data Echo";
+        });
+    }
 });
