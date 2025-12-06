@@ -15760,6 +15760,62 @@ def automated_signals_integrity():
     return jsonify({"error": "Integrity endpoint overridden. Use robust API version."}), 500
 
 
+@app.route('/api/automated-signals/integrity-v2', methods=['GET'])
+def automated_signals_integrity_v2():
+    """
+    Definitive Phase 1 integrity endpoint.
+    Reads all automated_signals events,
+    constructs trade state via build_trade_state(),
+    and returns integrity categories for each trade.
+    """
+    try:
+        import os
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        from automated_signals_state import build_trade_state, build_integrity_report_for_trade
+        
+        database_url = os.environ.get('DATABASE_URL')
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT
+                id, trade_id, event_type, direction, entry_price,
+                stop_loss, session, bias, risk_distance,
+                current_price, mfe, be_mfe, no_be_mfe,
+                exit_price, final_mfe,
+                signal_date, signal_time, timestamp
+            FROM automated_signals
+            ORDER BY trade_id, timestamp ASC;
+        """)
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        grouped = {}
+        for r in rows:
+            grouped.setdefault(r["trade_id"], []).append(r)
+        
+        issues = []
+        for tid, evs in grouped.items():
+            state = build_trade_state(evs)
+            if not state:
+                continue
+            
+            rep = build_integrity_report_for_trade(evs, state)
+            issues.append({
+                "trade_id": tid,
+                "healthy": rep["healthy"],
+                "failures": rep["all_failures"],
+                "categories": rep["categories"]
+            })
+        
+        return jsonify({"issues": issues}), 200
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route("/api/automated-signals/stream-monitor/<trade_id>", methods=["GET"])
 @login_required
 def get_stream_monitor_state(trade_id):
