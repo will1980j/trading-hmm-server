@@ -278,6 +278,29 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
         conn.autocommit = False
         cursor = conn.cursor()
         
+        # === PHASE C1: SAFE LIFECYCLE ENFORCEMENT FOR NON-ENTRY EVENTS ===
+        validation_error = None
+        try:
+            validation_error = as_validate_lifecycle_transition(trade_id, event_type, cursor)
+        except Exception as ve:
+            logger.error(f"[LIFECYCLE_CHECK] Error validating lifecycle for trade_id={trade_id}, event_type={event_type}: {ve}", exc_info=True)
+            validation_error = None  # do not block on validator failure
+        
+        if validation_error:
+            # SAFE MODE: do NOT write invalid lifecycle events, but do NOT crash either
+            logger.warning(f"[LIFECYCLE_SAFE_SKIP] trade_id={trade_id}, event_type={event_type} skipped: {validation_error}")
+            try:
+                conn.commit()
+            except Exception as ce:
+                logger.warning(f"[LIFECYCLE_SAFE_SKIP] Commit after skip failed: {ce}")
+            return {
+                "success": True,
+                "ignored": True,
+                "reason": validation_error,
+                "trade_id": trade_id,
+                "event_type": event_type
+            }
+        
         # Extract ALL fields with safe defaults
         direction = data.get('direction') or data.get('bias') or None
         if direction:
