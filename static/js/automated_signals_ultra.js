@@ -730,6 +730,15 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         rows.push({ status: "COMPLETED", ...sig });
     }
     
+    // --- FRONTEND DEDUPE SAFETY NET ---
+    // Ensures only one row per trade_id is shown in the dashboard.
+    const deduped = {};
+    for (const r of rows) {
+        deduped[r.trade_id] = r;
+    }
+    rows = Object.values(deduped);
+    // ------------------------------------
+    
     // Apply filters
     const f = AutomatedSignalsUltra.filters;
     
