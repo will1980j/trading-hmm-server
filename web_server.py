@@ -13048,6 +13048,39 @@ def automated_signals_webhook():
         # Store raw payload JSON for diagnosis
         raw_payload_str = json.dumps(data_raw)
         
+        # ================================
+        # PHASE E2: STRICT EVENT ENFORCEMENT
+        # ================================
+        allowed_types = {"ENTRY","MFE_UPDATE","BE_TRIGGERED","EXIT_BE","EXIT_SL","CANCELLED"}
+        evt = canonical.get("event_type")
+        if evt not in allowed_types:
+            err = f"Invalid event_type '{evt}' — not allowed under strict enforcement."
+            logger.error(f"[E2-REJECT] {err} canonical={canonical}")
+            return jsonify({"success": False, "error": err}), 400
+        
+        # Fetch prior events for lifecycle enforcement
+        try:
+            from automated_signals_state import enforce_strict_lifecycle_rules
+            database_url = os.environ.get('DATABASE_URL')
+            conn_check = psycopg2.connect(database_url)
+            cursor_check = conn_check.cursor()
+            cursor_check.execute("""
+                SELECT event_type FROM automated_signals
+                WHERE trade_id = %s
+                ORDER BY timestamp ASC
+            """, (trade_id,))
+            prior_events = [{"event_type": row[0]} for row in cursor_check.fetchall()]
+            cursor_check.close()
+            conn_check.close()
+            
+            ok, e2_error = enforce_strict_lifecycle_rules(prior_events, event_type)
+            if not ok:
+                logger.error(f"[E2-LIFECYCLE-REJECT] {e2_error} trade_id={trade_id}")
+                return jsonify({"success": False, "error": e2_error}), 400
+        except Exception as e2_ex:
+            logger.error(f"[E2-ENFORCER-ERROR] {e2_ex}")
+            return jsonify({"success": False, "error": "Lifecycle enforcement error"}), 500
+        
         # 8. Route event
         if canonical["event_type"] == "ENTRY":
             result = handle_entry_signal(canonical)

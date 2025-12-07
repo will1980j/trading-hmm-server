@@ -957,3 +957,29 @@ def repair_trade_lifecycle(events):
     events = sorted(events, key=lambda e: e.get("timestamp") or 0)
     
     return events, changed
+
+
+def enforce_strict_lifecycle_rules(events, new_event_type):
+    """
+    Phase E2 strict lifecycle enforcement.
+    Ensures canonical sequence:
+        ENTRY → MFE_UPDATE/BE_TRIGGERED → EXIT_*.
+    Rejects EXIT without ENTRY, and prevents
+    MFE_UPDATE before ENTRY.
+    """
+    # Extract event types in chronological order
+    types = [e.get("event_type") for e in events if e.get("event_type")]
+    
+    # If EXIT arrives before ENTRY → reject
+    if new_event_type in ("EXIT_BE","EXIT_SL") and "ENTRY" not in types:
+        return False, "EXIT received before ENTRY — strict enforcement."
+    
+    # MFE_UPDATE before ENTRY → reject
+    if new_event_type == "MFE_UPDATE" and "ENTRY" not in types:
+        return False, "MFE_UPDATE received before ENTRY — strict enforcement."
+    
+    # Second ENTRY not allowed
+    if new_event_type == "ENTRY" and "ENTRY" in types:
+        return False, "Duplicate ENTRY event — strict enforcement."
+    
+    return True, None
