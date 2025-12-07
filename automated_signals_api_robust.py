@@ -1016,6 +1016,12 @@ def _get_hourly_distribution_robust(cursor):
             "fixed_trades": fixed,
             "repairs": repairs
         }), 200
+    
+    # Log successful registration of all routes
+    logger.warning("[ROBUST_API_REGISTRATION] ✅ All routes registered including:")
+    logger.warning("[ROBUST_API_REGISTRATION]   - /api/automated-signals/integrity-v2")
+    logger.warning("[ROBUST_API_REGISTRATION]   - /api/automated-signals/integrity-repair/timestamps")
+    logger.warning("[ROBUST_API_REGISTRATION]   - /api/automated-signals/integrity-repair/mae")
 
 def _get_session_breakdown_robust(cursor):
     """Get session breakdown with error handling"""
