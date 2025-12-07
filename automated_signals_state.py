@@ -6,6 +6,47 @@
 ## THIS MODULE MUST NEVER WRITE TO THE DATABASE.
 # READ-ONLY ONLY.
 # INTEGRITY_REPAIR_STATE_ACTIVE
+
+def auto_guard_webhook_payload(payload):
+    """
+    Phase E1: Auto-Guard Normalization Layer
+    Ensures required fields exist BEFORE parsing.
+    Returns (clean_payload, error_message or None)
+    """
+    if not isinstance(payload, dict):
+        return None, "Invalid payload: not a JSON object."
+    
+    # Required fields for ENTRY
+    required_base = ["event_type", "trade_id"]
+    for field in required_base:
+        if payload.get(field) in (None, "", "null"):
+            return None, f"Missing required field: {field}"
+    
+    evt = payload.get("event_type")
+    
+    # Guards for ENTRY
+    if evt == "ENTRY":
+        for f in ["direction", "entry_price", "stop_loss", "risk_distance"]:
+            if payload.get(f) in (None, "", "null"):
+                return None, f"Invalid ENTRY: missing field {f}"
+    
+    # Guards for MFE updates
+    if evt == "MFE_UPDATE":
+        # Ensure numeric MFE values
+        for f in ["be_mfe", "no_be_mfe"]:
+            try:
+                if payload.get(f) is not None:
+                    float(payload.get(f))
+            except Exception:
+                return None, f"Malformed MFE value: {f}"
+    
+    # Guards for EXIT events
+    if evt in ("EXIT_BE", "EXIT_SL"):
+        if payload.get("exit_price") in (None, "", "null"):
+            return None, "Missing exit_price"
+    
+    return payload, None
+
 import os
 from collections import defaultdict
 from datetime import datetime, date

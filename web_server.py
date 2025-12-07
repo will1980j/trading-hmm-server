@@ -12976,6 +12976,14 @@ def automated_signals_webhook():
         data_raw = request.get_json(force=True, silent=True)
         logger.info("🟦 RAW WEBHOOK DATA RECEIVED (7G): %s", data_raw)
         
+        from automated_signals_state import auto_guard_webhook_payload
+        guarded, guard_error = auto_guard_webhook_payload(data_raw)
+        if guard_error:
+            logger.warning(f"[AUTO-GUARD] Payload rejected: {guard_error}")
+            return jsonify({"success": False, "error": guard_error}), 400
+        else:
+            data_raw = guarded  # Use sanitized payload moving forward
+        
         # 2. Filesystem dump block
         if data_raw and data_raw.get("debug") == "dump_fs":
             import os, inspect
