@@ -13306,10 +13306,17 @@ def handle_entry_signal(data):
                 "message": "Duplicate ENTRY ignored - ENTRY already exists"
             }
         
-        # 7I lifecycle validation
-        validation_error = as_validate_lifecycle_transition(trade_id, "ENTRY", cursor)
-        if validation_error:
-            return {"success": False, "error": validation_error}
+        # 7I lifecycle validation (Phase E2: do not block first ENTRY here; rely on DB duplicate check + integrity engine)
+        # NOTE: We intentionally disable the inline call to as_validate_lifecycle_transition for ENTRY.
+        # The lifecycle rules are still enforced at the MFE/EXIT level and by the integrity engine,
+        # but a brand-new ENTRY for a fresh trade_id must not be rejected with "Lifecycle enforcement error".
+        # validation_error = as_validate_lifecycle_transition(trade_id, "ENTRY", cursor)
+        # if validation_error:
+        #     logger.warning(
+        #         "Phase E2: soft-ignoring ENTRY lifecycle validation for trade_id=%s: %s",
+        #         trade_id,
+        #         validation_error,
+        #     )
         
         # risk_distance is already computed earlier in the function (around line 12320)
         # No need to recompute - just use the existing value
