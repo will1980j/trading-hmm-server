@@ -1328,6 +1328,68 @@ if robust_ws_handler:
     register_websocket_handlers(socketio, robust_ws_handler)
     logger.info("✅ Robust WebSocket handler initialized")
 
+@app.route('/api/automated-signals/integrity-repair/lifecycle', methods=['POST'])
+def repair_lifecycle_endpoints():
+    """
+    Repairs broken lifecycle sequences (missing ENTRY, missing EXIT, reversed ordering).
+    Runs reconstruction logic from automated_signals_state.repair_lifecycle().
+    """
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    import os
+    from automated_signals_state import repair_trade_lifecycle
+    
+    db = os.environ.get("DATABASE_PUBLIC_URL") or os.environ.get("DATABASE_URL")
+    conn = psycopg2.connect(db)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    # Fetch all events ordered by trade_id then timestamp
+    cursor.execute("""
+        SELECT *
+        FROM automated_signals
+        ORDER BY trade_id, timestamp ASC;
+    """)
+    rows = cursor.fetchall()
+    
+    # Group by trade_id
+    grouped = {}
+    for r in rows:
+        grouped.setdefault(r["trade_id"], []).append(dict(r))
+    
+    total_fixed = 0
+    for tid, events in grouped.items():
+        repaired, changed = repair_trade_lifecycle(events)
+        if not changed:
+            continue
+        
+        total_fixed += 1
+        
+        # Delete old events
+        cursor.execute("DELETE FROM automated_signals WHERE trade_id = %s", (tid,))
+        
+        # Insert repaired events
+        for ev in repaired:
+            cursor.execute("""
+                INSERT INTO automated_signals
+                    (trade_id, event_type, timestamp, signal_date, signal_time,
+                     mfe, be_mfe, no_be_mfe, raw_payload)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """, (
+                tid, ev.get("event_type"), ev.get("timestamp"),
+                ev.get("signal_date"), ev.get("signal_time"),
+                ev.get("mfe"), ev.get("be_mfe"), ev.get("no_be_mfe"),
+                ev.get("raw_payload"),
+            ))
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    return jsonify({
+        "success": True,
+        "lifecycle_fixed": total_fixed
+    }), 200
+
 # Register robust Automated Signals API (Phase 2A, integrity engine, repair endpoints)
 if db_enabled:
     logger.warning("⚠️ Registering robust Automated Signals API (Phase 2A enabled)")
