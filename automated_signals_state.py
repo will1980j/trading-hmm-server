@@ -849,3 +849,60 @@ def recover_missing_mae(events):
         worst_mae = 0.0
     
     return (True, current_mae, worst_mae)
+
+
+def repair_trade_lifecycle(events):
+    """
+    Repairs malformed lifecycle sequences.
+    Ensures canonical ordering:
+        ENTRY → MFE_UPDATE* → BE_TRIGGERED? → EXIT_(BE|SL|TP)
+    Reconstructs missing ENTRY when possible.
+    Fixes EXIT-before-ENTRY violations.
+    Returns: (updated_events, changed_flag)
+    """
+    changed = False
+    
+    # Sort chronologically
+    events = sorted(events, key=lambda e: e.get("timestamp") or 0)
+    
+    entry_events = [e for e in events if e["event_type"] == "ENTRY"]
+    exit_events  = [e for e in events if e["event_type"].startswith("EXIT")]
+    mfe_events   = [e for e in events if e["event_type"] == "MFE_UPDATE"]
+    
+    # 1) Reconstruct ENTRY if missing
+    if not entry_events:
+        first = events[0]
+        reconstructed = {
+            **first,
+            "event_type": "ENTRY",
+            "signal_date": first.get("signal_date"),
+            "signal_time": first.get("signal_time"),
+        }
+        events.insert(0, reconstructed)
+        changed = True
+    
+    # 2) Fix EXIT before ENTRY
+    entry_ts = events[0].get("timestamp")
+    for ex in exit_events:
+        if ex.get("timestamp") and entry_ts and ex["timestamp"] < entry_ts:
+            ex["timestamp"] = entry_ts  # move to entry timestamp
+            changed = True
+    
+    # 3) Ensure BE_TRIGGERED exists when MFE >= BE threshold
+    be_events = [e for e in events if e["event_type"] == "BE_TRIGGERED"]
+    if not be_events:
+        # derive BE logic
+        max_mfe = max([e.get("mfe", 0) for e in mfe_events] or [0])
+        if max_mfe >= 1.0:
+            derived = {
+                "event_type": "BE_TRIGGERED",
+                "timestamp": entry_ts,
+                "be_mfe": max_mfe,
+            }
+            events.append(derived)
+            changed = True
+    
+    # Re-sort after repairs
+    events = sorted(events, key=lambda e: e.get("timestamp") or 0)
+    
+    return events, changed

@@ -15,6 +15,61 @@ def register_automated_signals_api_robust(app, db):
     logger.warning("[ROBUST_API_REGISTRATION] Starting registration of all robust API endpoints including repair routes")
     
     # Register repair endpoints FIRST to ensure they're always available
+    @app.route('/api/automated-signals/integrity-repair/lifecycle', methods=['POST'])
+    def repair_lifecycle():
+        """Applies lifecycle reconstruction to all trades."""
+        import psycopg2, os
+        from psycopg2.extras import RealDictCursor
+        from automated_signals_state import repair_trade_lifecycle
+        
+        db = os.environ.get("DATABASE_PUBLIC_URL") or os.environ.get("DATABASE_URL")
+        conn = psycopg2.connect(db)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT id, trade_id, event_type, timestamp, signal_date,
+                   signal_time, mfe, be_mfe, no_be_mfe, raw_payload
+            FROM automated_signals
+            ORDER BY trade_id, timestamp ASC;
+        """)
+        rows = cursor.fetchall()
+        
+        # group by trade_id
+        grouped = {}
+        for r in rows:
+            grouped.setdefault(r["trade_id"], []).append(dict(r))
+        
+        total_fixed = 0
+        for tid, events in grouped.items():
+            repaired, changed = repair_trade_lifecycle(events)
+            if not changed:
+                continue
+            
+            total_fixed += 1
+            
+            # delete old events
+            cursor.execute("DELETE FROM automated_signals WHERE trade_id = %s", (tid,))
+            
+            # insert repaired events
+            for ev in repaired:
+                cursor.execute("""
+                    INSERT INTO automated_signals
+                        (trade_id, event_type, timestamp, signal_date, signal_time,
+                         mfe, be_mfe, no_be_mfe, raw_payload)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """, (
+                    tid, ev.get("event_type"), ev.get("timestamp"),
+                    ev.get("signal_date"), ev.get("signal_time"),
+                    ev.get("mfe"), ev.get("be_mfe"), ev.get("no_be_mfe"),
+                    ev.get("raw_payload"),
+                ))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({"success": True, "fixed_lifecycles": total_fixed}), 200
+    
     @app.route('/api/automated-signals/integrity-repair/timestamps', methods=['POST'])
     def repair_entry_timestamps():
         """
