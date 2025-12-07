@@ -12654,60 +12654,48 @@ def as_fuse_automated_payload_sources(raw_data, parsed):
 
 def as_validate_lifecycle_transition(trade_id, new_event_type, cursor):
     """
-    Strict lifecycle state machine validation.
-    Ensures: ENTRY → MFE_UPDATE/BE_TRIGGERED → EXIT_* is the ONLY allowed order.
-    Special case: MFE_UPDATE allowed after EXIT if timestamp is newer (fixes incorrect early exits).
+    Validate whether a new lifecycle event is allowed for a given trade_id.
+    Rules:
+    - If there are no existing events for this trade_id:
+      * Allow ENTRY (and legacy aliases like signal_created / SIGNAL_CREATED).
+      * Reject any other event types.
+    - If there is at least one ENTRY already:
+      * Do NOT hard-fail further events here. Detailed ordering issues are handled
+        by the offline integrity engine and repair tools.
+    - This function returns:
+      * None if the transition is allowed.
+      * A string error message if the transition is NOT allowed.
     """
-    cursor.execute("""
-        SELECT event_type, timestamp
-        FROM automated_signals
-        WHERE trade_id = %s
-        ORDER BY timestamp DESC, id DESC
-        LIMIT 1
-    """, (trade_id,))
-    last_row = cursor.fetchone()
+    # Fetch existing event types for this trade in order
+    try:
+        cursor.execute(
+            "SELECT event_type FROM automated_signals WHERE trade_id = %s ORDER BY id ASC",
+            (trade_id,)
+        )
+        rows = cursor.fetchall()
+    except Exception as e:
+        # If we cannot read history, fail safe with a clear error
+        return f"Lifecycle enforcement error: unable to read history for trade {trade_id}: {e}"
     
-    if not last_row:
-        # No prior events - only ENTRY allowed
-        if new_event_type != "ENTRY":
-            return f"Illegal transition: {new_event_type} received before ENTRY"
-        return None
+    existing = [r[0] for r in rows] if rows else []
     
-    last_event, last_ts = last_row
-    
-    # Check if ENTRY exists in history
-    cursor.execute("""
-        SELECT 1 FROM automated_signals
-        WHERE trade_id = %s AND event_type = 'ENTRY'
-        LIMIT 1
-    """, (trade_id,))
-    has_entry = cursor.fetchone() is not None
-    
-    if not has_entry:
-        if new_event_type != "ENTRY":
-            return f"Illegal transition: {new_event_type} received before ENTRY"
-        return None
-    
-    # Events that allow continued MFE tracking
-    allowed_live_events = {"ENTRY", "SIGNAL_CREATED", "MFE_UPDATE", "BE_TRIGGERED"}
-    
-    if last_event in allowed_live_events:
-        # Trade is active - allow MFE_UPDATE, BE_TRIGGERED, or EXIT
-        if new_event_type in ["MFE_UPDATE", "BE_TRIGGERED"] or new_event_type.startswith("EXIT_"):
+    # No history yet
+    if not existing:
+        # First event must be an ENTRY (or legacy strategy aliases)
+        if new_event_type in ("ENTRY", "signal_created", "SIGNAL_CREATED"):
             return None
-        return f"Illegal transition for {trade_id}: {new_event_type}"
+        return f"Lifecycle enforcement error: {new_event_type} cannot occur before an ENTRY for trade {trade_id}"
     
-    # Last event was EXIT - normally block further events
-    if last_event.startswith("EXIT_"):
-        # Special case: Allow MFE_UPDATE if it has a newer timestamp
-        # This handles cases where EXIT was sent incorrectly/early
-        if new_event_type == "MFE_UPDATE":
-            # MFE_UPDATE is allowed - indicator knows better than stale EXIT
+    # There is history; require at least one ENTRY before non-ENTRY events
+    if "ENTRY" not in (ev for ev in existing if ev is not None):
+        # If somehow we have history but no ENTRY, only allow an ENTRY to repair it
+        if new_event_type in ("ENTRY", "signal_created", "SIGNAL_CREATED"):
             return None
-        # Block all other events after EXIT
-        return f"Illegal transition: Trade {trade_id} already exited at {last_ts}"
+        return f"Lifecycle enforcement error: {new_event_type} cannot occur before an ENTRY for trade {trade_id}"
     
-    # Unknown state - fail-safe allow
+    # At least one ENTRY exists already, and new_event_type passed basic checks.
+    # Do not enforce further sequencing here; the integrity engine will flag
+    # any complex lifecycle anomalies for offline repair.
     return None
 
 def as_log_automated_signal_event(raw_data, fused_event, validation_error, handler_result, timing_ms):
