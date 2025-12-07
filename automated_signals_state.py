@@ -5,7 +5,7 @@
 # - Builds calendar + trade list views
 ## THIS MODULE MUST NEVER WRITE TO THE DATABASE.
 # READ-ONLY ONLY.
-
+# INTEGRITY_REPAIR_STATE_ACTIVE
 import os
 from collections import defaultdict
 from datetime import datetime, date
