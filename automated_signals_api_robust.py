@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 def register_automated_signals_api_robust(app, db):
     """Register robust API endpoints with comprehensive error handling"""
+    logger.warning("[ROBUST_API_REGISTRATION] Starting registration of all robust API endpoints including repair routes")
     
     @app.route('/api/automated-signals/dashboard-data')
     def get_dashboard_data_robust():
@@ -919,6 +920,7 @@ def _get_hourly_distribution_robust(cursor):
         Repairs missing signal_date and signal_time for ENTRY events.
         Uses reconstruction logic from recover_missing_entry_timestamps().
         """
+        logger.warning("[REPAIR_TIMESTAMPS] Endpoint called - route is registered!")
         import psycopg2
         from psycopg2.extras import RealDictCursor
         import os
@@ -970,6 +972,7 @@ def _get_hourly_distribution_robust(cursor):
         Repairs missing MAE (Maximum Adverse Excursion) for completed trades.
         Uses reconstruction logic from recover_missing_mae().
         """
+        logger.warning("[REPAIR_MAE] Endpoint called - route is registered!")
         import psycopg2
         from psycopg2.extras import RealDictCursor
         import os
