@@ -891,8 +891,18 @@ def repair_trade_lifecycle(events):
     # 3) Ensure BE_TRIGGERED exists when MFE >= BE threshold
     be_events = [e for e in events if e["event_type"] == "BE_TRIGGERED"]
     if not be_events:
-        # derive BE logic
-        max_mfe = max([e.get("mfe", 0) for e in mfe_events] or [0])
+        # Safely compute max MFE across lifecycle events, ignoring None / bad values
+        mfe_raw = [e.get("mfe") for e in mfe_events]
+        mfe_numeric = []
+        for v in mfe_raw:
+            if v is None:
+                continue
+            try:
+                mfe_numeric.append(float(v))
+            except (TypeError, ValueError):
+                # Ignore non-numeric MFE values defensively
+                continue
+        max_mfe = max(mfe_numeric) if mfe_numeric else 0.0
         if max_mfe >= 1.0:
             derived = {
                 "event_type": "BE_TRIGGERED",
