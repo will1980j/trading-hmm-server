@@ -14,6 +14,110 @@ def register_automated_signals_api_robust(app, db):
     """Register robust API endpoints with comprehensive error handling"""
     logger.warning("[ROBUST_API_REGISTRATION] Starting registration of all robust API endpoints including repair routes")
     
+    # Register repair endpoints FIRST to ensure they're always available
+    @app.route('/api/automated-signals/integrity-repair/timestamps', methods=['POST'])
+    def repair_entry_timestamps():
+        """
+        Repairs missing signal_date and signal_time for ENTRY events.
+        Uses reconstruction logic from recover_missing_entry_timestamps().
+        """
+        logger.warning("[REPAIR_TIMESTAMPS] Endpoint called - route is registered!")
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        import os
+        from automated_signals_state import recover_missing_entry_timestamps
+        
+        db = os.environ.get("DATABASE_PUBLIC_URL") or os.environ.get("DATABASE_URL")
+        conn = psycopg2.connect(db)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT
+                id, trade_id, event_type, signal_date, signal_time, raw_payload, timestamp
+            FROM automated_signals
+            ORDER BY trade_id, timestamp ASC;
+        """)
+        rows = cursor.fetchall()
+        
+        grouped = {}
+        for r in rows:
+            grouped.setdefault(r["trade_id"], []).append(r)
+        
+        total_fixed = 0
+        for trade_id, events in grouped.items():
+            needs_update, new_date, new_time = recover_missing_entry_timestamps(events)
+            if not needs_update:
+                continue
+            
+            cursor.execute("""
+                UPDATE automated_signals
+                SET signal_date = %s, signal_time = %s
+                WHERE trade_id = %s AND event_type = 'ENTRY';
+            """, (new_date, new_time, trade_id))
+            total_fixed += 1
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "fixed_entries": total_fixed
+        }), 200
+    
+    @app.route('/api/automated-signals/integrity-repair/mae', methods=['POST'])
+    def repair_missing_mae():
+        """
+        Repairs missing MAE (Maximum Adverse Excursion) for completed trades.
+        Uses reconstruction logic from recover_missing_mae().
+        """
+        logger.warning("[REPAIR_MAE] Endpoint called - route is registered!")
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        import os
+        from automated_signals_state import recover_missing_mae
+        
+        db = os.environ.get("DATABASE_PUBLIC_URL") or os.environ.get("DATABASE_URL")
+        conn = psycopg2.connect(db)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT * FROM automated_signals
+            ORDER BY trade_id, timestamp ASC;
+        """)
+        rows = cursor.fetchall()
+        
+        grouped = {}
+        for r in rows:
+            grouped.setdefault(r["trade_id"], []).append(r)
+        
+        repairs = []
+        fixed = 0
+        for tid, events in grouped.items():
+            needs_update, old_mae, new_mae = recover_missing_mae(events)
+            if not needs_update:
+                continue
+            
+            cursor.execute("""
+                UPDATE automated_signals
+                SET mae_global_r = %s
+                WHERE trade_id = %s AND event_type LIKE 'EXIT%%';
+            """, (new_mae, tid))
+            repairs.append({"trade_id": tid, "old": old_mae, "new": new_mae})
+            fixed += 1
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "fixed_trades": fixed,
+            "repairs": repairs
+        }), 200
+    
+    logger.warning("[ROBUST_API_REGISTRATION] ✅ Repair routes registered successfully")
+    
     @app.route('/api/automated-signals/dashboard-data')
     def get_dashboard_data_robust():
         """
@@ -913,115 +1017,6 @@ def _get_hourly_distribution_robust(cursor):
                 "success": False,
                 "error": str(e)
             }), 500
-    
-    @app.route('/api/automated-signals/integrity-repair/timestamps', methods=['POST'])
-    def repair_entry_timestamps():
-        """
-        Repairs missing signal_date and signal_time for ENTRY events.
-        Uses reconstruction logic from recover_missing_entry_timestamps().
-        """
-        logger.warning("[REPAIR_TIMESTAMPS] Endpoint called - route is registered!")
-        import psycopg2
-        from psycopg2.extras import RealDictCursor
-        import os
-        from automated_signals_state import recover_missing_entry_timestamps
-        
-        db = os.environ.get("DATABASE_PUBLIC_URL") or os.environ.get("DATABASE_URL")
-        conn = psycopg2.connect(db)
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        # Fetch all events grouped
-        cursor.execute("""
-            SELECT
-                id, trade_id, event_type, signal_date, signal_time, raw_payload, timestamp
-            FROM automated_signals
-            ORDER BY trade_id, timestamp ASC;
-        """)
-        rows = cursor.fetchall()
-        
-        # Group by trade_id
-        grouped = {}
-        for r in rows:
-            grouped.setdefault(r["trade_id"], []).append(r)
-        
-        total_fixed = 0
-        for trade_id, events in grouped.items():
-            needs_update, new_date, new_time = recover_missing_entry_timestamps(events)
-            if not needs_update:
-                continue
-            
-            cursor.execute("""
-                UPDATE automated_signals
-                SET signal_date = %s, signal_time = %s
-                WHERE trade_id = %s AND event_type = 'ENTRY';
-            """, (new_date, new_time, trade_id))
-            total_fixed += 1
-        
-        conn.commit()
-        cursor.close()
-        conn.close()
-        
-        return jsonify({
-            "success": True,
-            "fixed_entries": total_fixed
-        }), 200
-    
-    @app.route('/api/automated-signals/integrity-repair/mae', methods=['POST'])
-    def repair_missing_mae():
-        """
-        Repairs missing MAE (Maximum Adverse Excursion) for completed trades.
-        Uses reconstruction logic from recover_missing_mae().
-        """
-        logger.warning("[REPAIR_MAE] Endpoint called - route is registered!")
-        import psycopg2
-        from psycopg2.extras import RealDictCursor
-        import os
-        from automated_signals_state import recover_missing_mae
-        
-        db = os.environ.get("DATABASE_PUBLIC_URL") or os.environ.get("DATABASE_URL")
-        conn = psycopg2.connect(db)
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        cursor.execute("""
-            SELECT * FROM automated_signals
-            ORDER BY trade_id, timestamp ASC;
-        """)
-        rows = cursor.fetchall()
-        
-        grouped = {}
-        for r in rows:
-            grouped.setdefault(r["trade_id"], []).append(r)
-        
-        repairs = []
-        fixed = 0
-        for tid, events in grouped.items():
-            needs_update, old_mae, new_mae = recover_missing_mae(events)
-            if not needs_update:
-                continue
-            
-            cursor.execute("""
-                UPDATE automated_signals
-                SET mae_global_r = %s
-                WHERE trade_id = %s AND event_type LIKE 'EXIT%%';
-            """, (new_mae, tid))
-            repairs.append({"trade_id": tid, "old": old_mae, "new": new_mae})
-            fixed += 1
-        
-        conn.commit()
-        cursor.close()
-        conn.close()
-        
-        return jsonify({
-            "success": True,
-            "fixed_trades": fixed,
-            "repairs": repairs
-        }), 200
-    
-    # Log successful registration of all routes
-    logger.warning("[ROBUST_API_REGISTRATION] ✅ All routes registered including:")
-    logger.warning("[ROBUST_API_REGISTRATION]   - /api/automated-signals/integrity-v2")
-    logger.warning("[ROBUST_API_REGISTRATION]   - /api/automated-signals/integrity-repair/timestamps")
-    logger.warning("[ROBUST_API_REGISTRATION]   - /api/automated-signals/integrity-repair/mae")
 
 def _get_session_breakdown_robust(cursor):
     """Get session breakdown with error handling"""
