@@ -1,3 +1,8 @@
+# FORCE_REDEPLOY_2025_12_08_TIMESTAMP_FIX
+# CRITICAL: Timestamp fix for Signals & Trades table
+# Commit: f690bf5 - Fix Invalid Date issue
+# This marker forces Railway to rebuild and deploy latest code
+FORCE_REBUILD_MARKER_2025_12_08 = "TIMESTAMP_FIX_E2_COMPLETE"
 # FORCE_REDEPLOY_2025_12_07
 # FORCE_DEPLOY_TIMESTAMP_2025_12_07_05_30
 
