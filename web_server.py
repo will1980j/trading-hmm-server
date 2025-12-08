@@ -6620,6 +6620,17 @@ def test_endpoint():
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
 
+@app.route('/api/timestamp-fix-version')
+def timestamp_fix_version():
+    """Verify timestamp fix is deployed"""
+    return jsonify({
+        "timestamp_fix_deployed": True,
+        "version": "2025-12-08_TIMESTAMP_FIX",
+        "commit_expected": "f690bf5 or later",
+        "fix_description": "signal_date and signal_time use row[9] and row[10] instead of row[8]",
+        "test_instruction": "If this endpoint returns, Railway is running latest code"
+    })
+
 @app.route('/api/test-price-parsing', methods=['POST'])
 def test_price_parsing():
     """Test endpoint for price parsing improvements"""
