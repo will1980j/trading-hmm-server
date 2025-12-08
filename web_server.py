@@ -13069,8 +13069,11 @@ def automated_signals_webhook():
                     logger.error(f"[E2-LIFECYCLE-REJECT] {e2_error} trade_id={trade_id}")
                     return jsonify({"success": False, "error": e2_error}), 400
             except Exception as e2_ex:
+                import traceback
+                error_details = traceback.format_exc()
                 logger.error(f"[E2-ENFORCER-ERROR] {e2_ex}")
-                return jsonify({"success": False, "error": "Lifecycle enforcement error"}), 500
+                logger.error(f"[E2-ENFORCER-TRACEBACK] {error_details}")
+                return jsonify({"success": False, "error": f"Lifecycle enforcement error: {str(e2_ex)}"}), 500
         
         # 8. Route event
         if canonical["event_type"] == "ENTRY":
