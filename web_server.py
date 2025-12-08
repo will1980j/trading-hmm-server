@@ -13051,6 +13051,7 @@ def automated_signals_webhook():
         # ENTRY events are validated at lines 13288-13308 with proper duplicate checking
         if event_type != "ENTRY":
             try:
+                import os
                 from automated_signals_state import enforce_strict_lifecycle_rules
                 database_url = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
                 if not database_url:
