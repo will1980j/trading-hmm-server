@@ -15547,6 +15547,9 @@ def get_automated_signals_dashboard_data():
             signal_date = row[9].isoformat() if row[9] else None
             signal_time = row[10].isoformat() if row[10] else None
             
+            # DEBUG: Log what we're extracting
+            logger.info(f"[TIMESTAMP_DEBUG] trade_id={trade_id}, row[9]={row[9]}, row[10]={row[10]}, signal_date={signal_date}, signal_time={signal_time}")
+            
             # Fallback: Extract date/time from trade_id if not in DB
             # Trade ID format: YYYYMMDD_HHMMSS000_DIRECTION
             if not signal_date or not signal_time:
