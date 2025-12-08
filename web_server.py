@@ -15570,9 +15570,9 @@ def get_automated_signals_dashboard_data():
                 "session": row[6],
                 "bias": row[7],
                 "event_ts": row[8].isoformat() if row[8] else None,  # UTC timestamp as ISO string
-                # True TradingView signal timestamp
-                "signal_date": row[8].isoformat().split("T")[0] if row[8] else None,
-                "signal_time": row[8].isoformat().split("T")[1][:8] if row[8] else None,
+                # Use the correctly extracted signal_date and signal_time from lines 15547-15560
+                "signal_date": signal_date,
+                "signal_time": signal_time,
                 "be_mfe": float(row[11] or 0.0),
                 "be_mfe_R": float(row[11] or 0.0),
                 "no_be_mfe": float(row[12] or 0.0),
