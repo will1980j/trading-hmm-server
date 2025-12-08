@@ -253,6 +253,8 @@ def register_automated_signals_api_robust(app, db):
                         stop_loss,
                         session,
                         bias,
+                        signal_date,
+                        signal_time,
                         timestamp as entry_timestamp
                     FROM automated_signals
                     WHERE event_type = 'ENTRY'
