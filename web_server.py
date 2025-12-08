@@ -13047,27 +13047,30 @@ def automated_signals_webhook():
             return jsonify({"success": False, "error": err}), 400
         
         # Fetch prior events for lifecycle enforcement
-        try:
-            from automated_signals_state import enforce_strict_lifecycle_rules
-            database_url = os.environ.get('DATABASE_URL')
-            conn_check = psycopg2.connect(database_url)
-            cursor_check = conn_check.cursor()
-            cursor_check.execute("""
-                SELECT event_type FROM automated_signals
-                WHERE trade_id = %s
-                ORDER BY timestamp ASC
-            """, (trade_id,))
-            prior_events = [{"event_type": row[0]} for row in cursor_check.fetchall()]
-            cursor_check.close()
-            conn_check.close()
-            
-            ok, e2_error = enforce_strict_lifecycle_rules(prior_events, event_type)
-            if not ok:
-                logger.error(f"[E2-LIFECYCLE-REJECT] {e2_error} trade_id={trade_id}")
-                return jsonify({"success": False, "error": e2_error}), 400
-        except Exception as e2_ex:
-            logger.error(f"[E2-ENFORCER-ERROR] {e2_ex}")
-            return jsonify({"success": False, "error": "Lifecycle enforcement error"}), 500
+        # PHASE E2: Skip enforcement for ENTRY - it has its own duplicate detection in handle_entry_signal()
+        # ENTRY events are validated at lines 13288-13308 with proper duplicate checking
+        if event_type != "ENTRY":
+            try:
+                from automated_signals_state import enforce_strict_lifecycle_rules
+                database_url = os.environ.get('DATABASE_URL')
+                conn_check = psycopg2.connect(database_url)
+                cursor_check = conn_check.cursor()
+                cursor_check.execute("""
+                    SELECT event_type FROM automated_signals
+                    WHERE trade_id = %s
+                    ORDER BY timestamp ASC
+                """, (trade_id,))
+                prior_events = [{"event_type": row[0]} for row in cursor_check.fetchall()]
+                cursor_check.close()
+                conn_check.close()
+                
+                ok, e2_error = enforce_strict_lifecycle_rules(prior_events, event_type)
+                if not ok:
+                    logger.error(f"[E2-LIFECYCLE-REJECT] {e2_error} trade_id={trade_id}")
+                    return jsonify({"success": False, "error": e2_error}), 400
+            except Exception as e2_ex:
+                logger.error(f"[E2-ENFORCER-ERROR] {e2_ex}")
+                return jsonify({"success": False, "error": "Lifecycle enforcement error"}), 500
         
         # 8. Route event
         if canonical["event_type"] == "ENTRY":
