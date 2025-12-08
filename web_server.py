@@ -289,26 +289,31 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
         cursor = conn.cursor()
         
         # === PHASE E2 FIX: Correct lifecycle enforcement ===
-        # ENTRY must NEVER go through lifecycle enforcement here.
+        # ENTRY and CANCELLED must NEVER go through lifecycle enforcement here.
         if event_type == "ENTRY":
             return {
                 "success": True,
                 "handled": "ENTRY_passthrough"
             }
         
-        # For non-ENTRY events, ensure an ENTRY exists
-        cursor.execute("""
-            SELECT event_type FROM automated_signals
-            WHERE trade_id = %s
-            ORDER BY id ASC
-        """, (data["trade_id"],))
-        rows = [r[0] for r in cursor.fetchall()]
-        
-        if not rows or rows[0] != "ENTRY":
-            return {
-                "success": False,
-                "error": "Lifecycle enforcement error: No ENTRY exists for this trade_id"
-            }
+        # CANCELLED signals occur BEFORE confirmation (no ENTRY exists yet)
+        if event_type == "CANCELLED":
+            # Allow CANCELLED without requiring ENTRY
+            pass  # Continue to normal INSERT logic
+        else:
+            # For MFE_UPDATE, BE_TRIGGERED, EXIT events - ensure an ENTRY exists
+            cursor.execute("""
+                SELECT event_type FROM automated_signals
+                WHERE trade_id = %s
+                ORDER BY id ASC
+            """, (data["trade_id"],))
+            rows = [r[0] for r in cursor.fetchall()]
+            
+            if not rows or rows[0] != "ENTRY":
+                return {
+                    "success": False,
+                    "error": "Lifecycle enforcement error: No ENTRY exists for this trade_id"
+                }
         
         # Extract ALL fields with safe defaults
         direction = data.get('direction') or data.get('bias') or None
