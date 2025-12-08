@@ -55,7 +55,7 @@ AutomatedSignalsUltra.integrity = {
 
 AutomatedSignalsUltra.loadIntegrity = async function() {
     try {
-        const r = await fetch("/api/automated-signals/integrity");
+        const r = await fetch("/api/automated-signals/integrity-v2");
         const j = await r.json();
         AutomatedSignalsUltra.integrity.last = j.issues || [];
         const panel = document.getElementById("ase-integrity-panel");
@@ -257,20 +257,39 @@ AutomatedSignalsUltra.loadSignalIntegrityMonitor = function () {
     
     panel.textContent = "Loading…";
     
-    fetch("/api/automated-signals/integrity")
+    fetch("/api/automated-signals/integrity-v2")
         .then(r => r.json())
         .then(data => {
             if (!data || !data.issues) {
-                panel.textContent = "No issues detected.";
+                panel.textContent = "No integrity data available.";
                 return;
             }
-            if (data.issues.length === 0) {
-                panel.textContent = "No issues detected.";
+            
+            // Format the integrity report
+            const issues = data.issues;
+            if (issues.length === 0) {
+                panel.textContent = "✓ All trades healthy - no integrity issues detected.";
                 return;
             }
-            panel.textContent = data.issues.join("\n");
+            
+            // Build formatted report
+            const lines = [];
+            issues.forEach(issue => {
+                const status = issue.healthy ? "✓" : "✗";
+                const failCount = issue.failures ? issue.failures.length : 0;
+                lines.push(`${status} ${issue.trade_id} - ${failCount} issue(s)`);
+                
+                if (!issue.healthy && issue.failures) {
+                    issue.failures.forEach(f => {
+                        lines.push(`  - ${f}`);
+                    });
+                }
+            });
+            
+            panel.textContent = lines.join("\n");
         })
-        .catch(() => {
+        .catch((err) => {
+            console.error("[INTEGRITY] Error:", err);
             panel.textContent = "Error loading monitor data.";
         });
 };
