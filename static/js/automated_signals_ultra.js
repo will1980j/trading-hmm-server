@@ -1846,7 +1846,7 @@ AutomatedSignalsUltra.renderCancelledSignals = function(rows) {
     tbody.innerHTML = "";
     
     if (!rows || rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center ultra-muted py-3">No cancelled signals recorded.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center ultra-muted py-3">No cancelled signals recorded.</td></tr>`;
         if (counter) counter.textContent = "0";
         return;
     }
@@ -1897,6 +1897,7 @@ AutomatedSignalsUltra.renderCancelledSignals = function(rows) {
                               dir === 'Bearish' ? 'direction-badge-bearish' : 'ultra-muted';
         
         tr.innerHTML = `
+            <td><input type="checkbox" class="cancelled-checkbox cancelled-row-checkbox" data-trade-id="${row.trade_id}"></td>
             <td class="ultra-muted">${timeStr}</td>
             <td><span class="${dirBadgeClass}">${dir}</span></td>
             <td>${session}</td>
@@ -2071,4 +2072,93 @@ document.addEventListener("DOMContentLoaded", () => {
             header.textContent = (open ? "▶" : "▼") + " Backend Data Echo";
         });
     }
+});
+
+
+// Cancelled signals delete functionality
+AutomatedSignalsUltra.selectedCancelledSignals = new Set();
+
+AutomatedSignalsUltra.wireCancelledCheckboxes = function() {
+    const selectAll = document.getElementById('ase-select-all-cancelled');
+    const deleteBtn = document.getElementById('ase-delete-cancelled-selected');
+    
+    if (selectAll) {
+        selectAll.addEventListener('change', (e) => {
+            const checkboxes = document.querySelectorAll('.cancelled-row-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = e.target.checked;
+                const tradeId = cb.dataset.tradeId;
+                if (e.target.checked) {
+                    AutomatedSignalsUltra.selectedCancelledSignals.add(tradeId);
+                } else {
+                    AutomatedSignalsUltra.selectedCancelledSignals.delete(tradeId);
+                }
+            });
+            AutomatedSignalsUltra.updateCancelledDeleteButton();
+        });
+    }
+    
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+            AutomatedSignalsUltra.deleteCancelledSignals();
+        });
+    }
+    
+    // Wire individual checkboxes
+    document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('cancelled-row-checkbox')) {
+            const tradeId = e.target.dataset.tradeId;
+            if (e.target.checked) {
+                AutomatedSignalsUltra.selectedCancelledSignals.add(tradeId);
+            } else {
+                AutomatedSignalsUltra.selectedCancelledSignals.delete(tradeId);
+            }
+            AutomatedSignalsUltra.updateCancelledDeleteButton();
+        }
+    });
+};
+
+AutomatedSignalsUltra.updateCancelledDeleteButton = function() {
+    const deleteBtn = document.getElementById('ase-delete-cancelled-selected');
+    if (deleteBtn) {
+        const count = AutomatedSignalsUltra.selectedCancelledSignals.size;
+        deleteBtn.disabled = count === 0;
+        deleteBtn.textContent = count > 0 ? `🗑 Delete (${count})` : '🗑 Delete';
+    }
+};
+
+AutomatedSignalsUltra.deleteCancelledSignals = async function() {
+    const tradeIds = Array.from(AutomatedSignalsUltra.selectedCancelledSignals);
+    if (tradeIds.length === 0) return;
+    
+    if (!confirm(`Delete ${tradeIds.length} cancelled signal(s)? This cannot be undone.`)) return;
+    
+    try {
+        const resp = await fetch('/api/automated-signals/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ trade_ids: tradeIds })
+        });
+        
+        const result = await resp.json();
+        
+        if (resp.ok && result.success) {
+            console.log(`[ASE] Deleted ${result.deleted_count || tradeIds.length} cancelled signals`);
+        } else {
+            console.error('[ASE] Delete failed:', result.error || 'Unknown error');
+            alert('Delete failed: ' + (result.error || 'Unknown error'));
+        }
+    } catch (err) {
+        console.error('[ASE] Delete error:', err);
+        alert('Delete failed: ' + err.message);
+    }
+    
+    AutomatedSignalsUltra.selectedCancelledSignals.clear();
+    AutomatedSignalsUltra.updateCancelledDeleteButton();
+    AutomatedSignalsUltra.fetchCancelledSignals();
+};
+
+// Wire cancelled checkboxes on init
+document.addEventListener("DOMContentLoaded", () => {
+    AutomatedSignalsUltra.wireCancelledCheckboxes();
 });

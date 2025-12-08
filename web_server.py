@@ -424,15 +424,19 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
             except:
                 pass
         
-        # Fallback: derive from event_ts_utc (convert back to NY for display)
+        # Fallback: derive from event_ts_clean (convert back to NY for display)
         if signal_date is None or signal_time is None:
             try:
-                ny_event_dt = event_ts_utc.astimezone(ny_tz)
+                from datetime import datetime as dt
+                # Parse event_ts_clean (ISO string) and convert to NY time
+                event_dt_utc = dt.fromisoformat(event_ts_clean.replace('Z', '+00:00'))
+                ny_event_dt = event_dt_utc.astimezone(ny_tz)
                 if signal_date is None:
                     signal_date = ny_event_dt.date()
                 if signal_time is None:
                     signal_time = ny_event_dt.time()
-            except:
+            except Exception as e:
+                logger.warning(f"Failed to derive signal_date/time from event_ts_clean: {e}")
                 pass
         
         # Targets (JSONB)
