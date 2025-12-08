@@ -287,6 +287,8 @@ def register_automated_signals_api_robust(app, db):
                     e.stop_loss,
                     e.session,
                     e.bias,
+                    e.signal_date,
+                    e.signal_time,
                     e.entry_timestamp as timestamp,
                     COALESCE(m.mfe, 0) as mfe,
                     COALESCE(m.be_mfe, 0) as be_mfe,
@@ -315,6 +317,8 @@ def register_automated_signals_api_robust(app, db):
                         stop_loss,
                         session,
                         bias,
+                        signal_date,
+                        signal_time,
                         timestamp as entry_timestamp
                     FROM automated_signals
                     WHERE event_type = 'ENTRY'
@@ -340,6 +344,8 @@ def register_automated_signals_api_robust(app, db):
                     e.stop_loss,
                     e.session,
                     e.bias,
+                    e.signal_date,
+                    e.signal_time,
                     x.exit_timestamp as timestamp,
                     COALESCE(x.exit_mfe, 0) as mfe,
                     COALESCE(x.exit_be_mfe, 0) as be_mfe,
