@@ -122,7 +122,15 @@ def normalize_signal_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         # Legacy mfe field for backward compatibility
         normalized['mfe'] = _safe_float(payload.get('mfe')) or mfe_r
         normalized['final_mfe'] = _safe_float(payload.get('final_mfe')) or _safe_float(payload.get('final_mfe_R')) or mfe_r
-        normalized['risk_distance'] = _safe_float(payload.get('risk_distance'))
+        
+        # Calculate risk_distance if not provided (from entry_price and stop_loss)
+        risk_distance = _safe_float(payload.get('risk_distance'))
+        if not risk_distance:
+            entry_price = _safe_float(normalized.get('entry_price'))
+            stop_loss = _safe_float(normalized.get('stop_loss'))
+            if entry_price and stop_loss:
+                risk_distance = abs(entry_price - stop_loss)
+        normalized['risk_distance'] = risk_distance
         
         # Pass through target fields
         for target in ['target_1r', 'target_2r', 'target_3r', 'target_5r', 'target_10r', 'target_20r']:
