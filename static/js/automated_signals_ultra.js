@@ -250,8 +250,8 @@ document.addEventListener("click", (e) => {
     }
 });
 
-// Signal Integrity Monitor loader
-AutomatedSignalsUltra.loadSignalIntegrityMonitor = function () {
+// Signal Integrity Monitor loader - now accepts optional trade_id to filter
+AutomatedSignalsUltra.loadSignalIntegrityMonitor = function (trade_id = null) {
     const panel = document.getElementById("ase-signal-monitor-panel");
     if (!panel) return;
     
@@ -266,7 +266,18 @@ AutomatedSignalsUltra.loadSignalIntegrityMonitor = function () {
             }
             
             // Format the integrity report
-            const issues = data.issues;
+            let issues = data.issues;
+            
+            // If trade_id provided, filter to just that trade
+            if (trade_id) {
+                issues = issues.filter(i => i.trade_id === trade_id);
+                
+                if (issues.length === 0) {
+                    panel.textContent = `No integrity data found for trade: ${trade_id}`;
+                    return;
+                }
+            }
+            
             if (issues.length === 0) {
                 panel.textContent = "✓ All trades healthy - no integrity issues detected.";
                 return;
@@ -277,12 +288,31 @@ AutomatedSignalsUltra.loadSignalIntegrityMonitor = function () {
             issues.forEach(issue => {
                 const status = issue.healthy ? "✓" : "✗";
                 const failCount = issue.failures ? issue.failures.length : 0;
-                lines.push(`${status} ${issue.trade_id} - ${failCount} issue(s)`);
                 
-                if (!issue.healthy && issue.failures) {
-                    issue.failures.forEach(f => {
-                        lines.push(`  - ${f}`);
-                    });
+                if (trade_id) {
+                    // Single trade view - show more detail
+                    lines.push(`Trade: ${issue.trade_id}`);
+                    lines.push(`Status: ${status} ${issue.healthy ? 'Healthy' : 'Has Issues'}`);
+                    lines.push(`Issues Found: ${failCount}`);
+                    lines.push("");
+                    
+                    if (!issue.healthy && issue.failures) {
+                        lines.push("Integrity Failures:");
+                        issue.failures.forEach(f => {
+                            lines.push(`  • ${f}`);
+                        });
+                    } else {
+                        lines.push("✓ No integrity issues detected for this trade.");
+                    }
+                } else {
+                    // All trades view - compact format
+                    lines.push(`${status} ${issue.trade_id} - ${failCount} issue(s)`);
+                    
+                    if (!issue.healthy && issue.failures) {
+                        issue.failures.forEach(f => {
+                            lines.push(`  - ${f}`);
+                        });
+                    }
                 }
             });
             
@@ -981,8 +1011,8 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
                 return `<span title="${h.label}">${h.icon}</span>`;
             })()}</td>
             <td class="dual-status-cell">
-                <span class="dual-status-badge ${beStatusClass}" title="BE=1 Strategy">BE: ${beStatus}</span>
-                <span class="dual-status-badge ${noBeStatusClass}" title="No BE Strategy">NoBE: ${noBeStatus}</span>
+                <span class="dual-status-badge ${beStatusClass}" title="Break-Even at 1R Strategy">BE=1: ${beStatus}</span>
+                <span class="dual-status-badge ${noBeStatusClass}" title="No Break-Even Strategy">No-BE: ${noBeStatus}</span>
             </td>
             <td class="ultra-muted">${AutomatedSignalsUltra.formatSignalDateTime(row)}</td>
             <td><span class="${dirBadgeClass}">${dir}</span></td>
@@ -1159,6 +1189,11 @@ AutomatedSignalsUltra.loadTradeDetail = async function(trade_id) {
         // Load diagnosis panel data using namespace method
         if (typeof AutomatedSignalsUltra.loadDiagnosis === 'function') {
             AutomatedSignalsUltra.loadDiagnosis(trade_id);
+        }
+        
+        // Load Signal Integrity Monitor for this specific trade
+        if (typeof AutomatedSignalsUltra.loadSignalIntegrityMonitor === 'function') {
+            AutomatedSignalsUltra.loadSignalIntegrityMonitor(trade_id);
         }
         
     } catch (err) {
