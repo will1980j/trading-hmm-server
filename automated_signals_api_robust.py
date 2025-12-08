@@ -266,6 +266,7 @@ def register_automated_signals_api_robust(app, db):
                         be_mfe,
                         no_be_mfe,
                         current_price,
+                        mae_global_r,
                         timestamp as last_update
                     FROM automated_signals
                     WHERE event_type IN ('ENTRY', 'MFE_UPDATE', 'BE_TRIGGERED')
@@ -292,10 +293,13 @@ def register_automated_signals_api_robust(app, db):
                     e.signal_date,
                     e.signal_time,
                     e.entry_timestamp as timestamp,
+                    e.entry_timestamp as entry_ts,
+                    e.entry_timestamp as event_ts,
                     COALESCE(m.mfe, 0) as mfe,
                     COALESCE(m.be_mfe, 0) as be_mfe,
                     COALESCE(m.no_be_mfe, 0) as no_be_mfe,
                     m.current_price,
+                    COALESCE(m.mae_global_r, 0) as mae_global_r,
                     NULL as final_mfe
                 FROM active_trade_ids a
                 JOIN entry_data e ON a.trade_id = e.trade_id
