@@ -936,9 +936,14 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         const exitTs = row.exit_ts || null;             // completed trades have exit_ts
         const parseTs = (ts) => {
             if (!ts) return null;
-            const iso = ts.includes("Z") ? ts : ts.replace(" ", "T") + "Z";
-            const d = new Date(iso);
-            return isNaN(d.getTime()) ? null : d;
+            try {
+                const iso = ts.includes("Z") ? ts : ts.replace(" ", "T") + "Z";
+                const d = new Date(iso);
+                return isNaN(d.getTime()) ? null : d;
+            } catch (e) {
+                console.error("[ASE] Failed to parse timestamp:", ts, e);
+                return null;
+            }
         };
         const entryDate = parseTs(entryTs);
         const exitDate  = parseTs(exitTs);
@@ -957,10 +962,10 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         // Prefer true TradingView signal timestamp (signal_date + signal_time)
         let timeStr = "--";
         if (row.signal_date && row.signal_time) {
-            const iso = row.signal_date + "T" + row.signal_time + "Z";
+            // signal_time is already in Eastern Time - don't add Z (which means UTC)
+            const iso = row.signal_date + "T" + row.signal_time;
             const d = new Date(iso);
             timeStr = d.toLocaleString("en-US", {
-                timeZone: "America/New_York",
                 year: "numeric",
                 month: "short",
                 day: "2-digit",

@@ -831,8 +831,9 @@ if array.size(signal_entries) > 0
         // This is needed for proper BE MFE capping
         float previous_no_be_mfe = sig_mfe
         
-        // Update No BE MFE - only if not stopped out yet
-        if mfe_changed and is_recent and not sig_no_be_stopped
+        // Update No BE MFE - always update if trade is active (not just when increased)
+        // This ensures webhooks always send current No-BE MFE value
+        if is_recent and not sig_no_be_stopped
             array.set(signal_mfes, i, current_mfe)
             sig_mfe := current_mfe
         
@@ -843,9 +844,9 @@ if array.size(signal_entries) > 0
         // - BE=1 MFE stops when: price hits entry (after +1R) OR original stop loss (before +1R)
         if track_be_mfe
             // BE MFE continues to update as long as BE=1 strategy hasn't been stopped out
-            // CRITICAL FIX: Cap to PREVIOUS No BE MFE, not current (which was just updated)
-            // This allows BE MFE to track independently when BE stops first
-            if mfe_changed and is_recent and not sig_be_stopped
+            // CRITICAL FIX: Always update BE MFE when trade is active (not just when increased)
+            // This ensures webhooks always send current BE MFE value
+            if is_recent and not sig_be_stopped
                 // Use current_mfe directly (don't cap to just-updated sig_mfe)
                 array.set(signal_be_mfes, i, current_mfe)
                 sig_be_mfe := current_mfe
@@ -1695,3 +1696,4 @@ if barstate.isfirst
 // ============================================================================
 // END TELEMETRY SAFETY RESET
 // ============================================================================
+there
