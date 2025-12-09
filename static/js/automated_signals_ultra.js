@@ -962,17 +962,20 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         // Prefer true TradingView signal timestamp (signal_date + signal_time)
         let timeStr = "--";
         if (row.signal_date && row.signal_time) {
-            // signal_time is already in Eastern Time - don't add Z (which means UTC)
-            const iso = row.signal_date + "T" + row.signal_time;
-            const d = new Date(iso);
-            timeStr = d.toLocaleString("en-US", {
-                year: "numeric",
-                month: "short",
-                day: "2-digit",
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
-            });
+            // signal_time is stored in Eastern Time - parse and display as-is
+            const dateStr = row.signal_date; // YYYY-MM-DD
+            const timeStr24 = row.signal_time; // HH:MM:SS
+            
+            // Parse time components
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const [hour, minute] = timeStr24.split(':').map(Number);
+            
+            // Create date in Eastern Time (no timezone conversion)
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const hour12 = hour % 12 || 12;
+            const ampm = hour >= 12 ? "PM" : "AM";
+            
+            timeStr = `${monthNames[month-1]} ${day.toString().padStart(2, '0')}, ${year}, ${hour12.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${ampm}`;
         } else if (row.event_ts) {
             // Fallback: use DB event timestamp
             const iso = row.event_ts.includes("Z")
