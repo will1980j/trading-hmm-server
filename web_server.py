@@ -388,7 +388,7 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
                 return default
         
         # Store raw values for logging before clamping
-        raw_mae = clamp(mae_global_r, 0.0)
+        raw_mae = clamp(mae_global_r, None)  # Keep None if invalid, don't default to 0
         raw_mfe = clamp(mfe, 0.0)
         
         # MFE must never be negative
@@ -396,8 +396,12 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
         be_mfe = max(0.0, clamp(be_mfe, 0.0))
         no_be_mfe = max(0.0, clamp(no_be_mfe, 0.0))
         
-        # MAE must never be positive
-        mae_global_r = min(0.0, clamp(mae_global_r, 0.0))
+        # MAE must never be positive (but can be None)
+        if mae_global_r is not None:
+            try:
+                mae_global_r = min(0.0, float(mae_global_r))
+            except:
+                mae_global_r = None
         
         # If telemetry misbehaves log it
         if raw_mae > 0:
