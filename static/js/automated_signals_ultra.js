@@ -959,23 +959,37 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             ageStr = formatDuration(diffSeconds);
         }
         
-        // Display signal_date and signal_time exactly as stored (no timezone conversion)
+        // Extract signal time from trade_id (most reliable source)
+        // Trade ID format: YYYYMMDD_HHMMSS000_DIRECTION
         let timeStr = "--";
-        if (row.signal_date && row.signal_time) {
-            // Parse date: "2025-12-09"
-            const [year, month, day] = row.signal_date.split('-');
-            // Parse time: "10:04:00"
-            const [hour24, minute, second] = row.signal_time.split(':');
-            const h = parseInt(hour24);
-            const m = parseInt(minute);
-            
-            // Convert to 12-hour format
-            const hour12 = h % 12 || 12;
-            const ampm = h >= 12 ? "PM" : "AM";
-            
-            // Format: "Dec 09, 2025, 10:04 AM"
-            const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-            timeStr = `${monthNames[parseInt(month)-1]} ${day}, ${year}, ${hour12}:${m.toString().padStart(2,'0')} ${ampm}`;
+        if (row.trade_id) {
+            try {
+                const parts = row.trade_id.split('_');
+                if (parts.length >= 2) {
+                    const dateStr = parts[0]; // YYYYMMDD
+                    const timeStr24 = parts[1].substring(0, 6); // HHMMSS (strip trailing 000)
+                    
+                    // Parse date
+                    const year = dateStr.substring(0, 4);
+                    const month = parseInt(dateStr.substring(4, 6));
+                    const day = dateStr.substring(6, 8);
+                    
+                    // Parse time
+                    const hour24 = parseInt(timeStr24.substring(0, 2));
+                    const minute = parseInt(timeStr24.substring(2, 4));
+                    
+                    // Convert to 12-hour format
+                    const hour12 = hour24 % 12 || 12;
+                    const ampm = hour24 >= 12 ? "PM" : "AM";
+                    
+                    // Format: "Dec 09, 2025, 10:04 AM"
+                    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+                    timeStr = `${monthNames[month-1]} ${day}, ${year}, ${hour12}:${minute.toString().padStart(2,'0')} ${ampm}`;
+                }
+            } catch (e) {
+                console.error("[ASE] Failed to parse trade_id timestamp:", row.trade_id, e);
+                timeStr = "--";
+            }
         } else if (row.event_ts) {
             // Fallback: use DB event timestamp
             const iso = row.event_ts.includes("Z")
