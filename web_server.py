@@ -15479,7 +15479,7 @@ def get_automated_signals_dashboard_data():
                         MAX(be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_be_mfe,
                         MAX(no_be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_no_be_mfe,
                         MAX(current_price) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_current_price,
-                        MIN(mae_global_r) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_mae_global_r
+                        MIN(mae_global_r) FILTER (WHERE event_type = 'MFE_UPDATE' AND mae_global_r IS NOT NULL AND mae_global_r < 0) AS latest_mae_global_r
                     FROM automated_signals
                     GROUP BY trade_id
                 )
@@ -15518,7 +15518,7 @@ def get_automated_signals_dashboard_data():
                         MAX(be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_be_mfe,
                         MAX(no_be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_no_be_mfe,
                         MAX(current_price) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_current_price,
-                        MIN(mae_global_r) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_mae_global_r
+                        MIN(mae_global_r) FILTER (WHERE event_type = 'MFE_UPDATE' AND mae_global_r IS NOT NULL AND mae_global_r < 0) AS latest_mae_global_r
                     FROM automated_signals
                     GROUP BY trade_id
                 )
