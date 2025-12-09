@@ -26,9 +26,12 @@ def auto_guard_webhook_payload(payload):
     
     # Guards for ENTRY
     if evt == "ENTRY":
-        for f in ["direction", "entry_price", "stop_loss", "risk_distance"]:
+        for f in ["direction", "entry_price", "stop_loss"]:
             if payload.get(f) in (None, "", "null"):
                 return None, f"Invalid ENTRY: missing field {f}"
+        # Accept either risk_distance OR risk_R
+        if payload.get("risk_distance") in (None, "", "null") and payload.get("risk_R") in (None, "", "null"):
+            return None, "Invalid ENTRY: missing field risk_distance or risk_R"
     
     # Guards for MFE updates
     if evt == "MFE_UPDATE":
