@@ -959,23 +959,23 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             ageStr = formatDuration(diffSeconds);
         }
         
-        // Prefer true TradingView signal timestamp (signal_date + signal_time)
+        // Display signal_date and signal_time exactly as stored (no timezone conversion)
         let timeStr = "--";
         if (row.signal_date && row.signal_time) {
-            // signal_time is stored in Eastern Time - parse and display as-is
-            const dateStr = row.signal_date; // YYYY-MM-DD
-            const time24 = row.signal_time; // HH:MM:SS
+            // Parse date: "2025-12-09"
+            const [year, month, day] = row.signal_date.split('-');
+            // Parse time: "10:04:00"
+            const [hour24, minute, second] = row.signal_time.split(':');
+            const h = parseInt(hour24);
+            const m = parseInt(minute);
             
-            // Parse time components
-            const [year, month, day] = dateStr.split('-').map(Number);
-            const [hour, minute] = time24.split(':').map(Number);
+            // Convert to 12-hour format
+            const hour12 = h % 12 || 12;
+            const ampm = h >= 12 ? "PM" : "AM";
             
-            // Create date in Eastern Time (no timezone conversion)
-            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            const hour12 = hour % 12 || 12;
-            const ampm = hour >= 12 ? "PM" : "AM";
-            
-            timeStr = `${monthNames[month-1]} ${day.toString().padStart(2, '0')}, ${year}, ${hour12.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${ampm}`;
+            // Format: "Dec 09, 2025, 10:04 AM"
+            const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+            timeStr = `${monthNames[parseInt(month)-1]} ${day}, ${year}, ${hour12}:${m.toString().padStart(2,'0')} ${ampm}`;
         } else if (row.event_ts) {
             // Fallback: use DB event timestamp
             const iso = row.event_ts.includes("Z")
