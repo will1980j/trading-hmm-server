@@ -15602,6 +15602,7 @@ def get_automated_signals_dashboard_data():
                 "session": row[6],
                 "bias": row[7],
                 "event_ts": row[8].isoformat() if row[8] else None,  # UTC timestamp as ISO string
+                "entry_ts": row[8].isoformat() if row[8] else None,  # Alias for frontend age calculation
                 # Use the correctly extracted signal_date and signal_time from lines 15547-15560
                 "signal_date": signal_date,
                 "signal_time": signal_time,
