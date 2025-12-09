@@ -964,11 +964,11 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
         if (row.signal_date && row.signal_time) {
             // signal_time is stored in Eastern Time - parse and display as-is
             const dateStr = row.signal_date; // YYYY-MM-DD
-            const timeStr24 = row.signal_time; // HH:MM:SS
+            const time24 = row.signal_time; // HH:MM:SS
             
             // Parse time components
             const [year, month, day] = dateStr.split('-').map(Number);
-            const [hour, minute] = timeStr24.split(':').map(Number);
+            const [hour, minute] = time24.split(':').map(Number);
             
             // Create date in Eastern Time (no timezone conversion)
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
