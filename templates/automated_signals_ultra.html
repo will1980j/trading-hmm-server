@@ -61,7 +61,7 @@
                             <div id="ase-signals-today" class="fw-semibold ultra-metric-value">0</div>
                         </div>
                         <div class="text-end">
-                            <div class="small ultra-muted ultra-metric-label">Active Trades</div>
+                            <div class="small ultra-muted ultra-metric-label">Active Signals</div>
                             <div id="ase-active-count" class="fw-semibold ultra-metric-value">0</div>
                         </div>
                         <div>
@@ -77,9 +77,14 @@
             <div class="col-12">
                 <ul class="nav nav-tabs" id="automatedSignalsTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link ultra-tab ultra-tab-active active" id="live-tab" data-bs-toggle="tab" 
-                                data-bs-target="#tab-live" type="button" role="tab" 
-                                aria-controls="tab-live" aria-selected="true">⚡ Live Signals</button>
+                        <button class="nav-link ultra-tab ultra-tab-active active" id="confirmed-tab" data-bs-toggle="tab" 
+                                data-bs-target="#tab-confirmed" type="button" role="tab" 
+                                aria-controls="tab-confirmed" aria-selected="true">✅ Confirmed Signals</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link ultra-tab ultra-tab-inactive" id="all-signals-tab" data-bs-toggle="tab" 
+                                data-bs-target="#tab-all-signals" type="button" role="tab" 
+                                aria-controls="tab-all-signals" aria-selected="false">📍 All Signals</button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link ultra-tab ultra-tab-inactive" id="cancelled-tab" data-bs-toggle="tab" 
@@ -96,8 +101,8 @@
         </div>
 
         <div class="tab-content" id="automatedSignalsTabContent">
-            <!-- TAB 1: LIVE SIGNALS -->
-            <div class="tab-pane fade show active" id="tab-live" role="tabpanel" aria-labelledby="live-tab">
+            <!-- TAB 1: CONFIRMED SIGNALS (was Live Signals) -->
+            <div class="tab-pane fade show active" id="tab-confirmed" role="tabpanel" aria-labelledby="confirmed-tab">
                 <div class="row">
                     <!-- LEFT COLUMN: TABLES + CALENDAR -->
                     <div class="col-lg-7 mb-4">
@@ -358,7 +363,37 @@ No stream analysis yet.
                 </div>
             </div>
 
-            <!-- TAB 2: CANCELLED SIGNALS -->
+            <!-- TAB 2: ALL SIGNALS (NEW) -->
+            <div class="tab-pane fade" id="tab-all-signals" role="tabpanel" aria-labelledby="all-signals-tab">
+                <div class="row">
+                    <div class="col-12 mb-4">
+                        <div class="dashboard-card ultra-card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h3 class="card-title mb-0 ultra-section-header">All Signals (Every Triangle)</h3>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge rounded-pill bg-info small ultra-text">Coming Soon</span>
+                                </div>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="alert alert-info mb-0">
+                                    <h5 class="alert-heading">📍 All Signals Tab</h5>
+                                    <p class="mb-2">This tab will capture every triangle printed by the indicator, including:</p>
+                                    <ul class="mb-2">
+                                        <li><strong>Signal Time:</strong> When the triangle appeared</li>
+                                        <li><strong>Confirmation Time:</strong> When the signal was confirmed (if confirmed)</li>
+                                        <li><strong>Bars to Confirmation:</strong> Number of bars between signal and confirmation</li>
+                                        <li><strong>Status:</strong> Pending, Confirmed, or Cancelled</li>
+                                        <li><strong>Additional Metrics:</strong> HTF alignment, session, bias, etc.</li>
+                                    </ul>
+                                    <p class="mb-0"><strong>Note:</strong> This requires indicator updates to send SIGNAL_CREATED events (before confirmation). Currently only confirmed signals (ENTRY events) are captured.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: CANCELLED SIGNALS -->
             <div class="tab-pane fade" id="tab-cancelled" role="tabpanel" aria-labelledby="cancelled-tab">
                 <div class="row">
                     <div class="col-12 mb-4">
