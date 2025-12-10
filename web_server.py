@@ -13403,7 +13403,7 @@ def handle_entry_signal(data):
                 0,
                 %(signal_date)s,
                 %(signal_time)s,
-                NOW(),
+                %(timestamp)s,
                 %(raw_payload)s
             )
             RETURNING id
@@ -13422,6 +13422,7 @@ def handle_entry_signal(data):
             "bias": bias or direction,
             "signal_date": signal_date,
             "signal_time": signal_time,
+            "timestamp": parsed_ts,  # Use parsed timestamp, not NOW()
             "raw_payload": raw_payload_json
         }
         
