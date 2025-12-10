@@ -152,7 +152,38 @@ AutomatedSignalsUltra.describeLatency = function(ms) {
 
 // Universal NY time converter
 AutomatedSignalsUltra.formatSignalDateTime = function(row) {
-    // Always use event_ts if available
+    // PRIORITY 1: Extract signal time from trade_id (most reliable source)
+    // Trade ID format: YYYYMMDD_HHMMSS000_DIRECTION
+    if (row.trade_id) {
+        try {
+            const parts = row.trade_id.split('_');
+            if (parts.length >= 2) {
+                const dateStr = parts[0]; // YYYYMMDD
+                const timeStr24 = parts[1].substring(0, 6); // HHMMSS (strip trailing 000)
+                
+                // Parse date
+                const year = dateStr.substring(0, 4);
+                const month = parseInt(dateStr.substring(4, 6));
+                const day = dateStr.substring(6, 8);
+                
+                // Parse time
+                const hour24 = parseInt(timeStr24.substring(0, 2));
+                const minute = parseInt(timeStr24.substring(2, 4));
+                
+                // Convert to 12-hour format
+                const hour12 = hour24 % 12 || 12;
+                const ampm = hour24 >= 12 ? "PM" : "AM";
+                
+                // Format: "Dec 09, 10:04 AM"
+                const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+                return `${monthNames[month-1]} ${day}, ${hour12}:${minute.toString().padStart(2,'0')} ${ampm}`;
+            }
+        } catch (e) {
+            console.error("[ASE] Failed to parse trade_id timestamp:", row.trade_id, e);
+        }
+    }
+    
+    // FALLBACK: Use event_ts or signal_date/signal_time
     const src = row.event_ts || (row.signal_date + "T" + row.signal_time);
     if (!src) return "--";
     
