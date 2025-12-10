@@ -1269,7 +1269,9 @@ f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, p
     // Setup block compact
     p += '"setup":{"setup_family":"' + setupFam + '","setup_variant":"' + setupVar + '","setup_id":"' + setupFam + "_" + setupVar + '","signal_strength":75},'
     // Market state block (compact)
-    p += '"market_state":{"trend_regime":"' + htfBias + '","trend_score":' + f_num(1.0) + ',"volatility_regime":"NORMAL"}'
+    p += '"market_state":{"trend_regime":"' + htfBias + '","trend_score":' + f_num(1.0) + ',"volatility_regime":"NORMAL"},'
+    // HTF alignment data (calculated but not used for filtering)
+    p += '"htf_alignment":{"daily":"' + daily_bias + '","h4":"' + h4_bias + '","h1":"' + h1_bias + '","m15":"' + m15_bias + '","m5":"' + m5_bias + '","m1":"' + bias + '","all_bullish":' + str.tostring(htf_bullish) + ',"all_bearish":' + str.tostring(htf_bearish) + '}'
     jsonWrap(p)
 
 // Variables to track webhook sending for MULTIPLE signals
