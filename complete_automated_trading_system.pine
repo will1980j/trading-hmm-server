@@ -1432,8 +1432,7 @@ if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active
             
             float current_mfe_be = array.get(signal_be_mfes, signal_array_idx)
             float current_mfe_none = array.get(signal_mfes, signal_array_idx)
-            // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
-            current_mfe_be := math.min(current_mfe_be, current_mfe_none)
+            // BE MFE and No-BE MFE are independent - no capping needed
             
             // Calculate target prices for MFE update
             float mfe_target_1r = sig_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
@@ -1592,8 +1591,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_trigger
                     
                     float current_be_mfe = array.get(signal_be_mfes, signal_array_idx)
                     float current_no_be_mfe = array.get(signal_mfes, signal_array_idx)
-                    // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
-                    current_be_mfe := math.min(current_be_mfe, current_no_be_mfe)
+                    // BE MFE and No-BE MFE are independent - no capping needed
                     
                     // Get global MAE for this signal
                     float sig_mae = array.get(signal_maes, signal_array_idx)
@@ -1644,7 +1642,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped
                 bool sig_be_triggered = array.get(signal_be_triggered, signal_array_idx)
                 float final_be_mfe = array.get(signal_be_mfes, signal_array_idx)
                 float final_no_be_mfe = array.get(signal_mfes, signal_array_idx)
-                final_be_mfe := math.min(final_be_mfe, final_no_be_mfe)
+                // BE MFE and No-BE MFE are independent - no capping needed
                 
                 // Get global MAE for this signal
                 float sig_mae = array.get(signal_maes, signal_array_idx)
