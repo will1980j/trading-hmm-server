@@ -213,3 +213,111 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 console.log('Reporting Center JS loaded successfully (Phase 2C)');
+
+
+// ============================================================================
+// WEEKLY DEVELOPMENT REPORTS
+// ============================================================================
+
+async function handleReportUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const statusDiv = document.getElementById('uploadStatus');
+    statusDiv.textContent = 'Uploading...';
+    statusDiv.style.color = '#60a5fa';
+    
+    const week = prompt('Enter week (e.g., 2025-W50):');
+    if (!week) {
+        statusDiv.textContent = 'Upload cancelled';
+        statusDiv.style.color = '#94a3b8';
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('report', file);
+    formData.append('week', week);
+    
+    try {
+        const response = await fetch('/api/reports/upload-weekly', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            statusDiv.textContent = '✅ Report uploaded successfully!';
+            statusDiv.style.color = '#10b981';
+            loadWeeklyReports();
+        } else {
+            statusDiv.textContent = '❌ Upload failed: ' + result.error;
+            statusDiv.style.color = '#ef4444';
+        }
+    } catch (error) {
+        statusDiv.textContent = '❌ Upload error: ' + error.message;
+        statusDiv.style.color = '#ef4444';
+    }
+}
+
+async function loadWeeklyReports() {
+    try {
+        const response = await fetch('/api/reports/weekly-list');
+        const data = await response.json();
+        
+        const listDiv = document.getElementById('weeklyReportsList');
+        
+        if (data.reports && data.reports.length > 0) {
+            listDiv.innerHTML = data.reports.map(report => `
+                <div class="report-card">
+                    <div class="category-title">${report.week}</div>
+                    <div class="category-subtitle">${report.filename}</div>
+                    <div style="font-size: 12px; color: #94a3b8; margin: 10px 0;">
+                        Uploaded: ${new Date(report.uploaded_at).toLocaleDateString()}
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="btn btn-primary" onclick="viewReport('${report.id}')">
+                            👁️ View
+                        </button>
+                        <button class="btn btn-secondary" onclick="downloadReport('${report.id}')">
+                            ⬇️ Download
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            listDiv.innerHTML = `
+                <div class="report-card" style="text-align: center; color: #94a3b8;">
+                    No reports uploaded yet. Upload your first weekly report above.
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading reports:', error);
+    }
+}
+
+function viewReport(reportId) {
+    window.open(`/api/reports/view/${reportId}`, '_blank');
+}
+
+function downloadReport(reportId) {
+    window.location.href = `/api/reports/download/${reportId}`;
+}
+
+// Load reports when development section is shown
+document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            const devSection = document.getElementById('development-section');
+            if (devSection && devSection.style.display !== 'none') {
+                loadWeeklyReports();
+            }
+        });
+    });
+    
+    const devSection = document.getElementById('development-section');
+    if (devSection) {
+        observer.observe(devSection, { attributes: true, attributeFilter: ['style'] });
+    }
+});
