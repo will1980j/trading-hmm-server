@@ -1489,48 +1489,16 @@ if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active
         alert(batch_envelope, alert.freq_once_per_bar_close)
 
 // ============================================================================
-// TELEMETRY ENGINE — MFE_UPDATE SENDER
+// TELEMETRY ENGINE — MFE_UPDATE SENDER (DISABLED - Using batch system instead)
 // ============================================================================
-if telemetry_active and barstate.isrealtime
-    // Find the signal array index for the current telemetry trade (most recent signal)
-    int telem_signal_idx = array.size(signal_entries) - 1
-    if telem_signal_idx >= 0
-        // READ TRUE VALUES FROM VISUAL ENGINE ARRAYS
-        float true_no_be_mfe = array.get(signal_mfes, telem_signal_idx)
-        float true_be_mfe = array.get(signal_be_mfes, telem_signal_idx)
-        float sig_entry = array.get(signal_entries, telem_signal_idx)
-        float sig_risk = array.get(signal_risks, telem_signal_idx)
-        string sig_dir = array.get(signal_directions, telem_signal_idx)
-        // MAE global = drawdown in R from peak adverse move (ALWAYS <= 0)
-        float mae_source_low = array.get(signal_lowest_lows, telem_signal_idx)
-        float mae_source_high = array.get(signal_highest_highs, telem_signal_idx)
-        // --- Use f_calcMaeR for consistent MAE calculation ---
-        float true_mae_global = f_calcMaeR(sig_dir, sig_entry, mae_source_low, mae_source_high, sig_risk)
-        // Telemetry MFE = No-BE MFE (this matches dashboard rules)
-        telemetry_max_mfe := true_no_be_mfe
-        telemetry_mae_global := true_mae_global
-        // BE triggered if BE MFE >= 1R
-        telemetry_be_triggered := true_be_mfe >= 1
-    // Send webhook
-    if telemetry_entry_sent and not telemetry_exit_be_sent and not telemetry_exit_sl_sent
-        string mfe_payload = f_buildPayload(EVENT_MFE_UPDATE, telemetry_trade_id, telemetry_direction, telemetry_entry_price, telemetry_stop_price, telemetry_be_triggered ? telemetry_entry_price : float(na), 1.0, contract_size, telemetry_max_mfe, telemetry_max_mfe, telemetry_mae_global, float(na), float(na), "", 0.0, 0.0, 0.0, "FVG_CORE", "ACTIVE", bias, syminfo.ticker, timeframe.period, time)
-        alert(mfe_payload, alert.freq_once_per_bar_close)
+// DISABLED: Old individual MFE updates replaced by batch system above
+// This prevents duplicate alerts and rate limiting
 // END TELEMETRY MFE_UPDATE ENGINE
 
 // ============================================================================
-// TELEMETRY ENGINE — BE_TRIGGERED SENDER
+// TELEMETRY ENGINE — BE_TRIGGERED SENDER (DISABLED - Using main system)
 // ============================================================================
-if telemetry_active and barstate.isrealtime
-    if not telemetry_be_triggered and telemetry_max_mfe >= 1.0
-        telemetry_be_triggered := true
-        if not telemetry_be_sent
-            // READ VISUAL ARRAYS for true MFE values
-            int be_telem_idx = array.size(signal_entries) - 1
-            float true_be_mfe = be_telem_idx >= 0 ? array.get(signal_be_mfes, be_telem_idx) : telemetry_max_mfe
-            float true_no_be_mfe = be_telem_idx >= 0 ? array.get(signal_mfes, be_telem_idx) : telemetry_max_mfe
-            string be_payload = f_buildPayload(EVENT_BE_TRIGGERED, telemetry_trade_id, telemetry_direction, telemetry_entry_price, telemetry_stop_price, telemetry_entry_price, 1.0, contract_size, true_be_mfe, true_no_be_mfe, telemetry_mae_global, float(na), float(na), "be_triggered", 0.0, 0.0, 0.0, "FVG_CORE", "BE_PROTECTED", bias, syminfo.ticker, timeframe.period, time)
-            alert(be_payload, alert.freq_once_per_bar_close)
-            telemetry_be_sent := true
+// DISABLED: Duplicate BE alerts handled by main system (line 1600+)
 // END TELEMETRY BE_TRIGGERED ENGINE
 
 // ============================================================================
@@ -1556,7 +1524,8 @@ if telemetry_active and telemetry_be_triggered and barstate.isrealtime
             // --- Use f_calcMaeR for consistent MAE calculation ---
             float true_mae_global_exit = f_calcMaeR(sig_dir_exit, sig_entry_exit, mae_source_low_exit, mae_source_high_exit, sig_risk_exit)
             string exit_be_payload = f_buildPayload(EVENT_EXIT_BREAK_EVEN, telemetry_trade_id, telemetry_direction, telemetry_entry_price, telemetry_stop_price, telemetry_entry_price, 1.0, contract_size, true_be_mfe_exit, true_no_be_mfe_exit, true_mae_global_exit, true_be_mfe_exit, telemetry_entry_price, "be_stop_loss_hit", 0.0, 0.0, 0.0, "FVG_CORE", "EXIT_BE", bias, syminfo.ticker, timeframe.period, time)
-            alert(exit_be_payload, alert.freq_once_per_bar_close)
+            // DISABLED: Duplicate alert - main system handles EXIT_BE (line 1655)
+            // alert(exit_be_payload, alert.freq_once_per_bar_close)
             telemetry_exit_be_sent := true
             telemetry_active := false
 // END TELEMETRY EXIT_BE ENGINE
@@ -1584,7 +1553,8 @@ if telemetry_active and barstate.isrealtime
             // --- Use f_calcMaeR for consistent MAE calculation ---
             float true_mae_global_sl = f_calcMaeR(sig_dir_sl, sig_entry_sl, mae_source_low_sl, mae_source_high_sl, sig_risk_sl)
             string exit_sl_payload = f_buildPayload(EVENT_EXIT_STOP_LOSS, telemetry_trade_id, telemetry_direction, telemetry_entry_price, telemetry_stop_price, telemetry_be_triggered ? telemetry_entry_price : float(na), 1.0, contract_size, true_be_mfe_sl, true_no_be_mfe_sl, true_mae_global_sl, true_no_be_mfe_sl, telemetry_stop_price, "original_stop_loss_hit", 0.0, 0.0, 0.0, "FVG_CORE", "EXIT_SL", bias, syminfo.ticker, timeframe.period, time)
-            alert(exit_sl_payload, alert.freq_once_per_bar_close)
+            // DISABLED: Duplicate alert - main system handles EXIT_SL (line 1694)
+            // alert(exit_sl_payload, alert.freq_once_per_bar_close)
             telemetry_exit_sl_sent := true
             telemetry_active := false
 // END TELEMETRY EXIT_SL ENGINE
