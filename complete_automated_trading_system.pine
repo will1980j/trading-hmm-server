@@ -4,6 +4,7 @@ strategy("NQ_FVG_CORE_TELEMETRY_V1", overlay=true, initial_capital=100000, defau
 // ============================================================================
 // EVENT TYPE CONSTANTS (DO NOT CHANGE - MUST MATCH DATABASE)
 // ============================================================================
+EVENT_SIGNAL_CREATED   = "SIGNAL_CREATED"     // triangle appears (before confirmation)
 EVENT_ENTRY            = "ENTRY"
 EVENT_MFE_UPDATE       = "MFE_UPDATE"
 EVENT_BE_TRIGGERED     = "BE_TRIGGERED"
@@ -336,6 +337,10 @@ var array<line> sl_lines = array.new<line>()
 confirmed_this_bar := false
 
 // Detect new signals (only if not already waiting for same direction)
+// Track if we need to send SIGNAL_CREATED webhook
+var bool signal_created_bullish = false
+var bool signal_created_bearish = false
+
 if show_bull_triangle and active_signal != "Bullish"
     signal_candle_high := high
     signal_candle_low := low
@@ -346,6 +351,7 @@ if show_bull_triangle and active_signal != "Bullish"
     trade_ready := false
     entry_price := na
     stop_loss_price := na
+    signal_created_bullish := true  // Flag to send SIGNAL_CREATED webhook
 
 if show_bear_triangle and active_signal != "Bearish"
     signal_candle_high := high
@@ -357,6 +363,7 @@ if show_bear_triangle and active_signal != "Bearish"
     trade_ready := false
     entry_price := na
     stop_loss_price := na
+    signal_created_bearish := true  // Flag to send SIGNAL_CREATED webhook
 
 // Cancel on opposite signal BEFORE confirmation (no ENTRY ever sent)
 // NOTE: CANCELLED webhooks are sent later in the script after f_buildTradeId and f_buildPayload are defined
@@ -1287,6 +1294,22 @@ find_signal_index(signal_id) =>
 // Reset webhook flag on new bar
 if barstate.isconfirmed
     webhook_sent_this_bar := false
+
+// SIGNAL_CREATED WEBHOOKS
+// Send when triangle first appears (before confirmation)
+if signal_created_bullish and barstate.isrealtime and barstate.isconfirmed
+    string signal_direction = "Bullish"
+    string signal_id = f_buildTradeId(signal_candle_time, signal_direction)
+    string signal_payload = f_buildPayload(EVENT_SIGNAL_CREATED, signal_id, signal_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), float(na), "triangle_appeared", float(na), float(na), float(na), "FVG_CORE", "PENDING_CONFIRMATION", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+    alert(signal_payload, alert.freq_once_per_bar_close)
+    signal_created_bullish := false
+
+if signal_created_bearish and barstate.isrealtime and barstate.isconfirmed
+    string signal_direction = "Bearish"
+    string signal_id = f_buildTradeId(signal_candle_time, signal_direction)
+    string signal_payload = f_buildPayload(EVENT_SIGNAL_CREATED, signal_id, signal_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), float(na), "triangle_appeared", float(na), float(na), float(na), "FVG_CORE", "PENDING_CONFIRMATION", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+    alert(signal_payload, alert.freq_once_per_bar_close)
+    signal_created_bearish := false
 
 // CANCELLED SIGNAL WEBHOOKS
 // Send when a signal was cancelled before confirmation (opposite signal appeared)
