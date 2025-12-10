@@ -1225,9 +1225,8 @@ jsonWrap(payload) =>
 // ---------------------------------------------------------------------------
 // COMPACT JSON PAYLOAD BUILDER (Pine-Safe, No Size Limits)
 // ---------------------------------------------------------------------------
-f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, posSize, mfeR, maeR, maeGlobalR, finalMfeR, exitPrice, exitReason, tp1, tp2, tp3, setupFam, setupVar, htfBias, symbol, timeframeStr, signalTimeMs) =>
+f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, posSize, beMfeR, noBeMfeR, maeGlobalR, finalMfeR, exitPrice, exitReason, tp1, tp2, tp3, setupFam, setupVar, htfBias, symbol, timeframeStr, signalTimeMs) =>
     // --- Enforce MAE is never positive ---
-    float maeR_clean = math.min(nz(maeR, 0.0), 0.0)
     float maeGlobalR_clean = math.min(nz(maeGlobalR, 0.0), 0.0)
     ts = f_isoTimestamp(signalTimeMs)
     session = f_sessionLabel(signalTimeMs)
@@ -1251,9 +1250,9 @@ f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, p
     p += jsonField("risk_R", f_num(riskR))
     p += jsonField("position_size", f_num(posSize))
     p += jsonField("be_price", f_num(bePrice))
-    p += jsonField("mfe_R", f_num(mfeR))
-    p += jsonField("mae_R", f_num(maeR_clean))
-    p += jsonField("mae_R_global", f_num(maeGlobalR_clean))
+    p += jsonField("be_mfe", f_num(beMfeR))
+    p += jsonField("no_be_mfe", f_num(noBeMfeR))
+    p += jsonField("mae_global_r", f_num(maeGlobalR_clean))
     p += jsonField("final_mfe_R", f_num(finalMfeR))
     p += jsonField("exit_price", f_num(exitPrice))
     p += jsonField("exit_timestamp", "null")
@@ -1696,4 +1695,3 @@ if barstate.isfirst
 // ============================================================================
 // END TELEMETRY SAFETY RESET
 // ============================================================================
-there
