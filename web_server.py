@@ -13573,15 +13573,11 @@ def handle_mfe_update(data):
         conn.autocommit = False
         cursor = conn.cursor()
         
-        # Get MFE values - try normalized fields first, then raw TradingView fields
+        # Get MFE values from normalized fields
         be_mfe = data.get("be_mfe")
         no_be_mfe = data.get("no_be_mfe")
         
-        # Fallback: TradingView sends these under 'mfe_R' and 'mae_R'
-        if be_mfe is None:
-            be_mfe = data.get("mfe_R")
-        if no_be_mfe is None:
-            no_be_mfe = data.get("mae_R")
+        # No fallback needed - indicator now sends correct field names
         
         current_price = data.get("current_price")
         trade_id = data.get('trade_id', 'UNKNOWN')
