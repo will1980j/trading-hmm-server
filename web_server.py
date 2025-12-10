@@ -3133,8 +3133,12 @@ def reporting():
 @login_required
 def reporting_hub():
     """Reporting Hub - Module 22 - Updated with Weekly Development Reports"""
-    logger.info("✅ Route /reporting-hub wired to reporting.html (Module 22) - v2 with dev reports")
-    return render_template('reporting.html')
+    try:
+        logger.info("✅ Route /reporting-hub accessed - rendering reporting.html v2")
+        return render_template('reporting.html')
+    except Exception as e:
+        logger.error(f"❌ Error rendering reporting.html: {str(e)}")
+        return f"Error loading reporting hub: {str(e)}", 500
 
 @app.route('/ai-trading-master-plan')
 @login_required
