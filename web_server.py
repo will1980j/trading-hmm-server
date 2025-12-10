@@ -15788,12 +15788,12 @@ def get_automated_signals_dashboard_data():
                 "stop_loss": float(row[5]) if row[5] is not None else None,
                 "session": row[6],
                 "bias": row[7],
-                "exit_ts": row[8].isoformat() if row[8] else None,  # UTC timestamp as ISO string
-                "event_ts": row[8].isoformat() if row[8] else None,  # alias for frontend compatibility
-                # True TradingView signal timestamp from entry_ts
+                "exit_ts": row[8].isoformat() if row[8] else None,  # Exit timestamp
+                "entry_ts": row[11].isoformat() if hasattr(row[11], "isoformat") else row[11],  # Entry timestamp
+                "event_ts": row[11].isoformat() if hasattr(row[11], "isoformat") else row[11],  # For age calc (entry time)
+                # True TradingView signal timestamp
                 "signal_date": row[11].isoformat().split("T")[0] if row[11] else None,
                 "signal_time": row[11].isoformat().split("T")[1][:8] if row[11] else None,
-                "entry_ts": row[11].isoformat() if hasattr(row[11], "isoformat") else row[11],
                 "duration_seconds": float(row[12] or 0.0),
                 "be_mfe": float(row[13] or 0.0),
                 "be_mfe_R": float(row[13] or 0.0),
