@@ -16472,6 +16472,11 @@ def run_startup_migrations():
 # Run migrations on module load
 run_startup_migrations()
 
+# Register weekly reports API routes
+from weekly_reports_api import register_weekly_reports_routes
+register_weekly_reports_routes(app)
+logger.info("✅ Weekly reports API routes registered")
+
 
 if __name__ == '__main__':
     # Start real-time price handler for 1-second TradingView data

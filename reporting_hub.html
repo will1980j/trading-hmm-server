@@ -115,25 +115,128 @@
                 <button class="btn btn-secondary" onclick="generateAndOpen('allocation')">Generate & Open Gamma</button>
             </div>
         </div>
+        
+        <!-- WEEKLY DEVELOPMENT REPORTS SECTION -->
+        <div style="margin-top: 40px; padding-top: 40px; border-top: 2px solid rgba(255,255,255,0.1);">
+            <h2 style="margin-bottom: 20px; color: #e2e8f0;">📅 Weekly Development Reports</h2>
+            
+            <div class="report-card" style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);">
+                <div class="report-title">Upload Weekly Report</div>
+                <div class="report-description">Upload Gamma presentation (PDF/HTML) or markdown report</div>
+                <div style="margin: 20px 0;">
+                    <input type="file" id="weeklyReportUpload" accept=".pdf,.html,.md,.pptx" 
+                           style="display: none;" onchange="handleReportUpload(event)">
+                    <button class="btn" onclick="document.getElementById('weeklyReportUpload').click()">
+                        📤 Upload Report
+                    </button>
+                    <div id="uploadStatus" style="margin-top: 10px; color: #a5f3fc;"></div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <h3 style="color: #e2e8f0; margin-bottom: 15px;">Recent Reports</h3>
+                <div id="weeklyReportsList" style="display: grid; gap: 15px;">
+                    <!-- Reports will be loaded here -->
+                    <div style="padding: 20px; background: rgba(255,255,255,0.05); border-radius: 8px; text-align: center; color: #94a3b8;">
+                        No reports uploaded yet. Upload your first weekly report above.
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
 
 </div><!-- container -->
 {% endblock %}
 
 {% block extra_js %}
 <script>
+// Weekly Reports Upload and Display
+async function handleReportUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const statusDiv = document.getElementById('uploadStatus');
+    statusDiv.textContent = 'Uploading...';
+    
+    const formData = new FormData();
+    formData.append('report', file);
+    formData.append('week', prompt('Enter week (e.g., 2025-W50):') || 'Unknown');
+    
+    try {
+        const response = await fetch('/api/reports/upload-weekly', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            statusDiv.textContent = '✅ Report uploaded successfully!';
+            statusDiv.style.color = '#10b981';
+            loadWeeklyReports();
+        } else {
+            statusDiv.textContent = '❌ Upload failed: ' + result.error;
+            statusDiv.style.color = '#ef4444';
+        }
+    } catch (error) {
+        statusDiv.textContent = '❌ Upload error: ' + error.message;
+        statusDiv.style.color = '#ef4444';
+    }
+}
+
+async function loadWeeklyReports() {
+    try {
+        const response = await fetch('/api/reports/weekly-list');
+        const data = await response.json();
+        
+        const listDiv = document.getElementById('weeklyReportsList');
+        
+        if (data.reports && data.reports.length > 0) {
+            listDiv.innerHTML = data.reports.map(report => `
+                <div style="padding: 20px; background: rgba(255,255,255,0.05); border-radius: 8px; 
+                            display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight: 600; color: #e2e8f0; margin-bottom: 5px;">
+                            ${report.week} - ${report.filename}
+                        </div>
+                        <div style="font-size: 14px; color: #94a3b8;">
+                            Uploaded: ${new Date(report.uploaded_at).toLocaleDateString()}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-sm" onclick="viewReport('${report.id}')">
+                            👁️ View
+                        </button>
+                        <button class="btn btn-sm btn-secondary" onclick="downloadReport('${report.id}')">
+                            ⬇️ Download
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            listDiv.innerHTML = `
+                <div style="padding: 20px; background: rgba(255,255,255,0.05); border-radius: 8px; 
+                            text-align: center; color: #94a3b8;">
+                    No reports uploaded yet. Upload your first weekly report above.
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading reports:', error);
+    }
+}
+
+function viewReport(reportId) {
+    window.open(`/api/reports/view/${reportId}`, '_blank');
+}
+
+function downloadReport(reportId) {
+    window.location.href = `/api/reports/download/${reportId}`;
+}
+
+// Load reports on page load
+document.addEventListener('DOMContentLoaded', loadWeeklyReports);
+
 function connectGamma() {
             // Simulate connection process
             const statusIndicator = document.querySelector('.status-indicator');
