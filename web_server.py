@@ -13110,6 +13110,28 @@ def automated_signals_webhook():
         # 8. Route event
         if canonical["event_type"] == "ENTRY":
             result = handle_entry_signal(canonical)
+        elif canonical["event_type"] == "MFE_UPDATE_BATCH":
+            # Handle batch MFE updates (multiple signals in one webhook)
+            signals = canonical.get("signals", [])
+            batch_results = []
+            for signal_data in signals:
+                # Add event_type to each signal
+                signal_data["event_type"] = "MFE_UPDATE"
+                signal_data["event_timestamp"] = canonical.get("timestamp")
+                result = handle_automated_event("MFE_UPDATE", signal_data, json.dumps(signal_data))
+                batch_results.append(result)
+                # Broadcast WebSocket for each signal
+                try:
+                    socketio.emit("mfe_update", {
+                        "trade_id": signal_data.get("trade_id"),
+                        "be_mfe": signal_data.get("be_mfe"),
+                        "no_be_mfe": signal_data.get("no_be_mfe"),
+                        "current_price": signal_data.get("current_price"),
+                        "timestamp": datetime.now().isoformat()
+                    })
+                except Exception as ws_err:
+                    logger.warning(f"WebSocket MFE broadcast failed: {ws_err}")
+            result = {"success": True, "batch_processed": len(batch_results), "results": batch_results}
         elif canonical["event_type"] == "MFE_UPDATE":
             result = handle_automated_event("MFE_UPDATE", canonical, raw_payload_str)
             # Broadcast WebSocket MFE update

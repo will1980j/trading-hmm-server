@@ -1416,14 +1416,18 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
     waiting_for_confirmation := false
     trade_ready := false
 
-// 2. MFE UPDATE WEBHOOK
-// Send once per bar for ALL active signals (not just the last one)
-// Supports both real-time updates AND one-off snapshots for historical/last bar
+// 2. MFE UPDATE WEBHOOK - BATCH MODE
+// Collect all active signals and send in ONE alert per bar
+// This prevents rate limiting with multiple active signals
 bool is_live_bar = barstate.isrealtime
 bool is_snapshot_bar = (not barstate.isrealtime) and barstate.islast
 
 if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active_signal_ids) > 0
-    // Loop through all active signals and send MFE updates
+    // Build array of MFE update payloads for all active signals
+    var string batch_payload = ""
+    int signals_in_batch = 0
+    
+    // Loop through all active signals and collect MFE data
     for sig_idx = 0 to array.size(active_signal_ids) - 1
         signal_id_to_update = array.get(active_signal_ids, sig_idx)
         
@@ -1432,8 +1436,6 @@ if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active
         
         // Validate that signal_array_idx is within bounds
         if signal_array_idx >= 0 and signal_array_idx < array.size(signal_entries)
-            // MODIFIED: Send MFE_UPDATE for ALL active signals, regardless of when they were created
-            // This allows the indicator to track trades even after restart/reload
             int entry_bar = array.get(signal_entry_bar_index, signal_array_idx)
             int bars_since_entry = bar_index - entry_bar
             bool sig_has_entered = array.get(signal_has_entered, signal_array_idx)
@@ -1447,16 +1449,8 @@ if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active
             
             float current_mfe_be = array.get(signal_be_mfes, signal_array_idx)
             float current_mfe_none = array.get(signal_mfes, signal_array_idx)
-            // Send actual array values without capping
             
-            // Calculate target prices for MFE update
-            float mfe_target_1r = sig_direction == "Bullish" ? sig_entry + sig_risk : sig_entry - sig_risk
-            float mfe_target_2r = sig_direction == "Bullish" ? sig_entry + (2 * sig_risk) : sig_entry - (2 * sig_risk)
-            float mfe_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
-            
-            // Determine if we should send MFE update
-            // Regular updates: real-time bars, trade has entered (bars_since_entry >= 0)
-            // Snapshot updates: last historical bar, snapshot not yet sent
+            // Determine if we should include this signal in batch
             bool snapshot_already_sent = signal_array_idx < array.size(signal_snapshot_sent) ? array.get(signal_snapshot_sent, signal_array_idx) : false
             bool should_send_regular_update = is_live_bar and bars_since_entry >= 0 and sig_has_entered
             bool should_send_snapshot = is_snapshot_bar and not snapshot_already_sent and sig_has_entered
@@ -1464,19 +1458,35 @@ if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active
             if should_send_regular_update or should_send_snapshot
                 // Get global MAE for this signal
                 float sig_mae = array.get(signal_maes, signal_array_idx)
-                // --- Ensure MAE is never positive ---
                 sig_mae := math.min(sig_mae, 0.0)
                 
-                // Build telemetry payload for MFE_UPDATE event
-                // CRITICAL: Send BOTH MFE values - BE MFE in mfeR, No BE MFE in maeR
-                string mfe_update_payload = f_buildPayload(EVENT_MFE_UPDATE, signal_id_to_update, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, current_mfe_be, current_mfe_none, sig_mae, float(na), float(na), "", mfe_target_1r, mfe_target_2r, mfe_target_3r, "FVG_CORE", "ACTIVE", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+                // Build individual signal JSON object (not full payload wrapper)
+                string signal_json = ""
+                signal_json += '"trade_id":"' + signal_id_to_update + '",'
+                signal_json += '"direction":"' + sig_direction + '",'
+                signal_json += '"be_mfe":' + f_num(current_mfe_be) + ','
+                signal_json += '"no_be_mfe":' + f_num(current_mfe_none) + ','
+                signal_json += '"mae_global_r":' + f_num(sig_mae) + ','
+                signal_json += '"current_price":' + f_num(close) + ','
+                signal_json += '"be_triggered":' + str.tostring(sig_be_triggered)
                 
-                // Send MFE update
-                alert(mfe_update_payload, alert.freq_once_per_bar_close)
+                // Add to batch with comma separator
+                if signals_in_batch > 0
+                    batch_payload := batch_payload + ",{" + signal_json + "}"
+                else
+                    batch_payload := "{" + signal_json + "}"
+                
+                signals_in_batch := signals_in_batch + 1
                 
                 // Mark snapshot as sent if this was a snapshot update
                 if should_send_snapshot and signal_array_idx < array.size(signal_snapshot_sent)
                     array.set(signal_snapshot_sent, signal_array_idx, true)
+    
+    // Send batch alert if we have any signals to update
+    if signals_in_batch > 0
+        // Wrap in batch envelope
+        string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + f_isoTimestamp(time) + '","signals":[' + batch_payload + ']}'
+        alert(batch_envelope, alert.freq_once_per_bar_close)
 
 // ============================================================================
 // TELEMETRY ENGINE — MFE_UPDATE SENDER
