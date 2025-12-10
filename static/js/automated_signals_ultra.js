@@ -16,7 +16,18 @@ window.AutomatedSignalsUltra = {
 // Local reference for convenience
 const AutomatedSignalsUltra = window.AutomatedSignalsUltra;
 
-AutomatedSignalsUltra.currentMonth = new Date();
+// Initialize currentMonth to NY timezone current date
+AutomatedSignalsUltra.currentMonth = (() => {
+    const now = new Date();
+    const nyFormatter = new Intl.DateTimeFormat('en-CA', { 
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    const nyDateStr = nyFormatter.format(now); // YYYY-MM-DD in NY timezone
+    return new Date(nyDateStr + 'T00:00:00'); // Create date object from NY date
+})();
 AutomatedSignalsUltra.calendarData = [];
 AutomatedSignalsUltra.selectedDate = null;
 AutomatedSignalsUltra.rawPayload = null;  // Store raw payload for debug tab
