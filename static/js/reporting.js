@@ -25,16 +25,18 @@ class ReportingCenter {
         
         this.isLoading = true;
         try {
-            await Promise.all([
-                this.fetchTodayStats(),
-                this.fetchRecentSignals(),
-                this.fetchSessionSummary()
-            ]);
+            // DISABLED: These APIs don't exist yet - causing 500 errors
+            // await Promise.all([
+            //     this.fetchTodayStats(),
+            //     this.fetchRecentSignals(),
+            //     this.fetchSessionSummary()
+            // ]);
             
-            this.renderAllReports();
+            // this.renderAllReports();
+            console.log('📊 Reporting Center loaded (API calls disabled)');
         } catch (error) {
             console.error('❌ Reporting Center - Error fetching data:', error);
-            this.renderEmptyReports();
+            // this.renderEmptyReports();
         } finally {
             this.isLoading = false;
         }
