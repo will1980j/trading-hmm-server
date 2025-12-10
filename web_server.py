@@ -1311,8 +1311,8 @@ def inject_roadmap_helpers():
 
 @app.context_processor
 def inject_timestamp():
-    # Forces fresh JS every deploy
-    return {"build_ts": datetime.utcnow().strftime("%Y%m%d%H%M%S")}
+    # Forces fresh JS every deploy - use a static timestamp that changes with code
+    return {"build_ts": "20251209_010000"}
 
 # Initialize SocketIO with automatic async mode detection
 # Railway will use threading mode (compatible with all Python versions)
