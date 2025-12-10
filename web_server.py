@@ -355,9 +355,8 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
         final_mfe = data.get("final_mfe") or data.get("final_mfe_R")
         
         # Global MAE (worst adverse excursion in R over the whole trade)
-        mae_global_r = data.get("mae_global_R")
-        if mae_global_r is None:
-            mae_global_r = data.get("mae_R_global")
+        # Try all possible field name variations
+        mae_global_r = data.get("mae_global_r") or data.get("mae_global_R") or data.get("mae_R_global")
         
         # Normalize MAE using helper (ensures <= 0.0)
         mae_global_r = normalize_mae(mae_global_r, direction, entry_price, current_price)
