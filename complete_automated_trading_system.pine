@@ -1424,7 +1424,7 @@ bool is_snapshot_bar = (not barstate.isrealtime) and barstate.islast
 
 if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active_signal_ids) > 0
     // Build array of MFE update payloads for all active signals
-    var string batch_payload = ""
+    string batch_payload = ""  // Reset each bar (not var)
     int signals_in_batch = 0
     
     // Loop through all active signals and collect MFE data
