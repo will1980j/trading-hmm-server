@@ -13304,19 +13304,36 @@ def handle_entry_signal(data):
         if ts_raw:
             try:
                 from dateutil import parser as date_parser
+                from zoneinfo import ZoneInfo
+                
+                # Parse timestamp (assume NY timezone if no timezone info)
                 parsed_ts = date_parser.parse(ts_raw)
-                signal_date = parsed_ts.date()
-                signal_time = parsed_ts.time()
-                logger.info(f"[ENTRY_TS] Parsed entry timestamp OK: {parsed_ts}")
+                if parsed_ts.tzinfo is None:
+                    # Timestamp is naive - assume it's in NY timezone
+                    ny_tz = ZoneInfo("America/New_York")
+                    parsed_ts = parsed_ts.replace(tzinfo=ny_tz)
+                
+                # Convert to UTC for storage
+                parsed_ts = parsed_ts.astimezone(ZoneInfo("UTC"))
+                
+                # Extract date/time for signal_date and signal_time columns
+                # These should be in NY timezone for display purposes
+                ny_ts = parsed_ts.astimezone(ZoneInfo("America/New_York"))
+                signal_date = ny_ts.date()
+                signal_time = ny_ts.time()
+                
+                logger.info(f"[ENTRY_TS] Parsed entry timestamp OK: {parsed_ts} (UTC), NY: {ny_ts}")
             except Exception as e:
                 logger.warning(f"[ENTRY_TS] Failed to parse '{ts_raw}': {e}")
         
         # FINAL FAILSAFE: use NOW() (server time)
         if not parsed_ts:
             from datetime import datetime as dt
-            parsed_ts = dt.utcnow()
-            signal_date = parsed_ts.date()
-            signal_time = parsed_ts.time()
+            from zoneinfo import ZoneInfo
+            parsed_ts = dt.now(ZoneInfo("UTC"))
+            ny_ts = parsed_ts.astimezone(ZoneInfo("America/New_York"))
+            signal_date = ny_ts.date()
+            signal_time = ny_ts.time()
             logger.warning(f"[ENTRY_TS] Using UTC NOW() fallback: {parsed_ts}")
         
         # Get initial MFE values (both start at 0 for new signals)

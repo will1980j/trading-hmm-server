@@ -714,20 +714,20 @@ def register_automated_signals_api_robust(app, db):
             # Get completed trades per day (last 90 days)
             cursor.execute("""
                 SELECT 
-                    DATE(timestamp AT TIME ZONE 'America/New_York') as date,
+                    DATE((timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York') as date,
                     COUNT(DISTINCT trade_id) as completed_count,
                     AVG(COALESCE(final_mfe, no_be_mfe, mfe, 0)) as avg_mfe
                 FROM automated_signals
                 WHERE timestamp >= CURRENT_DATE - INTERVAL '90 days'
                 AND event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
-                GROUP BY DATE(timestamp AT TIME ZONE 'America/New_York')
+                GROUP BY DATE((timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York')
             """)
             completed_by_date = {row['date'].strftime('%Y-%m-%d'): row for row in cursor.fetchall()}
             
             # Get active trades per day (entry date, no exit yet)
             cursor.execute("""
                 SELECT 
-                    DATE(e.timestamp AT TIME ZONE 'America/New_York') as date,
+                    DATE((e.timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York') as date,
                     COUNT(DISTINCT e.trade_id) as active_count
                 FROM automated_signals e
                 WHERE e.event_type = 'ENTRY'
@@ -737,7 +737,7 @@ def register_automated_signals_api_robust(app, db):
                     FROM automated_signals 
                     WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
                 )
-                GROUP BY DATE(e.timestamp AT TIME ZONE 'America/New_York')
+                GROUP BY DATE((e.timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York')
             """)
             active_by_date = {row['date'].strftime('%Y-%m-%d'): row['active_count'] for row in cursor.fetchall()}
             
