@@ -719,7 +719,9 @@ if array.size(signal_entries) > 0
                 sig_mae := maeR
         
         // Calculate current MFE for all signals (to capture maximum even after completion)
-        float current_mfe = 0.0
+        // DUAL MFE SYSTEM: Calculate BOTH No-BE and BE MFE independently
+        float current_mfe_no_be = 0.0  // No-BE: Always from original entry
+        float current_mfe_be = 0.0     // BE: From BE stop (entry) after BE triggers
         bool just_completed = false
         bool be_just_triggered = false
         
@@ -737,11 +739,29 @@ if array.size(signal_entries) > 0
         // Webhook sending is controlled separately by signal_is_realtime flag
         if sig_has_entered and is_recent and bars_since_entry_time > 0
             if sig_dir == "Bullish"
-                // Use highest high achieved, not current bar's high
-                current_mfe := (sig_highest_high - sig_entry) / sig_risk
+                // NO-BE MFE: Always from original entry to extreme
+                current_mfe_no_be := (sig_highest_high - sig_entry) / sig_risk
+                
+                // BE MFE: After BE triggers, track from BE stop (entry) to extreme
+                if sig_be_triggered
+                    // BE stop is at entry, so MFE from entry to extreme
+                    // Since BE stop = entry, any favorable movement is positive MFE
+                    current_mfe_be := (sig_highest_high - sig_entry) / sig_risk
+                else
+                    // Before BE triggers, both MFE values are the same
+                    current_mfe_be := current_mfe_no_be
             else  // Bearish
-                // Use lowest low achieved, not current bar's low
-                current_mfe := (sig_entry - sig_lowest_low) / sig_risk
+                // NO-BE MFE: Always from original entry to extreme
+                current_mfe_no_be := (sig_entry - sig_lowest_low) / sig_risk
+                
+                // BE MFE: After BE triggers, track from BE stop (entry) to extreme
+                if sig_be_triggered
+                    // BE stop is at entry, so MFE from entry to extreme
+                    // Since BE stop = entry, any favorable movement is positive MFE
+                    current_mfe_be := (sig_entry - sig_lowest_low) / sig_risk
+                else
+                    // Before BE triggers, both MFE values are the same
+                    current_mfe_be := current_mfe_no_be
         
         // FIRST: Update stopped flags on ALL bars (not just incomplete trades)
         // CRITICAL: Flag updates run regardless of is_recent to ensure historical completion detection
@@ -768,13 +788,12 @@ if array.size(signal_entries) > 0
             
             // BE=1 trigger detection (runs on ALL bars to ensure historical detection)
             // CRITICAL FIX: Only check BE trigger AFTER trade has entered
-            if sig_has_entered and track_be_mfe and not sig_be_triggered and is_recent and current_mfe >= 1.0
+            if sig_has_entered and track_be_mfe and not sig_be_triggered and is_recent and current_mfe_no_be >= 1.0
                 array.set(signal_be_triggered, i, true)
-                // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
-                float capped_be_mfe_bull = math.min(current_mfe, sig_mfe)
-                array.set(signal_be_mfes, i, capped_be_mfe_bull)
+                // Store current No-BE MFE at BE trigger point
+                array.set(signal_be_mfes, i, current_mfe_no_be)
                 sig_be_triggered := true
-                sig_be_mfe := capped_be_mfe_bull
+                sig_be_mfe := current_mfe_no_be
                 be_just_triggered := true
         else  // Bearish
             // ALWAYS check if No BE strategy should be stopped out (original SL hit)
@@ -799,13 +818,12 @@ if array.size(signal_entries) > 0
             
             // BE=1 trigger detection (runs on ALL bars to ensure historical detection)
             // CRITICAL FIX: Only check BE trigger AFTER trade has entered
-            if sig_has_entered and track_be_mfe and not sig_be_triggered and is_recent and current_mfe >= 1.0
+            if sig_has_entered and track_be_mfe and not sig_be_triggered and is_recent and current_mfe_no_be >= 1.0
                 array.set(signal_be_triggered, i, true)
-                // CRITICAL ENFORCEMENT: BE MFE can NEVER exceed No BE MFE
-                float capped_be_mfe_bear = math.min(current_mfe, sig_mfe)
-                array.set(signal_be_mfes, i, capped_be_mfe_bear)
+                // Store current No-BE MFE at BE trigger point
+                array.set(signal_be_mfes, i, current_mfe_no_be)
                 sig_be_triggered := true
-                sig_be_mfe := capped_be_mfe_bear
+                sig_be_mfe := current_mfe_no_be
                 be_just_triggered := true
         
         // THEN: Check if trade should be marked complete
@@ -825,31 +843,23 @@ if array.size(signal_entries) > 0
                 just_completed := true
         
         // Calculate if MFE changed (used by both strategies)
-        bool mfe_changed = current_mfe > sig_mfe
+        bool mfe_changed = current_mfe_no_be > sig_mfe
         
-        // CRITICAL FIX: Save previous No BE MFE BEFORE updating
-        // This is needed for proper BE MFE capping
-        float previous_no_be_mfe = sig_mfe
-        
-        // Update No BE MFE - always update if trade is active (not just when increased)
+        // Update No-BE MFE - always update if trade is active
         // This ensures webhooks always send current No-BE MFE value
         if is_recent and not sig_no_be_stopped
-            array.set(signal_mfes, i, current_mfe)
-            sig_mfe := current_mfe
+            array.set(signal_mfes, i, current_mfe_no_be)
+            sig_mfe := current_mfe_no_be
         
-        // BE MFE tracking: Track MFE for BE=1 strategy
-        // CRITICAL: BE MFE NEVER FREEZES - it continues to track maximum favorable movement
-        // The ONLY difference from No BE MFE is WHEN it stops:
-        // - No BE MFE stops when: price hits original stop loss
-        // - BE=1 MFE stops when: price hits entry (after +1R) OR original stop loss (before +1R)
+        // BE MFE tracking: Track MFE for BE=1 strategy INDEPENDENTLY
+        // CRITICAL: After BE triggers, BE MFE tracks from BE stop (entry), not original entry
+        // This means BE MFE can be DIFFERENT from No-BE MFE
         if track_be_mfe
             // BE MFE continues to update as long as BE=1 strategy hasn't been stopped out
-            // CRITICAL FIX: Always update BE MFE when trade is active (not just when increased)
-            // This ensures webhooks always send current BE MFE value
             if is_recent and not sig_be_stopped
-                // Use current_mfe directly (don't cap to just-updated sig_mfe)
-                array.set(signal_be_mfes, i, current_mfe)
-                sig_be_mfe := current_mfe
+                // Use independent BE MFE calculation
+                array.set(signal_be_mfes, i, current_mfe_be)
+                sig_be_mfe := current_mfe_be
         
         // Re-read final values from arrays to ensure label shows latest data
         float final_mfe = array.get(signal_mfes, i)
