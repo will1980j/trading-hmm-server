@@ -12993,6 +12993,29 @@ def automated_signals_webhook():
         data_raw = request.get_json(force=True, silent=True)
         logger.info("🟦 RAW WEBHOOK DATA RECEIVED (7G): %s", data_raw)
         
+        # SPECIAL HANDLING: MFE_UPDATE_BATCH bypasses normal validation
+        if data_raw and data_raw.get("event_type") == "MFE_UPDATE_BATCH":
+            signals = data_raw.get("signals", [])
+            batch_results = []
+            for signal_data in signals:
+                signal_data["event_type"] = "MFE_UPDATE"
+                signal_data["event_timestamp"] = data_raw.get("timestamp")
+                result = handle_automated_event("MFE_UPDATE", signal_data, json.dumps(signal_data))
+                batch_results.append(result)
+                # Broadcast WebSocket
+                try:
+                    socketio.emit("mfe_update", {
+                        "trade_id": signal_data.get("trade_id"),
+                        "be_mfe": signal_data.get("be_mfe"),
+                        "no_be_mfe": signal_data.get("no_be_mfe"),
+                        "current_price": signal_data.get("current_price"),
+                        "timestamp": datetime.now().isoformat()
+                    })
+                except Exception as ws_err:
+                    logger.warning(f"WebSocket MFE broadcast failed: {ws_err}")
+            logger.info(f"✅ Batch processed: {len(batch_results)} signals")
+            return jsonify({"success": True, "batch_processed": len(batch_results)}), 200
+        
         from automated_signals_state import auto_guard_webhook_payload
         guarded, guard_error = auto_guard_webhook_payload(data_raw)
         if guard_error:
