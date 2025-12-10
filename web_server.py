@@ -3132,8 +3132,8 @@ def reporting():
 @app.route('/reporting-hub')
 @login_required
 def reporting_hub():
-    """Reporting Hub - Module 22"""
-    logger.info("✅ Route /reporting-hub wired to reporting.html (Module 22)")
+    """Reporting Hub - Module 22 - Updated with Weekly Development Reports"""
+    logger.info("✅ Route /reporting-hub wired to reporting.html (Module 22) - v2 with dev reports")
     return render_template('reporting.html')
 
 @app.route('/ai-trading-master-plan')
