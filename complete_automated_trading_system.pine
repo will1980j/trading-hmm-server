@@ -1651,8 +1651,9 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped
                 float exit_target_3r = sig_direction == "Bullish" ? sig_entry + (3 * sig_risk) : sig_entry - (3 * sig_risk)
                 
                 // SEND EXIT_BE when BE stop is hit (BE=1 strategy completed)
+                // CRITICAL: Only send EXIT_BE if BE was actually triggered (reached +1R)
                 // mfe_R = BE MFE (final), mae_R = No-BE MFE (final), final_mfe_R = BE MFE (relevant for this exit type)
-                if be_stopped and not be_exit_sent
+                if be_stopped and sig_be_triggered and not be_exit_sent
                     string be_payload = f_buildPayload(EVENT_EXIT_BREAK_EVEN, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, final_be_mfe, final_no_be_mfe, sig_mae, final_be_mfe, sig_entry, "be_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_BE", bias, syminfo.ticker, timeframe.period, signal_candle_time)
                     alert(be_payload, alert.freq_once_per_bar_close)
                     array.set(be_exit_sent_flags, sig_idx, true)
