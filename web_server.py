@@ -15710,10 +15710,10 @@ def get_automated_signals_dashboard_data():
                        en.signal_time,
                        en.timestamp AS entry_timestamp,
                        EXTRACT(EPOCH FROM (ex.timestamp - en.timestamp)) AS duration_seconds,
-                       COALESCE(m.max_be_mfe, ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
-                       COALESCE(m.max_no_be_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
-                       COALESCE(m.max_no_be_mfe, ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe,
-                       COALESCE(m.min_mae_global_r, ex.mae_global_r, en.mae_global_r) AS mae_global_r
+                       COALESCE(m.max_be_mfe, 0.0) AS be_mfe,
+                       COALESCE(m.max_no_be_mfe, 0.0) AS no_be_mfe,
+                       COALESCE(m.max_no_be_mfe, 0.0) AS final_mfe,
+                       COALESCE(m.min_mae_global_r, 0.0) AS mae_global_r
                 FROM automated_signals ex
                 LEFT JOIN automated_signals en
                     ON ex.trade_id = en.trade_id
@@ -15758,10 +15758,10 @@ def get_automated_signals_dashboard_data():
                        en.signal_time,
                        en.timestamp AS entry_timestamp,
                        EXTRACT(EPOCH FROM (ex.timestamp - en.timestamp)) AS duration_seconds,
-                       COALESCE(m.max_be_mfe, ex.be_mfe, en.be_mfe, 0.0) AS be_mfe,
-                       COALESCE(m.max_no_be_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS no_be_mfe,
-                       COALESCE(m.max_no_be_mfe, ex.final_mfe, ex.no_be_mfe, en.no_be_mfe, 0.0) AS final_mfe,
-                       COALESCE(m.min_mae_global_r, ex.mae_global_r, en.mae_global_r) AS mae_global_r
+                       COALESCE(m.max_be_mfe, 0.0) AS be_mfe,
+                       COALESCE(m.max_no_be_mfe, 0.0) AS no_be_mfe,
+                       COALESCE(m.max_no_be_mfe, 0.0) AS final_mfe,
+                       COALESCE(m.min_mae_global_r, 0.0) AS mae_global_r
                 FROM automated_signals ex
                 LEFT JOIN automated_signals en
                     ON ex.trade_id = en.trade_id
