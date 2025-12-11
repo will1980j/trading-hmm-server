@@ -860,13 +860,14 @@ if array.size(signal_entries) > 0
         // Note: BE MFE may exceed No BE MFE temporarily, but will be corrected when BE stops
         
         // ONLY CREATE LABELS ON THE LAST BAR (current bar) to avoid performance issues
-        if barstate.islast and show_mfe_labels
+        // ONLY show labels for ACTIVE signals (No-BE not stopped) to save label slots
+        if barstate.islast and show_mfe_labels and not sig_no_be_stopped
             // Delete old label
             label old_label = array.get(signal_labels, i)
             if not na(old_label)
                 label.delete(old_label)
             
-            // Create new label for ALL signals (active and completed)
+            // Create new label for active signals only
             // Format: "BE_MFE, No_BE_MFE" if BE tracking enabled, otherwise just "MFE"
             string mfe_text = ""
             if track_be_mfe
