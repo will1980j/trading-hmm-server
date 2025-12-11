@@ -1414,8 +1414,9 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
     trade_ready := false
 
 // TEST: Send heartbeat alert every bar to verify alert system
-if barstate.isconfirmed and barstate.isrealtime
-    string heartbeat = '{"event_type":"HEARTBEAT","timestamp":"' + f_isoTimestamp(time) + '","signal_count":' + str.tostring(array.size(signal_entries)) + '}'
+// SIMPLIFIED: Remove all conditions to force alert
+if barstate.isconfirmed
+    string heartbeat = '{"event_type":"HEARTBEAT","timestamp":"' + f_isoTimestamp(time) + '","signal_count":' + str.tostring(array.size(signal_entries)) + ',"realtime":' + str.tostring(barstate.isrealtime) + '}'
     alert(heartbeat, alert.freq_once_per_bar_close)
 
 // 2. MFE UPDATE WEBHOOK - ROBUST BATCH MODE
