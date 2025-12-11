@@ -361,6 +361,8 @@ def register_automated_signals_api_robust(app, db):
                     e.signal_date,
                     e.signal_time,
                     x.exit_timestamp as timestamp,
+                    e.entry_timestamp as entry_ts,
+                    x.exit_timestamp as exit_ts,
                     COALESCE(m.mfe, 0) as mfe,
                     COALESCE(m.be_mfe, 0) as be_mfe,
                     COALESCE(m.no_be_mfe, 0) as no_be_mfe,
