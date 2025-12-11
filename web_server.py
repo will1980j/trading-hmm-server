@@ -1423,6 +1423,12 @@ if db_enabled:
     # register_signals_api_v2(app)
     
     logger.info("✅ Robust API endpoints registered")
+    
+    # Hybrid Signal Synchronization System - Specialized Webhooks
+    logger.warning("⚠️ Registering Hybrid Sync webhook routes (4 specialized endpoints)")
+    from sync_webhook_router import register_sync_webhooks
+    register_sync_webhooks(app, db)
+    logger.info("✅ Hybrid Sync webhooks registered")
     logger.info("✅ Diagnostics API registered")
     logger.info("✅ Signal Integrity API registered")
     logger.info("✅ Phase 2A API endpoints registered")
