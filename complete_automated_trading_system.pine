@@ -1454,11 +1454,16 @@ if barstate.isconfirmed and array.size(signal_entries) > 0
                     batch_payload := signals_in_batch > 0 ? batch_payload + ",{" + signal_json + "}" : "{" + signal_json + "}"
                     signals_in_batch := signals_in_batch + 1
     
-    // Send batch alert if we have any signals to update
-    if signals_in_batch > 0
-        // Wrap in batch envelope
-        string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + f_isoTimestamp(time) + '","signals":[' + batch_payload + ']}'
-        alert(batch_envelope, alert.freq_once_per_bar_close)
+    // Send batch alert (send even if empty for debugging)
+    if barstate.isrealtime
+        if signals_in_batch > 0
+            // Wrap in batch envelope
+            string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + f_isoTimestamp(time) + '","signals":[' + batch_payload + ']}'
+            alert(batch_envelope, alert.freq_once_per_bar_close)
+        else
+            // Send empty batch to verify alert mechanism works
+            string empty_batch = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + f_isoTimestamp(time) + '","signals":[],"debug":"no_signals_in_batch"}'
+            alert(empty_batch, alert.freq_once_per_bar_close)
 
 // ============================================================================
 // TELEMETRY ENGINE — MFE_UPDATE SENDER (DISABLED - Using batch system instead)
