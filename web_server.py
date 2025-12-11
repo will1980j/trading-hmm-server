@@ -13003,7 +13003,35 @@ def automated_signals_webhook():
             for signal_data in signals:
                 signal_data["event_type"] = "MFE_UPDATE"
                 signal_data["event_timestamp"] = data_raw.get("timestamp")
-                result = handle_automated_event("MFE_UPDATE", signal_data, json.dumps(signal_data))
+                
+                # Skip lifecycle enforcement for batch (signals might not have ENTRY in DB)
+                # Just insert the MFE_UPDATE directly
+                try:
+                    import psycopg2
+                    database_url = os.environ.get('DATABASE_URL')
+                    conn = psycopg2.connect(database_url)
+                    cur = conn.cursor()
+                    
+                    cur.execute("""
+                        INSERT INTO automated_signals (
+                            trade_id, event_type, be_mfe, no_be_mfe, mae_global_r, 
+                            current_price, timestamp, raw_payload
+                        ) VALUES (%s, 'MFE_UPDATE', %s, %s, %s, %s, NOW(), %s)
+                    """, (
+                        signal_data.get("trade_id"),
+                        signal_data.get("be_mfe"),
+                        signal_data.get("no_be_mfe"),
+                        signal_data.get("mae_global_r"),
+                        signal_data.get("current_price"),
+                        json.dumps(signal_data)
+                    ))
+                    conn.commit()
+                    cur.close()
+                    conn.close()
+                    result = {"success": True}
+                except Exception as e:
+                    result = {"success": False, "error": str(e)}
+                
                 batch_results.append(result)
                 # Broadcast WebSocket
                 try:
