@@ -706,8 +706,8 @@ if array.size(signal_entries) > 0
                     sig_highest_high := high
         
         // --- MAE CALCULATION (ALWAYS <= 0) ---
-        // Only process signals from last 14 days for performance
-        bool is_recent_mae = (time - sig_entry_time) < 1209600000  // 14 days in milliseconds
+        // Only process signals from last 30 days for performance
+        bool is_recent_mae = (time - sig_entry_time) < 2592000000  // 30 days in milliseconds
         if sig_has_entered and is_recent_mae
             float maeR = f_calcMaeR(sig_dir, sig_entry, sig_lowest_low, sig_highest_high, sig_risk)
             // Update stored MAE to the worst (most negative) value seen so far
@@ -726,8 +726,8 @@ if array.size(signal_entries) > 0
         bool just_completed = false
         bool be_just_triggered = false
         
-        // Only process signals from last 14 days for performance
-        bool is_recent = (time - sig_entry_time) < 1209600000  // 14 days in milliseconds
+        // Only process signals from last 30 days for performance
+        bool is_recent = (time - sig_entry_time) < 2592000000  // 30 days in milliseconds
         
         // Calculate MFE using MAXIMUM favorable price movement (not current bar)
         // MFE = Maximum Favorable Excursion (the best price achieved, not current price)
