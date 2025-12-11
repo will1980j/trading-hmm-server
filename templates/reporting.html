@@ -3,97 +3,9 @@
 {% block title %}Reporting Center{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/main_dashboard.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/automated_signals_ultra.css') }}">
-<style>
-/* Reporting Hub using Ultra theme */
-.reporting-container {
-    padding: 24px;
-    min-height: 100vh;
-}
-
-.page-header {
-    margin-bottom: 32px;
-}
-
-.page-title {
-    font-size: 1.8rem;
-    font-weight: 600;
-    color: #3b82f6;
-    margin: 0;
-}
-
-.category-selector {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
-    margin-bottom: 40px;
-}
-
-.category-card {
-    background: rgba(25, 30, 60, 0.55);
-    border: 1px solid rgba(59, 130, 246, 0.25);
-    border-radius: 12px;
-    padding: 32px 24px;
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.25s;
-}
-
-.category-card:hover {
-    border-color: #3b82f6;
-    box-shadow: 0 0 25px rgba(59, 130, 246, 0.35);
-    transform: translateY(-4px);
-}
-
-.category-card.active {
-    border-color: #3b82f6;
-    box-shadow: 0 0 25px rgba(59, 130, 246, 0.5);
-}
-
-.category-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-}
-
-.category-title {
-    font-size: 18px;
-    font-weight: 700;
-    color: #e2e8f0;
-    margin-bottom: 8px;
-}
-
-.category-subtitle {
-    font-size: 14px;
-    color: rgba(226, 232, 240, 0.6);
-}
-
-.report-section {
-    margin-top: 24px;
-}
-
-.section-title {
-    font-size: 1.4rem;
-    font-weight: 600;
-    color: #3b82f6;
-    margin-bottom: 24px;
-}
-
-.report-card {
-    background: rgba(25, 30, 60, 0.55);
-    border: 1px solid rgba(59, 130, 246, 0.25);
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 20px;
-}
-
-.reports-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-}
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}?v=20251210">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main_dashboard.css') }}?v=20251210">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporting.css') }}?v=20251210b">
 {% endblock %}
 
 {% block content %}
@@ -103,31 +15,31 @@
         <h1 class="page-title">Reporting Center</h1>
     </div>
     
-    <div class="category-selector">
-        <div class="category-card" data-category="trading">
+    <div class="category-selector" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:24px; margin-bottom:48px;">
+        <div class="category-card" data-category="trading" style="background:#14161C; padding:32px 24px; border-radius:12px; border:2px solid #4C66FF; cursor:pointer; text-align:center; transition:all 0.2s;">
             <div class="category-icon">📊</div>
             <div class="category-title">Trading Reports</div>
             <div class="category-subtitle">Daily, weekly, monthly performance</div>
         </div>
-        <div class="category-card" data-category="prop">
-            <div class="category-icon">🏢</div>
-            <div class="category-title">Prop Firm Reports</div>
-            <div class="category-subtitle">Compliance, DD, scaling history</div>
+        <div class="category-card" data-category="prop" style="background:#14161C; padding:32px 24px; border-radius:12px; border:2px solid #4C66FF; cursor:pointer; text-align:center; transition:all 0.2s;">
+            <div class="category-icon" style="font-size:48px; margin-bottom:16px;">🏢</div>
+            <div class="category-title" style="font-size:18px; font-weight:700; color:#F2F3F5; margin-bottom:8px;">Prop Firm Reports</div>
+            <div class="category-subtitle" style="font-size:14px; color:#9CA3AF;">Compliance, DD, scaling history</div>
         </div>
-        <div class="category-card" data-category="business">
-            <div class="category-icon">💼</div>
-            <div class="category-title">Business & Accounting</div>
-            <div class="category-subtitle">Tax, financials, cash flow</div>
+        <div class="category-card" data-category="business" style="background:#14161C; padding:32px 24px; border-radius:12px; border:2px solid #4C66FF; cursor:pointer; text-align:center; transition:all 0.2s;">
+            <div class="category-icon" style="font-size:48px; margin-bottom:16px;">💼</div>
+            <div class="category-title" style="font-size:18px; font-weight:700; color:#F2F3F5; margin-bottom:8px;">Business & Accounting</div>
+            <div class="category-subtitle" style="font-size:14px; color:#9CA3AF;">Tax, financials, cash flow</div>
         </div>
-        <div class="category-card" data-category="export">
-            <div class="category-icon">📤</div>
-            <div class="category-title">Export Center</div>
-            <div class="category-subtitle">PDF, CSV, compliance packages</div>
+        <div class="category-card" data-category="export" style="background:#14161C; padding:32px 24px; border-radius:12px; border:2px solid #4C66FF; cursor:pointer; text-align:center; transition:all 0.2s;">
+            <div class="category-icon" style="font-size:48px; margin-bottom:16px;">📤</div>
+            <div class="category-title" style="font-size:18px; font-weight:700; color:#F2F3F5; margin-bottom:8px;">Export Center</div>
+            <div class="category-subtitle" style="font-size:14px; color:#9CA3AF;">PDF, CSV, compliance packages</div>
         </div>
-        <div class="category-card" data-category="development">
-            <div class="category-icon">🚀</div>
-            <div class="category-title">Development Reports</div>
-            <div class="category-subtitle">Weekly progress, features, value</div>
+        <div class="category-card" data-category="development" style="background:#14161C; padding:32px 24px; border-radius:12px; border:2px solid #4C66FF; cursor:pointer; text-align:center; transition:all 0.2s;">
+            <div class="category-icon" style="font-size:48px; margin-bottom:16px;">🚀</div>
+            <div class="category-title" style="font-size:18px; font-weight:700; color:#F2F3F5; margin-bottom:8px;">Development Reports</div>
+            <div class="category-subtitle" style="font-size:14px; color:#9CA3AF;">Weekly progress, features, value</div>
         </div>
     </div>
     
