@@ -672,26 +672,22 @@ if array.size(signal_entries) > 0
             sig_lowest_low := open
             sig_highest_high := open
         
-        // CRITICAL: Check if stop loss is hit on THIS bar BEFORE updating extremes
-        // This prevents capturing price movement on the bar where the trade is closed
-        bool stop_hit_this_bar = false
+        // CRITICAL: Check if ORIGINAL stop loss is hit on THIS bar BEFORE updating extremes
+        // This prevents capturing price movement on the bar where No-BE strategy is closed
+        // NOTE: BE stop (entry) hit does NOT stop extreme tracking - No-BE continues
+        bool no_be_stop_hit_this_bar = false
         if sig_dir == "Bullish"
-            // Check if No BE stop loss is hit on this bar
+            // Check if No BE stop loss (original stop) is hit on this bar
             if not sig_no_be_stopped and low <= sig_stop
-                stop_hit_this_bar := true
-            // Check if BE=1 stop (entry) is hit on this bar
-            if track_be_mfe and sig_be_triggered and not sig_be_stopped and low <= sig_entry
-                stop_hit_this_bar := true
+                no_be_stop_hit_this_bar := true
         else  // Bearish
-            // Check if No BE stop loss is hit on this bar
+            // Check if No BE stop loss (original stop) is hit on this bar
             if not sig_no_be_stopped and high >= sig_stop
-                stop_hit_this_bar := true
-            // Check if BE=1 stop (entry) is hit on this bar
-            if track_be_mfe and sig_be_triggered and not sig_be_stopped and high >= sig_entry
-                stop_hit_this_bar := true
+                no_be_stop_hit_this_bar := true
         
-        // Update extreme prices ONLY if trade has entered AND stop is NOT hit on this bar
-        if sig_has_entered and not stop_hit_this_bar
+        // Update extreme prices ONLY if trade has entered AND No-BE stop is NOT hit on this bar
+        // Extreme prices continue updating even after BE exits (for No-BE MFE tracking)
+        if sig_has_entered and not no_be_stop_hit_this_bar
             if sig_dir == "Bullish"
                 // For bullish: track HIGHEST high (favorable) and LOWEST low (for stop check)
                 if high > sig_highest_high
