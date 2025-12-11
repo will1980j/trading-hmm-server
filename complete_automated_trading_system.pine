@@ -1444,8 +1444,8 @@ if barstate.isconfirmed and array.size(signal_entries) > 0
             // Build signal ID
             string signal_id = f_buildTradeId(sig_entry_time, sig_direction)
             
-            // Only send if real-time bar
-            if is_live_bar
+            // Send on real-time bars (skip historical replay)
+            if barstate.isrealtime
                 // Build signal JSON
                 string signal_json = ""
                 signal_json += '"trade_id":"' + signal_id + '",'
