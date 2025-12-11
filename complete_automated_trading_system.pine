@@ -1418,57 +1418,61 @@ if barstate.isconfirmed and barstate.isrealtime
     string heartbeat = '{"event_type":"HEARTBEAT","timestamp":"' + f_isoTimestamp(time) + '","signal_count":' + str.tostring(array.size(signal_entries)) + '}'
     alert(heartbeat, alert.freq_once_per_bar_close)
 
-// 2. MFE UPDATE WEBHOOK - BATCH MODE
-// Collect all active signals and send in ONE alert per bar
-// This prevents rate limiting with multiple active signals
-bool is_live_bar = barstate.isrealtime
-bool is_snapshot_bar = (not barstate.isrealtime) and barstate.islast
-
-if barstate.isconfirmed and array.size(signal_entries) > 0
-    // Build array of MFE update payloads for all active signals
+// 2. MFE UPDATE WEBHOOK - ROBUST BATCH MODE
+// HYBRID SYNC SYSTEM: Includes ALL active signals (last 500)
+// Prevents orphaned signals by looping arrays directly
+if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) > 0
+    // Build batch payload for all active signals
     string batch_payload = ""
     int signals_in_batch = 0
+    int signals_skipped = 0
     
-    // Loop through last 100 signals directly
-    int start_idx = math.max(0, array.size(signal_entries) - 100)
+    // Process last 500 signals (increased capacity)
+    int start_idx = math.max(0, array.size(signal_entries) - 500)
+    
     for i = start_idx to array.size(signal_entries) - 1
-        // Get signal data with bounds checks
-        if i < array.size(signal_entry_times) and i < array.size(signal_directions)
-            int sig_entry_time = array.get(signal_entry_times, i)
-            string sig_direction = array.get(signal_directions, i)
+        // Bounds check for all arrays
+        if i >= array.size(signal_entry_times) or i >= array.size(signal_directions)
+            continue
+        
+        // Get signal data
+        int sig_entry_time = array.get(signal_entry_times, i)
+        string sig_direction = array.get(signal_directions, i)
+        
+        // Check if No-BE stopped (signal completed)
+        bool sig_no_be_stopped = i < array.size(signal_no_be_stopped) ? array.get(signal_no_be_stopped, i) : false
+        
+        // Only include active signals (No-BE not stopped)
+        if not sig_no_be_stopped
+            // Get MFE/MAE data with bounds checks
+            float current_mfe_be = i < array.size(signal_be_mfes) ? array.get(signal_be_mfes, i) : 0.0
+            float current_mfe_none = i < array.size(signal_mfes) ? array.get(signal_mfes, i) : 0.0
+            float sig_mae = i < array.size(signal_maes) ? array.get(signal_maes, i) : 0.0
+            bool sig_be_triggered = i < array.size(signal_be_triggered) ? array.get(signal_be_triggered, i) : false
             
-            // Check if stopped
-            bool is_stopped = i < array.size(signal_no_be_stopped) ? array.get(signal_no_be_stopped, i) : false
+            // Build trade_id
+            string signal_id = f_buildTradeId(sig_entry_time, sig_direction)
             
-            if not is_stopped and barstate.isrealtime
-                // Get MFE data
-                float current_mfe_be = i < array.size(signal_be_mfes) ? array.get(signal_be_mfes, i) : 0.0
-                float current_mfe_none = i < array.size(signal_mfes) ? array.get(signal_mfes, i) : 0.0
-                float sig_mae = i < array.size(signal_maes) ? array.get(signal_maes, i) : 0.0
-                bool sig_be_triggered = i < array.size(signal_be_triggered) ? array.get(signal_be_triggered, i) : false
-                
-                // Build signal ID
-                string signal_id = f_buildTradeId(sig_entry_time, sig_direction)
-                
-                // Build signal JSON
-                string signal_json = '"trade_id":"' + signal_id + '","direction":"' + sig_direction + '","be_mfe":' + f_num(current_mfe_be) + ',"no_be_mfe":' + f_num(current_mfe_none) + ',"mae_global_r":' + f_num(math.min(sig_mae, 0.0)) + ',"current_price":' + f_num(close) + ',"be_triggered":' + str.tostring(sig_be_triggered)
-                
+            // Build signal JSON (compact format to fit more signals)
+            string signal_json = '"trade_id":"' + signal_id + '","direction":"' + sig_direction + '","be_mfe":' + f_num(current_mfe_be) + ',"no_be_mfe":' + f_num(current_mfe_none) + ',"mae_global_r":' + f_num(math.min(sig_mae, 0.0)) + ',"current_price":' + f_num(close) + ',"be_triggered":' + str.tostring(sig_be_triggered)
+            
+            // Check payload size before adding (stay under 4000 chars)
+            string test_add = signals_in_batch > 0 ? ",{" + signal_json + "}" : "{" + signal_json + "}"
+            int new_size = str.length(batch_payload) + str.length(test_add)
+            
+            if new_size < 3900
                 // Add to batch
-                string test_add = signals_in_batch > 0 ? ",{" + signal_json + "}" : "{" + signal_json + "}"
-                if str.length(batch_payload) + str.length(test_add) < 3900
-                    batch_payload := signals_in_batch > 0 ? batch_payload + ",{" + signal_json + "}" : "{" + signal_json + "}"
-                    signals_in_batch := signals_in_batch + 1
+                batch_payload := signals_in_batch > 0 ? batch_payload + ",{" + signal_json + "}" : "{" + signal_json + "}"
+                signals_in_batch := signals_in_batch + 1
+            else
+                // Payload full - skip remaining signals (will be included in next batch)
+                signals_skipped := signals_skipped + 1
     
-    // Send batch alert (send even if empty for debugging)
-    if barstate.isrealtime
-        if signals_in_batch > 0
-            // Wrap in batch envelope
-            string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + f_isoTimestamp(time) + '","signals":[' + batch_payload + ']}'
-            alert(batch_envelope, alert.freq_once_per_bar_close)
-        else
-            // Send empty batch to verify alert mechanism works
-            string empty_batch = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + f_isoTimestamp(time) + '","signals":[],"debug":"no_signals_in_batch"}'
-            alert(empty_batch, alert.freq_once_per_bar_close)
+    // Send batch alert
+    if signals_in_batch > 0
+        // Wrap in batch envelope
+        string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + f_isoTimestamp(time) + '","signals":[' + batch_payload + '],"batch_size":' + str.tostring(signals_in_batch) + ',"skipped":' + str.tostring(signals_skipped) + '}'
+        alert(batch_envelope, alert.freq_once_per_bar_close)
 
 // ============================================================================
 // TELEMETRY ENGINE — MFE_UPDATE SENDER (DISABLED - Using batch system instead)

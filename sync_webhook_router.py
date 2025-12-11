@@ -102,27 +102,32 @@ class SyncWebhookRouter:
                 return jsonify({'success': False, 'error': 'Invalid event type for batch webhook'}), 400
             
             signals = payload.get('signals', [])
+            batch_size = payload.get('batch_size', len(signals))
+            skipped = payload.get('skipped', 0)
+            
             if not signals:
-                return jsonify({'success': False, 'error': 'No signals in batch'}), 400
+                # Empty batch is OK (debugging)
+                print(f"[BATCH] Empty batch received (debug mode)")
+                return jsonify({'success': True, 'batch_processed': 0, 'debug': 'empty_batch'}), 200
             
             # Calculate batch checksum
             batch_checksum = self.calculate_checksum(payload)
+            batch_timestamp = payload.get('timestamp')
             
-            # Process each signal
+            # Get sequence number (incremental per batch)
             database_url = os.getenv('DATABASE_URL')
             conn = psycopg2.connect(database_url)
             cur = conn.cursor()
             
+            # Get next sequence number
+            cur.execute("SELECT COALESCE(MAX(sequence_number), 0) + 1 FROM automated_signals")
+            next_sequence = cur.fetchone()[0]
+            
             success_count = 0
-            for signal in signals:
+            for idx, signal in enumerate(signals):
                 try:
-                    # Add metadata
-                    signal['data_source'] = 'indicator_realtime'
-                    signal['confidence_score'] = 1.0
-                    signal['batch_checksum'] = batch_checksum
-                    
                     # Parse timestamp
-                    event_ts = payload.get('timestamp', signal.get('event_timestamp'))
+                    event_ts = batch_timestamp or signal.get('event_timestamp')
                     from dateutil import parser as date_parser
                     import pytz
                     
@@ -131,34 +136,31 @@ class SyncWebhookRouter:
                         ny_zone = pytz.timezone('America/New_York')
                         parsed_ts = parsed_ts.replace(tzinfo=ny_zone)
                     
-                    utc_zone = pytz.UTC
-                    utc_ts = parsed_ts.astimezone(utc_zone)
-                    
-                    # Extract signal date/time for NY timezone
+                    utc_ts = parsed_ts.astimezone(pytz.UTC)
                     ny_ts = parsed_ts.astimezone(pytz.timezone('America/New_York'))
                     signal_date = ny_ts.strftime('%Y-%m-%d')
                     signal_time = ny_ts.strftime('%H:%M:%S')
                     
-                    # Insert MFE_UPDATE
+                    # Insert MFE_UPDATE with enhanced metadata
                     cur.execute("""
                         INSERT INTO automated_signals (
                             trade_id, event_type, timestamp, 
                             be_mfe, no_be_mfe, mae_global_r,
                             signal_date, signal_time,
-                            data_source, confidence_score, payload_checksum,
+                            data_source, confidence_score, payload_checksum, sequence_number,
                             raw_payload
                         ) VALUES (
                             %s, 'MFE_UPDATE', %s,
                             %s, %s, %s,
                             %s, %s,
-                            %s, %s, %s,
+                            'indicator_realtime', 1.0, %s, %s,
                             %s
                         )
                     """, (
                         signal['trade_id'], utc_ts,
                         signal.get('be_mfe'), signal.get('no_be_mfe'), signal.get('mae_global_r'),
                         signal_date, signal_time,
-                        'indicator_realtime', 1.0, batch_checksum,
+                        batch_checksum, next_sequence + idx,
                         json.dumps(signal)
                     ))
                     
@@ -166,18 +168,28 @@ class SyncWebhookRouter:
                     
                 except Exception as e:
                     print(f"  ⚠️ Signal {signal.get('trade_id')} failed: {e}")
+                    # Log failure to audit trail
+                    try:
+                        cur.execute("""
+                            INSERT INTO sync_audit_log (
+                                trade_id, action_type, data_source, success, error_message
+                            ) VALUES (%s, 'batch_insert_failed', 'indicator_realtime', FALSE, %s)
+                        """, (signal.get('trade_id'), str(e)[:500]))
+                    except:
+                        pass
                     continue
             
             conn.commit()
             cur.close()
             conn.close()
             
-            print(f"[BATCH] Processed {success_count}/{len(signals)} signals")
+            print(f"[BATCH] Processed {success_count}/{len(signals)} signals (skipped: {skipped})")
             
             return jsonify({
                 'success': True,
                 'batch_processed': success_count,
-                'batch_size': len(signals),
+                'batch_size': batch_size,
+                'signals_skipped': skipped,
                 'checksum': batch_checksum
             }), 200
             
