@@ -882,7 +882,19 @@ AutomatedSignalsUltra.renderSignalsTable = function() {
             if (rowDir !== f.direction) return false;
         }
         
-        if (f.state !== 'ALL' && row.status !== f.state) return false;
+        // State filter: ACTIVE = at least one strategy active, COMPLETED = both strategies complete
+        if (f.state !== 'ALL') {
+            const beStatus = AutomatedSignalsUltra.getBEStatus(row);
+            const noBeStatus = AutomatedSignalsUltra.getNoBeStatus(row);
+            
+            if (f.state === 'ACTIVE') {
+                // Show if No-BE is active (regardless of BE status)
+                if (noBeStatus !== 'ACTIVE') return false;
+            } else if (f.state === 'COMPLETED') {
+                // Show only if both are complete
+                if (beStatus !== 'COMPLETE' || noBeStatus !== 'COMPLETE') return false;
+            }
+        }
         if (f.searchId && row.trade_id && !row.trade_id.toLowerCase().includes(f.searchId)) return false;
         return true;
     });
