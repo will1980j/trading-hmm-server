@@ -15805,6 +15805,8 @@ def get_automated_signals_dashboard_data():
                 "be_mfe_R": float(row[13] or 0.0),
                 "no_be_mfe": float(row[14] or 0.0),
                 "no_be_mfe_R": float(row[14] or 0.0),
+                "_debug_row13": float(row[13] or 0.0),
+                "_debug_row14": float(row[14] or 0.0),
                 "final_mfe": float(row[15] or 0.0),
                 "final_mfe_R": float(row[15] or 0.0),
                 "mae_global_R": float(row[16]) if row[16] is not None else None,
