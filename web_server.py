@@ -15687,14 +15687,14 @@ def get_automated_signals_dashboard_data():
         if date_filter:
             cursor.execute("""
                 WITH max_mfe AS (
-                    SELECT
+                    SELECT DISTINCT ON (trade_id)
                         trade_id,
-                        MAX(be_mfe) AS max_be_mfe,
-                        MAX(no_be_mfe) AS max_no_be_mfe,
-                        MIN(mae_global_r) AS min_mae_global_r
+                        be_mfe AS max_be_mfe,
+                        no_be_mfe AS max_no_be_mfe,
+                        mae_global_r AS min_mae_global_r
                     FROM automated_signals
                     WHERE event_type = 'MFE_UPDATE'
-                    GROUP BY trade_id
+                    ORDER BY trade_id, timestamp DESC
                 )
                 SELECT DISTINCT ON (ex.trade_id)
                        ex.id,
@@ -15735,14 +15735,14 @@ def get_automated_signals_dashboard_data():
         else:
             cursor.execute("""
                 WITH max_mfe AS (
-                    SELECT
+                    SELECT DISTINCT ON (trade_id)
                         trade_id,
-                        MAX(be_mfe) AS max_be_mfe,
-                        MAX(no_be_mfe) AS max_no_be_mfe,
-                        MIN(mae_global_r) AS min_mae_global_r
+                        be_mfe AS max_be_mfe,
+                        no_be_mfe AS max_no_be_mfe,
+                        mae_global_r AS min_mae_global_r
                     FROM automated_signals
                     WHERE event_type = 'MFE_UPDATE'
-                    GROUP BY trade_id
+                    ORDER BY trade_id, timestamp DESC
                 )
                 SELECT DISTINCT ON (ex.trade_id)
                        ex.id,
