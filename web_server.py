@@ -13008,7 +13008,8 @@ def automated_signals_webhook():
                 # Just insert the MFE_UPDATE directly
                 try:
                     import psycopg2
-                    database_url = os.environ.get('DATABASE_URL')
+                    import os as os_module
+                    database_url = os_module.environ.get('DATABASE_URL')
                     conn = psycopg2.connect(database_url)
                     cur = conn.cursor()
                     
