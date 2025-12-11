@@ -640,8 +640,8 @@ if array.size(signal_entries) > 0
                              mfe_label_size == "Normal" ? size.normal : 
                              mfe_label_size == "Large" ? size.large : size.huge
     
-    // CRITICAL PERFORMANCE FIX: Only process last 100 signals to avoid timeout
-    int start_idx = math.max(0, array.size(signal_entries) - 100)
+    // CRITICAL PERFORMANCE FIX: Only process last 250 signals to avoid timeout
+    int start_idx = math.max(0, array.size(signal_entries) - 250)
     for i = start_idx to array.size(signal_entries) - 1
         bool sig_was_complete = array.get(signal_completes, i)  // Was it complete BEFORE this bar?
         
