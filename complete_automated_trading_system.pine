@@ -1424,45 +1424,34 @@ if barstate.isconfirmed and array.size(signal_entries) > 0
     string batch_payload = ""
     int signals_in_batch = 0
     
-    // Loop through last 100 signals directly (limit for payload size)
+    // Loop through last 100 signals directly
     int start_idx = math.max(0, array.size(signal_entries) - 100)
     for i = start_idx to array.size(signal_entries) - 1
-        // Check if signal is active (No-BE not stopped)
-        bool is_stopped = i < array.size(signal_no_be_stopped) ? array.get(signal_no_be_stopped, i) : false
-        
-        if not is_stopped
-            // Get signal data
+        // Get signal data with bounds checks
+        if i < array.size(signal_entry_times) and i < array.size(signal_directions)
             int sig_entry_time = array.get(signal_entry_times, i)
             string sig_direction = array.get(signal_directions, i)
-            float sig_entry = array.get(signal_entries, i)
-            float sig_risk = array.get(signal_risks, i)
-            bool sig_be_triggered = i < array.size(signal_be_triggered) ? array.get(signal_be_triggered, i) : false
-            float current_mfe_be = i < array.size(signal_be_mfes) ? array.get(signal_be_mfes, i) : 0.0
-            float current_mfe_none = i < array.size(signal_mfes) ? array.get(signal_mfes, i) : 0.0
-            float sig_mae = i < array.size(signal_maes) ? array.get(signal_maes, i) : 0.0
             
-            // Build signal ID
-            string signal_id = f_buildTradeId(sig_entry_time, sig_direction)
+            // Check if stopped
+            bool is_stopped = i < array.size(signal_no_be_stopped) ? array.get(signal_no_be_stopped, i) : false
             
-            // Send on real-time bars (skip historical replay)
-            if barstate.isrealtime
-                // Build signal JSON
-                string signal_json = ""
-                signal_json += '"trade_id":"' + signal_id + '",'
-                signal_json += '"direction":"' + sig_direction + '",'
-                signal_json += '"be_mfe":' + f_num(current_mfe_be) + ','
-                signal_json += '"no_be_mfe":' + f_num(current_mfe_none) + ','
-                signal_json += '"mae_global_r":' + f_num(math.min(sig_mae, 0.0)) + ','
-                signal_json += '"current_price":' + f_num(close) + ','
-                signal_json += '"be_triggered":' + str.tostring(sig_be_triggered)
+            if not is_stopped and barstate.isrealtime
+                // Get MFE data
+                float current_mfe_be = i < array.size(signal_be_mfes) ? array.get(signal_be_mfes, i) : 0.0
+                float current_mfe_none = i < array.size(signal_mfes) ? array.get(signal_mfes, i) : 0.0
+                float sig_mae = i < array.size(signal_maes) ? array.get(signal_maes, i) : 0.0
+                bool sig_be_triggered = i < array.size(signal_be_triggered) ? array.get(signal_be_triggered, i) : false
                 
-                // Check size before adding
+                // Build signal ID
+                string signal_id = f_buildTradeId(sig_entry_time, sig_direction)
+                
+                // Build signal JSON
+                string signal_json = '"trade_id":"' + signal_id + '","direction":"' + sig_direction + '","be_mfe":' + f_num(current_mfe_be) + ',"no_be_mfe":' + f_num(current_mfe_none) + ',"mae_global_r":' + f_num(math.min(sig_mae, 0.0)) + ',"current_price":' + f_num(close) + ',"be_triggered":' + str.tostring(sig_be_triggered)
+                
+                // Add to batch
                 string test_add = signals_in_batch > 0 ? ",{" + signal_json + "}" : "{" + signal_json + "}"
                 if str.length(batch_payload) + str.length(test_add) < 3900
-                    if signals_in_batch > 0
-                        batch_payload := batch_payload + ",{" + signal_json + "}"
-                    else
-                        batch_payload := "{" + signal_json + "}"
+                    batch_payload := signals_in_batch > 0 ? batch_payload + ",{" + signal_json + "}" : "{" + signal_json + "}"
                     signals_in_batch := signals_in_batch + 1
     
     // Send batch alert if we have any signals to update
