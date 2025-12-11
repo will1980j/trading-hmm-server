@@ -13012,17 +13012,30 @@ def automated_signals_webhook():
                     conn = psycopg2.connect(database_url)
                     cur = conn.cursor()
                     
+                    # Convert timestamp to UTC
+                    from zoneinfo import ZoneInfo
+                    from datetime import datetime as dt
+                    ts_str = signal_data.get("event_timestamp")
+                    if ts_str:
+                        ts = dt.fromisoformat(ts_str.replace("Z", ""))
+                        if ts.tzinfo is None:
+                            ts = ts.replace(tzinfo=ZoneInfo("America/New_York"))
+                        ts_utc = ts.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+                    else:
+                        ts_utc = dt.utcnow()
+                    
                     cur.execute("""
                         INSERT INTO automated_signals (
                             trade_id, event_type, be_mfe, no_be_mfe, mae_global_r, 
                             current_price, timestamp, raw_payload
-                        ) VALUES (%s, 'MFE_UPDATE', %s, %s, %s, %s, NOW(), %s)
+                        ) VALUES (%s, 'MFE_UPDATE', %s, %s, %s, %s, %s, %s)
                     """, (
                         signal_data.get("trade_id"),
                         signal_data.get("be_mfe"),
                         signal_data.get("no_be_mfe"),
                         signal_data.get("mae_global_r"),
                         signal_data.get("current_price"),
+                        ts_utc,
                         json.dumps(signal_data)
                     ))
                     conn.commit()
@@ -13030,6 +13043,7 @@ def automated_signals_webhook():
                     conn.close()
                     result = {"success": True}
                 except Exception as e:
+                    logger.error(f"❌ Batch signal insert failed: {signal_data.get('trade_id')} - {str(e)}")
                     result = {"success": False, "error": str(e)}
                 
                 batch_results.append(result)
@@ -13044,8 +13058,9 @@ def automated_signals_webhook():
                     })
                 except Exception as ws_err:
                     logger.warning(f"WebSocket MFE broadcast failed: {ws_err}")
-            logger.info(f"✅ Batch processed: {len(batch_results)} signals")
-            return jsonify({"success": True, "batch_processed": len(batch_results)}), 200
+            success_count = sum(1 for r in batch_results if r.get("success"))
+            logger.info(f"✅ Batch processed: {success_count}/{len(batch_results)} signals succeeded")
+            return jsonify({"success": True, "batch_processed": len(batch_results), "succeeded": success_count}), 200
         
         from automated_signals_state import auto_guard_webhook_payload
         guarded, guard_error = auto_guard_webhook_payload(data_raw)
