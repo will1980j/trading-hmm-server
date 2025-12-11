@@ -269,7 +269,7 @@ def register_automated_signals_api_robust(app, db):
                         mae_global_r,
                         timestamp as last_update
                     FROM automated_signals
-                    WHERE event_type IN ('ENTRY', 'MFE_UPDATE', 'BE_TRIGGERED')
+                    WHERE event_type = 'MFE_UPDATE'
                     ORDER BY trade_id, timestamp DESC
                 ),
                 active_trade_ids AS (
@@ -334,12 +334,20 @@ def register_automated_signals_api_robust(app, db):
                         trade_id,
                         event_type as exit_type,
                         final_mfe,
-                        mfe as exit_mfe,
-                        be_mfe as exit_be_mfe,
-                        no_be_mfe as exit_no_be_mfe,
                         timestamp as exit_timestamp
                     FROM automated_signals
                     WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                ),
+                latest_mfe_completed AS (
+                    SELECT DISTINCT ON (trade_id)
+                        trade_id,
+                        mfe,
+                        be_mfe,
+                        no_be_mfe,
+                        mae_global_r
+                    FROM automated_signals
+                    WHERE event_type = 'MFE_UPDATE'
+                    ORDER BY trade_id, timestamp DESC
                 )
                 SELECT 
                     x.trade_id,
@@ -353,12 +361,14 @@ def register_automated_signals_api_robust(app, db):
                     e.signal_date,
                     e.signal_time,
                     x.exit_timestamp as timestamp,
-                    COALESCE(x.exit_mfe, 0) as mfe,
-                    COALESCE(x.exit_be_mfe, 0) as be_mfe,
-                    COALESCE(x.exit_no_be_mfe, 0) as no_be_mfe,
+                    COALESCE(m.mfe, 0) as mfe,
+                    COALESCE(m.be_mfe, 0) as be_mfe,
+                    COALESCE(m.no_be_mfe, 0) as no_be_mfe,
+                    COALESCE(m.mae_global_r, 0) as mae_global_r,
                     x.final_mfe
                 FROM exit_data x
                 LEFT JOIN entry_data e ON x.trade_id = e.trade_id
+                LEFT JOIN latest_mfe_completed m ON x.trade_id = m.trade_id
                 ORDER BY x.exit_timestamp DESC
                 LIMIT 500
             """)
