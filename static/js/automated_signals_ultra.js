@@ -792,6 +792,23 @@ AutomatedSignalsUltra.renderHeaderStats = function() {
 
 AutomatedSignalsUltra.selectedTrades = new Set();
 
+// Helper functions to determine BE and No-BE status
+AutomatedSignalsUltra.getBEStatus = function(row) {
+    // Check if BE=1 strategy is complete or active
+    const eventType = row.event_type;
+    if (eventType === 'EXIT_BE') return 'COMPLETE';
+    if (eventType === 'EXIT_SL' && row.be_mfe >= 1.0) return 'COMPLETE';
+    return 'ACTIVE';
+};
+
+AutomatedSignalsUltra.getNoBeStatus = function(row) {
+    // Check if No-BE strategy is complete or active
+    const eventType = row.event_type;
+    if (eventType === 'EXIT_SL') return 'COMPLETE';
+    if (eventType === 'EXIT_BE') return 'ACTIVE';  // BE exited but No-BE continues
+    return 'ACTIVE';
+};
+
 AutomatedSignalsUltra.renderSignalsTable = function() {
     const tbody = document.getElementById('ase-signals-tbody');
     const counter = document.getElementById('ase-table-count');
