@@ -13005,13 +13005,25 @@ def automated_signals_webhook():
                 signal_data["event_timestamp"] = data_raw.get("timestamp")
                 
                 # Skip lifecycle enforcement for batch (signals might not have ENTRY in DB)
-                # Just insert the MFE_UPDATE directly
+                # Create missing ENTRY if needed, then insert MFE_UPDATE
                 try:
                     import psycopg2
                     import os as os_module
                     database_url = os_module.environ.get('DATABASE_URL')
                     conn = psycopg2.connect(database_url)
                     cur = conn.cursor()
+                    
+                    # Check if ENTRY exists
+                    cur.execute("SELECT COUNT(*) FROM automated_signals WHERE trade_id = %s AND event_type = 'ENTRY'", 
+                               (signal_data.get("trade_id"),))
+                    has_entry = cur.fetchone()[0] > 0
+                    
+                    # Create ENTRY if missing (minimal data)
+                    if not has_entry:
+                        cur.execute("""
+                            INSERT INTO automated_signals (trade_id, event_type, direction, timestamp)
+                            VALUES (%s, 'ENTRY', %s, NOW())
+                        """, (signal_data.get("trade_id"), signal_data.get("direction")))
                     
                     # Convert timestamp to UTC
                     from zoneinfo import ZoneInfo
