@@ -1419,6 +1419,20 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
 bool is_live_bar = barstate.isrealtime
 bool is_snapshot_bar = (not barstate.isrealtime) and barstate.islast
 
+// ONE-TIME: Rebuild active_signal_ids from all non-stopped signals (for indicator restart/reload)
+if barstate.islast and array.size(active_signal_ids) < array.size(signal_entries) / 2
+    array.clear(active_signal_ids)
+    array.clear(active_signal_indices)
+    int rebuild_start = math.max(0, array.size(signal_entries) - 250)
+    for i = rebuild_start to array.size(signal_entries) - 1
+        bool is_stopped = array.get(signal_no_be_stopped, i)
+        if not is_stopped
+            int entry_time = array.get(signal_entry_times, i)
+            string direction = array.get(signal_directions, i)
+            string sig_id = f_buildTradeId(entry_time, direction)
+            array.push(active_signal_ids, sig_id)
+            array.push(active_signal_indices, i)
+
 if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active_signal_ids) > 0
     // Build array of MFE update payloads for all active signals
     string batch_payload = ""  // Reset each bar (not var)
