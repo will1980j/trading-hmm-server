@@ -1481,13 +1481,17 @@ if barstate.isconfirmed and array.size(signal_entries) > 0 and array.size(active
                 signal_json += '"current_price":' + f_num(close) + ','
                 signal_json += '"be_triggered":' + str.tostring(sig_be_triggered)
                 
-                // Add to batch with comma separator
-                if signals_in_batch > 0
-                    batch_payload := batch_payload + ",{" + signal_json + "}"
-                else
-                    batch_payload := "{" + signal_json + "}"
+                // Add to batch with size check to avoid exceeding 4096 char limit
+                string new_entry = signals_in_batch > 0 ? ",{" + signal_json + "}" : "{" + signal_json + "}"
+                int estimated_size = str.length(batch_payload) + str.length(new_entry) + 100
                 
-                signals_in_batch := signals_in_batch + 1
+                if estimated_size < 4000  // Stay safely under 4096 limit
+                    if signals_in_batch > 0
+                        batch_payload := batch_payload + ",{" + signal_json + "}"
+                    else
+                        batch_payload := "{" + signal_json + "}"
+                    
+                    signals_in_batch := signals_in_batch + 1
                 
                 // Mark snapshot as sent if this was a snapshot update
                 if should_send_snapshot and signal_array_idx < array.size(signal_snapshot_sent)
