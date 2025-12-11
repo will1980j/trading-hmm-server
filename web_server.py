@@ -15535,15 +15535,16 @@ def get_automated_signals_dashboard_data():
         if date_filter:
             cursor.execute("""
                 WITH latest_mfe AS (
-                    SELECT
+                    SELECT DISTINCT ON (trade_id)
                         trade_id,
-                        MAX(timestamp) FILTER (WHERE event_type = 'MFE_UPDATE') AS last_mfe_ts,
-                        MAX(be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_be_mfe,
-                        MAX(no_be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_no_be_mfe,
-                        MAX(current_price) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_current_price,
-                        MIN(mae_global_r) FILTER (WHERE event_type = 'MFE_UPDATE' AND mae_global_r IS NOT NULL AND mae_global_r < 0) AS latest_mae_global_r
+                        timestamp AS last_mfe_ts,
+                        be_mfe AS latest_be_mfe,
+                        no_be_mfe AS latest_no_be_mfe,
+                        current_price AS latest_current_price,
+                        mae_global_r AS latest_mae_global_r
                     FROM automated_signals
-                    GROUP BY trade_id
+                    WHERE event_type = 'MFE_UPDATE'
+                    ORDER BY trade_id, timestamp DESC
                 )
                 SELECT 
                     e.id, e.trade_id, e.event_type,
@@ -15574,15 +15575,16 @@ def get_automated_signals_dashboard_data():
         else:
             cursor.execute("""
                 WITH latest_mfe AS (
-                    SELECT
+                    SELECT DISTINCT ON (trade_id)
                         trade_id,
-                        MAX(timestamp) FILTER (WHERE event_type = 'MFE_UPDATE') AS last_mfe_ts,
-                        MAX(be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_be_mfe,
-                        MAX(no_be_mfe) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_no_be_mfe,
-                        MAX(current_price) FILTER (WHERE event_type = 'MFE_UPDATE') AS latest_current_price,
-                        MIN(mae_global_r) FILTER (WHERE event_type = 'MFE_UPDATE' AND mae_global_r IS NOT NULL AND mae_global_r < 0) AS latest_mae_global_r
+                        timestamp AS last_mfe_ts,
+                        be_mfe AS latest_be_mfe,
+                        no_be_mfe AS latest_no_be_mfe,
+                        current_price AS latest_current_price,
+                        mae_global_r AS latest_mae_global_r
                     FROM automated_signals
-                    GROUP BY trade_id
+                    WHERE event_type = 'MFE_UPDATE'
+                    ORDER BY trade_id, timestamp DESC
                 )
                 SELECT 
                     e.id, e.trade_id, e.event_type,
