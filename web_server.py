@@ -13039,6 +13039,7 @@ def automated_signals_webhook():
                         json.dumps(signal_data)
                     ))
                     conn.commit()
+                    logger.info(f"✅ Batch INSERT committed: {signal_data.get('trade_id')}")
                     cur.close()
                     conn.close()
                     result = {"success": True}
