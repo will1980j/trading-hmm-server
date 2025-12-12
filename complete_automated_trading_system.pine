@@ -297,8 +297,6 @@ var array<bool> signal_entry_webhook_sent = array.new<bool>()  // Track if ENTRY
 var array<bool> signal_is_realtime = array.new<bool>()  // Track if signal occurred on real-time bar (eligible for webhooks)
 var array<bool> signal_snapshot_sent = array.new<bool>()  // Track if one-off MFE snapshot has been sent (for non-realtime bars)
 
-
-
 // ============================================================================
 // TELEMETRY ENGINE STATE (Option B - Single Active Trade Lifecycle)
 // ============================================================================
@@ -334,19 +332,6 @@ var bool telemetry_initialized_this_session = false
 // Store line references to manage them like MFE labels
 var array<line> entry_lines = array.new<line>()
 var array<line> sl_lines = array.new<line>()
-
-// ============================================================================
-// HYBRID SYNC: REQUEST ACTIVE SIGNALS FROM BACKEND ON STARTUP
-// Sends a request to backend to get list of active signals with entry/stop data
-// Backend responds with signal data, indicator adds them to arrays
-// ============================================================================
-var bool sync_request_sent = false
-
-if not sync_request_sent and barstate.islast
-    // Send sync request to backend
-    string sync_request = '{"event_type":"SYNC_REQUEST","timestamp":"' + f_isoTimestamp(time) + '","request":"active_signals","lookback_hours":48}'
-    alert(sync_request, alert.freq_once_per_bar)
-    sync_request_sent := true
 
 // Reset confirmation flag at start of each bar
 confirmed_this_bar := false
