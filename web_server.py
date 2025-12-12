@@ -1429,6 +1429,12 @@ if db_enabled:
     from sync_webhook_router import register_sync_webhooks
     register_sync_webhooks(app, db)
     logger.info("✅ Hybrid Sync webhooks registered")
+    
+    # Start Backend Reconciliation Service
+    logger.warning("⚠️ Starting Backend Signal Reconciliation Service")
+    from backend_signal_reconciler import start_reconciliation_service
+    reconciliation_thread = start_reconciliation_service(interval_seconds=120)
+    logger.info("✅ Backend reconciliation service started (2-minute intervals)")
     logger.info("✅ Diagnostics API registered")
     logger.info("✅ Signal Integrity API registered")
     logger.info("✅ Phase 2A API endpoints registered")

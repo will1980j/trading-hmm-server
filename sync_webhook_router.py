@@ -286,10 +286,86 @@ class SyncWebhookRouter:
             print(f"❌ Polling webhook error: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
     
+    def handle_sync_request(self, payload):
+        """Handle SYNC_REQUEST from indicator - send back active signals"""
+        try:
+            request_type = payload.get('request')
+            lookback_hours = payload.get('lookback_hours', 48)
+            
+            if request_type != 'active_signals':
+                return jsonify({'success': False, 'error': 'Unknown request type'}), 400
+            
+            print(f"[SYNC_REQUEST] Indicator requesting active signals (lookback: {lookback_hours}h)")
+            
+            # Query database for active signals
+            database_url = os.getenv('DATABASE_URL')
+            conn = psycopg2.connect(database_url)
+            cur = conn.cursor()
+            
+            # Get active signals with entry data from last 48 hours
+            cur.execute("""
+                SELECT DISTINCT ON (e.trade_id)
+                    e.trade_id,
+                    e.entry_price,
+                    e.stop_loss,
+                    e.signal_date,
+                    e.signal_time,
+                    e.session,
+                    e.direction,
+                    e.timestamp
+                FROM automated_signals e
+                WHERE e.event_type = 'ENTRY'
+                AND e.timestamp > NOW() - INTERVAL '%s hours'
+                AND e.trade_id NOT IN (
+                    SELECT DISTINCT trade_id 
+                    FROM automated_signals 
+                    WHERE event_type LIKE 'EXIT_%%'
+                )
+                AND e.entry_price IS NOT NULL
+                AND e.stop_loss IS NOT NULL
+                ORDER BY e.trade_id, e.timestamp DESC
+            """, (lookback_hours,))
+            
+            signals = []
+            for row in cur.fetchall():
+                signals.append({
+                    'trade_id': row[0],
+                    'entry_price': float(row[1]),
+                    'stop_loss': float(row[2]),
+                    'signal_date': row[3],
+                    'signal_time': row[4],
+                    'session': row[5],
+                    'direction': row[6],
+                    'timestamp': row[7].isoformat()
+                })
+            
+            cur.close()
+            conn.close()
+            
+            print(f"[SYNC_RESPONSE] Sending {len(signals)} active signals to indicator")
+            
+            # Note: This response goes to logs, not back to indicator
+            # Indicator cannot receive responses in PineScript
+            # This is for monitoring/debugging only
+            return jsonify({
+                'success': True,
+                'signal_count': len(signals),
+                'signals': signals[:10],  # First 10 for logging
+                'note': 'Full list logged for backend reconciliation'
+            }), 200
+            
+        except Exception as e:
+            print(f"❌ Sync request error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
     def handle_heartbeat_webhook(self):
         """Handle health monitoring heartbeats"""
         try:
             payload = request.get_json()
+            
+            # Handle SYNC_REQUEST
+            if payload.get('event_type') == 'SYNC_REQUEST':
+                return self.handle_sync_request(payload)
             
             # Validate
             if payload.get('event_type') not in ['HEARTBEAT', 'HEALTH_STATUS']:
