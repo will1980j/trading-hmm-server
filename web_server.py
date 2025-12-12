@@ -13046,13 +13046,19 @@ def automated_signals_webhook():
                     else:
                         ts_utc = dt.utcnow()
                     
+                    # Map direction from payload
+                    direction_map = {"Bullish": "LONG", "Bearish": "SHORT"}
+                    direction = direction_map.get(signal_data.get("direction"), signal_data.get("direction"))
+                    
                     cur.execute("""
                         INSERT INTO automated_signals (
-                            trade_id, event_type, be_mfe, no_be_mfe, mae_global_r, 
+                            trade_id, event_type, direction, session, be_mfe, no_be_mfe, mae_global_r, 
                             current_price, timestamp, raw_payload
-                        ) VALUES (%s, 'MFE_UPDATE', %s, %s, %s, %s, %s, %s)
+                        ) VALUES (%s, 'MFE_UPDATE', %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         signal_data.get("trade_id"),
+                        direction,
+                        signal_data.get("session"),
                         signal_data.get("be_mfe"),
                         signal_data.get("no_be_mfe"),
                         signal_data.get("mae_global_r"),
