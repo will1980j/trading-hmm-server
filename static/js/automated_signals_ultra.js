@@ -2431,3 +2431,180 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+
+// ============================================================================
+// BULK DELETE FOR ALL SIGNALS TAB
+// ============================================================================
+
+// Select all checkbox for All Signals
+document.addEventListener('DOMContentLoaded', () => {
+    const selectAllAllSignals = document.getElementById('ase-select-all-all-signals');
+    if (selectAllAllSignals) {
+        selectAllAllSignals.addEventListener('change', (e) => {
+            const checkboxes = document.querySelectorAll('#ase-all-signals-tbody input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = e.target.checked);
+            updateAllSignalsDeleteButton();
+        });
+    }
+    
+    // Delete button for All Signals
+    const deleteAllSignalsBtn = document.getElementById('ase-bulk-delete-all-signals-btn');
+    if (deleteAllSignalsBtn) {
+        deleteAllSignalsBtn.addEventListener('click', async () => {
+            const checkboxes = document.querySelectorAll('#ase-all-signals-tbody input[type="checkbox"]:checked');
+            const tradeIds = Array.from(checkboxes).map(cb => cb.dataset.tradeId);
+            
+            if (tradeIds.length === 0) return;
+            
+            if (!confirm(`Delete ${tradeIds.length} selected signals? This will remove ALL events for these signals.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/automated-signals/bulk-delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({trade_ids: tradeIds})
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Deleted ${result.deleted_count} events for ${tradeIds.length} signals`);
+                    // Reload All Signals tab
+                    await loadAllSignals();
+                } else {
+                    alert(`❌ Delete failed: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Delete error: ${error.message}`);
+            }
+        });
+    }
+    
+    // Delete button for Cancelled Signals
+    const deleteCancelledBtn = document.getElementById('ase-delete-cancelled-selected');
+    if (deleteCancelledBtn) {
+        deleteCancelledBtn.addEventListener('click', async () => {
+            const checkboxes = document.querySelectorAll('#ase-cancelled-tbody input[type="checkbox"]:checked');
+            const tradeIds = Array.from(checkboxes).map(cb => cb.dataset.tradeId);
+            
+            if (tradeIds.length === 0) return;
+            
+            if (!confirm(`Delete ${tradeIds.length} cancelled signals?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/automated-signals/bulk-delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({trade_ids: tradeIds})
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Deleted ${result.deleted_count} events for ${tradeIds.length} signals`);
+                    // Reload Cancelled Signals tab
+                    await loadCancelledSignals();
+                } else {
+                    alert(`❌ Delete failed: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Delete error: ${error.message}`);
+            }
+        });
+    }
+    
+    // Select all for Cancelled Signals
+    const selectAllCancelled = document.getElementById('ase-select-all-cancelled');
+    if (selectAllCancelled) {
+        selectAllCancelled.addEventListener('change', (e) => {
+            const checkboxes = document.querySelectorAll('#ase-cancelled-tbody input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = e.target.checked);
+            updateCancelledDeleteButton();
+        });
+    }
+});
+
+function updateAllSignalsDeleteButton() {
+    const checkboxes = document.querySelectorAll('#ase-all-signals-tbody input[type="checkbox"]:checked');
+    const deleteBtn = document.getElementById('ase-bulk-delete-all-signals-btn');
+    const countSpan = document.getElementById('ase-all-signals-selected-count');
+    
+    if (deleteBtn && countSpan) {
+        const count = checkboxes.length;
+        countSpan.textContent = count;
+        deleteBtn.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+}
+
+function updateCancelledDeleteButton() {
+    const checkboxes = document.querySelectorAll('#ase-cancelled-tbody input[type="checkbox"]:checked');
+    const deleteBtn = document.getElementById('ase-delete-cancelled-selected');
+    
+    if (deleteBtn) {
+        deleteBtn.disabled = checkboxes.length === 0;
+    }
+}
+
+// Update All Signals table rendering to include checkboxes
+AutomatedSignalsUltra.renderAllSignalsTable = function(signals) {
+    const tbody = document.getElementById('ase-all-signals-tbody');
+    if (!tbody) return;
+    
+    if (!signals || signals.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center ultra-muted py-4">No signals found</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    signals.forEach(signal => {
+        const statusBadge = signal.status === 'CONFIRMED' ? '<span class="badge bg-success">CONFIRMED</span>' :
+                           signal.status === 'CANCELLED' ? '<span class="badge bg-danger">CANCELLED</span>' :
+                           '<span class="badge bg-warning">PENDING</span>';
+        
+        html += `<tr>
+            <td><input type="checkbox" class="form-check-input" data-trade-id="${signal.trade_id}" onchange="updateAllSignalsDeleteButton()"></td>
+            <td class="ultra-muted">${signal.signal_time_str || '--'}</td>
+            <td>${signal.direction === 'Bullish' ? '🔵' : '🔴'} ${signal.direction}</td>
+            <td class="ultra-muted">${signal.session || '--'}</td>
+            <td>${statusBadge}</td>
+            <td class="ultra-muted">${signal.confirmation_time ? new Date(signal.confirmation_time).toLocaleTimeString() : '--'}</td>
+            <td class="ultra-muted">${signal.bars_to_confirmation || '--'}</td>
+            <td class="ultra-muted small">${signal.htf_alignment ? JSON.stringify(signal.htf_alignment).substring(0, 30) + '...' : '--'}</td>
+            <td class="ultra-muted">${signal.entry_price || '--'}</td>
+            <td class="ultra-muted">${signal.stop_loss || '--'}</td>
+        </tr>`;
+    });
+    
+    tbody.innerHTML = html;
+};
+
+// Update Cancelled Signals table rendering to include checkboxes
+AutomatedSignalsUltra.renderCancelledSignalsTable = function(signals) {
+    const tbody = document.getElementById('ase-cancelled-tbody');
+    if (!tbody) return;
+    
+    if (!signals || signals.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center ultra-muted py-4">No cancelled signals</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    signals.forEach(signal => {
+        html += `<tr>
+            <td><input type="checkbox" class="form-check-input" data-trade-id="${signal.trade_id}" onchange="updateCancelledDeleteButton()"></td>
+            <td class="ultra-muted">${signal.signal_time || '--'}</td>
+            <td>${signal.direction === 'Bullish' ? '🔵' : '🔴'}</td>
+            <td class="ultra-muted">${signal.session || '--'}</td>
+            <td class="ultra-muted">${signal.cancellation_reason || 'Opposite signal'}</td>
+            <td class="ultra-muted">${signal.age_before_cancel || '--'}</td>
+            <td class="ultra-muted small">${signal.trade_id}</td>
+        </tr>`;
+    });
+    
+    tbody.innerHTML = html;
+};
