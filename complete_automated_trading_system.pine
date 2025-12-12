@@ -1454,7 +1454,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
             // Get all signal data
             float sig_entry = i < array.size(signal_entries) ? array.get(signal_entries, i) : na
             float sig_stop = i < array.size(signal_stops) ? array.get(signal_stops, i) : na
-            string sig_session = i < array.size(signal_sessions) ? array.get(signal_sessions, i) : ""
+            string sig_session = f_sessionLabel(sig_entry_time)  // Calculate session from entry time
             
             // Build complete JSON with all essential fields
             string signal_json = '"trade_id":"' + signal_id + '","direction":"' + sig_direction + '","session":"' + sig_session + '","entry_price":' + f_num(sig_entry) + ',"stop_loss":' + f_num(sig_stop) + ',"be_mfe":' + f_num(current_mfe_be) + ',"no_be_mfe":' + f_num(current_mfe_none) + ',"mae_global_r":' + f_num(math.min(sig_mae, 0.0)) + ',"current_price":' + f_num(close) + ',"be_triggered":' + str.tostring(sig_be_triggered)
