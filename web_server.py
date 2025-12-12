@@ -13308,6 +13308,18 @@ def handle_signal_created(data):
                 signal_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
                 signal_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
         
+        # Parse timestamp from payload (convert NY to UTC)
+        from zoneinfo import ZoneInfo
+        from datetime import datetime as dt
+        ts_str = data.get("event_timestamp")
+        if ts_str:
+            ts = dt.fromisoformat(ts_str.replace("Z", ""))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=ZoneInfo("America/New_York"))
+            ts_utc = ts.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+        else:
+            ts_utc = dt.utcnow()
+        
         # Insert SIGNAL_CREATED event
         cur.execute("""
             INSERT INTO automated_signals (
@@ -13316,12 +13328,14 @@ def handle_signal_created(data):
                 htf_alignment, raw_payload,
                 data_source, confidence_score
             ) VALUES (
-                %s, 'SIGNAL_CREATED', NOW(),
+                %s, 'SIGNAL_CREATED', %s,
                 %s, %s, %s, %s,
                 %s, %s,
                 'indicator_realtime', 1.0
             )
         """, (
+            trade_id,
+            ts_utc,
             trade_id,
             data.get("direction"),
             data.get("session"),
@@ -13372,6 +13386,7 @@ def handle_cancelled_signal(data):
             )
         """, (
             trade_id,
+            ts_utc,
             data.get("direction"),
             data.get("session"),
             data.get("signal_date"),
