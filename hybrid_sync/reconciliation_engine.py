@@ -390,6 +390,83 @@ class ReconciliationEngine:
             logger.error(f"❌ Failed to fill targets gap for {trade_id}: {e}")
             return False
     
+    def detect_missed_exit(self, trade_id: str, entry_price: float, stop_loss: float, 
+                          direction: str, current_price: float) -> Optional[str]:
+        """
+        Detect if a signal should have been stopped out based on current price.
+        Returns: 'EXIT_SL' if stop was hit, None if still active
+        """
+        try:
+            entry = float(entry_price)
+            stop = float(stop_loss)
+            price = float(current_price)
+            
+            if direction in ['Bullish', 'LONG']:
+                # For bullish: stop is below entry
+                if price <= stop:
+                    return 'EXIT_SL'  # Price hit stop
+            else:
+                # For bearish: stop is above entry
+                if price >= stop:
+                    return 'EXIT_SL'  # Price hit stop
+            
+            return None  # Still active
+            
+        except Exception as e:
+            logger.error(f"Error detecting missed exit: {e}")
+            return None
+    
+    def insert_missed_exit(self, trade_id: str, stop_loss: float, direction: str) -> bool:
+        """Insert EXIT_SL event for signal that was stopped out but indicator missed it"""
+        try:
+            conn = psycopg2.connect(self.database_url)
+            cur = conn.cursor()
+            
+            # Extract metadata
+            metadata = self.extract_metadata_from_trade_id(trade_id)
+            
+            # Insert EXIT_SL
+            cur.execute("""
+                INSERT INTO automated_signals (
+                    trade_id, event_type, timestamp,
+                    exit_price, direction, session,
+                    signal_date, signal_time,
+                    data_source, confidence_score,
+                    reconciliation_timestamp, reconciliation_reason,
+                    raw_payload
+                ) VALUES (
+                    %s, 'EXIT_SL', NOW(),
+                    %s, %s, %s,
+                    %s, %s,
+                    'backend_calculated', 0.7,
+                    NOW(), 'missed_exit_detected',
+                    %s
+                )
+            """, (
+                trade_id, stop_loss, metadata.get('direction'), metadata.get('session'),
+                metadata.get('signal_date'), metadata.get('signal_time'),
+                psycopg2.extras.Json({'trade_id': trade_id, 'exit_price': stop_loss, 'reconciled': True})
+            ))
+            
+            # Log to audit trail
+            cur.execute("""
+                INSERT INTO sync_audit_log (
+                    trade_id, action_type, data_source,
+                    fields_filled, confidence_score, success
+                ) VALUES (%s, 'missed_exit_inserted', 'backend_calculated', %s, 0.7, TRUE)
+            """, (trade_id, psycopg2.extras.Json({'exit_sl': True})))
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            logger.info(f"✅ Inserted missed EXIT_SL for {trade_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to insert missed EXIT: {e}")
+            return False
+    
     def reconcile_signal(self, gap_data: Dict) -> bool:
         """
         Reconcile a single signal based on gap type.
@@ -406,13 +483,31 @@ class ReconciliationEngine:
                     logger.warning(f"Cannot reconcile {trade_id}: No current price available")
                     return False
                 
-                return self.fill_mfe_mae_gap(
+                # Check if signal should have been stopped out
+                exit_type = self.detect_missed_exit(
                     trade_id,
                     gap_data['entry_price'],
                     gap_data['stop_loss'],
                     gap_data['direction'],
                     current_price
                 )
+                
+                if exit_type:
+                    # Signal was stopped out - insert EXIT event
+                    return self.insert_missed_exit(
+                        trade_id,
+                        gap_data['stop_loss'],
+                        gap_data['direction']
+                    )
+                else:
+                    # Signal still active - fill MFE gap
+                    return self.fill_mfe_mae_gap(
+                        trade_id,
+                        gap_data['entry_price'],
+                        gap_data['stop_loss'],
+                        gap_data['direction'],
+                        current_price
+                    )
             
             elif gap_type in ['No Session Data', 'No Signal Date']:
                 return self.fill_metadata_gap(trade_id)
