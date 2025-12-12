@@ -1437,10 +1437,11 @@ if db_enabled:
     register_cancelled_signals_api(app)
     
     # Start Hybrid Signal Synchronization Service (Enterprise-Grade)
-    logger.warning("⚠️ Starting Hybrid Signal Synchronization Service")
-    from hybrid_sync.sync_service import start_hybrid_sync_service
-    sync_thread = start_hybrid_sync_service(interval_seconds=120)
-    logger.info("✅ Hybrid Sync Service started (2-minute gap detection and reconciliation)")
+    # TEMPORARILY DISABLED - Reconciliation calculations need fixing
+    # logger.warning("⚠️ Starting Hybrid Signal Synchronization Service")
+    # from hybrid_sync.sync_service import start_hybrid_sync_service
+    # sync_thread = start_hybrid_sync_service(interval_seconds=120)
+    # logger.info("✅ Hybrid Sync Service started (2-minute gap detection and reconciliation)")
     logger.info("✅ Diagnostics API registered")
     logger.info("✅ Signal Integrity API registered")
     logger.info("✅ Phase 2A API endpoints registered")
