@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 from .gap_detector import GapDetector
 from .reconciliation_engine import ReconciliationEngine
+from .cancellation_detector import detect_and_mark_cancelled_signals
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,19 +38,24 @@ class HybridSyncService:
         logger.info("=" * 80)
         
         try:
-            # Step 1: Detect gaps
+            # Step 1: Detect cancelled signals (based on alternation rule)
+            cancel_result = detect_and_mark_cancelled_signals()
+            if cancel_result.get('cancelled_detected', 0) > 0:
+                logger.info(f"🚫 Detected {cancel_result['cancelled_detected']} cancelled signals")
+            
+            # Step 2: Detect gaps
             gap_report = self.detector.run_complete_scan()
             
             if gap_report['total_gaps'] == 0:
                 logger.info("✅ No gaps detected - system healthy")
                 return
             
-            # Step 2: Reconcile gaps
+            # Step 3: Reconcile gaps
             results = self.reconciler.reconcile_all_gaps(gap_report)
             
             self.total_gaps_filled += results['gaps_filled']
             
-            # Step 3: Update health metrics for all signals
+            # Step 4: Update health metrics for all signals
             logger.info("📊 Updating health metrics...")
             # This will be implemented when we add the health dashboard
             
