@@ -171,7 +171,7 @@ AutomatedSignalsUltra.describeLatency = function(ms) {
 AutomatedSignalsUltra.formatSignalDateTime = function(row) {
     // PRIORITY 1: Extract signal time from trade_id (most reliable source)
     // Trade ID format: YYYYMMDD_HHMMSS000_DIRECTION
-    if (row.trade_id) {
+    if (row && row.trade_id) {
         try {
             const parts = row.trade_id.split('_');
             if (parts.length >= 2) {
@@ -191,9 +191,11 @@ AutomatedSignalsUltra.formatSignalDateTime = function(row) {
                 const hour12 = hour24 % 12 || 12;
                 const ampm = hour24 >= 12 ? "PM" : "AM";
                 
-                // Format: "Dec 09, 10:04 AM"
+                // Format: "Dec 08, 9:39 AM" (signal candle time from trade_id)
                 const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-                return `${monthNames[month-1]} ${day}, ${hour12}:${minute.toString().padStart(2,'0')} ${ampm}`;
+                const result = `${monthNames[month-1]} ${day}, ${hour12}:${minute.toString().padStart(2,'0')} ${ampm}`;
+                console.log(`[ASE] Parsed ${row.trade_id} → ${result}`);
+                return result;
             }
         } catch (e) {
             console.error("[ASE] Failed to parse trade_id timestamp:", row.trade_id, e);
