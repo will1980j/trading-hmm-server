@@ -77,14 +77,14 @@
             <div class="col-12">
                 <ul class="nav nav-tabs" id="automatedSignalsTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link ultra-tab ultra-tab-active active" id="confirmed-tab" data-bs-toggle="tab" 
-                                data-bs-target="#tab-confirmed" type="button" role="tab" 
-                                aria-controls="tab-confirmed" aria-selected="true">✅ Confirmed Signals</button>
+                        <button class="nav-link ultra-tab ultra-tab-active active" id="all-signals-tab" data-bs-toggle="tab" 
+                                data-bs-target="#tab-all-signals" type="button" role="tab" 
+                                aria-controls="tab-all-signals" aria-selected="true">📍 All Signals</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link ultra-tab ultra-tab-inactive" id="all-signals-tab" data-bs-toggle="tab" 
-                                data-bs-target="#tab-all-signals" type="button" role="tab" 
-                                aria-controls="tab-all-signals" aria-selected="false">📍 All Signals</button>
+                        <button class="nav-link ultra-tab ultra-tab-inactive" id="confirmed-tab" data-bs-toggle="tab" 
+                                data-bs-target="#tab-confirmed" type="button" role="tab" 
+                                aria-controls="tab-confirmed" aria-selected="false">✅ Confirmed Signals</button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link ultra-tab ultra-tab-inactive" id="cancelled-tab" data-bs-toggle="tab" 
@@ -101,8 +101,8 @@
         </div>
 
         <div class="tab-content" id="automatedSignalsTabContent">
-            <!-- TAB 1: CONFIRMED SIGNALS (was Live Signals) -->
-            <div class="tab-pane fade show active" id="tab-confirmed" role="tabpanel" aria-labelledby="confirmed-tab">
+            <!-- TAB 1: ALL SIGNALS (Every Triangle) - NOW FIRST -->
+            <div class="tab-pane fade show active" id="tab-all-signals" role="tabpanel" aria-labelledby="all-signals-tab">
                 <div class="row">
                     <!-- LEFT COLUMN: TABLES + CALENDAR -->
                     <div class="col-lg-7 mb-4">
@@ -363,8 +363,8 @@ No stream analysis yet.
                 </div>
             </div>
 
-            <!-- TAB 2: ALL SIGNALS (Every Triangle) -->
-            <div class="tab-pane fade" id="tab-all-signals" role="tabpanel" aria-labelledby="all-signals-tab">
+            <!-- TAB 2: CONFIRMED SIGNALS (was Live Signals) - NOW SECOND -->
+            <div class="tab-pane fade" id="tab-confirmed" role="tabpanel" aria-labelledby="confirmed-tab">
                 <div class="row">
                     <div class="col-12 mb-4">
                         <div class="dashboard-card ultra-card">
