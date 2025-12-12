@@ -860,8 +860,9 @@ if array.size(signal_entries) > 0
         // Note: BE MFE may exceed No BE MFE temporarily, but will be corrected when BE stops
         
         // ONLY CREATE LABELS ON THE LAST BAR (current bar) to avoid performance issues
-        // ONLY show labels for ACTIVE signals (No-BE not stopped) to save label slots
-        if barstate.islast and show_mfe_labels and not sig_no_be_stopped
+        // ONLY show labels for ACTIVE signals (at least one strategy still active)
+        bool at_least_one_active = track_be_mfe ? (not sig_be_stopped or not sig_no_be_stopped) : not sig_no_be_stopped
+        if barstate.islast and show_mfe_labels and at_least_one_active
             // Delete old label
             label old_label = array.get(signal_labels, i)
             if not na(old_label)
