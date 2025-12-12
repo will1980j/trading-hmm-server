@@ -973,12 +973,20 @@ def enforce_strict_lifecycle_rules(events, new_event_type):
     """
     Phase E2 strict lifecycle enforcement.
     Ensures canonical sequence:
-        ENTRY → MFE_UPDATE/BE_TRIGGERED → EXIT_*.
+        SIGNAL_CREATED → ENTRY → MFE_UPDATE/BE_TRIGGERED → EXIT_*.
     Rejects EXIT without ENTRY, and prevents
     MFE_UPDATE before ENTRY.
     """
     # Extract event types in chronological order
     types = [e.get("event_type") for e in events if e.get("event_type")]
+    
+    # SIGNAL_CREATED can always be first (triangle appears)
+    if new_event_type == "SIGNAL_CREATED":
+        return True, None
+    
+    # CANCELLED can happen after SIGNAL_CREATED (signal cancelled before confirmation)
+    if new_event_type == "CANCELLED":
+        return True, None
     
     # If EXIT arrives before ENTRY → reject
     if new_event_type in ("EXIT_BE","EXIT_SL") and "ENTRY" not in types:
