@@ -149,3 +149,61 @@ def register_all_signals_api(app):
             return jsonify({'success': False, 'error': str(e)}), 500
     
     print("✅ All Signals API registered")
+
+
+def register_cancelled_signals_api(app):
+    """Register Cancelled Signals API endpoint"""
+    
+    @app.route('/api/automated-signals/cancelled-signals', methods=['GET'])
+    def get_cancelled_signals():
+        """Get all cancelled signals"""
+        try:
+            database_url = os.getenv('DATABASE_URL')
+            conn = psycopg2.connect(database_url)
+            cur = conn.cursor()
+            
+            # Query CANCELLED events
+            cur.execute("""
+                SELECT 
+                    c.trade_id,
+                    c.timestamp as cancelled_time,
+                    c.direction,
+                    c.session,
+                    c.signal_date,
+                    c.signal_time,
+                    c.raw_payload
+                FROM automated_signals c
+                WHERE c.event_type = 'CANCELLED'
+                ORDER BY c.timestamp DESC
+                LIMIT 200
+            """)
+            
+            signals = []
+            for row in cur.fetchall():
+                payload = row[6] if row[6] else {}
+                signal = {
+                    'trade_id': row[0],
+                    'cancelled_time': row[1].isoformat() if row[1] else None,
+                    'direction': row[2],
+                    'session': row[3],
+                    'signal_date': row[4],
+                    'signal_time_str': row[5],
+                    'cancel_reason': payload.get('exit_reason', 'Opposite signal'),
+                    'bars_pending': payload.get('bars_pending')
+                }
+                signals.append(signal)
+            
+            cur.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'signals': signals,
+                'count': len(signals)
+            }), 200
+            
+        except Exception as e:
+            print(f"❌ Cancelled Signals API error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    print("✅ Cancelled Signals API registered")

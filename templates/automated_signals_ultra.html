@@ -363,7 +363,7 @@ No stream analysis yet.
                 </div>
             </div>
 
-            <!-- TAB 2: ALL SIGNALS (NEW) -->
+            <!-- TAB 2: ALL SIGNALS (Every Triangle) -->
             <div class="tab-pane fade" id="tab-all-signals" role="tabpanel" aria-labelledby="all-signals-tab">
                 <div class="row">
                     <div class="col-12 mb-4">
@@ -371,21 +371,34 @@ No stream analysis yet.
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h3 class="card-title mb-0 ultra-section-header">All Signals (Every Triangle)</h3>
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="badge rounded-pill bg-info small ultra-text">Coming Soon</span>
+                                    <span class="badge rounded-pill bg-primary small ultra-text" id="ase-all-signals-count">0</span>
                                 </div>
                             </div>
-                            <div class="card-body p-4">
-                                <div class="alert alert-info mb-0">
-                                    <h5 class="alert-heading">📍 All Signals Tab</h5>
-                                    <p class="mb-2">This tab will capture every triangle printed by the indicator, including:</p>
-                                    <ul class="mb-2">
-                                        <li><strong>Signal Time:</strong> When the triangle appeared</li>
-                                        <li><strong>Confirmation Time:</strong> When the signal was confirmed (if confirmed)</li>
-                                        <li><strong>Bars to Confirmation:</strong> Number of bars between signal and confirmation</li>
-                                        <li><strong>Status:</strong> Pending, Confirmed, or Cancelled</li>
-                                        <li><strong>Additional Metrics:</strong> HTF alignment, session, bias, etc.</li>
-                                    </ul>
-                                    <p class="mb-0"><strong>Note:</strong> This requires indicator updates to send SIGNAL_CREATED events (before confirmation). Currently only confirmed signals (ENTRY events) are captured.</p>
+                            <div class="card-body p-0">
+                                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                                    <table class="table table-sm table-dark mb-0 ultra-table" id="ase-all-signals-table">
+                                        <thead class="ultra-table-header" style="position: sticky; top: 0; z-index: 10;">
+                                            <tr>
+                                                <th class="ultra-table-header-cell">Signal Time</th>
+                                                <th class="ultra-table-header-cell">Direction</th>
+                                                <th class="ultra-table-header-cell">Session</th>
+                                                <th class="ultra-table-header-cell">Status</th>
+                                                <th class="ultra-table-header-cell">Confirmation</th>
+                                                <th class="ultra-table-header-cell">Bars to Confirm</th>
+                                                <th class="ultra-table-header-cell">HTF Alignment</th>
+                                                <th class="ultra-table-header-cell">Entry</th>
+                                                <th class="ultra-table-header-cell">Stop</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="ase-all-signals-tbody">
+                                            <tr>
+                                                <td colspan="9" class="text-center ultra-muted py-4">
+                                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                                    Loading all signals...
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>

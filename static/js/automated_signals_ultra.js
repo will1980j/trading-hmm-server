@@ -2259,3 +2259,175 @@ AutomatedSignalsUltra.deleteCancelledSignals = async function() {
 document.addEventListener("DOMContentLoaded", () => {
     AutomatedSignalsUltra.wireCancelledCheckboxes();
 });
+
+
+// ============================================================================
+// ALL SIGNALS TAB - Shows every triangle (SIGNAL_CREATED events)
+// ============================================================================
+
+AutomatedSignalsUltra.renderAllSignalsTable = async function() {
+    try {
+        const resp = await fetch('/api/automated-signals/all-signals', { cache: 'no-store' });
+        const data = await resp.json();
+        
+        if (!data.success) {
+            console.error('All Signals API error:', data.error);
+            return;
+        }
+        
+        const tbody = document.getElementById('ase-all-signals-tbody');
+        const counter = document.getElementById('ase-all-signals-count');
+        
+        if (!tbody) return;
+        
+        const signals = data.signals || [];
+        const summary = data.summary || {};
+        
+        // Update counter
+        if (counter) {
+            counter.textContent = summary.total || 0;
+        }
+        
+        if (signals.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center ultra-muted py-4">No signals yet</td></tr>';
+            return;
+        }
+        
+        // Render table
+        let html = '';
+        for (const signal of signals) {
+            const direction = signal.direction || 'UNKNOWN';
+            const directionClass = direction === 'Bullish' || direction === 'LONG' ? 'ultra-bullish' : 'ultra-bearish';
+            const directionIcon = direction === 'Bullish' || direction === 'LONG' ? '🔵' : '🔴';
+            
+            // Status badge
+            let statusBadge = '';
+            if (signal.status === 'CONFIRMED') {
+                statusBadge = '<span class="badge bg-success">✅ Confirmed</span>';
+            } else if (signal.status === 'CANCELLED') {
+                statusBadge = '<span class="badge bg-danger">❌ Cancelled</span>';
+            } else {
+                statusBadge = '<span class="badge bg-warning">⏳ Pending</span>';
+            }
+            
+            // Format times
+            const signalTime = signal.signal_time_str || '--';
+            const confirmTime = signal.confirmation_time ? new Date(signal.confirmation_time).toLocaleTimeString() : '--';
+            const barsToConfirm = signal.bars_to_confirmation || '--';
+            
+            // HTF alignment
+            const htf = signal.htf_alignment || {};
+            const htfDisplay = htf.all_bullish ? '🟢 All Bull' : htf.all_bearish ? '🔴 All Bear' : '🟡 Mixed';
+            
+            // Entry/Stop
+            const entry = signal.entry_price ? signal.entry_price.toFixed(2) : '--';
+            const stop = signal.stop_loss ? signal.stop_loss.toFixed(2) : '--';
+            
+            html += `
+                <tr>
+                    <td class="ultra-muted">${signalTime}</td>
+                    <td class="${directionClass}">${directionIcon} ${direction}</td>
+                    <td class="ultra-muted">${signal.session || '--'}</td>
+                    <td>${statusBadge}</td>
+                    <td class="ultra-muted">${confirmTime}</td>
+                    <td class="ultra-muted">${barsToConfirm}</td>
+                    <td class="ultra-muted">${htfDisplay}</td>
+                    <td class="ultra-muted">${entry}</td>
+                    <td class="ultra-muted">${stop}</td>
+                </tr>
+            `;
+        }
+        
+        tbody.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error rendering All Signals:', error);
+    }
+};
+
+// Load All Signals when tab is shown
+document.addEventListener('DOMContentLoaded', function() {
+    const allSignalsTab = document.getElementById('all-signals-tab');
+    if (allSignalsTab) {
+        allSignalsTab.addEventListener('shown.bs.tab', function() {
+            AutomatedSignalsUltra.renderAllSignalsTable();
+        });
+    }
+});
+
+
+// ============================================================================
+// CANCELLED SIGNALS TAB
+// ============================================================================
+
+AutomatedSignalsUltra.renderCancelledSignalsTable = async function() {
+    try {
+        const resp = await fetch('/api/automated-signals/cancelled-signals', { cache: 'no-store' });
+        const data = await resp.json();
+        
+        if (!data.success) {
+            console.error('Cancelled Signals API error:', data.error);
+            return;
+        }
+        
+        const tbody = document.getElementById('ase-cancelled-tbody');
+        const counter = document.getElementById('ase-cancelled-count');
+        
+        if (!tbody) return;
+        
+        const signals = data.signals || [];
+        
+        // Update counter
+        if (counter) {
+            counter.textContent = signals.length;
+        }
+        
+        if (signals.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center ultra-muted py-4">No cancelled signals</td></tr>';
+            return;
+        }
+        
+        // Render table
+        let html = '';
+        for (const signal of signals) {
+            const direction = signal.direction || 'UNKNOWN';
+            const directionClass = direction === 'Bullish' || direction === 'LONG' ? 'ultra-bullish' : 'ultra-bearish';
+            const directionIcon = direction === 'Bullish' || direction === 'LONG' ? '🔵' : '🔴';
+            
+            const signalTime = signal.signal_time_str || '--';
+            const cancelTime = signal.cancelled_time ? new Date(signal.cancelled_time).toLocaleTimeString() : '--';
+            const reason = signal.cancel_reason || 'Opposite signal';
+            
+            html += `
+                <tr>
+                    <td class="ultra-muted">${signalTime}</td>
+                    <td class="${directionClass}">${directionIcon} ${direction}</td>
+                    <td class="ultra-muted">${signal.session || '--'}</td>
+                    <td class="ultra-muted">${cancelTime}</td>
+                    <td class="ultra-muted">${reason}</td>
+                    <td class="ultra-muted">${signal.bars_pending || '--'}</td>
+                    <td>
+                        <button class="btn btn-sm ultra-btn-danger" onclick="AutomatedSignalsUltra.deleteSignal('${signal.trade_id}')">
+                            🗑
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+        
+        tbody.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error rendering Cancelled Signals:', error);
+    }
+};
+
+// Load Cancelled Signals when tab is shown
+document.addEventListener('DOMContentLoaded', function() {
+    const cancelledTab = document.getElementById('cancelled-tab');
+    if (cancelledTab) {
+        cancelledTab.addEventListener('shown.bs.tab', function() {
+            AutomatedSignalsUltra.renderCancelledSignalsTable();
+        });
+    }
+});

@@ -1432,8 +1432,9 @@ if db_enabled:
     
     # Register All Signals API (for All Signals tab)
     logger.info("⚠️ Registering All Signals API")
-    from hybrid_sync.all_signals_api import register_all_signals_api
+    from hybrid_sync.all_signals_api import register_all_signals_api, register_cancelled_signals_api
     register_all_signals_api(app)
+    register_cancelled_signals_api(app)
     
     # Start Hybrid Signal Synchronization Service (Enterprise-Grade)
     logger.warning("⚠️ Starting Hybrid Signal Synchronization Service")
