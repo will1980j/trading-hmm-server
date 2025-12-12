@@ -2293,47 +2293,59 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
             return;
         }
         
-        // Render table with complete data
+        // Render table with complete professional formatting
         let html = '';
         for (const signal of signals) {
             const direction = signal.direction || 'UNKNOWN';
             const directionIcon = direction === 'Bullish' || direction === 'LONG' ? '🔵' : '🔴';
             
-            // Status badge (compact)
-            const statusBadge = signal.status === 'CONFIRMED' ? '<span class="badge bg-success small">✓</span>' :
-                               signal.status === 'CANCELLED' ? '<span class="badge bg-danger small">✗</span>' :
-                               '<span class="badge bg-warning small">⏳</span>';
+            // Status badge with better styling
+            let statusBadge = '';
+            if (signal.status === 'CONFIRMED') {
+                statusBadge = '<span class="badge bg-success" style="font-size: 10px; padding: 3px 8px;">✓ CONF</span>';
+            } else if (signal.status === 'CANCELLED') {
+                statusBadge = '<span class="badge bg-danger" style="font-size: 10px; padding: 3px 8px;">✗ CANC</span>';
+            } else {
+                statusBadge = '<span class="badge bg-warning text-dark" style="font-size: 10px; padding: 3px 8px;">⏳ PEND</span>';
+            }
             
-            // HTF badges (individual timeframes)
+            // HTF badges with better colors
             const htf = signal.htf_alignment || {};
             const htfBadge = (bias) => {
-                if (!bias || bias === 'Neutral') return '<span class="badge bg-secondary" style="font-size: 9px;">—</span>';
-                return bias === 'Bullish' ? '<span class="badge bg-primary" style="font-size: 9px;">↑</span>' : 
-                                            '<span class="badge bg-danger" style="font-size: 9px;">↓</span>';
+                if (!bias || bias === 'Neutral') return '<span class="badge" style="background: #2a2d3a; font-size: 11px; padding: 2px 6px;">—</span>';
+                return bias === 'Bullish' ? '<span class="badge" style="background: #3b82f6; font-size: 11px; padding: 2px 6px;">↑</span>' : 
+                                            '<span class="badge" style="background: #ef4444; font-size: 11px; padding: 2px 6px;">↓</span>';
             };
             
-            // Calculate risk
-            const risk = (signal.entry_price && signal.stop_loss) ? 
-                         Math.abs(signal.entry_price - signal.stop_loss).toFixed(2) : '--';
+            // Calculate risk with color coding
+            let riskDisplay = '--';
+            if (signal.entry_price && signal.stop_loss) {
+                const riskVal = Math.abs(signal.entry_price - signal.stop_loss);
+                const riskColor = riskVal > 30 ? '#ef4444' : riskVal > 20 ? '#f59e0b' : '#10b981';
+                riskDisplay = `<span style="color: ${riskColor}; font-weight: 500;">${riskVal.toFixed(2)}</span>`;
+            }
+            
+            // Format date (compact)
+            const dateStr = signal.signal_date ? signal.signal_date.substring(5) : '--';  // MM-DD only
             
             html += `
-                <tr>
-                    <td><input type="checkbox" class="form-check-input" data-trade-id="${signal.trade_id}" onchange="updateAllSignalsDeleteButton()"></td>
-                    <td class="ultra-muted small">${signal.signal_date || '--'}</td>
-                    <td class="ultra-muted">${signal.signal_time_str || '--'}</td>
-                    <td class="text-center">${directionIcon}</td>
-                    <td class="ultra-muted small">${signal.session || '--'}</td>
-                    <td class="text-center">${statusBadge}</td>
-                    <td class="ultra-muted">${signal.entry_price ? signal.entry_price.toFixed(2) : '--'}</td>
-                    <td class="ultra-muted">${signal.stop_loss ? signal.stop_loss.toFixed(2) : '--'}</td>
-                    <td class="ultra-muted">${risk}</td>
-                    <td class="ultra-muted text-center">${signal.bars_to_confirmation || '--'}</td>
-                    <td class="text-center">${htfBadge(htf.daily)}</td>
-                    <td class="text-center">${htfBadge(htf.h4)}</td>
-                    <td class="text-center">${htfBadge(htf.h1)}</td>
-                    <td class="text-center">${htfBadge(htf.m15)}</td>
-                    <td class="text-center">${htfBadge(htf.m5)}</td>
-                    <td class="ultra-muted small" style="font-family: monospace; font-size: 10px;">${signal.trade_id}</td>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <td style="padding: 8px 12px;"><input type="checkbox" class="form-check-input" data-trade-id="${signal.trade_id}" onchange="updateAllSignalsDeleteButton()"></td>
+                    <td class="ultra-muted" style="padding: 8px 12px; font-size: 11px;">${dateStr}</td>
+                    <td class="ultra-muted" style="padding: 8px 12px; font-weight: 500;">${signal.signal_time_str || '--'}</td>
+                    <td class="text-center" style="padding: 8px 12px; font-size: 16px;">${directionIcon}</td>
+                    <td class="ultra-muted" style="padding: 8px 12px; font-size: 11px;">${signal.session || '--'}</td>
+                    <td class="text-center" style="padding: 8px 12px;">${statusBadge}</td>
+                    <td class="ultra-muted" style="padding: 8px 12px; font-family: monospace;">${signal.entry_price ? signal.entry_price.toFixed(2) : '--'}</td>
+                    <td class="ultra-muted" style="padding: 8px 12px; font-family: monospace;">${signal.stop_loss ? signal.stop_loss.toFixed(2) : '--'}</td>
+                    <td class="text-center" style="padding: 8px 12px;">${riskDisplay}</td>
+                    <td class="ultra-muted text-center" style="padding: 8px 12px;">${signal.bars_to_confirmation || '--'}</td>
+                    <td class="text-center" style="padding: 8px 6px;">${htfBadge(htf.daily)}</td>
+                    <td class="text-center" style="padding: 8px 6px;">${htfBadge(htf.h4)}</td>
+                    <td class="text-center" style="padding: 8px 6px;">${htfBadge(htf.h1)}</td>
+                    <td class="text-center" style="padding: 8px 6px;">${htfBadge(htf.m15)}</td>
+                    <td class="text-center" style="padding: 8px 6px;">${htfBadge(htf.m5)}</td>
+                    <td class="ultra-muted" style="padding: 8px 12px; font-family: 'Courier New', monospace; font-size: 10px; color: #6b7280;">${signal.trade_id}</td>
                 </tr>
             `;
         }
