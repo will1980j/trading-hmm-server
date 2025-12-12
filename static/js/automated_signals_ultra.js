@@ -2336,23 +2336,23 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
             }
             
             html += `
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                    <td style="padding: 8px 12px;"><input type="checkbox" class="form-check-input" data-trade-id="${signal.trade_id}" onchange="updateAllSignalsDeleteButton()"></td>
-                    <td class="ultra-muted" style="padding: 8px 12px; font-size: 11px;">${dateStr}</td>
-                    <td class="ultra-muted" style="padding: 8px 12px; font-weight: 500;">${signal.signal_time_str || '--'}</td>
-                    <td class="text-center" style="padding: 8px 12px; font-size: 16px;">${directionIcon}</td>
-                    <td class="ultra-muted" style="padding: 8px 12px; font-size: 11px;">${signal.session || '--'}</td>
-                    <td class="text-center" style="padding: 8px 12px;">${statusBadge}</td>
-                    <td class="ultra-muted" style="padding: 8px 12px; font-family: monospace;">${signal.entry_price ? signal.entry_price.toFixed(2) : '--'}</td>
-                    <td class="ultra-muted" style="padding: 8px 12px; font-family: monospace;">${signal.stop_loss ? signal.stop_loss.toFixed(2) : '--'}</td>
-                    <td class="text-center" style="padding: 8px 12px;">${riskDisplay}</td>
-                    <td class="ultra-muted text-center" style="padding: 8px 12px;">${signal.bars_to_confirmation || '--'}</td>
-                    <td class="text-center" style="padding: 8px 6px;">${htfBadge(htf.daily)}</td>
-                    <td class="text-center" style="padding: 8px 6px;">${htfBadge(htf.h4)}</td>
-                    <td class="text-center" style="padding: 8px 6px;">${htfBadge(htf.h1)}</td>
-                    <td class="text-center" style="padding: 8px 6px;">${htfBadge(htf.m15)}</td>
-                    <td class="text-center" style="padding: 8px 6px;">${htfBadge(htf.m5)}</td>
-                    <td class="ultra-muted" style="padding: 8px 12px; font-family: 'Courier New', monospace; font-size: 10px; color: #6b7280;">${signal.trade_id}</td>
+                <tr>
+                    <td><input type="checkbox" class="form-check-input" data-trade-id="${signal.trade_id}" onchange="updateAllSignalsDeleteButton()"></td>
+                    <td class="ultra-muted small">${dateStr}</td>
+                    <td class="ultra-muted">${signal.signal_time_str || '--'}</td>
+                    <td class="text-center">${directionIcon}</td>
+                    <td class="ultra-muted small">${signal.session || '--'}</td>
+                    <td class="text-center">${statusBadge}</td>
+                    <td class="ultra-muted">${signal.entry_price ? signal.entry_price.toFixed(2) : '--'}</td>
+                    <td class="ultra-muted">${signal.stop_loss ? signal.stop_loss.toFixed(2) : '--'}</td>
+                    <td class="text-center">${riskDisplay}</td>
+                    <td class="ultra-muted text-center">${signal.bars_to_confirmation || '--'}</td>
+                    <td class="text-center">${htfBadge(htf.daily)}</td>
+                    <td class="text-center">${htfBadge(htf.h4)}</td>
+                    <td class="text-center">${htfBadge(htf.h1)}</td>
+                    <td class="text-center">${htfBadge(htf.m15)}</td>
+                    <td class="text-center">${htfBadge(htf.m5)}</td>
+                    <td class="ultra-muted small">${signal.trade_id}</td>
                 </tr>
             `;
         }
