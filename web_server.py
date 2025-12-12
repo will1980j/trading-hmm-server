@@ -13289,11 +13289,24 @@ def handle_signal_created(data):
     log_event_received(prefix, data)
     
     try:
+        import psycopg2.extras
         database_url = os.environ.get('DATABASE_URL')
         conn = psycopg2.connect(database_url)
         cur = conn.cursor()
         
         trade_id = data.get("trade_id")
+        
+        # Extract signal date/time from trade_id if not in payload
+        signal_date = data.get("signal_date")
+        signal_time = data.get("signal_time")
+        if not signal_date and trade_id:
+            # Parse from trade_id: YYYYMMDD_HHMMSS000_DIRECTION
+            parts = trade_id.split('_')
+            if len(parts) >= 2:
+                date_str = parts[0]  # YYYYMMDD
+                time_str = parts[1][:6]  # HHMMSS
+                signal_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+                signal_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
         
         # Insert SIGNAL_CREATED event
         cur.execute("""
@@ -13312,8 +13325,8 @@ def handle_signal_created(data):
             trade_id,
             data.get("direction"),
             data.get("session"),
-            data.get("signal_date"),
-            data.get("signal_time"),
+            signal_date,
+            signal_time,
             psycopg2.extras.Json(data.get("htf_alignment", {})),
             psycopg2.extras.Json(data)
         ))
@@ -13326,7 +13339,9 @@ def handle_signal_created(data):
         return {"success": True, "trade_id": trade_id}
         
     except Exception as e:
+        import traceback
         logger.error(f"❌ SIGNAL_CREATED error: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return {"success": False, "error": str(e)}
 
 
