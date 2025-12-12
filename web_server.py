@@ -13052,13 +13052,15 @@ def automated_signals_webhook():
                     
                     cur.execute("""
                         INSERT INTO automated_signals (
-                            trade_id, event_type, direction, session, be_mfe, no_be_mfe, mae_global_r, 
-                            current_price, timestamp, raw_payload
-                        ) VALUES (%s, 'MFE_UPDATE', %s, %s, %s, %s, %s, %s, %s, %s)
+                            trade_id, event_type, direction, session, entry_price, stop_loss,
+                            be_mfe, no_be_mfe, mae_global_r, current_price, timestamp, raw_payload
+                        ) VALUES (%s, 'MFE_UPDATE', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         signal_data.get("trade_id"),
                         direction,
                         signal_data.get("session"),
+                        signal_data.get("entry_price"),
+                        signal_data.get("stop_loss"),
                         signal_data.get("be_mfe"),
                         signal_data.get("no_be_mfe"),
                         signal_data.get("mae_global_r"),
