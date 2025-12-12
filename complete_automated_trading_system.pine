@@ -1456,31 +1456,8 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
             float sig_stop = i < array.size(signal_stops) ? array.get(signal_stops, i) : na
             int sig_entry_time = i < array.size(signal_entry_times) ? array.get(signal_entry_times, i) : time
             
-            // Build COMPLETE payload using f_buildPayload (same as ENTRY/EXIT events)
-            // This ensures MFE_UPDATE has ALL data needed to display signal independently
-            string signal_json = f_buildPayload(
-                "MFE_UPDATE",
-                signal_id,
-                sig_direction,
-                sig_entry,
-                sig_stop,
-                sig_be_triggered ? sig_entry : float(na),  // be_price
-                1.0,  // riskR
-                0,  // posSize (not needed for MFE_UPDATE)
-                current_mfe_be,
-                current_mfe_none,
-                sig_mae,
-                float(na),  // finalMfeR (not final yet)
-                float(na),  // exitPrice (not exited yet)
-                "",  // exitReason
-                0.0, 0.0, 0.0,  // targets (not needed for MFE_UPDATE)
-                "FVG_CORE",
-                "ACTIVE",
-                bias,
-                syminfo.ticker,
-                timeframe.period,
-                sig_entry_time
-            )
+            // Build COMPLETE payload using f_buildPayload (same as ENTRY/EXIT events) - single line for PineScript
+            string signal_json = f_buildPayload("MFE_UPDATE", signal_id, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, 0, current_mfe_be, current_mfe_none, sig_mae, float(na), float(na), "", 0.0, 0.0, 0.0, "FVG_CORE", "ACTIVE", bias, syminfo.ticker, timeframe.period, sig_entry_time)
             
             // Check payload size before adding (stay under 4000 chars)
             string test_add = signals_in_batch > 0 ? ",{" + signal_json + "}" : "{" + signal_json + "}"
