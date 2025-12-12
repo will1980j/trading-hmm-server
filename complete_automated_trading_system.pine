@@ -297,8 +297,7 @@ var array<bool> signal_entry_webhook_sent = array.new<bool>()  // Track if ENTRY
 var array<bool> signal_is_realtime = array.new<bool>()  // Track if signal occurred on real-time bar (eligible for webhooks)
 var array<bool> signal_snapshot_sent = array.new<bool>()  // Track if one-off MFE snapshot has been sent (for non-realtime bars)
 
-// HYBRID SYNC: Historical signal scanner flag
-var bool historical_scan_complete = false
+
 
 // ============================================================================
 // TELEMETRY ENGINE STATE (Option B - Single Active Trade Lifecycle)
@@ -335,58 +334,6 @@ var bool telemetry_initialized_this_session = false
 // Store line references to manage them like MFE labels
 var array<line> entry_lines = array.new<line>()
 var array<line> sl_lines = array.new<line>()
-
-// ============================================================================
-// HYBRID SYNC: HISTORICAL SIGNAL SCANNER
-// Runs ONCE on indicator load to populate arrays with historical signals
-// ============================================================================
-if not historical_scan_complete and barstate.islast
-    // Scan back through last 500 bars looking for confirmed signals
-    // This populates arrays with signals that were confirmed before indicator was loaded
-    int scan_lookback = math.min(500, bar_index)
-    
-    for lookback = 1 to scan_lookback
-        // Check if there was a bullish confirmation at this historical bar
-        bool hist_bull_conf = close[lookback] > high[lookback + 1] and bias[lookback + 1] == "Bullish"
-        // Check if there was a bearish confirmation at this historical bar  
-        bool hist_bear_conf = close[lookback] < low[lookback + 1] and bias[lookback + 1] == "Bearish"
-        
-        if hist_bull_conf or hist_bear_conf
-            // Found a historical confirmed signal - add to arrays
-            string hist_dir = hist_bull_conf ? "Bullish" : "Bearish"
-            float hist_entry = open[lookback - 1]  // Entry at open of bar after confirmation
-            int hist_time = time[lookback]
-            
-            // Calculate stop loss (simplified - use signal candle low/high + buffer)
-            float hist_stop = hist_bull_conf ? low[lookback + 1] - 25 : high[lookback + 1] + 25
-            float hist_risk = math.abs(hist_entry - hist_stop)
-            
-            // Add to all arrays
-            array.push(signal_entries, hist_entry)
-            array.push(signal_stops, hist_stop)
-            array.push(signal_risks, hist_risk)
-            array.push(signal_directions, hist_dir)
-            array.push(signal_mfes, 0.0)
-            array.push(signal_be_mfes, 0.0)
-            array.push(signal_maes, 0.0)
-            array.push(signal_be_triggered, false)
-            array.push(signal_be_stopped, false)
-            array.push(signal_no_be_stopped, false)
-            array.push(signal_completes, false)
-            array.push(signal_labels, label(na))
-            array.push(signal_entry_times, hist_time)
-            array.push(signal_lowest_lows, hist_entry)
-            array.push(signal_highest_highs, hist_entry)
-            array.push(signal_has_entered, true)  // Historical signals already entered
-            array.push(signal_entry_bar_index, bar_index - lookback)
-            array.push(signal_entry_bar, bar_index - lookback)
-            array.push(signal_be_trigger_bar, -1)
-            array.push(signal_completion_bar, -1)
-            array.push(signal_entry_webhook_sent, false)  // Will send in batch
-            array.push(signal_is_realtime, false)  // Historical signal
-            array.push(signal_snapshot_sent, false)
-    
-    historical_scan_complete := true
 
 // Reset confirmation flag at start of each bar
 confirmed_this_bar := false
