@@ -2325,8 +2325,15 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
                 riskDisplay = `<span style="color: ${riskColor}; font-weight: 500;">${riskVal.toFixed(2)}</span>`;
             }
             
-            // Format date (compact)
-            const dateStr = signal.signal_date ? signal.signal_date.substring(5) : '--';  // MM-DD only
+            // Format date as DD-Mon-YY (e.g., 12-Dec-25)
+            let dateStr = '--';
+            if (signal.signal_date) {
+                const d = new Date(signal.signal_date);
+                const day = d.getDate();
+                const month = d.toLocaleString('en-US', { month: 'short' });
+                const year = d.getFullYear().toString().substring(2);
+                dateStr = `${day}-${month}-${year}`;
+            }
             
             html += `
                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
