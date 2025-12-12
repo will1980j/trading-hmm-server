@@ -37,32 +37,25 @@ class ReconciliationEngine:
             conn = psycopg2.connect(self.database_url)
             cur = conn.cursor()
             
-            # Get most recent price from MFE_UPDATE with valid data
+            # Get most recent price from batch payload
             cur.execute("""
-                SELECT entry_price, stop_loss, direction, be_mfe, no_be_mfe
+                SELECT raw_payload
                 FROM automated_signals
                 WHERE event_type = 'MFE_UPDATE'
-                AND entry_price IS NOT NULL
-                AND stop_loss IS NOT NULL
-                AND no_be_mfe IS NOT NULL
+                AND raw_payload IS NOT NULL
                 ORDER BY timestamp DESC
                 LIMIT 1
             """)
             
             row = cur.fetchone()
-            if row:
-                entry, stop, direction, be_mfe, no_be_mfe = row
-                risk = abs(float(entry) - float(stop))
-                
-                # Reverse calculate current price from No-BE MFE
-                if direction in ['Bullish', 'LONG']:
-                    current_price = float(entry) + (float(no_be_mfe) * risk)
-                else:
-                    current_price = float(entry) - (float(no_be_mfe) * risk)
-                
-                cur.close()
-                conn.close()
-                return current_price
+            if row and row[0]:
+                import json
+                payload = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+                current_price = payload.get('current_price')
+                if current_price:
+                    cur.close()
+                    conn.close()
+                    return float(current_price)
             
             cur.close()
             conn.close()
