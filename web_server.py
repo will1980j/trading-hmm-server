@@ -13288,10 +13288,16 @@ def handle_signal_created(data):
     prefix = "SIGNAL_CREATED"
     log_event_received(prefix, data)
     
+    conn = None
+    cur = None
     try:
         import psycopg2.extras
         database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return {"success": False, "error": "DATABASE_URL not configured"}
+        
         conn = psycopg2.connect(database_url)
+        conn.autocommit = False
         cur = conn.cursor()
         
         trade_id = data.get("trade_id")
