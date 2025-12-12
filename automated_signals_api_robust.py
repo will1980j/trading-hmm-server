@@ -269,8 +269,6 @@ def register_automated_signals_api_robust(app, db):
                         mae_global_r,
                         direction,
                         session,
-                        entry_price,
-                        stop_loss,
                         timestamp as last_update
                     FROM automated_signals
                     WHERE event_type = 'MFE_UPDATE'
@@ -291,8 +289,8 @@ def register_automated_signals_api_robust(app, db):
                     a.trade_id,
                     'ACTIVE' as trade_status,
                     COALESCE(e.direction, m.direction) as direction,
-                    COALESCE(e.entry_price, m.entry_price) as entry_price,
-                    COALESCE(e.stop_loss, m.stop_loss) as stop_loss,
+                    e.entry_price,
+                    e.stop_loss,
                     COALESCE(e.session, m.session) as session,
                     e.bias,
                     e.signal_date,
