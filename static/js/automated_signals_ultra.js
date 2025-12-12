@@ -2630,3 +2630,53 @@ AutomatedSignalsUltra.renderCancelledSignalsTable = function(signals) {
     
     tbody.innerHTML = html;
 };
+
+
+// ============================================================================
+// LOAD ALL SIGNALS TAB
+// ============================================================================
+
+async function loadAllSignals() {
+    try {
+        const response = await fetch('/api/automated-signals/all-signals');
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update count badge
+            const countBadge = document.getElementById('ase-all-signals-count');
+            if (countBadge) {
+                countBadge.textContent = data.total || 0;
+            }
+            
+            // Render table
+            AutomatedSignalsUltra.renderAllSignalsTable(data.signals || []);
+        } else {
+            console.error('[ASE] All Signals API error:', data.error);
+            const tbody = document.getElementById('ase-all-signals-tbody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="16" class="text-center text-danger py-4">Error loading signals</td></tr>';
+            }
+        }
+    } catch (error) {
+        console.error('[ASE] All Signals fetch error:', error);
+        const tbody = document.getElementById('ase-all-signals-tbody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="16" class="text-center text-danger py-4">Failed to load signals</td></tr>';
+        }
+    }
+}
+
+// Load All Signals when tab is clicked
+document.addEventListener('DOMContentLoaded', () => {
+    const allSignalsTab = document.getElementById('all-signals-tab');
+    if (allSignalsTab) {
+        allSignalsTab.addEventListener('shown.bs.tab', () => {
+            loadAllSignals();
+        });
+        
+        // Load immediately if it's the active tab
+        if (allSignalsTab.classList.contains('active')) {
+            loadAllSignals();
+        }
+    }
+});
