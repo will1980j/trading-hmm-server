@@ -2550,33 +2550,55 @@ function updateCancelledDeleteButton() {
     }
 }
 
-// Update All Signals table rendering to include checkboxes
+// Update All Signals table rendering to include checkboxes and complete data
 AutomatedSignalsUltra.renderAllSignalsTable = function(signals) {
     const tbody = document.getElementById('ase-all-signals-tbody');
     if (!tbody) return;
     
     if (!signals || signals.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center ultra-muted py-4">No signals found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="16" class="text-center ultra-muted py-4">No signals found</td></tr>';
         return;
     }
     
     let html = '';
     signals.forEach(signal => {
-        const statusBadge = signal.status === 'CONFIRMED' ? '<span class="badge bg-success">CONFIRMED</span>' :
-                           signal.status === 'CANCELLED' ? '<span class="badge bg-danger">CANCELLED</span>' :
-                           '<span class="badge bg-warning">PENDING</span>';
+        const statusBadge = signal.status === 'CONFIRMED' ? '<span class="badge bg-success small">✓</span>' :
+                           signal.status === 'CANCELLED' ? '<span class="badge bg-danger small">✗</span>' :
+                           '<span class="badge bg-warning small">⏳</span>';
+        
+        // Parse HTF alignment
+        const htf = signal.htf_alignment || {};
+        const htfBadge = (bias) => {
+            if (!bias || bias === 'Neutral') return '<span class="badge bg-secondary" style="font-size: 9px;">—</span>';
+            return bias === 'Bullish' ? '<span class="badge bg-primary" style="font-size: 9px;">↑</span>' : 
+                                        '<span class="badge bg-danger" style="font-size: 9px;">↓</span>';
+        };
+        
+        // Calculate risk if entry and stop available
+        const risk = (signal.entry_price && signal.stop_loss) ? 
+                     Math.abs(signal.entry_price - signal.stop_loss).toFixed(2) : '--';
+        
+        // Format date and time
+        const signalDate = signal.signal_date || '--';
+        const signalTime = signal.signal_time_str || '--';
         
         html += `<tr>
             <td><input type="checkbox" class="form-check-input" data-trade-id="${signal.trade_id}" onchange="updateAllSignalsDeleteButton()"></td>
-            <td class="ultra-muted">${signal.signal_time_str || '--'}</td>
-            <td>${signal.direction === 'Bullish' ? '🔵' : '🔴'} ${signal.direction}</td>
-            <td class="ultra-muted">${signal.session || '--'}</td>
-            <td>${statusBadge}</td>
-            <td class="ultra-muted">${signal.confirmation_time ? new Date(signal.confirmation_time).toLocaleTimeString() : '--'}</td>
-            <td class="ultra-muted">${signal.bars_to_confirmation || '--'}</td>
-            <td class="ultra-muted small">${signal.htf_alignment ? JSON.stringify(signal.htf_alignment).substring(0, 30) + '...' : '--'}</td>
-            <td class="ultra-muted">${signal.entry_price || '--'}</td>
-            <td class="ultra-muted">${signal.stop_loss || '--'}</td>
+            <td class="ultra-muted small">${signalDate}</td>
+            <td class="ultra-muted">${signalTime}</td>
+            <td class="text-center">${signal.direction === 'Bullish' ? '🔵' : '🔴'}</td>
+            <td class="ultra-muted small">${signal.session || '--'}</td>
+            <td class="text-center">${statusBadge}</td>
+            <td class="ultra-muted">${signal.entry_price ? signal.entry_price.toFixed(2) : '--'}</td>
+            <td class="ultra-muted">${signal.stop_loss ? signal.stop_loss.toFixed(2) : '--'}</td>
+            <td class="ultra-muted">${risk}</td>
+            <td class="ultra-muted text-center">${signal.bars_to_confirmation || '--'}</td>
+            <td class="text-center">${htfBadge(htf.daily)}</td>
+            <td class="text-center">${htfBadge(htf.h4)}</td>
+            <td class="text-center">${htfBadge(htf.h1)}</td>
+            <td class="text-center">${htfBadge(htf.m15)}</td>
+            <td class="text-center">${htfBadge(htf.m5)}</td>
+            <td class="ultra-muted small" style="font-family: monospace;">${signal.trade_id}</td>
         </tr>`;
     });
     
