@@ -13200,8 +13200,13 @@ def automated_signals_webhook():
                 return jsonify({"success": False, "error": f"Lifecycle enforcement error: {str(e2_ex)}"}), 500
         
         # 8. Route event
-        if canonical["event_type"] == "ENTRY":
+        if canonical["event_type"] == "SIGNAL_CREATED":
+            # Store SIGNAL_CREATED as-is (don't convert to ENTRY)
+            result = handle_signal_created(canonical)
+        elif canonical["event_type"] == "ENTRY":
             result = handle_entry_signal(canonical)
+        elif canonical["event_type"] == "CANCELLED":
+            result = handle_cancelled_signal(canonical)
         elif canonical["event_type"] == "MFE_UPDATE_BATCH":
             # Handle batch MFE updates (multiple signals in one webhook)
             signals = canonical.get("signals", [])
@@ -13267,6 +13272,99 @@ def automated_signals_webhook():
             (t1 - t0) * 1000
         )
         return jsonify({"success": False, "error": err_msg}), 500
+
+
+def handle_signal_created(data):
+    """Handle SIGNAL_CREATED event - triangle appears before confirmation"""
+    prefix = "SIGNAL_CREATED"
+    log_event_received(prefix, data)
+    
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        conn = psycopg2.connect(database_url)
+        cur = conn.cursor()
+        
+        trade_id = data.get("trade_id")
+        
+        # Insert SIGNAL_CREATED event
+        cur.execute("""
+            INSERT INTO automated_signals (
+                trade_id, event_type, timestamp,
+                direction, session, signal_date, signal_time,
+                htf_alignment, raw_payload,
+                data_source, confidence_score
+            ) VALUES (
+                %s, 'SIGNAL_CREATED', NOW(),
+                %s, %s, %s, %s,
+                %s, %s,
+                'indicator_realtime', 1.0
+            )
+        """, (
+            trade_id,
+            data.get("direction"),
+            data.get("session"),
+            data.get("signal_date"),
+            data.get("signal_time"),
+            psycopg2.extras.Json(data.get("htf_alignment", {})),
+            psycopg2.extras.Json(data)
+        ))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        logger.info(f"✅ SIGNAL_CREATED stored: {trade_id}")
+        return {"success": True, "trade_id": trade_id}
+        
+    except Exception as e:
+        logger.error(f"❌ SIGNAL_CREATED error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def handle_cancelled_signal(data):
+    """Handle CANCELLED event - signal cancelled before confirmation"""
+    prefix = "CANCELLED"
+    log_event_received(prefix, data)
+    
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        conn = psycopg2.connect(database_url)
+        cur = conn.cursor()
+        
+        trade_id = data.get("trade_id")
+        
+        # Insert CANCELLED event
+        cur.execute("""
+            INSERT INTO automated_signals (
+                trade_id, event_type, timestamp,
+                direction, session, signal_date, signal_time,
+                raw_payload,
+                data_source, confidence_score
+            ) VALUES (
+                %s, 'CANCELLED', NOW(),
+                %s, %s, %s, %s,
+                %s,
+                'indicator_realtime', 1.0
+            )
+        """, (
+            trade_id,
+            data.get("direction"),
+            data.get("session"),
+            data.get("signal_date"),
+            data.get("signal_time"),
+            psycopg2.extras.Json(data)
+        ))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        logger.info(f"✅ CANCELLED stored: {trade_id}")
+        return {"success": True, "trade_id": trade_id}
+        
+    except Exception as e:
+        logger.error(f"❌ CANCELLED error: {e}")
+        return {"success": False, "error": str(e)}
 
 
 def handle_entry_signal(data):
