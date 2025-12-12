@@ -267,6 +267,8 @@ def register_automated_signals_api_robust(app, db):
                         no_be_mfe,
                         current_price,
                         mae_global_r,
+                        direction,
+                        session,
                         timestamp as last_update
                     FROM automated_signals
                     WHERE event_type = 'MFE_UPDATE'
@@ -284,18 +286,18 @@ def register_automated_signals_api_robust(app, db):
                     )
                 )
                 SELECT 
-                    e.trade_id,
+                    a.trade_id,
                     'ACTIVE' as trade_status,
-                    e.direction,
+                    COALESCE(e.direction, m.direction) as direction,
                     e.entry_price,
                     e.stop_loss,
-                    e.session,
+                    COALESCE(e.session, m.session) as session,
                     e.bias,
                     e.signal_date,
                     e.signal_time,
-                    e.entry_timestamp as timestamp,
+                    COALESCE(e.entry_timestamp, m.last_update) as timestamp,
                     e.entry_timestamp as entry_ts,
-                    e.entry_timestamp as event_ts,
+                    COALESCE(e.entry_timestamp, m.last_update) as event_ts,
                     COALESCE(m.mfe, 0) as mfe,
                     COALESCE(m.be_mfe, 0) as be_mfe,
                     COALESCE(m.no_be_mfe, 0) as no_be_mfe,
@@ -303,9 +305,10 @@ def register_automated_signals_api_robust(app, db):
                     COALESCE(m.mae_global_r, 0) as mae_global_r,
                     NULL as final_mfe
                 FROM active_trade_ids a
-                JOIN entry_data e ON a.trade_id = e.trade_id
+                LEFT JOIN entry_data e ON a.trade_id = e.trade_id
                 LEFT JOIN latest_mfe m ON a.trade_id = m.trade_id
-                ORDER BY e.entry_timestamp DESC
+                WHERE m.trade_id IS NOT NULL
+                ORDER BY COALESCE(e.entry_timestamp, m.last_update) DESC
             """)
             active_rows = cursor.fetchall()
             active_trades = [row_to_dict(row) for row in active_rows]
