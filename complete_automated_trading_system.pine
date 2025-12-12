@@ -1474,7 +1474,8 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
     // Send batch alert
     if signals_in_batch > 0
         // Wrap in batch envelope
-        string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + f_isoTimestamp(time) + '","signals":[' + batch_payload + '],"batch_size":' + str.tostring(signals_in_batch) + ',"skipped":' + str.tostring(signals_skipped) + '}'
+        string ts = str.format("{0,date,yyyy-MM-dd}T{0,time,HH:mm:ss}", time)
+        string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + ts + '","signals":[' + batch_payload + '],"batch_size":' + str.tostring(signals_in_batch) + ',"skipped":' + str.tostring(signals_skipped) + '}'
         alert(batch_envelope, alert.freq_once_per_bar_close)
 
 // ============================================================================
