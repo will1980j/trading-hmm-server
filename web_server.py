@@ -13168,7 +13168,7 @@ def automated_signals_webhook():
         # ================================
         # PHASE E2: STRICT EVENT ENFORCEMENT
         # ================================
-        allowed_types = {"ENTRY","MFE_UPDATE","BE_TRIGGERED","EXIT_BE","EXIT_SL","CANCELLED"}
+        allowed_types = {"SIGNAL_CREATED","ENTRY","MFE_UPDATE","BE_TRIGGERED","EXIT_BE","EXIT_SL","CANCELLED"}
         evt = canonical.get("event_type")
         if evt not in allowed_types:
             err = f"Invalid event_type '{evt}' — not allowed under strict enforcement."
