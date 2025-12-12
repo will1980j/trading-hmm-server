@@ -24,6 +24,13 @@ def auto_guard_webhook_payload(payload):
     
     evt = payload.get("event_type")
     
+    # SIGNAL_CREATED doesn't need entry/stop (signal not confirmed yet)
+    if evt == "SIGNAL_CREATED":
+        # Only require trade_id and direction
+        if payload.get("direction") in (None, "", "null"):
+            return None, "Invalid SIGNAL_CREATED: missing direction"
+        return payload, None  # Allow through
+    
     # Guards for ENTRY
     if evt == "ENTRY":
         for f in ["direction", "entry_price", "stop_loss"]:
