@@ -2309,12 +2309,12 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
                 statusBadge = '<span class="badge bg-warning text-dark" style="font-size: 10px; padding: 3px 8px;">⏳ PEND</span>';
             }
             
-            // HTF badges - clean and minimal
+            // HTF badges - bold and readable
             const htf = signal.htf_alignment || {};
             const htfBadge = (bias) => {
-                if (!bias || bias === 'Neutral') return '<span style="color: #6b7280; font-size: 14px;">—</span>';
-                return bias === 'Bullish' ? '<span style="color: #3b82f6; font-size: 14px; font-weight: bold;">↑</span>' : 
-                                            '<span style="color: #ef4444; font-size: 14px; font-weight: bold;">↓</span>';
+                if (!bias || bias === 'Neutral') return '<span style="color: #6b7280; font-size: 18px; font-weight: 900;">—</span>';
+                return bias === 'Bullish' ? '<span style="color: #3b82f6; font-size: 18px; font-weight: 900;">▲</span>' : 
+                                            '<span style="color: #ef4444; font-size: 18px; font-weight: 900;">▼</span>';
             };
             
             // Calculate risk with color coding
