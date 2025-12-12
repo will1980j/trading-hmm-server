@@ -1430,6 +1430,11 @@ if db_enabled:
     register_sync_webhooks(app, db)
     logger.info("✅ Hybrid Sync webhooks registered")
     
+    # Register All Signals API (for All Signals tab)
+    logger.info("⚠️ Registering All Signals API")
+    from hybrid_sync.all_signals_api import register_all_signals_api
+    register_all_signals_api(app)
+    
     # Start Hybrid Signal Synchronization Service (Enterprise-Grade)
     logger.warning("⚠️ Starting Hybrid Signal Synchronization Service")
     from hybrid_sync.sync_service import start_hybrid_sync_service
@@ -12537,7 +12542,7 @@ def as_parse_automated_signal_payload(data):
         format_kind = "strategy"
         trade_id = data.get("signal_id")
         mapping = {
-            "signal_created": "ENTRY",
+            "signal_created": "SIGNAL_CREATED",  # PRESERVE for All Signals tab
             "ENTRY": "ENTRY",
             "mfe_update": "MFE_UPDATE",
             "MFE_UPDATE": "MFE_UPDATE",
@@ -12573,8 +12578,8 @@ def as_parse_automated_signal_payload(data):
         
         # Map legacy event type names to standard names
         event_type_map = {
-            "signal_created": "ENTRY",
-            "SIGNAL_CREATED": "ENTRY",
+            "signal_created": "SIGNAL_CREATED",  # PRESERVE for All Signals tab
+            "SIGNAL_CREATED": "SIGNAL_CREATED",  # PRESERVE for All Signals tab
             "mfe_update": "MFE_UPDATE",
             "be_triggered": "BE_TRIGGERED",
             "signal_completed": "EXIT_SL",
