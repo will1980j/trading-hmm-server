@@ -12615,7 +12615,7 @@ def as_parse_automated_signal_payload(data):
         }
     
     # Validate event_type is one of the supported lifecycle events
-    allowed_events = ["ENTRY", "MFE_UPDATE", "BE_TRIGGERED", "EXIT_BE", "EXIT_SL", "CANCELLED"]
+    allowed_events = ["SIGNAL_CREATED", "ENTRY", "MFE_UPDATE", "BE_TRIGGERED", "EXIT_BE", "EXIT_SL", "CANCELLED"]
     if canonical.get("event_type") not in allowed_events:
         canonical["validation_error"] = {
             "type": "UNKNOWN_EVENT_TYPE",
@@ -12652,7 +12652,7 @@ def as_validate_parsed_payload(canonical):
         return f"Unrecognized format_kind: {canonical['format_kind']}"
     
     # Telemetry event types must match internal mapping
-    allowed_events = {"ENTRY", "MFE_UPDATE", "BE_TRIGGERED", "EXIT_BE", "EXIT_SL", "CANCELLED"}
+    allowed_events = {"SIGNAL_CREATED", "ENTRY", "MFE_UPDATE", "BE_TRIGGERED", "EXIT_BE", "EXIT_SL", "CANCELLED"}
     if canonical["event_type"] not in allowed_events:
         return f"Illegal or unknown event_type: {canonical['event_type']}"
     
