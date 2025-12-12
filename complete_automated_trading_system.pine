@@ -190,12 +190,13 @@ get_bias() =>
     bias
 
 bias = get_bias()
-// Only calculate HTF bias when enabled (major performance optimization)
-daily_bias = use_daily ? request.security(syminfo.tickerid, "1D", get_bias()) : "Neutral"
-h4_bias = use_4h ? request.security(syminfo.tickerid, "240", get_bias()) : "Neutral"
-h1_bias = use_1h ? request.security(syminfo.tickerid, "60", get_bias()) : "Neutral"
-m15_bias = use_15m ? request.security(syminfo.tickerid, "15", get_bias()) : "Neutral"
-m5_bias = use_5m ? request.security(syminfo.tickerid, "5", get_bias()) : "Neutral"
+// ALWAYS calculate HTF bias for webhook data (All Signals tab needs this)
+// But only USE for filtering if enabled (chart stays 1M focused)
+daily_bias = request.security(syminfo.tickerid, "1D", get_bias())
+h4_bias = request.security(syminfo.tickerid, "240", get_bias())
+h1_bias = request.security(syminfo.tickerid, "60", get_bias())
+m15_bias = request.security(syminfo.tickerid, "15", get_bias())
+m5_bias = request.security(syminfo.tickerid, "5", get_bias())
 
 // HTF alignment
 daily_bull_ok = not use_daily or daily_bias == "Bullish"
