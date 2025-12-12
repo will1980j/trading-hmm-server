@@ -391,10 +391,10 @@ class ReconciliationEngine:
             return False
     
     def detect_missed_exit(self, trade_id: str, entry_price: float, stop_loss: float, 
-                          direction: str, current_price: float) -> Optional[str]:
+                          direction: str, current_price: float, be_triggered: bool = False) -> Optional[str]:
         """
         Detect if a signal should have been stopped out based on current price.
-        Returns: 'EXIT_SL' if stop was hit, None if still active
+        Returns: 'EXIT_BE' if BE stop hit, 'EXIT_SL' if original stop hit, None if still active
         """
         try:
             entry = float(entry_price)
@@ -402,13 +402,22 @@ class ReconciliationEngine:
             price = float(current_price)
             
             if direction in ['Bullish', 'LONG']:
-                # For bullish: stop is below entry
+                # Check if BE stop (entry) was hit after BE triggered
+                if be_triggered and price <= entry:
+                    return 'EXIT_BE'  # Price came back to entry after +1R
+                
+                # Check if original stop was hit
                 if price <= stop:
-                    return 'EXIT_SL'  # Price hit stop
-            else:
-                # For bearish: stop is above entry
+                    return 'EXIT_SL'  # Price hit original stop
+                    
+            else:  # Bearish/SHORT
+                # Check if BE stop (entry) was hit after BE triggered
+                if be_triggered and price >= entry:
+                    return 'EXIT_BE'  # Price came back to entry after +1R
+                
+                # Check if original stop was hit
                 if price >= stop:
-                    return 'EXIT_SL'  # Price hit stop
+                    return 'EXIT_SL'  # Price hit original stop
             
             return None  # Still active
             
@@ -416,8 +425,11 @@ class ReconciliationEngine:
             logger.error(f"Error detecting missed exit: {e}")
             return None
     
-    def insert_missed_exit(self, trade_id: str, stop_loss: float, direction: str) -> bool:
-        """Insert EXIT_SL event for signal that was stopped out but indicator missed it"""
+    def insert_missed_exit(self, trade_id: str, exit_price: float, exit_type: str, direction: str) -> bool:
+        """
+        Insert EXIT event for signal that was stopped out but indicator missed it.
+        exit_type: 'EXIT_BE' or 'EXIT_SL'
+        """
         try:
             conn = psycopg2.connect(self.database_url)
             cur = conn.cursor()
@@ -425,7 +437,7 @@ class ReconciliationEngine:
             # Extract metadata
             metadata = self.extract_metadata_from_trade_id(trade_id)
             
-            # Insert EXIT_SL
+            # Insert EXIT event
             cur.execute("""
                 INSERT INTO automated_signals (
                     trade_id, event_type, timestamp,
@@ -435,7 +447,7 @@ class ReconciliationEngine:
                     reconciliation_timestamp, reconciliation_reason,
                     raw_payload
                 ) VALUES (
-                    %s, 'EXIT_SL', NOW(),
+                    %s, %s, NOW(),
                     %s, %s, %s,
                     %s, %s,
                     'backend_calculated', 0.7,
@@ -443,9 +455,14 @@ class ReconciliationEngine:
                     %s
                 )
             """, (
-                trade_id, stop_loss, metadata.get('direction'), metadata.get('session'),
+                trade_id, exit_type, exit_price, metadata.get('direction'), metadata.get('session'),
                 metadata.get('signal_date'), metadata.get('signal_time'),
-                psycopg2.extras.Json({'trade_id': trade_id, 'exit_price': stop_loss, 'reconciled': True})
+                psycopg2.extras.Json({
+                    'trade_id': trade_id,
+                    'exit_price': exit_price,
+                    'exit_type': exit_type,
+                    'reconciled': True
+                })
             ))
             
             # Log to audit trail
@@ -454,13 +471,13 @@ class ReconciliationEngine:
                     trade_id, action_type, data_source,
                     fields_filled, confidence_score, success
                 ) VALUES (%s, 'missed_exit_inserted', 'backend_calculated', %s, 0.7, TRUE)
-            """, (trade_id, psycopg2.extras.Json({'exit_sl': True})))
+            """, (trade_id, psycopg2.extras.Json({exit_type.lower(): True})))
             
             conn.commit()
             cur.close()
             conn.close()
             
-            logger.info(f"✅ Inserted missed EXIT_SL for {trade_id}")
+            logger.info(f"✅ Inserted missed {exit_type} for {trade_id}")
             return True
             
         except Exception as e:
@@ -483,20 +500,36 @@ class ReconciliationEngine:
                     logger.warning(f"Cannot reconcile {trade_id}: No current price available")
                     return False
                 
+                # Check if BE was triggered (query database)
+                conn = psycopg2.connect(self.database_url)
+                cur = conn.cursor()
+                cur.execute("""
+                    SELECT EXISTS(
+                        SELECT 1 FROM automated_signals 
+                        WHERE trade_id = %s AND event_type = 'BE_TRIGGERED'
+                    )
+                """, (trade_id,))
+                be_triggered = cur.fetchone()[0]
+                cur.close()
+                conn.close()
+                
                 # Check if signal should have been stopped out
                 exit_type = self.detect_missed_exit(
                     trade_id,
                     gap_data['entry_price'],
                     gap_data['stop_loss'],
                     gap_data['direction'],
-                    current_price
+                    current_price,
+                    be_triggered
                 )
                 
                 if exit_type:
                     # Signal was stopped out - insert EXIT event
+                    exit_price = gap_data['entry_price'] if exit_type == 'EXIT_BE' else gap_data['stop_loss']
                     return self.insert_missed_exit(
                         trade_id,
-                        gap_data['stop_loss'],
+                        exit_price,
+                        exit_type,
                         gap_data['direction']
                     )
                 else:
