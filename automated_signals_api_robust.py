@@ -307,7 +307,6 @@ def register_automated_signals_api_robust(app, db):
                 FROM active_trade_ids a
                 LEFT JOIN entry_data e ON a.trade_id = e.trade_id
                 LEFT JOIN latest_mfe m ON a.trade_id = m.trade_id
-                WHERE m.trade_id IS NOT NULL
                 ORDER BY COALESCE(e.entry_timestamp, m.last_update) DESC
             """)
             active_rows = cursor.fetchall()
