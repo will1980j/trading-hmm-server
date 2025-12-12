@@ -1430,11 +1430,11 @@ if db_enabled:
     register_sync_webhooks(app, db)
     logger.info("✅ Hybrid Sync webhooks registered")
     
-    # Start Backend Reconciliation Service
-    logger.warning("⚠️ Starting Backend Signal Reconciliation Service")
-    from backend_signal_reconciler import start_reconciliation_service
-    reconciliation_thread = start_reconciliation_service(interval_seconds=120)
-    logger.info("✅ Backend reconciliation service started (2-minute intervals)")
+    # Start Hybrid Signal Synchronization Service (Enterprise-Grade)
+    logger.warning("⚠️ Starting Hybrid Signal Synchronization Service")
+    from hybrid_sync.sync_service import start_hybrid_sync_service
+    sync_thread = start_hybrid_sync_service(interval_seconds=120)
+    logger.info("✅ Hybrid Sync Service started (2-minute gap detection and reconciliation)")
     logger.info("✅ Diagnostics API registered")
     logger.info("✅ Signal Integrity API registered")
     logger.info("✅ Phase 2A API endpoints registered")
