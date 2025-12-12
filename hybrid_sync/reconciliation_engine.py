@@ -70,6 +70,9 @@ class ReconciliationEngine:
         """
         Calculate MFE and MAE from entry/stop/current price.
         Returns: (be_mfe, no_be_mfe, mae)
+        
+        MFE = Maximum Favorable Excursion (how far price moved in favorable direction)
+        MAE = Maximum Adverse Excursion (worst drawdown, always negative or zero)
         """
         try:
             entry = float(entry_price)
@@ -78,22 +81,50 @@ class ReconciliationEngine:
             risk = abs(entry - stop)
             
             if risk == 0:
+                logger.warning(f"Risk is zero: entry={entry}, stop={stop}")
                 return 0.0, 0.0, 0.0
             
             if direction in ['Bullish', 'LONG']:
-                # MFE: Favorable movement from entry
+                # For bullish: favorable = price going UP from entry
                 mfe = (price - entry) / risk
-                # MAE: Conservative estimate (assume touched stop at some point)
-                mae = -1.0  # Assume worst case for historical
-                # BE MFE: If MFE >= 1.0, assume BE triggered and capped
-                be_mfe = min(mfe, 1.0) if mfe >= 1.0 else mfe
-            else:
-                # MFE: Favorable movement from entry
+                
+                # MAE: If price is below entry, that's adverse movement
+                # Conservative: assume worst case is hitting the stop
+                if price < entry:
+                    mae = (price - entry) / risk  # Will be negative
+                else:
+                    mae = 0.0  # No adverse movement yet
+                
+                # BE MFE: If MFE >= 1.0, assume BE triggered
+                # After BE trigger, BE MFE caps at the value when BE was hit
+                # We don't know exact BE trigger point, so use current MFE if < 1.0, else 1.0
+                if mfe >= 1.0:
+                    be_mfe = 1.0  # Assume BE triggered and stopped at entry
+                else:
+                    be_mfe = mfe  # BE not triggered yet, same as No-BE
+                    
+            else:  # Bearish/SHORT
+                # For bearish: favorable = price going DOWN from entry
                 mfe = (entry - price) / risk
-                # MAE: Conservative estimate
-                mae = -1.0
-                # BE MFE: If MFE >= 1.0, assume BE triggered and capped
-                be_mfe = min(mfe, 1.0) if mfe >= 1.0 else mfe
+                
+                # MAE: If price is above entry, that's adverse movement
+                if price > entry:
+                    mae = (entry - price) / risk  # Will be negative
+                else:
+                    mae = 0.0  # No adverse movement yet
+                
+                # BE MFE logic same as bullish
+                if mfe >= 1.0:
+                    be_mfe = 1.0
+                else:
+                    be_mfe = mfe
+            
+            # Ensure MFE is never negative (that would mean price moved against us)
+            mfe = max(0.0, mfe)
+            be_mfe = max(0.0, be_mfe)
+            
+            # Ensure MAE is never positive (it's adverse movement)
+            mae = min(0.0, mae)
             
             return be_mfe, mfe, mae
             
