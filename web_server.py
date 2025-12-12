@@ -13173,6 +13173,7 @@ def automated_signals_webhook():
         if event_type != "ENTRY":
             try:
                 import os
+                import psycopg2
                 from automated_signals_state import enforce_strict_lifecycle_rules
                 database_url = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
                 if not database_url:
