@@ -1,0 +1,1 @@
+"""Hybrid Signal Synchronization System"""

@@ -7,8 +7,8 @@ import time
 import threading
 import logging
 from datetime import datetime
-from gap_detector import GapDetector
-from reconciliation_engine import ReconciliationEngine
+from .gap_detector import GapDetector
+from .reconciliation_engine import ReconciliationEngine
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
