@@ -1521,16 +1521,15 @@ AutomatedSignalsUltra.renderLifecycleChart = function(detail) {
     
     svg.attr('width', width).attr('height', height);
     
-    // Parse data points with MFE values (API returns mfe, no_be_mfe, be_mfe without _R suffix)
+    // Parse data points with DUAL MFE values (BE and No-BE strategies)
     const dataPoints = events
-        .filter(ev => ev.mfe != null || ev.no_be_mfe != null || ev.be_mfe != null || ev.mfe_R != null)
+        .filter(ev => ev.be_mfe != null || ev.no_be_mfe != null || ev.mfe != null)
         .map(ev => ({
             time: new Date(ev.timestamp),
-            mfe: ev.mfe != null ? parseFloat(ev.mfe) : 
-                 (ev.no_be_mfe != null ? parseFloat(ev.no_be_mfe) : 
-                 (ev.be_mfe != null ? parseFloat(ev.be_mfe) : 
-                 (ev.mfe_R != null ? parseFloat(ev.mfe_R) : 0))),
-            type: ev.event_type
+            be_mfe: ev.be_mfe != null ? parseFloat(ev.be_mfe) : (ev.mfe != null ? parseFloat(ev.mfe) : 0),
+            no_be_mfe: ev.no_be_mfe != null ? parseFloat(ev.no_be_mfe) : (ev.mfe != null ? parseFloat(ev.mfe) : 0),
+            type: ev.event_type,
+            be_triggered: ev.event_type === 'BE_TRIGGERED'
         }))
         .sort((a, b) => a.time - b.time);
     
@@ -1551,8 +1550,15 @@ AutomatedSignalsUltra.renderLifecycleChart = function(detail) {
         .domain([xExtent[0], new Date(Math.max(xExtent[1].getTime(), Date.now()))])
         .range([0, innerWidth]);
     
-    const maxMFE = Math.max(3, d3.max(dataPoints, d => d.mfe) + 0.5);
-    const minMFE = Math.min(-1.5, d3.min(dataPoints, d => d.mfe) - 0.5);
+    // Calculate max/min from BOTH strategies
+    const maxBE = d3.max(dataPoints, d => d.be_mfe) || 0;
+    const maxNoBE = d3.max(dataPoints, d => d.no_be_mfe) || 0;
+    const maxMFE = Math.max(3, maxBE, maxNoBE) + 0.5;
+    
+    const minBE = d3.min(dataPoints, d => d.be_mfe) || 0;
+    const minNoBE = d3.min(dataPoints, d => d.no_be_mfe) || 0;
+    const minMFE = Math.min(-1.5, minBE, minNoBE) - 0.5;
+    
     const yScale = d3.scaleLinear()
         .domain([minMFE, maxMFE])
         .range([innerHeight, 0]);
@@ -1560,13 +1566,15 @@ AutomatedSignalsUltra.renderLifecycleChart = function(detail) {
     const g = svg.append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`);
     
-    // Milestone lines (SL, Entry, BE, R1, R2, R3)
+    // Milestone lines (SL, Entry, BE, R-targets)
     const milestones = [
-        { r: -1, label: 'SL (-1R)', color: '#ef4444', dash: '4,4' },
-        { r: 0, label: 'ENTRY (0R)', color: '#3b82f6', dash: '0' },
-        { r: 1, label: 'BE (+1R)', color: '#eab308', dash: '4,4' },
-        { r: 2, label: '+2R', color: '#22c55e', dash: '4,4' },
-        { r: 3, label: '+3R', color: '#22c55e', dash: '4,4' }
+        { r: -1, label: 'STOP LOSS (-1R)', color: '#ef4444', dash: '0', width: 2 },
+        { r: 0, label: 'ENTRY (0R)', color: '#64748b', dash: '2,2', width: 1 },
+        { r: 1, label: 'BE TRIGGER (+1R)', color: '#eab308', dash: '4,4', width: 1.5 },
+        { r: 2, label: '+2R', color: '#22c55e', dash: '4,4', width: 1 },
+        { r: 3, label: '+3R', color: '#22c55e', dash: '4,4', width: 1 },
+        { r: 5, label: '+5R', color: '#10b981', dash: '4,4', width: 1 },
+        { r: 10, label: '+10R', color: '#059669', dash: '4,4', width: 1 }
     ];
     
     milestones.forEach(m => {
@@ -1577,64 +1585,105 @@ AutomatedSignalsUltra.renderLifecycleChart = function(detail) {
                 .attr('y1', yScale(m.r))
                 .attr('y2', yScale(m.r))
                 .attr('stroke', m.color)
-                .attr('stroke-width', m.r === 0 ? 1.5 : 1)
+                .attr('stroke-width', m.width || 1)
                 .attr('stroke-dasharray', m.dash)
-                .attr('opacity', 0.4);
+                .attr('opacity', m.r === -1 ? 0.6 : 0.4); // Stop loss more visible
             
             g.append('text')
                 .attr('x', innerWidth + 5)
                 .attr('y', yScale(m.r) + 4)
                 .attr('fill', m.color)
                 .attr('font-size', '10px')
-                .attr('opacity', 0.7)
+                .attr('font-weight', m.r === -1 || m.r === 1 ? '600' : '400')
+                .attr('opacity', 0.8)
                 .text(m.label);
         }
     });
     
-    // Line generator
-    const line = d3.line()
+    // DUAL STRATEGY LINE GENERATORS
+    const beLine = d3.line()
         .x(d => xScale(d.time))
-        .y(d => yScale(d.mfe))
+        .y(d => yScale(d.be_mfe))
         .curve(d3.curveMonotoneX);
     
-    // Gradient for area
-    const gradient = svg.append('defs')
+    const noBeLine = d3.line()
+        .x(d => xScale(d.time))
+        .y(d => yScale(d.no_be_mfe))
+        .curve(d3.curveMonotoneX);
+    
+    // Gradients for both strategies
+    const beGradient = svg.append('defs')
         .append('linearGradient')
-        .attr('id', 'mfe-gradient')
+        .attr('id', 'be-mfe-gradient')
         .attr('x1', '0%').attr('y1', '0%')
         .attr('x2', '0%').attr('y2', '100%');
-    gradient.append('stop').attr('offset', '0%').attr('stop-color', '#22c55e').attr('stop-opacity', 0.3);
-    gradient.append('stop').attr('offset', '100%').attr('stop-color', '#22c55e').attr('stop-opacity', 0.02);
+    beGradient.append('stop').attr('offset', '0%').attr('stop-color', '#22c55e').attr('stop-opacity', 0.2);
+    beGradient.append('stop').attr('offset', '100%').attr('stop-color', '#22c55e').attr('stop-opacity', 0.01);
     
-    // Area under line
-    const area = d3.area()
+    const noBeGradient = svg.append('defs')
+        .append('linearGradient')
+        .attr('id', 'no-be-mfe-gradient')
+        .attr('x1', '0%').attr('y1', '0%')
+        .attr('x2', '0%').attr('y2', '100%');
+    noBeGradient.append('stop').attr('offset', '0%').attr('stop-color', '#3b82f6').attr('stop-opacity', 0.2);
+    noBeGradient.append('stop').attr('offset', '100%').attr('stop-color', '#3b82f6').attr('stop-opacity', 0.01);
+    
+    // Area under No-BE line (blue)
+    const noBeArea = d3.area()
         .x(d => xScale(d.time))
         .y0(yScale(0))
-        .y1(d => yScale(d.mfe))
+        .y1(d => yScale(d.no_be_mfe))
         .curve(d3.curveMonotoneX);
     
     g.append('path')
         .datum(dataPoints)
-        .attr('fill', 'url(#mfe-gradient)')
-        .attr('d', area);
+        .attr('fill', 'url(#no-be-mfe-gradient)')
+        .attr('d', noBeArea);
     
-    // MFE Line
+    // Area under BE line (green)
+    const beArea = d3.area()
+        .x(d => xScale(d.time))
+        .y0(yScale(0))
+        .y1(d => yScale(d.be_mfe))
+        .curve(d3.curveMonotoneX);
+    
+    g.append('path')
+        .datum(dataPoints)
+        .attr('fill', 'url(#be-mfe-gradient)')
+        .attr('d', beArea);
+    
+    // No-BE Strategy Line (Blue - draws first, behind BE line)
+    g.append('path')
+        .datum(dataPoints)
+        .attr('fill', 'none')
+        .attr('stroke', '#3b82f6')
+        .attr('stroke-width', 2.5)
+        .attr('stroke-dasharray', '5,3')
+        .attr('d', noBeLine)
+        .attr('opacity', 0.8);
+    
+    // BE Strategy Line (Green - draws on top)
     g.append('path')
         .datum(dataPoints)
         .attr('fill', 'none')
         .attr('stroke', '#22c55e')
-        .attr('stroke-width', 2.5)
-        .attr('d', line);
+        .attr('stroke-width', 3)
+        .attr('d', beLine);
     
-    // Data points
-    g.selectAll('.mfe-point')
+    // Data points for BE Strategy (Green circles)
+    g.selectAll('.be-point')
         .data(dataPoints)
         .enter()
         .append('circle')
-        .attr('class', 'mfe-point')
+        .attr('class', 'be-point')
         .attr('cx', d => xScale(d.time))
-        .attr('cy', d => yScale(d.mfe))
-        .attr('r', d => d.type === 'ENTRY' || d.type.startsWith('EXIT') ? 6 : 4)
+        .attr('cy', d => yScale(d.be_mfe))
+        .attr('r', d => {
+            if (d.type === 'ENTRY' || d.type === 'SIGNAL_CREATED') return 7;
+            if (d.type === 'BE_TRIGGERED') return 8;
+            if (d.type.startsWith('EXIT')) return 7;
+            return 4;
+        })
         .attr('fill', d => {
             if (d.type === 'ENTRY' || d.type === 'SIGNAL_CREATED') return '#3b82f6';
             if (d.type === 'BE_TRIGGERED') return '#eab308';
@@ -1642,7 +1691,27 @@ AutomatedSignalsUltra.renderLifecycleChart = function(detail) {
             return '#22c55e';
         })
         .attr('stroke', '#0a1628')
-        .attr('stroke-width', 2);
+        .attr('stroke-width', 2)
+        .style('cursor', 'pointer')
+        .append('title')
+        .text(d => `${d.type}\nBE MFE: ${d.be_mfe.toFixed(2)}R\nNo-BE MFE: ${d.no_be_mfe.toFixed(2)}R\nTime: ${d.time.toLocaleTimeString()}`);
+    
+    // Data points for No-BE Strategy (Blue circles - slightly offset)
+    g.selectAll('.no-be-point')
+        .data(dataPoints.filter(d => d.no_be_mfe !== d.be_mfe)) // Only show when different
+        .enter()
+        .append('circle')
+        .attr('class', 'no-be-point')
+        .attr('cx', d => xScale(d.time))
+        .attr('cy', d => yScale(d.no_be_mfe))
+        .attr('r', 4)
+        .attr('fill', '#3b82f6')
+        .attr('stroke', '#0a1628')
+        .attr('stroke-width', 1.5)
+        .attr('opacity', 0.7)
+        .style('cursor', 'pointer')
+        .append('title')
+        .text(d => `No-BE Strategy\nMFE: ${d.no_be_mfe.toFixed(2)}R\nTime: ${d.time.toLocaleTimeString()}`);
     
     // X Axis
     const xAxis = d3.axisBottom(xScale)
@@ -1686,6 +1755,45 @@ AutomatedSignalsUltra.renderLifecycleChart = function(detail) {
         .attr('fill', '#64748b')
         .attr('font-size', '11px')
         .text('MFE (R-Multiple)');
+    
+    // LEGEND - Dual Strategy Explanation
+    const legend = svg.append('g')
+        .attr('transform', `translate(${margin.left + 10}, ${margin.top - 15})`);
+    
+    // BE=1 Strategy (Green)
+    legend.append('line')
+        .attr('x1', 0)
+        .attr('x2', 25)
+        .attr('y1', 0)
+        .attr('y2', 0)
+        .attr('stroke', '#22c55e')
+        .attr('stroke-width', 3);
+    
+    legend.append('text')
+        .attr('x', 30)
+        .attr('y', 4)
+        .attr('fill', '#22c55e')
+        .attr('font-size', '11px')
+        .attr('font-weight', '600')
+        .text('BE=1 Strategy (Stop → Entry at +1R)');
+    
+    // No-BE Strategy (Blue)
+    legend.append('line')
+        .attr('x1', 250)
+        .attr('x2', 275)
+        .attr('y1', 0)
+        .attr('y2', 0)
+        .attr('stroke', '#3b82f6')
+        .attr('stroke-width', 2.5)
+        .attr('stroke-dasharray', '5,3');
+    
+    legend.append('text')
+        .attr('x', 280)
+        .attr('y', 4)
+        .attr('fill', '#3b82f6')
+        .attr('font-size', '11px')
+        .attr('font-weight', '600')
+        .text('No-BE Strategy (Stop stays at original)');
 };
 
 AutomatedSignalsUltra.showLifecycleOverlay = function() {
