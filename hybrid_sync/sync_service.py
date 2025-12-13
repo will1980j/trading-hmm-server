@@ -10,6 +10,7 @@ from datetime import datetime
 from .gap_detector import GapDetector
 from .reconciliation_engine import ReconciliationEngine
 from .cancellation_detector import detect_and_mark_cancelled_signals
+from .signal_created_reconciler import SignalCreatedReconciler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ class HybridSyncService:
         self.running = False
         self.detector = GapDetector()
         self.reconciler = ReconciliationEngine()
+        self.signal_created_reconciler = SignalCreatedReconciler()
         self.cycle_count = 0
         self.total_gaps_filled = 0
         
@@ -43,19 +45,27 @@ class HybridSyncService:
             if cancel_result.get('cancelled_detected', 0) > 0:
                 logger.info(f"🚫 Detected {cancel_result['cancelled_detected']} cancelled signals")
             
-            # Step 2: Detect gaps
+            # Step 2: TIER 0 - Reconcile from SIGNAL_CREATED (highest confidence)
+            logger.info("🎯 TIER 0: Reconciling from SIGNAL_CREATED events...")
+            signal_created_results = self.signal_created_reconciler.reconcile_all_from_signal_created()
+            if signal_created_results.get('total_filled', 0) > 0:
+                logger.info(f"✅ TIER 0: {signal_created_results['total_filled']} fields filled from SIGNAL_CREATED")
+                self.total_gaps_filled += signal_created_results['total_filled']
+            
+            # Step 3: Detect remaining gaps
             gap_report = self.detector.run_complete_scan()
             
             if gap_report['total_gaps'] == 0:
                 logger.info("✅ No gaps detected - system healthy")
                 return
             
-            # Step 3: Reconcile gaps
+            # Step 4: TIER 1-3 - Reconcile remaining gaps (indicator polling, calculation, extraction)
+            logger.info(f"🔧 TIER 1-3: Reconciling {gap_report['total_gaps']} remaining gaps...")
             results = self.reconciler.reconcile_all_gaps(gap_report)
             
             self.total_gaps_filled += results['gaps_filled']
             
-            # Step 4: Update health metrics for all signals
+            # Step 5: Update health metrics for all signals
             logger.info("📊 Updating health metrics...")
             # This will be implemented when we add the health dashboard
             
