@@ -95,7 +95,7 @@ class SignalCreatedReconciler:
                 UPDATE automated_signals
                 SET 
                     htf_alignment = %s,
-                    data_source = 'signal_created',
+                    data_source = 'reconciled',
                     confidence_score = 1.0,
                     reconciliation_timestamp = NOW(),
                     reconciliation_reason = 'htf_alignment_from_signal_created'
@@ -150,7 +150,7 @@ class SignalCreatedReconciler:
                     signal_time = COALESCE(signal_time, %s),
                     session = COALESCE(session, %s),
                     direction = COALESCE(direction, %s),
-                    data_source = 'signal_created',
+                    data_source = 'reconciled',
                     confidence_score = 1.0,
                     reconciliation_timestamp = NOW(),
                     reconciliation_reason = 'metadata_from_signal_created'
@@ -229,7 +229,7 @@ class SignalCreatedReconciler:
                 SET 
                     confirmation_time = %s,
                     bars_to_confirmation = %s,
-                    data_source = 'signal_created',
+                    data_source = 'reconciled',
                     confidence_score = 1.0,
                     reconciliation_timestamp = NOW(),
                     reconciliation_reason = 'confirmation_time_calculated'
