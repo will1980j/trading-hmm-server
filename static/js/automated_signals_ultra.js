@@ -1241,18 +1241,18 @@ AutomatedSignalsUltra.loadTradeDetail = async function(trade_id) {
     }
     
     try {
-        // Correct endpoint: /api/automated-signals/trade/<trade_id>
-        const resp = await fetch(`/api/automated-signals/trade/${encodeURIComponent(trade_id)}`, {
+        // Correct endpoint: /api/automated-signals/trade-detail/<trade_id>
+        const resp = await fetch(`/api/automated-signals/trade-detail/${encodeURIComponent(trade_id)}`, {
             cache: 'no-store'
         });
         const json = await resp.json();
         
-        // The endpoint returns the detail directly (not wrapped in success/data)
-        if (json.error) {
-            throw new Error(json.error || "Trade detail fetch failed");
+        // The endpoint returns {success: true, data: {...}}
+        if (!json.success || json.error) {
+            throw new Error(json.error || json.message || "Trade detail fetch failed");
         }
         
-        const detail = json;
+        const detail = json.data;
         
         // Side panel render
         AutomatedSignalsUltra.renderSideDetail(detail);
