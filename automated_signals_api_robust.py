@@ -275,10 +275,11 @@ def register_automated_signals_api_robust(app, db):
                     ORDER BY trade_id, timestamp DESC
                 ),
                 active_trade_ids AS (
-                    -- Include signals with ENTRY OR signals with MFE_UPDATE (covers orphaned signals)
+                    -- Only include signals with ENTRY event (proper trades)
+                    -- Orphaned signals (MFE_UPDATE without ENTRY) should not show as active
                     SELECT DISTINCT trade_id
                     FROM automated_signals
-                    WHERE (event_type = 'ENTRY' OR event_type = 'MFE_UPDATE')
+                    WHERE event_type = 'ENTRY'
                     AND trade_id NOT IN (
                         SELECT DISTINCT trade_id 
                         FROM automated_signals 

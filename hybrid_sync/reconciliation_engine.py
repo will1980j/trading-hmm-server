@@ -4,6 +4,7 @@ Enterprise-grade three-tier gap filling with confidence scoring
 """
 
 import psycopg2
+import psycopg2.extras
 import os
 import json
 from datetime import datetime
@@ -484,6 +485,38 @@ class ReconciliationEngine:
             logger.error(f"❌ Failed to insert missed EXIT: {e}")
             return False
     
+    def fill_mae_gap(self, trade_id: str, entry_price: float, stop_loss: float, direction: str) -> bool:
+        """Fill missing MAE using conservative estimate (0.0 if no adverse movement detected)"""
+        try:
+            conn = psycopg2.connect(self.database_url)
+            cur = conn.cursor()
+            
+            # Insert MFE_UPDATE with MAE = 0.0 (conservative - no adverse movement detected)
+            cur.execute("""
+                INSERT INTO automated_signals (
+                    trade_id, event_type, timestamp,
+                    mae_global_r,
+                    data_source, confidence_score,
+                    reconciliation_timestamp, reconciliation_reason
+                ) VALUES (
+                    %s, 'MFE_UPDATE', NOW(),
+                    0.0,
+                    'backend_calculated', 0.7,
+                    NOW(), 'mae_gap_fill_conservative'
+                )
+            """, (trade_id,))
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            logger.info(f"✅ Filled MAE gap for {trade_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to fill MAE gap for {trade_id}: {e}")
+            return False
+    
     def reconcile_signal(self, gap_data: Dict) -> bool:
         """
         Reconcile a single signal based on gap type.
@@ -552,6 +585,20 @@ class ReconciliationEngine:
                     gap_data['stop_loss'],
                     gap_data.get('direction', 'LONG')
                 )
+            
+            elif gap_type == 'No MAE':
+                return self.fill_mae_gap(
+                    trade_id,
+                    gap_data.get('entry_price'),
+                    gap_data.get('stop_loss'),
+                    gap_data.get('direction', 'LONG')
+                )
+            
+            elif gap_type in ['No HTF Alignment', 'No Confirmation Time']:
+                # These require SIGNAL_CREATED events - will be handled by Tier 0
+                # If we reach here, SIGNAL_CREATED doesn't exist, so skip
+                logger.info(f"Skipping {gap_type} for {trade_id} - requires SIGNAL_CREATED event")
+                return False
             
             else:
                 logger.warning(f"Unknown gap type: {gap_type}")

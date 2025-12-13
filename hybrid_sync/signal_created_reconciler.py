@@ -4,6 +4,7 @@ Uses All Signals (SIGNAL_CREATED events) as primary source of truth for gap fill
 """
 
 import psycopg2
+import psycopg2.extras
 import os
 from datetime import datetime
 from typing import Dict, Optional, List
