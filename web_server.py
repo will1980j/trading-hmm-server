@@ -13342,7 +13342,6 @@ def handle_signal_created(data):
         """, (
             trade_id,
             ts_utc,
-            trade_id,
             data.get("direction"),
             data.get("session"),
             signal_date,
