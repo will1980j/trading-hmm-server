@@ -276,14 +276,17 @@ def register_automated_signals_api_robust(app, db):
                 ),
                 active_trade_ids AS (
                     -- Only include signals with ENTRY event (proper trades)
-                    -- Orphaned signals (MFE_UPDATE without ENTRY) should not show as active
+                    -- A trade is ACTIVE if No-BE strategy is still running
+                    -- A trade is COMPLETE only when EXIT_SL occurs (both strategies stopped)
+                    -- EXIT_BE means BE strategy stopped, but No-BE continues → still ACTIVE
                     SELECT DISTINCT trade_id
                     FROM automated_signals
                     WHERE event_type = 'ENTRY'
                     AND trade_id NOT IN (
                         SELECT DISTINCT trade_id 
                         FROM automated_signals 
-                        WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                        WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
+                        -- Note: EXIT_BE is NOT included here because No-BE strategy continues
                     )
                 )
                 SELECT 
