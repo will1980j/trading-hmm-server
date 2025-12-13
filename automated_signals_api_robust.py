@@ -640,17 +640,18 @@ def register_automated_signals_api_robust(app, db):
                 event = dict(row)
                 events.append(event)
             
-            # Build trade state
-            trade_state = build_trade_state(events)
+            # Get ENTRY event for core data
+            entry_event = next((e for e in events if e.get('event_type') == 'ENTRY'), None)
+            
+            # Build trade state (for status and aggregated fields)
+            trade_state = build_trade_state(events) if events else None
             
             if not trade_state:
-                cursor.close()
-                conn.close()
-                return jsonify({
-                    'success': False,
-                    'error': 'state_build_failed',
-                    'message': 'Could not build trade state'
-                }), 500
+                trade_state = {
+                    'trade_id': trade_id,
+                    'status': 'UNKNOWN',
+                    'direction': entry_event.get('direction') if entry_event else 'UNKNOWN'
+                }
             
             # Helper to safely convert to float
             def safe_float(val):
@@ -661,19 +662,27 @@ def register_automated_signals_api_robust(app, db):
                 except (TypeError, ValueError):
                     return None
             
-            # Build detailed response - aligned with build_trade_state output
+            # Get latest MFE values
+            latest_mfe = next((e for e in reversed(events) if e.get('event_type') == 'MFE_UPDATE'), None)
+            exit_event = next((e for e in reversed(events) if e.get('event_type', '').startswith('EXIT')), None)
+            
+            # Build detailed response - use ENTRY event data directly
             detail = {
                 'trade_id': trade_state['trade_id'],
-                'direction': trade_state['direction'],
-                'session': trade_state['session'],
-                'status': trade_state['status'],
-                'entry_price': safe_float(trade_state.get('entry_price')),
-                'stop_loss': safe_float(trade_state.get('stop_loss')),
-                'current_mfe': safe_float(trade_state.get('no_be_mfe_R') or trade_state.get('be_mfe_R')),
-                'final_mfe': safe_float(trade_state.get('final_mfe_R')),
-                'exit_price': safe_float(trade_state.get('exit_price')),
+                'direction': entry_event.get('direction') if entry_event else trade_state.get('direction'),
+                'session': entry_event.get('session') if entry_event else trade_state.get('session'),
+                'status': trade_state.get('status'),
+                'entry_price': safe_float(entry_event.get('entry_price')) if entry_event else None,
+                'stop_loss': safe_float(entry_event.get('stop_loss')) if entry_event else None,
+                'risk_distance': safe_float(entry_event.get('risk_distance')) if entry_event else None,
+                'current_mfe': safe_float(latest_mfe.get('no_be_mfe')) if latest_mfe else None,
+                'be_mfe': safe_float(latest_mfe.get('be_mfe')) if latest_mfe else None,
+                'no_be_mfe': safe_float(latest_mfe.get('no_be_mfe')) if latest_mfe else None,
+                'mae_global_R': safe_float(latest_mfe.get('mae_global_r')) if latest_mfe else None,
+                'final_mfe': safe_float(exit_event.get('final_mfe')) if exit_event else None,
+                'exit_price': safe_float(exit_event.get('exit_price')) if exit_event else None,
                 'exit_reason': trade_state.get('completed_reason'),
-                'be_triggered': trade_state.get('status') == 'BE_PROTECTED',
+                'be_triggered': any(e.get('event_type') == 'BE_TRIGGERED' for e in events),
                 'targets': trade_state.get('targets'),
                 'setup': {
                     'family': trade_state.get('setup_family'),
@@ -688,7 +697,7 @@ def register_automated_signals_api_robust(app, db):
                 'events': []
             }
             
-            # Add events timeline
+            # Add events timeline - use raw events from database
             for event in events:
                 # Safely convert timestamp
                 ts = event.get('timestamp')
@@ -697,12 +706,14 @@ def register_automated_signals_api_robust(app, db):
                 event_data = {
                     'event_type': event.get('event_type'),
                     'timestamp': ts_str,
-                    'be_mfe_R': safe_float(event.get('be_mfe')),
-                    'no_be_mfe_R': safe_float(event.get('no_be_mfe')),
-                    'mfe_R': safe_float(event.get('mfe')),
-                    'mae_R': None,
+                    'be_mfe': safe_float(event.get('be_mfe')),
+                    'no_be_mfe': safe_float(event.get('no_be_mfe')),
+                    'mfe': safe_float(event.get('mfe')),
+                    'mae_global_r': safe_float(event.get('mae_global_r')),
                     'current_price': safe_float(event.get('current_price')),
-                    'exit_price': safe_float(event.get('exit_price'))
+                    'exit_price': safe_float(event.get('exit_price')),
+                    'entry_price': safe_float(event.get('entry_price')),
+                    'stop_loss': safe_float(event.get('stop_loss'))
                 }
                 
                 detail['events'].append(event_data)
