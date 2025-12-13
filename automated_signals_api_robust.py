@@ -337,13 +337,16 @@ def register_automated_signals_api_robust(app, db):
                     WHERE event_type = 'ENTRY'
                 ),
                 exit_data AS (
+                    -- Only include EXIT_SL (both strategies stopped)
+                    -- EXIT_BE means BE stopped but No-BE continues → not completed yet
                     SELECT 
                         trade_id,
                         event_type as exit_type,
                         final_mfe,
                         timestamp as exit_timestamp
                     FROM automated_signals
-                    WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                    WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
+                    -- Note: EXIT_BE and EXIT_BREAK_EVEN excluded (trade still active)
                 ),
                 latest_mfe_completed AS (
                     SELECT DISTINCT ON (trade_id)
@@ -397,7 +400,9 @@ def register_automated_signals_api_robust(app, db):
             """)
             today_count = cursor.fetchone()['count'] or 0
             
-            # Active count (unique trades without EXIT)
+            # Active count (unique trades without EXIT_SL)
+            # A trade is ACTIVE if No-BE strategy is still running
+            # EXIT_BE means BE stopped, but No-BE continues → still ACTIVE
             cursor.execute("""
                 SELECT COUNT(DISTINCT trade_id) as count
                 FROM automated_signals
@@ -405,16 +410,19 @@ def register_automated_signals_api_robust(app, db):
                 AND trade_id NOT IN (
                     SELECT DISTINCT trade_id 
                     FROM automated_signals 
-                    WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                    WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
+                    -- Note: EXIT_BE is NOT included because No-BE strategy continues
                 )
             """)
             active_count = cursor.fetchone()['count'] or 0
             
             # Completed count (total, not just returned)
+            # Only count trades with EXIT_SL (both strategies stopped)
             cursor.execute("""
                 SELECT COUNT(DISTINCT trade_id) as count
                 FROM automated_signals
-                WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
+                -- Note: EXIT_BE excluded (trade still active with No-BE)
             """)
             completed_count = cursor.fetchone()['count'] or 0
             
@@ -435,22 +443,24 @@ def register_automated_signals_api_robust(app, db):
                 delta_sec = (now_utc - last_ts).total_seconds()
                 webhook_healthy = delta_sec < 300
             
-            # Average MFE from completed trades
+            # Average MFE from completed trades (only EXIT_SL - both strategies stopped)
             cursor.execute("""
                 SELECT AVG(COALESCE(final_mfe, mfe)) as avg_mfe
                 FROM automated_signals
-                WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
+                -- Note: Only trades where both strategies stopped
             """)
             avg_mfe_row = cursor.fetchone()
             avg_mfe = float(avg_mfe_row['avg_mfe']) if avg_mfe_row and avg_mfe_row['avg_mfe'] else 0.0
             
-            # Win rate (final_mfe > 0 is a win)
+            # Win rate (final_mfe > 0 is a win) - only completed trades
             cursor.execute("""
                 SELECT 
                     COUNT(*) FILTER (WHERE COALESCE(final_mfe, mfe, 0) > 0) as wins,
                     COUNT(*) as total
                 FROM automated_signals
-                WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
+                -- Note: Only trades where both strategies stopped
             """)
             win_row = cursor.fetchone()
             wins = win_row['wins'] or 0
@@ -731,6 +741,7 @@ def register_automated_signals_api_robust(app, db):
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # Get completed trades per day (last 90 days)
+            # Only EXIT_SL (both strategies stopped)
             cursor.execute("""
                 SELECT 
                     DATE((timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York') as date,
@@ -738,12 +749,14 @@ def register_automated_signals_api_robust(app, db):
                     AVG(COALESCE(final_mfe, no_be_mfe, mfe, 0)) as avg_mfe
                 FROM automated_signals
                 WHERE timestamp >= CURRENT_DATE - INTERVAL '90 days'
-                AND event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                AND event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
+                -- Note: Only trades where both strategies stopped
                 GROUP BY DATE((timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York')
             """)
             completed_by_date = {row['date'].strftime('%Y-%m-%d'): row for row in cursor.fetchall()}
             
-            # Get active trades per day (entry date, no exit yet)
+            # Get active trades per day (entry date, no EXIT_SL yet)
+            # A trade is active if No-BE strategy is still running
             cursor.execute("""
                 SELECT 
                     DATE((e.timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York') as date,
@@ -754,7 +767,8 @@ def register_automated_signals_api_robust(app, db):
                 AND e.trade_id NOT IN (
                     SELECT DISTINCT trade_id 
                     FROM automated_signals 
-                    WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_BREAK_EVEN', 'EXIT_SL', 'EXIT_BE')
+                    WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
+                    -- Note: EXIT_BE excluded (No-BE strategy still active)
                 )
                 GROUP BY DATE((e.timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York')
             """)
