@@ -55,6 +55,14 @@ def register_all_signals_api(app):
                             AND e.event_type = 'ENTRY' 
                             LIMIT 1
                         ) as confirmation_time,
+                        -- Get cancellation time if exists
+                        (
+                            SELECT c.timestamp 
+                            FROM automated_signals c 
+                            WHERE c.trade_id = sc.trade_id 
+                            AND c.event_type = 'CANCELLED' 
+                            LIMIT 1
+                        ) as cancellation_time,
                         -- Get entry data if confirmed
                         (
                             SELECT e.entry_price 
@@ -86,13 +94,16 @@ def register_all_signals_api(app):
                     is_confirmed,
                     is_cancelled,
                     confirmation_time,
+                    cancellation_time,
                     entry_price,
                     stop_loss,
                     CASE 
                         WHEN is_confirmed THEN 
                             EXTRACT(EPOCH FROM (confirmation_time - signal_time))/60
+                        WHEN is_cancelled THEN
+                            EXTRACT(EPOCH FROM (cancellation_time - signal_time))/60
                         ELSE NULL
-                    END as minutes_to_confirmation,
+                    END as minutes_to_event,
                     CASE
                         WHEN is_cancelled THEN 'CANCELLED'
                         WHEN is_confirmed THEN 'CONFIRMED'
@@ -104,6 +115,23 @@ def register_all_signals_api(app):
             
             signals = []
             for row in cur.fetchall():
+                minutes_to_event = float(row[13]) if row[13] else None
+                
+                # Format age like confirmed signals tab (e.g., "2m 30s", "1h 15m")
+                age_formatted = None
+                if minutes_to_event is not None:
+                    total_seconds = int(minutes_to_event * 60)
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    seconds = total_seconds % 60
+                    
+                    if hours > 0:
+                        age_formatted = f"{hours}h {minutes}m"
+                    elif minutes > 0:
+                        age_formatted = f"{minutes}m {seconds}s"
+                    else:
+                        age_formatted = f"{seconds}s"
+                
                 signal = {
                     'trade_id': row[0],
                     'signal_time': row[1].isoformat() if row[1] else None,
@@ -115,11 +143,13 @@ def register_all_signals_api(app):
                     'is_confirmed': row[7],
                     'is_cancelled': row[8],
                     'confirmation_time': row[9].isoformat() if row[9] else None,
-                    'entry_price': float(row[10]) if row[10] else None,
-                    'stop_loss': float(row[11]) if row[11] else None,
-                    'minutes_to_confirmation': float(row[12]) if row[12] else None,
-                    'bars_to_confirmation': int(row[12]) if row[12] else None,  # Approximate (1 bar = 1 minute)
-                    'status': row[13]
+                    'cancellation_time': row[10].isoformat() if row[10] else None,
+                    'entry_price': float(row[11]) if row[11] else None,
+                    'stop_loss': float(row[12]) if row[12] else None,
+                    'minutes_to_event': minutes_to_event,
+                    'bars_to_event': int(minutes_to_event) if minutes_to_event else None,  # 1 bar = 1 minute
+                    'age_before_event': age_formatted,  # Formatted age (e.g., "2m 30s")
+                    'status': row[14]
                 }
                 signals.append(signal)
             

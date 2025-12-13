@@ -2337,18 +2337,31 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
                 dateStr = `${day}-${month}-${year}`;
             }
             
+            // Time display - use signal_time for all signals
+            const timeStr = signal.signal_time_str || '--';
+            
+            // Age/Bars display - show age before confirmation or cancellation
+            let ageDisplay = '--';
+            if (signal.age_before_event) {
+                // Use formatted age from backend (e.g., "2m 30s")
+                ageDisplay = signal.age_before_event;
+            } else if (signal.bars_to_event) {
+                // Fallback: show bars
+                ageDisplay = `${signal.bars_to_event}`;
+            }
+            
             html += `
                 <tr>
                     <td><input type="checkbox" class="form-check-input" data-trade-id="${signal.trade_id}" onchange="updateAllSignalsDeleteButton()"></td>
                     <td class="ultra-muted small">${dateStr}</td>
-                    <td class="ultra-muted">${signal.signal_time_str || '--'}</td>
+                    <td class="ultra-muted">${timeStr}</td>
                     <td class="text-center">${directionIcon}</td>
                     <td class="ultra-muted small">${signal.session || '--'}</td>
                     <td class="text-center">${statusBadge}</td>
                     <td class="ultra-muted">${signal.entry_price ? signal.entry_price.toFixed(2) : '--'}</td>
                     <td class="ultra-muted">${signal.stop_loss ? signal.stop_loss.toFixed(2) : '--'}</td>
                     <td class="text-center">${riskDisplay}</td>
-                    <td class="ultra-muted text-center">${signal.bars_to_confirmation || '--'}</td>
+                    <td class="ultra-muted text-center">${ageDisplay}</td>
                     <td class="text-center">${htfBadge(htf.daily)}</td>
                     <td class="text-center">${htfBadge(htf.h4)}</td>
                     <td class="text-center">${htfBadge(htf.h1)}</td>
