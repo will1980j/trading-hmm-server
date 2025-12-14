@@ -24,12 +24,19 @@ account_size = input.float(100000, "Account Size ($)", group="Risk Management")
 risk_percent = input.float(1.0, "Risk Per Trade (%)", minval=0.1, maxval=100, step=0.1, group="Risk Management")
 buffer_points = input.float(0.25, "Stop Loss Buffer (Points)", minval=0.01, step=0.01, group="Risk Management")
 
-// SIGNAL LIST VIEWER
-SHOW_SIGNAL_LIST = input.bool(false, "Show Signal List Table", group="Signal List Viewer", tooltip="Display table of all tracked signals")
+// SIGNAL LIST VIEWER (Confirmed Signals)
+SHOW_SIGNAL_LIST = input.bool(false, "Show Confirmed Signals Table", group="Signal List Viewer", tooltip="Display table of confirmed signals")
 SIGNAL_LIST_FILTER = input.string("ALL", "Filter", options=["ALL", "ACTIVE", "COMPLETED"], group="Signal List Viewer", tooltip="Show all signals, only active, or only completed")
 SIGNAL_LIST_START = input.int(0, "Start Index (Page)", minval=0, step=20, group="Signal List Viewer", tooltip="Which signal to start from (0=first page, 20=page 2, 40=page 3, etc.)")
 SIGNAL_LIST_COUNT = input.int(20, "Signals Per Page", minval=5, maxval=20, group="Signal List Viewer")
 SIGNAL_LIST_POSITION = input.string("middle_right", "Table Position", options=["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"], group="Signal List Viewer")
+
+// ALL SIGNALS VIEWER (Every Triangle)
+SHOW_ALL_SIGNALS = input.bool(false, "Show All Signals Table", group="All Signals Viewer", tooltip="Display table of every triangle (pending, confirmed, cancelled)")
+ALL_SIGNALS_FILTER = input.string("ALL", "Filter", options=["ALL", "PENDING", "CONFIRMED", "CANCELLED"], group="All Signals Viewer")
+ALL_SIGNALS_START = input.int(0, "Start Index (Page)", minval=0, step=20, group="All Signals Viewer")
+ALL_SIGNALS_COUNT = input.int(20, "Signals Per Page", minval=5, maxval=20, group="All Signals Viewer")
+ALL_SIGNALS_POSITION = input.string("middle_left", "Table Position", options=["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"], group="All Signals Viewer")
 
 // ARRAY RESET - Change this number to force rebuild (1, 2, 3, etc.)
 ARRAY_VERSION = input.int(1, "Array Version (change to reset)", minval=1, group="Debug", tooltip="Change this number (1→2→3) to force array reset and rebuild with fixed MFE logic")
@@ -338,6 +345,15 @@ var array<bool> signal_is_realtime = array.new<bool>()  // Track if signal occur
 var array<bool> signal_snapshot_sent = array.new<bool>()  // Track if one-off MFE snapshot has been sent (for non-realtime bars)
 
 // ============================================================================
+// ALL SIGNALS TRACKING (Every Triangle - Separate from Confirmed Signals)
+// ============================================================================
+var array<int> all_signal_times = array.new<int>()           // When triangle appeared
+var array<string> all_signal_directions = array.new<string>() // Bullish/Bearish
+var array<string> all_signal_status = array.new<string>()     // PENDING/CONFIRMED/CANCELLED
+var array<int> all_signal_confirmation_times = array.new<int>() // When confirmed (0 if not)
+var array<int> all_signal_bars_to_confirm = array.new<int>()  // Bars from signal to confirmation
+
+// ============================================================================
 // TELEMETRY ENGINE STATE (Option B - Single Active Trade Lifecycle)
 // ============================================================================
 // Whether telemetry is currently active for an open trade
@@ -392,6 +408,19 @@ if show_bull_triangle and active_signal != "Bullish"
     entry_price := na
     stop_loss_price := na
     signal_created_bullish := true  // Flag to send SIGNAL_CREATED webhook
+    
+    // ALL SIGNALS: Cancel any pending Bearish signals before adding new Bullish
+    if array.size(all_signal_times) > 0
+        for idx = array.size(all_signal_times) - 1 to 0
+            if array.get(all_signal_directions, idx) == "Bearish" and array.get(all_signal_status, idx) == "PENDING"
+                array.set(all_signal_status, idx, "CANCELLED")
+    
+    // ALL SIGNALS: Track every triangle
+    array.push(all_signal_times, time)
+    array.push(all_signal_directions, "Bullish")
+    array.push(all_signal_status, "PENDING")
+    array.push(all_signal_confirmation_times, 0)
+    array.push(all_signal_bars_to_confirm, 0)
 
 if show_bear_triangle and active_signal != "Bearish"
     signal_candle_high := high
@@ -399,6 +428,19 @@ if show_bear_triangle and active_signal != "Bearish"
     signal_bar_index := bar_index
     signal_candle_time := time  // Store signal candle time
     active_signal := "Bearish"
+    
+    // ALL SIGNALS: Cancel any pending Bullish signals before adding new Bearish
+    if array.size(all_signal_times) > 0
+        for idx = array.size(all_signal_times) - 1 to 0
+            if array.get(all_signal_directions, idx) == "Bullish" and array.get(all_signal_status, idx) == "PENDING"
+                array.set(all_signal_status, idx, "CANCELLED")
+    
+    // ALL SIGNALS: Track every triangle
+    array.push(all_signal_times, time)
+    array.push(all_signal_directions, "Bearish")
+    array.push(all_signal_status, "PENDING")
+    array.push(all_signal_confirmation_times, 0)
+    array.push(all_signal_bars_to_confirm, 0)
     waiting_for_confirmation := true
     trade_ready := false
     entry_price := na
@@ -414,6 +456,14 @@ var bool pending_cancel_bullish = false
 if show_bull_triangle and active_signal == "Bearish"
     if waiting_for_confirmation and barstate.isrealtime
         pending_cancel_bearish := true
+        
+        // ALL SIGNALS: Mark previous Bearish signal as CANCELLED
+        if array.size(all_signal_times) > 0
+            for idx = array.size(all_signal_times) - 1 to 0
+                if array.get(all_signal_directions, idx) == "Bearish" and array.get(all_signal_status, idx) == "PENDING"
+                    array.set(all_signal_status, idx, "CANCELLED")
+                    break
+    
     // Clear state
     active_signal := "None"
     waiting_for_confirmation := false
@@ -421,6 +471,14 @@ if show_bull_triangle and active_signal == "Bearish"
 if show_bear_triangle and active_signal == "Bullish"
     if waiting_for_confirmation and barstate.isrealtime
         pending_cancel_bullish := true
+        
+        // ALL SIGNALS: Mark previous Bullish signal as CANCELLED
+        if array.size(all_signal_times) > 0
+            for idx = array.size(all_signal_times) - 1 to 0
+                if array.get(all_signal_directions, idx) == "Bullish" and array.get(all_signal_status, idx) == "PENDING"
+                    array.set(all_signal_status, idx, "CANCELLED")
+                    break
+    
     active_signal := "None"
     waiting_for_confirmation := false
 
@@ -530,6 +588,15 @@ if waiting_for_confirmation and active_signal == "Bullish"
         // CRITICAL FIX: Mark as confirmed but DON'T reset trade_ready yet
         // Let webhook code execute first, then reset on next bar
         confirmed_this_bar := true
+        
+        // ALL SIGNALS: Update most recent Bullish signal to CONFIRMED
+        if array.size(all_signal_times) > 0
+            int last_idx = array.size(all_signal_times) - 1
+            if array.get(all_signal_directions, last_idx) == "Bullish"
+                array.set(all_signal_status, last_idx, "CONFIRMED")
+                array.set(all_signal_confirmation_times, last_idx, time)
+                int bars_waited = bar_index - signal_bar_index
+                array.set(all_signal_bars_to_confirm, last_idx, bars_waited)
 
 // ============================================================================
 // BEARISH CONFIRMATION & STOP LOSS CALCULATION
@@ -630,6 +697,15 @@ if waiting_for_confirmation and active_signal == "Bearish"
         // CRITICAL FIX: Mark as confirmed but DON'T reset trade_ready yet
         // Let webhook code execute first, then reset on next bar
         confirmed_this_bar := true
+        
+        // ALL SIGNALS: Update most recent Bearish signal to CONFIRMED
+        if array.size(all_signal_times) > 0
+            int last_idx = array.size(all_signal_times) - 1
+            if array.get(all_signal_directions, last_idx) == "Bearish"
+                array.set(all_signal_status, last_idx, "CONFIRMED")
+                array.set(all_signal_confirmation_times, last_idx, time)
+                int bars_waited = bar_index - signal_bar_index
+                array.set(all_signal_bars_to_confirm, last_idx, bars_waited)
 
 // ============================================================================
 // VISUALIZATION
@@ -1957,7 +2033,7 @@ if SHOW_SIGNAL_LIST and barstate.islast
                      SIGNAL_LIST_POSITION == "bottom_center" ? position.bottom_center :
                      SIGNAL_LIST_POSITION == "bottom_right" ? position.bottom_right : position.middle_right
     
-    var table signal_list_table = table.new(list_pos, 9, 22, border_width=1)
+    var table signal_list_table = table.new(list_pos, 10, 22, border_width=1)
     
     // Header
     table.cell(signal_list_table, 0, 0, "SIGNAL LIST", text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.normal)
@@ -1972,7 +2048,8 @@ if SHOW_SIGNAL_LIST and barstate.islast
     table.cell(signal_list_table, 5, 1, "Stop", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
     table.cell(signal_list_table, 6, 1, "BE MFE", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
     table.cell(signal_list_table, 7, 1, "No-BE", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(signal_list_table, 8, 1, "Status", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 8, 1, "MAE", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 9, 1, "Status", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
     
     // Filter and show signals
     int row = 2
@@ -2034,6 +2111,7 @@ if SHOW_SIGNAL_LIST and barstate.islast
         float sig_stop = array.get(signal_stops, i)
         float sig_be_mfe = array.get(signal_be_mfes, i)
         float sig_no_be_mfe = array.get(signal_mfes, i)
+        float sig_mae = array.get(signal_maes, i)
         bool sig_no_be_done = array.get(signal_no_be_stopped, i)
         bool sig_be_stopped = array.get(signal_be_stopped, i)
         
@@ -2046,15 +2124,16 @@ if SHOW_SIGNAL_LIST and barstate.islast
         string status_text = sig_no_be_done ? "DONE" : sig_be_stopped ? "BE-X" : "LIVE"
         color status_color = sig_no_be_done ? color.blue : sig_be_stopped ? color.purple : color.green
         
-        table.cell(signal_list_table, 0, row, sig_date, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
-        table.cell(signal_list_table, 1, row, sig_time_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
-        table.cell(signal_list_table, 2, row, sig_session, text_color=color.white, bgcolor=color.new(session_color, 60), text_size=size.tiny)
-        table.cell(signal_list_table, 3, row, sig_dir == "Bullish" ? "🔵" : "🔴", text_color=dir_color, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(signal_list_table, 4, row, str.tostring(sig_entry, "#.##"), text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
-        table.cell(signal_list_table, 5, row, str.tostring(sig_stop, "#.##"), text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
-        table.cell(signal_list_table, 6, row, str.tostring(sig_be_mfe, "#.##") + "R", text_color=sig_be_mfe >= 1 ? color.green : color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
-        table.cell(signal_list_table, 7, row, str.tostring(sig_no_be_mfe, "#.##") + "R", text_color=sig_no_be_mfe >= 1 ? color.green : color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
-        table.cell(signal_list_table, 8, row, status_text, text_color=color.white, bgcolor=color.new(status_color, 50), text_size=size.tiny)
+        table.cell(signal_list_table, 0, row, sig_date, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(signal_list_table, 1, row, sig_time_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(signal_list_table, 2, row, sig_session, text_color=color.white, bgcolor=color.new(session_color, 60), text_size=size.small)
+        table.cell(signal_list_table, 3, row, sig_dir == "Bullish" ? "🔵" : "🔴", text_color=dir_color, bgcolor=color.new(color.gray, 70), text_size=size.normal)
+        table.cell(signal_list_table, 4, row, str.tostring(sig_entry, "#.##"), text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(signal_list_table, 5, row, str.tostring(sig_stop, "#.##"), text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(signal_list_table, 6, row, str.tostring(sig_be_mfe, "#.##") + "R", text_color=sig_be_mfe >= 1 ? color.green : color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(signal_list_table, 7, row, str.tostring(sig_no_be_mfe, "#.##") + "R", text_color=sig_no_be_mfe >= 1 ? color.green : color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(signal_list_table, 8, row, str.tostring(sig_mae, "#.##") + "R", text_color=sig_mae < -1.0 ? color.red : color.orange, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(signal_list_table, 9, row, status_text, text_color=color.white, bgcolor=color.new(status_color, 50), text_size=size.small)
         
         row := row + 1
         signals_shown := signals_shown + 1
@@ -2065,7 +2144,7 @@ if SHOW_SIGNAL_LIST and barstate.islast
         string nav_text = filter_text + " | Page " + str.tostring(SIGNAL_LIST_START / SIGNAL_LIST_COUNT + 1) + 
                          " | Showing " + str.tostring(signals_shown) + " signals"
         table.cell(signal_list_table, 0, row, nav_text, text_color=color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
-        table.merge_cells(signal_list_table, 0, row, 8, row)
+        table.merge_cells(signal_list_table, 0, row, 9, row)
 
 
 // ============================================================================
@@ -2116,3 +2195,126 @@ if RECALCULATE_MFE and barstate.islast
             bool be_triggered = array.get(signal_be_triggered, sig_idx)
             float correct_be_mfe = be_triggered and correct_mfe > 1.0 ? 1.0 : correct_mfe
             array.set(signal_be_mfes, sig_idx, correct_be_mfe)
+
+
+// ============================================================================
+// ALL SIGNALS TABLE - Every Triangle (Pending, Confirmed, Cancelled)
+// ============================================================================
+
+if SHOW_ALL_SIGNALS and barstate.islast
+    string all_pos = position.middle_left
+    if ALL_SIGNALS_POSITION == "top_left"
+        all_pos := position.top_left
+    else if ALL_SIGNALS_POSITION == "top_right"
+        all_pos := position.top_right
+    else if ALL_SIGNALS_POSITION == "bottom_left"
+        all_pos := position.bottom_left
+    else if ALL_SIGNALS_POSITION == "bottom_right"
+        all_pos := position.bottom_right
+    else if ALL_SIGNALS_POSITION == "middle_center"
+        all_pos := position.middle_center
+    
+    var table all_signals_table = table.new(all_pos, 7, 22, border_width=1)
+    
+    // Header
+    table.cell(all_signals_table, 0, 0, "ALL SIGNALS (Every Triangle)", text_color=color.white, bgcolor=color.new(color.purple, 20), text_size=size.normal)
+    table.merge_cells(all_signals_table, 0, 0, 6, 0)
+    
+    // Column headers
+    table.cell(all_signals_table, 0, 1, "Date", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(all_signals_table, 1, 1, "Time", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(all_signals_table, 2, 1, "Dir", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(all_signals_table, 3, 1, "Status", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(all_signals_table, 4, 1, "Confirm Time", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(all_signals_table, 5, 1, "Bars", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(all_signals_table, 6, 1, "Session", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    
+    // Filter and show signals
+    int row = 2
+    int signals_shown = 0
+    
+    for i = 0 to array.size(all_signal_times) - 1
+        if row >= 22 or signals_shown >= ALL_SIGNALS_COUNT
+            break
+        
+        // Check filter
+        string sig_status = array.get(all_signal_status, i)
+        bool show_signal = ALL_SIGNALS_FILTER == "ALL" or 
+                          (ALL_SIGNALS_FILTER == "PENDING" and sig_status == "PENDING") or
+                          (ALL_SIGNALS_FILTER == "CONFIRMED" and sig_status == "CONFIRMED") or
+                          (ALL_SIGNALS_FILTER == "CANCELLED" and sig_status == "CANCELLED")
+        
+        if not show_signal
+            continue
+        
+        // Skip before start index
+        if signals_shown < ALL_SIGNALS_START
+            signals_shown := signals_shown + 1
+            continue
+        
+        // Get signal data
+        int sig_time = array.get(all_signal_times, i)
+        string sig_dir = array.get(all_signal_directions, i)
+        int confirm_time = array.get(all_signal_confirmation_times, i)
+        int bars_to_confirm = array.get(all_signal_bars_to_confirm, i)
+        
+        // Format date
+        int d = dayofmonth(sig_time, "America/New_York")
+        int m = month(sig_time, "America/New_York")
+        int y = year(sig_time, "America/New_York") - 2000
+        string month_name = m == 1 ? "Jan" : m == 2 ? "Feb" : m == 3 ? "Mar" : m == 4 ? "Apr" : 
+                           m == 5 ? "May" : m == 6 ? "Jun" : m == 7 ? "Jul" : m == 8 ? "Aug" :
+                           m == 9 ? "Sep" : m == 10 ? "Oct" : m == 11 ? "Nov" : "Dec"
+        string sig_date = str.tostring(d) + "-" + month_name + "-" + str.tostring(y)
+        
+        // Format time
+        string sig_time_str = str.tostring(hour(sig_time, "America/New_York"), "00") + ":" +
+                             str.tostring(minute(sig_time, "America/New_York"), "00")
+        
+        // Confirmation time
+        string confirm_str = "--"
+        if confirm_time > 0
+            confirm_str := str.tostring(hour(confirm_time, "America/New_York"), "00") + ":" +
+                          str.tostring(minute(confirm_time, "America/New_York"), "00")
+        
+        // Session
+        int h = hour(sig_time, "America/New_York")
+        string sig_session = "AH"
+        if h >= 20 or h <= 5
+            sig_session := "ASIA/LON"
+        else if h >= 6 and h <= 8
+            sig_session := "PRE"
+        else if h >= 9 and h <= 11
+            sig_session := "AM"
+        else if h == 12
+            sig_session := "LUN"
+        else if h >= 13 and h <= 15
+            sig_session := "PM"
+        
+        // Colors
+        color dir_color = sig_dir == "Bullish" ? color.green : color.red
+        color status_color = color.orange
+        if sig_status == "CONFIRMED"
+            status_color := color.green
+        else if sig_status == "CANCELLED"
+            status_color := color.red
+        
+        // Display
+        table.cell(all_signals_table, 0, row, sig_date, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 1, row, sig_time_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 2, row, sig_dir == "Bullish" ? "🔵" : "🔴", text_color=dir_color, bgcolor=color.new(color.gray, 70), text_size=size.normal)
+        table.cell(all_signals_table, 3, row, sig_status, text_color=color.white, bgcolor=color.new(status_color, 50), text_size=size.small)
+        table.cell(all_signals_table, 4, row, confirm_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 5, row, bars_to_confirm > 0 ? str.tostring(bars_to_confirm) : "--", text_color=color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 6, row, sig_session, text_color=color.white, bgcolor=color.new(color.blue, 60), text_size=size.small)
+        
+        row := row + 1
+        signals_shown := signals_shown + 1
+    
+    // Navigation
+    if row < 22
+        string filter_text = ALL_SIGNALS_FILTER
+        string nav_text = filter_text + " | Total: " + str.tostring(array.size(all_signal_times)) + 
+                         " | Showing: " + str.tostring(signals_shown)
+        table.cell(all_signals_table, 0, row, nav_text, text_color=color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.merge_cells(all_signals_table, 0, row, 6, row)

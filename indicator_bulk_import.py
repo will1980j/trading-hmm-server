@@ -129,3 +129,98 @@ def register_bulk_import_endpoint(app):
             return jsonify({'success': False, 'error': str(e)}), 500
     
     print("✅ Bulk import endpoint registered")
+    
+    @app.route('/api/indicator-import/all-signals', methods=['POST'])
+    def bulk_import_all_signals():
+        """
+        Import ALL signals (every triangle) from indicator
+        Expects: {signals: [{signal_time, direction, status, confirmation_time, bars_to_confirm}, ...]}
+        """
+        try:
+            data = request.get_json()
+            signals = data.get('signals', [])
+            
+            if not signals:
+                return jsonify({'success': False, 'error': 'No signals provided'}), 400
+            
+            database_url = os.getenv('DATABASE_URL')
+            conn = psycopg2.connect(database_url)
+            cur = conn.cursor()
+            
+            imported = 0
+            skipped = 0
+            
+            for signal in signals:
+                # Build trade_id from signal time and direction
+                signal_time = signal.get('signal_time')  # Timestamp in ms
+                direction = signal.get('direction')
+                
+                # Parse timestamp to build trade_id
+                from datetime import datetime
+                dt = datetime.fromtimestamp(signal_time / 1000)
+                trade_id = dt.strftime("%Y%m%d_%H%M%S000_") + ("BULLISH" if direction == "Bullish" else "BEARISH")
+                
+                # Check if already exists
+                cur.execute("SELECT COUNT(*) FROM automated_signals WHERE trade_id = %s AND event_type = 'SIGNAL_CREATED'", (trade_id,))
+                exists = cur.fetchone()[0] > 0
+                
+                if exists:
+                    skipped += 1
+                    continue
+                
+                # Insert SIGNAL_CREATED event
+                signal_date = dt.strftime("%Y-%m-%d")
+                signal_time_str = dt.strftime("%H:%M:%S")
+                
+                cur.execute("""
+                    INSERT INTO automated_signals (
+                        trade_id, event_type, timestamp,
+                        direction, signal_date, signal_time,
+                        data_source, confidence_score
+                    ) VALUES (
+                        %s, 'SIGNAL_CREATED', %s,
+                        %s, %s, %s,
+                        'indicator_historical', 1.0
+                    )
+                """, (
+                    trade_id,
+                    dt,
+                    direction,
+                    signal_date,
+                    signal_time_str
+                ))
+                
+                # If cancelled, insert CANCELLED event
+                if signal.get('status') == 'CANCELLED':
+                    cur.execute("""
+                        INSERT INTO automated_signals (
+                            trade_id, event_type, timestamp,
+                            direction,
+                            data_source, confidence_score
+                        ) VALUES (
+                            %s, 'CANCELLED', %s,
+                            %s,
+                            'indicator_historical', 1.0
+                        )
+                    """, (trade_id, dt, direction))
+                
+                imported += 1
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'imported': imported,
+                'skipped': skipped,
+                'total': len(signals)
+            }), 200
+            
+        except Exception as e:
+            print(f"❌ All signals import error: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    print("✅ All signals import endpoint registered")
