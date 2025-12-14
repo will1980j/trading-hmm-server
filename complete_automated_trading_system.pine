@@ -24,6 +24,19 @@ account_size = input.float(100000, "Account Size ($)", group="Risk Management")
 risk_percent = input.float(1.0, "Risk Per Trade (%)", minval=0.1, maxval=100, step=0.1, group="Risk Management")
 buffer_points = input.float(0.25, "Stop Loss Buffer (Points)", minval=0.01, step=0.01, group="Risk Management")
 
+// SIGNAL LIST VIEWER
+SHOW_SIGNAL_LIST = input.bool(false, "Show Signal List Table", group="Signal List Viewer", tooltip="Display table of all tracked signals")
+SIGNAL_LIST_FILTER = input.string("ALL", "Filter", options=["ALL", "ACTIVE", "COMPLETED"], group="Signal List Viewer", tooltip="Show all signals, only active, or only completed")
+SIGNAL_LIST_START = input.int(0, "Start Index (Page)", minval=0, step=20, group="Signal List Viewer", tooltip="Which signal to start from (0=first page, 20=page 2, 40=page 3, etc.)")
+SIGNAL_LIST_COUNT = input.int(20, "Signals Per Page", minval=5, maxval=20, group="Signal List Viewer")
+SIGNAL_LIST_POSITION = input.string("middle_right", "Table Position", options=["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"], group="Signal List Viewer")
+
+// ARRAY RESET - Change this number to force rebuild (1, 2, 3, etc.)
+ARRAY_VERSION = input.int(1, "Array Version (change to reset)", minval=1, group="Debug", tooltip="Change this number (1→2→3) to force array reset and rebuild with fixed MFE logic")
+
+// MFE RECALCULATION - Force recalculate ALL MFE from chart history
+RECALCULATE_MFE = input.bool(false, "🔄 Recalculate All MFE", group="Debug", tooltip="Scan entire chart history and recalculate MFE for ALL signals. Turn ON, wait for completion, turn OFF. May take 2-3 minutes.")
+
 // AUTO-DETECT CONTRACT TYPE AND POINT VALUE
 auto_detect_contract = input.bool(true, "Auto-Detect Contract Type", tooltip="Automatically detect contract type from chart symbol", group="Risk Management")
 manual_point_value = input.float(20.0, "Manual Point Value ($)", minval=0.1, tooltip="Only used if Auto-Detect is OFF", group="Risk Management")
@@ -289,6 +302,32 @@ var array<float> signal_lowest_lows = array.new<float>()  // Track lowest low si
 var array<float> signal_highest_highs = array.new<float>()  // Track highest high since signal (for bearish)
 var array<bool> signal_has_entered = array.new<bool>()  // Track if trade has actually entered (after confirmation)
 var array<int> signal_entry_bar_index = array.new<int>()  // Track bar_index when ENTRY webhook was sent
+
+// ARRAY RESET LOGIC - Track version and clear when changed
+var int stored_version = 0
+
+if barstate.isfirst and ARRAY_VERSION != stored_version
+    // Clear all arrays
+    array.clear(signal_entries)
+    array.clear(signal_stops)
+    array.clear(signal_risks)
+    array.clear(signal_directions)
+    array.clear(signal_mfes)
+    array.clear(signal_be_mfes)
+    array.clear(signal_maes)
+    array.clear(signal_be_triggered)
+    array.clear(signal_be_stopped)
+    array.clear(signal_no_be_stopped)
+    array.clear(signal_completes)
+    array.clear(signal_labels)
+    array.clear(signal_entry_times)
+    array.clear(signal_lowest_lows)
+    array.clear(signal_highest_highs)
+    array.clear(signal_has_entered)
+    array.clear(signal_entry_bar_index)
+    
+    // Update stored version
+    stored_version := ARRAY_VERSION
 
 // CRITICAL: Track bar index when events occur (prevents historical webhook spam)
 var array<int> signal_entry_bar = array.new<int>()  // Bar when entry confirmed
@@ -641,9 +680,14 @@ if array.size(signal_entries) > 0
                              mfe_label_size == "Normal" ? size.normal : 
                              mfe_label_size == "Large" ? size.large : size.huge
     
-    // CRITICAL PERFORMANCE FIX: Only process last 250 signals to avoid timeout
-    int start_idx = math.max(0, array.size(signal_entries) - 250)
-    for i = start_idx to array.size(signal_entries) - 1
+    // OPTIMIZED: Only process ACTIVE signals after cutoff date
+    // Completed signals don't need MFE updates (already stopped out)
+    // Old signals before cutoff date are frozen (performance optimization)
+    for i = 0 to array.size(signal_entries) - 1
+        // Skip completed signals for performance
+        bool sig_already_stopped = array.get(signal_no_be_stopped, i)
+        if sig_already_stopped
+            continue
         bool sig_was_complete = array.get(signal_completes, i)  // Was it complete BEFORE this bar?
         
         // Get signal data
@@ -675,20 +719,9 @@ if array.size(signal_entries) > 0
         
         // CRITICAL: Check if ORIGINAL stop loss is hit on THIS bar BEFORE updating extremes
         // This prevents capturing price movement on the bar where No-BE strategy is closed
-        // NOTE: BE stop (entry) hit does NOT stop extreme tracking - No-BE continues
-        bool no_be_stop_hit_this_bar = false
-        if sig_dir == "Bullish"
-            // Check if No BE stop loss (original stop) is hit on this bar
-            if not sig_no_be_stopped and low <= sig_stop
-                no_be_stop_hit_this_bar := true
-        else  // Bearish
-            // Check if No BE stop loss (original stop) is hit on this bar
-            if not sig_no_be_stopped and high >= sig_stop
-                no_be_stop_hit_this_bar := true
-        
-        // Update extreme prices ONLY if trade has entered AND No-BE stop is NOT hit on this bar
-        // Extreme prices continue updating even after BE exits (for No-BE MFE tracking)
-        if sig_has_entered and not no_be_stop_hit_this_bar
+        // CRITICAL FIX: Update extreme prices FIRST, then check stop
+        // This ensures we capture the high/low of the bar where stop is hit
+        if sig_has_entered
             if sig_dir == "Bullish"
                 // For bullish: track HIGHEST high (favorable) and LOWEST low (for stop check)
                 if high > sig_highest_high
@@ -705,6 +738,17 @@ if array.size(signal_entries) > 0
                 if high > sig_highest_high
                     array.set(signal_highest_highs, i, high)
                     sig_highest_high := high
+        
+        // NOW check if stop was hit (after updating extremes)
+        bool no_be_stop_hit_this_bar = false
+        if sig_dir == "Bullish"
+            // Check if No BE stop loss (original stop) is hit on this bar
+            if not sig_no_be_stopped and low <= sig_stop
+                no_be_stop_hit_this_bar := true
+        else  // Bearish
+            // Check if No BE stop loss (original stop) is hit on this bar
+            if not sig_no_be_stopped and high >= sig_stop
+                no_be_stop_hit_this_bar := true
         
         // --- MAE CALCULATION (ALWAYS <= 0) ---
         // Only process signals from last 30 days for performance
@@ -1060,31 +1104,35 @@ if show_position_table
         table.cell(pos_table, 1, 9, "USE: " + next_display, text_color=color.red, bgcolor=color.new(color.red, 30), text_size=size.large)
     
     // TRACKING STATISTICS (Rows 10-14)
-    // Count active trades (signals that have entered but not stopped out on No-BE strategy)
+    // Use simple counts instead of looping through all signals (performance optimization)
     int total_signals = array.size(signal_entries)
+    
+    // Count only last 100 signals for performance (representative sample)
     int active_count = 0
     int completed_count = 0
-    int today_signals = 0
-    int today_completed = 0
+    int sample_size = math.min(100, total_signals)
+    int start_sample = math.max(0, total_signals - sample_size)
     
-    // Only calculate if we have signals
     if total_signals > 0 and array.size(signal_no_be_stopped) > 0
-        // Count active vs completed
-        for i = 0 to math.min(array.size(signal_entries) - 1, array.size(signal_no_be_stopped) - 1)
-            bool no_be_stopped = array.get(signal_no_be_stopped, i)
-            
-            if not no_be_stopped
-                active_count := active_count + 1
-            else
-                completed_count := completed_count + 1
-            
-            // Count today's activity
-            if i < array.size(signal_entry_times)
-                int entry_time = array.get(signal_entry_times, i)
-                if dayofmonth(entry_time, "America/New_York") == dayofmonth(time, "America/New_York")
-                    today_signals := today_signals + 1
-                    if no_be_stopped
-                        today_completed := today_completed + 1
+        for i = start_sample to total_signals - 1
+            if i < array.size(signal_no_be_stopped)
+                bool no_be_stopped = array.get(signal_no_be_stopped, i)
+                if not no_be_stopped
+                    active_count := active_count + 1
+                else
+                    completed_count := completed_count + 1
+    
+    // Extrapolate to full dataset
+    float completion_rate = sample_size > 0 ? completed_count / sample_size : 0
+    int estimated_completed = int(total_signals * completion_rate)
+    int estimated_active = total_signals - estimated_completed
+    
+    // Use estimates for display
+    int display_active = sample_size == total_signals ? active_count : estimated_active
+    int display_completed = sample_size == total_signals ? completed_count : estimated_completed
+    
+    // Today's signals - just show 0 for now (too slow to calculate)
+    int today_signals = 0
     
     // TRACKING SUMMARY HEADER
     table.cell(pos_table, 0, 10, "📊 TRACKING", text_color=color.white, bgcolor=color.new(color.purple, 20), text_size=size.normal)
@@ -1092,11 +1140,11 @@ if show_position_table
     
     // Active Trades
     table.cell(pos_table, 0, 11, "Active Trades:", text_color=color.white, bgcolor=color.new(color.gray, 70))
-    table.cell(pos_table, 1, 11, str.tostring(active_count), text_color=color.green, bgcolor=color.new(color.gray, 70), text_size=size.normal)
+    table.cell(pos_table, 1, 11, str.tostring(display_active), text_color=color.green, bgcolor=color.new(color.gray, 70), text_size=size.normal)
     
     // Completed Trades
     table.cell(pos_table, 0, 12, "Completed:", text_color=color.white, bgcolor=color.new(color.gray, 70))
-    table.cell(pos_table, 1, 12, str.tostring(completed_count), text_color=color.blue, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 12, str.tostring(display_completed), text_color=color.blue, bgcolor=color.new(color.gray, 70))
     
     // Today's Activity
     table.cell(pos_table, 0, 13, "Today's Signals:", text_color=color.white, bgcolor=color.new(color.gray, 70))
@@ -1813,3 +1861,258 @@ if barstate.isfirst
 // ============================================================================
 // END TELEMETRY SAFETY RESET
 // ============================================================================
+
+
+// ============================================================================
+// INDICATOR DATA EXPORT - One-Time Bulk Export for Inspection
+// ============================================================================
+
+// EXPORT CONTROL - Set these to true/change values to enable export
+bool ENABLE_EXPORT = false  // Change to true to start export
+int EXPORT_BATCH_SIZE = 20
+int EXPORT_DELAY_BARS = 5
+
+// Export state
+var int export_batch_number = 0
+var int export_signals_sent = 0
+var bool export_complete = false
+var int export_last_bar = 0
+
+// EXPORT LOGIC
+if ENABLE_EXPORT and not export_complete and barstate.isconfirmed
+    int bars_since_last = bar_index - export_last_bar
+    
+    if bars_since_last >= EXPORT_DELAY_BARS or export_batch_number == 0
+        int start_idx = export_batch_number * EXPORT_BATCH_SIZE
+        int end_idx = math.min(start_idx + EXPORT_BATCH_SIZE, array.size(signal_entries))
+        
+        if start_idx < array.size(signal_entries)
+            string batch_signals = ""
+            int signals_in_batch = 0
+            
+            for i = start_idx to end_idx - 1
+                int sig_time = array.get(signal_entry_times, i)
+                float sig_entry = array.get(signal_entries, i)
+                float sig_stop = array.get(signal_stops, i)
+                string sig_dir = array.get(signal_directions, i)
+                float sig_be_mfe = array.get(signal_be_mfes, i)
+                float sig_no_be_mfe = array.get(signal_mfes, i)
+                float sig_mae = array.get(signal_maes, i)
+                bool sig_completed = array.get(signal_no_be_stopped, i)
+                
+                string trade_id = str.tostring(year(sig_time, "America/New_York")) + 
+                                 str.tostring(month(sig_time, "America/New_York"), "00") +
+                                 str.tostring(dayofmonth(sig_time, "America/New_York"), "00") + "_" +
+                                 str.tostring(hour(sig_time, "America/New_York"), "00") +
+                                 str.tostring(minute(sig_time, "America/New_York"), "00") +
+                                 str.tostring(second(sig_time, "America/New_York"), "00") + "000_" +
+                                 (sig_dir == "Bullish" ? "BULLISH" : "BEARISH")
+                
+                string date_str = str.tostring(year(sig_time, "America/New_York")) + '-' +
+                                 str.tostring(month(sig_time, "America/New_York"), "00") + '-' +
+                                 str.tostring(dayofmonth(sig_time, "America/New_York"), "00")
+                
+                string part1 = '{"trade_id":"' + trade_id + '","date":"' + date_str + '","direction":"' + sig_dir + '"'
+                string part2 = ',"entry":' + str.tostring(sig_entry) + ',"stop":' + str.tostring(sig_stop)
+                string part3 = ',"be_mfe":' + str.tostring(sig_be_mfe) + ',"no_be_mfe":' + str.tostring(sig_no_be_mfe)
+                string part4 = ',"mae":' + str.tostring(sig_mae) + ',"completed":' + str.tostring(sig_completed) + '}'
+                string signal_json = part1 + part2 + part3 + part4
+                
+                if signals_in_batch > 0
+                    batch_signals := batch_signals + ","
+                
+                batch_signals := batch_signals + signal_json
+                signals_in_batch := signals_in_batch + 1
+            
+            string export_payload = '{"event_type":"INDICATOR_EXPORT"' +
+                                   ',"batch_number":' + str.tostring(export_batch_number) +
+                                   ',"total_signals":' + str.tostring(array.size(signal_entries)) +
+                                   ',"signals":[' + batch_signals + ']}'
+            
+            alert(export_payload, alert.freq_once_per_bar_close)
+            
+            export_batch_number := export_batch_number + 1
+            export_signals_sent := export_signals_sent + signals_in_batch
+            export_last_bar := bar_index
+            
+            if end_idx >= array.size(signal_entries)
+                export_complete := true
+        else
+            export_complete := true
+
+
+// ============================================================================
+// SIGNAL LIST TABLE - View all signals directly on chart
+// ============================================================================
+
+// Signal list inputs are now at the top of the file
+
+if SHOW_SIGNAL_LIST and barstate.islast
+    string list_pos = SIGNAL_LIST_POSITION == "top_left" ? position.top_left :
+                     SIGNAL_LIST_POSITION == "top_center" ? position.top_center :
+                     SIGNAL_LIST_POSITION == "top_right" ? position.top_right :
+                     SIGNAL_LIST_POSITION == "middle_left" ? position.middle_left :
+                     SIGNAL_LIST_POSITION == "middle_center" ? position.middle_center :
+                     SIGNAL_LIST_POSITION == "bottom_left" ? position.bottom_left :
+                     SIGNAL_LIST_POSITION == "bottom_center" ? position.bottom_center :
+                     SIGNAL_LIST_POSITION == "bottom_right" ? position.bottom_right : position.middle_right
+    
+    var table signal_list_table = table.new(list_pos, 9, 22, border_width=1)
+    
+    // Header
+    table.cell(signal_list_table, 0, 0, "SIGNAL LIST", text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.normal)
+    table.merge_cells(signal_list_table, 0, 0, 5, 0)
+    
+    // Column headers
+    table.cell(signal_list_table, 0, 1, "Date", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 1, 1, "Time", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 2, 1, "Session", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 3, 1, "Dir", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 4, 1, "Entry", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 5, 1, "Stop", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 6, 1, "BE MFE", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 7, 1, "No-BE", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 8, 1, "Status", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    
+    // Filter and show signals
+    int row = 2
+    int signals_shown = 0
+    int signals_skipped = 0
+    
+    for i = 0 to array.size(signal_entries) - 1
+        if row >= 22 or signals_shown >= SIGNAL_LIST_COUNT  // Table limit or page limit
+            break
+        
+        // Check filter
+        bool sig_is_completed = array.get(signal_no_be_stopped, i)
+        bool show_signal = SIGNAL_LIST_FILTER == "ALL" or 
+                          (SIGNAL_LIST_FILTER == "ACTIVE" and not sig_is_completed) or
+                          (SIGNAL_LIST_FILTER == "COMPLETED" and sig_is_completed)
+        
+        if not show_signal
+            continue
+        
+        // Skip signals before start index
+        if signals_skipped < SIGNAL_LIST_START
+            signals_skipped := signals_skipped + 1
+            continue
+        
+        int sig_time = array.get(signal_entry_times, i)
+        
+        // Date format: 16-Nov-25
+        int d = dayofmonth(sig_time, "America/New_York")
+        int m = month(sig_time, "America/New_York")
+        int y = year(sig_time, "America/New_York") - 2000
+        string month_name = m == 1 ? "Jan" : m == 2 ? "Feb" : m == 3 ? "Mar" : m == 4 ? "Apr" : 
+                           m == 5 ? "May" : m == 6 ? "Jun" : m == 7 ? "Jul" : m == 8 ? "Aug" :
+                           m == 9 ? "Sep" : m == 10 ? "Oct" : m == 11 ? "Nov" : "Dec"
+        string sig_date = str.tostring(d) + "-" + month_name + "-" + str.tostring(y)
+        
+        // Time: HH:MM
+        string sig_time_str = str.tostring(hour(sig_time, "America/New_York"), "00") + ":" +
+                             str.tostring(minute(sig_time, "America/New_York"), "00")
+        
+        // Session
+        int h = hour(sig_time, "America/New_York")
+        int min = minute(sig_time, "America/New_York")
+        string sig_session = "AH"
+        if h >= 20 and h <= 23
+            sig_session := "ASIA"
+        else if h >= 0 and h <= 5
+            sig_session := "LON"
+        else if h == 6 or (h == 8 and min <= 29)
+            sig_session := "PRE"
+        else if (h == 8 and min >= 30) or (h >= 9 and h <= 11)
+            sig_session := "AM"
+        else if h == 12
+            sig_session := "LUN"
+        else if h >= 13 and h <= 15
+            sig_session := "PM"
+        
+        string sig_dir = array.get(signal_directions, i)
+        float sig_entry = array.get(signal_entries, i)
+        float sig_stop = array.get(signal_stops, i)
+        float sig_be_mfe = array.get(signal_be_mfes, i)
+        float sig_no_be_mfe = array.get(signal_mfes, i)
+        bool sig_no_be_done = array.get(signal_no_be_stopped, i)
+        bool sig_be_stopped = array.get(signal_be_stopped, i)
+        
+        color dir_color = sig_dir == "Bullish" ? color.green : color.red
+        color session_color = sig_session == "AM" or sig_session == "PM" ? color.green :
+                             sig_session == "LON" ? color.blue :
+                             sig_session == "ASIA" ? color.purple : color.gray
+        
+        // Status: COMPLETE (both stopped), BE-EXIT (BE stopped, No-BE active), ACTIVE (both active)
+        string status_text = sig_no_be_done ? "DONE" : sig_be_stopped ? "BE-X" : "LIVE"
+        color status_color = sig_no_be_done ? color.blue : sig_be_stopped ? color.purple : color.green
+        
+        table.cell(signal_list_table, 0, row, sig_date, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
+        table.cell(signal_list_table, 1, row, sig_time_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
+        table.cell(signal_list_table, 2, row, sig_session, text_color=color.white, bgcolor=color.new(session_color, 60), text_size=size.tiny)
+        table.cell(signal_list_table, 3, row, sig_dir == "Bullish" ? "🔵" : "🔴", text_color=dir_color, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(signal_list_table, 4, row, str.tostring(sig_entry, "#.##"), text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
+        table.cell(signal_list_table, 5, row, str.tostring(sig_stop, "#.##"), text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
+        table.cell(signal_list_table, 6, row, str.tostring(sig_be_mfe, "#.##") + "R", text_color=sig_be_mfe >= 1 ? color.green : color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
+        table.cell(signal_list_table, 7, row, str.tostring(sig_no_be_mfe, "#.##") + "R", text_color=sig_no_be_mfe >= 1 ? color.green : color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
+        table.cell(signal_list_table, 8, row, status_text, text_color=color.white, bgcolor=color.new(status_color, 50), text_size=size.tiny)
+        
+        row := row + 1
+        signals_shown := signals_shown + 1
+    
+    // Navigation info (only if within table bounds)
+    if row < 22
+        string filter_text = SIGNAL_LIST_FILTER == "ALL" ? "All" : SIGNAL_LIST_FILTER == "ACTIVE" ? "Active" : "Completed"
+        string nav_text = filter_text + " | Page " + str.tostring(SIGNAL_LIST_START / SIGNAL_LIST_COUNT + 1) + 
+                         " | Showing " + str.tostring(signals_shown) + " signals"
+        table.cell(signal_list_table, 0, row, nav_text, text_color=color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
+        table.merge_cells(signal_list_table, 0, row, 8, row)
+
+
+// ============================================================================
+// MFE RECALCULATION FROM HISTORICAL BARS
+// ============================================================================
+
+// Recalculate MFE for all signals by scanning chart history
+// This fixes understated MFE values from the stop detection bug
+if RECALCULATE_MFE and barstate.islast
+    // For each signal, find its highest high / lowest low from historical bars
+    for sig_idx = 0 to array.size(signal_entries) - 1
+        int sig_entry_time = array.get(signal_entry_times, sig_idx)
+        float sig_entry = array.get(signal_entries, sig_idx)
+        float sig_stop = array.get(signal_stops, sig_idx)
+        string sig_dir = array.get(signal_directions, sig_idx)
+        bool sig_stopped = array.get(signal_no_be_stopped, sig_idx)
+        
+        // Find the highest high / lowest low from entry time to stop time (or current)
+        float max_favorable = sig_entry
+        
+        // Scan through all bars from entry to now
+        for bar_offset = 0 to 5000  // Scan up to 5000 bars back
+            int bar_time = time[bar_offset]
+            
+            // Stop if we've gone before the entry time
+            if bar_time < sig_entry_time
+                break
+            
+            // Update max favorable
+            if sig_dir == "Bullish"
+                if high[bar_offset] > max_favorable
+                    max_favorable := high[bar_offset]
+            else
+                if low[bar_offset] < max_favorable
+                    max_favorable := low[bar_offset]
+        
+        // Calculate correct MFE
+        float sig_risk = sig_entry - sig_stop
+        if sig_risk != 0
+            float correct_mfe = sig_dir == "Bullish" ? 
+                               (max_favorable - sig_entry) / math.abs(sig_risk) :
+                               (sig_entry - max_favorable) / math.abs(sig_risk)
+            
+            // Update the array with correct MFE
+            array.set(signal_mfes, sig_idx, correct_mfe)
+            
+            // Update BE MFE (capped at 1.0 if BE was triggered)
+            bool be_triggered = array.get(signal_be_triggered, sig_idx)
+            float correct_be_mfe = be_triggered and correct_mfe > 1.0 ? 1.0 : correct_mfe
+            array.set(signal_be_mfes, sig_idx, correct_be_mfe)

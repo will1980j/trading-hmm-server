@@ -1441,11 +1441,16 @@ if db_enabled:
     from indicator_data_inspector import register_inspector_endpoint
     register_inspector_endpoint(app)
     
-    # Start Hybrid Signal Synchronization Service (Enterprise-Grade)
-    logger.warning("⚠️ Starting Hybrid Signal Synchronization Service")
-    from hybrid_sync.sync_service import start_hybrid_sync_service
-    sync_thread = start_hybrid_sync_service(interval_seconds=120)
-    logger.info("✅ Hybrid Sync Service started (2-minute gap detection and reconciliation)")
+    # Register Indicator Bulk Import (import 2,124 signals from indicator)
+    logger.info("⚠️ Registering Indicator Bulk Import")
+    from indicator_bulk_import import register_bulk_import_endpoint
+    register_bulk_import_endpoint(app)
+    
+    # Hybrid Sync Service - DISABLED (using indicator as source of truth)
+    # logger.warning("⚠️ Starting Hybrid Signal Synchronization Service")
+    # from hybrid_sync.sync_service import start_hybrid_sync_service
+    # sync_thread = start_hybrid_sync_service(interval_seconds=120)
+    logger.info("ℹ️ Hybrid Sync Service disabled - using indicator as source of truth")
     logger.info("✅ Diagnostics API registered")
     logger.info("✅ Signal Integrity API registered")
     logger.info("✅ Phase 2A API endpoints registered")
