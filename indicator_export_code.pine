@@ -1,0 +1,98 @@
+// ============================================================================
+// INDICATOR DATA EXPORT - One-Time Bulk Export for Inspection
+// ============================================================================
+// Add this code to your indicator to export all signals for analysis
+// Run on a 24/7 chart (BTCUSD) for weekend execution
+// ============================================================================
+
+// EXPORT CONTROL - Set to true to enable export
+input bool ENABLE_EXPORT = false
+input int EXPORT_BATCH_SIZE = 20  // Signals per batch
+input int EXPORT_DELAY_BARS = 5   // Bars between batches (avoid rate limits)
+
+// Export state
+var int export_batch_number = 0
+var int export_signals_sent = 0
+var bool export_complete = false
+var int export_last_bar = 0
+
+// EXPORT LOGIC - Runs every EXPORT_DELAY_BARS
+if ENABLE_EXPORT and not export_complete and barstate.isconfirmed
+    int bars_since_last = bar_index - export_last_bar
+    
+    if bars_since_last >= EXPORT_DELAY_BARS or export_batch_number == 0
+        // Calculate batch range
+        int start_idx = export_batch_number * EXPORT_BATCH_SIZE
+        int end_idx = math.min(start_idx + EXPORT_BATCH_SIZE, array.size(signal_entries))
+        
+        if start_idx < array.size(signal_entries)
+            // Build batch payload
+            string batch_signals = ""
+            int signals_in_batch = 0
+            
+            for i = start_idx to end_idx - 1
+                // Get signal data
+                int sig_time = array.get(signal_entry_times, i)
+                float sig_entry = array.get(signal_entries, i)
+                float sig_stop = array.get(signal_stops, i)
+                string sig_dir = array.get(signal_directions, i)
+                float sig_be_mfe = array.get(signal_be_mfes, i)
+                float sig_no_be_mfe = array.get(signal_mfes, i)
+                float sig_mae = array.get(signal_maes, i)
+                bool sig_completed = array.get(signal_no_be_stopped, i)
+                
+                // Build trade_id
+                string trade_id = str.tostring(year(sig_time, "America/New_York")) + 
+                                 str.tostring(month(sig_time, "America/New_York"), "00") +
+                                 str.tostring(dayofmonth(sig_time, "America/New_York"), "00") + "_" +
+                                 str.tostring(hour(sig_time, "America/New_York"), "00") +
+                                 str.tostring(minute(sig_time, "America/New_York"), "00") +
+                                 str.tostring(second(sig_time, "America/New_York"), "00") + "000_" +
+                                 (sig_dir == "Bullish" ? "BULLISH" : "BEARISH")
+                
+                // Build signal JSON
+                string signal_json = '{"trade_id":"' + trade_id + 
+                                    '","date":"' + str.tostring(year(sig_time, "America/New_York")) + '-' +
+                                    str.tostring(month(sig_time, "America/New_York"), "00") + '-' +
+                                    str.tostring(dayofmonth(sig_time, "America/New_York"), "00") + 
+                                    '","direction":"' + sig_dir +
+                                    '","entry":' + str.tostring(sig_entry) +
+                                    ',"stop":' + str.tostring(sig_stop) +
+                                    ',"be_mfe":' + str.tostring(sig_be_mfe) +
+                                    ',"no_be_mfe":' + str.tostring(sig_no_be_mfe) +
+                                    ',"mae":' + str.tostring(sig_mae) +
+                                    ',"completed":' + str.tostring(sig_completed) + '}'
+                
+                // Add to batch (with comma separator)
+                if signals_in_batch > 0
+                    batch_signals := batch_signals + ","
+                
+                batch_signals := batch_signals + signal_json
+                signals_in_batch := signals_in_batch + 1
+            
+            // Send batch webhook
+            string export_payload = '{"event_type":"INDICATOR_EXPORT"' +
+                                   ',"batch_number":' + str.tostring(export_batch_number) +
+                                   ',"total_signals":' + str.tostring(array.size(signal_entries)) +
+                                   ',"signals":[' + batch_signals + ']}'
+            
+            alert(export_payload, alert.freq_once_per_bar_close)
+            
+            // Update export state
+            export_batch_number := export_batch_number + 1
+            export_signals_sent := export_signals_sent + signals_in_batch
+            export_last_bar := bar_index
+            
+            // Check if complete
+            if end_idx >= array.size(signal_entries)
+                export_complete := true
+        else
+            export_complete := true
+
+// Show export progress in table
+if ENABLE_EXPORT
+    table.cell(pos_table, 0, 15, "📤 EXPORT:", text_color=color.white, bgcolor=color.new(color.purple, 30))
+    string export_status = export_complete ? "✅ COMPLETE" : 
+                          "⏳ " + str.tostring(export_signals_sent) + "/" + str.tostring(array.size(signal_entries))
+    table.cell(pos_table, 1, 15, export_status, text_color=export_complete ? color.green : color.yellow, 
+               bgcolor=color.new(color.purple, 30))

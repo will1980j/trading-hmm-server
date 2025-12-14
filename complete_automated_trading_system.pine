@@ -950,6 +950,34 @@ if show_entry_sl_lines and barstate.islast and array.size(signal_entries) > 0
         array.push(sl_lines, sl_line)
 
 // ============================================================================
+// CONTRACT ROLLOVER HELPER FUNCTIONS
+// ============================================================================
+
+// Get contract month code from symbol (H=Mar, M=Jun, U=Sep, Z=Dec)
+f_getContractMonth(ticker) =>
+    string month_code = str.substring(ticker, str.length(ticker) - 5, str.length(ticker) - 4)
+    month_code
+
+// Get contract year from symbol
+f_getContractYear(ticker) =>
+    string year_str = str.substring(ticker, str.length(ticker) - 4)
+    int(str.tonumber(year_str))
+
+// Calculate expiry date (3rd Friday of contract month)
+f_getExpiryTimestamp(month_code, year) =>
+    int expiry_month = month_code == "H" ? 3 : month_code == "M" ? 6 : month_code == "U" ? 9 : 12
+    
+    // 3rd Friday = 15th + days to next Friday
+    timestamp(year, expiry_month, 15, 0, 0, 0)
+
+// Get next contract symbol
+f_getNextContract(current_month_code, current_year) =>
+    string next_code = current_month_code == "H" ? "M" : current_month_code == "M" ? "U" : current_month_code == "U" ? "Z" : "H"
+    float next_year_float = current_month_code == "Z" ? current_year + 1 : current_year
+    string base = str.substring(syminfo.ticker, 0, str.length(syminfo.ticker) - 5)
+    base + next_code + str.tostring(int(next_year_float))
+
+// ============================================================================
 // POSITION SIZING TABLE
 // ============================================================================
 
@@ -967,8 +995,8 @@ if show_position_table
     // Show suggestion ONLY if actual risk would exceed 0.15% (cannot trade with standard contract)
     bool show_suggestion = trade_ready and actual_risk_pct > 0.15
     
-    // Use var for performance - fixed 10 rows, hide row 9 when not needed
-    var table pos_table = table.new(table_position, 2, 10, border_width=2)
+    // Expanded table for comprehensive trading info - 15 rows
+    var table pos_table = table.new(table_position, 2, 15, border_width=2)
     
     table.cell(pos_table, 0, 0, "🎯 TRADE READY", text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.normal)
     table.merge_cells(pos_table, 0, 0, 1, 0)
@@ -993,15 +1021,105 @@ if show_position_table
     table.cell(pos_table, 0, 6, "📊 CONTRACTS:", text_color=color.white, bgcolor=color.new(color.blue, 30), text_size=size.large)
     table.cell(pos_table, 1, 6, trade_ready ? str.tostring(contract_size) : "-", text_color=color.yellow, bgcolor=color.new(color.blue, 30), text_size=size.large)
     
-    table.cell(pos_table, 0, 7, "Intended Risk:", text_color=color.white, bgcolor=color.new(color.gray, 70))
-    table.cell(pos_table, 1, 7, "$" + str.tostring(intended_risk, "#,###"), text_color=color.white, bgcolor=color.new(color.gray, 70))
+    // CONTRACT ROLLOVER TRACKING
+    // Use syminfo.root + current month/year to build contract name
+    // For continuous contracts (MNQ1!), we need to determine the actual front month
+    string ticker = syminfo.ticker
+    bool is_continuous = str.contains(ticker, "!")
     
-    // Highlight actual risk if it exceeds intended risk
-    color actual_risk_color = trade_ready and actual_risk > intended_risk ? color.new(color.orange, 30) : color.new(color.gray, 70)
-    color actual_risk_text = trade_ready and actual_risk > intended_risk ? color.yellow : color.white
-    table.cell(pos_table, 0, 8, "Actual Risk:", text_color=color.white, bgcolor=actual_risk_color)
-    string actual_risk_text_str = trade_ready ? "$" + str.tostring(actual_risk, "#,###") + " (" + str.tostring(actual_risk_pct, "#.##") + "%)" : "-"
-    table.cell(pos_table, 1, 8, actual_risk_text_str, text_color=actual_risk_text, bgcolor=actual_risk_color)
+    // For continuous contracts, manually set current contract (update quarterly)
+    // December 2025 contract (expires 3rd Friday of December)
+    string current_contract = is_continuous ? "MNQZ2025" : ticker
+    string display_contract = is_continuous ? "MNQ Dec'25 (Z)" : ticker
+    
+    // Next contract (March 2026)
+    string next_contract = "MNQH2026"
+    string next_display = "MNQ Mar'26 (H)"
+    
+    // Expiry: 3rd Friday of December 2025 = December 19, 2025
+    int expiry_ts = timestamp(2025, 12, 19, 16, 0, 0)  // 4:00 PM ET on Dec 19
+    int days_to_expiry = int(math.floor((expiry_ts - time) / 86400000))
+    
+    // Color code based on days remaining
+    color rollover_bg = days_to_expiry > 14 ? color.new(color.green, 70) : days_to_expiry > 7 ? color.new(color.orange, 50) : color.new(color.red, 50)
+    color rollover_text = days_to_expiry > 14 ? color.white : days_to_expiry > 7 ? color.yellow : color.red
+    string rollover_icon = days_to_expiry > 14 ? "✅" : days_to_expiry > 7 ? "⚠️" : "🚨"
+    
+    table.cell(pos_table, 0, 7, "Contract:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 7, display_contract, text_color=color.white, bgcolor=color.new(color.gray, 70))
+    
+    table.cell(pos_table, 0, 8, "Expiry:", text_color=color.white, bgcolor=rollover_bg)
+    table.cell(pos_table, 1, 8, rollover_icon + " " + str.tostring(days_to_expiry) + " days", text_color=rollover_text, bgcolor=rollover_bg, text_size=size.normal)
+    
+    // Show rollover alert if <14 days
+    if days_to_expiry < 14 and days_to_expiry > 0
+        table.cell(pos_table, 0, 9, "⚠️ ROLLOVER TO:", text_color=color.yellow, bgcolor=color.new(color.orange, 30), text_size=size.normal)
+        table.cell(pos_table, 1, 9, next_display, text_color=color.yellow, bgcolor=color.new(color.orange, 30), text_size=size.normal)
+    else if days_to_expiry <= 0
+        table.cell(pos_table, 0, 9, "🚨 EXPIRED!", text_color=color.red, bgcolor=color.new(color.red, 30), text_size=size.large)
+        table.cell(pos_table, 1, 9, "USE: " + next_display, text_color=color.red, bgcolor=color.new(color.red, 30), text_size=size.large)
+    
+    // TRACKING STATISTICS (Rows 10-14)
+    // Count active trades (signals that have entered but not stopped out on No-BE strategy)
+    int total_signals = array.size(signal_entries)
+    int active_count = 0
+    int completed_count = 0
+    int today_signals = 0
+    int today_completed = 0
+    
+    // Only calculate if we have signals
+    if total_signals > 0 and array.size(signal_no_be_stopped) > 0
+        // Count active vs completed
+        for i = 0 to math.min(array.size(signal_entries) - 1, array.size(signal_no_be_stopped) - 1)
+            bool no_be_stopped = array.get(signal_no_be_stopped, i)
+            
+            if not no_be_stopped
+                active_count := active_count + 1
+            else
+                completed_count := completed_count + 1
+            
+            // Count today's activity
+            if i < array.size(signal_entry_times)
+                int entry_time = array.get(signal_entry_times, i)
+                if dayofmonth(entry_time, "America/New_York") == dayofmonth(time, "America/New_York")
+                    today_signals := today_signals + 1
+                    if no_be_stopped
+                        today_completed := today_completed + 1
+    
+    // TRACKING SUMMARY HEADER
+    table.cell(pos_table, 0, 10, "📊 TRACKING", text_color=color.white, bgcolor=color.new(color.purple, 20), text_size=size.normal)
+    table.merge_cells(pos_table, 0, 10, 1, 10)
+    
+    // Active Trades
+    table.cell(pos_table, 0, 11, "Active Trades:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 11, str.tostring(active_count), text_color=color.green, bgcolor=color.new(color.gray, 70), text_size=size.normal)
+    
+    // Completed Trades
+    table.cell(pos_table, 0, 12, "Completed:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 12, str.tostring(completed_count), text_color=color.blue, bgcolor=color.new(color.gray, 70))
+    
+    // Today's Activity
+    table.cell(pos_table, 0, 13, "Today's Signals:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 13, str.tostring(today_signals), text_color=color.yellow, bgcolor=color.new(color.gray, 70))
+    
+    // Current Session (inline calculation)
+    int h = hour(time, "America/New_York")
+    int m = minute(time, "America/New_York")
+    string current_session_display = 
+         (h >= 20 and h <= 23) ? "ASIA" :
+         (h >= 0 and h <= 5) ? "LONDON" :
+         (h == 6 or (h == 8 and m <= 29)) ? "NY PRE" :
+         ((h == 8 and m >= 30) or (h >= 9 and h <= 11)) ? "NY AM" :
+         (h == 12) ? "NY LUNCH" :
+         (h >= 13 and h <= 15) ? "NY PM" : "AFTER_HOURS"
+    
+    color session_color = current_session_display == "NY AM" or current_session_display == "NY PM" ? color.green : 
+                         current_session_display == "LONDON" ? color.blue :
+                         current_session_display == "ASIA" ? color.purple : color.gray
+    
+    table.cell(pos_table, 0, 14, "Session:", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(pos_table, 1, 14, current_session_display, text_color=color.white, bgcolor=color.new(session_color, 50))
+
     
     // Show suggestion row ONLY when actual risk exceeds 0.15% (cannot trade with standard contract)
     if show_suggestion

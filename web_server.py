@@ -1436,6 +1436,11 @@ if db_enabled:
     register_all_signals_api(app)
     register_cancelled_signals_api(app)
     
+    # Register Indicator Data Inspector (for bulk export analysis)
+    logger.info("⚠️ Registering Indicator Data Inspector")
+    from indicator_data_inspector import register_inspector_endpoint
+    register_inspector_endpoint(app)
+    
     # Start Hybrid Signal Synchronization Service (Enterprise-Grade)
     logger.warning("⚠️ Starting Hybrid Signal Synchronization Service")
     from hybrid_sync.sync_service import start_hybrid_sync_service
