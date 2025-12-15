@@ -111,7 +111,7 @@ def register_inspector_endpoint(app):
         }), 200
     
     @app.route('/api/indicator-inspector/all', methods=['GET'])
-    def get_all_signals():
+    def get_all_inspector_signals():
         """Get all received signals for import"""
         return jsonify({
             'success': True,
