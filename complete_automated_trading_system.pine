@@ -1972,6 +1972,11 @@ if ENABLE_EXPORT and not export_complete and barstate.isconfirmed
                 int sig_time = array.get(signal_entry_times, i)
                 float sig_entry = array.get(signal_entries, i)
                 float sig_stop = array.get(signal_stops, i)
+                
+                // SKIP signals with na entry or stop (incomplete data)
+                if na(sig_entry) or na(sig_stop)
+                    continue
+                
                 string sig_dir = array.get(signal_directions, i)
                 float sig_be_mfe = array.get(signal_be_mfes, i)
                 float sig_no_be_mfe = array.get(signal_mfes, i)

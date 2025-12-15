@@ -90,6 +90,26 @@ def register_inspector_endpoint(app):
             'sample_signals': received_signals[:5]  # First 5 for inspection
         }), 200
     
+    @app.route('/api/indicator-inspector/clear', methods=['POST'])
+    def clear_inspector():
+        """Clear all received signals"""
+        global received_signals
+        count = len(received_signals)
+        received_signals = []
+        
+        # Clear log file
+        try:
+            if os.path.exists('indicator_export_log.json'):
+                os.remove('indicator_export_log.json')
+        except:
+            pass
+        
+        return jsonify({
+            'success': True,
+            'cleared': count,
+            'message': f'Cleared {count} signals from inspector'
+        }), 200
+    
     print("✅ Indicator Inspector endpoints registered")
 
 # Register in web_server.py
