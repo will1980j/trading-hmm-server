@@ -46,7 +46,7 @@ RECALCULATE_MFE = input.bool(false, "🔄 Recalculate All MFE", group="Debug", t
 
 // BULK EXPORT - Export all signals to backend
 ENABLE_EXPORT = input.bool(false, "📤 Enable Bulk Export", group="Export", tooltip="Export all signals to backend. Turn ON, wait for completion, turn OFF.")
-EXPORT_DELAY_BARS = input.int(0, "Delay Between Batches (bars)", minval=0, maxval=10, group="Export", tooltip="0 = send all immediately, 5 = wait 5 bars between batches")
+EXPORT_DELAY_BARS = input.int(5, "Delay Between Batches (bars)", minval=0, maxval=10, group="Export", tooltip="5 = wait 5 minutes between batches (recommended), 0 = send immediately (may hit rate limits)")
 
 // AUTO-DETECT CONTRACT TYPE AND POINT VALUE
 auto_detect_contract = input.bool(true, "Auto-Detect Contract Type", tooltip="Automatically detect contract type from chart symbol", group="Risk Management")
@@ -1947,8 +1947,12 @@ if barstate.isfirst
 // INDICATOR DATA EXPORT - One-Time Bulk Export for Inspection
 // ============================================================================
 
-// EXPORT CONTROL - Now controlled by inputs at top of file
-int EXPORT_BATCH_SIZE = 20  // Fixed batch size
+// ============================================================================
+// EXPORT V2 - BULLETPROOF SYSTEM
+// ============================================================================
+// Larger batches (50 signals), built-in delays (5 bars), exact Signal List Table logic
+
+int EXPORT_V2_BATCH_SIZE = 50  // Larger batches to reduce alert count
 
 // Export state
 var int export_batch_number = 0
@@ -1956,24 +1960,29 @@ var int export_signals_sent = 0
 var bool export_complete = false
 var int export_last_bar = 0
 
-// EXPORT LOGIC
+// EXPORT V2 LOGIC - Runs on barstate.islast when arrays are fully populated
 if ENABLE_EXPORT and not export_complete and barstate.islast
     int bars_since_last = bar_index - export_last_bar
     
+    // Wait EXPORT_DELAY_BARS between batches (default 5 bars = 5 minutes)
     if bars_since_last >= EXPORT_DELAY_BARS or export_batch_number == 0
-        int start_idx = export_batch_number * EXPORT_BATCH_SIZE
-        int end_idx = math.min(start_idx + EXPORT_BATCH_SIZE, array.size(signal_entries))
+        int start_idx = export_batch_number * EXPORT_V2_BATCH_SIZE
+        int end_idx = math.min(start_idx + EXPORT_V2_BATCH_SIZE, array.size(signal_entries))
         
         if start_idx < array.size(signal_entries)
             string batch_signals = ""
             int signals_in_batch = 0
             
+            // Loop through batch range
             for i = start_idx to end_idx - 1
+                // Get signal time
                 int sig_time = array.get(signal_entry_times, i)
+                
+                // Get signal data (EXACT same as Signal List Table)
                 float sig_entry = array.get(signal_entries, i)
                 float sig_stop = array.get(signal_stops, i)
                 
-                // SKIP signals with na entry or stop (incomplete data)
+                // SKIP signals with na entry or stop
                 if na(sig_entry) or na(sig_stop)
                     continue
                 
@@ -1983,6 +1992,7 @@ if ENABLE_EXPORT and not export_complete and barstate.islast
                 float sig_mae = array.get(signal_maes, i)
                 bool sig_completed = array.get(signal_no_be_stopped, i)
                 
+                // Build trade_id
                 string trade_id = str.tostring(year(sig_time, "America/New_York")) + 
                                  str.tostring(month(sig_time, "America/New_York"), "00") +
                                  str.tostring(dayofmonth(sig_time, "America/New_York"), "00") + "_" +
@@ -1991,33 +2001,71 @@ if ENABLE_EXPORT and not export_complete and barstate.islast
                                  str.tostring(second(sig_time, "America/New_York"), "00") + "000_" +
                                  (sig_dir == "Bullish" ? "BULLISH" : "BEARISH")
                 
+                // Build date string
                 string date_str = str.tostring(year(sig_time, "America/New_York")) + '-' +
                                  str.tostring(month(sig_time, "America/New_York"), "00") + '-' +
                                  str.tostring(dayofmonth(sig_time, "America/New_York"), "00")
                 
-                string part1 = '{"trade_id":"' + trade_id + '","date":"' + date_str + '","direction":"' + sig_dir + '"'
-                string part2 = ',"entry":' + str.tostring(sig_entry) + ',"stop":' + str.tostring(sig_stop)
-                string part3 = ',"be_mfe":' + str.tostring(sig_be_mfe) + ',"no_be_mfe":' + str.tostring(sig_no_be_mfe)
-                string part4 = ',"mae":' + str.tostring(sig_mae) + ',"completed":' + str.tostring(sig_completed) + '}'
-                string signal_json = part1 + part2 + part3 + part4
+                // Calculate session (EXACT same as table)
+                int h = hour(sig_time, "America/New_York")
+                int m = minute(sig_time, "America/New_York")
+                string session = "AFTER_HOURS"
+                if h >= 20 and h <= 23
+                    session := "ASIA"
+                else if h >= 0 and h <= 5
+                    session := "LONDON"
+                else if h == 6 or (h == 8 and m <= 29)
+                    session := "NY PRE"
+                else if (h == 8 and m >= 30) or (h >= 9 and h <= 11)
+                    session := "NY AM"
+                else if h == 12
+                    session := "NY LUNCH"
+                else if h >= 13 and h <= 15
+                    session := "NY PM"
                 
+                // Calculate age (EXACT same as table)
+                int age_ms = time - sig_time
+                int age_days = int(age_ms / 86400000)
+                int age_hours = int((age_ms % 86400000) / 3600000)
+                int age_mins = int((age_ms % 3600000) / 60000)
+                string age = ""
+                if age_days > 0
+                    age := str.tostring(age_days) + "d " + str.tostring(age_hours) + "h"
+                else if age_hours > 0
+                    age := str.tostring(age_hours) + "h " + str.tostring(age_mins) + "m"
+                else
+                    age := str.tostring(age_mins) + "m"
+                
+                // Build JSON with ALL fields
+                string part1 = '{"trade_id":"' + trade_id + '","date":"' + date_str + '","direction":"' + sig_dir + '"'
+                string part2 = ',"session":"' + session + '","age":"' + age + '"'
+                string part3 = ',"entry":' + str.tostring(sig_entry) + ',"stop":' + str.tostring(sig_stop)
+                string part4 = ',"be_mfe":' + str.tostring(sig_be_mfe) + ',"no_be_mfe":' + str.tostring(sig_no_be_mfe)
+                string part5 = ',"mae":' + str.tostring(sig_mae) + ',"completed":' + str.tostring(sig_completed) + '}'
+                string signal_json = part1 + part2 + part3 + part4 + part5
+                
+                // Add to batch
                 if signals_in_batch > 0
                     batch_signals := batch_signals + ","
                 
                 batch_signals := batch_signals + signal_json
                 signals_in_batch := signals_in_batch + 1
             
-            string export_payload = '{"event_type":"INDICATOR_EXPORT"' +
-                                   ',"batch_number":' + str.tostring(export_batch_number) +
-                                   ',"total_signals":' + str.tostring(array.size(signal_entries)) +
-                                   ',"signals":[' + batch_signals + ']}'
+            // Send batch if we have signals
+            if signals_in_batch > 0
+                string export_payload = '{"event_type":"INDICATOR_EXPORT_V2"' +
+                                       ',"batch_number":' + str.tostring(export_batch_number) +
+                                       ',"batch_size":' + str.tostring(signals_in_batch) +
+                                       ',"total_signals":' + str.tostring(array.size(signal_entries)) +
+                                       ',"signals":[' + batch_signals + ']}'
+                
+                alert(export_payload, alert.freq_once_per_bar_close)
+                
+                export_batch_number := export_batch_number + 1
+                export_signals_sent := export_signals_sent + signals_in_batch
+                export_last_bar := bar_index
             
-            alert(export_payload, alert.freq_once_per_bar_close)
-            
-            export_batch_number := export_batch_number + 1
-            export_signals_sent := export_signals_sent + signals_in_batch
-            export_last_bar := bar_index
-            
+            // Check if complete
             if end_idx >= array.size(signal_entries)
                 export_complete := true
         else
@@ -2040,7 +2088,7 @@ if SHOW_SIGNAL_LIST and barstate.islast
                      SIGNAL_LIST_POSITION == "bottom_center" ? position.bottom_center :
                      SIGNAL_LIST_POSITION == "bottom_right" ? position.bottom_right : position.middle_right
     
-    var table signal_list_table = table.new(list_pos, 10, 22, border_width=1)
+    var table signal_list_table = table.new(list_pos, 11, 22, border_width=1)
     
     // Header
     table.cell(signal_list_table, 0, 0, "SIGNAL LIST", text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.normal)
@@ -2049,14 +2097,15 @@ if SHOW_SIGNAL_LIST and barstate.islast
     // Column headers
     table.cell(signal_list_table, 0, 1, "Date", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
     table.cell(signal_list_table, 1, 1, "Time", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(signal_list_table, 2, 1, "Session", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(signal_list_table, 3, 1, "Dir", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(signal_list_table, 4, 1, "Entry", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(signal_list_table, 5, 1, "Stop", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(signal_list_table, 6, 1, "BE MFE", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(signal_list_table, 7, 1, "No-BE", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(signal_list_table, 8, 1, "MAE", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(signal_list_table, 9, 1, "Status", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 2, 1, "Age", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 3, 1, "Session", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 4, 1, "Dir", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 5, 1, "Entry", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 6, 1, "Stop", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 7, 1, "BE MFE", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 8, 1, "No-BE", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 9, 1, "MAE", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(signal_list_table, 10, 1, "Status", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
     
     // Filter and show signals
     int row = 2
@@ -2096,6 +2145,19 @@ if SHOW_SIGNAL_LIST and barstate.islast
         string sig_time_str = str.tostring(hour(sig_time, "America/New_York"), "00") + ":" +
                              str.tostring(minute(sig_time, "America/New_York"), "00")
         
+        // Age calculation
+        int age_ms = time - sig_time
+        int age_days = int(age_ms / 86400000)
+        int age_hours = int((age_ms % 86400000) / 3600000)
+        int age_mins = int((age_ms % 3600000) / 60000)
+        string age_str = ""
+        if age_days > 0
+            age_str := str.tostring(age_days) + "d " + str.tostring(age_hours) + "h"
+        else if age_hours > 0
+            age_str := str.tostring(age_hours) + "h " + str.tostring(age_mins) + "m"
+        else
+            age_str := str.tostring(age_mins) + "m"
+        
         // Session
         int h = hour(sig_time, "America/New_York")
         int min = minute(sig_time, "America/New_York")
@@ -2128,19 +2190,20 @@ if SHOW_SIGNAL_LIST and barstate.islast
                              sig_session == "ASIA" ? color.purple : color.gray
         
         // Status: COMPLETE (both stopped), BE-EXIT (BE stopped, No-BE active), ACTIVE (both active)
-        string status_text = sig_no_be_done ? "DONE" : sig_be_stopped ? "BE-X" : "LIVE"
+        string status_text = sig_no_be_done ? "COMPLETED" : sig_be_stopped ? "BE-X" : "LIVE"
         color status_color = sig_no_be_done ? color.blue : sig_be_stopped ? color.purple : color.green
         
         table.cell(signal_list_table, 0, row, sig_date, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
         table.cell(signal_list_table, 1, row, sig_time_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(signal_list_table, 2, row, sig_session, text_color=color.white, bgcolor=color.new(session_color, 60), text_size=size.small)
-        table.cell(signal_list_table, 3, row, sig_dir == "Bullish" ? "🔵" : "🔴", text_color=dir_color, bgcolor=color.new(color.gray, 70), text_size=size.normal)
-        table.cell(signal_list_table, 4, row, str.tostring(sig_entry, "#.##"), text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(signal_list_table, 5, row, str.tostring(sig_stop, "#.##"), text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(signal_list_table, 6, row, str.tostring(sig_be_mfe, "#.##") + "R", text_color=sig_be_mfe >= 1 ? color.green : color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(signal_list_table, 7, row, str.tostring(sig_no_be_mfe, "#.##") + "R", text_color=sig_no_be_mfe >= 1 ? color.green : color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(signal_list_table, 8, row, str.tostring(sig_mae, "#.##") + "R", text_color=sig_mae < -1.0 ? color.red : color.orange, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(signal_list_table, 9, row, status_text, text_color=color.white, bgcolor=color.new(status_color, 50), text_size=size.small)
+        table.cell(signal_list_table, 2, row, age_str, text_color=color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(signal_list_table, 3, row, sig_session, text_color=color.white, bgcolor=color.new(session_color, 60), text_size=size.small)
+        table.cell(signal_list_table, 4, row, sig_dir == "Bullish" ? "🔵" : "🔴", text_color=dir_color, bgcolor=color.new(color.gray, 70), text_size=size.normal)
+        table.cell(signal_list_table, 5, row, str.tostring(sig_entry, "#.##"), text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(signal_list_table, 6, row, str.tostring(sig_stop, "#.##"), text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(signal_list_table, 7, row, str.tostring(sig_be_mfe, "#.##") + "R", text_color=sig_be_mfe >= 1 ? color.green : color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(signal_list_table, 8, row, str.tostring(sig_no_be_mfe, "#.##") + "R", text_color=sig_no_be_mfe >= 1 ? color.green : color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(signal_list_table, 9, row, str.tostring(sig_mae, "#.##") + "R", text_color=sig_mae < -1.0 ? color.red : color.orange, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(signal_list_table, 10, row, status_text, text_color=color.white, bgcolor=color.new(status_color, 50), text_size=size.small)
         
         row := row + 1
         signals_shown := signals_shown + 1
@@ -2151,7 +2214,7 @@ if SHOW_SIGNAL_LIST and barstate.islast
         string nav_text = filter_text + " | Page " + str.tostring(SIGNAL_LIST_START / SIGNAL_LIST_COUNT + 1) + 
                          " | Showing " + str.tostring(signals_shown) + " signals"
         table.cell(signal_list_table, 0, row, nav_text, text_color=color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
-        table.merge_cells(signal_list_table, 0, row, 9, row)
+        table.merge_cells(signal_list_table, 0, row, 10, row)
 
 
 // ============================================================================
