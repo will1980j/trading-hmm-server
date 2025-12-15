@@ -44,6 +44,10 @@ ARRAY_VERSION = input.int(1, "Array Version (change to reset)", minval=1, group=
 // MFE RECALCULATION - Force recalculate ALL MFE from chart history
 RECALCULATE_MFE = input.bool(false, "🔄 Recalculate All MFE", group="Debug", tooltip="Scan entire chart history and recalculate MFE for ALL signals. Turn ON, wait for completion, turn OFF. May take 2-3 minutes.")
 
+// BULK EXPORT - Export all signals to backend
+ENABLE_EXPORT = input.bool(false, "📤 Enable Bulk Export", group="Export", tooltip="Export all signals to backend. Turn ON, wait for completion, turn OFF.")
+EXPORT_DELAY_BARS = input.int(0, "Delay Between Batches (bars)", minval=0, maxval=10, group="Export", tooltip="0 = send all immediately, 5 = wait 5 bars between batches")
+
 // AUTO-DETECT CONTRACT TYPE AND POINT VALUE
 auto_detect_contract = input.bool(true, "Auto-Detect Contract Type", tooltip="Automatically detect contract type from chart symbol", group="Risk Management")
 manual_point_value = input.float(20.0, "Manual Point Value ($)", minval=0.1, tooltip="Only used if Auto-Detect is OFF", group="Risk Management")
@@ -1943,10 +1947,8 @@ if barstate.isfirst
 // INDICATOR DATA EXPORT - One-Time Bulk Export for Inspection
 // ============================================================================
 
-// EXPORT CONTROL - Set these to true/change values to enable export
-bool ENABLE_EXPORT = false  // Change to true to start export
-int EXPORT_BATCH_SIZE = 20
-int EXPORT_DELAY_BARS = 5
+// EXPORT CONTROL - Now controlled by inputs at top of file
+int EXPORT_BATCH_SIZE = 20  // Fixed batch size
 
 // Export state
 var int export_batch_number = 0

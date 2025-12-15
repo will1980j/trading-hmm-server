@@ -1446,6 +1446,11 @@ if db_enabled:
     from indicator_bulk_import import register_bulk_import_endpoint
     register_bulk_import_endpoint(app)
     
+    # Register Data Quality API (Phase 1: Database + APIs)
+    logger.info("⚠️ Registering Data Quality API")
+    from data_quality_api import register_data_quality_api
+    register_data_quality_api(app)
+    
     # Hybrid Sync Service - DISABLED (using indicator as source of truth)
     # logger.warning("⚠️ Starting Hybrid Signal Synchronization Service")
     # from hybrid_sync.sync_service import start_hybrid_sync_service
