@@ -86,7 +86,7 @@ def register_data_quality_api(app):
     # ========================================================================
     
     @app.route('/api/data-quality/health', methods=['GET'])
-    def get_system_health():
+    def get_data_quality_health():
         """Get real-time system health status"""
         try:
             conn = get_db_connection()
