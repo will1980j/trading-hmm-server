@@ -1957,7 +1957,7 @@ var bool export_complete = false
 var int export_last_bar = 0
 
 // EXPORT LOGIC
-if ENABLE_EXPORT and not export_complete and barstate.isconfirmed
+if ENABLE_EXPORT and not export_complete and barstate.islast
     int bars_since_last = bar_index - export_last_bar
     
     if bars_since_last >= EXPORT_DELAY_BARS or export_batch_number == 0

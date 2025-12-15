@@ -110,6 +110,15 @@ def register_inspector_endpoint(app):
             'message': f'Cleared {count} signals from inspector'
         }), 200
     
+    @app.route('/api/indicator-inspector/all', methods=['GET'])
+    def get_all_signals():
+        """Get all received signals for import"""
+        return jsonify({
+            'success': True,
+            'signals': received_signals,
+            'count': len(received_signals)
+        }), 200
+    
     print("✅ Indicator Inspector endpoints registered")
 
 # Register in web_server.py
