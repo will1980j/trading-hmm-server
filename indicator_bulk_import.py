@@ -62,7 +62,7 @@ def register_bulk_import_endpoint(app):
                         %s, 'ENTRY', NOW(),
                         %s, %s, %s,
                         %s, %s,
-                        'indicator_historical', 1.0
+                        'indicator_polling', 1.0
                     )
                 """, (
                     trade_id,
@@ -82,7 +82,7 @@ def register_bulk_import_endpoint(app):
                     ) VALUES (
                         %s, 'MFE_UPDATE', NOW(),
                         %s, %s, %s,
-                        'indicator_historical', 1.0
+                        'indicator_polling', 1.0
                     )
                 """, (
                     trade_id,
@@ -101,7 +101,7 @@ def register_bulk_import_endpoint(app):
                         ) VALUES (
                             %s, 'EXIT_SL', NOW(),
                             %s, %s,
-                            'indicator_historical', 1.0
+                            'indicator_polling', 1.0
                         )
                     """, (
                         trade_id,
@@ -180,7 +180,7 @@ def register_bulk_import_endpoint(app):
                     ) VALUES (
                         %s, 'SIGNAL_CREATED', %s,
                         %s, %s, %s,
-                        'indicator_historical', 1.0
+                        'indicator_polling', 1.0
                     )
                 """, (
                     trade_id,
@@ -200,7 +200,7 @@ def register_bulk_import_endpoint(app):
                         ) VALUES (
                             %s, 'CANCELLED', %s,
                             %s,
-                            'indicator_historical', 1.0
+                            'indicator_polling', 1.0
                         )
                     """, (trade_id, dt, direction))
                 
