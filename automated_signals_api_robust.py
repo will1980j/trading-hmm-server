@@ -317,7 +317,7 @@ def register_automated_signals_api_robust(app, db):
             active_trades = [row_to_dict(row) for row in active_rows]
             
             # ============================================
-            # STEP 2: Load COMPLETED trades with LIMIT 500
+            # STEP 2: Load ALL COMPLETED trades (NO LIMIT)
             # COMPLETED = trades with EXIT event
             # FIX: Join ENTRY data with EXIT data for complete info
             # ============================================
@@ -382,7 +382,6 @@ def register_automated_signals_api_robust(app, db):
                 LEFT JOIN entry_data e ON x.trade_id = e.trade_id
                 LEFT JOIN latest_mfe_completed m ON x.trade_id = m.trade_id
                 ORDER BY x.exit_timestamp DESC
-                LIMIT 500
             """)
             completed_rows = cursor.fetchall()
             completed_trades = [row_to_dict(row) for row in completed_rows]
