@@ -2768,3 +2768,84 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
+
+// ============================================================================
+// DATA QUALITY TAB
+// ============================================================================
+
+async function loadDataQualityTab() {
+    try {
+        // Load overview
+        const overview = await fetch('/api/data-quality/overview').then(r => r.json());
+        if (overview.success) {
+            document.getElementById('dq-last-sync').textContent = overview.last_sync ? new Date(overview.last_sync).toLocaleString() : 'Never';
+            document.getElementById('dq-status').textContent = overview.status === 'healthy' ? '✅ Healthy' : '⚠️ Issues';
+            document.getElementById('dq-success-rate').textContent = overview.webhook_success_rate.toFixed(1) + '%';
+            document.getElementById('dq-conflicts').textContent = overview.conflicts_pending;
+        }
+
+        // Load health status
+        const health = await fetch('/api/data-quality/health').then(r => r.json());
+        if (health.success) {
+            const webhookBadge = document.getElementById('dq-webhook-status');
+            webhookBadge.textContent = health.webhooks.status === 'active' ? '✅ Active' : '❌ Inactive';
+            webhookBadge.className = 'badge ' + (health.webhooks.status === 'active' ? 'bg-success' : 'bg-danger');
+            document.getElementById('dq-webhook-last').textContent = 'Last received: ' + health.webhooks.last_received;
+            
+            document.getElementById('dq-export-next').textContent = 'Next run: ' + health.daily_export.next_run;
+            document.getElementById('dq-recon-last').textContent = 'Last run: ' + health.reconciliation.last_run;
+        }
+
+        // Load conflicts
+        const conflicts = await fetch('/api/data-quality/conflicts?status=pending').then(r => r.json());
+        if (conflicts.success && conflicts.conflicts.length > 0) {
+            const html = conflicts.conflicts.map(c => `
+                <div class="ultra-card mb-2" style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3);">
+                    <div class="ultra-card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-semibold">${c.trade_id}</div>
+                                <div class="small ultra-muted">${c.conflict_type}: ${c.field_name}</div>
+                                <div class="mt-2">
+                                    <span class="badge bg-warning">Webhook: ${c.webhook_value}</span>
+                                    <span class="badge bg-info">Indicator: ${c.indicator_value}</span>
+                                </div>
+                            </div>
+                            <div class="btn-group-vertical btn-group-sm">
+                                <button class="btn btn-success btn-sm" onclick="resolveConflict(${c.id}, 'trust_indicator')">Trust Indicator</button>
+                                <button class="btn btn-warning btn-sm" onclick="resolveConflict(${c.id}, 'trust_webhook')">Trust Webhook</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('dq-conflicts-list').innerHTML = html;
+        }
+    } catch (error) {
+        console.error('Error loading Data Quality tab:', error);
+    }
+}
+
+async function resolveConflict(conflictId, resolution) {
+    try {
+        const response = await fetch('/api/data-quality/resolve', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({conflict_id: conflictId, resolution: resolution})
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            // Reload conflicts list
+            loadDataQualityTab();
+        }
+    } catch (error) {
+        console.error('Error resolving conflict:', error);
+    }
+}
+
+// Load Data Quality tab when it's shown
+document.getElementById('data-quality-tab')?.addEventListener('shown.bs.tab', function() {
+    loadDataQualityTab();
+});

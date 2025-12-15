@@ -34,9 +34,10 @@ SIGNAL_LIST_POSITION = input.string("middle_right", "Table Position", options=["
 // ALL SIGNALS VIEWER (Every Triangle)
 SHOW_ALL_SIGNALS = input.bool(false, "Show All Signals Table", group="All Signals Viewer", tooltip="Display table of every triangle (pending, confirmed, cancelled)")
 ALL_SIGNALS_FILTER = input.string("ALL", "Filter", options=["ALL", "PENDING", "CONFIRMED", "CANCELLED"], group="All Signals Viewer")
-ALL_SIGNALS_START = input.int(0, "Start Index (Page)", minval=0, step=20, group="All Signals Viewer")
-ALL_SIGNALS_COUNT = input.int(20, "Signals Per Page", minval=5, maxval=20, group="All Signals Viewer")
+ALL_SIGNALS_START = input.int(0, "Start Index (Page)", minval=0, step=50, group="All Signals Viewer")
+ALL_SIGNALS_COUNT = input.int(50, "Signals Per Page", minval=5, maxval=50, group="All Signals Viewer")
 ALL_SIGNALS_POSITION = input.string("middle_left", "Table Position", options=["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"], group="All Signals Viewer")
+ALL_SIGNALS_FONT_SIZE = input.string("Tiny", "Font Size", options=["Tiny", "Small", "Normal"], group="All Signals Viewer")
 
 // ARRAY RESET - Change this number to force rebuild (1, 2, 3, etc.)
 ARRAY_VERSION = input.int(1, "Array Version (change to reset)", minval=1, group="Debug", tooltip="Change this number (1→2→3) to force array reset and rebuild with fixed MFE logic")
@@ -357,6 +358,12 @@ var array<string> all_signal_directions = array.new<string>() // Bullish/Bearish
 var array<string> all_signal_status = array.new<string>()     // PENDING/CONFIRMED/CANCELLED
 var array<int> all_signal_confirmation_times = array.new<int>() // When confirmed (0 if not)
 var array<int> all_signal_bars_to_confirm = array.new<int>()  // Bars from signal to confirmation
+var array<string> all_signal_daily_bias = array.new<string>()  // Daily bias at signal time
+var array<string> all_signal_h4_bias = array.new<string>()     // 4H bias at signal time
+var array<string> all_signal_h1_bias = array.new<string>()     // 1H bias at signal time
+var array<string> all_signal_m15_bias = array.new<string>()    // 15M bias at signal time
+var array<string> all_signal_m5_bias = array.new<string>()     // 5M bias at signal time
+var array<string> all_signal_m1_bias = array.new<string>()     // 1M bias at signal time
 var array<int> all_signal_confirmed_index = array.new<int>()  // Index in confirmed signals arrays (-1 if not confirmed)
 var array<string> all_signal_htf_daily = array.new<string>()  // Daily bias at signal time
 var array<string> all_signal_htf_4h = array.new<string>()     // 4H bias at signal time
@@ -432,6 +439,12 @@ if show_bull_triangle and active_signal != "Bullish"
     array.push(all_signal_status, "PENDING")
     array.push(all_signal_confirmation_times, 0)
     array.push(all_signal_bars_to_confirm, 0)
+    array.push(all_signal_daily_bias, daily_bias)
+    array.push(all_signal_h4_bias, h4_bias)
+    array.push(all_signal_h1_bias, h1_bias)
+    array.push(all_signal_m15_bias, m15_bias)
+    array.push(all_signal_m5_bias, m5_bias)
+    array.push(all_signal_m1_bias, bias)
     array.push(all_signal_confirmed_index, -1)  // Not confirmed yet
     array.push(all_signal_htf_daily, daily_bias)
     array.push(all_signal_htf_4h, h4_bias)
@@ -458,6 +471,12 @@ if show_bear_triangle and active_signal != "Bearish"
     array.push(all_signal_status, "PENDING")
     array.push(all_signal_confirmation_times, 0)
     array.push(all_signal_bars_to_confirm, 0)
+    array.push(all_signal_daily_bias, daily_bias)
+    array.push(all_signal_h4_bias, h4_bias)
+    array.push(all_signal_h1_bias, h1_bias)
+    array.push(all_signal_m15_bias, m15_bias)
+    array.push(all_signal_m5_bias, m5_bias)
+    array.push(all_signal_m1_bias, bias)
     array.push(all_signal_confirmed_index, -1)  // Not confirmed yet
     array.push(all_signal_htf_daily, daily_bias)
     array.push(all_signal_htf_4h, h4_bias)
@@ -1973,13 +1992,23 @@ if barstate.isfirst
 // ============================================================================
 // Larger batches (50 signals), built-in delays (5 bars), exact Signal List Table logic
 
-int EXPORT_V2_BATCH_SIZE = 50  // Larger batches to reduce alert count
+int EXPORT_V2_BATCH_SIZE = 15  // Optimized for 4096 char limit with all fields
 
 // Export state
 var int export_batch_number = 0
 var int export_signals_sent = 0
 var bool export_complete = false
 var int export_last_bar = 0
+var int export_last_day = 0  // Track day to auto-reset daily
+
+// Auto-reset export daily (zero manual involvement)
+int current_day = dayofmonth(time, "America/New_York")
+if current_day != export_last_day and export_complete
+    export_batch_number := 0
+    export_signals_sent := 0
+    export_complete := false
+    export_last_bar := 0
+    export_last_day := current_day
 
 // EXPORT V2 LOGIC - Runs on barstate.islast when arrays are fully populated
 if ENABLE_EXPORT and not export_complete and barstate.islast
@@ -2065,12 +2094,18 @@ if ENABLE_EXPORT and not export_complete and barstate.islast
                 string part5 = ',"mae":' + str.tostring(sig_mae) + ',"completed":' + str.tostring(sig_completed) + '}'
                 string signal_json = part1 + part2 + part3 + part4 + part5
                 
-                // Add to batch
-                if signals_in_batch > 0
-                    batch_signals := batch_signals + ","
-                
-                batch_signals := batch_signals + signal_json
-                signals_in_batch := signals_in_batch + 1
+                // Check payload size before adding
+                string test_add = signals_in_batch > 0 ? batch_signals + "," + signal_json : signal_json
+                if str.length(test_add) < 3800  // Leave room for wrapper
+                    // Add to batch
+                    if signals_in_batch > 0
+                        batch_signals := batch_signals + ","
+                    
+                    batch_signals := batch_signals + signal_json
+                    signals_in_batch := signals_in_batch + 1
+                else
+                    // Batch full, stop adding
+                    break
             
             // Send batch if we have signals
             if signals_in_batch > 0
@@ -2096,11 +2131,21 @@ if ENABLE_EXPORT and not export_complete and barstate.islast
 // ALL SIGNALS EXPORT V2 - Export every triangle (pending, confirmed, cancelled)
 // ============================================================================
 
-int ALL_SIGNALS_BATCH_SIZE = 50
+int ALL_SIGNALS_BATCH_SIZE = 10  // Smaller due to many fields (Entry/Stop/Risk/HTF)
 var int all_export_batch = 0
 var int all_export_sent = 0
 var bool all_export_complete = false
 var int all_export_last_bar = 0
+var int all_export_last_day = 0
+
+// Auto-reset All Signals export daily
+int current_day_all = dayofmonth(time, "America/New_York")
+if current_day_all != all_export_last_day and all_export_complete
+    all_export_batch := 0
+    all_export_sent := 0
+    all_export_complete := false
+    all_export_last_bar := 0
+    all_export_last_day := current_day_all
 
 if ENABLE_ALL_SIGNALS_EXPORT and not all_export_complete and barstate.islast
     int bars_since = bar_index - all_export_last_bar
@@ -2120,6 +2165,40 @@ if ENABLE_ALL_SIGNALS_EXPORT and not all_export_complete and barstate.islast
                 int confirm_time = array.get(all_signal_confirmation_times, i)
                 int bars_to_confirm = array.get(all_signal_bars_to_confirm, i)
                 
+                // Cross-reference for Entry/Stop/Risk (only for CONFIRMED)
+                string entry_val = "null"
+                string stop_val = "null"
+                string risk_val = "null"
+                
+                if sig_status == "CONFIRMED"
+                    for j = 0 to array.size(signal_entry_times) - 1
+                        int entry_time = array.get(signal_entry_times, j)
+                        string entry_dir = array.get(signal_directions, j)
+                        // Match within 10 minutes and same direction
+                        if math.abs(entry_time - sig_time) < 600000 and entry_dir == sig_dir
+                            float e = array.get(signal_entries, j)
+                            float s = array.get(signal_stops, j)
+                            if not na(e) and not na(s)
+                                entry_val := str.tostring(e)
+                                stop_val := str.tostring(s)
+                                risk_val := str.tostring(math.abs(e - s))
+                            break
+                
+                // HTF bias (stored at signal time)
+                string stored_daily = array.get(all_signal_daily_bias, i)
+                string stored_h4 = array.get(all_signal_h4_bias, i)
+                string stored_h1 = array.get(all_signal_h1_bias, i)
+                string stored_m15 = array.get(all_signal_m15_bias, i)
+                string stored_m5 = array.get(all_signal_m5_bias, i)
+                string stored_m1 = array.get(all_signal_m1_bias, i)
+                
+                string d_bias = stored_daily == "Bullish" ? "BULL" : stored_daily == "Bearish" ? "BEAR" : "NEUT"
+                string h4_bias_str = stored_h4 == "Bullish" ? "BULL" : stored_h4 == "Bearish" ? "BEAR" : "NEUT"
+                string h1_bias_str = stored_h1 == "Bullish" ? "BULL" : stored_h1 == "Bearish" ? "BEAR" : "NEUT"
+                string m15_bias_str = stored_m15 == "Bullish" ? "BULL" : stored_m15 == "Bearish" ? "BEAR" : "NEUT"
+                string m5_bias_str = stored_m5 == "Bullish" ? "BULL" : stored_m5 == "Bearish" ? "BEAR" : "NEUT"
+                string m1_bias_str = stored_m1 == "Bullish" ? "BULL" : stored_m1 == "Bearish" ? "BEAR" : "NEUT"
+                
                 // Build trade_id
                 string trade_id = str.tostring(year(sig_time, "America/New_York")) + 
                                  str.tostring(month(sig_time, "America/New_York"), "00") +
@@ -2129,14 +2208,19 @@ if ENABLE_ALL_SIGNALS_EXPORT and not all_export_complete and barstate.islast
                                  str.tostring(second(sig_time, "America/New_York"), "00") + "000_" +
                                  (sig_dir == "Bullish" ? "BULLISH" : "BEARISH")
                 
-                // Build JSON
-                string signal_json = '{"trade_id":"' + trade_id + '","direction":"' + sig_dir + '","status":"' + sig_status + '","signal_time":' + str.tostring(sig_time) + ',"confirmation_time":' + str.tostring(confirm_time) + ',"bars_to_confirm":' + str.tostring(bars_to_confirm) + '}'
+                // Build JSON with all fields
+                string signal_json = '{"trade_id":"' + trade_id + '","direction":"' + sig_dir + '","status":"' + sig_status + '","signal_time":' + str.tostring(sig_time) + ',"confirmation_time":' + str.tostring(confirm_time) + ',"bars_to_confirm":' + str.tostring(bars_to_confirm) + ',"entry":' + entry_val + ',"stop":' + stop_val + ',"risk":' + risk_val + ',"htf_daily":"' + d_bias + '","htf_4h":"' + h4_bias_str + '","htf_1h":"' + h1_bias_str + '","htf_15m":"' + m15_bias_str + '","htf_5m":"' + m5_bias_str + '","htf_1m":"' + m1_bias_str + '"}'
                 
-                if signals_in_batch > 0
-                    batch_signals := batch_signals + ","
-                
-                batch_signals := batch_signals + signal_json
-                signals_in_batch := signals_in_batch + 1
+                // Check payload size before adding
+                string test_add = signals_in_batch > 0 ? batch_signals + "," + signal_json : signal_json
+                if str.length(test_add) < 3800
+                    if signals_in_batch > 0
+                        batch_signals := batch_signals + ","
+                    
+                    batch_signals := batch_signals + signal_json
+                    signals_in_batch := signals_in_batch + 1
+                else
+                    break
             
             if signals_in_batch > 0
                 string all_signals_payload = '{"event_type":"ALL_SIGNALS_EXPORT"' + ',"batch_number":' + str.tostring(all_export_batch) + ',"batch_size":' + str.tostring(signals_in_batch) + ',"total_signals":' + str.tostring(array.size(all_signal_times)) + ',"signals":[' + batch_signals + ']}'
@@ -2352,6 +2436,9 @@ if RECALCULATE_MFE and barstate.islast
 // ============================================================================
 
 if SHOW_ALL_SIGNALS and barstate.islast
+    // Font size setting
+    string font_size_val = ALL_SIGNALS_FONT_SIZE == "Tiny" ? size.tiny : ALL_SIGNALS_FONT_SIZE == "Small" ? size.small : size.normal
+    
     string all_pos = position.middle_left
     if ALL_SIGNALS_POSITION == "top_left"
         all_pos := position.top_left
@@ -2364,27 +2451,35 @@ if SHOW_ALL_SIGNALS and barstate.islast
     else if ALL_SIGNALS_POSITION == "middle_center"
         all_pos := position.middle_center
     
-    var table all_signals_table = table.new(all_pos, 7, 22, border_width=1)
+    var table all_signals_table = table.new(all_pos, 15, 52, border_width=1)
     
     // Header
     table.cell(all_signals_table, 0, 0, "ALL SIGNALS (Every Triangle)", text_color=color.white, bgcolor=color.new(color.purple, 20), text_size=size.normal)
-    table.merge_cells(all_signals_table, 0, 0, 6, 0)
+    table.merge_cells(all_signals_table, 0, 0, 14, 0)
     
     // Column headers
-    table.cell(all_signals_table, 0, 1, "Date", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(all_signals_table, 1, 1, "Time", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(all_signals_table, 2, 1, "Dir", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(all_signals_table, 3, 1, "Status", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(all_signals_table, 4, 1, "Confirm Time", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(all_signals_table, 5, 1, "Bars", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
-    table.cell(all_signals_table, 6, 1, "Session", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+    table.cell(all_signals_table, 0, 1, "Date", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 1, 1, "Time", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 2, 1, "Dir", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 3, 1, "Session", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 4, 1, "Status", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 5, 1, "Entry", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 6, 1, "Stop", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 7, 1, "Risk", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 8, 1, "Bars", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 9, 1, "D", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 10, 1, "4H", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 11, 1, "1H", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 12, 1, "15M", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 13, 1, "5M", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 14, 1, "1M", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
     
     // Filter and show signals
     int row = 2
     int signals_shown = 0
     
     for i = 0 to array.size(all_signal_times) - 1
-        if row >= 22 or signals_shown >= ALL_SIGNALS_COUNT
+        if row >= 52 or signals_shown >= ALL_SIGNALS_COUNT
             break
         
         // Check filter
@@ -2449,22 +2544,64 @@ if SHOW_ALL_SIGNALS and barstate.islast
         else if sig_status == "CANCELLED"
             status_color := color.red
         
+        // Cross-reference with Confirmed Signals to get Entry/Stop/Risk
+        string entry_str = "--"
+        string stop_str = "--"
+        string risk_str = "--"
+        
+        if sig_status == "CONFIRMED" and array.size(signal_entry_times) > 0
+            for j = 0 to array.size(signal_entry_times) - 1
+                int entry_time = array.get(signal_entry_times, j)
+                string entry_dir = array.get(signal_directions, j)
+                // Match within 10 minutes (600000 ms) and same direction
+                if math.abs(entry_time - sig_time) < 600000 and entry_dir == sig_dir
+                    float entry_val = array.get(signal_entries, j)
+                    float stop_val = array.get(signal_stops, j)
+                    if not na(entry_val) and not na(stop_val)
+                        entry_str := str.tostring(entry_val, "#.##")
+                        stop_str := str.tostring(stop_val, "#.##")
+                        risk_str := str.tostring(math.abs(entry_val - stop_val), "#.##")
+                    break
+        
+        // HTF bias indicators (stored at signal time, not current)
+        string stored_daily = array.get(all_signal_daily_bias, i)
+        string stored_h4 = array.get(all_signal_h4_bias, i)
+        string stored_h1 = array.get(all_signal_h1_bias, i)
+        string stored_m15 = array.get(all_signal_m15_bias, i)
+        string stored_m5 = array.get(all_signal_m5_bias, i)
+        string stored_m1 = array.get(all_signal_m1_bias, i)
+        
+        string d_indicator = stored_daily == "Bullish" ? "🔵" : stored_daily == "Bearish" ? "🔴" : "⚪"
+        string h4_indicator = stored_h4 == "Bullish" ? "🔵" : stored_h4 == "Bearish" ? "🔴" : "⚪"
+        string h1_indicator = stored_h1 == "Bullish" ? "🔵" : stored_h1 == "Bearish" ? "🔴" : "⚪"
+        string m15_indicator = stored_m15 == "Bullish" ? "🔵" : stored_m15 == "Bearish" ? "🔴" : "⚪"
+        string m5_indicator = stored_m5 == "Bullish" ? "🔵" : stored_m5 == "Bearish" ? "🔴" : "⚪"
+        string m1_indicator = stored_m1 == "Bullish" ? "🔵" : stored_m1 == "Bearish" ? "🔴" : "⚪"
+        
         // Display
-        table.cell(all_signals_table, 0, row, sig_date, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(all_signals_table, 1, row, sig_time_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(all_signals_table, 2, row, sig_dir == "Bullish" ? "🔵" : "🔴", text_color=dir_color, bgcolor=color.new(color.gray, 70), text_size=size.normal)
-        table.cell(all_signals_table, 3, row, sig_status, text_color=color.white, bgcolor=color.new(status_color, 50), text_size=size.small)
-        table.cell(all_signals_table, 4, row, confirm_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(all_signals_table, 5, row, bars_to_confirm > 0 ? str.tostring(bars_to_confirm) : "--", text_color=color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(all_signals_table, 6, row, sig_session, text_color=color.white, bgcolor=color.new(color.blue, 60), text_size=size.small)
+        table.cell(all_signals_table, 0, row, sig_date, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
+        table.cell(all_signals_table, 1, row, sig_time_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
+        table.cell(all_signals_table, 2, row, sig_dir == "Bullish" ? "🔵" : "🔴", text_color=dir_color, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 3, row, sig_session, text_color=color.white, bgcolor=color.new(color.blue, 60), text_size=font_size_val)
+        table.cell(all_signals_table, 4, row, sig_status, text_color=color.white, bgcolor=color.new(status_color, 50), text_size=font_size_val)
+        table.cell(all_signals_table, 5, row, entry_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
+        table.cell(all_signals_table, 6, row, stop_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
+        table.cell(all_signals_table, 7, row, risk_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
+        table.cell(all_signals_table, 8, row, bars_to_confirm > 0 ? str.tostring(bars_to_confirm) : "--", text_color=color.yellow, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
+        table.cell(all_signals_table, 9, row, d_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 10, row, h4_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 11, row, h1_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 12, row, m15_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 13, row, m5_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 14, row, m1_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
         
         row := row + 1
         signals_shown := signals_shown + 1
     
     // Navigation
-    if row < 22
+    if row < 52
         string filter_text = ALL_SIGNALS_FILTER
         string nav_text = filter_text + " | Total: " + str.tostring(array.size(all_signal_times)) + 
                          " | Showing: " + str.tostring(signals_shown)
-        table.cell(all_signals_table, 0, row, nav_text, text_color=color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.merge_cells(all_signals_table, 0, row, 6, row)
+        table.cell(all_signals_table, 0, row, nav_text, text_color=color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
+        table.merge_cells(all_signals_table, 0, row, 14, row)
