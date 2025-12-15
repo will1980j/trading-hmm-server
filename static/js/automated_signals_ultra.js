@@ -2849,3 +2849,63 @@ async function resolveConflict(conflictId, resolution) {
 document.getElementById('data-quality-tab')?.addEventListener('shown.bs.tab', function() {
     loadDataQualityTab();
 });
+
+
+// Import Now button handler with progress tracking
+document.getElementById('dq-import-now-btn')?.addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true;
+    
+    // Show progress
+    let progress = 0;
+    const progressInterval = setInterval(async () => {
+        try {
+            const r = await fetch('/api/indicator-inspector/summary');
+            const data = await r.json();
+            const total = data.total_signals || 0;
+            
+            const r2 = await fetch('/api/automated-signals/stats-live');
+            const stats = await r2.json();
+            const imported = (stats.stats.active_count || 0) + (stats.stats.completed_count || 0);
+            
+            progress = total > 0 ? Math.round((imported / total) * 100) : 0;
+            btn.textContent = `⏳ Importing... ${imported}/${total} (${progress}%)`;
+        } catch (e) {
+            console.error('Progress check error:', e);
+        }
+    }, 1000);  // Update every second
+    
+    try {
+        const response = await fetch('/api/data-quality/import-now', {
+            method: 'POST'
+        });
+        
+        clearInterval(progressInterval);
+        const result = await response.json();
+        
+        if (result.success) {
+            btn.textContent = '✅ Import Complete';
+            btn.className = 'btn btn-sm btn-success';
+            
+            // Reload dashboard data
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            btn.textContent = '❌ Import Failed';
+            btn.className = 'btn btn-sm btn-danger';
+            alert('Import failed: ' + result.error);
+        }
+    } catch (error) {
+        clearInterval(progressInterval);
+        btn.textContent = '❌ Error';
+        btn.className = 'btn btn-sm btn-danger';
+        console.error('Import error:', error);
+    }
+    
+    setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = '🔄 Import Now';
+        btn.className = 'btn btn-sm btn-primary';
+    }, 3000);
+});

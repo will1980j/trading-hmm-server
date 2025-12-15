@@ -500,3 +500,38 @@ def register_data_quality_api(app):
             return jsonify({'success': False, 'error': str(e)}), 500
     
     print("✅ Data Quality API endpoints registered")
+
+    
+    # ========================================================================
+    # 9. TRIGGER MANUAL IMPORT
+    # ========================================================================
+    
+    @app.route('/api/data-quality/import-now', methods=['POST'])
+    def trigger_manual_import():
+        """Trigger manual import from inspector to database"""
+        try:
+            import subprocess
+            import sys
+            
+            # Run import script
+            result = subprocess.run(
+                [sys.executable, "import_indicator_data.py"],
+                capture_output=True,
+                text=True,
+                timeout=300  # 5 minute timeout
+            )
+            
+            return jsonify({
+                'success': True,
+                'output': result.stdout,
+                'message': 'Import completed'
+            }), 200
+            
+        except subprocess.TimeoutExpired:
+            return jsonify({
+                'success': False,
+                'error': 'Import timed out after 5 minutes'
+            }), 500
+        except Exception as e:
+            print(f"❌ Manual import error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500

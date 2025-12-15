@@ -40,6 +40,27 @@ def register_bulk_import_endpoint(app):
                 exists = cur.fetchone()[0] > 0
                 
                 if exists:
+                    # UPDATE existing signal with complete data from indicator
+                    cur.execute("""
+                        UPDATE automated_signals
+                        SET entry_price = %s,
+                            stop_loss = %s,
+                            risk_distance = %s,
+                            session = %s,
+                            be_mfe = %s,
+                            no_be_mfe = %s,
+                            mae_global_r = %s
+                        WHERE trade_id = %s AND event_type = 'ENTRY'
+                    """, (
+                        entry,
+                        stop,
+                        risk_distance,
+                        session,
+                        be_mfe,
+                        no_be_mfe,
+                        mae,
+                        trade_id
+                    ))
                     skipped += 1
                     continue
                 
@@ -51,44 +72,44 @@ def register_bulk_import_endpoint(app):
                 signal_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
                 signal_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
                 
-                # Insert ENTRY event
+                # Extract all fields from export
+                session = signal.get('session', 'UNKNOWN')
+                entry = signal.get('entry')
+                stop = signal.get('stop')
+                be_mfe = signal.get('be_mfe', 0.0)
+                no_be_mfe = signal.get('no_be_mfe', 0.0)
+                mae = signal.get('mae', 0.0)
+                
+                # Calculate risk_distance
+                risk_distance = abs(entry - stop) if entry and stop else None
+                
+                # Insert ENTRY event with ALL fields
                 cur.execute("""
                     INSERT INTO automated_signals (
                         trade_id, event_type, timestamp,
-                        direction, entry_price, stop_loss,
-                        signal_date, signal_time,
+                        direction, entry_price, stop_loss, risk_distance,
+                        signal_date, signal_time, session,
+                        be_mfe, no_be_mfe, mae_global_r,
                         data_source, confidence_score
                     ) VALUES (
                         %s, 'ENTRY', NOW(),
+                        %s, %s, %s, %s,
                         %s, %s, %s,
-                        %s, %s,
+                        %s, %s, %s,
                         'indicator_polling', 1.0
                     )
                 """, (
                     trade_id,
                     'LONG' if signal.get('direction') == 'Bullish' else 'SHORT',
-                    signal.get('entry'),
-                    signal.get('stop'),
+                    entry,
+                    stop,
+                    risk_distance,
                     signal_date,
-                    signal_time
-                ))
-                
-                # Insert final MFE_UPDATE with indicator's MFE values
-                cur.execute("""
-                    INSERT INTO automated_signals (
-                        trade_id, event_type, timestamp,
-                        be_mfe, no_be_mfe, mae_global_r,
-                        data_source, confidence_score
-                    ) VALUES (
-                        %s, 'MFE_UPDATE', NOW(),
-                        %s, %s, %s,
-                        'indicator_polling', 1.0
-                    )
-                """, (
-                    trade_id,
-                    signal.get('be_mfe'),
-                    signal.get('no_be_mfe'),
-                    signal.get('mae')
+                    signal_time,
+                    session,
+                    be_mfe,
+                    no_be_mfe,
+                    mae
                 ))
                 
                 # If completed, insert EXIT event
