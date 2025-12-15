@@ -751,36 +751,36 @@ def register_automated_signals_api_robust(app, db):
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # Get completed trades per day (last 90 days)
-            # Only EXIT_SL (both strategies stopped)
+            # Group by signal_date (actual signal time), not import timestamp
             cursor.execute("""
                 SELECT 
-                    DATE((timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York') as date,
+                    signal_date as date,
                     COUNT(DISTINCT trade_id) as completed_count,
                     AVG(COALESCE(final_mfe, no_be_mfe, mfe, 0)) as avg_mfe
                 FROM automated_signals
-                WHERE timestamp >= CURRENT_DATE - INTERVAL '90 days'
+                WHERE signal_date >= CURRENT_DATE - INTERVAL '90 days'
                 AND event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
-                -- Note: Only trades where both strategies stopped
-                GROUP BY DATE((timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York')
+                AND signal_date IS NOT NULL
+                GROUP BY signal_date
             """)
             completed_by_date = {row['date'].strftime('%Y-%m-%d'): row for row in cursor.fetchall()}
             
             # Get active trades per day (entry date, no EXIT_SL yet)
-            # A trade is active if No-BE strategy is still running
+            # Group by signal_date (actual signal time), not import timestamp
             cursor.execute("""
                 SELECT 
-                    DATE((e.timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York') as date,
+                    e.signal_date as date,
                     COUNT(DISTINCT e.trade_id) as active_count
                 FROM automated_signals e
                 WHERE e.event_type = 'ENTRY'
-                AND e.timestamp >= CURRENT_DATE - INTERVAL '90 days'
+                AND e.signal_date >= CURRENT_DATE - INTERVAL '90 days'
+                AND e.signal_date IS NOT NULL
                 AND e.trade_id NOT IN (
                     SELECT DISTINCT trade_id 
                     FROM automated_signals 
                     WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
-                    -- Note: EXIT_BE excluded (No-BE strategy still active)
                 )
-                GROUP BY DATE((e.timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York')
+                GROUP BY e.signal_date
             """)
             active_by_date = {row['date'].strftime('%Y-%m-%d'): row['active_count'] for row in cursor.fetchall()}
             
