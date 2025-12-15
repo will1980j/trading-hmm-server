@@ -45,7 +45,8 @@ ARRAY_VERSION = input.int(1, "Array Version (change to reset)", minval=1, group=
 RECALCULATE_MFE = input.bool(false, "🔄 Recalculate All MFE", group="Debug", tooltip="Scan entire chart history and recalculate MFE for ALL signals. Turn ON, wait for completion, turn OFF. May take 2-3 minutes.")
 
 // BULK EXPORT - Export all signals to backend
-ENABLE_EXPORT = input.bool(false, "📤 Enable Bulk Export", group="Export", tooltip="Export all signals to backend. Turn ON, wait for completion, turn OFF.")
+ENABLE_EXPORT = input.bool(false, "📤 Export Confirmed Signals", group="Export", tooltip="Export confirmed signals with entry/stop/MFE data. Turn ON, wait for completion, turn OFF.")
+ENABLE_ALL_SIGNALS_EXPORT = input.bool(false, "📤 Export All Signals", group="Export", tooltip="Export every triangle (pending, confirmed, cancelled). Run AFTER confirmed signals export.")
 EXPORT_DELAY_BARS = input.int(5, "Delay Between Batches (bars)", minval=0, maxval=10, group="Export", tooltip="5 = wait 5 minutes between batches (recommended), 0 = send immediately (may hit rate limits)")
 
 // AUTO-DETECT CONTRACT TYPE AND POINT VALUE
@@ -356,6 +357,12 @@ var array<string> all_signal_directions = array.new<string>() // Bullish/Bearish
 var array<string> all_signal_status = array.new<string>()     // PENDING/CONFIRMED/CANCELLED
 var array<int> all_signal_confirmation_times = array.new<int>() // When confirmed (0 if not)
 var array<int> all_signal_bars_to_confirm = array.new<int>()  // Bars from signal to confirmation
+var array<int> all_signal_confirmed_index = array.new<int>()  // Index in confirmed signals arrays (-1 if not confirmed)
+var array<string> all_signal_htf_daily = array.new<string>()  // Daily bias at signal time
+var array<string> all_signal_htf_4h = array.new<string>()     // 4H bias at signal time
+var array<string> all_signal_htf_1h = array.new<string>()     // 1H bias at signal time
+var array<string> all_signal_htf_15m = array.new<string>()    // 15M bias at signal time
+var array<string> all_signal_htf_5m = array.new<string>()     // 5M bias at signal time
 
 // ============================================================================
 // TELEMETRY ENGINE STATE (Option B - Single Active Trade Lifecycle)
@@ -425,6 +432,12 @@ if show_bull_triangle and active_signal != "Bullish"
     array.push(all_signal_status, "PENDING")
     array.push(all_signal_confirmation_times, 0)
     array.push(all_signal_bars_to_confirm, 0)
+    array.push(all_signal_confirmed_index, -1)  // Not confirmed yet
+    array.push(all_signal_htf_daily, daily_bias)
+    array.push(all_signal_htf_4h, h4_bias)
+    array.push(all_signal_htf_1h, h1_bias)
+    array.push(all_signal_htf_15m, m15_bias)
+    array.push(all_signal_htf_5m, m5_bias)
 
 if show_bear_triangle and active_signal != "Bearish"
     signal_candle_high := high
@@ -445,6 +458,12 @@ if show_bear_triangle and active_signal != "Bearish"
     array.push(all_signal_status, "PENDING")
     array.push(all_signal_confirmation_times, 0)
     array.push(all_signal_bars_to_confirm, 0)
+    array.push(all_signal_confirmed_index, -1)  // Not confirmed yet
+    array.push(all_signal_htf_daily, daily_bias)
+    array.push(all_signal_htf_4h, h4_bias)
+    array.push(all_signal_htf_1h, h1_bias)
+    array.push(all_signal_htf_15m, m15_bias)
+    array.push(all_signal_htf_5m, m5_bias)
     waiting_for_confirmation := true
     trade_ready := false
     entry_price := na
@@ -601,6 +620,8 @@ if waiting_for_confirmation and active_signal == "Bullish"
                 array.set(all_signal_confirmation_times, last_idx, time)
                 int bars_waited = bar_index - signal_bar_index
                 array.set(all_signal_bars_to_confirm, last_idx, bars_waited)
+                // Link to confirmed signals array (will be added next bar)
+                array.set(all_signal_confirmed_index, last_idx, array.size(signal_entries))
 
 // ============================================================================
 // BEARISH CONFIRMATION & STOP LOSS CALCULATION
@@ -2071,6 +2092,65 @@ if ENABLE_EXPORT and not export_complete and barstate.islast
         else
             export_complete := true
 
+// ============================================================================
+// ALL SIGNALS EXPORT V2 - Export every triangle (pending, confirmed, cancelled)
+// ============================================================================
+
+int ALL_SIGNALS_BATCH_SIZE = 50
+var int all_export_batch = 0
+var int all_export_sent = 0
+var bool all_export_complete = false
+var int all_export_last_bar = 0
+
+if ENABLE_ALL_SIGNALS_EXPORT and not all_export_complete and barstate.islast
+    int bars_since = bar_index - all_export_last_bar
+    
+    if bars_since >= EXPORT_DELAY_BARS or all_export_batch == 0
+        int start_idx = all_export_batch * ALL_SIGNALS_BATCH_SIZE
+        int end_idx = math.min(start_idx + ALL_SIGNALS_BATCH_SIZE, array.size(all_signal_times))
+        
+        if start_idx < array.size(all_signal_times)
+            string batch_signals = ""
+            int signals_in_batch = 0
+            
+            for i = start_idx to end_idx - 1
+                int sig_time = array.get(all_signal_times, i)
+                string sig_dir = array.get(all_signal_directions, i)
+                string sig_status = array.get(all_signal_status, i)
+                int confirm_time = array.get(all_signal_confirmation_times, i)
+                int bars_to_confirm = array.get(all_signal_bars_to_confirm, i)
+                
+                // Build trade_id
+                string trade_id = str.tostring(year(sig_time, "America/New_York")) + 
+                                 str.tostring(month(sig_time, "America/New_York"), "00") +
+                                 str.tostring(dayofmonth(sig_time, "America/New_York"), "00") + "_" +
+                                 str.tostring(hour(sig_time, "America/New_York"), "00") +
+                                 str.tostring(minute(sig_time, "America/New_York"), "00") +
+                                 str.tostring(second(sig_time, "America/New_York"), "00") + "000_" +
+                                 (sig_dir == "Bullish" ? "BULLISH" : "BEARISH")
+                
+                // Build JSON
+                string signal_json = '{"trade_id":"' + trade_id + '","direction":"' + sig_dir + '","status":"' + sig_status + '","signal_time":' + str.tostring(sig_time) + ',"confirmation_time":' + str.tostring(confirm_time) + ',"bars_to_confirm":' + str.tostring(bars_to_confirm) + '}'
+                
+                if signals_in_batch > 0
+                    batch_signals := batch_signals + ","
+                
+                batch_signals := batch_signals + signal_json
+                signals_in_batch := signals_in_batch + 1
+            
+            if signals_in_batch > 0
+                string all_signals_payload = '{"event_type":"ALL_SIGNALS_EXPORT"' + ',"batch_number":' + str.tostring(all_export_batch) + ',"batch_size":' + str.tostring(signals_in_batch) + ',"total_signals":' + str.tostring(array.size(all_signal_times)) + ',"signals":[' + batch_signals + ']}'
+                
+                alert(all_signals_payload, alert.freq_once_per_bar_close)
+                
+                all_export_batch := all_export_batch + 1
+                all_export_sent := all_export_sent + signals_in_batch
+                all_export_last_bar := bar_index
+            
+            if end_idx >= array.size(all_signal_times)
+                all_export_complete := true
+        else
+            all_export_complete := true
 
 // ============================================================================
 // SIGNAL LIST TABLE - View all signals directly on chart
