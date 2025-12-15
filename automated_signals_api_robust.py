@@ -763,7 +763,7 @@ def register_automated_signals_api_robust(app, db):
                 AND signal_date IS NOT NULL
                 GROUP BY signal_date
             """)
-            completed_by_date = {row['date'].strftime('%Y-%m-%d'): row for row in cursor.fetchall()}
+            completed_by_date = {row['date'].isoformat() if hasattr(row['date'], 'isoformat') else str(row['date']): row for row in cursor.fetchall()}
             
             # Get active trades per day (entry date, no EXIT_SL yet)
             # Group by signal_date (actual signal time), not import timestamp
@@ -782,7 +782,7 @@ def register_automated_signals_api_robust(app, db):
                 )
                 GROUP BY e.signal_date
             """)
-            active_by_date = {row['date'].strftime('%Y-%m-%d'): row['active_count'] for row in cursor.fetchall()}
+            active_by_date = {row['date'].isoformat() if hasattr(row['date'], 'isoformat') else str(row['date']): row['active_count'] for row in cursor.fetchall()}
             
             cursor.close()
             conn.close()
@@ -1196,3 +1196,65 @@ def _get_empty_stats_ultra():
         'avg_mfe': 0.0,
         'win_rate': 0.0
     }
+
+    
+    @app.route('/api/automated-signals/trades-by-date/<date>')
+    def get_trades_by_date(date):
+        """Get all trades for a specific date"""
+        try:
+            import os
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+            
+            database_url = os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+            cursor = conn.cursor()
+            
+            # Get trades for this date
+            cursor.execute("""
+                SELECT 
+                    trade_id,
+                    direction,
+                    entry_price,
+                    stop_loss,
+                    session,
+                    signal_date,
+                    signal_time,
+                    be_mfe,
+                    no_be_mfe,
+                    mae_global_r
+                FROM automated_signals
+                WHERE signal_date = %s
+                AND event_type = 'ENTRY'
+                ORDER BY signal_time
+            """, (date,))
+            
+            trades = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            # Convert to JSON-serializable
+            trades_list = []
+            for trade in trades:
+                trades_list.append({
+                    'trade_id': trade['trade_id'],
+                    'direction': trade['direction'],
+                    'entry': float(trade['entry_price']) if trade['entry_price'] else None,
+                    'stop': float(trade['stop_loss']) if trade['stop_loss'] else None,
+                    'session': trade['session'],
+                    'time': trade['signal_time'].strftime('%H:%M:%S') if trade['signal_time'] else None,
+                    'be_mfe': float(trade['be_mfe']) if trade['be_mfe'] else 0.0,
+                    'no_be_mfe': float(trade['no_be_mfe']) if trade['no_be_mfe'] else 0.0,
+                    'mae': float(trade['mae_global_r']) if trade['mae_global_r'] else 0.0
+                })
+            
+            return jsonify({
+                'success': True,
+                'date': date,
+                'trades': trades_list,
+                'count': len(trades_list)
+            }), 200
+            
+        except Exception as e:
+            print(f"❌ Trades by date error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500

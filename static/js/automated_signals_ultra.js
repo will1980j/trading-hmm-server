@@ -2845,14 +2845,12 @@ async function resolveConflict(conflictId, resolution) {
     }
 }
 
-// Load Data Quality tab when it's shown
-document.getElementById('data-quality-tab')?.addEventListener('shown.bs.tab', function() {
-    loadDataQualityTab();
-});
-
-
 // Import Now button handler with progress tracking
-document.getElementById('dq-import-now-btn')?.addEventListener('click', async function() {
+function attachImportButton() {
+    const btn = document.getElementById('dq-import-now-btn');
+    if (!btn) return;
+    
+    btn.addEventListener('click', async function() {
     const btn = this;
     btn.disabled = true;
     
@@ -2908,4 +2906,11 @@ document.getElementById('dq-import-now-btn')?.addEventListener('click', async fu
         btn.textContent = '🔄 Import Now';
         btn.className = 'btn btn-sm btn-primary';
     }, 3000);
+    });
+}
+
+// Load Data Quality tab when it's shown
+document.getElementById('data-quality-tab')?.addEventListener('shown.bs.tab', function() {
+    loadDataQualityTab();
+    attachImportButton();
 });
