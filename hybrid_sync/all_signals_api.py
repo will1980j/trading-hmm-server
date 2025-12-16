@@ -13,7 +13,7 @@ load_dotenv()
 def register_all_signals_api(app):
     """Register All Signals API endpoint"""
     
-    @app.route('/api/automated-signals/all-signals', methods=['GET'])
+    @app.route('/api/automated-signals/all-signals', methods=['GET'], endpoint='hybrid_all_signals')
     def get_all_signals():
         """
         Get all signals (every triangle that appeared).
@@ -184,7 +184,7 @@ def register_all_signals_api(app):
 def register_cancelled_signals_api(app):
     """Register Cancelled Signals API endpoint"""
     
-    @app.route('/api/automated-signals/cancelled-signals', methods=['GET'])
+    @app.route('/api/automated-signals/cancelled-signals', methods=['GET'], endpoint='hybrid_cancelled_signals')
     def get_cancelled_signals():
         """Get all cancelled signals"""
         try:

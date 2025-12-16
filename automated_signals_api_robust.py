@@ -1287,12 +1287,14 @@ def register_indicator_export_routes(app):
         
         logger.info("[INDICATOR_EXPORT] Received request")
         
-        # Shared secret check
+        # Shared secret check (header or query param)
         expected_token = os.environ.get('INDICATOR_EXPORT_TOKEN')
         if expected_token:
-            provided_token = request.headers.get('X-Indicator-Token')
-            if not provided_token or provided_token != expected_token:
-                logger.warning("[INDICATOR_EXPORT] ❌ Unauthorized: Invalid or missing X-Indicator-Token")
+            header_token = request.headers.get('X-Indicator-Token')
+            query_token = request.args.get('token')
+            
+            if not (header_token == expected_token or query_token == expected_token):
+                logger.warning("[INDICATOR_EXPORT] ❌ Unauthorized: Invalid or missing token")
                 return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
         else:
             # Dev mode - log warning once
