@@ -2377,7 +2377,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 AutomatedSignalsUltra.renderAllSignalsTable = async function() {
     try {
-        const resp = await fetch('/api/automated-signals/all-signals', { cache: 'no-store' });
+        const resp = await fetch('/api/all-signals/data', { cache: 'no-store' });
         const data = await resp.json();
         
         if (!data.success) {
@@ -2504,7 +2504,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 AutomatedSignalsUltra.renderCancelledSignalsTable = async function() {
     try {
-        const resp = await fetch('/api/automated-signals/cancelled-signals', { cache: 'no-store' });
+        const resp = await fetch('/api/all-signals/cancelled', { cache: 'no-store' });
         const data = await resp.json();
         
         if (!data.success) {
@@ -2909,8 +2909,98 @@ function attachImportButton() {
     });
 }
 
+// Load indicator batches
+async function loadIndicatorBatches() {
+    try {
+        const response = await fetch('/api/indicator-export/batches?limit=20');
+        const data = await response.json();
+        
+        const tbody = document.getElementById('indicator-batches-list');
+        if (!tbody) return;
+        
+        if (data.success && data.batches && data.batches.length > 0) {
+            tbody.innerHTML = data.batches.map(batch => `
+                <tr>
+                    <td>${batch.id}</td>
+                    <td>${new Date(batch.received_at).toLocaleString()}</td>
+                    <td><span class="badge ${batch.event_type === 'INDICATOR_EXPORT_V2' ? 'bg-primary' : 'bg-info'}">${batch.event_type}</span></td>
+                    <td>${batch.batch_number ?? '--'}</td>
+                    <td>${batch.batch_size ?? '--'}</td>
+                    <td>${batch.total_signals ?? '--'}</td>
+                    <td><span class="badge ${batch.is_valid ? 'bg-success' : 'bg-danger'}">${batch.is_valid ? 'Valid' : 'Invalid'}</span></td>
+                    <td class="text-muted small">${batch.validation_error || '--'}</td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center ultra-muted">No batches received yet</td></tr>';
+        }
+    } catch (error) {
+        console.error('Error loading indicator batches:', error);
+    }
+}
+
+// Import Latest button handler
+async function handleImportLatest() {
+    const btn = document.getElementById('import-latest-btn');
+    if (!btn) return;
+    
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Importing...';
+    
+    try {
+        const response = await fetch('/api/indicator-export/import-latest', {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            btn.innerHTML = '✅ Import Complete';
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-success');
+            
+            // Show results
+            console.log('Import results:', result);
+            alert(`Import complete!\nConfirmed: ${result.confirmed_signals?.result?.total_processed || 0}\nAll Signals: ${result.all_signals?.result?.total_processed || 0}`);
+            
+            // Reload batches
+            loadIndicatorBatches();
+            
+            setTimeout(() => {
+                btn.innerHTML = '⚡ Import Latest';
+                btn.disabled = false;
+            }, 3000);
+        } else {
+            btn.innerHTML = '❌ Import Failed';
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-danger');
+            
+            setTimeout(() => {
+                btn.innerHTML = '⚡ Import Latest';
+                btn.classList.remove('btn-danger');
+                btn.classList.add('btn-success');
+                btn.disabled = false;
+            }, 3000);
+        }
+    } catch (error) {
+        console.error('Error importing latest:', error);
+        btn.innerHTML = '❌ Error';
+        btn.classList.add('btn-danger');
+        
+        setTimeout(() => {
+            btn.innerHTML = '⚡ Import Latest';
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-success');
+            btn.disabled = false;
+        }, 3000);
+    }
+}
+
+// Attach Import Latest button
+document.getElementById('import-latest-btn')?.addEventListener('click', handleImportLatest);
+
 // Load Data Quality tab when it's shown
 document.getElementById('data-quality-tab')?.addEventListener('shown.bs.tab', function() {
     loadDataQualityTab();
     attachImportButton();
+    loadIndicatorBatches();
 });

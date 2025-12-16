@@ -814,6 +814,11 @@ def register_automated_signals_api_robust(app, db):
             }), 500
 
 
+
+    # Register indicator export routes
+    register_indicator_export_routes(app)
+    logger.warning("[ROBUST_API_REGISTRATION] ✅ Indicator export routes registered")
+
 def _get_active_trades_robust(cursor, has_signal_time):
     """Get active trades with telemetry support"""
     try:
@@ -1259,3 +1264,617 @@ def _get_empty_stats_ultra():
         except Exception as e:
             print(f"❌ Trades by date error: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
+    
+
+def register_indicator_export_routes(app):
+    """
+    Register indicator-export ingestion/import/ledger/reconciliation routes.
+    Called from register_automated_signals_api_robust().
+    """
+    from zoneinfo import ZoneInfo
+    @app.route('/api/indicator-export', methods=['POST'])
+    def indicator_export_webhook():
+        """
+        Receive TradingView indicator export batches.
+        Stores raw batch in indicator_export_batches table.
+        """
+        import json
+        import hashlib
+        import psycopg2
+        from psycopg2.extras import Json
+        from flask import request
+        import os
+        
+        logger.info("[INDICATOR_EXPORT] Received request")
+        
+        # Shared secret check
+        expected_token = os.environ.get('INDICATOR_EXPORT_TOKEN')
+        if expected_token:
+            provided_token = request.headers.get('X-Indicator-Token')
+            if not provided_token or provided_token != expected_token:
+                logger.warning("[INDICATOR_EXPORT] ❌ Unauthorized: Invalid or missing X-Indicator-Token")
+                return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        else:
+            # Dev mode - log warning once
+            if not hasattr(indicator_export_webhook, '_warned_no_token'):
+                logger.warning("[INDICATOR_EXPORT] ⚠️  INDICATOR_EXPORT_TOKEN not set - running in dev mode (no auth)")
+                indicator_export_webhook._warned_no_token = True
+        
+        # Parse JSON body
+        try:
+            data = request.get_json(force=True)
+        except Exception as e:
+            logger.error(f"[INDICATOR_EXPORT] Invalid JSON: {e}")
+            return jsonify({'status': 'error', 'message': 'Invalid JSON'}), 400
+        
+        # Compute SHA256 hash (stable canonicalization)
+        payload_str = json.dumps(data, sort_keys=True)
+        payload_hash = hashlib.sha256(payload_str.encode()).hexdigest()
+        
+        # Extract envelope fields
+        event_type = data.get('event_type')
+        batch_number = data.get('batch_number')
+        batch_size = data.get('batch_size')
+        total_signals = data.get('total_signals')
+        signals = data.get('signals', [])
+        
+        logger.info(f"[INDICATOR_EXPORT] event_type={event_type}, batch={batch_number}, size={batch_size}, hash={payload_hash[:8]}")
+        
+        # Validate event_type
+        valid_types = ['INDICATOR_EXPORT_V2', 'ALL_SIGNALS_EXPORT']
+        is_valid = event_type in valid_types and isinstance(signals, list)
+        validation_error = None if is_valid else f"Invalid event_type or signals not array"
+        
+        # Insert into database
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO indicator_export_batches 
+                (event_type, batch_number, batch_size, total_signals, payload_json, payload_sha256, is_valid, validation_error)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (event_type, payload_sha256) DO NOTHING
+                RETURNING id
+            """, (event_type, batch_number, batch_size, total_signals, Json(data), payload_hash, is_valid, validation_error))
+            
+            result = cursor.fetchone()
+            
+            if result:
+                batch_id = result[0]
+                conn.commit()
+                logger.info(f"[INDICATOR_EXPORT] ✅ Stored batch_id={batch_id}, signals={len(signals)}")
+                
+                cursor.close()
+                conn.close()
+                
+                return jsonify({
+                    'status': 'success',
+                    'batch_id': batch_id,
+                    'event_type': event_type,
+                    'batch_number': batch_number,
+                    'signals_count': len(signals)
+                }), 200
+            else:
+                # Duplicate detected
+                conn.rollback()
+                cursor.close()
+                conn.close()
+                
+                logger.info(f"[INDICATOR_EXPORT] ⚠️  Duplicate batch detected (hash={payload_hash[:8]})")
+                return jsonify({
+                    'status': 'duplicate',
+                    'event_type': event_type,
+                    'batch_number': batch_number,
+                    'signals_count': len(signals)
+                }), 200
+                
+        except Exception as e:
+            logger.error(f"[INDICATOR_EXPORT] ❌ Database error: {e}")
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+    @app.route('/api/indicator-export/import/<int:batch_id>', methods=['POST'])
+    def import_indicator_batch(batch_id):
+        """
+        Import a specific batch from indicator_export_batches into confirmed_signals_ledger.
+        Lightweight route that calls the importer function.
+        """
+        from services.indicator_export_importer import import_indicator_export_v2
+        
+        logger.info(f"[INDICATOR_IMPORT_V2] Import requested for batch_id={batch_id}")
+        
+        try:
+            result = import_indicator_export_v2(batch_id)
+            
+            if result.get('success'):
+                logger.info(f"[INDICATOR_IMPORT_V2] ✅ Import complete: {result}")
+                return jsonify(result), 200
+            else:
+                logger.error(f"[INDICATOR_IMPORT_V2] ❌ Import failed: {result}")
+                return jsonify(result), 500
+                
+        except Exception as e:
+            logger.error(f"[INDICATOR_IMPORT_V2] ❌ Exception: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'inserted': 0,
+                'updated': 0,
+                'skipped_invalid': 0
+            }), 500
+    
+    @app.route('/api/all-signals/import/<int:batch_id>', methods=['POST'])
+    def import_all_signals_batch(batch_id):
+        """
+        Import ALL_SIGNALS_EXPORT batch into all_signals_ledger.
+        Lightweight route that calls the importer function.
+        """
+        from services.indicator_export_importer import import_all_signals_export
+        
+        logger.info(f"[ALL_SIGNALS_IMPORT] Import requested for batch_id={batch_id}")
+        
+        try:
+            result = import_all_signals_export(batch_id)
+            
+            if result.get('success'):
+                logger.info(f"[ALL_SIGNALS_IMPORT] ✅ Import complete: {result}")
+                return jsonify(result), 200
+            else:
+                logger.error(f"[ALL_SIGNALS_IMPORT] ❌ Import failed: {result}")
+                return jsonify(result), 500
+                
+        except Exception as e:
+            logger.error(f"[ALL_SIGNALS_IMPORT] ❌ Exception: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'inserted': 0,
+                'updated': 0,
+                'skipped_invalid': 0
+            }), 500
+    
+    @app.route('/api/indicator-export/import-latest', methods=['POST'])
+    def import_latest_indicator_data():
+        """
+        Import latest valid batches for both INDICATOR_EXPORT_V2 and ALL_SIGNALS_EXPORT.
+        Finds most recent valid batch for each type and imports them.
+        """
+        import psycopg2
+        from services.indicator_export_importer import import_indicator_export_v2, import_all_signals_export
+        
+        logger.info("[INDICATOR_IMPORT_LATEST] Starting import of latest batches")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor()
+            
+            # Find latest INDICATOR_EXPORT_V2 batch
+            cursor.execute("""
+                SELECT id FROM indicator_export_batches
+                WHERE event_type = 'INDICATOR_EXPORT_V2' AND is_valid = true
+                ORDER BY received_at DESC
+                LIMIT 1
+            """)
+            confirmed_row = cursor.fetchone()
+            confirmed_batch_id = confirmed_row[0] if confirmed_row else None
+            
+            # Find latest ALL_SIGNALS_EXPORT batch
+            cursor.execute("""
+                SELECT id FROM indicator_export_batches
+                WHERE event_type = 'ALL_SIGNALS_EXPORT' AND is_valid = true
+                ORDER BY received_at DESC
+                LIMIT 1
+            """)
+            all_signals_row = cursor.fetchone()
+            all_signals_batch_id = all_signals_row[0] if all_signals_row else None
+            
+            cursor.close()
+            conn.close()
+            
+            logger.info(f"[INDICATOR_IMPORT_LATEST] Found batches: confirmed={confirmed_batch_id}, all_signals={all_signals_batch_id}")
+            
+            # Import both batches
+            confirmed_result = None
+            all_signals_result = None
+            
+            if confirmed_batch_id:
+                logger.info(f"[INDICATOR_IMPORT_LATEST] Importing INDICATOR_EXPORT_V2 batch {confirmed_batch_id}")
+                confirmed_result = import_indicator_export_v2(confirmed_batch_id)
+            
+            if all_signals_batch_id:
+                logger.info(f"[INDICATOR_IMPORT_LATEST] Importing ALL_SIGNALS_EXPORT batch {all_signals_batch_id}")
+                all_signals_result = import_all_signals_export(all_signals_batch_id)
+            
+            # Build combined response
+            response = {
+                'success': True,
+                'confirmed_signals': {
+                    'batch_id': confirmed_batch_id,
+                    'result': confirmed_result
+                } if confirmed_result else None,
+                'all_signals': {
+                    'batch_id': all_signals_batch_id,
+                    'result': all_signals_result
+                } if all_signals_result else None
+            }
+            
+            logger.info(f"[INDICATOR_IMPORT_LATEST] ✅ Import complete: {response}")
+            
+            return jsonify(response), 200
+            
+        except Exception as e:
+            logger.error(f"[INDICATOR_IMPORT_LATEST] ❌ Exception: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/api/all-signals/data', methods=['GET'])
+    def get_all_signals_data():
+        """
+        Get All Signals data from all_signals_ledger.
+        Returns triangle-canonical data for All Signals tab.
+        """
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        from decimal import Decimal
+        from datetime import datetime
+        
+        logger.info("[ALL_SIGNALS_DATA] Fetching all signals from ledger")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            # Query all_signals_ledger
+            cursor.execute("""
+                SELECT 
+                    trade_id,
+                    triangle_time_ms,
+                    confirmation_time_ms,
+                    direction,
+                    status,
+                    bars_to_confirm,
+                    session,
+                    entry_price,
+                    stop_loss,
+                    risk_points,
+                    htf_daily,
+                    htf_4h,
+                    htf_1h,
+                    htf_15m,
+                    htf_5m,
+                    htf_1m,
+                    updated_at
+                FROM all_signals_ledger
+                ORDER BY triangle_time_ms DESC
+                LIMIT 1000
+            """)
+            
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            # Convert to JSON-serializable format
+            signals = []
+            for row in rows:
+                # Convert triangle_time_ms to date and time strings (America/New_York)
+                if row['triangle_time_ms']:
+                    from zoneinfo import ZoneInfo
+                    dt = datetime.fromtimestamp(row['triangle_time_ms'] / 1000, tz=ZoneInfo("America/New_York"))
+                    date_str = dt.strftime('%Y-%m-%d')
+                    time_str = dt.strftime('%H:%M:%S')
+                else:
+                    date_str = None
+                    time_str = None
+                
+                signal = {
+                    'trade_id': row['trade_id'],
+                    'date': date_str,
+                    'time': time_str,
+                    'triangle_time_ms': row['triangle_time_ms'],
+                    'confirmation_time_ms': row['confirmation_time_ms'],
+                    'direction': row['direction'],
+                    'status': row['status'],
+                    'bars_to_confirm': row['bars_to_confirm'],
+                    'session': row['session'],
+                    'entry': float(row['entry_price']) if row['entry_price'] else None,
+                    'stop': float(row['stop_loss']) if row['stop_loss'] else None,
+                    'risk': float(row['risk_points']) if row['risk_points'] else None,
+                    'htf_daily': row['htf_daily'],
+                    'htf_4h': row['htf_4h'],
+                    'htf_1h': row['htf_1h'],
+                    'htf_15m': row['htf_15m'],
+                    'htf_5m': row['htf_5m'],
+                    'htf_1m': row['htf_1m'],
+                    'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None
+                }
+                signals.append(signal)
+            
+            logger.info(f"[ALL_SIGNALS_DATA] ✅ Returned {len(signals)} signals")
+            
+            return jsonify({
+                'success': True,
+                'signals': signals,
+                'count': len(signals)
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[ALL_SIGNALS_DATA] ❌ Error: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'signals': [],
+                'count': 0
+            }), 500
+    
+    @app.route('/api/all-signals/cancelled', methods=['GET'])
+    def get_cancelled_signals():
+        """Get cancelled signals from all_signals_ledger."""
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        from datetime import datetime
+        
+        logger.info("[CANCELLED_SIGNALS] Fetching cancelled signals")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute("""
+                SELECT 
+                    trade_id, triangle_time_ms, direction, session,
+                    htf_daily, htf_4h, htf_1h, htf_15m, htf_5m, htf_1m,
+                    updated_at
+                FROM all_signals_ledger
+                WHERE status = 'CANCELLED'
+                ORDER BY triangle_time_ms DESC
+                LIMIT 500
+            """)
+            
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            signals = []
+            for row in rows:
+                dt = datetime.fromtimestamp(row['triangle_time_ms'] / 1000, tz=ZoneInfo("America/New_York")) if row['triangle_time_ms'] else None
+                signals.append({
+                    'trade_id': row['trade_id'],
+                    'date': dt.strftime('%Y-%m-%d') if dt else None,
+                    'time': dt.strftime('%H:%M:%S') if dt else None,
+                    'direction': row['direction'],
+                    'session': row['session'],
+                    'htf_daily': row['htf_daily'],
+                    'htf_4h': row['htf_4h'],
+                    'htf_1h': row['htf_1h'],
+                    'htf_15m': row['htf_15m'],
+                    'htf_5m': row['htf_5m'],
+                    'htf_1m': row['htf_1m']
+                })
+            
+            logger.info(f"[CANCELLED_SIGNALS] ✅ Returned {len(signals)} cancelled signals")
+            return jsonify({'success': True, 'signals': signals, 'count': len(signals)}), 200
+            
+        except Exception as e:
+            logger.error(f"[CANCELLED_SIGNALS] ❌ Error: {e}")
+            return jsonify({'success': False, 'error': str(e), 'signals': [], 'count': 0}), 500
+    
+    @app.route('/api/all-signals/confirmed', methods=['GET'])
+    def get_confirmed_signals():
+        """Get confirmed signals with MFE/MAE data (LEFT JOIN to preserve all confirmed)."""
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        from datetime import datetime
+        
+        logger.info("[CONFIRMED_SIGNALS] Fetching confirmed signals")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute("""
+                SELECT 
+                    a.trade_id,
+                    a.triangle_time_ms,
+                    a.confirmation_time_ms,
+                    a.direction,
+                    a.status,
+                    a.session,
+                    a.entry_price,
+                    a.stop_loss,
+                    a.risk_points,
+                    c.be_mfe,
+                    c.no_be_mfe,
+                    c.mae,
+                    c.completed,
+                    a.updated_at
+                FROM all_signals_ledger a
+                LEFT JOIN confirmed_signals_ledger c ON a.trade_id = c.trade_id
+                WHERE a.status = 'CONFIRMED'
+                ORDER BY a.triangle_time_ms DESC
+                LIMIT 1000
+            """)
+            
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            signals = []
+            for row in rows:
+                dt = datetime.fromtimestamp(row['triangle_time_ms'] / 1000, tz=ZoneInfo("America/New_York")) if row['triangle_time_ms'] else None
+                signals.append({
+                    'trade_id': row['trade_id'],
+                    'date': dt.strftime('%Y-%m-%d') if dt else None,
+                    'time': dt.strftime('%H:%M:%S') if dt else None,
+                    'direction': row['direction'],
+                    'session': row['session'],
+                    'entry': float(row['entry_price']) if row['entry_price'] else None,
+                    'stop': float(row['stop_loss']) if row['stop_loss'] else None,
+                    'risk': float(row['risk_points']) if row['risk_points'] else None,
+                    'be_mfe': float(row['be_mfe']) if row['be_mfe'] else None,
+                    'no_be_mfe': float(row['no_be_mfe']) if row['no_be_mfe'] else None,
+                    'mae': float(row['mae']) if row['mae'] else None,
+                    'completed': row['completed']
+                })
+            
+            logger.info(f"[CONFIRMED_SIGNALS] ✅ Returned {len(signals)} confirmed signals")
+            return jsonify({'success': True, 'signals': signals, 'count': len(signals)}), 200
+            
+        except Exception as e:
+            logger.error(f"[CONFIRMED_SIGNALS] ❌ Error: {e}")
+            return jsonify({'success': False, 'error': str(e), 'signals': [], 'count': 0}), 500
+    
+    @app.route('/api/all-signals/completed', methods=['GET'])
+    def get_completed_signals():
+        """Get completed signals (status=COMPLETED or confirmed_signals.completed=true)."""
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        from datetime import datetime
+        
+        logger.info("[COMPLETED_SIGNALS] Fetching completed signals")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute("""
+                SELECT 
+                    a.trade_id,
+                    a.triangle_time_ms,
+                    a.confirmation_time_ms,
+                    a.direction,
+                    a.status,
+                    a.session,
+                    a.entry_price,
+                    a.stop_loss,
+                    a.risk_points,
+                    c.be_mfe,
+                    c.no_be_mfe,
+                    c.mae,
+                    c.completed,
+                    a.updated_at
+                FROM all_signals_ledger a
+                LEFT JOIN confirmed_signals_ledger c ON a.trade_id = c.trade_id
+                WHERE a.status = 'COMPLETED' OR c.completed = true
+                ORDER BY a.triangle_time_ms DESC
+                LIMIT 1000
+            """)
+            
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            signals = []
+            for row in rows:
+                dt = datetime.fromtimestamp(row['triangle_time_ms'] / 1000, tz=ZoneInfo("America/New_York")) if row['triangle_time_ms'] else None
+                signals.append({
+                    'trade_id': row['trade_id'],
+                    'date': dt.strftime('%Y-%m-%d') if dt else None,
+                    'time': dt.strftime('%H:%M:%S') if dt else None,
+                    'direction': row['direction'],
+                    'session': row['session'],
+                    'entry': float(row['entry_price']) if row['entry_price'] else None,
+                    'stop': float(row['stop_loss']) if row['stop_loss'] else None,
+                    'risk': float(row['risk_points']) if row['risk_points'] else None,
+                    'be_mfe': float(row['be_mfe']) if row['be_mfe'] else None,
+                    'no_be_mfe': float(row['no_be_mfe']) if row['no_be_mfe'] else None,
+                    'mae': float(row['mae']) if row['mae'] else None,
+                    'completed': row['completed']
+                })
+            
+            logger.info(f"[COMPLETED_SIGNALS] ✅ Returned {len(signals)} completed signals")
+            return jsonify({'success': True, 'signals': signals, 'count': len(signals)}), 200
+            
+        except Exception as e:
+            logger.error(f"[COMPLETED_SIGNALS] ❌ Error: {e}")
+            return jsonify({'success': False, 'error': str(e), 'signals': [], 'count': 0}), 500
+    
+    @app.route('/api/data-quality/reconcile-indicator', methods=['POST'])
+    def reconcile_indicator_data():
+        """
+        Run indicator reconciliation for a specific date (default today).
+        Compares canonical tables and flags issues.
+        """
+        from flask import request
+        from services.indicator_reconciliation import run_indicator_reconciliation
+        
+        # Get optional date parameter
+        data = request.get_json() if request.is_json else {}
+        date_yyyymmdd = data.get('date') if data else None
+        
+        logger.info(f"[RECONCILE_INDICATOR] Reconciliation requested for date={date_yyyymmdd or 'today'}")
+        
+        try:
+            result = run_indicator_reconciliation(date_yyyymmdd)
+            
+            if result.get('success'):
+                logger.info(f"[RECONCILE_INDICATOR] ✅ Reconciliation complete: {result}")
+                return jsonify(result), 200
+            else:
+                logger.error(f"[RECONCILE_INDICATOR] ❌ Reconciliation failed: {result}")
+                return jsonify(result), 500
+                
+        except Exception as e:
+            logger.error(f"[RECONCILE_INDICATOR] ❌ Exception: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'total_signals': 0,
+                'issues': {}
+            }), 500
+    
+    @app.route('/api/indicator-export/batches', methods=['GET'])
+    def get_indicator_batches():
+        """Get list of indicator export batches."""
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        from flask import request
+        
+        limit = request.args.get('limit', 20, type=int)
+        
+        logger.info(f"[INDICATOR_BATCHES] Fetching batches (limit={limit})")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute("""
+                SELECT 
+                    id, received_at, event_type, batch_number, batch_size, 
+                    total_signals, is_valid, validation_error
+                FROM indicator_export_batches
+                ORDER BY received_at DESC
+                LIMIT %s
+            """, (limit,))
+            
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            batches = []
+            for row in rows:
+                batches.append({
+                    'id': row['id'],
+                    'received_at': row['received_at'].isoformat() if row['received_at'] else None,
+                    'event_type': row['event_type'],
+                    'batch_number': row['batch_number'],
+                    'batch_size': row['batch_size'],
+                    'total_signals': row['total_signals'],
+                    'is_valid': row['is_valid'],
+                    'validation_error': row['validation_error']
+                })
+            
+            logger.info(f"[INDICATOR_BATCHES] ✅ Returned {len(batches)} batches")
+            return jsonify({'success': True, 'batches': batches, 'count': len(batches)}), 200
+            
+        except Exception as e:
+            logger.error(f"[INDICATOR_BATCHES] ❌ Error: {e}")
+            return jsonify({'success': False, 'error': str(e), 'batches': [], 'count': 0}), 500

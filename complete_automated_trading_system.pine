@@ -33,7 +33,7 @@ SIGNAL_LIST_POSITION = input.string("middle_right", "Table Position", options=["
 
 // ALL SIGNALS VIEWER (Every Triangle)
 SHOW_ALL_SIGNALS = input.bool(false, "Show All Signals Table", group="All Signals Viewer", tooltip="Display table of every triangle (pending, confirmed, cancelled)")
-ALL_SIGNALS_FILTER = input.string("ALL", "Filter", options=["ALL", "PENDING", "CONFIRMED", "CANCELLED"], group="All Signals Viewer")
+ALL_SIGNALS_FILTER = input.string("LATEST_40", "Filter", options=["LATEST_40", "ACTIVE_BE", "ACTIVE_ALL", "ALL", "PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"], group="All Signals Viewer", tooltip="LATEST_40=Last 40 signals, ACTIVE_BE=Active with BE+1R, ACTIVE_ALL=All active signals")
 ALL_SIGNALS_START = input.int(0, "Start Index (Page)", minval=0, step=50, group="All Signals Viewer")
 ALL_SIGNALS_COUNT = input.int(50, "Signals Per Page", minval=5, maxval=50, group="All Signals Viewer")
 ALL_SIGNALS_POSITION = input.string("middle_left", "Table Position", options=["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"], group="All Signals Viewer")
@@ -311,6 +311,7 @@ var array<bool> signal_no_be_stopped = array.new<bool>()  // Track if No BE stra
 var array<bool> signal_completes = array.new<bool>()
 var array<label> signal_labels = array.new<label>()
 var array<int> signal_entry_times = array.new<int>()
+var array<int> signal_triangle_times = array.new<int>()  // Canonical trade identity time (triangle time)
 var array<float> signal_lowest_lows = array.new<float>()  // Track lowest low since signal (for bullish)
 var array<float> signal_highest_highs = array.new<float>()  // Track highest high since signal (for bearish)
 var array<bool> signal_has_entered = array.new<bool>()  // Track if trade has actually entered (after confirmation)
@@ -334,6 +335,7 @@ if barstate.isfirst and ARRAY_VERSION != stored_version
     array.clear(signal_completes)
     array.clear(signal_labels)
     array.clear(signal_entry_times)
+    array.clear(signal_triangle_times)
     array.clear(signal_lowest_lows)
     array.clear(signal_highest_highs)
     array.clear(signal_has_entered)
@@ -614,6 +616,7 @@ if waiting_for_confirmation and active_signal == "Bullish"
         array.push(signal_completes, false)
         array.push(signal_labels, label(na))
         array.push(signal_entry_times, time)  // Use CURRENT time (confirmation bar) for MFE tracking
+        array.push(signal_triangle_times, signal_candle_time)  // Canonical trade identity time (triangle time)
         array.push(signal_lowest_lows, entry_price)  // Initialize with entry price for accurate MFE tracking
         array.push(signal_highest_highs, entry_price)  // Initialize with entry price for accurate MFE tracking
         array.push(signal_has_entered, false)  // Will be set to true on NEXT bar (after entry)
@@ -730,6 +733,7 @@ if waiting_for_confirmation and active_signal == "Bearish"
         array.push(signal_completes, false)
         array.push(signal_labels, label(na))
         array.push(signal_entry_times, time)  // Use CURRENT time (confirmation bar) for MFE tracking
+        array.push(signal_triangle_times, signal_candle_time)  // Canonical trade identity time (triangle time)
         array.push(signal_lowest_lows, entry_price)  // Initialize with entry price for accurate MFE tracking
         array.push(signal_highest_highs, entry_price)  // Initialize with entry price for accurate MFE tracking
         array.push(signal_has_entered, false)  // Will be set to true on NEXT bar (after entry)
@@ -1586,33 +1590,34 @@ if barstate.isconfirmed
 // Send when triangle first appears (before confirmation)
 if signal_created_bullish and barstate.isrealtime and barstate.isconfirmed
     string signal_direction = "Bullish"
-    string signal_id = f_buildTradeId(signal_candle_time, signal_direction)
-    string signal_payload = f_buildPayload(EVENT_SIGNAL_CREATED, signal_id, signal_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), float(na), "triangle_appeared", float(na), float(na), float(na), "FVG_CORE", "PENDING_CONFIRMATION", bias, syminfo.ticker, timeframe.period, signal_candle_time)
-    alert(signal_payload, alert.freq_once_per_bar_close)
+    // DISABLED: SIGNAL_CREATED webhook (using export system instead)
+    // string signal_id = f_buildTradeId(signal_candle_time, signal_direction)
+    // string signal_payload = f_buildPayload(EVENT_SIGNAL_CREATED, signal_id, signal_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), float(na), "triangle_appeared", float(na), float(na), float(na), "FVG_CORE", "PENDING_CONFIRMATION", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+    // alert(signal_payload, alert.freq_once_per_bar_close)
     signal_created_bullish := false
 
 if signal_created_bearish and barstate.isrealtime and barstate.isconfirmed
-    string signal_direction = "Bearish"
-    string signal_id = f_buildTradeId(signal_candle_time, signal_direction)
-    string signal_payload = f_buildPayload(EVENT_SIGNAL_CREATED, signal_id, signal_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), float(na), "triangle_appeared", float(na), float(na), float(na), "FVG_CORE", "PENDING_CONFIRMATION", bias, syminfo.ticker, timeframe.period, signal_candle_time)
-    alert(signal_payload, alert.freq_once_per_bar_close)
+    // DISABLED: SIGNAL_CREATED webhook (using export system instead)
+    // string signal_direction = "Bearish"
+    // string signal_id = f_buildTradeId(signal_candle_time, signal_direction)
+    // string signal_payload = f_buildPayload(EVENT_SIGNAL_CREATED, signal_id, signal_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), float(na), "triangle_appeared", float(na), float(na), float(na), "FVG_CORE", "PENDING_CONFIRMATION", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+    // alert(signal_payload, alert.freq_once_per_bar_close)
     signal_created_bearish := false
 
-// CANCELLED SIGNAL WEBHOOKS
-// Send when a signal was cancelled before confirmation (opposite signal appeared)
-if pending_cancel_bearish and barstate.isrealtime
-    string cancel_direction = "Bearish"
-    string cancel_trade_id = f_buildTradeId(signal_candle_time, cancel_direction)
-    string cancel_payload = f_buildPayload(EVENT_CANCELLED, cancel_trade_id, cancel_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), float(na), "opposite_signal_before_confirmation", float(na), float(na), float(na), "FVG_CORE", "CANCELLED", bias, syminfo.ticker, timeframe.period, signal_candle_time)
-    alert(cancel_payload, alert.freq_once_per_bar_close)
-    pending_cancel_bearish := false
+// DISABLED: CANCELLED SIGNAL WEBHOOKS (using export system instead)
+// if pending_cancel_bearish and barstate.isrealtime
+//     string cancel_direction = "Bearish"
+//     string cancel_trade_id = f_buildTradeId(signal_candle_time, cancel_direction)
+//     string cancel_payload = f_buildPayload(EVENT_CANCELLED, cancel_trade_id, cancel_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), float(na), "opposite_signal_before_confirmation", float(na), float(na), float(na), "FVG_CORE", "CANCELLED", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+//     alert(cancel_payload, alert.freq_once_per_bar_close)
+//     pending_cancel_bearish := false
 
-if pending_cancel_bullish and barstate.isrealtime
-    string cancel_direction = "Bullish"
-    string cancel_trade_id = f_buildTradeId(signal_candle_time, cancel_direction)
-    string cancel_payload = f_buildPayload(EVENT_CANCELLED, cancel_trade_id, cancel_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), float(na), "opposite_signal_before_confirmation", float(na), float(na), float(na), "FVG_CORE", "CANCELLED", bias, syminfo.ticker, timeframe.period, signal_candle_time)
-    alert(cancel_payload, alert.freq_once_per_bar_close)
-    pending_cancel_bullish := false
+// if pending_cancel_bullish and barstate.isrealtime
+//     string cancel_direction = "Bullish"
+//     string cancel_trade_id = f_buildTradeId(signal_candle_time, cancel_direction)
+//     string cancel_payload = f_buildPayload(EVENT_CANCELLED, cancel_trade_id, cancel_direction, float(na), float(na), float(na), 0.0, 0, 0.0, 0.0, float(na), float(na), float(na), "opposite_signal_before_confirmation", float(na), float(na), float(na), "FVG_CORE", "CANCELLED", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+//     alert(cancel_payload, alert.freq_once_per_bar_close)
+//     pending_cancel_bullish := false
 
 // 1. SIGNAL CREATION WEBHOOK
 // Send when new trade is ready (entry conditions met)
@@ -1648,8 +1653,8 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
     // Build telemetry payload for ENTRY event
     entry_payload = f_buildPayload(EVENT_ENTRY, signal_id, signal_direction, sig_entry, sig_stop, float(na), 1.0, contract_size, 0.0, 0.0, float(na), float(na), float(na), "", target_1r, target_2r, target_3r, setup_family, setup_variant, bias, syminfo.ticker, timeframe.period, signal_candle_time)
     
-    // Send webhook
-    alert(entry_payload, alert.freq_once_per_bar_close)
+    // DISABLED: ENTRY webhook (using export system instead)
+    // alert(entry_payload, alert.freq_once_per_bar_close)
     
     // ============================================================================
     // TELEMETRY ENGINE — ENTRY INITIALIZATION
@@ -1698,10 +1703,10 @@ if confirmed_this_bar and not webhook_sent_this_bar and barstate.isconfirmed and
     trade_ready := false
 
 // TEST: Send heartbeat alert every bar to verify alert system
-// SIMPLIFIED: Remove all conditions to force alert
-if barstate.isconfirmed
-    string heartbeat = '{"event_type":"HEARTBEAT","timestamp":"' + f_isoTimestamp(time) + '","signal_count":' + str.tostring(array.size(signal_entries)) + ',"realtime":' + str.tostring(barstate.isrealtime) + '}'
-    alert(heartbeat, alert.freq_once_per_bar_close)
+// REMOVED: Heartbeat alerts (using export system instead)
+// if barstate.isconfirmed
+//     string heartbeat = '{"event_type":"HEARTBEAT","timestamp":"' + f_isoTimestamp(time) + '","signal_count":' + str.tostring(array.size(signal_entries)) + ',"realtime":' + str.tostring(barstate.isrealtime) + '}'
+//     alert(heartbeat, alert.freq_once_per_bar_close)
 
 // 2. MFE UPDATE WEBHOOK - ROBUST BATCH MODE
 // HYBRID SYNC SYSTEM: Includes ALL active signals (last 500)
@@ -1721,7 +1726,8 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
             continue
         
         // Get signal data
-        int sig_entry_time = array.get(signal_entry_times, i)
+        int confirm_time = array.get(signal_entry_times, i)
+        int tri_time = i < array.size(signal_triangle_times) ? array.get(signal_triangle_times, i) : confirm_time
         string sig_direction = array.get(signal_directions, i)
         
         // Check if No-BE stopped (signal completed)
@@ -1735,16 +1741,16 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
             float sig_mae = i < array.size(signal_maes) ? array.get(signal_maes, i) : 0.0
             bool sig_be_triggered = i < array.size(signal_be_triggered) ? array.get(signal_be_triggered, i) : false
             
-            // Build trade_id
-            string signal_id = f_buildTradeId(sig_entry_time, sig_direction)
+            // Build trade_id from TRIANGLE TIME (canonical)
+            string signal_id = f_buildTradeId(tri_time, sig_direction)
             
             // Get all signal data
             float sig_entry = i < array.size(signal_entries) ? array.get(signal_entries, i) : na
             float sig_stop = i < array.size(signal_stops) ? array.get(signal_stops, i) : na
-            string sig_session = f_sessionLabel(sig_entry_time)  // Calculate session from entry time
+            string sig_session = f_sessionLabel(tri_time)  // Calculate session from triangle time
             
-            // Build complete JSON with all essential fields
-            string signal_json = '"trade_id":"' + signal_id + '","direction":"' + sig_direction + '","session":"' + sig_session + '","entry_price":' + f_num(sig_entry) + ',"stop_loss":' + f_num(sig_stop) + ',"be_mfe":' + f_num(current_mfe_be) + ',"no_be_mfe":' + f_num(current_mfe_none) + ',"mae_global_r":' + f_num(math.min(sig_mae, 0.0)) + ',"current_price":' + f_num(close) + ',"be_triggered":' + str.tostring(sig_be_triggered)
+            // Build complete JSON with all essential fields (triangle_time and confirmation_time as metadata)
+            string signal_json = '"trade_id":"' + signal_id + '","triangle_time":' + str.tostring(tri_time) + ',"confirmation_time":' + str.tostring(confirm_time) + ',"direction":"' + sig_direction + '","session":"' + sig_session + '","entry_price":' + f_num(sig_entry) + ',"stop_loss":' + f_num(sig_stop) + ',"be_mfe":' + f_num(current_mfe_be) + ',"no_be_mfe":' + f_num(current_mfe_none) + ',"mae_global_r":' + f_num(math.min(sig_mae, 0.0)) + ',"current_price":' + f_num(close) + ',"be_triggered":' + str.tostring(sig_be_triggered)
             
             // Check payload size before adding (stay under 4000 chars)
             string test_add = signals_in_batch > 0 ? ",{" + signal_json + "}" : "{" + signal_json + "}"
@@ -1758,16 +1764,15 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
                 // Payload full - skip remaining signals (will be included in next batch)
                 signals_skipped := signals_skipped + 1
     
+    // REMOVED: MFE batch alerts (using export system instead)
     // Send batch alert (ALWAYS send even if empty for debugging)
-    string ts = str.format("{0,date,yyyy-MM-dd}T{0,time,HH:mm:ss}", time)
-    if signals_in_batch > 0
-        // Wrap in batch envelope
-        string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + ts + '","signals":[' + batch_payload + '],"batch_size":' + str.tostring(signals_in_batch) + ',"skipped":' + str.tostring(signals_skipped) + '}'
-        alert(batch_envelope, alert.freq_once_per_bar_close)
-    else
-        // Send empty batch to debug why no signals included
-        string debug_batch = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + ts + '","signals":[],"batch_size":0,"skipped":0,"debug":"no_active_signals","array_size":' + str.tostring(array.size(signal_entries)) + '}'
-        alert(debug_batch, alert.freq_once_per_bar_close)
+    // string ts = str.format("{0,date,yyyy-MM-dd}T{0,time,HH:mm:ss}", time)
+    // if signals_in_batch > 0
+    //     string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + ts + '","signals":[' + batch_payload + '],"batch_size":' + str.tostring(signals_in_batch) + ',"skipped":' + str.tostring(signals_skipped) + '}'
+    //     alert(batch_envelope, alert.freq_once_per_bar_close)
+    // else
+    //     string debug_batch = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + ts + '","signals":[],"batch_size":0,"skipped":0,"debug":"no_active_signals","array_size":' + str.tostring(array.size(signal_entries)) + '}'
+    //     alert(debug_batch, alert.freq_once_per_bar_close)
 
 // ============================================================================
 // TELEMETRY ENGINE — MFE_UPDATE SENDER (DISABLED - Using batch system instead)
@@ -1884,8 +1889,8 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_trigger
                     // mfe_R = BE MFE (capped at +1R since BE triggered), mae_R = No-BE MFE (continues tracking)
                     string be_trigger_payload = f_buildPayload(EVENT_BE_TRIGGERED, signal_id_for_be, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, current_be_mfe, current_no_be_mfe, sig_mae, float(na), float(na), "", be_target_1r, be_target_2r, be_target_3r, "FVG_CORE", "BE_PROTECTED", bias, syminfo.ticker, timeframe.period, signal_candle_time)
                     
-                    // Send BE trigger webhook
-                    alert(be_trigger_payload, alert.freq_once_per_bar_close)
+                    // REMOVED: BE trigger webhook (using export system instead)
+                    // alert(be_trigger_payload, alert.freq_once_per_bar_close)
                     array.set(be_trigger_sent_flags, sig_idx, true)
 
 // 4. DUAL EXIT WEBHOOKS
@@ -1935,15 +1940,17 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_be_stopped
                 // CRITICAL: Only send EXIT_BE if BE was actually triggered (reached +1R)
                 // mfe_R = BE MFE (final), mae_R = No-BE MFE (final), final_mfe_R = BE MFE (relevant for this exit type)
                 if be_stopped and sig_be_triggered and not be_exit_sent
-                    string be_payload = f_buildPayload(EVENT_EXIT_BREAK_EVEN, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, final_be_mfe, final_no_be_mfe, sig_mae, final_be_mfe, sig_entry, "be_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_BE", bias, syminfo.ticker, timeframe.period, signal_candle_time)
-                    alert(be_payload, alert.freq_once_per_bar_close)
+                    // REMOVED: EXIT_BE webhook (using export system instead)
+                    // string be_payload = f_buildPayload(EVENT_EXIT_BREAK_EVEN, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_entry, 1.0, contract_size, final_be_mfe, final_no_be_mfe, sig_mae, final_be_mfe, sig_entry, "be_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_BE", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+                    // alert(be_payload, alert.freq_once_per_bar_close)
                     array.set(be_exit_sent_flags, sig_idx, true)
                 
                 // SEND EXIT_SL when original stop is hit (No BE strategy completed)
                 // mfe_R = BE MFE (final), mae_R = No-BE MFE (final), final_mfe_R = No-BE MFE (relevant for this exit type)
                 if no_be_stopped and not sl_exit_sent
-                    string sl_payload = f_buildPayload(EVENT_EXIT_STOP_LOSS, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, final_be_mfe, final_no_be_mfe, sig_mae, final_no_be_mfe, sig_stop, "original_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_SL", bias, syminfo.ticker, timeframe.period, signal_candle_time)
-                    alert(sl_payload, alert.freq_once_per_bar_close)
+                    // REMOVED: EXIT_SL webhook (using export system instead)
+                    // string sl_payload = f_buildPayload(EVENT_EXIT_STOP_LOSS, signal_id_for_completion, sig_direction, sig_entry, sig_stop, sig_be_triggered ? sig_entry : float(na), 1.0, contract_size, final_be_mfe, final_no_be_mfe, sig_mae, final_no_be_mfe, sig_stop, "original_stop_loss_hit", exit_target_1r, exit_target_2r, exit_target_3r, "FVG_CORE", "EXIT_SL", bias, syminfo.ticker, timeframe.period, signal_candle_time)
+                    // alert(sl_payload, alert.freq_once_per_bar_close)
                     array.set(sl_exit_sent_flags, sig_idx, true)
                 
                 // Only remove from tracking when BOTH exits have been sent (or No BE hit which ends everything)
@@ -2025,8 +2032,9 @@ if ENABLE_EXPORT and not export_complete and barstate.islast
             
             // Loop through batch range
             for i = start_idx to end_idx - 1
-                // Get signal time
-                int sig_time = array.get(signal_entry_times, i)
+                // Get times: triangle time (canonical) and confirmation time (metadata)
+                int confirm_time = array.get(signal_entry_times, i)
+                int tri_time = i < array.size(signal_triangle_times) ? array.get(signal_triangle_times, i) : confirm_time
                 
                 // Get signal data (EXACT same as Signal List Table)
                 float sig_entry = array.get(signal_entries, i)
@@ -2042,23 +2050,23 @@ if ENABLE_EXPORT and not export_complete and barstate.islast
                 float sig_mae = array.get(signal_maes, i)
                 bool sig_completed = array.get(signal_no_be_stopped, i)
                 
-                // Build trade_id
-                string trade_id = str.tostring(year(sig_time, "America/New_York")) + 
-                                 str.tostring(month(sig_time, "America/New_York"), "00") +
-                                 str.tostring(dayofmonth(sig_time, "America/New_York"), "00") + "_" +
-                                 str.tostring(hour(sig_time, "America/New_York"), "00") +
-                                 str.tostring(minute(sig_time, "America/New_York"), "00") +
-                                 str.tostring(second(sig_time, "America/New_York"), "00") + "000_" +
+                // Build trade_id from TRIANGLE TIME (canonical)
+                string trade_id = str.tostring(year(tri_time, "America/New_York")) + 
+                                 str.tostring(month(tri_time, "America/New_York"), "00") +
+                                 str.tostring(dayofmonth(tri_time, "America/New_York"), "00") + "_" +
+                                 str.tostring(hour(tri_time, "America/New_York"), "00") +
+                                 str.tostring(minute(tri_time, "America/New_York"), "00") +
+                                 str.tostring(second(tri_time, "America/New_York"), "00") + "000_" +
                                  (sig_dir == "Bullish" ? "BULLISH" : "BEARISH")
                 
-                // Build date string
-                string date_str = str.tostring(year(sig_time, "America/New_York")) + '-' +
-                                 str.tostring(month(sig_time, "America/New_York"), "00") + '-' +
-                                 str.tostring(dayofmonth(sig_time, "America/New_York"), "00")
+                // Build date string from TRIANGLE TIME
+                string date_str = str.tostring(year(tri_time, "America/New_York")) + '-' +
+                                 str.tostring(month(tri_time, "America/New_York"), "00") + '-' +
+                                 str.tostring(dayofmonth(tri_time, "America/New_York"), "00")
                 
-                // Calculate session (EXACT same as table)
-                int h = hour(sig_time, "America/New_York")
-                int m = minute(sig_time, "America/New_York")
+                // Calculate session from TRIANGLE TIME
+                int h = hour(tri_time, "America/New_York")
+                int m = minute(tri_time, "America/New_York")
                 string session = "AFTER_HOURS"
                 if h >= 20 and h <= 23
                     session := "ASIA"
@@ -2073,8 +2081,8 @@ if ENABLE_EXPORT and not export_complete and barstate.islast
                 else if h >= 13 and h <= 15
                     session := "NY PM"
                 
-                // Calculate age (EXACT same as table)
-                int age_ms = time - sig_time
+                // Calculate age from TRIANGLE TIME
+                int age_ms = time - tri_time
                 int age_days = int(age_ms / 86400000)
                 int age_hours = int((age_ms % 86400000) / 3600000)
                 int age_mins = int((age_ms % 3600000) / 60000)
@@ -2086,8 +2094,8 @@ if ENABLE_EXPORT and not export_complete and barstate.islast
                 else
                     age := str.tostring(age_mins) + "m"
                 
-                // Build JSON with ALL fields
-                string part1 = '{"trade_id":"' + trade_id + '","date":"' + date_str + '","direction":"' + sig_dir + '"'
+                // Build JSON with ALL fields (triangle_time and confirmation_time as metadata)
+                string part1 = '{"trade_id":"' + trade_id + '","triangle_time":' + str.tostring(tri_time) + ',"confirmation_time":' + str.tostring(confirm_time) + ',"date":"' + date_str + '","direction":"' + sig_dir + '"'
                 string part2 = ',"session":"' + session + '","age":"' + age + '"'
                 string part3 = ',"entry":' + str.tostring(sig_entry) + ',"stop":' + str.tostring(sig_stop)
                 string part4 = ',"be_mfe":' + str.tostring(sig_be_mfe) + ',"no_be_mfe":' + str.tostring(sig_no_be_mfe)
@@ -2452,11 +2460,11 @@ if SHOW_ALL_SIGNALS and barstate.islast
     else if ALL_SIGNALS_POSITION == "middle_center"
         all_pos := position.middle_center
     
-    var table all_signals_table = table.new(all_pos, 15, 52, border_width=1)
+    var table all_signals_table = table.new(all_pos, 18, 52, border_width=1)
     
     // Header
     table.cell(all_signals_table, 0, 0, "ALL SIGNALS (Every Triangle)", text_color=color.white, bgcolor=color.new(color.purple, 20), text_size=size.normal)
-    table.merge_cells(all_signals_table, 0, 0, 14, 0)
+    table.merge_cells(all_signals_table, 0, 0, 17, 0)
     
     // Column headers
     table.cell(all_signals_table, 0, 1, "Date", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
@@ -2467,40 +2475,77 @@ if SHOW_ALL_SIGNALS and barstate.islast
     table.cell(all_signals_table, 5, 1, "Entry", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
     table.cell(all_signals_table, 6, 1, "Stop", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
     table.cell(all_signals_table, 7, 1, "Risk", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
-    table.cell(all_signals_table, 8, 1, "Bars", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
-    table.cell(all_signals_table, 9, 1, "D", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
-    table.cell(all_signals_table, 10, 1, "4H", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
-    table.cell(all_signals_table, 11, 1, "1H", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
-    table.cell(all_signals_table, 12, 1, "15M", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
-    table.cell(all_signals_table, 13, 1, "5M", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
-    table.cell(all_signals_table, 14, 1, "1M", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 8, 1, "BE MFE", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 9, 1, "No-BE", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 10, 1, "MAE", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 11, 1, "Bars", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 12, 1, "D", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 13, 1, "4H", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 14, 1, "1H", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 15, 1, "15M", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 16, 1, "5M", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
+    table.cell(all_signals_table, 17, 1, "1M", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.tiny)
     
     // Filter and show signals
     int row = 2
     int signals_shown = 0
+    int signals_checked = 0
     
-    for i = 0 to array.size(all_signal_times) - 1
+    // For LATEST_40 filter, start from most recent
+    int start_loop = ALL_SIGNALS_FILTER == "LATEST_40" ? math.max(0, array.size(all_signal_times) - 40) : 0
+    int end_loop = array.size(all_signal_times) - 1
+    
+    for i = start_loop to end_loop
         if row >= 52 or signals_shown >= ALL_SIGNALS_COUNT
             break
         
-        // Check filter
+        // Get signal status
         string sig_status = array.get(all_signal_status, i)
-        bool show_signal = ALL_SIGNALS_FILTER == "ALL" or 
-                          (ALL_SIGNALS_FILTER == "PENDING" and sig_status == "PENDING") or
-                          (ALL_SIGNALS_FILTER == "CONFIRMED" and sig_status == "CONFIRMED") or
-                          (ALL_SIGNALS_FILTER == "CANCELLED" and sig_status == "CANCELLED")
+        int sig_time = array.get(all_signal_times, i)
+        string sig_dir = array.get(all_signal_directions, i)
+        
+        // Cross-reference to check if active and BE status (for ACTIVE filters)
+        bool is_active = false
+        bool is_be_triggered = false
+        
+        if sig_status == "CONFIRMED" and array.size(signal_entry_times) > 0
+            for j = 0 to array.size(signal_entry_times) - 1
+                int entry_time = array.get(signal_entry_times, j)
+                string entry_dir = array.get(signal_directions, j)
+                if math.abs(entry_time - sig_time) < 600000 and entry_dir == sig_dir
+                    bool no_be_stopped = array.get(signal_no_be_stopped, j)
+                    is_active := not no_be_stopped
+                    is_be_triggered := array.get(signal_be_triggered, j)
+                    break
+        
+        // Apply filter
+        bool show_signal = false
+        if ALL_SIGNALS_FILTER == "LATEST_40"
+            show_signal := true  // Show all in range
+        else if ALL_SIGNALS_FILTER == "ACTIVE_BE"
+            show_signal := is_active and is_be_triggered  // Active with BE+1R
+        else if ALL_SIGNALS_FILTER == "ACTIVE_ALL"
+            show_signal := is_active  // All active signals
+        else if ALL_SIGNALS_FILTER == "ALL"
+            show_signal := true
+        else if ALL_SIGNALS_FILTER == "PENDING"
+            show_signal := sig_status == "PENDING"
+        else if ALL_SIGNALS_FILTER == "CONFIRMED"
+            show_signal := sig_status == "CONFIRMED"
+        else if ALL_SIGNALS_FILTER == "CANCELLED"
+            show_signal := sig_status == "CANCELLED"
+        else if ALL_SIGNALS_FILTER == "COMPLETED"
+            show_signal := sig_status == "CONFIRMED" and not is_active
         
         if not show_signal
             continue
         
-        // Skip before start index
+        // Skip before start index (for pagination)
         if signals_shown < ALL_SIGNALS_START
             signals_shown := signals_shown + 1
             continue
         
-        // Get signal data
-        int sig_time = array.get(all_signal_times, i)
-        string sig_dir = array.get(all_signal_directions, i)
+        // Get additional signal data (sig_time and sig_dir already retrieved above for filter)
         int confirm_time = array.get(all_signal_confirmation_times, i)
         int bars_to_confirm = array.get(all_signal_bars_to_confirm, i)
         
@@ -2523,14 +2568,17 @@ if SHOW_ALL_SIGNALS and barstate.islast
             confirm_str := str.tostring(hour(confirm_time, "America/New_York"), "00") + ":" +
                           str.tostring(minute(confirm_time, "America/New_York"), "00")
         
-        // Session
+        // Session (separate, not combined)
         int h = hour(sig_time, "America/New_York")
+        int min = minute(sig_time, "America/New_York")
         string sig_session = "AH"
-        if h >= 20 or h <= 5
-            sig_session := "ASIA/LON"
-        else if h >= 6 and h <= 8
+        if h >= 20 and h <= 23
+            sig_session := "ASIA"
+        else if h >= 0 and h <= 5
+            sig_session := "LON"
+        else if h == 6 or (h == 8 and min <= 29)
             sig_session := "PRE"
-        else if h >= 9 and h <= 11
+        else if (h == 8 and min >= 30) or (h >= 9 and h <= 11)
             sig_session := "AM"
         else if h == 12
             sig_session := "LUN"
@@ -2539,16 +2587,16 @@ if SHOW_ALL_SIGNALS and barstate.islast
         
         // Colors
         color dir_color = sig_dir == "Bullish" ? color.green : color.red
-        color status_color = color.orange
-        if sig_status == "CONFIRMED"
-            status_color := color.green
-        else if sig_status == "CANCELLED"
-            status_color := color.red
         
-        // Cross-reference with Confirmed Signals to get Entry/Stop/Risk
+        // Cross-reference with Confirmed Signals to get Entry/Stop/Risk/MFE/MAE
         string entry_str = "--"
         string stop_str = "--"
         string risk_str = "--"
+        string be_mfe_str = "--"
+        string no_be_mfe_str = "--"
+        string mae_str = "--"
+        string status_display = sig_status
+        color status_color = color.orange
         
         if sig_status == "CONFIRMED" and array.size(signal_entry_times) > 0
             for j = 0 to array.size(signal_entry_times) - 1
@@ -2562,7 +2610,34 @@ if SHOW_ALL_SIGNALS and barstate.islast
                         entry_str := str.tostring(entry_val, "#.##")
                         stop_str := str.tostring(stop_val, "#.##")
                         risk_str := str.tostring(math.abs(entry_val - stop_val), "#.##")
+                        
+                        // Get MFE/MAE data
+                        float be_mfe_val = array.get(signal_be_mfes, j)
+                        float no_be_mfe_val = array.get(signal_mfes, j)
+                        float mae_val = array.get(signal_maes, j)
+                        bool no_be_stopped = array.get(signal_no_be_stopped, j)
+                        bool be_stopped = array.get(signal_be_stopped, j)
+                        bool be_triggered = array.get(signal_be_triggered, j)
+                        
+                        be_mfe_str := str.tostring(be_mfe_val, "#.##") + "R"
+                        no_be_mfe_str := str.tostring(no_be_mfe_val, "#.##") + "R"
+                        mae_str := str.tostring(mae_val, "#.##") + "R"
+                        
+                        // Status: COMPLETED, ACTIVE (BE+1R), ACTIVE
+                        if no_be_stopped
+                            status_display := "COMPLETED"
+                            status_color := color.blue
+                        else if be_triggered
+                            status_display := "ACTIVE (BE+1R)"
+                            status_color := color.green
+                        else
+                            status_display := "ACTIVE"
+                            status_color := color.green
                     break
+        else if sig_status == "CANCELLED"
+            status_color := color.red
+        else if sig_status == "PENDING"
+            status_color := color.orange
         
         // HTF bias indicators (stored at signal time, not current)
         string stored_daily = array.get(all_signal_daily_bias, i)
@@ -2584,17 +2659,20 @@ if SHOW_ALL_SIGNALS and barstate.islast
         table.cell(all_signals_table, 1, row, sig_time_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
         table.cell(all_signals_table, 2, row, sig_dir == "Bullish" ? "🔵" : "🔴", text_color=dir_color, bgcolor=color.new(color.gray, 70), text_size=size.small)
         table.cell(all_signals_table, 3, row, sig_session, text_color=color.white, bgcolor=color.new(color.blue, 60), text_size=font_size_val)
-        table.cell(all_signals_table, 4, row, sig_status, text_color=color.white, bgcolor=color.new(status_color, 50), text_size=font_size_val)
+        table.cell(all_signals_table, 4, row, status_display, text_color=color.white, bgcolor=color.new(status_color, 50), text_size=font_size_val)
         table.cell(all_signals_table, 5, row, entry_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
         table.cell(all_signals_table, 6, row, stop_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
         table.cell(all_signals_table, 7, row, risk_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
-        table.cell(all_signals_table, 8, row, bars_to_confirm > 0 ? str.tostring(bars_to_confirm) : "--", text_color=color.yellow, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
-        table.cell(all_signals_table, 9, row, d_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(all_signals_table, 10, row, h4_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(all_signals_table, 11, row, h1_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(all_signals_table, 12, row, m15_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(all_signals_table, 13, row, m5_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(all_signals_table, 14, row, m1_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 8, row, be_mfe_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
+        table.cell(all_signals_table, 9, row, no_be_mfe_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
+        table.cell(all_signals_table, 10, row, mae_str, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
+        table.cell(all_signals_table, 11, row, bars_to_confirm > 0 ? str.tostring(bars_to_confirm) : "--", text_color=color.yellow, bgcolor=color.new(color.gray, 70), text_size=font_size_val)
+        table.cell(all_signals_table, 12, row, d_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 13, row, h4_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 14, row, h1_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 15, row, m15_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 16, row, m5_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(all_signals_table, 17, row, m1_indicator, text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
         
         row := row + 1
         signals_shown := signals_shown + 1
@@ -2605,4 +2683,4 @@ if SHOW_ALL_SIGNALS and barstate.islast
         string nav_text = filter_text + " | Total: " + str.tostring(array.size(all_signal_times)) + 
                          " | Showing: " + str.tostring(signals_shown)
         table.cell(all_signals_table, 0, row, nav_text, text_color=color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
-        table.merge_cells(all_signals_table, 0, row, 14, row)
+        table.merge_cells(all_signals_table, 0, row, 17, row)

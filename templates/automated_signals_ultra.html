@@ -665,6 +665,37 @@ No stream analysis yet.
                         </div>
                     </div>
 
+                    <!-- Indicator Export Batches -->
+                    <div class="col-lg-12 mb-4">
+                        <div class="ultra-card">
+                            <div class="ultra-card-header d-flex justify-content-between align-items-center">
+                                <h5 class="ultra-card-title mb-0">📦 Indicator Export Batches</h5>
+                                <button id="import-latest-btn" class="btn btn-sm btn-success">⚡ Import Latest</button>
+                            </div>
+                            <div class="ultra-card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-dark table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Received</th>
+                                                <th>Type</th>
+                                                <th>Batch #</th>
+                                                <th>Size</th>
+                                                <th>Total</th>
+                                                <th>Valid</th>
+                                                <th>Error</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="indicator-batches-list">
+                                            <tr><td colspan="8" class="text-center ultra-muted">Loading...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Conflicts List -->
                     <div class="col-lg-12 mb-4">
                         <div class="ultra-card">
