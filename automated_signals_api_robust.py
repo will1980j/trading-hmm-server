@@ -751,17 +751,18 @@ def register_automated_signals_api_robust(app, db):
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # Get completed trades per day (last 90 days)
-            # Group by signal_date (actual signal time), not import timestamp
+            # JOIN EXIT with ENTRY to get signal_date
             cursor.execute("""
                 SELECT 
-                    signal_date as date,
-                    COUNT(DISTINCT trade_id) as completed_count,
-                    AVG(COALESCE(final_mfe, no_be_mfe, mfe, 0)) as avg_mfe
-                FROM automated_signals
-                WHERE signal_date >= CURRENT_DATE - INTERVAL '90 days'
-                AND event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
-                AND signal_date IS NOT NULL
-                GROUP BY signal_date
+                    e.signal_date as date,
+                    COUNT(DISTINCT x.trade_id) as completed_count,
+                    AVG(COALESCE(x.final_mfe, x.no_be_mfe, x.mfe, 0)) as avg_mfe
+                FROM automated_signals x
+                INNER JOIN automated_signals e ON x.trade_id = e.trade_id AND e.event_type = 'ENTRY'
+                WHERE x.event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
+                AND e.signal_date >= CURRENT_DATE - INTERVAL '90 days'
+                AND e.signal_date IS NOT NULL
+                GROUP BY e.signal_date
             """)
             completed_by_date = {row['date'].isoformat() if hasattr(row['date'], 'isoformat') else str(row['date']): row for row in cursor.fetchall()}
             
