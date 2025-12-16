@@ -1442,6 +1442,7 @@ def register_indicator_export_routes(app):
         Import latest valid batches for both INDICATOR_EXPORT_V2 and ALL_SIGNALS_EXPORT.
         Finds most recent valid batch for each type and imports them.
         """
+        import os
         import psycopg2
         from services.indicator_export_importer import import_indicator_export_v2, import_all_signals_export
         
@@ -1519,6 +1520,7 @@ def register_indicator_export_routes(app):
         Get All Signals data from all_signals_ledger.
         Returns triangle-canonical data for All Signals tab.
         """
+        import os
         import psycopg2
         from psycopg2.extras import RealDictCursor
         from decimal import Decimal
@@ -1616,6 +1618,7 @@ def register_indicator_export_routes(app):
     @app.route('/api/all-signals/cancelled', methods=['GET'])
     def get_cancelled_signals():
         """Get cancelled signals from all_signals_ledger."""
+        import os
         import psycopg2
         from psycopg2.extras import RealDictCursor
         from datetime import datetime
@@ -1669,6 +1672,7 @@ def register_indicator_export_routes(app):
     @app.route('/api/all-signals/confirmed', methods=['GET'])
     def get_confirmed_signals():
         """Get confirmed signals with MFE/MAE data (LEFT JOIN to preserve all confirmed)."""
+        import os
         import psycopg2
         from psycopg2.extras import RealDictCursor
         from datetime import datetime
@@ -1735,6 +1739,7 @@ def register_indicator_export_routes(app):
     @app.route('/api/all-signals/completed', methods=['GET'])
     def get_completed_signals():
         """Get completed signals (status=COMPLETED or confirmed_signals.completed=true)."""
+        import os
         import psycopg2
         from psycopg2.extras import RealDictCursor
         from datetime import datetime
@@ -1835,6 +1840,7 @@ def register_indicator_export_routes(app):
     @app.route('/api/indicator-export/batches', methods=['GET'])
     def get_indicator_batches():
         """Get list of indicator export batches."""
+        import os
         import psycopg2
         from psycopg2.extras import RealDictCursor
         from flask import request
