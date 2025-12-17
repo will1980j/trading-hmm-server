@@ -1578,8 +1578,9 @@ def register_indicator_export_routes(app):
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # Get total count
-            cursor.execute("SELECT COUNT(*) FROM all_signals_ledger")
-            total = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) AS total FROM all_signals_ledger")
+            total_row = cursor.fetchone()
+            total = total_row['total'] if total_row and 'total' in total_row else 0
             
             # Query all_signals_ledger with pagination
             cursor.execute("""
