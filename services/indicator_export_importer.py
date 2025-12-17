@@ -10,7 +10,7 @@ from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
-def import_indicator_export_v2(batch_id: int) -> dict:
+def import_indicator_export_v2(batch_id: int, conn=None) -> dict:
     """
     Import INDICATOR_EXPORT_V2 batch into confirmed_signals_ledger.
     
@@ -24,8 +24,12 @@ def import_indicator_export_v2(batch_id: int) -> dict:
     
     logger.info(f"[INDICATOR_IMPORT_V2] Starting import for batch_id={batch_id}")
     
-    DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
-    conn = psycopg2.connect(DATABASE_URL)
+    # Use injected connection or create new one
+    conn_provided = conn is not None
+    if not conn_provided:
+        DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+        conn = psycopg2.connect(DATABASE_URL)
+    
     cursor = conn.cursor()
     
     try:
@@ -185,7 +189,8 @@ def import_indicator_export_v2(batch_id: int) -> dict:
         
     finally:
         cursor.close()
-        conn.close()
+        if not conn_provided:
+            conn.close()
 
 
 def import_all_signals_export(batch_id: int) -> dict:

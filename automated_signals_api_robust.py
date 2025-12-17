@@ -1967,3 +1967,79 @@ def register_indicator_export_routes(app):
                 'success': False,
                 'error': str(e)
             }), 500
+    
+    @app.route('/api/indicator-export/import-all-confirmed-batches', methods=['POST'])
+    def import_all_confirmed_batches():
+        """Import all received INDICATOR_EXPORT_V2 batches by ID."""
+        import os
+        import psycopg2
+        from services.indicator_export_importer import import_indicator_export_v2
+        
+        logger.info("[INDICATOR_IMPORT_ALL_CONFIRMED] Starting import of all confirmed batches")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PUBLIC_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT id FROM indicator_export_batches
+                WHERE event_type='INDICATOR_EXPORT_V2' AND is_valid=true
+                ORDER BY id ASC
+            """)
+            
+            batch_ids = [row[0] for row in cursor.fetchall()]
+            cursor.close()
+            conn.close()
+            
+            logger.info(f"[INDICATOR_IMPORT_ALL_CONFIRMED] Found {len(batch_ids)} batches to import")
+            
+            # Create single connection for all imports
+            import_conn = psycopg2.connect(DATABASE_URL)
+            
+            inserted_total = 0
+            updated_total = 0
+            skipped_invalid_total = 0
+            batches_imported = 0
+            failed_batches = []
+            
+            for batch_id in batch_ids:
+                logger.info(f"[INDICATOR_IMPORT_ALL_CONFIRMED] Importing batch id={batch_id}")
+                
+                try:
+                    result = import_indicator_export_v2(batch_id, conn=import_conn)
+                    
+                    if result.get('success'):
+                        inserted_total += result.get('inserted', 0)
+                        updated_total += result.get('updated', 0)
+                        skipped_invalid_total += result.get('skipped_invalid', 0)
+                        batches_imported += 1
+                    else:
+                        failed_batches.append(batch_id)
+                except Exception as batch_error:
+                    logger.error(f"[INDICATOR_IMPORT_ALL_CONFIRMED] Batch {batch_id} exception: {batch_error}")
+                    failed_batches.append(batch_id)
+            
+            import_conn.close()
+            
+            if failed_batches:
+                logger.warning(f"[INDICATOR_IMPORT_ALL_CONFIRMED] ⚠️  {len(failed_batches)} batches failed")
+            
+            logger.info(f"[INDICATOR_IMPORT_ALL_CONFIRMED] ✅ Complete: batches={batches_imported}, inserted={inserted_total}, updated={updated_total}")
+            
+            return jsonify({
+                'success': True,
+                'batches_imported': batches_imported,
+                'inserted': inserted_total,
+                'updated': updated_total,
+                'skipped_invalid': skipped_invalid_total,
+                'failed_batches': failed_batches,
+                'failed_count': len(failed_batches)
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[INDICATOR_IMPORT_ALL_CONFIRMED] ❌ Exception: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
