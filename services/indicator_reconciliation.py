@@ -108,6 +108,10 @@ def run_indicator_reconciliation(date_yyyymmdd: str = None) -> dict:
         if auto_created > 0:
             logger.info(f"[INDICATOR_RECONCILE] Auto-created {auto_created} confirmed ledger rows")
         
+        # Initialize issue tracking variables
+        missing_confirmed = []  # Auto-healed above, kept for compatibility
+        missing_entry_stop = []
+        
         # Check latest ALL_SIGNALS_EXPORT batch for missing ledger rows
         cursor.execute("""
             SELECT id, payload_json
