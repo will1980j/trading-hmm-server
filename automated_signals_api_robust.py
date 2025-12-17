@@ -2176,3 +2176,78 @@ def register_indicator_export_routes(app):
                 'success': False,
                 'error': str(e)
             }), 500
+    
+    @app.route('/api/indicator-export/debug/find-trade', methods=['GET'])
+    def debug_find_trade():
+        """Search raw batches for a trade_id in INDICATOR_EXPORT_V2 signals."""
+        import os
+        import psycopg2
+        from flask import request
+        
+        trade_id = request.args.get('trade_id')
+        if not trade_id:
+            return jsonify({'success': False, 'error': 'trade_id parameter required'}), 400
+        
+        logger.info(f"[INDICATOR_DEBUG_FIND_TRADE] Searching for trade_id={trade_id}")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor()
+            
+            # Find batches containing this trade_id
+            cursor.execute("""
+                SELECT b.id, b.batch_number, b.received_at
+                FROM indicator_export_batches b
+                WHERE b.event_type = 'INDICATOR_EXPORT_V2'
+                  AND b.is_valid = true
+                  AND EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements(b.payload_json->'signals') s
+                    WHERE s->>'trade_id' = %s
+                  )
+                ORDER BY b.batch_number ASC, b.received_at ASC
+            """, (trade_id,))
+            
+            found_batches = []
+            for row in cursor.fetchall():
+                found_batches.append({
+                    'id': row[0],
+                    'batch_number': row[1],
+                    'received_at': row[2].isoformat() if row[2] else None
+                })
+            
+            # Get example signal
+            cursor.execute("""
+                SELECT s
+                FROM indicator_export_batches b,
+                     LATERAL jsonb_array_elements(b.payload_json->'signals') s
+                WHERE b.event_type = 'INDICATOR_EXPORT_V2'
+                  AND b.is_valid = true
+                  AND s->>'trade_id' = %s
+                ORDER BY b.batch_number ASC, b.received_at ASC
+                LIMIT 1
+            """, (trade_id,))
+            
+            example_row = cursor.fetchone()
+            example_signal = example_row[0] if example_row else None
+            
+            cursor.close()
+            conn.close()
+            
+            logger.info(f"[INDICATOR_DEBUG_FIND_TRADE] Found in {len(found_batches)} batches")
+            
+            return jsonify({
+                'success': True,
+                'trade_id': trade_id,
+                'found_count': len(found_batches),
+                'found_batches': found_batches,
+                'example_signal': example_signal
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[INDICATOR_DEBUG_FIND_TRADE] ❌ Exception: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
