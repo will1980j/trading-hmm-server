@@ -1351,12 +1351,32 @@ def register_indicator_export_routes(app):
                 cursor.close()
                 conn.close()
                 
+                # Auto-import ALL_SIGNALS_EXPORT batches
+                auto_import_attempted = False
+                auto_import_success = False
+                
+                if event_type == "ALL_SIGNALS_EXPORT" and is_valid:
+                    auto_import_attempted = True
+                    logger.info(f"[INDICATOR_EXPORT_AUTOIMPORT] Attempting auto-import for batch_id={batch_id}")
+                    
+                    try:
+                        from services.indicator_export_importer import import_all_signals_export
+                        import_result = import_all_signals_export(batch_id)
+                        
+                        auto_import_success = import_result.get('success', False)
+                        logger.info(f"[INDICATOR_EXPORT_AUTOIMPORT] batch_id={batch_id}, event_type={event_type}, success={auto_import_success}, inserted={import_result.get('inserted', 0)}, updated={import_result.get('updated', 0)}, skipped={import_result.get('skipped_invalid', 0)}")
+                    except Exception as import_error:
+                        logger.error(f"[INDICATOR_EXPORT_AUTOIMPORT] ❌ Auto-import failed for batch_id={batch_id}: {import_error}")
+                        auto_import_success = False
+                
                 return jsonify({
                     'status': 'success',
                     'batch_id': batch_id,
                     'event_type': event_type,
                     'batch_number': batch_number,
-                    'signals_count': len(signals)
+                    'signals_count': len(signals),
+                    'auto_import_attempted': auto_import_attempted,
+                    'auto_import_success': auto_import_success
                 }), 200
             else:
                 # Duplicate detected
