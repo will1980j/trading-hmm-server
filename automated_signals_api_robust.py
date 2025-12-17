@@ -1351,33 +1351,52 @@ def register_indicator_export_routes(app):
                 cursor.close()
                 conn.close()
                 
-                # Auto-import ALL_SIGNALS_EXPORT batches
-                auto_import_attempted = False
-                auto_import_success = False
+                # Auto-import if enabled
+                auto_import_enabled = os.environ.get('AUTO_IMPORT_INDICATOR_EXPORT', '').lower() in ['1', 'true', 'yes']
+                auto_import_result = None
                 
-                if event_type == "ALL_SIGNALS_EXPORT" and is_valid:
-                    auto_import_attempted = True
-                    logger.info(f"[INDICATOR_EXPORT_AUTOIMPORT] Attempting auto-import for batch_id={batch_id}")
+                if auto_import_enabled and is_valid:
+                    logger.info(f"[INDICATOR_EXPORT_AUTOIMPORT] Starting auto-import for batch_id={batch_id}, event_type={event_type}")
                     
                     try:
-                        from services.indicator_export_importer import import_all_signals_export
-                        import_result = import_all_signals_export(batch_id)
+                        if event_type == "ALL_SIGNALS_EXPORT":
+                            from services.indicator_export_importer import import_all_signals_export
+                            import_result = import_all_signals_export(batch_id)
+                        elif event_type == "INDICATOR_EXPORT_V2":
+                            from services.indicator_export_importer import import_indicator_export_v2
+                            import_result = import_indicator_export_v2(batch_id)
+                        else:
+                            import_result = None
                         
-                        auto_import_success = import_result.get('success', False)
-                        logger.info(f"[INDICATOR_EXPORT_AUTOIMPORT] batch_id={batch_id}, event_type={event_type}, success={auto_import_success}, inserted={import_result.get('inserted', 0)}, updated={import_result.get('updated', 0)}, skipped={import_result.get('skipped_invalid', 0)}")
+                        if import_result:
+                            logger.info(f"[INDICATOR_EXPORT_AUTOIMPORT] ✅ batch_id={batch_id}, event_type={event_type}, success={import_result.get('success')}, inserted={import_result.get('inserted', 0)}, updated={import_result.get('updated', 0)}, skipped={import_result.get('skipped_invalid', 0)}")
+                            auto_import_result = {
+                                'success': import_result.get('success', False),
+                                'inserted': import_result.get('inserted', 0),
+                                'updated': import_result.get('updated', 0),
+                                'skipped_invalid': import_result.get('skipped_invalid', 0)
+                            }
                     except Exception as import_error:
                         logger.error(f"[INDICATOR_EXPORT_AUTOIMPORT] ❌ Auto-import failed for batch_id={batch_id}: {import_error}")
-                        auto_import_success = False
+                        auto_import_result = {
+                            'success': False,
+                            'inserted': 0,
+                            'updated': 0,
+                            'skipped_invalid': 0
+                        }
                 
-                return jsonify({
+                response = {
                     'status': 'success',
                     'batch_id': batch_id,
                     'event_type': event_type,
                     'batch_number': batch_number,
-                    'signals_count': len(signals),
-                    'auto_import_attempted': auto_import_attempted,
-                    'auto_import_success': auto_import_success
-                }), 200
+                    'signals_count': len(signals)
+                }
+                
+                if auto_import_result:
+                    response['auto_import'] = auto_import_result
+                
+                return jsonify(response), 200
             else:
                 # Duplicate detected
                 conn.rollback()
@@ -1545,15 +1564,24 @@ def register_indicator_export_routes(app):
         from psycopg2.extras import RealDictCursor
         from decimal import Decimal
         from datetime import datetime
+        from flask import request
         
-        logger.info("[ALL_SIGNALS_DATA] Fetching all signals from ledger")
+        # Parse pagination params
+        limit = min(request.args.get('limit', 1000, type=int), 5000)
+        offset = request.args.get('offset', 0, type=int)
+        
+        logger.info(f"[ALL_SIGNALS_DATA] Fetching all signals from ledger (limit={limit}, offset={offset})")
         
         try:
             DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
             conn = psycopg2.connect(DATABASE_URL)
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
-            # Query all_signals_ledger
+            # Get total count
+            cursor.execute("SELECT COUNT(*) FROM all_signals_ledger")
+            total = cursor.fetchone()[0]
+            
+            # Query all_signals_ledger with pagination
             cursor.execute("""
                 SELECT 
                     trade_id,
@@ -1575,8 +1603,8 @@ def register_indicator_export_routes(app):
                     updated_at
                 FROM all_signals_ledger
                 ORDER BY triangle_time_ms DESC
-                LIMIT 1000
-            """)
+                LIMIT %s OFFSET %s
+            """, (limit, offset))
             
             rows = cursor.fetchall()
             cursor.close()
@@ -1618,12 +1646,15 @@ def register_indicator_export_routes(app):
                 }
                 signals.append(signal)
             
-            logger.info(f"[ALL_SIGNALS_DATA] ✅ Returned {len(signals)} signals")
+            logger.info(f"[ALL_SIGNALS_DATA] ✅ Returned {len(signals)} signals (total={total}, limit={limit}, offset={offset})")
             
             return jsonify({
                 'success': True,
                 'signals': signals,
-                'count': len(signals)
+                'count': len(signals),
+                'total': total,
+                'limit': limit,
+                'offset': offset
             }), 200
             
         except Exception as e:
