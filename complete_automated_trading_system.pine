@@ -2155,8 +2155,8 @@ if current_day_all != all_export_last_day and all_export_complete
     all_export_last_bar := 0
     all_export_last_day := current_day_all
 
-// All Signals export only runs AFTER Confirmed Signals completes (prevents alert conflicts)
-if ENABLE_ALL_SIGNALS_EXPORT and not all_export_complete and export_complete and barstate.islast
+// Allow All Signals export independently for backfill
+if ENABLE_ALL_SIGNALS_EXPORT and not all_export_complete and barstate.islast
     int bars_since = bar_index - all_export_last_bar
     
     if bars_since >= EXPORT_DELAY_BARS or all_export_batch == 0
