@@ -71,6 +71,43 @@ def run_indicator_reconciliation(date_yyyymmdd: str = None) -> dict:
         
         logger.info(f"[INDICATOR_RECONCILE] Found {len(confirmed_signals)} in confirmed_signals_ledger")
         
+        # Step 0: Auto-heal missing confirmed rows from all_signals_ledger
+        cursor.execute("""
+            INSERT INTO confirmed_signals_ledger (
+                trade_id,
+                triangle_time_ms,
+                confirmation_time_ms,
+                date,
+                session,
+                direction,
+                entry,
+                stop,
+                last_seen_batch_id,
+                updated_at
+            )
+            SELECT
+                a.trade_id,
+                a.triangle_time_ms,
+                a.confirmation_time_ms,
+                a.updated_at::date,
+                a.session,
+                a.direction,
+                a.entry_price,
+                a.stop_loss,
+                a.last_seen_batch_id,
+                NOW()
+            FROM all_signals_ledger a
+            LEFT JOIN confirmed_signals_ledger c ON a.trade_id = c.trade_id
+            WHERE a.status = 'CONFIRMED'
+              AND c.trade_id IS NULL
+        """)
+        
+        auto_created = cursor.rowcount
+        conn.commit()
+        
+        if auto_created > 0:
+            logger.info(f"[INDICATOR_RECONCILE] Auto-created {auto_created} confirmed ledger rows")
+        
         # Check latest ALL_SIGNALS_EXPORT batch for missing ledger rows
         cursor.execute("""
             SELECT id, payload_json
@@ -99,15 +136,10 @@ def run_indicator_reconciliation(date_yyyymmdd: str = None) -> dict:
             
             logger.info(f"[INDICATOR_RECONCILE] Latest batch has {len(batch_trade_ids_in_window)} signals in date window, {len(missing_ledger_trade_ids)} missing from ledger")
         
-        # Identify issues
-        missing_confirmed = []
+        # Identify issues (missing_confirmed removed - auto-healed above)
         missing_entry_stop = []
         
         for trade_id, ledger_data in ledger_signals.items():
-            # Check if CONFIRMED signal missing from confirmed_signals_ledger
-            if ledger_data['status'] == 'CONFIRMED' and trade_id not in confirmed_signals:
-                missing_confirmed.append(trade_id)
-            
             # Check if CONFIRMED signal missing entry/stop
             if ledger_data['status'] == 'CONFIRMED' and (ledger_data['entry'] is None or ledger_data['stop'] is None):
                 missing_entry_stop.append(trade_id)
@@ -115,7 +147,7 @@ def run_indicator_reconciliation(date_yyyymmdd: str = None) -> dict:
         logger.info(f"[INDICATOR_RECONCILE] Issues found: missing_confirmed={len(missing_confirmed)}, missing_entry_stop={len(missing_entry_stop)}")
         
         # Save reconciliation record (matching existing schema)
-        total_missing = len(missing_ledger_trade_ids) + len(missing_confirmed)
+        total_missing = len(missing_ledger_trade_ids)
         total_conflicts = total_missing + len(missing_entry_stop)
         
         cursor.execute("""
@@ -156,16 +188,6 @@ def run_indicator_reconciliation(date_yyyymmdd: str = None) -> dict:
                   'missing_in_ledger', 'present_in_export', 'all_signals_ledger', 'high', 'pending'))
             conflicts_saved += 1
         
-        for trade_id in missing_confirmed:
-            cursor.execute("""
-                INSERT INTO data_quality_conflicts
-                (reconciliation_id, trade_id, conflict_type, webhook_value, indicator_value, 
-                 field_name, severity, status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (reconciliation_id, trade_id, 'missing_field', 
-                  'null', 'CONFIRMED', 'confirmed_signals_ledger', 'high', 'pending'))
-            conflicts_saved += 1
-        
         for trade_id in missing_entry_stop:
             cursor.execute("""
                 INSERT INTO data_quality_conflicts
@@ -189,8 +211,8 @@ def run_indicator_reconciliation(date_yyyymmdd: str = None) -> dict:
             'in_confirmed_ledger': len(confirmed_signals),
             'issues': {
                 'missing_ledger': len(missing_ledger_trade_ids),
-                'missing_confirmed': len(missing_confirmed),
-                'missing_entry_stop': len(missing_entry_stop)
+                'missing_entry_stop': len(missing_entry_stop),
+                'auto_created_confirmed': auto_created
             },
             'conflicts_saved': conflicts_saved
         }
