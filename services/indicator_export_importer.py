@@ -62,7 +62,7 @@ def import_indicator_export_v2(batch_id: int, conn=None) -> dict:
         
         for signal in signals:
             # Validate and coerce required fields
-            trade_id = signal.get('trade_id')
+            original_trade_id = signal.get('trade_id')
             direction = signal.get('direction')
             
             # Coerce triangle_time_ms
@@ -73,10 +73,23 @@ def import_indicator_export_v2(batch_id: int, conn=None) -> dict:
                 skipped_invalid += 1
                 continue
             
-            if not trade_id or not direction:
-                logger.warning(f"[INDICATOR_IMPORT_V2] Skipping signal - missing required fields: {signal}")
+            if not direction:
+                logger.warning(f"[INDICATOR_IMPORT_V2] Skipping signal - missing direction: {signal}")
                 skipped_invalid += 1
                 continue
+            
+            # Compute canonical trade_id from triangle_time and direction
+            dt = datetime.fromtimestamp(triangle_time / 1000, tz=ZoneInfo("America/New_York"))
+            date_str = dt.strftime("%Y%m%d")
+            time_str = dt.strftime("%H%M%S")
+            direction_suffix = "BULLISH" if direction.lower().startswith('bull') else "BEARISH"
+            canonical_trade_id = f"{date_str}_{time_str}000_{direction_suffix}"
+            
+            # Warn if mismatch
+            if original_trade_id and original_trade_id != canonical_trade_id:
+                logger.warning(f"[INDICATOR_IMPORT_V2] ⚠️  trade_id mismatch: original={original_trade_id} canonical={canonical_trade_id} using canonical")
+            
+            trade_id = canonical_trade_id
             
             # Coerce confirmation_time_ms
             try:
