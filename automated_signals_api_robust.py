@@ -2114,3 +2114,65 @@ def register_indicator_export_routes(app):
                 'success': False,
                 'error': str(e)
             }), 500
+    
+    @app.route('/api/data-quality/missing-confirmed', methods=['GET'])
+    def get_missing_confirmed():
+        """Get list of CONFIRMED trades missing from confirmed_signals_ledger for a date."""
+        import os
+        import psycopg2
+        from flask import request
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        
+        date_param = request.args.get('date')
+        if not date_param:
+            return jsonify({'success': False, 'error': 'date parameter required (YYYYMMDD)'}), 400
+        
+        try:
+            target_date = datetime.strptime(date_param, '%Y%m%d').date()
+        except ValueError:
+            return jsonify({'success': False, 'error': 'invalid date format (use YYYYMMDD)'}), 400
+        
+        logger.info(f"[DQ_MISSING_CONFIRMED] Checking missing confirmed for date={date_param}")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor()
+            
+            # Convert date to NY timezone ms range
+            tz = ZoneInfo("America/New_York")
+            start_dt = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0, tzinfo=tz)
+            end_dt = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59, 999999, tzinfo=tz)
+            start_ms = int(start_dt.timestamp() * 1000)
+            end_ms = int(end_dt.timestamp() * 1000)
+            
+            cursor.execute("""
+                SELECT a.trade_id
+                FROM all_signals_ledger a
+                LEFT JOIN confirmed_signals_ledger c ON a.trade_id = c.trade_id
+                WHERE a.status = 'CONFIRMED'
+                  AND a.triangle_time_ms BETWEEN %s AND %s
+                  AND c.trade_id IS NULL
+                ORDER BY a.triangle_time_ms ASC
+            """, (start_ms, end_ms))
+            
+            missing_trade_ids = [row[0] for row in cursor.fetchall()]
+            cursor.close()
+            conn.close()
+            
+            logger.info(f"[DQ_MISSING_CONFIRMED] Found {len(missing_trade_ids)} missing confirmed trades")
+            
+            return jsonify({
+                'success': True,
+                'date': date_param,
+                'missing_count': len(missing_trade_ids),
+                'missing_trade_ids': missing_trade_ids
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[DQ_MISSING_CONFIRMED] ❌ Exception: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
