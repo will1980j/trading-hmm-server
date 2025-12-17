@@ -1886,3 +1886,84 @@ def register_indicator_export_routes(app):
         except Exception as e:
             logger.error(f"[INDICATOR_BATCHES] ❌ Error: {e}")
             return jsonify({'success': False, 'error': str(e), 'batches': [], 'count': 0}), 500
+    
+    @app.route('/api/indicator-export/import-confirmed-run', methods=['POST'])
+    def import_confirmed_run():
+        """Import all batches for the most recent INDICATOR_EXPORT_V2 export run."""
+        import os
+        import psycopg2
+        from services.indicator_export_importer import import_indicator_export_v2
+        
+        logger.info("[INDICATOR_IMPORT_RUN] Starting import of confirmed signals run")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PUBLIC_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor()
+            
+            # Find latest batch number
+            cursor.execute("""
+                SELECT batch_number FROM indicator_export_batches
+                WHERE event_type='INDICATOR_EXPORT_V2' AND is_valid=true
+                ORDER BY received_at DESC
+                LIMIT 1
+            """)
+            
+            row = cursor.fetchone()
+            if not row:
+                cursor.close()
+                conn.close()
+                logger.warning("[INDICATOR_IMPORT_RUN] No valid batches found")
+                return jsonify({'success': False, 'error': 'no_batches'}), 200
+            
+            latest_batch_number = row[0]
+            logger.info(f"[INDICATOR_IMPORT_RUN] Latest batch_number={latest_batch_number}")
+            
+            # Get all batches for this run
+            cursor.execute("""
+                SELECT id, batch_number FROM indicator_export_batches
+                WHERE event_type='INDICATOR_EXPORT_V2'
+                  AND is_valid=true
+                  AND batch_number <= %s
+                ORDER BY batch_number ASC, received_at ASC
+            """, (latest_batch_number,))
+            
+            batches = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            logger.info(f"[INDICATOR_IMPORT_RUN] Found {len(batches)} batches to import")
+            
+            # Import each batch
+            inserted_total = 0
+            updated_total = 0
+            skipped_invalid_total = 0
+            batches_imported = 0
+            
+            for batch_id, batch_num in batches:
+                logger.info(f"[INDICATOR_IMPORT_RUN] Importing batch {batch_num} (id={batch_id})")
+                result = import_indicator_export_v2(batch_id)
+                
+                if result.get('success'):
+                    inserted_total += result.get('inserted', 0)
+                    updated_total += result.get('updated', 0)
+                    skipped_invalid_total += result.get('skipped_invalid', 0)
+                    batches_imported += 1
+            
+            logger.info(f"[INDICATOR_IMPORT_RUN] ✅ Complete: batches={batches_imported}, inserted={inserted_total}, updated={updated_total}")
+            
+            return jsonify({
+                'success': True,
+                'latest_batch_number': latest_batch_number,
+                'batches_imported': batches_imported,
+                'inserted': inserted_total,
+                'updated': updated_total,
+                'skipped_invalid': skipped_invalid_total
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[INDICATOR_IMPORT_RUN] ❌ Exception: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
