@@ -1582,28 +1582,32 @@ def register_indicator_export_routes(app):
             total_row = cursor.fetchone()
             total = total_row['total'] if total_row and 'total' in total_row else 0
             
-            # Query all_signals_ledger with pagination
+            # Query all_signals_ledger with pagination, enriching CONFIRMED rows from confirmed_signals_ledger
             cursor.execute("""
                 SELECT 
-                    trade_id,
-                    triangle_time_ms,
-                    confirmation_time_ms,
-                    direction,
-                    status,
-                    bars_to_confirm,
-                    session,
-                    entry_price,
-                    stop_loss,
-                    risk_points,
-                    htf_daily,
-                    htf_4h,
-                    htf_1h,
-                    htf_15m,
-                    htf_5m,
-                    htf_1m,
-                    updated_at
-                FROM all_signals_ledger
-                ORDER BY triangle_time_ms DESC
+                    a.trade_id,
+                    a.triangle_time_ms,
+                    a.confirmation_time_ms,
+                    a.direction,
+                    a.status,
+                    a.bars_to_confirm,
+                    a.session,
+                    COALESCE(c.entry, a.entry_price) AS entry_price,
+                    COALESCE(c.stop, a.stop_loss) AS stop_loss,
+                    CASE 
+                        WHEN c.entry IS NOT NULL AND c.stop IS NOT NULL THEN ABS(c.entry - c.stop)
+                        ELSE a.risk_points
+                    END AS risk_points,
+                    a.htf_daily,
+                    a.htf_4h,
+                    a.htf_1h,
+                    a.htf_15m,
+                    a.htf_5m,
+                    a.htf_1m,
+                    a.updated_at
+                FROM all_signals_ledger a
+                LEFT JOIN confirmed_signals_ledger c ON a.trade_id = c.trade_id
+                ORDER BY a.triangle_time_ms DESC
                 LIMIT %s OFFSET %s
             """, (limit, offset))
             
@@ -2404,6 +2408,21 @@ def register_indicator_export_routes(app):
                     logger.warning(f"[LIVE_MFE_BATCH] triangle_time missing for {trade_id}, using 0")
                     triangle_time = 0
                 
+                # Parse entry_price and stop_loss
+                entry_price = None
+                stop_loss = None
+                try:
+                    if signal.get('entry_price') is not None:
+                        entry_price = float(signal.get('entry_price'))
+                except (ValueError, TypeError):
+                    pass
+                
+                try:
+                    if signal.get('stop_loss') is not None:
+                        stop_loss = float(signal.get('stop_loss'))
+                except (ValueError, TypeError):
+                    pass
+                
                 # Clamp MAE
                 mae = signal.get('mae_global_r')
                 if mae is not None and mae > 0.0:
@@ -2413,18 +2432,20 @@ def register_indicator_export_routes(app):
                 # Upsert
                 cursor.execute("""
                     INSERT INTO confirmed_signals_ledger 
-                    (trade_id, triangle_time_ms, direction, session, be_mfe, no_be_mfe, mae, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                    (trade_id, triangle_time_ms, direction, session, entry, stop, be_mfe, no_be_mfe, mae, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                     ON CONFLICT (trade_id) DO UPDATE SET
-                        triangle_time_ms = COALESCE(confirmed_signals_ledger.triangle_time_ms, NULLIF(EXCLUDED.triangle_time_ms, 0), confirmed_signals_ledger.triangle_time_ms),
+                        triangle_time_ms = COALESCE(EXCLUDED.triangle_time_ms, confirmed_signals_ledger.triangle_time_ms),
                         direction = COALESCE(EXCLUDED.direction, confirmed_signals_ledger.direction),
                         session = COALESCE(EXCLUDED.session, confirmed_signals_ledger.session),
-                        be_mfe = EXCLUDED.be_mfe,
-                        no_be_mfe = EXCLUDED.no_be_mfe,
-                        mae = EXCLUDED.mae,
+                        entry = COALESCE(EXCLUDED.entry, confirmed_signals_ledger.entry),
+                        stop = COALESCE(EXCLUDED.stop, confirmed_signals_ledger.stop),
+                        be_mfe = COALESCE(EXCLUDED.be_mfe, confirmed_signals_ledger.be_mfe),
+                        no_be_mfe = COALESCE(EXCLUDED.no_be_mfe, confirmed_signals_ledger.no_be_mfe),
+                        mae = COALESCE(EXCLUDED.mae, confirmed_signals_ledger.mae),
                         updated_at = NOW()
                 """, (trade_id, triangle_time, signal.get('direction'), 
-                      signal.get('session'), signal.get('be_mfe'), signal.get('no_be_mfe'), mae))
+                      signal.get('session'), entry_price, stop_loss, signal.get('be_mfe'), signal.get('no_be_mfe'), mae))
                 
                 processed += 1
                 upserted += 1

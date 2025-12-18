@@ -2398,7 +2398,6 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
         if (!tbody) return;
         
         const signals = data.signals || [];
-        const summary = data.summary || {};
         
         // Update counter
         if (counter) {
@@ -2415,8 +2414,8 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
         // Render table
         let html = '';
         for (const signal of signals) {
-            const direction = signal.direction || 'UNKNOWN';
-            const directionIcon = direction === 'Bullish' || direction === 'LONG' ? '🔵' : '🔴';
+            const direction = signal.direction || '--';
+            const directionIcon = direction === 'Bullish' ? '🔵' : direction === 'Bearish' ? '🔴' : '--';
             
             // Status badge
             let statusBadge = '';
@@ -2435,23 +2434,13 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
                                         '<span style="color: #ef4444; font-size: 18px; font-weight: 900;">▼</span>';
             };
             
-            // Canonical fields with fallbacks
+            // Canonical fields
             const dateStr = signal.date || '--';
             const timeStr = signal.time || '--';
-            const entry = signal.entry ?? signal.entry_price;
-            const stop = signal.stop ?? signal.stop_loss;
-            const risk = signal.risk ?? signal.risk_points;
-            const bars = signal.bars_to_confirm ?? '--';
-            
-            // Risk display
-            let riskDisplay = '--';
-            if (entry && stop) {
-                const riskVal = Math.abs(entry - stop);
-                const riskColor = riskVal > 30 ? '#ef4444' : riskVal > 20 ? '#f59e0b' : '#10b981';
-                riskDisplay = `<span style="color: ${riskColor}; font-weight: 500;">${riskVal.toFixed(2)}</span>`;
-            } else if (risk) {
-                riskDisplay = risk.toFixed(2);
-            }
+            const entry = signal.entry != null ? Number(signal.entry).toFixed(2) : '--';
+            const stop = signal.stop != null ? Number(signal.stop).toFixed(2) : '--';
+            const risk = signal.risk != null ? Number(signal.risk).toFixed(2) : '--';
+            const bars = signal.bars_to_confirm != null ? signal.bars_to_confirm : '--';
             
             html += `
                 <tr>
@@ -2461,15 +2450,15 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
                     <td class="text-center">${directionIcon}</td>
                     <td class="ultra-muted small">${signal.session || '--'}</td>
                     <td class="text-center">${statusBadge}</td>
-                    <td class="ultra-muted">${entry ? entry.toFixed(2) : '--'}</td>
-                    <td class="ultra-muted">${stop ? stop.toFixed(2) : '--'}</td>
-                    <td class="text-center">${riskDisplay}</td>
+                    <td class="ultra-muted">${entry}</td>
+                    <td class="ultra-muted">${stop}</td>
+                    <td class="ultra-muted text-center">${risk}</td>
                     <td class="ultra-muted text-center">${bars}</td>
-                    <td class="text-center">${htfBadge(signal.htf_daily)}</td>
-                    <td class="text-center">${htfBadge(signal.htf_4h)}</td>
-                    <td class="text-center">${htfBadge(signal.htf_1h)}</td>
-                    <td class="text-center">${htfBadge(signal.htf_15m)}</td>
-                    <td class="text-center">${htfBadge(signal.htf_5m)}</td>
+                    <td class="text-center">${htfBadge(signal.htf_daily || '--')}</td>
+                    <td class="text-center">${htfBadge(signal.htf_4h || '--')}</td>
+                    <td class="text-center">${htfBadge(signal.htf_1h || '--')}</td>
+                    <td class="text-center">${htfBadge(signal.htf_15m || '--')}</td>
+                    <td class="text-center">${htfBadge(signal.htf_5m || '--')}</td>
                     <td class="ultra-muted small">${signal.trade_id}</td>
                 </tr>
             `;
@@ -2720,49 +2709,25 @@ AutomatedSignalsUltra.renderCancelledSignalsTable = function(signals) {
 // ============================================================================
 
 async function loadAllSignals() {
-    try {
-        const response = await fetch('/api/all-signals/data?limit=1000&offset=0');
-        const data = await response.json();
-        
-        if (data.success) {
-            // Update count badge
-            const countBadge = document.getElementById('ase-all-signals-count');
-            if (countBadge) {
-                countBadge.textContent = data.total || 0;
-            }
-            
-            // Render table
-            AutomatedSignalsUltra.renderAllSignalsTable(data.signals || []);
-        } else {
-            console.error('[ASE] All Signals API error:', data.error);
-            const tbody = document.getElementById('ase-all-signals-tbody');
-            if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="16" class="text-center text-danger py-4">Error loading signals</td></tr>';
-            }
-        }
-    } catch (error) {
-        console.error('[ASE] All Signals fetch error:', error);
-        const tbody = document.getElementById('ase-all-signals-tbody');
-        if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="16" class="text-center text-danger py-4">Failed to load signals</td></tr>';
-        }
-    }
+    // DISABLED: legacy All Signals renderer replaced by canonical mapping
+    // AutomatedSignalsUltra.renderAllSignalsTable() now handles all rendering
+    return;
 }
 
-// Load All Signals when tab is clicked
-document.addEventListener('DOMContentLoaded', () => {
-    const allSignalsTab = document.getElementById('all-signals-tab');
-    if (allSignalsTab) {
-        allSignalsTab.addEventListener('shown.bs.tab', () => {
-            loadAllSignals();
-        });
-        
-        // Load immediately if it's the active tab
-        if (allSignalsTab.classList.contains('active')) {
-            loadAllSignals();
-        }
-    }
-});
+// DISABLED: Duplicate event wiring - AutomatedSignalsUltra.renderAllSignalsTable is wired at line ~2489
+// document.addEventListener('DOMContentLoaded', () => {
+//     const allSignalsTab = document.getElementById('all-signals-tab');
+//     if (allSignalsTab) {
+//         allSignalsTab.addEventListener('shown.bs.tab', () => {
+//             loadAllSignals();
+//         });
+//         
+//         // Load immediately if it's the active tab
+//         if (allSignalsTab.classList.contains('active')) {
+//             loadAllSignals();
+//         }
+//     }
+// });
 
 
 // ============================================================================
