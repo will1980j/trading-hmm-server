@@ -1604,6 +1604,10 @@ def register_indicator_export_routes(app):
                     a.htf_15m,
                     a.htf_5m,
                     a.htf_1m,
+                    c.be_mfe,
+                    c.no_be_mfe,
+                    c.mae,
+                    c.completed,
                     a.updated_at
                 FROM all_signals_ledger a
                 LEFT JOIN confirmed_signals_ledger c ON a.trade_id = c.trade_id
@@ -1638,15 +1642,19 @@ def register_indicator_export_routes(app):
                     'status': row['status'],
                     'bars_to_confirm': row['bars_to_confirm'],
                     'session': row['session'],
-                    'entry': float(row['entry_price']) if row['entry_price'] else None,
-                    'stop': float(row['stop_loss']) if row['stop_loss'] else None,
-                    'risk': float(row['risk_points']) if row['risk_points'] else None,
+                    'entry': float(row['entry_price']) if row.get('entry_price') is not None else None,
+                    'stop': float(row['stop_loss']) if row.get('stop_loss') is not None else None,
+                    'risk': float(row['risk_points']) if row.get('risk_points') is not None else None,
                     'htf_daily': row['htf_daily'],
                     'htf_4h': row['htf_4h'],
                     'htf_1h': row['htf_1h'],
                     'htf_15m': row['htf_15m'],
                     'htf_5m': row['htf_5m'],
                     'htf_1m': row['htf_1m'],
+                    'be_mfe': float(row['be_mfe']) if row.get('be_mfe') is not None else None,
+                    'no_be_mfe': float(row['no_be_mfe']) if row.get('no_be_mfe') is not None else None,
+                    'mae': float(row['mae']) if row.get('mae') is not None else None,
+                    'completed': row.get('completed'),
                     'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None
                 }
                 signals.append(signal)

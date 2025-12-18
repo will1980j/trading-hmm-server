@@ -48,6 +48,7 @@ RECALCULATE_MFE = input.bool(false, "🔄 Recalculate All MFE", group="Debug", t
 // BULK EXPORT - Export all signals to backend
 ENABLE_EXPORT = input.bool(false, "📤 Export Confirmed Signals", group="Export", tooltip="Export confirmed signals with entry/stop/MFE data. Turn ON, wait for completion, turn OFF.")
 ENABLE_ALL_SIGNALS_EXPORT = input.bool(false, "📤 Export All Signals", group="Export", tooltip="Export every triangle (pending, confirmed, cancelled). Run AFTER confirmed signals export.")
+ENABLE_LIVE_CONFIRMED_EXPORT = input.bool(true, "⚡ Live Confirmed Export (per trade)", group="Export", tooltip="Send ONE confirmed signal immediately when entry bar begins (realtime only)")
 EXPORT_DELAY_BARS = input.int(5, "Delay Between Batches (bars)", minval=0, maxval=10, group="Export", tooltip="5 = wait 5 minutes between batches (recommended), 0 = send immediately (may hit rate limits)")
 
 // AUTO-DETECT CONTRACT TYPE AND POINT VALUE
@@ -296,6 +297,7 @@ var float risk_distance = na
 var int contract_size = na
 var bool trade_ready = false
 var bool confirmed_this_bar = false
+var bool live_confirmed_sent_this_bar = false
 
 // Multi-signal MFE tracking arrays
 var array<float> signal_entries = array.new<float>()
@@ -316,6 +318,7 @@ var array<float> signal_lowest_lows = array.new<float>()  // Track lowest low si
 var array<float> signal_highest_highs = array.new<float>()  // Track highest high since signal (for bearish)
 var array<bool> signal_has_entered = array.new<bool>()  // Track if trade has actually entered (after confirmation)
 var array<int> signal_entry_bar_index = array.new<int>()  // Track bar_index when ENTRY webhook was sent
+var array<bool> signal_confirmed_export_sent = array.new<bool>()  // Track if live confirmed export was sent
 
 // ARRAY RESET LOGIC - Track version and clear when changed
 var int stored_version = 0
@@ -340,6 +343,7 @@ if barstate.isfirst and ARRAY_VERSION != stored_version
     array.clear(signal_highest_highs)
     array.clear(signal_has_entered)
     array.clear(signal_entry_bar_index)
+    array.clear(signal_confirmed_export_sent)
     
     // Update stored version
     stored_version := ARRAY_VERSION
@@ -411,6 +415,7 @@ var array<line> sl_lines = array.new<line>()
 
 // Reset confirmation flag at start of each bar
 confirmed_this_bar := false
+live_confirmed_sent_this_bar := false
 
 // Detect new signals (only if not already waiting for same direction)
 // Track if we need to send SIGNAL_CREATED webhook
@@ -624,6 +629,7 @@ if waiting_for_confirmation and active_signal == "Bullish"
         array.push(signal_entry_webhook_sent, false)  // ENTRY webhook not sent yet
         array.push(signal_is_realtime, barstate.isrealtime)  // Track if signal is eligible for webhooks
         array.push(signal_snapshot_sent, false)  // MFE snapshot not sent yet
+        array.push(signal_confirmed_export_sent, false)  // Live confirmed export not sent yet
         
         // CRITICAL: Track bar index when events occur (prevents historical webhook spam)
         array.push(signal_entry_bar, bar_index)  // Entry confirmed THIS bar
@@ -741,6 +747,7 @@ if waiting_for_confirmation and active_signal == "Bearish"
         array.push(signal_entry_webhook_sent, false)  // ENTRY webhook not sent yet
         array.push(signal_is_realtime, barstate.isrealtime)  // Track if signal is eligible for webhooks
         array.push(signal_snapshot_sent, false)  // MFE snapshot not sent yet
+        array.push(signal_confirmed_export_sent, false)  // Live confirmed export not sent yet
         
         // CRITICAL FIX: Mark as confirmed but DON'T reset trade_ready yet
         // Let webhook code execute first, then reset on next bar
@@ -840,6 +847,27 @@ if array.size(signal_entries) > 0
             sig_has_entered := true
             sig_lowest_low := open
             sig_highest_high := open
+            
+            // LIVE CONFIRMED EXPORT - Send ONE confirmed signal immediately when entry bar begins
+            if ENABLE_LIVE_CONFIRMED_EXPORT and barstate.isrealtime and barstate.isconfirmed and not live_confirmed_sent_this_bar
+                bool already_sent = array.get(signal_confirmed_export_sent, i)
+                if not already_sent
+                    int sig_triangle_time = array.get(signal_triangle_times, i)
+                    string dir_tag = sig_dir == "Bullish" ? "BULLISH" : "BEARISH"
+                    string trade_id = str.tostring(year(sig_triangle_time, "America/New_York")) + str.tostring(month(sig_triangle_time, "America/New_York"), "00") + str.tostring(dayofmonth(sig_triangle_time, "America/New_York"), "00") + "_" + str.tostring(hour(sig_triangle_time, "America/New_York"), "00") + str.tostring(minute(sig_triangle_time, "America/New_York"), "00") + str.tostring(second(sig_triangle_time, "America/New_York"), "00") + "000_" + dir_tag
+                    string date_str = str.tostring(year(sig_triangle_time, "America/New_York")) + "-" + str.tostring(month(sig_triangle_time, "America/New_York"), "00") + "-" + str.tostring(dayofmonth(sig_triangle_time, "America/New_York"), "00")
+                    int h = hour(sig_triangle_time, "America/New_York")
+                    int m = minute(sig_triangle_time, "America/New_York")
+                    string session_str = h >= 20 ? "ASIA" : h < 6 ? "LONDON" : (h < 8 or (h == 8 and m < 30)) ? "NY PRE" : ((h == 8 and m >= 30) or h < 12) ? "NY AM" : h == 12 ? "NY LUNCH" : h < 16 ? "NY PM" : "AFTER_HOURS"
+                    
+                    string confirmed_signal = '{"trade_id":"' + trade_id + '","triangle_time":' + str.tostring(sig_triangle_time) + ',"confirmation_time":' + str.tostring(sig_entry_time) + ',"date":"' + date_str + '","direction":"' + sig_dir + '","session":"' + session_str + '","entry":' + str.tostring(open) + ',"stop":' + str.tostring(sig_stop) + ',"be_mfe":0,"no_be_mfe":0,"mae":0,"completed":false}'
+                    
+                    string confirmed_payload = '{"event_type":"INDICATOR_EXPORT_V2","batch_number":-1,"batch_size":1,"total_signals":1,"signals":[' + confirmed_signal + ']}'
+                    
+                    alert(confirmed_payload, alert.freq_once_per_bar_close)
+                    
+                    array.set(signal_confirmed_export_sent, i, true)
+                    live_confirmed_sent_this_bar := true
         
         // CRITICAL: Check if ORIGINAL stop loss is hit on THIS bar BEFORE updating extremes
         // This prevents capturing price movement on the bar where No-BE strategy is closed
