@@ -3007,7 +3007,7 @@ async function loadConfirmedTabFromCanonical() {
         const resp = await fetch('/api/all-signals/confirmed', { cache: 'no-store' });
         const data = await resp.json();
         
-        const tbody = document.getElementById('ase-signals-tbody');
+        const tbody = document.getElementById('ase-confirmed-tbody');
         if (!tbody) return;
         
         if (!data.success || !data.signals) {
@@ -3030,12 +3030,12 @@ async function loadConfirmedTabFromCanonical() {
             const session = signal.session || '--';
             const direction = signal.direction || '--';
             const dirIcon = direction === 'Bullish' ? 'BULL' : direction === 'Bearish' ? 'BEAR' : '--';
-            const entry = signal.entry ? signal.entry.toFixed(2) : '--';
-            const stop = signal.stop ? signal.stop.toFixed(2) : '--';
-            const risk = signal.risk ? signal.risk.toFixed(2) : '--';
-            const beMfe = signal.be_mfe ? signal.be_mfe.toFixed(2) : '--';
-            const noBeMfe = signal.no_be_mfe ? signal.no_be_mfe.toFixed(2) : '--';
-            const mae = signal.mae ? signal.mae.toFixed(2) : '--';
+            const entry = signal.entry != null ? Number(signal.entry).toFixed(2) : '--';
+            const stop = signal.stop != null ? Number(signal.stop).toFixed(2) : '--';
+            const risk = signal.risk != null ? Number(signal.risk).toFixed(2) : '--';
+            const beMfe = signal.be_mfe != null ? Number(signal.be_mfe).toFixed(2) : '--';
+            const noBeMfe = signal.no_be_mfe != null ? Number(signal.no_be_mfe).toFixed(2) : '--';
+            const mae = signal.mae != null ? Number(signal.mae).toFixed(2) : '--';
             const completed = signal.completed === true ? 'YES' : signal.completed === false ? 'NO' : '--';
             
             html += `<tr>
