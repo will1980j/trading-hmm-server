@@ -2395,21 +2395,23 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
         
         // Update counter
         if (counter) {
-            counter.textContent = summary.total || 0;
+            counter.textContent = data.total ?? data.count ?? 0;
         }
         
+        console.log("[ASE][ALL_SIGNALS] sample:", (data.signals && data.signals.length) ? data.signals[0] : null);
+        
         if (signals.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center ultra-muted py-4">No signals yet</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="16" class="text-center ultra-muted py-4">No signals yet</td></tr>';
             return;
         }
         
-        // Render table with complete professional formatting
+        // Render table
         let html = '';
         for (const signal of signals) {
             const direction = signal.direction || 'UNKNOWN';
             const directionIcon = direction === 'Bullish' || direction === 'LONG' ? '🔵' : '🔴';
             
-            // Status badge with better styling
+            // Status badge
             let statusBadge = '';
             if (signal.status === 'CONFIRMED') {
                 statusBadge = '<span class="badge bg-success" style="font-size: 10px; padding: 3px 8px;">✓ CONF</span>';
@@ -2419,43 +2421,29 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
                 statusBadge = '<span class="badge bg-warning text-dark" style="font-size: 10px; padding: 3px 8px;">⏳ PEND</span>';
             }
             
-            // HTF badges - bold and readable
-            const htf = signal.htf_alignment || {};
+            // HTF badges
             const htfBadge = (bias) => {
-                if (!bias || bias === 'Neutral') return '<span style="color: #6b7280; font-size: 18px; font-weight: 900;">—</span>';
-                return bias === 'Bullish' ? '<span style="color: #3b82f6; font-size: 18px; font-weight: 900;">▲</span>' : 
-                                            '<span style="color: #ef4444; font-size: 18px; font-weight: 900;">▼</span>';
+                if (!bias || bias === 'NEUT') return '<span style="color: #6b7280; font-size: 18px; font-weight: 900;">—</span>';
+                return bias === 'BULL' ? '<span style="color: #3b82f6; font-size: 18px; font-weight: 900;">▲</span>' : 
+                                        '<span style="color: #ef4444; font-size: 18px; font-weight: 900;">▼</span>';
             };
             
-            // Calculate risk with color coding
+            // Canonical fields with fallbacks
+            const dateStr = signal.date || '--';
+            const timeStr = signal.time || '--';
+            const entry = signal.entry ?? signal.entry_price;
+            const stop = signal.stop ?? signal.stop_loss;
+            const risk = signal.risk ?? signal.risk_points;
+            const bars = signal.bars_to_confirm ?? '--';
+            
+            // Risk display
             let riskDisplay = '--';
-            if (signal.entry_price && signal.stop_loss) {
-                const riskVal = Math.abs(signal.entry_price - signal.stop_loss);
+            if (entry && stop) {
+                const riskVal = Math.abs(entry - stop);
                 const riskColor = riskVal > 30 ? '#ef4444' : riskVal > 20 ? '#f59e0b' : '#10b981';
                 riskDisplay = `<span style="color: ${riskColor}; font-weight: 500;">${riskVal.toFixed(2)}</span>`;
-            }
-            
-            // Format date as DD-Mon-YY (e.g., 12-Dec-25)
-            let dateStr = '--';
-            if (signal.signal_date) {
-                const d = new Date(signal.signal_date);
-                const day = d.getDate();
-                const month = d.toLocaleString('en-US', { month: 'short' });
-                const year = d.getFullYear().toString().substring(2);
-                dateStr = `${day}-${month}-${year}`;
-            }
-            
-            // Time display - use signal_time for all signals
-            const timeStr = signal.signal_time_str || '--';
-            
-            // Age/Bars display - show age before confirmation or cancellation
-            let ageDisplay = '--';
-            if (signal.age_before_event) {
-                // Use formatted age from backend (e.g., "2m 30s")
-                ageDisplay = signal.age_before_event;
-            } else if (signal.bars_to_event) {
-                // Fallback: show bars
-                ageDisplay = `${signal.bars_to_event}`;
+            } else if (risk) {
+                riskDisplay = risk.toFixed(2);
             }
             
             html += `
@@ -2466,15 +2454,15 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
                     <td class="text-center">${directionIcon}</td>
                     <td class="ultra-muted small">${signal.session || '--'}</td>
                     <td class="text-center">${statusBadge}</td>
-                    <td class="ultra-muted">${signal.entry_price ? signal.entry_price.toFixed(2) : '--'}</td>
-                    <td class="ultra-muted">${signal.stop_loss ? signal.stop_loss.toFixed(2) : '--'}</td>
+                    <td class="ultra-muted">${entry ? entry.toFixed(2) : '--'}</td>
+                    <td class="ultra-muted">${stop ? stop.toFixed(2) : '--'}</td>
                     <td class="text-center">${riskDisplay}</td>
-                    <td class="ultra-muted text-center">${ageDisplay}</td>
-                    <td class="text-center">${htfBadge(htf.daily)}</td>
-                    <td class="text-center">${htfBadge(htf.h4)}</td>
-                    <td class="text-center">${htfBadge(htf.h1)}</td>
-                    <td class="text-center">${htfBadge(htf.m15)}</td>
-                    <td class="text-center">${htfBadge(htf.m5)}</td>
+                    <td class="ultra-muted text-center">${bars}</td>
+                    <td class="text-center">${htfBadge(signal.htf_daily)}</td>
+                    <td class="text-center">${htfBadge(signal.htf_4h)}</td>
+                    <td class="text-center">${htfBadge(signal.htf_1h)}</td>
+                    <td class="text-center">${htfBadge(signal.htf_15m)}</td>
+                    <td class="text-center">${htfBadge(signal.htf_5m)}</td>
                     <td class="ultra-muted small">${signal.trade_id}</td>
                 </tr>
             `;
