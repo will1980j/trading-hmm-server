@@ -2725,7 +2725,7 @@ AutomatedSignalsUltra.renderCancelledSignalsTable = function(signals) {
 // ============================================================================
 
 async function loadAllSignals() {
-    try:
+    try {
         const response = await fetch('/api/all-signals/data?limit=1000&offset=0');
         const data = await response.json();
         
