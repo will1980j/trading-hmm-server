@@ -2303,3 +2303,147 @@ def register_indicator_export_routes(app):
                 'success': False,
                 'error': str(e)
             }), 500
+
+    @app.route('/api/indicator-live/mfe-batch', methods=['POST'])
+    def live_mfe_batch():
+        """Receive live MFE/MAE updates for active trades."""
+        import os
+        import json
+        import hashlib
+        import psycopg2
+        from psycopg2.extras import Json
+        from flask import request
+        
+        logger.info("[LIVE_MFE_BATCH] Received request")
+        
+        # Auth check
+        expected_token = os.environ.get('INDICATOR_EXPORT_TOKEN')
+        if expected_token:
+            header_token = request.headers.get('X-Indicator-Token')
+            query_token = request.args.get('token')
+            
+            if not (header_token == expected_token or query_token == expected_token):
+                logger.warning("[LIVE_MFE_BATCH] ❌ Unauthorized")
+                return jsonify({'success': False, 'error': 'unauthorized'}), 401
+        
+        # Parse JSON
+        try:
+            data = request.get_json(force=True)
+        except Exception as e:
+            logger.error(f"[LIVE_MFE_BATCH] Invalid JSON: {e}")
+            return jsonify({'success': False, 'error': 'Invalid JSON'}), 400
+        
+        # Validate
+        event_type = data.get('event_type')
+        signals = data.get('signals', [])
+        
+        is_valid = event_type == "MFE_UPDATE_BATCH" and isinstance(signals, list)
+        validation_error = None if is_valid else "Invalid event_type or signals not array"
+        
+        # Compute hash
+        payload_str = json.dumps(data, sort_keys=True)
+        payload_hash = hashlib.sha256(payload_str.encode()).hexdigest()
+        
+        logger.info(f"[LIVE_MFE_BATCH] event_type={event_type}, signals={len(signals)}, hash={payload_hash[:8]}")
+        
+        # Store raw batch
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PUBLIC_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO indicator_export_batches 
+                (event_type, batch_number, batch_size, total_signals, payload_json, payload_sha256, is_valid, validation_error)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (event_type, payload_sha256) DO NOTHING
+                RETURNING id
+            """, ("MFE_UPDATE_BATCH", None, len(signals), None, Json(data), payload_hash, is_valid, validation_error))
+            
+            result = cursor.fetchone()
+            
+            if not result:
+                conn.rollback()
+                cursor.close()
+                conn.close()
+                logger.info(f"[LIVE_MFE_BATCH] ⚠️  Duplicate batch")
+                return jsonify({'success': True, 'status': 'duplicate'}), 200
+            
+            batch_id = result[0]
+            conn.commit()
+            logger.info(f"[LIVE_MFE_BATCH] ✅ Stored batch_id={batch_id}")
+            
+            # If invalid, return early without processing
+            if not is_valid:
+                cursor.close()
+                conn.close()
+                logger.warning(f"[LIVE_MFE_BATCH] Invalid batch stored, not processing signals")
+                return jsonify({
+                    'success': True,
+                    'status': 'stored_invalid',
+                    'batch_id': batch_id,
+                    'processed': 0,
+                    'upserted': 0,
+                    'skipped': 0
+                }), 200
+            
+            # Process signals
+            processed = 0
+            upserted = 0
+            skipped = 0
+            
+            for signal in signals:
+                trade_id = signal.get('trade_id')
+                if not trade_id:
+                    skipped += 1
+                    continue
+                
+                # Get triangle_time_ms
+                triangle_time = signal.get('triangle_time')
+                if not triangle_time:
+                    logger.warning(f"[LIVE_MFE_BATCH] triangle_time missing for {trade_id}, using 0")
+                    triangle_time = 0
+                
+                # Clamp MAE
+                mae = signal.get('mae_global_r')
+                if mae is not None and mae > 0.0:
+                    logger.warning(f"[LIVE_MFE_BATCH] MAE > 0 for {trade_id}: {mae}, clamping to 0.0")
+                    mae = 0.0
+                
+                # Upsert
+                cursor.execute("""
+                    INSERT INTO confirmed_signals_ledger 
+                    (trade_id, triangle_time_ms, direction, session, be_mfe, no_be_mfe, mae, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (trade_id) DO UPDATE SET
+                        triangle_time_ms = COALESCE(confirmed_signals_ledger.triangle_time_ms, NULLIF(EXCLUDED.triangle_time_ms, 0), confirmed_signals_ledger.triangle_time_ms),
+                        direction = COALESCE(EXCLUDED.direction, confirmed_signals_ledger.direction),
+                        session = COALESCE(EXCLUDED.session, confirmed_signals_ledger.session),
+                        be_mfe = EXCLUDED.be_mfe,
+                        no_be_mfe = EXCLUDED.no_be_mfe,
+                        mae = EXCLUDED.mae,
+                        updated_at = NOW()
+                """, (trade_id, triangle_time, signal.get('direction'), 
+                      signal.get('session'), signal.get('be_mfe'), signal.get('no_be_mfe'), mae))
+                
+                processed += 1
+                upserted += 1
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            logger.info(f"[LIVE_MFE_BATCH] ✅ Processed {processed}, upserted {upserted}, skipped {skipped}")
+            
+            return jsonify({
+                'success': True,
+                'status': 'ok',
+                'batch_id': batch_id,
+                'processed': processed,
+                'upserted': upserted,
+                'skipped': skipped
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[LIVE_MFE_BATCH] ❌ Exception: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
