@@ -269,7 +269,14 @@ AutomatedSignalsUltra.init = function() {
     }
     // Auto-refresh ALL dashboard components together (not just the table)
     AutomatedSignalsUltra.timer = setInterval(() => {
-        AutomatedSignalsUltra.fetchDashboardData();
+        // Guard: don't overwrite canonical tab tables
+        const activeTab = document.querySelector('.nav-link.ultra-tab.active');
+        const activeTabId = activeTab ? activeTab.id : '';
+        
+        if (activeTabId !== 'confirmed-tab' && activeTabId !== 'cancelled-tab' && activeTabId !== 'all-signals-tab') {
+            AutomatedSignalsUltra.fetchDashboardData();
+        }
+        
         AutomatedSignalsUltra.fetchCalendarData();
     }, 7000);
     
@@ -2991,4 +2998,130 @@ document.getElementById('data-quality-tab')?.addEventListener('shown.bs.tab', fu
     loadDataQualityTab();
     attachImportButton();
     loadIndicatorBatches();
+});
+
+
+// Load Confirmed Signals from canonical endpoint
+async function loadConfirmedTabFromCanonical() {
+    try {
+        const resp = await fetch('/api/all-signals/confirmed', { cache: 'no-store' });
+        const data = await resp.json();
+        
+        const tbody = document.getElementById('ase-signals-tbody');
+        if (!tbody) return;
+        
+        if (!data.success || !data.signals) {
+            tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-3">Error loading confirmed signals</td></tr>';
+            return;
+        }
+        
+        const count = data.count || data.signals.length || 0;
+        console.log("[ASE][CONFIRMED_TAB] rows=", count);
+        
+        if (data.signals.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="12" class="text-center ultra-muted py-3">No confirmed signals</td></tr>';
+            return;
+        }
+        
+        let html = '';
+        for (const signal of data.signals) {
+            const dateStr = signal.date || '--';
+            const timeStr = signal.time || '--';
+            const session = signal.session || '--';
+            const direction = signal.direction || '--';
+            const dirIcon = direction === 'Bullish' ? 'BULL' : direction === 'Bearish' ? 'BEAR' : '--';
+            const entry = signal.entry ? signal.entry.toFixed(2) : '--';
+            const stop = signal.stop ? signal.stop.toFixed(2) : '--';
+            const risk = signal.risk ? signal.risk.toFixed(2) : '--';
+            const beMfe = signal.be_mfe ? signal.be_mfe.toFixed(2) : '--';
+            const noBeMfe = signal.no_be_mfe ? signal.no_be_mfe.toFixed(2) : '--';
+            const mae = signal.mae ? signal.mae.toFixed(2) : '--';
+            const completed = signal.completed === true ? 'YES' : signal.completed === false ? 'NO' : '--';
+            
+            html += `<tr>
+                <td class="ultra-muted small">${dateStr}</td>
+                <td class="ultra-muted">${timeStr}</td>
+                <td class="ultra-muted small">${session}</td>
+                <td class="text-center">${dirIcon}</td>
+                <td class="ultra-muted">${entry}</td>
+                <td class="ultra-muted">${stop}</td>
+                <td class="ultra-muted">${risk}</td>
+                <td class="ultra-muted">${beMfe}</td>
+                <td class="ultra-muted">${noBeMfe}</td>
+                <td class="ultra-muted">${mae}</td>
+                <td class="ultra-muted small">${completed}</td>
+                <td class="ultra-muted small">${signal.trade_id}</td>
+            </tr>`;
+        }
+        
+        tbody.innerHTML = html;
+    } catch (error) {
+        console.error('[ASE][CONFIRMED_TAB] Error:', error);
+    }
+}
+
+// Load Cancelled Signals from canonical endpoint
+async function loadCancelledTabFromCanonical() {
+    try {
+        const resp = await fetch('/api/all-signals/cancelled', { cache: 'no-store' });
+        const data = await resp.json();
+        
+        const tbody = document.getElementById('ase-cancelled-tbody');
+        if (!tbody) return;
+        
+        if (!data.success || !data.signals) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-3">Error loading cancelled signals</td></tr>';
+            return;
+        }
+        
+        const count = data.count || data.signals.length || 0;
+        console.log("[ASE][CANCELLED_TAB] rows=", count);
+        
+        if (data.signals.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center ultra-muted py-3">No cancelled signals</td></tr>';
+            return;
+        }
+        
+        let html = '';
+        for (const signal of data.signals) {
+            const dateStr = signal.date || '--';
+            const timeStr = signal.time || '--';
+            const session = signal.session || '--';
+            const direction = signal.direction || '--';
+            const dirIcon = direction === 'Bullish' ? 'BULL' : direction === 'Bearish' ? 'BEAR' : '--';
+            
+            html += `<tr>
+                <td class="ultra-muted small">${dateStr}</td>
+                <td class="ultra-muted">${timeStr}</td>
+                <td class="ultra-muted small">${session}</td>
+                <td class="text-center">${dirIcon}</td>
+                <td class="ultra-muted small">${signal.htf_daily || '--'}</td>
+                <td class="ultra-muted small">${signal.htf_1h || '--'}</td>
+                <td class="ultra-muted small">${signal.trade_id}</td>
+            </tr>`;
+        }
+        
+        tbody.innerHTML = html;
+    } catch (error) {
+        console.error('[ASE][CANCELLED_TAB] Error:', error);
+    }
+}
+
+// Wire tab events
+document.addEventListener('DOMContentLoaded', () => {
+    const confirmedTab = document.getElementById('confirmed-tab');
+    if (confirmedTab) {
+        confirmedTab.addEventListener('shown.bs.tab', loadConfirmedTabFromCanonical);
+        if (confirmedTab.classList.contains('active')) {
+            loadConfirmedTabFromCanonical();
+        }
+    }
+    
+    const cancelledTab = document.getElementById('cancelled-tab');
+    if (cancelledTab) {
+        cancelledTab.addEventListener('shown.bs.tab', loadCancelledTabFromCanonical);
+        if (cancelledTab.classList.contains('active')) {
+            loadCancelledTabFromCanonical();
+        }
+    }
 });
