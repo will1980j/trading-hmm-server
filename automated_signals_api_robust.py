@@ -2365,17 +2365,24 @@ def register_indicator_export_routes(app):
             """, ("MFE_UPDATE_BATCH", None, len(signals), None, Json(data), payload_hash, is_valid, validation_error))
             
             result = cursor.fetchone()
+            batch_status = "ok"
             
             if not result:
-                conn.rollback()
-                cursor.close()
-                conn.close()
-                logger.info(f"[LIVE_MFE_BATCH] ⚠️  Duplicate batch")
-                return jsonify({'success': True, 'status': 'duplicate'}), 200
-            
-            batch_id = result[0]
-            conn.commit()
-            logger.info(f"[LIVE_MFE_BATCH] ✅ Stored batch_id={batch_id}")
+                # Duplicate batch - fetch existing batch_id and continue processing
+                logger.info(f"[LIVE_MFE_BATCH] ⚠️  Duplicate batch detected, fetching existing batch_id")
+                cursor.execute("""
+                    SELECT id FROM indicator_export_batches 
+                    WHERE event_type = %s AND payload_sha256 = %s 
+                    ORDER BY received_at DESC LIMIT 1
+                """, ("MFE_UPDATE_BATCH", payload_hash))
+                existing = cursor.fetchone()
+                batch_id = existing[0] if existing else None
+                batch_status = "duplicate_processed"
+                logger.info(f"[LIVE_MFE_BATCH] Fetched existing batch_id={batch_id}, continuing to process signals")
+            else:
+                batch_id = result[0]
+                conn.commit()
+                logger.info(f"[LIVE_MFE_BATCH] ✅ Stored new batch_id={batch_id}")
             
             # If invalid, return early without processing
             if not is_valid:
@@ -2391,7 +2398,7 @@ def register_indicator_export_routes(app):
                     'skipped': 0
                 }), 200
             
-            # Process signals
+            # Process signals (always, even for duplicates)
             processed = 0
             upserted = 0
             skipped = 0
@@ -2402,34 +2409,60 @@ def register_indicator_export_routes(app):
                     skipped += 1
                     continue
                 
-                # Get triangle_time_ms
-                triangle_time = signal.get('triangle_time')
-                if not triangle_time:
-                    logger.warning(f"[LIVE_MFE_BATCH] triangle_time missing for {trade_id}, using 0")
-                    triangle_time = 0
-                
-                # Parse entry_price and stop_loss
-                entry_price = None
-                stop_loss = None
+                # Parse triangle_time_ms (source: triangle_time in payload)
+                triangle_time_ms = None
                 try:
-                    if signal.get('entry_price') is not None:
-                        entry_price = float(signal.get('entry_price'))
+                    if signal.get('triangle_time') is not None:
+                        triangle_time_ms = int(signal.get('triangle_time'))
+                except (ValueError, TypeError):
+                    pass
+                
+                # Parse entry/stop (may arrive as entry_price/stop_loss)
+                entry = None
+                stop = None
+                try:
+                    entry_val = signal.get('entry_price') or signal.get('entry')
+                    if entry_val is not None:
+                        entry = float(entry_val)
                 except (ValueError, TypeError):
                     pass
                 
                 try:
-                    if signal.get('stop_loss') is not None:
-                        stop_loss = float(signal.get('stop_loss'))
+                    stop_val = signal.get('stop_loss') or signal.get('stop')
+                    if stop_val is not None:
+                        stop = float(stop_val)
                 except (ValueError, TypeError):
                     pass
                 
-                # Clamp MAE
-                mae = signal.get('mae_global_r')
-                if mae is not None and mae > 0.0:
-                    logger.warning(f"[LIVE_MFE_BATCH] MAE > 0 for {trade_id}: {mae}, clamping to 0.0")
-                    mae = 0.0
+                # Parse be_mfe/no_be_mfe/mae (safe float conversion)
+                be_mfe = None
+                no_be_mfe = None
+                mae = None
                 
-                # Upsert
+                try:
+                    if signal.get('be_mfe') is not None:
+                        be_mfe = float(signal.get('be_mfe'))
+                except (ValueError, TypeError):
+                    pass
+                
+                try:
+                    if signal.get('no_be_mfe') is not None:
+                        no_be_mfe = float(signal.get('no_be_mfe'))
+                except (ValueError, TypeError):
+                    pass
+                
+                try:
+                    mae_val = signal.get('mae_global_r') or signal.get('mae')
+                    if mae_val is not None:
+                        mae = float(mae_val)
+                        # Clamp MAE to <= 0.0
+                        if mae > 0.0:
+                            logger.warning(f"[LIVE_MFE_BATCH] MAE > 0 for {trade_id}: {mae}, clamping to 0.0")
+                            mae = 0.0
+                except (ValueError, TypeError):
+                    pass
+                
+                # Upsert into confirmed_signals_ledger
                 cursor.execute("""
                     INSERT INTO confirmed_signals_ledger 
                     (trade_id, triangle_time_ms, direction, session, entry, stop, be_mfe, no_be_mfe, mae, updated_at)
@@ -2444,8 +2477,8 @@ def register_indicator_export_routes(app):
                         no_be_mfe = COALESCE(EXCLUDED.no_be_mfe, confirmed_signals_ledger.no_be_mfe),
                         mae = COALESCE(EXCLUDED.mae, confirmed_signals_ledger.mae),
                         updated_at = NOW()
-                """, (trade_id, triangle_time, signal.get('direction'), 
-                      signal.get('session'), entry_price, stop_loss, signal.get('be_mfe'), signal.get('no_be_mfe'), mae))
+                """, (trade_id, triangle_time_ms, signal.get('direction'), signal.get('session'), 
+                      entry, stop, be_mfe, no_be_mfe, mae))
                 
                 processed += 1
                 upserted += 1
@@ -2458,7 +2491,7 @@ def register_indicator_export_routes(app):
             
             return jsonify({
                 'success': True,
-                'status': 'ok',
+                'status': batch_status,
                 'batch_id': batch_id,
                 'processed': processed,
                 'upserted': upserted,
