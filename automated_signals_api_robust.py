@@ -2447,3 +2447,39 @@ def register_indicator_export_routes(app):
         except Exception as e:
             logger.error(f"[LIVE_MFE_BATCH] ❌ Exception: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/api/indicator-live/debug/confirmed/<trade_id>', methods=['GET'])
+    def debug_confirmed_ledger(trade_id):
+        """Get confirmed_signals_ledger row for a trade_id."""
+        import os
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PUBLIC_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute("SELECT * FROM confirmed_signals_ledger WHERE trade_id = %s", (trade_id,))
+            row = cursor.fetchone()
+            
+            cursor.close()
+            conn.close()
+            
+            if not row:
+                return jsonify({'success': True, 'found': False}), 200
+            
+            # Convert to JSON-serializable
+            result = {}
+            for key, value in row.items():
+                if hasattr(value, 'isoformat'):
+                    result[key] = value.isoformat()
+                elif isinstance(value, (int, float)):
+                    result[key] = float(value) if value is not None else None
+                else:
+                    result[key] = value
+            
+            return jsonify({'success': True, 'found': True, 'data': result}), 200
+            
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500

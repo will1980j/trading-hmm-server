@@ -1764,15 +1764,11 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
                 // Payload full - skip remaining signals (will be included in next batch)
                 signals_skipped := signals_skipped + 1
     
-    // REMOVED: MFE batch alerts (using export system instead)
-    // Send batch alert (ALWAYS send even if empty for debugging)
-    // string ts = str.format("{0,date,yyyy-MM-dd}T{0,time,HH:mm:ss}", time)
-    // if signals_in_batch > 0
-    //     string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + ts + '","signals":[' + batch_payload + '],"batch_size":' + str.tostring(signals_in_batch) + ',"skipped":' + str.tostring(signals_skipped) + '}'
-    //     alert(batch_envelope, alert.freq_once_per_bar_close)
-    // else
-    //     string debug_batch = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + ts + '","signals":[],"batch_size":0,"skipped":0,"debug":"no_active_signals","array_size":' + str.tostring(array.size(signal_entries)) + '}'
-    //     alert(debug_batch, alert.freq_once_per_bar_close)
+    // Send MFE batch alert
+    string ts = str.format("{0,date,yyyy-MM-dd}T{0,time,HH:mm:ss}", time)
+    if signals_in_batch > 0
+        string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","timestamp":"' + ts + '","signals":[' + batch_payload + '],"batch_size":' + str.tostring(signals_in_batch) + ',"skipped":' + str.tostring(signals_skipped) + '}'
+        alert(batch_envelope, alert.freq_once_per_bar_close)
 
 // ============================================================================
 // TELEMETRY ENGINE — MFE_UPDATE SENDER (DISABLED - Using batch system instead)
