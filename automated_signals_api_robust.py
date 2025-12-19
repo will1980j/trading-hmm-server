@@ -2446,7 +2446,7 @@ def register_indicator_export_routes(app):
             cursor.execute("""
                 SELECT id, received_at, batch_size, payload_json
                 FROM indicator_export_batches
-                WHERE event_type = 'MFE_UPDATE_BATCH'
+                WHERE event_type = 'MFE_UPDATE_BATCH' AND is_valid = true
                 ORDER BY received_at DESC
                 LIMIT 300
             """)
