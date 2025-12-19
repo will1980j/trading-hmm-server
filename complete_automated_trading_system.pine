@@ -649,7 +649,7 @@ if waiting_for_confirmation and active_signal == "Bullish"
                 int bars_waited = bar_index - signal_bar_index
                 array.set(all_signal_bars_to_confirm, last_idx, bars_waited)
                 // Link to confirmed signals array (will be added next bar)
-                array.set(all_signal_confirmed_index, last_idx, array.size(signal_entries))
+                array.set(all_signal_confirmed_index, last_idx, array.size(signal_entries) - 1)
 
 // ============================================================================
 // BEARISH CONFIRMATION & STOP LOSS CALCULATION
@@ -761,6 +761,8 @@ if waiting_for_confirmation and active_signal == "Bearish"
                 array.set(all_signal_confirmation_times, last_idx, time)
                 int bars_waited = bar_index - signal_bar_index
                 array.set(all_signal_bars_to_confirm, last_idx, bars_waited)
+                // Link to confirmed signals array (will be added next bar)
+                array.set(all_signal_confirmed_index, last_idx, array.size(signal_entries) - 1)
 
 // ============================================================================
 // VISUALIZATION
@@ -2204,18 +2206,27 @@ if ENABLE_ALL_SIGNALS_EXPORT and not all_export_complete and barstate.islast
                 string risk_val = "null"
                 
                 if sig_status == "CONFIRMED"
-                    for j = 0 to array.size(signal_entry_times) - 1
-                        int entry_time = array.get(signal_entry_times, j)
-                        string entry_dir = array.get(signal_directions, j)
-                        // Match within 10 minutes and same direction
-                        if math.abs(entry_time - sig_time) < 600000 and entry_dir == sig_dir
-                            float e = array.get(signal_entries, j)
-                            float s = array.get(signal_stops, j)
-                            if not na(e) and not na(s)
-                                entry_val := str.tostring(e)
-                                stop_val := str.tostring(s)
-                                risk_val := str.tostring(math.abs(e - s))
-                            break
+                    int confirmed_idx = array.get(all_signal_confirmed_index, i)
+                    if confirmed_idx >= 0 and confirmed_idx < array.size(signal_entries)
+                        float e = array.get(signal_entries, confirmed_idx)
+                        float s = array.get(signal_stops, confirmed_idx)
+                        if not na(e) and not na(s)
+                            entry_val := str.tostring(e)
+                            stop_val := str.tostring(s)
+                            risk_val := str.tostring(math.abs(e - s))
+                    else
+                        // Fallback: time-window cross-reference
+                        for j = 0 to array.size(signal_entry_times) - 1
+                            int entry_time = array.get(signal_entry_times, j)
+                            string entry_dir = array.get(signal_directions, j)
+                            if math.abs(entry_time - sig_time) < 600000 and entry_dir == sig_dir
+                                float e = array.get(signal_entries, j)
+                                float s = array.get(signal_stops, j)
+                                if not na(e) and not na(s)
+                                    entry_val := str.tostring(e)
+                                    stop_val := str.tostring(s)
+                                    risk_val := str.tostring(math.abs(e - s))
+                                break
                 
                 // HTF bias (stored at signal time)
                 string stored_daily = array.get(all_signal_daily_bias, i)

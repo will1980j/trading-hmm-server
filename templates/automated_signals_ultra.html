@@ -593,6 +593,54 @@ No stream analysis yet.
             <!-- TAB 4: DATA QUALITY -->
             <div class="tab-pane fade" id="tab-data-quality" role="tabpanel" aria-labelledby="data-quality-tab">
                 <div class="row">
+                    <!-- Indicator Data Flow Health -->
+                    <div class="col-lg-12 mb-3">
+                        <div class="ultra-card">
+                            <div class="ultra-card-header">
+                                <h5 class="ultra-card-title">🚦 Indicator Data Flow Health</h5>
+                            </div>
+                            <div class="ultra-card-body">
+                                <div class="row mb-3">
+                                    <div class="col-12 text-center">
+                                        <span id="dq-health-pill" class="badge rounded-pill" style="font-size: 1.2rem; padding: 10px 20px;">Loading...</span>
+                                    </div>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="small ultra-muted">ALL_SIGNALS_EXPORT</div>
+                                        <div class="small">Last: <span id="dq-health-all-last">--</span></div>
+                                        <div class="small">Lag: <span id="dq-health-all-lag">--</span>s</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="small ultra-muted">MFE_UPDATE_BATCH</div>
+                                        <div class="small">Last: <span id="dq-health-mfe-last">--</span></div>
+                                        <div class="small">Lag: <span id="dq-health-mfe-lag">--</span>s</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="small ultra-muted">all_signals_ledger</div>
+                                        <div class="small">Max updated: <span id="dq-health-ledger-all">--</span></div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="small ultra-muted">confirmed_signals_ledger</div>
+                                        <div class="small">Max updated: <span id="dq-health-ledger-confirmed">--</span></div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <div class="diagnosis-header" onclick="document.getElementById('dq-health-tests').style.display = document.getElementById('dq-health-tests').style.display === 'none' ? 'block' : 'none'">
+                                        ▼ Run Tests (PowerShell)
+                                    </div>
+                                    <pre id="dq-health-tests" class="diagnosis-pre" style="display:none; margin-top:8px;">1) Invoke-RestMethod "https://web-production-f8c3.up.railway.app/api/data-quality/indicator-health"
+
+2) Invoke-RestMethod "https://web-production-f8c3.up.railway.app/api/indicator-export/batches?limit=5"
+
+3) Invoke-RestMethod "https://web-production-f8c3.up.railway.app/api/all-signals/data?limit=1&offset=0"
+
+4) Invoke-RestMethod -Method POST -Uri "https://web-production-f8c3.up.railway.app/api/indicator-live/mfe-batch?token=PASTE_TOKEN" -ContentType "application/json" -Body '{"event_type":"MFE_UPDATE_BATCH","signals":[]}'</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- System Health Overview -->
                     <div class="col-lg-12 mb-4">
                         <div class="ultra-card">

@@ -1867,6 +1867,113 @@ def register_indicator_export_routes(app):
             logger.error(f"[COMPLETED_SIGNALS] ❌ Error: {e}")
             return jsonify({'success': False, 'error': str(e), 'signals': [], 'count': 0}), 500
     
+    @app.route('/api/data-quality/indicator-health', methods=['GET'])
+    def get_indicator_health():
+        """Return indicator data flow health summary."""
+        import os
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        from datetime import datetime, timezone
+        
+        logger.info("[DQ_HEALTH] Fetching indicator health")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PUBLIC_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            now = datetime.now(timezone.utc)
+            
+            # Latest batch timestamps
+            cursor.execute("SELECT received_at FROM indicator_export_batches WHERE event_type='ALL_SIGNALS_EXPORT' AND is_valid=true ORDER BY received_at DESC LIMIT 1")
+            all_sig_row = cursor.fetchone()
+            latest_all_signals = all_sig_row['received_at'] if all_sig_row else None
+            
+            cursor.execute("SELECT received_at FROM indicator_export_batches WHERE event_type='MFE_UPDATE_BATCH' AND is_valid=true ORDER BY received_at DESC LIMIT 1")
+            mfe_row = cursor.fetchone()
+            latest_mfe = mfe_row['received_at'] if mfe_row else None
+            
+            cursor.execute("SELECT received_at FROM indicator_export_batches WHERE event_type='INDICATOR_EXPORT_V2' AND is_valid=true ORDER BY received_at DESC LIMIT 1")
+            v2_row = cursor.fetchone()
+            latest_v2 = v2_row['received_at'] if v2_row else None
+            
+            # Recent counts (60 minutes)
+            cursor.execute("SELECT COUNT(*) as cnt FROM indicator_export_batches WHERE event_type='ALL_SIGNALS_EXPORT' AND is_valid=true AND received_at >= NOW() - INTERVAL '60 minutes'")
+            all_count_row = cursor.fetchone()
+            count_all_60m = all_count_row['cnt'] if all_count_row else 0
+            
+            cursor.execute("SELECT COUNT(*) as cnt FROM indicator_export_batches WHERE event_type='MFE_UPDATE_BATCH' AND is_valid=true AND received_at >= NOW() - INTERVAL '60 minutes'")
+            mfe_count_row = cursor.fetchone()
+            count_mfe_60m = mfe_count_row['cnt'] if mfe_count_row else 0
+            
+            # Ledger freshness
+            cursor.execute("SELECT MAX(updated_at) as max_ts FROM all_signals_ledger")
+            all_ledger_row = cursor.fetchone()
+            max_all_ledger = all_ledger_row['max_ts'] if all_ledger_row else None
+            
+            cursor.execute("SELECT MAX(updated_at) as max_ts FROM confirmed_signals_ledger")
+            conf_ledger_row = cursor.fetchone()
+            max_conf_ledger = conf_ledger_row['max_ts'] if conf_ledger_row else None
+            
+            cursor.close()
+            conn.close()
+            
+            # Compute lag seconds
+            def compute_lag(ts):
+                if ts is None:
+                    return None
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                return int((now - ts).total_seconds())
+            
+            all_sig_lag = compute_lag(latest_all_signals)
+            mfe_lag = compute_lag(latest_mfe)
+            v2_lag = compute_lag(latest_v2)
+            
+            # Traffic light logic
+            if all_sig_lag is not None and all_sig_lag <= 180 and mfe_lag is not None and mfe_lag <= 180:
+                traffic_light = "GREEN"
+            elif (all_sig_lag is not None and all_sig_lag <= 600) or (mfe_lag is not None and mfe_lag <= 600):
+                traffic_light = "AMBER"
+            else:
+                traffic_light = "RED"
+            
+            logger.info(f"[DQ_HEALTH] ✅ Traffic light: {traffic_light}")
+            
+            return jsonify({
+                'success': True,
+                'now': now.isoformat(),
+                'traffic_light': traffic_light,
+                'streams': {
+                    'all_signals_export': {
+                        'last_received_at': latest_all_signals.isoformat() if latest_all_signals else None,
+                        'lag_seconds': all_sig_lag,
+                        'count_60m': count_all_60m
+                    },
+                    'mfe_update_batch': {
+                        'last_received_at': latest_mfe.isoformat() if latest_mfe else None,
+                        'lag_seconds': mfe_lag,
+                        'count_60m': count_mfe_60m
+                    },
+                    'indicator_export_v2': {
+                        'last_received_at': latest_v2.isoformat() if latest_v2 else None,
+                        'lag_seconds': v2_lag
+                    }
+                },
+                'ledgers': {
+                    'all_signals_ledger': {
+                        'max_updated_at': max_all_ledger.isoformat() if max_all_ledger else None
+                    },
+                    'confirmed_signals_ledger': {
+                        'max_updated_at': max_conf_ledger.isoformat() if max_conf_ledger else None
+                    }
+                }
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[DQ_HEALTH] ❌ Error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
     @app.route('/api/data-quality/reconcile-indicator', methods=['POST'])
     def reconcile_indicator_data():
         """

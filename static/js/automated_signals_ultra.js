@@ -3089,4 +3089,64 @@ document.addEventListener('DOMContentLoaded', () => {
             loadCancelledTabFromCanonical();
         }
     }
+    
+    // Data Quality tab - Indicator Health Panel
+    let dqHealthInterval = null;
+    const dataQualityTab = document.getElementById('data-quality-tab');
+    if (dataQualityTab) {
+        dataQualityTab.addEventListener('shown.bs.tab', () => {
+            AutomatedSignalsUltra.loadIndicatorHealthPanel();
+            if (dqHealthInterval) clearInterval(dqHealthInterval);
+            dqHealthInterval = setInterval(() => {
+                AutomatedSignalsUltra.loadIndicatorHealthPanel();
+            }, 10000);
+        });
+        dataQualityTab.addEventListener('hidden.bs.tab', () => {
+            if (dqHealthInterval) {
+                clearInterval(dqHealthInterval);
+                dqHealthInterval = null;
+            }
+        });
+    }
 });
+
+AutomatedSignalsUltra.loadIndicatorHealthPanel = async function() {
+    try {
+        const resp = await fetch('/api/data-quality/indicator-health', { cache: 'no-store' });
+        const data = await resp.json();
+        
+        if (!data.success) return;
+        
+        const pill = document.getElementById('dq-health-pill');
+        if (pill) {
+            pill.textContent = data.traffic_light;
+            if (data.traffic_light === 'GREEN') {
+                pill.style.backgroundColor = '#10b981';
+            } else if (data.traffic_light === 'AMBER') {
+                pill.style.backgroundColor = '#f59e0b';
+            } else {
+                pill.style.backgroundColor = '#ef4444';
+            }
+        }
+        
+        const setText = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val || '--';
+        };
+        
+        const streams = data.streams || {};
+        const all_sig = streams.all_signals_export || {};
+        const mfe = streams.mfe_update_batch || {};
+        const ledgers = data.ledgers || {};
+        
+        setText('dq-health-all-last', all_sig.last_received_at ? new Date(all_sig.last_received_at).toLocaleString() : '--');
+        setText('dq-health-all-lag', all_sig.lag_seconds);
+        setText('dq-health-mfe-last', mfe.last_received_at ? new Date(mfe.last_received_at).toLocaleString() : '--');
+        setText('dq-health-mfe-lag', mfe.lag_seconds);
+        setText('dq-health-ledger-all', ledgers.all_signals_ledger?.max_updated_at ? new Date(ledgers.all_signals_ledger.max_updated_at).toLocaleString() : '--');
+        setText('dq-health-ledger-confirmed', ledgers.confirmed_signals_ledger?.max_updated_at ? new Date(ledgers.confirmed_signals_ledger.max_updated_at).toLocaleString() : '--');
+        
+    } catch (err) {
+        console.error('[DQ_HEALTH] Error:', err);
+    }
+};
