@@ -1747,10 +1747,8 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
     int signals_in_batch = 0
     int signals_skipped = 0
     
-    // Process last 500 signals (increased capacity)
-    int start_idx = math.max(0, array.size(signal_entries) - 500)
-    
-    for i = start_idx to array.size(signal_entries) - 1
+    // Iterate newest to oldest over all confirmed signals
+    for i = array.size(signal_entries) - 1 to 0
         // Bounds check for all arrays
         if i >= array.size(signal_entry_times) or i >= array.size(signal_directions)
             continue
@@ -1763,35 +1761,36 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
         // Check if No-BE stopped (signal completed)
         bool sig_no_be_stopped = i < array.size(signal_no_be_stopped) ? array.get(signal_no_be_stopped, i) : false
         
-        // Include ALL signals (active and completed) for last 500
-        // Get MFE/MAE data with bounds checks
-        float current_mfe_be = i < array.size(signal_be_mfes) ? array.get(signal_be_mfes, i) : 0.0
-        float current_mfe_none = i < array.size(signal_mfes) ? array.get(signal_mfes, i) : 0.0
-        float sig_mae = i < array.size(signal_maes) ? array.get(signal_maes, i) : 0.0
-        bool sig_be_triggered = i < array.size(signal_be_triggered) ? array.get(signal_be_triggered, i) : false
-        
-        // Build trade_id from TRIANGLE TIME (canonical)
-        string signal_id = f_buildTradeId(tri_time, sig_direction)
-        
-        // Get all signal data
-        float sig_entry = i < array.size(signal_entries) ? array.get(signal_entries, i) : na
-        float sig_stop = i < array.size(signal_stops) ? array.get(signal_stops, i) : na
-        string sig_session = f_sessionLabel(tri_time)  // Calculate session from triangle time
-        
-        // Build complete JSON with all essential fields (triangle_time and confirmation_time as metadata)
-        string signal_json = '"trade_id":"' + signal_id + '","triangle_time":' + str.tostring(tri_time) + ',"confirmation_time":' + str.tostring(confirm_time) + ',"direction":"' + sig_direction + '","session":"' + sig_session + '","entry_price":' + f_num(sig_entry) + ',"stop_loss":' + f_num(sig_stop) + ',"be_mfe":' + f_num(current_mfe_be) + ',"no_be_mfe":' + f_num(current_mfe_none) + ',"mae_global_r":' + f_num(math.min(sig_mae, 0.0)) + ',"current_price":' + f_num(close) + ',"be_triggered":' + str.tostring(sig_be_triggered) + ',"completed":' + str.tostring(sig_no_be_stopped)
-        
-        // Check payload size before adding (stay under 4000 chars)
-        string test_add = signals_in_batch > 0 ? ",{" + signal_json + "}" : "{" + signal_json + "}"
-        int new_size = str.length(batch_payload) + str.length(test_add)
-        
-        if new_size < 3900
-            // Add to batch
-            batch_payload := signals_in_batch > 0 ? batch_payload + ",{" + signal_json + "}" : "{" + signal_json + "}"
-            signals_in_batch := signals_in_batch + 1
-        else
-            // Payload full - skip remaining signals (will be included in next batch)
-            signals_skipped := signals_skipped + 1
+        // Only include ACTIVE signals (No-BE not stopped)
+        if not sig_no_be_stopped
+            // Get MFE/MAE data with bounds checks
+            float current_mfe_be = i < array.size(signal_be_mfes) ? array.get(signal_be_mfes, i) : 0.0
+            float current_mfe_none = i < array.size(signal_mfes) ? array.get(signal_mfes, i) : 0.0
+            float sig_mae = i < array.size(signal_maes) ? array.get(signal_maes, i) : 0.0
+            bool sig_be_triggered = i < array.size(signal_be_triggered) ? array.get(signal_be_triggered, i) : false
+            
+            // Build trade_id from TRIANGLE TIME (canonical)
+            string signal_id = f_buildTradeId(tri_time, sig_direction)
+            
+            // Get all signal data
+            float sig_entry = i < array.size(signal_entries) ? array.get(signal_entries, i) : na
+            float sig_stop = i < array.size(signal_stops) ? array.get(signal_stops, i) : na
+            string sig_session = f_sessionLabel(tri_time)  // Calculate session from triangle time
+            
+            // Build complete JSON with all essential fields (triangle_time and confirmation_time as metadata)
+            string signal_json = '"trade_id":"' + signal_id + '","triangle_time":' + str.tostring(tri_time) + ',"confirmation_time":' + str.tostring(confirm_time) + ',"direction":"' + sig_direction + '","session":"' + sig_session + '","entry_price":' + f_num(sig_entry) + ',"stop_loss":' + f_num(sig_stop) + ',"be_mfe":' + f_num(current_mfe_be) + ',"no_be_mfe":' + f_num(current_mfe_none) + ',"mae_global_r":' + f_num(math.min(sig_mae, 0.0)) + ',"current_price":' + f_num(close) + ',"be_triggered":' + str.tostring(sig_be_triggered) + ',"completed":' + str.tostring(sig_no_be_stopped)
+            
+            // Check payload size before adding (stay under 4000 chars)
+            string test_add = signals_in_batch > 0 ? ",{" + signal_json + "}" : "{" + signal_json + "}"
+            int new_size = str.length(batch_payload) + str.length(test_add)
+            
+            if new_size < 3900
+                // Add to batch
+                batch_payload := signals_in_batch > 0 ? batch_payload + ",{" + signal_json + "}" : "{" + signal_json + "}"
+                signals_in_batch := signals_in_batch + 1
+            else
+                // Payload full - skip remaining signals (will be included in next batch)
+                signals_skipped := signals_skipped + 1
     
     // Send MFE batch alert
     string ts = str.format("{0,date,yyyy-MM-dd}T{0,time,HH:mm:ss}", time)

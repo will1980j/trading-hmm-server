@@ -1323,7 +1323,7 @@ def register_indicator_export_routes(app):
         logger.info(f"[INDICATOR_EXPORT] event_type={event_type}, batch={batch_number}, size={batch_size}, hash={payload_hash[:8]}")
         
         # Validate event_type
-        valid_types = ['INDICATOR_EXPORT_V2', 'ALL_SIGNALS_EXPORT']
+        valid_types = ['INDICATOR_EXPORT_V2', 'ALL_SIGNALS_EXPORT', 'MFE_UPDATE_BATCH']
         is_valid = event_type in valid_types and isinstance(signals, list)
         validation_error = None if is_valid else f"Invalid event_type or signals not array"
         
@@ -1365,6 +1365,72 @@ def register_indicator_export_routes(app):
                         elif event_type == "INDICATOR_EXPORT_V2":
                             from services.indicator_export_importer import import_indicator_export_v2
                             import_result = import_indicator_export_v2(batch_id)
+                        elif event_type == "MFE_UPDATE_BATCH":
+                            # Auto-import MFE batch into confirmed_signals_ledger
+                            processed = 0
+                            upserted = 0
+                            skipped = 0
+                            
+                            conn_import = psycopg2.connect(DATABASE_URL)
+                            cursor_import = conn_import.cursor()
+                            
+                            for signal in signals:
+                                trade_id = signal.get('trade_id')
+                                if not trade_id:
+                                    skipped += 1
+                                    continue
+                                
+                                # Parse values with defaults
+                                be_mfe_val = 0.0
+                                no_be_mfe_val = 0.0
+                                mae_val = 0.0
+                                
+                                try:
+                                    if signal.get('be_mfe') is not None:
+                                        be_mfe_val = float(signal.get('be_mfe'))
+                                except (ValueError, TypeError):
+                                    be_mfe_val = 0.0
+                                
+                                try:
+                                    if signal.get('no_be_mfe') is not None:
+                                        no_be_mfe_val = float(signal.get('no_be_mfe'))
+                                except (ValueError, TypeError):
+                                    no_be_mfe_val = 0.0
+                                
+                                try:
+                                    mae_raw = signal.get('mae_global_r') or signal.get('mae')
+                                    if mae_raw is not None:
+                                        mae_val = float(mae_raw)
+                                        if mae_val > 0.0:
+                                            mae_val = 0.0
+                                except (ValueError, TypeError):
+                                    mae_val = 0.0
+                                
+                                # Upsert
+                                cursor_import.execute("""
+                                    INSERT INTO confirmed_signals_ledger 
+                                    (trade_id, be_mfe, no_be_mfe, mae, direction, session, updated_at, last_seen_batch_id)
+                                    VALUES (%s, %s, %s, %s, %s, %s, NOW(), %s)
+                                    ON CONFLICT (trade_id) DO UPDATE SET
+                                        be_mfe = COALESCE(EXCLUDED.be_mfe, confirmed_signals_ledger.be_mfe),
+                                        no_be_mfe = COALESCE(EXCLUDED.no_be_mfe, confirmed_signals_ledger.no_be_mfe),
+                                        mae = COALESCE(EXCLUDED.mae, confirmed_signals_ledger.mae),
+                                        direction = COALESCE(EXCLUDED.direction, confirmed_signals_ledger.direction),
+                                        session = COALESCE(EXCLUDED.session, confirmed_signals_ledger.session),
+                                        updated_at = NOW(),
+                                        last_seen_batch_id = EXCLUDED.last_seen_batch_id
+                                """, (trade_id, be_mfe_val, no_be_mfe_val, mae_val, 
+                                      signal.get('direction'), signal.get('session'), batch_id))
+                                
+                                processed += 1
+                                upserted += 1
+                            
+                            conn_import.commit()
+                            cursor_import.close()
+                            conn_import.close()
+                            
+                            logger.info(f"[INDICATOR_EXPORT_AUTOIMPORT_MFE] ✅ batch_id={batch_id}, processed={processed}, upserted={upserted}, skipped={skipped}")
+                            import_result = {'success': True, 'inserted': 0, 'updated': upserted, 'skipped_invalid': skipped}
                         else:
                             import_result = None
                         
