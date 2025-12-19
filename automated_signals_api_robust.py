@@ -1352,6 +1352,27 @@ def register_indicator_export_routes(app):
         is_valid = event_type in valid_types and isinstance(signals, list)
         validation_error = None if is_valid else f"Invalid {event_type}: event_type={event_type} signals_type={type(signals).__name__}"
         
+        # Dry-run mode - validate without inserting
+        dry_run = request.args.get('dry_run') == '1'
+        if dry_run:
+            first_signal_keys = None
+            if isinstance(signals, list) and len(signals) > 0:
+                first_signal = signals[0]
+                if isinstance(first_signal, dict):
+                    first_signal_keys = list(first_signal.keys())[:30]
+            
+            logger.info(f"[INDICATOR_EXPORT_DRYRUN] event_type={event_type}, is_valid={is_valid}, validation_error={validation_error}, signals_len={len(signals) if isinstance(signals, list) else None}, first_signal_keys={first_signal_keys}")
+            
+            return jsonify({
+                'dry_run': True,
+                'is_valid': is_valid,
+                'validation_error': validation_error,
+                'event_type': event_type,
+                'signals_is_array': isinstance(signals, list),
+                'signals_len': len(signals) if isinstance(signals, list) else None,
+                'first_signal_keys': first_signal_keys
+            }), 200
+        
         # Insert into database
         try:
             DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
