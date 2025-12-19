@@ -2149,6 +2149,66 @@ def register_indicator_export_routes(app):
             logger.error(f"[INDICATOR_BATCHES] ❌ Error: {e}")
             return jsonify({'success': False, 'error': str(e), 'batches': [], 'count': 0}), 500
     
+    @app.route('/api/indicator-export/debug/batch/<int:batch_id>', methods=['GET'])
+    def debug_batch_payload(batch_id):
+        """Inspect raw payload of a specific batch for debugging."""
+        import os
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        
+        logger.info(f"[INDICATOR_EXPORT_DEBUG_BATCH] Inspecting batch_id={batch_id}")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PUBLIC_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute("""
+                SELECT id, received_at, event_type, is_valid, validation_error, payload_json
+                FROM indicator_export_batches
+                WHERE id = %s
+                LIMIT 1
+            """, (batch_id,))
+            
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if not row:
+                return jsonify({'success': False, 'error': 'not_found'}), 404
+            
+            payload = row['payload_json'] or {}
+            signals_raw = payload.get('signals')
+            
+            # Determine signals type and preview
+            signals_type = type(signals_raw).__name__
+            signals_preview = None
+            
+            if isinstance(signals_raw, list):
+                signals_preview = signals_raw[0] if len(signals_raw) > 0 else None
+            elif isinstance(signals_raw, dict):
+                signals_preview = signals_raw
+            elif isinstance(signals_raw, str):
+                signals_preview = signals_raw[:200]
+            
+            logger.info(f"[INDICATOR_EXPORT_DEBUG_BATCH] batch_id={batch_id}, signals_type={signals_type}")
+            
+            return jsonify({
+                'success': True,
+                'id': row['id'],
+                'received_at': row['received_at'].isoformat() if row['received_at'] else None,
+                'event_type': row['event_type'],
+                'is_valid': row['is_valid'],
+                'validation_error': row['validation_error'],
+                'signals_type': signals_type,
+                'signals_preview': signals_preview,
+                'payload_keys': list(payload.keys())
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[INDICATOR_EXPORT_DEBUG_BATCH] ❌ Exception: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
     @app.route('/api/indicator-export/import-confirmed-run', methods=['POST'])
     def import_confirmed_run():
         """Import all batches for the most recent INDICATOR_EXPORT_V2 export run."""
