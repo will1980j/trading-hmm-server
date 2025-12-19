@@ -2209,6 +2209,54 @@ def register_indicator_export_routes(app):
             logger.error(f"[INDICATOR_EXPORT_DEBUG_BATCH] ❌ Exception: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
     
+    @app.route('/api/indicator-live/debug/last-valid-mfe', methods=['GET'])
+    def debug_last_valid_mfe():
+        """Get the latest valid MFE_UPDATE_BATCH for quick verification."""
+        import os
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        
+        logger.info("[LIVE_MFE_DEBUG] Fetching last valid MFE batch")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PUBLIC_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute("""
+                SELECT id, received_at, batch_size, validation_error, payload_json
+                FROM indicator_export_batches
+                WHERE event_type = 'MFE_UPDATE_BATCH' AND is_valid = true
+                ORDER BY received_at DESC
+                LIMIT 1
+            """)
+            
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if not row:
+                return jsonify({'success': False, 'error': 'no_valid_mfe_batches'}), 404
+            
+            payload = row['payload_json'] or {}
+            signals = payload.get('signals', [])
+            signal_preview = signals[0] if isinstance(signals, list) and len(signals) > 0 else None
+            
+            logger.info(f"[LIVE_MFE_DEBUG] Found batch_id={row['id']}, batch_size={row['batch_size']}")
+            
+            return jsonify({
+                'success': True,
+                'id': row['id'],
+                'received_at': row['received_at'].isoformat() if row['received_at'] else None,
+                'batch_size': row['batch_size'],
+                'validation_error': row['validation_error'],
+                'signal_preview': signal_preview
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[LIVE_MFE_DEBUG] ❌ Exception: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
     @app.route('/api/indicator-export/import-confirmed-run', methods=['POST'])
     def import_confirmed_run():
         """Import all batches for the most recent INDICATOR_EXPORT_V2 export run."""
