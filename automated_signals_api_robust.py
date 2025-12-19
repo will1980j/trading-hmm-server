@@ -1320,12 +1320,26 @@ def register_indicator_export_routes(app):
         total_signals = data.get('total_signals')
         signals = data.get('signals', [])
         
+        # Normalize signals for MFE_UPDATE_BATCH
+        if event_type == "MFE_UPDATE_BATCH":
+            if isinstance(signals, dict):
+                signals = [signals]
+            elif isinstance(signals, str):
+                try:
+                    parsed = json.loads(signals)
+                    if isinstance(parsed, list):
+                        signals = parsed
+                    elif isinstance(parsed, dict):
+                        signals = [parsed]
+                except:
+                    pass
+        
         logger.info(f"[INDICATOR_EXPORT] event_type={event_type}, batch={batch_number}, size={batch_size}, hash={payload_hash[:8]}")
         
         # Validate event_type
         valid_types = ['INDICATOR_EXPORT_V2', 'ALL_SIGNALS_EXPORT', 'MFE_UPDATE_BATCH']
         is_valid = event_type in valid_types and isinstance(signals, list)
-        validation_error = None if is_valid else f"Invalid event_type or signals not array"
+        validation_error = None if is_valid else f"Invalid {event_type}: event_type={event_type} signals_type={type(signals).__name__}"
         
         # Insert into database
         try:
@@ -1380,22 +1394,22 @@ def register_indicator_export_routes(app):
                                     skipped += 1
                                     continue
                                 
-                                # Parse values with defaults
-                                be_mfe_val = 0.0
-                                no_be_mfe_val = 0.0
-                                mae_val = 0.0
+                                # Parse values (default None to avoid overwriting with zeros)
+                                be_mfe_val = None
+                                no_be_mfe_val = None
+                                mae_val = None
                                 
                                 try:
                                     if signal.get('be_mfe') is not None:
                                         be_mfe_val = float(signal.get('be_mfe'))
                                 except (ValueError, TypeError):
-                                    be_mfe_val = 0.0
+                                    be_mfe_val = None
                                 
                                 try:
                                     if signal.get('no_be_mfe') is not None:
                                         no_be_mfe_val = float(signal.get('no_be_mfe'))
                                 except (ValueError, TypeError):
-                                    no_be_mfe_val = 0.0
+                                    no_be_mfe_val = None
                                 
                                 try:
                                     mae_raw = signal.get('mae_global_r') or signal.get('mae')
@@ -1404,7 +1418,7 @@ def register_indicator_export_routes(app):
                                         if mae_val > 0.0:
                                             mae_val = 0.0
                                 except (ValueError, TypeError):
-                                    mae_val = 0.0
+                                    mae_val = None
                                 
                                 # Upsert
                                 cursor_import.execute("""
