@@ -1316,23 +1316,34 @@ def register_indicator_export_routes(app):
         # Extract envelope fields
         event_type = data.get('event_type')
         batch_number = data.get('batch_number')
-        batch_size = data.get('batch_size')
         total_signals = data.get('total_signals')
-        signals = data.get('signals', [])
+        raw_signals = data.get('signals', [])
         
-        # Normalize signals for MFE_UPDATE_BATCH
+        # Normalize signals for MFE_UPDATE_BATCH BEFORE validation
+        signals = raw_signals
         if event_type == "MFE_UPDATE_BATCH":
-            if isinstance(signals, dict):
-                signals = [signals]
-            elif isinstance(signals, str):
+            if isinstance(raw_signals, dict):
+                signals = [raw_signals]
+            elif isinstance(raw_signals, str):
                 try:
-                    parsed = json.loads(signals)
+                    parsed = json.loads(raw_signals)
                     if isinstance(parsed, list):
                         signals = parsed
                     elif isinstance(parsed, dict):
                         signals = [parsed]
+                    else:
+                        signals = []
                 except:
-                    pass
+                    signals = []
+            elif isinstance(raw_signals, list):
+                signals = raw_signals
+            else:
+                signals = []
+            
+            logger.info(f"[INDICATOR_EXPORT] MFE_NORMALIZED signals_type={type(raw_signals).__name__} signals_count={len(signals)}")
+        
+        # Compute batch_size from normalized signals
+        batch_size = len(signals) if event_type == "MFE_UPDATE_BATCH" else data.get('batch_size')
         
         logger.info(f"[INDICATOR_EXPORT] event_type={event_type}, batch={batch_number}, size={batch_size}, hash={payload_hash[:8]}")
         
