@@ -3095,6 +3095,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const dataQualityTab = document.getElementById('data-quality-tab');
     if (dataQualityTab) {
         dataQualityTab.addEventListener('shown.bs.tab', () => {
+            const pane = document.getElementById('tab-data-quality');
+            if (pane) pane.scrollIntoView({behavior:'instant', block:'start'});
+            window.scrollTo({top: 0, behavior: 'instant'});
             AutomatedSignalsUltra.loadIndicatorHealthPanel();
             if (dqHealthInterval) clearInterval(dqHealthInterval);
             dqHealthInterval = setInterval(() => {

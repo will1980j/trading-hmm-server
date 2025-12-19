@@ -2422,6 +2422,70 @@ def register_indicator_export_routes(app):
                 'success': False,
                 'error': str(e)
             }), 500
+    
+    @app.route('/api/indicator-live/debug/find-mfe-trade', methods=['GET'])
+    def debug_find_mfe_trade():
+        """Find which MFE_UPDATE_BATCH batches contain a specific trade_id."""
+        import os
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        from flask import request
+        
+        trade_id = request.args.get('trade_id')
+        if not trade_id:
+            return jsonify({'success': False, 'error': 'missing_trade_id'}), 400
+        
+        logger.info(f"[LIVE_MFE_DEBUG] Searching for trade_id: {trade_id}")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PUBLIC_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            # Search last 300 MFE_UPDATE_BATCH batches
+            cursor.execute("""
+                SELECT id, received_at, batch_size, payload_json
+                FROM indicator_export_batches
+                WHERE event_type = 'MFE_UPDATE_BATCH'
+                ORDER BY received_at DESC
+                LIMIT 300
+            """)
+            
+            rows = cursor.fetchall()
+            found_batches = []
+            example_signal = None
+            
+            for row in rows:
+                payload = row['payload_json']
+                if payload and 'signals' in payload:
+                    signals = payload.get('signals', [])
+                    for sig in signals:
+                        if sig.get('trade_id') == trade_id:
+                            found_batches.append({
+                                'id': row['id'],
+                                'received_at': row['received_at'].isoformat() if row['received_at'] else None,
+                                'batch_size': row['batch_size']
+                            })
+                            if example_signal is None:
+                                example_signal = sig
+                            break
+            
+            cursor.close()
+            conn.close()
+            
+            logger.info(f"[LIVE_MFE_DEBUG] Found {len(found_batches)} batches containing {trade_id}")
+            
+            return jsonify({
+                'success': True,
+                'trade_id': trade_id,
+                'found_count': len(found_batches),
+                'found_batches': found_batches,
+                'example_signal': example_signal
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[LIVE_MFE_DEBUG] ❌ Exception: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     @app.route('/api/indicator-live/mfe-batch', methods=['POST'])
     def live_mfe_batch():
@@ -2549,33 +2613,33 @@ def register_indicator_export_routes(app):
                 except (ValueError, TypeError):
                     pass
                 
-                # Parse be_mfe/no_be_mfe/mae (safe float conversion)
-                be_mfe = None
-                no_be_mfe = None
-                mae = None
+                # Parse be_mfe/no_be_mfe/mae (safe float conversion, default to 0.0)
+                be_mfe_val = 0.0
+                no_be_mfe_val = 0.0
+                mae_val = 0.0
                 
                 try:
                     if signal.get('be_mfe') is not None:
-                        be_mfe = float(signal.get('be_mfe'))
+                        be_mfe_val = float(signal.get('be_mfe'))
                 except (ValueError, TypeError):
-                    pass
+                    be_mfe_val = 0.0
                 
                 try:
                     if signal.get('no_be_mfe') is not None:
-                        no_be_mfe = float(signal.get('no_be_mfe'))
+                        no_be_mfe_val = float(signal.get('no_be_mfe'))
                 except (ValueError, TypeError):
-                    pass
+                    no_be_mfe_val = 0.0
                 
                 try:
-                    mae_val = signal.get('mae_global_r') or signal.get('mae')
-                    if mae_val is not None:
-                        mae = float(mae_val)
+                    mae_raw = signal.get('mae_global_r') or signal.get('mae')
+                    if mae_raw is not None:
+                        mae_val = float(mae_raw)
                         # Clamp MAE to <= 0.0
-                        if mae > 0.0:
-                            logger.warning(f"[LIVE_MFE_BATCH] MAE > 0 for {trade_id}: {mae}, clamping to 0.0")
-                            mae = 0.0
+                        if mae_val > 0.0:
+                            logger.warning(f"[LIVE_MFE_BATCH] MAE > 0 for {trade_id}: {mae_val}, clamping to 0.0")
+                            mae_val = 0.0
                 except (ValueError, TypeError):
-                    pass
+                    mae_val = 0.0
                 
                 # Upsert into confirmed_signals_ledger
                 cursor.execute("""
@@ -2593,7 +2657,7 @@ def register_indicator_export_routes(app):
                         mae = COALESCE(EXCLUDED.mae, confirmed_signals_ledger.mae),
                         updated_at = NOW()
                 """, (trade_id, triangle_time_ms, signal.get('direction'), signal.get('session'), 
-                      entry, stop, be_mfe, no_be_mfe, mae))
+                      entry, stop, be_mfe_val, no_be_mfe_val, mae_val))
                 
                 processed += 1
                 upserted += 1
