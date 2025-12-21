@@ -4,10 +4,19 @@ Processes OHLC snapshots to update trade metrics without Pine dependency
 """
 import psycopg2
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 import os
 
 DATABASE_URL = os.getenv('DATABASE_URL')
+
+def get_confirmed_ledger_columns(cur) -> Set[str]:
+    """Get actual column names from confirmed_signals_ledger"""
+    cur.execute("""
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'confirmed_signals_ledger'
+    """)
+    return {row[0] for row in cur.fetchall()}
 
 def process_price_snapshot(snapshot: Dict) -> Dict:
     """
@@ -46,48 +55,74 @@ def process_price_snapshot(snapshot: Dict) -> Dict:
         except:
             pass  # Non-critical
         
-        # Introspect schema to determine column names
-        cur.execute("""
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'confirmed_signals_ledger'
-            AND column_name IN ('entry', 'entry_price', 'stop', 'stop_price', 'risk_r', 'risk_R', 'risk', 'mae', 'mae_global_r', 'be_triggered')
-        """)
-        existing_cols = {row[0] for row in cur.fetchall()}
+        # Introspect schema
+        cols = get_confirmed_ledger_columns(cur)
         
         # Determine column names
-        entry_col = 'entry' if 'entry' in existing_cols else 'entry_price'
-        stop_col = 'stop' if 'stop' in existing_cols else 'stop_price'
-        risk_col = 'risk_r' if 'risk_r' in existing_cols else ('risk_R' if 'risk_R' in existing_cols else 'risk')
-        mae_col = 'mae' if 'mae' in existing_cols else 'mae_global_r'
-        has_be_triggered = 'be_triggered' in existing_cols
+        entry_col = 'entry' if 'entry' in cols else 'entry_price'
+        stop_col = 'stop' if 'stop' in cols else 'stop_price'
         
-        # Build dynamic query
-        select_cols = f"""
-            trade_id, direction, {entry_col}, {stop_col}, 
-            {risk_col}, no_be_mfe, be_mfe, {mae_col}
-        """
+        risk_col = None
+        if 'risk_r' in cols:
+            risk_col = 'risk_r'
+        elif 'risk_R' in cols:
+            risk_col = 'risk_R'
+        elif 'risk' in cols:
+            risk_col = 'risk'
+        
+        mae_col = None
+        if 'mae' in cols:
+            mae_col = 'mae'
+        elif 'mae_global_r' in cols:
+            mae_col = 'mae_global_r'
+        
+        has_be_triggered = 'be_triggered' in cols
+        has_completed = 'completed' in cols
+        
+        # Build SELECT
+        select_parts = [
+            'trade_id',
+            'direction',
+            entry_col,
+            stop_col,
+            f'{risk_col}' if risk_col else 'NULL as risk',
+            'no_be_mfe',
+            'be_mfe',
+            f'{mae_col}' if mae_col else 'NULL as mae'
+        ]
         if has_be_triggered:
-            select_cols += ", be_triggered"
+            select_parts.append('be_triggered')
+        else:
+            select_parts.append('NULL as be_triggered')
         
-        # Get all active trades for this symbol
+        select_sql = ', '.join(select_parts)
+        
+        # Get all active trades
+        where_clause = f"symbol = %s AND {('completed = false' if has_completed else '1=1')}"
         cur.execute(f"""
-            SELECT {select_cols}
+            SELECT {select_sql}
             FROM confirmed_signals_ledger
-            WHERE symbol = %s AND completed = false
+            WHERE {where_clause}
         """, (symbol,))
         
         active_trades = cur.fetchall()
+        col_names = [desc[0] for desc in cur.description]
         updated_count = 0
         
-        for trade in active_trades:
-            if has_be_triggered:
-                trade_id, direction, entry, stop, risk_r, curr_no_be_mfe, curr_be_mfe, curr_mae, be_triggered = trade
-            else:
-                trade_id, direction, entry, stop, risk_r, curr_no_be_mfe, curr_be_mfe, curr_mae = trade
-                be_triggered = False
+        for row in active_trades:
+            trade_dict = dict(zip(col_names, row))
             
-            # Compute risk_r if not stored
+            trade_id = trade_dict['trade_id']
+            direction = trade_dict['direction']
+            entry = trade_dict.get(entry_col)
+            stop = trade_dict.get(stop_col)
+            risk_r = trade_dict.get('risk') or trade_dict.get(risk_col) if risk_col else None
+            curr_no_be_mfe = trade_dict.get('no_be_mfe') or 0.0
+            curr_be_mfe = trade_dict.get('be_mfe') or 0.0
+            curr_mae = trade_dict.get('mae') or 0.0
+            be_triggered = trade_dict.get('be_triggered') or False
+            
+            # Compute risk if not stored
             if not risk_r and entry and stop:
                 risk_r = abs(entry - stop)
             
@@ -105,49 +140,45 @@ def process_price_snapshot(snapshot: Dict) -> Dict:
                 stop_hit = high >= stop
             
             # Update values
-            new_no_be_mfe = max(curr_no_be_mfe or 0.0, mfe_candidate)
-            new_mae = min(curr_mae or 0.0, mae_candidate, 0.0)
+            new_no_be_mfe = max(curr_no_be_mfe, mfe_candidate)
+            new_mae = min(curr_mae, mae_candidate, 0.0)
             
             # BE logic
             new_be_triggered = be_triggered
             if not be_triggered and new_no_be_mfe >= 1.0:
                 new_be_triggered = True
             
-            # BE MFE continues tracking until completion
-            new_be_mfe = max(curr_be_mfe or 0.0, mfe_candidate)
-            # BE MFE cannot exceed no_be_mfe
+            # BE MFE continues tracking
+            new_be_mfe = max(curr_be_mfe, mfe_candidate)
             new_be_mfe = min(new_be_mfe, new_no_be_mfe)
             
-            # Build UPDATE statement
-            update_cols = f"no_be_mfe = %s, be_mfe = %s, {mae_col} = %s"
-            if has_be_triggered:
-                update_cols += ", be_triggered = %s"
-            update_cols += ", updated_at = NOW()"
+            # Build UPDATE
+            update_parts = ['no_be_mfe = %s', 'be_mfe = %s']
+            params = [new_no_be_mfe, new_be_mfe]
             
-            # Check completion
-            if stop_hit:
-                update_cols += ", completed = true, completed_at = %s"
-                params = [new_no_be_mfe, new_be_mfe, new_mae]
-                if has_be_triggered:
-                    params.append(new_be_triggered)
-                params.extend([datetime.fromtimestamp(bar_ts / 1000), trade_id])
-                
-                cur.execute(f"""
-                    UPDATE confirmed_signals_ledger
-                    SET {update_cols}
-                    WHERE trade_id = %s
-                """, params)
-            else:
-                params = [new_no_be_mfe, new_be_mfe, new_mae]
-                if has_be_triggered:
-                    params.append(new_be_triggered)
-                params.append(trade_id)
-                
-                cur.execute(f"""
-                    UPDATE confirmed_signals_ledger
-                    SET {update_cols}
-                    WHERE trade_id = %s
-                """, params)
+            if mae_col:
+                update_parts.append(f'{mae_col} = %s')
+                params.append(new_mae)
+            
+            if has_be_triggered:
+                update_parts.append('be_triggered = %s')
+                params.append(new_be_triggered)
+            
+            update_parts.append('updated_at = NOW()')
+            
+            if stop_hit and has_completed:
+                update_parts.append('completed = true')
+                update_parts.append('completed_at = %s')
+                params.append(datetime.fromtimestamp(bar_ts / 1000))
+            
+            params.append(trade_id)
+            
+            update_sql = ', '.join(update_parts)
+            cur.execute(f"""
+                UPDATE confirmed_signals_ledger
+                SET {update_sql}
+                WHERE trade_id = %s
+            """, params)
             
             updated_count += 1
         
