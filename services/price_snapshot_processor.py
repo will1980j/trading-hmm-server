@@ -46,10 +46,33 @@ def process_price_snapshot(snapshot: Dict) -> Dict:
         except:
             pass  # Non-critical
         
-        # Get all active trades for this symbol
+        # Introspect schema to determine column names
         cur.execute("""
-            SELECT trade_id, direction, entry_price, stop_price, risk_r,
-                   no_be_mfe, be_mfe, mae, be_triggered
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'confirmed_signals_ledger'
+            AND column_name IN ('entry', 'entry_price', 'stop', 'stop_price', 'risk_r', 'risk_R', 'risk', 'mae', 'mae_global_r', 'be_triggered')
+        """)
+        existing_cols = {row[0] for row in cur.fetchall()}
+        
+        # Determine column names
+        entry_col = 'entry' if 'entry' in existing_cols else 'entry_price'
+        stop_col = 'stop' if 'stop' in existing_cols else 'stop_price'
+        risk_col = 'risk_r' if 'risk_r' in existing_cols else ('risk_R' if 'risk_R' in existing_cols else 'risk')
+        mae_col = 'mae' if 'mae' in existing_cols else 'mae_global_r'
+        has_be_triggered = 'be_triggered' in existing_cols
+        
+        # Build dynamic query
+        select_cols = f"""
+            trade_id, direction, {entry_col}, {stop_col}, 
+            {risk_col}, no_be_mfe, be_mfe, {mae_col}
+        """
+        if has_be_triggered:
+            select_cols += ", be_triggered"
+        
+        # Get all active trades for this symbol
+        cur.execute(f"""
+            SELECT {select_cols}
             FROM confirmed_signals_ledger
             WHERE symbol = %s AND completed = false
         """, (symbol,))
@@ -58,7 +81,15 @@ def process_price_snapshot(snapshot: Dict) -> Dict:
         updated_count = 0
         
         for trade in active_trades:
-            trade_id, direction, entry, stop, risk_r, curr_no_be_mfe, curr_be_mfe, curr_mae, be_triggered = trade
+            if has_be_triggered:
+                trade_id, direction, entry, stop, risk_r, curr_no_be_mfe, curr_be_mfe, curr_mae, be_triggered = trade
+            else:
+                trade_id, direction, entry, stop, risk_r, curr_no_be_mfe, curr_be_mfe, curr_mae = trade
+                be_triggered = False
+            
+            # Compute risk_r if not stored
+            if not risk_r and entry and stop:
+                risk_r = abs(entry - stop)
             
             if not entry or not stop or not risk_r or risk_r == 0:
                 continue
@@ -87,23 +118,36 @@ def process_price_snapshot(snapshot: Dict) -> Dict:
             # BE MFE cannot exceed no_be_mfe
             new_be_mfe = min(new_be_mfe, new_no_be_mfe)
             
+            # Build UPDATE statement
+            update_cols = f"no_be_mfe = %s, be_mfe = %s, {mae_col} = %s"
+            if has_be_triggered:
+                update_cols += ", be_triggered = %s"
+            update_cols += ", updated_at = NOW()"
+            
             # Check completion
             if stop_hit:
-                cur.execute("""
+                update_cols += ", completed = true, completed_at = %s"
+                params = [new_no_be_mfe, new_be_mfe, new_mae]
+                if has_be_triggered:
+                    params.append(new_be_triggered)
+                params.extend([datetime.fromtimestamp(bar_ts / 1000), trade_id])
+                
+                cur.execute(f"""
                     UPDATE confirmed_signals_ledger
-                    SET no_be_mfe = %s, be_mfe = %s, mae = %s,
-                        be_triggered = %s, completed = true,
-                        completed_at = %s, updated_at = NOW()
+                    SET {update_cols}
                     WHERE trade_id = %s
-                """, (new_no_be_mfe, new_be_mfe, new_mae, new_be_triggered,
-                      datetime.fromtimestamp(bar_ts / 1000), trade_id))
+                """, params)
             else:
-                cur.execute("""
+                params = [new_no_be_mfe, new_be_mfe, new_mae]
+                if has_be_triggered:
+                    params.append(new_be_triggered)
+                params.append(trade_id)
+                
+                cur.execute(f"""
                     UPDATE confirmed_signals_ledger
-                    SET no_be_mfe = %s, be_mfe = %s, mae = %s,
-                        be_triggered = %s, updated_at = NOW()
+                    SET {update_cols}
                     WHERE trade_id = %s
-                """, (new_no_be_mfe, new_be_mfe, new_mae, new_be_triggered, trade_id))
+                """, params)
             
             updated_count += 1
         
