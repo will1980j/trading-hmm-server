@@ -1376,7 +1376,7 @@ def register_indicator_export_routes(app):
         logger.info(f"[INDICATOR_EXPORT] event_type={event_type}, batch={batch_number}, size={batch_size}, hash={payload_hash[:8]}, symbol={symbol_log}")
         
         # Validate event_type
-        valid_types = ['INDICATOR_EXPORT_V2', 'ALL_SIGNALS_EXPORT', 'MFE_UPDATE_BATCH']
+        valid_types = ['INDICATOR_EXPORT_V2', 'ALL_SIGNALS_EXPORT', 'MFE_UPDATE_BATCH', 'UNIFIED_SNAPSHOT_V1']
         is_valid = event_type in valid_types and isinstance(signals, list)
         validation_error = None if is_valid else f"Invalid {event_type}: event_type={event_type} signals_type={type(signals).__name__}"
         
@@ -1407,6 +1407,23 @@ def register_indicator_export_routes(app):
             conn = psycopg2.connect(DATABASE_URL)
             cursor = conn.cursor()
             
+            # Process price snapshot if present
+            if all(k in data for k in ['bar_ts', 'open', 'high', 'low', 'close']):
+                try:
+                    from services.price_snapshot_processor import process_price_snapshot
+                    snapshot_result = process_price_snapshot({
+                        'symbol': extract_symbol(data),
+                        'timeframe': data.get('timeframe', '1m'),
+                        'bar_ts': data['bar_ts'],
+                        'open': data['open'],
+                        'high': data['high'],
+                        'low': data['low'],
+                        'close': data['close']
+                    })
+                    logger.info(f"[INDICATOR_EXPORT] Price snapshot processed: {snapshot_result}")
+                except Exception as snap_err:
+                    logger.error(f"[INDICATOR_EXPORT] Price snapshot failed: {snap_err}")
+            
             cursor.execute("""
                 INSERT INTO indicator_export_batches 
                 (event_type, batch_number, batch_size, total_signals, payload_json, payload_sha256, is_valid, validation_error)
@@ -1436,7 +1453,7 @@ def register_indicator_export_routes(app):
                         if event_type == "ALL_SIGNALS_EXPORT":
                             from services.indicator_export_importer import import_all_signals_export
                             import_result = import_all_signals_export(batch_id)
-                        elif event_type == "INDICATOR_EXPORT_V2":
+                        elif event_type in ["INDICATOR_EXPORT_V2", "UNIFIED_SNAPSHOT_V1"]:
                             from services.indicator_export_importer import import_indicator_export_v2
                             import_result = import_indicator_export_v2(batch_id)
                         elif event_type == "MFE_UPDATE_BATCH":
