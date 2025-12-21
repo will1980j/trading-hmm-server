@@ -2239,6 +2239,47 @@ def system_time():
 
 
 # ============================================================================
+# PRICE SNAPSHOT API - Backend MFE/MAE calculation
+# ============================================================================
+@app.route('/api/price-snapshot', methods=['POST'])
+def price_snapshot():
+    """
+    Process OHLC price snapshot for backend MFE/MAE calculation
+    Payload: {symbol, timeframe, bar_ts, open, high, low, close}
+    """
+    try:
+        # Token authentication
+        expected_token = os.environ.get('PRICE_SNAPSHOT_TOKEN') or os.environ.get('INDICATOR_EXPORT_TOKEN')
+        if expected_token:
+            header_token = request.headers.get('X-Webhook-Token')
+            query_token = request.args.get('token')
+            
+            if not (header_token == expected_token or query_token == expected_token):
+                symbol = request.get_json().get('symbol', 'unknown') if request.get_json() else 'unknown'
+                logger.warning(f"[PRICE_SNAPSHOT] ❌ Unauthorized from {request.remote_addr} symbol={symbol}")
+                return jsonify({'error': 'unauthorized'}), 401
+        
+        from services.price_snapshot_processor import process_price_snapshot, validate_snapshot
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON payload required'}), 400
+        
+        # Validate
+        error = validate_snapshot(data)
+        if error:
+            return jsonify({'error': error}), 400
+        
+        # Process
+        result = process_price_snapshot(data)
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"Price snapshot error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
 # HOMEPAGE STATS API - Unified endpoint for homepage statistics
 # ============================================================================
 @app.route('/api/homepage-stats', methods=['GET'])

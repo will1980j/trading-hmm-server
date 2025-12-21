@@ -372,11 +372,146 @@ var array<string> all_signal_m15_bias = array.new<string>()    // 15M bias at si
 var array<string> all_signal_m5_bias = array.new<string>()     // 5M bias at signal time
 var array<string> all_signal_m1_bias = array.new<string>()     // 1M bias at signal time
 var array<int> all_signal_confirmed_index = array.new<int>()  // Index in confirmed signals arrays (-1 if not confirmed)
+var array<string> all_signal_trade_ids = array.new_string()     // Canonical trade_id per all-signal row
+var array<string> confirmed_trade_ids = array.new_string()      // Canonical trade_id per confirmed signal index
+
 var array<string> all_signal_htf_daily = array.new<string>()  // Daily bias at signal time
 var array<string> all_signal_htf_4h = array.new<string>()     // 4H bias at signal time
 var array<string> all_signal_htf_1h = array.new<string>()     // 1H bias at signal time
 var array<string> all_signal_htf_15m = array.new<string>()    // 15M bias at signal time
 var array<string> all_signal_htf_5m = array.new<string>()     // 5M bias at signal time
+
+// ===================== UNIFIED SNAPSHOT MODULE (PHASE 1) =====================
+
+// Inputs (Unified Snapshot)
+UNIFIED_MAX_HISTORY = input.int(5000, "Unified Max History", minval=500, maxval=20000, group="Unified Snapshot")
+ENABLE_UNIFIED_STREAM = input.bool(false, "Enable Unified Stream (Phase 1)", group="Unified Snapshot")
+ENABLE_FULL_SNAPSHOT_RESEND = input.bool(false, "Enable Full Snapshot Resend (Phase 1)", group="Unified Snapshot")
+FULL_RESEND_RATE_BARS = input.int(10, "Full Resend Rate (bars)", minval=1, maxval=500, group="Unified Snapshot")
+
+// Diff signature storage (Phase 1 infra)
+var array<string> unified_ids = array.new_string()
+var array<string> unified_sigs = array.new_string()
+
+// --- helpers ---
+f_biasTag(b) =>
+    b == "Bullish" ? "BULL" : b == "Bearish" ? "BEAR" : "NEUT"
+
+f_dateStrEt(ms) =>
+    str.tostring(year(ms, "America/New_York")) + "-" +
+     str.tostring(month(ms, "America/New_York"), "00") + "-" +
+     str.tostring(dayofmonth(ms, "America/New_York"), "00")
+
+f_num2(x) =>
+    na(x) ? "null" : str.tostring(x, "#.##")
+
+f_bool(x) =>
+    x ? "true" : "false"
+
+f_buildTradeId(datetime, direction) =>
+    year_str = str.tostring(year(datetime, "America/New_York"))
+    month_str = str.tostring(month(datetime, "America/New_York"), "00")
+    day_str = str.tostring(dayofmonth(datetime, "America/New_York"), "00")
+    hour_str = str.tostring(hour(datetime, "America/New_York"), "00")
+    minute_str = str.tostring(minute(datetime, "America/New_York"), "00")
+    second_str = str.tostring(second(datetime, "America/New_York"), "00")
+    millis_str = str.tostring(datetime % 1000, "000")
+    date_str = year_str + month_str + day_str
+    time_str = hour_str + minute_str + second_str + millis_str
+    date_str + "_" + time_str + "_" + str.upper(direction)
+
+f_sigForRecord(status, confirmation_time, bars_to_confirm, entry, stop, be_mfe, no_be_mfe, mae, completed, htf_daily, htf_4h, htf_1h, htf_15m, htf_5m, htf_1m) =>
+    (status + "|" + str.tostring(confirmation_time) + "|" + str.tostring(bars_to_confirm) + "|" + f_num2(entry) + "|" + f_num2(stop) + "|" + f_num2(be_mfe) + "|" + f_num2(no_be_mfe) + "|" + f_num2(mae) + "|" + f_bool(completed) + "|" + htf_daily + "|" + htf_4h + "|" + htf_1h + "|" + htf_15m + "|" + htf_5m + "|" + htf_1m)
+
+// Clamp ALL-SIGNALS history only (Phase 1)
+f_clampAllSignalsHistory(maxN) =>
+    int sz = array.size(all_signal_times)
+    if sz > maxN
+        int excess = sz - maxN
+        for k = 0 to excess - 1
+            // Remove oldest element across ALL aligned all_signal_* arrays
+            array.remove(all_signal_times, 0)
+            array.remove(all_signal_directions, 0)
+            array.remove(all_signal_status, 0)
+            array.remove(all_signal_confirmation_times, 0)
+            array.remove(all_signal_bars_to_confirm, 0)
+
+            array.remove(all_signal_daily_bias, 0)
+            array.remove(all_signal_h4_bias, 0)
+            array.remove(all_signal_h1_bias, 0)
+            array.remove(all_signal_m15_bias, 0)
+            array.remove(all_signal_m5_bias, 0)
+            array.remove(all_signal_m1_bias, 0)
+
+            array.remove(all_signal_confirmed_index, 0)
+
+            array.remove(all_signal_htf_daily, 0)
+            array.remove(all_signal_htf_4h, 0)
+            array.remove(all_signal_htf_1h, 0)
+            array.remove(all_signal_htf_15m, 0)
+            array.remove(all_signal_htf_5m, 0)
+
+
+
+
+// ============================================================================
+// DETERMINISTIC LINKING HELPERS — NO DUPLICATES, NO GUESSING
+// ============================================================================
+
+// Find confirmed signal index by canonical trade_id
+f_findConfirmedIndexByTradeId(tid) =>
+    int found = -1
+    int sz = array.size(confirmed_trade_ids)
+    if sz > 0
+        for j = sz - 1 to 0
+            if array.get(confirmed_trade_ids, j) == tid
+                found := j
+                break
+    found
+
+// Find all-signals row index by canonical trade_id
+f_findAllSignalIndexByTradeId(tid) =>
+    int found = -1
+    int sz = array.size(all_signal_trade_ids)
+    if sz > 0
+        for k = sz - 1 to 0
+            if array.get(all_signal_trade_ids, k) == tid
+                found := k
+                break
+    found
+
+
+// Build one unified record JSON fragment (Phase 1)
+
+// ===================== UNIFIED SNAPSHOT TABLE (PHASE 2) =====================
+
+SHOW_UNIFIED_TABLE = input.bool(false, "Show Unified Table", group="Unified Snapshot")
+UNIFIED_FILTER = input.string("LATEST_40", "Filter", options=["LATEST_40","ACTIVE_ONLY","ALL"], group="Unified Snapshot")
+UNIFIED_SORT = input.string("NEWEST", "Sort", options=["NEWEST","OLDEST"], group="Unified Snapshot")
+UNIFIED_START = input.int(0, "Start Index", minval=0, group="Unified Snapshot")
+UNIFIED_COUNT = input.int(40, "Rows Per Page", minval=5, maxval=50, group="Unified Snapshot")
+UNIFIED_FONT_SIZE = input.string("Small", "Font Size", options=["Tiny","Small","Normal"], group="Unified Snapshot")
+UNIFIED_POSITION = input.string("middle_right", "Table Position", options=["top_left","top_center","top_right","middle_left","middle_center","middle_right","bottom_left","bottom_center","bottom_right"], group="Unified Snapshot")
+
+f_font(sz) =>
+    sz == "Tiny" ? size.tiny : sz == "Normal" ? size.normal : size.small
+
+f_pos(p) =>
+    p == "top_left" ? position.top_left : p == "top_center" ? position.top_center : p == "top_right" ? position.top_right : p == "middle_left" ? position.middle_left : p == "middle_center" ? position.middle_center : p == "middle_right" ? position.middle_right : p == "bottom_left" ? position.bottom_left : p == "bottom_center" ? position.bottom_center : position.bottom_right
+
+f_statusBg(status) =>
+    status == "CONFIRMED" ? color.new(color.green, 85) : status == "COMPLETED" ? color.new(color.blue, 85) : status == "PENDING" ? color.new(color.orange, 85) : status == "CANCELLED" ? color.new(color.red, 85) : color.new(color.gray, 80)
+
+f_sessBg(sess) =>
+    sess == "ASIA" ? color.new(color.purple, 70) : sess == "LON" ? color.new(color.blue, 70) : sess == "PRE" ? color.new(color.teal, 70) : sess == "AM" or sess == "PM" ? color.new(color.green, 70) : sess == "LUN" ? color.new(color.yellow, 70) : color.new(color.gray, 70)
+
+f_rColor(r) =>
+    r >= 2.0 ? color.lime : r >= 1.0 ? color.green : r >= 0.5 ? color.yellow : color.silver
+
+f_maeColor(mae) =>
+    mae <= -1.0 ? color.red : mae < 0.0 ? color.orange : color.silver
+
+var table ut = table.new(f_pos(UNIFIED_POSITION), 22, 52, border_width=1)
 
 // ============================================================================
 // TELEMETRY ENGINE STATE (Option B - Single Active Trade Lifecycle)
@@ -459,6 +594,8 @@ if show_bull_triangle and active_signal != "Bullish"
     array.push(all_signal_htf_1h, h1_bias)
     array.push(all_signal_htf_15m, m15_bias)
     array.push(all_signal_htf_5m, m5_bias)
+    array.push(all_signal_trade_ids, f_buildTradeId(time, "Bullish"))
+
 
 if show_bear_triangle and active_signal != "Bearish"
     signal_candle_high := high
@@ -491,6 +628,8 @@ if show_bear_triangle and active_signal != "Bearish"
     array.push(all_signal_htf_1h, h1_bias)
     array.push(all_signal_htf_15m, m15_bias)
     array.push(all_signal_htf_5m, m5_bias)
+    array.push(all_signal_trade_ids, f_buildTradeId(time, "Bearish"))
+
     waiting_for_confirmation := true
     trade_ready := false
     entry_price := na
@@ -623,6 +762,7 @@ if waiting_for_confirmation and active_signal == "Bullish"
         array.push(signal_labels, label(na))
         array.push(signal_entry_times, time)  // Use CURRENT time (confirmation bar) for MFE tracking
         array.push(signal_triangle_times, signal_candle_time)  // Canonical trade identity time (triangle time)
+        array.push(confirmed_trade_ids, f_buildTradeId(signal_candle_time, "Bullish"))
         array.push(signal_lowest_lows, entry_price)  // Initialize with entry price for accurate MFE tracking
         array.push(signal_highest_highs, entry_price)  // Initialize with entry price for accurate MFE tracking
         array.push(signal_has_entered, false)  // Will be set to true on NEXT bar (after entry)
@@ -641,16 +781,18 @@ if waiting_for_confirmation and active_signal == "Bullish"
         // Let webhook code execute first, then reset on next bar
         confirmed_this_bar := true
         
-        // ALL SIGNALS: Update most recent Bullish signal to CONFIRMED
-        if array.size(all_signal_times) > 0
-            int last_idx = array.size(all_signal_times) - 1
-            if array.get(all_signal_directions, last_idx) == "Bullish"
-                array.set(all_signal_status, last_idx, "CONFIRMED")
-                array.set(all_signal_confirmation_times, last_idx, time)
-                int bars_waited = bar_index - signal_bar_index
-                array.set(all_signal_bars_to_confirm, last_idx, bars_waited)
-                // Link to confirmed signals array (will be added next bar)
-                array.set(all_signal_confirmed_index, last_idx, array.size(signal_entries) - 1)
+        // ALL SIGNALS: Deterministic link (NO GUESSING) — CONFIRMED → correct confirmed index via trade_id
+        int confirmed_idx = array.size(signal_entries) - 1
+        string tid = f_buildTradeId(signal_candle_time, "Bullish")
+        int aidx = f_findAllSignalIndexByTradeId(tid)
+
+        if aidx >= 0
+            array.set(all_signal_status, aidx, "CONFIRMED")
+            array.set(all_signal_confirmation_times, aidx, time)
+            int bars_waited = bar_index - signal_bar_index
+            array.set(all_signal_bars_to_confirm, aidx, bars_waited)
+            array.set(all_signal_confirmed_index, aidx, confirmed_idx)
+
 
 // ============================================================================
 // BEARISH CONFIRMATION & STOP LOSS CALCULATION
@@ -741,6 +883,7 @@ if waiting_for_confirmation and active_signal == "Bearish"
         array.push(signal_labels, label(na))
         array.push(signal_entry_times, time)  // Use CURRENT time (confirmation bar) for MFE tracking
         array.push(signal_triangle_times, signal_candle_time)  // Canonical trade identity time (triangle time)
+        array.push(confirmed_trade_ids, f_buildTradeId(signal_candle_time, "Bearish"))
         array.push(signal_lowest_lows, entry_price)  // Initialize with entry price for accurate MFE tracking
         array.push(signal_highest_highs, entry_price)  // Initialize with entry price for accurate MFE tracking
         array.push(signal_has_entered, false)  // Will be set to true on NEXT bar (after entry)
@@ -754,16 +897,17 @@ if waiting_for_confirmation and active_signal == "Bearish"
         // Let webhook code execute first, then reset on next bar
         confirmed_this_bar := true
         
-        // ALL SIGNALS: Update most recent Bearish signal to CONFIRMED
-        if array.size(all_signal_times) > 0
-            int last_idx = array.size(all_signal_times) - 1
-            if array.get(all_signal_directions, last_idx) == "Bearish"
-                array.set(all_signal_status, last_idx, "CONFIRMED")
-                array.set(all_signal_confirmation_times, last_idx, time)
-                int bars_waited = bar_index - signal_bar_index
-                array.set(all_signal_bars_to_confirm, last_idx, bars_waited)
-                // Link to confirmed signals array (will be added next bar)
-                array.set(all_signal_confirmed_index, last_idx, array.size(signal_entries) - 1)
+        // ALL SIGNALS: Deterministic link (NO GUESSING) — CONFIRMED → correct confirmed index via trade_id
+        int confirmed_idx = array.size(signal_entries) - 1
+        string tid = f_buildTradeId(signal_candle_time, "Bearish")
+        int aidx = f_findAllSignalIndexByTradeId(tid)
+
+        if aidx >= 0
+            array.set(all_signal_status, aidx, "CONFIRMED")
+            array.set(all_signal_confirmation_times, aidx, time)
+            int bars_waited = bar_index - signal_bar_index
+            array.set(all_signal_bars_to_confirm, aidx, bars_waited)
+            array.set(all_signal_confirmed_index, aidx, confirmed_idx)
 
 // ============================================================================
 // VISUALIZATION
@@ -1437,22 +1581,6 @@ get_session() =>
 // Helper function to create signal ID
 // ============================================================================
 // TRADE ID BUILDER (CANONICAL FORMAT)
-// ============================================================================
-// Format: YYYYMMDD_HHMMSSMMM_DIRECTION
-// Example: 20251120_170200000_BULLISH
-// CRITICAL: Uses America/New_York timezone to match TradingView chart display
-f_buildTradeId(datetime, direction) =>
-    year_str = str.tostring(year(datetime, "America/New_York"))
-    month_str = str.tostring(month(datetime, "America/New_York"), "00")
-    day_str = str.tostring(dayofmonth(datetime, "America/New_York"), "00")
-    hour_str = str.tostring(hour(datetime, "America/New_York"), "00")
-    minute_str = str.tostring(minute(datetime, "America/New_York"), "00")
-    second_str = str.tostring(second(datetime, "America/New_York"), "00")
-    millis_str = str.tostring(datetime % 1000, "000")  // Milliseconds for uniqueness
-    date_str = year_str + month_str + day_str
-    time_str = hour_str + minute_str + second_str + millis_str
-    date_str + "_" + time_str + "_" + str.upper(direction)
-
 
 // ============================================================================
 // TELEMETRY CONFIGURATION
@@ -1594,6 +1722,48 @@ f_buildPayload(eventType, tradeId, dir, entryPrice, stopPrice, bePrice, riskR, p
     p += '"htf_alignment":{"daily":"' + daily_bias + '","h4":"' + h4_bias + '","h1":"' + h1_bias + '","m15":"' + m15_bias + '","m5":"' + m5_bias + '","m1":"' + bias + '","all_bullish":' + str.tostring(htf_bullish) + ',"all_bearish":' + str.tostring(htf_bearish) + '}'
     jsonWrap(p)
 
+// Build one unified record JSON fragment (Phase 1) - MOVED AFTER HELPER FUNCTIONS
+f_buildUnifiedRecord(all_idx) =>
+    int signal_time = array.get(all_signal_times, all_idx)
+    string direction = array.get(all_signal_directions, all_idx)
+    string status_raw = array.get(all_signal_status, all_idx)
+    int confirmation_time = array.get(all_signal_confirmation_times, all_idx)
+    int bars_to_confirm = array.get(all_signal_bars_to_confirm, all_idx)
+    string trade_id = f_buildTradeId(signal_time, direction)
+    string date_str = f_dateStrEt(signal_time)
+    string session_str = f_sessionLabel(signal_time)
+    string htf_daily = f_biasTag(array.get(all_signal_daily_bias, all_idx))
+    string htf_4h = f_biasTag(array.get(all_signal_h4_bias, all_idx))
+    string htf_1h = f_biasTag(array.get(all_signal_h1_bias, all_idx))
+    string htf_15m = f_biasTag(array.get(all_signal_m15_bias, all_idx))
+    string htf_5m = f_biasTag(array.get(all_signal_m5_bias, all_idx))
+    string htf_1m = f_biasTag(array.get(all_signal_m1_bias, all_idx))
+    float entry = na
+    float stop = na
+    float risk = na
+    float be_mfe = 0.0
+    float no_be_mfe = 0.0
+    float mae = 0.0
+    bool completed = false
+    string status = status_raw
+    int confirmed_idx = array.get(all_signal_confirmed_index, all_idx)
+    bool confirmed_idx_ok = confirmed_idx >= 0 and confirmed_idx < array.size(signal_entries)
+    if confirmed_idx_ok
+        entry := array.get(signal_entries, confirmed_idx)
+        stop := array.get(signal_stops, confirmed_idx)
+        float r_abs = na(entry) or na(stop) ? na : math.abs(entry - stop)
+        risk := r_abs
+        be_mfe := confirmed_idx < array.size(signal_be_mfes) ? array.get(signal_be_mfes, confirmed_idx) : 0.0
+        no_be_mfe := confirmed_idx < array.size(signal_mfes) ? array.get(signal_mfes, confirmed_idx) : 0.0
+        float mae_raw = confirmed_idx < array.size(signal_maes) ? array.get(signal_maes, confirmed_idx) : 0.0
+        mae := math.min(nz(mae_raw, 0.0), 0.0)
+        completed := confirmed_idx < array.size(signal_no_be_stopped) ? array.get(signal_no_be_stopped, confirmed_idx) : false
+        if status_raw == "CONFIRMED" and completed
+            status := "COMPLETED"
+    int confirmation_time_clean = status == "PENDING" or status == "CANCELLED" ? 0 : confirmation_time
+    string j = ('"trade_id":"' + trade_id + '"' + ',"signal_time":' + str.tostring(signal_time) + ',"confirmation_time":' + str.tostring(confirmation_time_clean) + ',"status":"' + status + '"' + ',"direction":"' + direction + '"' + ',"date":"' + date_str + '"' + ',"session":"' + session_str + '"' + ',"bars_to_confirm":' + str.tostring(bars_to_confirm) + ',"entry":' + (na(entry) ? "null" : str.tostring(entry)) + ',"stop":' + (na(stop) ? "null" : str.tostring(stop)) + ',"risk":' + (na(risk) ? "null" : str.tostring(risk)) + ',"be_mfe":' + f_num2(be_mfe) + ',"no_be_mfe":' + f_num2(no_be_mfe) + ',"mae":' + f_num2(mae) + ',"completed":' + f_bool(completed) + ',"htf_daily":"' + htf_daily + '"' + ',"htf_4h":"' + htf_4h + '"' + ',"htf_1h":"' + htf_1h + '"' + ',"htf_15m":"' + htf_15m + '"' + ',"htf_5m":"' + htf_5m + '"' + ',"htf_1m":"' + htf_1m + '"')
+    j
+
 // Variables to track webhook sending for MULTIPLE signals
 var array<string> active_signal_ids = array.new_string(0)
 var array<int> active_signal_indices = array.new_int(0)  // BULLETPROOF: Store signal array index for each active signal
@@ -1616,6 +1786,26 @@ find_signal_index(signal_id) =>
 // Reset webhook flag on new bar
 if barstate.isconfirmed
     webhook_sent_this_bar := false
+    f_clampAllSignalsHistory(UNIFIED_MAX_HISTORY)
+
+// ============================================================================
+// PATCH F — DETERMINISTIC REPAIR OF CONFIRMED LINKAGE (NO DUPLICATES)
+// ============================================================================
+
+if barstate.islast and array.size(all_signal_times) > 0
+    int all_sz = array.size(all_signal_times)
+    for i = 0 to all_sz - 1
+        // Only repair CONFIRMED rows
+        string st = array.get(all_signal_status, i)
+        if st == "CONFIRMED"
+            int cidx = array.get(all_signal_confirmed_index, i)
+            bool valid = cidx >= 0 and cidx < array.size(signal_entries)
+
+            if not valid and i < array.size(all_signal_trade_ids)
+                string tid = array.get(all_signal_trade_ids, i)
+                int fixed_idx = f_findConfirmedIndexByTradeId(tid)
+                if fixed_idx >= 0
+                    array.set(all_signal_confirmed_index, i, fixed_idx)
 
 // SIGNAL_CREATED WEBHOOKS
 // Send when triangle first appears (before confirmation)
@@ -1761,16 +1951,14 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
     string test_add = ""
     int new_size = 0
     
-    // Round-robin scan starting from cursor (clamp to bounds)
-    int cursor_start = math.min(mfe_batch_cursor, array.size(signal_entries) - 1)
+    // Scan from newest to oldest (simple scan, no cursor)
+    int cursor_start = array.size(signal_entries) - 1
     int scan_limit = 500
     int scanned = 0
-    int last_i = cursor_start
     
     for i = cursor_start to 0
         scanned := scanned + 1
         if scanned > scan_limit or signals_in_batch >= 12
-            last_i := i
             break
         
         // Bounds check for all arrays
@@ -1789,8 +1977,6 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
         if sig_no_be_stopped
             continue
         
-        last_i := i
-        
         // Include this ACTIVE signal
         // Get MFE/MAE data with bounds checks
         current_mfe_be := i < array.size(signal_be_mfes) ? array.get(signal_be_mfes, i) : 0.0
@@ -1806,8 +1992,11 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
         sig_stop := i < array.size(signal_stops) ? array.get(signal_stops, i) : na
         sig_session := f_sessionLabel(tri_time)  // Calculate session from triangle time
         
-        // Build MFE_UPDATE_BATCH signal JSON (exact schema for confirmed_signals_ledger)
-        signal_json := '"trade_id":"' + signal_id + '","triangle_time":' + str.tostring(tri_time) + ',"confirmation_time":' + str.tostring(confirm_time) + ',"direction":"' + sig_direction + '","session":"' + sig_session + '","entry_price":' + f_num(sig_entry) + ',"stop_loss":' + f_num(sig_stop) + ',"be_mfe":' + f_num(current_mfe_be) + ',"no_be_mfe":' + f_num(current_mfe_none) + ',"mae_global_r":' + f_num(math.min(sig_mae, 0.0)) + ',"completed":' + str.tostring(sig_no_be_stopped)
+        // Build date string from triangle_time
+        string date_str = str.tostring(year(tri_time, "America/New_York")) + "-" + str.tostring(month(tri_time, "America/New_York"), "00") + "-" + str.tostring(dayofmonth(tri_time, "America/New_York"), "00")
+        
+        // Build MFE_UPDATE_BATCH signal JSON (backend-compatible schema)
+        signal_json := '"trade_id":"' + signal_id + '","triangle_time":' + str.tostring(tri_time) + ',"confirmation_time":' + str.tostring(confirm_time) + ',"date":"' + date_str + '","direction":"' + sig_direction + '","session":"' + sig_session + '","entry":' + f_num(sig_entry) + ',"stop":' + f_num(sig_stop) + ',"be_mfe":' + f_num(current_mfe_be) + ',"no_be_mfe":' + f_num(current_mfe_none) + ',"mae":' + f_num(math.min(sig_mae, 0.0)) + ',"completed":' + str.tostring(sig_no_be_stopped)
             
             // Check payload size before adding (stay under 4000 chars)
         test_add := signals_in_batch > 0 ? ",{" + signal_json + "}" : "{" + signal_json + "}"
@@ -1821,15 +2010,9 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
             // Payload full - stop scanning
             break
     
-    // Update cursor for next batch
-    mfe_batch_cursor := cursor_start - signals_in_batch
-    if mfe_batch_cursor < 0
-        mfe_batch_cursor := array.size(signal_entries) - 1
-    
     // Send MFE batch alert
-    string ts = str.format("{0,date,yyyy-MM-dd}T{0,time,HH:mm:ss}", time)
     if signals_in_batch > 0
-        string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","schema":"MFE_V1","timestamp":"' + ts + '","signals":[' + batch_payload + '],"batch_size":' + str.tostring(signals_in_batch) + ',"skipped":' + str.tostring(signals_skipped) + '}'
+        string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","batch_number":-1,"batch_size":' + str.tostring(signals_in_batch) + ',"total_signals":' + str.tostring(signals_in_batch) + ',"signals":[' + batch_payload + ']}'
         alert(batch_envelope, alert.freq_once_per_bar_close)
 
 // ============================================================================
@@ -2246,19 +2429,6 @@ if ENABLE_ALL_SIGNALS_EXPORT and not all_export_complete and barstate.islast
                             entry_val := str.tostring(e)
                             stop_val := str.tostring(s)
                             risk_val := str.tostring(math.abs(e - s))
-                    else
-                        // Fallback: time-window cross-reference
-                        for j = 0 to array.size(signal_entry_times) - 1
-                            int entry_time = array.get(signal_entry_times, j)
-                            string entry_dir = array.get(signal_directions, j)
-                            if math.abs(entry_time - sig_time) < 600000 and entry_dir == sig_dir
-                                float e = array.get(signal_entries, j)
-                                float s = array.get(signal_stops, j)
-                                if not na(e) and not na(s)
-                                    entry_val := str.tostring(e)
-                                    stop_val := str.tostring(s)
-                                    risk_val := str.tostring(math.abs(e - s))
-                                break
                 
                 // HTF bias (stored at signal time)
                 string stored_daily = array.get(all_signal_daily_bias, i)
@@ -2575,16 +2745,6 @@ if SHOW_ALL_SIGNALS and barstate.islast
         bool is_active = false
         bool is_be_triggered = false
         
-        if sig_status == "CONFIRMED" and array.size(signal_entry_times) > 0
-            for j = 0 to array.size(signal_entry_times) - 1
-                int entry_time = array.get(signal_entry_times, j)
-                string entry_dir = array.get(signal_directions, j)
-                if math.abs(entry_time - sig_time) < 600000 and entry_dir == sig_dir
-                    bool no_be_stopped = array.get(signal_no_be_stopped, j)
-                    is_active := not no_be_stopped
-                    is_be_triggered := array.get(signal_be_triggered, j)
-                    break
-        
         // Apply filter
         bool show_signal = false
         if ALL_SIGNALS_FILTER == "LATEST_40"
@@ -2655,7 +2815,7 @@ if SHOW_ALL_SIGNALS and barstate.islast
         // Colors
         color dir_color = sig_dir == "Bullish" ? color.green : color.red
         
-        // Cross-reference with Confirmed Signals to get Entry/Stop/Risk/MFE/MAE
+        // Cross-reference with Confirmed Signals using index
         string entry_str = "--"
         string stop_str = "--"
         string risk_str = "--"
@@ -2665,42 +2825,34 @@ if SHOW_ALL_SIGNALS and barstate.islast
         string status_display = sig_status
         color status_color = color.orange
         
-        if sig_status == "CONFIRMED" and array.size(signal_entry_times) > 0
-            for j = 0 to array.size(signal_entry_times) - 1
-                int entry_time = array.get(signal_entry_times, j)
-                string entry_dir = array.get(signal_directions, j)
-                // Match within 10 minutes (600000 ms) and same direction
-                if math.abs(entry_time - sig_time) < 600000 and entry_dir == sig_dir
-                    float entry_val = array.get(signal_entries, j)
-                    float stop_val = array.get(signal_stops, j)
-                    if not na(entry_val) and not na(stop_val)
-                        entry_str := str.tostring(entry_val, "#.##")
-                        stop_str := str.tostring(stop_val, "#.##")
-                        risk_str := str.tostring(math.abs(entry_val - stop_val), "#.##")
-                        
-                        // Get MFE/MAE data
-                        float be_mfe_val = array.get(signal_be_mfes, j)
-                        float no_be_mfe_val = array.get(signal_mfes, j)
-                        float mae_val = array.get(signal_maes, j)
-                        bool no_be_stopped = array.get(signal_no_be_stopped, j)
-                        bool be_stopped = array.get(signal_be_stopped, j)
-                        bool be_triggered = array.get(signal_be_triggered, j)
-                        
-                        be_mfe_str := str.tostring(be_mfe_val, "#.##") + "R"
-                        no_be_mfe_str := str.tostring(no_be_mfe_val, "#.##") + "R"
-                        mae_str := str.tostring(mae_val, "#.##") + "R"
-                        
-                        // Status: COMPLETED, ACTIVE (BE+1R), ACTIVE
-                        if no_be_stopped
-                            status_display := "COMPLETED"
-                            status_color := color.blue
-                        else if be_triggered
-                            status_display := "ACTIVE (BE+1R)"
-                            status_color := color.green
-                        else
-                            status_display := "ACTIVE"
-                            status_color := color.green
-                    break
+        if sig_status == "CONFIRMED"
+            int confirmed_idx = array.get(all_signal_confirmed_index, i)
+            if confirmed_idx >= 0 and confirmed_idx < array.size(signal_entries)
+                float entry_val = array.get(signal_entries, confirmed_idx)
+                float stop_val = array.get(signal_stops, confirmed_idx)
+                if not na(entry_val) and not na(stop_val)
+                    entry_str := str.tostring(entry_val, "#.##")
+                    stop_str := str.tostring(stop_val, "#.##")
+                    risk_str := str.tostring(math.abs(entry_val - stop_val), "#.##")
+                    float be_mfe_val = array.get(signal_be_mfes, confirmed_idx)
+                    float no_be_mfe_val = array.get(signal_mfes, confirmed_idx)
+                    float mae_val = array.get(signal_maes, confirmed_idx)
+                    bool no_be_stopped = array.get(signal_no_be_stopped, confirmed_idx)
+                    bool be_stopped = array.get(signal_be_stopped, confirmed_idx)
+                    bool be_triggered = array.get(signal_be_triggered, confirmed_idx)
+                    be_mfe_str := str.tostring(be_mfe_val, "#.##") + "R"
+                    no_be_mfe_str := str.tostring(no_be_mfe_val, "#.##") + "R"
+                    mae_str := str.tostring(mae_val, "#.##") + "R"
+                    if no_be_stopped
+                        status_display := "COMPLETED"
+                        status_color := color.blue
+                    else if be_triggered
+                        status_display := "ACTIVE (BE+1R)"
+                        status_color := color.green
+                    else
+                        status_display := "ACTIVE"
+                        status_color := color.green
+        
         else if sig_status == "CANCELLED"
             status_color := color.red
         else if sig_status == "PENDING"
@@ -2751,3 +2903,171 @@ if SHOW_ALL_SIGNALS and barstate.islast
                          " | Showing: " + str.tostring(signals_shown)
         table.cell(all_signals_table, 0, row, nav_text, text_color=color.yellow, bgcolor=color.new(color.gray, 70), text_size=size.tiny)
         table.merge_cells(all_signals_table, 0, row, 17, row)
+
+
+// ===================== UNIFIED TABLE HELPERS =====================
+f_unifiedAgeStr(t, nowMs) =>
+    int age_ms = nowMs - t
+    int age_days = int(age_ms / 86400000)
+    int age_hours = int((age_ms % 86400000) / 3600000)
+    int age_mins = int((age_ms % 3600000) / 60000)
+    string s = ""
+    if age_days > 0
+        s := str.tostring(age_days) + "d " + str.tostring(age_hours) + "h"
+    else if age_hours > 0
+        s := str.tostring(age_hours) + "h " + str.tostring(age_mins) + "m"
+    else
+        s := str.tostring(age_mins) + "m"
+    s
+
+f_htfSymbol(biasStr) =>
+    biasStr == "Bullish" ? "▲" : biasStr == "Bearish" ? "▼" : "•"
+
+f_htfColor(biasStr) =>
+    biasStr == "Bullish" ? color.green : biasStr == "Bearish" ? color.red : color.gray
+
+f_renderUnifiedRow(i, r) =>
+    int t = array.get(all_signal_times, i)
+    string dir = array.get(all_signal_directions, i)
+    string status_raw = array.get(all_signal_status, i)
+    int bars = array.get(all_signal_bars_to_confirm, i)
+    int cidx = array.get(all_signal_confirmed_index, i)
+    bool confirmed = cidx >= 0 and cidx < array.size(signal_entries)
+    bool completed = confirmed and cidx < array.size(signal_no_be_stopped) ? array.get(signal_no_be_stopped, cidx) : false
+    string status = status_raw
+    if status_raw == "CONFIRMED" and completed
+        status := "COMPLETED"
+    float entry = confirmed ? array.get(signal_entries, cidx) : na
+    float stop  = confirmed ? array.get(signal_stops, cidx) : na
+    float risk  = confirmed and not na(entry) and not na(stop) ? math.abs(entry - stop) : na
+    float be    = confirmed and cidx < array.size(signal_be_mfes) ? array.get(signal_be_mfes, cidx) : 0.0
+    float nbe   = confirmed and cidx < array.size(signal_mfes) ? array.get(signal_mfes, cidx) : 0.0
+    float mae_v = confirmed and cidx < array.size(signal_maes) ? array.get(signal_maes, cidx) : 0.0
+    float mae   = math.min(nz(mae_v, 0.0), 0.0)
+    bool beTrig = false
+    if confirmed
+        bool flag = cidx < array.size(signal_be_triggered) ? array.get(signal_be_triggered, cidx) : false
+        beTrig := flag or be >= 1.0
+    string date = str.tostring(year(t, "America/New_York")) + "-" + str.tostring(month(t, "America/New_York"), "00") + "-" + str.tostring(dayofmonth(t, "America/New_York"), "00")
+    string time_s = str.tostring(hour(t, "America/New_York"), "00") + ":" + str.tostring(minute(t, "America/New_York"), "00")
+    string age_s = f_unifiedAgeStr(t, time)
+    int h = hour(t, "America/New_York")
+    int m = minute(t, "America/New_York")
+    string sess = h >= 20 ? "ASIA" : h < 6 ? "LON" : h < 8 or (h == 8 and m < 30) ? "PRE" : (h == 8 and m >= 30) or h < 12 ? "AM" : h == 12 ? "LUN" : h < 16 ? "PM" : "AH"
+    string bD  = i < array.size(all_signal_daily_bias) ? array.get(all_signal_daily_bias, i) : "Neutral"
+    string b4H = i < array.size(all_signal_h4_bias)    ? array.get(all_signal_h4_bias, i)    : "Neutral"
+    string b1H = i < array.size(all_signal_h1_bias)    ? array.get(all_signal_h1_bias, i)    : "Neutral"
+    string b15 = i < array.size(all_signal_m15_bias)   ? array.get(all_signal_m15_bias, i)   : "Neutral"
+    string b5  = i < array.size(all_signal_m5_bias)    ? array.get(all_signal_m5_bias, i)    : "Neutral"
+    string b1  = i < array.size(all_signal_m1_bias)    ? array.get(all_signal_m1_bias, i)    : "Neutral"
+    string symD  = f_htfSymbol(bD)
+    string sym4H = f_htfSymbol(b4H)
+    string sym1H = f_htfSymbol(b1H)
+    string sym15 = f_htfSymbol(b15)
+    string sym5  = f_htfSymbol(b5)
+    string sym1  = f_htfSymbol(b1)
+    color row_bg = f_statusBg(status)
+    color sess_bg = f_sessBg(sess)
+    color dir_col = dir == "Bullish" ? color.green : color.red
+    color be_col = f_rColor(be)
+    color nbe_col = f_rColor(nbe)
+    color mae_col = f_maeColor(mae)
+    table.cell(ut, 0,  r, date,  text_color=color.white, bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 1,  r, time_s,text_color=color.white, bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 2,  r, age_s, text_color=color.yellow, bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 3,  r, dir == "Bullish" ? "▲" : "▼", text_color=dir_col, bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 4,  r, status, text_color=color.white, bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 5,  r, sess,  text_color=color.white, bgcolor=sess_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 6,  r, str.tostring(bars), text_color=color.white, bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 7,  r, na(entry) ? "—" : str.tostring(entry, "#.##"), text_color=na(entry) ? color.gray : color.white, bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 8,  r, na(stop)  ? "—" : str.tostring(stop,  "#.##"), text_color=na(stop)  ? color.gray : color.white, bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 9,  r, na(risk)  ? "—" : str.tostring(risk,  "#.##"), text_color=na(risk)  ? color.gray : color.white, bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 10, r, str.tostring(be,  "#.##") + "R", text_color=be_col,  bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 11, r, str.tostring(nbe, "#.##") + "R", text_color=nbe_col, bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 12, r, str.tostring(mae, "#.##") + "R", text_color=mae_col, bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 13, r, beTrig ? "✓" : "—", text_color=beTrig ? color.lime : color.gray, bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 14, r, symD,  text_color=f_htfColor(bD),  bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 15, r, sym4H, text_color=f_htfColor(b4H), bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 16, r, sym1H, text_color=f_htfColor(b1H), bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 17, r, sym15, text_color=f_htfColor(b15), bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 18, r, sym5,  text_color=f_htfColor(b5),  bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 19, r, sym1,  text_color=f_htfColor(b1),  bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 20, r, confirmed ? "✓" : "—", text_color=confirmed ? color.white : color.gray, bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 21, r, completed ? "✓" : "—", text_color=completed ? color.white : color.gray, bgcolor=row_bg, text_size=f_font(UNIFIED_FONT_SIZE))
+
+// ===================== UNIFIED SNAPSHOT TABLE (END OF SCRIPT) =====================
+if SHOW_UNIFIED_TABLE and barstate.islast
+    table.clear(ut, 0, 0, 21, 51)
+    table.cell(ut, 0, 0, "UNIFIED SIGNAL SNAPSHOT", text_color=color.white, bgcolor=color.new(color.green, 20), text_size=size.normal)
+    table.merge_cells(ut, 0, 0, 21, 0)
+    table.cell(ut, 0, 1, "Date", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 1, 1, "Time", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 2, 1, "Age", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 3, 1, "Dir", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 4, 1, "Status", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 5, 1, "Session", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 6, 1, "Bars", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 7, 1, "Entry", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 8, 1, "Stop", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut, 9, 1, "Risk", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut,10, 1, "BE MFE", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut,11, 1, "No-BE", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut,12, 1, "MAE", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut,13, 1, "BE", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut,14, 1, "D", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut,15, 1, "4H", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut,16, 1, "1H", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut,17, 1, "15M", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut,18, 1, "5M", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut,19, 1, "1M", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut,20, 1, "Conf", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    table.cell(ut,21, 1, "Comp", text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=f_font(UNIFIED_FONT_SIZE))
+    int shown = 0
+    int skipped = 0
+    int max_rows = math.min(50, UNIFIED_COUNT)
+    if UNIFIED_SORT == "OLDEST"
+        for i = 0 to array.size(all_signal_times) - 1
+            if shown >= max_rows
+                break
+            string status_raw = array.get(all_signal_status, i)
+            int cidx = array.get(all_signal_confirmed_index, i)
+            bool confirmed = cidx >= 0 and cidx < array.size(signal_entries)
+            bool completed = confirmed and cidx < array.size(signal_no_be_stopped) ? array.get(signal_no_be_stopped, cidx) : false
+            string status = status_raw
+            if status_raw == "CONFIRMED" and completed
+                status := "COMPLETED"
+            bool is_active = status == "CONFIRMED"
+            if UNIFIED_FILTER == "ACTIVE_ONLY" and not is_active
+                continue
+            if skipped < UNIFIED_START
+                skipped := skipped + 1
+                continue
+            int r = shown + 2
+            f_renderUnifiedRow(i, r)
+            shown := shown + 1
+    else
+        for i = array.size(all_signal_times) - 1 to 0
+            if shown >= max_rows
+                break
+            string status_raw = array.get(all_signal_status, i)
+            int cidx = array.get(all_signal_confirmed_index, i)
+            bool confirmed = cidx >= 0 and cidx < array.size(signal_entries)
+            bool completed = confirmed and cidx < array.size(signal_no_be_stopped) ? array.get(signal_no_be_stopped, cidx) : false
+            string status = status_raw
+            if status_raw == "CONFIRMED" and completed
+                status := "COMPLETED"
+            bool is_active = status == "CONFIRMED"
+            if UNIFIED_FILTER == "ACTIVE_ONLY" and not is_active
+                continue
+            if skipped < UNIFIED_START
+                skipped := skipped + 1
+                continue
+            int r = shown + 2
+            f_renderUnifiedRow(i, r)
+            shown := shown + 1
+    int total = array.size(all_signal_times)
+    string earliest = total > 0 ? str.tostring(year(array.get(all_signal_times, 0), "America/New_York")) + "-" + str.tostring(month(array.get(all_signal_times, 0), "America/New_York"), "00") + "-" + str.tostring(dayofmonth(array.get(all_signal_times, 0), "America/New_York"), "00") + " " + str.tostring(hour(array.get(all_signal_times, 0), "America/New_York"), "00") + ":" + str.tostring(minute(array.get(all_signal_times, 0), "America/New_York"), "00") : "—"
+    string latest = total > 0 ? str.tostring(year(array.get(all_signal_times, total - 1), "America/New_York")) + "-" + str.tostring(month(array.get(all_signal_times, total - 1), "America/New_York"), "00") + "-" + str.tostring(dayofmonth(array.get(all_signal_times, total - 1), "America/New_York"), "00") + " " + str.tostring(hour(array.get(all_signal_times, total - 1), "America/New_York"), "00") + ":" + str.tostring(minute(array.get(all_signal_times, total - 1), "America/New_York"), "00") : "—"
+    string footer_text = "Total: " + str.tostring(total) + " | Earliest: " + earliest + " | Latest: " + latest
+    table.cell(ut, 0, 51, footer_text, text_color=color.white, bgcolor=color.new(color.gray, 40), text_size=size.small)
+    table.merge_cells(ut, 0, 51, 21, 51)
