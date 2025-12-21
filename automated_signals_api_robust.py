@@ -1411,6 +1411,75 @@ def register_indicator_export_routes(app):
             conn = psycopg2.connect(DATABASE_URL)
             cursor = conn.cursor()
             
+            # UNIFIED_SNAPSHOT_V1 special handling (dedupe by bar_ts, not batch hash)
+            if event_type == "UNIFIED_SNAPSHOT_V1":
+                stored_price_bar = False
+                signals_processed = 0
+                
+                # Process OHLC if present
+                if all(k in data for k in ['bar_ts', 'open', 'high', 'low', 'close']):
+                    try:
+                        from services.price_snapshot_processor import process_price_snapshot
+                        snapshot_result = process_price_snapshot({
+                            'symbol': extract_symbol(data),
+                            'timeframe': data.get('timeframe', '1m'),
+                            'bar_ts': data['bar_ts'],
+                            'open': data['open'],
+                            'high': data['high'],
+                            'low': data['low'],
+                            'close': data['close']
+                        })
+                        
+                        if snapshot_result.get('status') == 'duplicate':
+                            cursor.close()
+                            conn.close()
+                            return jsonify({
+                                'event_type': 'UNIFIED_SNAPSHOT_V1',
+                                'status': 'duplicate_price_bar',
+                                'signals_count': len(signals)
+                            }), 200
+                        
+                        stored_price_bar = True
+                        logger.info(f"[INDICATOR_EXPORT] UNIFIED price snapshot: {snapshot_result}")
+                    except Exception as snap_err:
+                        logger.error(f"[INDICATOR_EXPORT] UNIFIED price snapshot failed: {snap_err}")
+                
+                # Process signals if present
+                if is_valid and len(signals) > 0:
+                    # Store batch for audit trail
+                    cursor.execute("""
+                        INSERT INTO indicator_export_batches 
+                        (event_type, batch_number, batch_size, total_signals, payload_json, payload_sha256, is_valid, validation_error)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id
+                    """, (event_type, batch_number, batch_size, total_signals, Json(data), payload_hash, is_valid, validation_error))
+                    
+                    batch_result = cursor.fetchone()
+                    if batch_result:
+                        batch_id = batch_result[0]
+                        conn.commit()
+                        
+                        # Auto-import signals
+                        auto_import_enabled = os.environ.get('AUTO_IMPORT_INDICATOR_EXPORT', '').lower() in ['1', 'true', 'yes']
+                        if auto_import_enabled:
+                            try:
+                                from services.indicator_export_importer import import_indicator_export_v2
+                                import_result = import_indicator_export_v2(batch_id)
+                                signals_processed = import_result.get('inserted', 0) + import_result.get('updated', 0)
+                            except Exception as imp_err:
+                                logger.error(f"[INDICATOR_EXPORT] UNIFIED signal import failed: {imp_err}")
+                
+                cursor.close()
+                conn.close()
+                
+                return jsonify({
+                    'event_type': 'UNIFIED_SNAPSHOT_V1',
+                    'status': 'ok',
+                    'stored_price_bar': stored_price_bar,
+                    'signals_processed': signals_processed
+                }), 200
+            
+            # Standard event types (existing logic)
             # Process price snapshot if present
             if all(k in data for k in ['bar_ts', 'open', 'high', 'low', 'close']):
                 try:
