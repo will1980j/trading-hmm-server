@@ -16740,6 +16740,28 @@ def run_startup_migrations():
         else:
             logger.info("✅ raw_payload column already exists")
         
+        # Ensure price_snapshots table exists
+        logger.info("[PRICE_SNAPSHOT_MIGRATION] Ensuring price_snapshots table...")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS price_snapshots (
+                id SERIAL PRIMARY KEY,
+                symbol TEXT NOT NULL,
+                timeframe TEXT,
+                bar_ts BIGINT NOT NULL,
+                open NUMERIC,
+                high NUMERIC,
+                low NUMERIC,
+                close NUMERIC,
+                received_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE(symbol, bar_ts)
+            )
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_price_snapshots_symbol_ts 
+            ON price_snapshots(symbol, bar_ts DESC)
+        """)
+        logger.info("[PRICE_SNAPSHOT_MIGRATION] ✅ Ensured price_snapshots table")
+        
         cur.close()
         conn.close()
     except Exception as e:
