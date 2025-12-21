@@ -2248,6 +2248,8 @@ def price_snapshot():
     Payload: {symbol, timeframe, bar_ts, open, high, low, close}
     """
     try:
+        data = request.get_json(silent=True)
+        
         # Token authentication
         expected_token = os.environ.get('PRICE_SNAPSHOT_TOKEN') or os.environ.get('INDICATOR_EXPORT_TOKEN')
         if expected_token:
@@ -2255,15 +2257,18 @@ def price_snapshot():
             query_token = request.args.get('token')
             
             if not (header_token == expected_token or query_token == expected_token):
-                symbol = request.get_json().get('symbol', 'unknown') if request.get_json() else 'unknown'
-                logger.warning(f"[PRICE_SNAPSHOT] ❌ Unauthorized from {request.remote_addr} symbol={symbol}")
+                symbol = data.get('symbol', 'unknown') if isinstance(data, dict) else 'unknown'
+                bar_ts = data.get('bar_ts', 'unknown') if isinstance(data, dict) else 'unknown'
+                logger.warning(
+                    f"[PRICE_SNAPSHOT] ❌ Unauthorized from {request.remote_addr} "
+                    f"symbol={symbol} bar_ts={bar_ts}"
+                )
                 return jsonify({'error': 'unauthorized'}), 401
         
-        from services.price_snapshot_processor import process_price_snapshot, validate_snapshot
-        
-        data = request.get_json()
         if not data:
             return jsonify({'error': 'JSON payload required'}), 400
+        
+        from services.price_snapshot_processor import process_price_snapshot, validate_snapshot
         
         # Validate
         error = validate_snapshot(data)
