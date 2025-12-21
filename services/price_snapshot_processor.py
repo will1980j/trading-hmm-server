@@ -58,7 +58,19 @@ def process_price_snapshot(snapshot: Dict) -> Dict:
         # Introspect schema
         cols = get_confirmed_ledger_columns(cur)
         
-        # Determine column names
+        # Determine symbol column
+        symbol_col = None
+        for candidate in ['symbol', 'exchange', 'ticker', 'instrument', 'contract']:
+            if candidate in cols:
+                symbol_col = candidate
+                break
+        
+        # If no symbol column exists, cannot safely map trades
+        if not symbol_col:
+            conn.commit()
+            return {"status": "ignored", "reason": "confirmed_signals_ledger has no symbol column", "updated": 0}
+        
+        # Determine other column names
         entry_col = 'entry' if 'entry' in cols else 'entry_price'
         stop_col = 'stop' if 'stop' in cols else 'stop_price'
         
@@ -97,13 +109,21 @@ def process_price_snapshot(snapshot: Dict) -> Dict:
         
         select_sql = ', '.join(select_parts)
         
+        # Build WHERE clause
+        where_parts = [f"{symbol_col} = %s"]
+        query_params = [symbol]
+        
+        if has_completed:
+            where_parts.append("completed = false")
+        
+        where_clause = ' AND '.join(where_parts) if where_parts else '1=1'
+        
         # Get all active trades
-        where_clause = f"symbol = %s AND {('completed = false' if has_completed else '1=1')}"
         cur.execute(f"""
             SELECT {select_sql}
             FROM confirmed_signals_ledger
             WHERE {where_clause}
-        """, (symbol,))
+        """, query_params)
         
         active_trades = cur.fetchall()
         col_names = [desc[0] for desc in cur.description]
