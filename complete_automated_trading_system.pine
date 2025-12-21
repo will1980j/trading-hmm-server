@@ -315,6 +315,7 @@ var array<bool> signal_completes = array.new<bool>()
 var array<label> signal_labels = array.new<label>()
 var array<int> signal_entry_times = array.new<int>()
 var array<int> signal_triangle_times = array.new<int>()  // Canonical trade identity time (triangle time)
+var array<int> signal_completed_times = array.new<int>()  // Completion timestamp for duration calculation
 var array<float> signal_lowest_lows = array.new<float>()  // Track lowest low since signal (for bullish)
 var array<float> signal_highest_highs = array.new<float>()  // Track highest high since signal (for bearish)
 var array<bool> signal_has_entered = array.new<bool>()  // Track if trade has actually entered (after confirmation)
@@ -762,6 +763,7 @@ if waiting_for_confirmation and active_signal == "Bullish"
         array.push(signal_labels, label(na))
         array.push(signal_entry_times, time)  // Use CURRENT time (confirmation bar) for MFE tracking
         array.push(signal_triangle_times, signal_candle_time)  // Canonical trade identity time (triangle time)
+        array.push(signal_completed_times, 0)  // Completion time (set when trade completes)
         array.push(confirmed_trade_ids, f_buildTradeId(signal_candle_time, "Bullish"))
         array.push(signal_lowest_lows, entry_price)  // Initialize with entry price for accurate MFE tracking
         array.push(signal_highest_highs, entry_price)  // Initialize with entry price for accurate MFE tracking
@@ -883,6 +885,7 @@ if waiting_for_confirmation and active_signal == "Bearish"
         array.push(signal_labels, label(na))
         array.push(signal_entry_times, time)  // Use CURRENT time (confirmation bar) for MFE tracking
         array.push(signal_triangle_times, signal_candle_time)  // Canonical trade identity time (triangle time)
+        array.push(signal_completed_times, 0)  // Completion time (set when trade completes)
         array.push(confirmed_trade_ids, f_buildTradeId(signal_candle_time, "Bearish"))
         array.push(signal_lowest_lows, entry_price)  // Initialize with entry price for accurate MFE tracking
         array.push(signal_highest_highs, entry_price)  // Initialize with entry price for accurate MFE tracking
@@ -1099,6 +1102,8 @@ if array.size(signal_entries) > 0
             if not sig_no_be_stopped
                 if low <= sig_stop
                     array.set(signal_no_be_stopped, i, true)
+                    if array.get(signal_completed_times, i) == 0
+                        array.set(signal_completed_times, i, time)
                     sig_no_be_stopped := true
                     // CRITICAL: If original SL hit BEFORE BE triggered, BE=1 also stops
                     // Both strategies have same stop until +1R is achieved
@@ -1130,6 +1135,8 @@ if array.size(signal_entries) > 0
             if sig_has_entered and not sig_no_be_stopped
                 if high >= sig_stop
                     array.set(signal_no_be_stopped, i, true)
+                    if array.get(signal_completed_times, i) == 0
+                        array.set(signal_completed_times, i, time)
                     sig_no_be_stopped := true
                     // CRITICAL: If original SL hit BEFORE BE triggered, BE=1 also stops
                     // Both strategies have same stop until +1R is achieved
@@ -2950,7 +2957,45 @@ f_renderUnifiedRow(i, r) =>
         beTrig := flag or be >= 1.0
     string date = str.tostring(year(t, "America/New_York")) + "-" + str.tostring(month(t, "America/New_York"), "00") + "-" + str.tostring(dayofmonth(t, "America/New_York"), "00")
     string time_s = str.tostring(hour(t, "America/New_York"), "00") + ":" + str.tostring(minute(t, "America/New_York"), "00")
-    string age_s = f_unifiedAgeStr(t, time)
+    int confirm_ms = 0
+    int end_ms = 0
+    if status == "CONFIRMED" or status == "COMPLETED"
+        if cidx >= 0 and cidx < array.size(signal_entry_times)
+            confirm_ms := array.get(signal_entry_times, cidx)
+    if status == "COMPLETED"
+        if cidx >= 0 and cidx < array.size(signal_completed_times)
+            int ct = array.get(signal_completed_times, cidx)
+            end_ms := ct > 0 ? ct : time
+    else if status == "CONFIRMED"
+        end_ms := time
+    int duration_ms = (confirm_ms > 0 and end_ms > confirm_ms) ? (end_ms - confirm_ms) : 0
+    string age_s = "—"
+    if duration_ms > 0
+        int total_s = int(duration_ms / 1000)
+        int total_m = int(total_s / 60)
+        int total_h = int(total_m / 60)
+        int total_d = int(total_h / 24)
+        int mo = int(total_d / 30)
+        int d_after_mo = total_d - (mo * 30)
+        int w = int(d_after_mo / 7)
+        int d = d_after_mo - (w * 7)
+        int h = total_h - (total_d * 24)
+        int m = total_m - (total_h * 60)
+        int s = total_s - (total_m * 60)
+        if total_d >= 60
+            age_s := str.tostring(mo) + "mo" + (w > 0 ? " " + str.tostring(w) + "w" : "")
+        else if total_d >= 14
+            int w2 = int(total_d / 7)
+            int d2 = total_d - (w2 * 7)
+            age_s := str.tostring(w2) + "w" + (d2 > 0 ? " " + str.tostring(d2) + "d" : "")
+        else if total_h >= 24
+            age_s := str.tostring(total_d) + "d" + (h > 0 ? " " + str.tostring(h) + "h" : "")
+        else if total_m >= 60
+            age_s := str.tostring(total_h) + "h" + (m > 0 ? " " + str.tostring(m) + "m" : "")
+        else if total_s >= 60
+            age_s := str.tostring(total_m) + "m" + (s > 0 ? " " + str.tostring(s) + "s" : "")
+        else
+            age_s := str.tostring(total_s) + "s"
     int h = hour(t, "America/New_York")
     int m = minute(t, "America/New_York")
     string sess = h >= 20 ? "ASIA" : h < 6 ? "LON" : h < 8 or (h == 8 and m < 30) ? "PRE" : (h == 8 and m >= 30) or h < 12 ? "AM" : h == 12 ? "LUN" : h < 16 ? "PM" : "AH"

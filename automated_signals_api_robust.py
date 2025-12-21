@@ -1373,7 +1373,11 @@ def register_indicator_export_routes(app):
         # Determine symbol for logging
         symbol_log = extract_symbol(data)
         
-        logger.info(f"[INDICATOR_EXPORT] event_type={event_type}, batch={batch_number}, size={batch_size}, hash={payload_hash[:8]}, symbol={symbol_log}")
+        # Check if OHLC present
+        has_ohlc = all(k in data for k in ['bar_ts', 'open', 'high', 'low', 'close'])
+        bar_ts_log = data.get('bar_ts') if has_ohlc else None
+        
+        logger.info(f"[INDICATOR_EXPORT] event_type={event_type}, batch={batch_number}, size={batch_size}, hash={payload_hash[:8]}, symbol={symbol_log}, has_ohlc={has_ohlc}, bar_ts={bar_ts_log}")
         
         # Validate event_type
         valid_types = ['INDICATOR_EXPORT_V2', 'ALL_SIGNALS_EXPORT', 'MFE_UPDATE_BATCH', 'UNIFIED_SNAPSHOT_V1']
