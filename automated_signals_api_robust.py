@@ -1345,7 +1345,12 @@ def register_indicator_export_routes(app):
         # Compute batch_size from normalized signals
         batch_size = len(signals) if event_type == "MFE_UPDATE_BATCH" else data.get('batch_size')
         
-        logger.info(f"[INDICATOR_EXPORT] event_type={event_type}, batch={batch_number}, size={batch_size}, hash={payload_hash[:8]}")
+        # Determine symbol for logging
+        symbol_log = data.get('symbol', 'unknown')
+        if symbol_log == 'unknown' and isinstance(signals, list) and len(signals) > 0:
+            symbol_log = signals[0].get('symbol') or signals[0].get('exchange') or 'unknown'
+        
+        logger.info(f"[INDICATOR_EXPORT] event_type={event_type}, batch={batch_number}, size={batch_size}, hash={payload_hash[:8]}, symbol={symbol_log}")
         
         # Validate event_type
         valid_types = ['INDICATOR_EXPORT_V2', 'ALL_SIGNALS_EXPORT', 'MFE_UPDATE_BATCH']
