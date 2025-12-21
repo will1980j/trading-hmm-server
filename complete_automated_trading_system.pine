@@ -1007,9 +1007,9 @@ if array.size(signal_entries) > 0
                     int m = minute(sig_triangle_time, "America/New_York")
                     string session_str = h >= 20 ? "ASIA" : h < 6 ? "LONDON" : (h < 8 or (h == 8 and m < 30)) ? "NY PRE" : ((h == 8 and m >= 30) or h < 12) ? "NY AM" : h == 12 ? "NY LUNCH" : h < 16 ? "NY PM" : "AFTER_HOURS"
                     
-                    string confirmed_signal = '{"trade_id":"' + trade_id + '","triangle_time":' + str.tostring(sig_triangle_time) + ',"confirmation_time":' + str.tostring(sig_entry_time) + ',"date":"' + date_str + '","direction":"' + sig_dir + '","session":"' + session_str + '","entry":' + str.tostring(open) + ',"stop":' + str.tostring(sig_stop) + ',"be_mfe":0,"no_be_mfe":0,"mae":0,"completed":false}'
+                    string confirmed_signal = '{"trade_id":"' + trade_id + '","triangle_time":' + str.tostring(sig_triangle_time) + ',"confirmation_time":' + str.tostring(sig_entry_time) + ',"date":"' + date_str + '","direction":"' + sig_dir + '","session":"' + session_str + '","entry":' + str.tostring(open) + ',"stop":' + str.tostring(sig_stop) + ',"symbol":"' + syminfo.ticker + '","be_mfe":0,"no_be_mfe":0,"mae":0,"completed":false}'
                     
-                    string confirmed_payload = '{"event_type":"INDICATOR_EXPORT_V2","batch_number":-1,"batch_size":1,"total_signals":1,"signals":[' + confirmed_signal + ']}'
+                    string confirmed_payload = '{"event_type":"INDICATOR_EXPORT_V2","symbol":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","batch_number":-1,"batch_size":1,"total_signals":1,"signals":[' + confirmed_signal + ']}'
                     
                     alert(confirmed_payload, alert.freq_once_per_bar_close)
                     
@@ -1996,7 +1996,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
         string date_str = str.tostring(year(tri_time, "America/New_York")) + "-" + str.tostring(month(tri_time, "America/New_York"), "00") + "-" + str.tostring(dayofmonth(tri_time, "America/New_York"), "00")
         
         // Build MFE_UPDATE_BATCH signal JSON (backend-compatible schema)
-        signal_json := '"trade_id":"' + signal_id + '","triangle_time":' + str.tostring(tri_time) + ',"confirmation_time":' + str.tostring(confirm_time) + ',"date":"' + date_str + '","direction":"' + sig_direction + '","session":"' + sig_session + '","entry":' + f_num(sig_entry) + ',"stop":' + f_num(sig_stop) + ',"be_mfe":' + f_num(current_mfe_be) + ',"no_be_mfe":' + f_num(current_mfe_none) + ',"mae":' + f_num(math.min(sig_mae, 0.0)) + ',"completed":' + str.tostring(sig_no_be_stopped)
+        signal_json := '"trade_id":"' + signal_id + '","triangle_time":' + str.tostring(tri_time) + ',"confirmation_time":' + str.tostring(confirm_time) + ',"date":"' + date_str + '","direction":"' + sig_direction + '","session":"' + sig_session + '","entry":' + f_num(sig_entry) + ',"stop":' + f_num(sig_stop) + ',"symbol":"' + syminfo.ticker + '","be_mfe":' + f_num(current_mfe_be) + ',"no_be_mfe":' + f_num(current_mfe_none) + ',"mae":' + f_num(math.min(sig_mae, 0.0)) + ',"completed":' + str.tostring(sig_no_be_stopped)
             
             // Check payload size before adding (stay under 4000 chars)
         test_add := signals_in_batch > 0 ? ",{" + signal_json + "}" : "{" + signal_json + "}"
@@ -2012,7 +2012,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
     
     // Send MFE batch alert
     if signals_in_batch > 0
-        string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","batch_number":-1,"batch_size":' + str.tostring(signals_in_batch) + ',"total_signals":' + str.tostring(signals_in_batch) + ',"signals":[' + batch_payload + ']}'
+        string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","symbol":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","batch_number":-1,"batch_size":' + str.tostring(signals_in_batch) + ',"total_signals":' + str.tostring(signals_in_batch) + ',"signals":[' + batch_payload + ']}'
         alert(batch_envelope, alert.freq_once_per_bar_close)
 
 // ============================================================================

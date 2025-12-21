@@ -172,8 +172,6 @@ def import_indicator_export_v2(batch_id: int, conn=None) -> dict:
                 RETURNING (xmax = 0) AS inserted
             """, (trade_id, triangle_time, confirmation_time, date_obj, session, direction,
                   entry, stop, be_mfe, no_be_mfe, mae, completed, symbol_val, batch_id))
-            """, (trade_id, triangle_time, confirmation_time, date_obj, session, direction,
-                  entry, stop, be_mfe, no_be_mfe, mae, completed, symbol_val, batch_id))
             
             result = cursor.fetchone()
             if result and result[0]:
