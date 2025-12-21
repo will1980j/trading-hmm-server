@@ -1431,6 +1431,20 @@ def register_indicator_export_routes(app):
                                     skipped += 1
                                     continue
                                 
+                                # Extract triangle_time_ms
+                                triangle_time_ms = signal.get('triangle_time_ms') or signal.get('triangle_time')
+                                if not triangle_time_ms:
+                                    logger.warning(f"[MFE_IMPORT] missing triangle_time trade_id={trade_id}")
+                                    skipped += 1
+                                    continue
+                                
+                                try:
+                                    triangle_time_ms = int(triangle_time_ms)
+                                except (ValueError, TypeError):
+                                    logger.warning(f"[MFE_IMPORT] invalid triangle_time trade_id={trade_id}")
+                                    skipped += 1
+                                    continue
+                                
                                 # Parse values (default None to avoid overwriting with zeros)
                                 be_mfe_val = None
                                 no_be_mfe_val = None
@@ -1461,9 +1475,10 @@ def register_indicator_export_routes(app):
                                 symbol_val = signal.get('symbol') or signal.get('exchange')
                                 cursor_import.execute("""
                                     INSERT INTO confirmed_signals_ledger 
-                                    (trade_id, be_mfe, no_be_mfe, mae, direction, session, symbol, updated_at, last_seen_batch_id)
-                                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), %s)
+                                    (trade_id, triangle_time_ms, be_mfe, no_be_mfe, mae, direction, session, symbol, updated_at, last_seen_batch_id)
+                                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s)
                                     ON CONFLICT (trade_id) DO UPDATE SET
+                                        triangle_time_ms = COALESCE(EXCLUDED.triangle_time_ms, confirmed_signals_ledger.triangle_time_ms),
                                         be_mfe = COALESCE(EXCLUDED.be_mfe, confirmed_signals_ledger.be_mfe),
                                         no_be_mfe = COALESCE(EXCLUDED.no_be_mfe, confirmed_signals_ledger.no_be_mfe),
                                         mae = COALESCE(EXCLUDED.mae, confirmed_signals_ledger.mae),
@@ -1472,7 +1487,7 @@ def register_indicator_export_routes(app):
                                         symbol = COALESCE(EXCLUDED.symbol, confirmed_signals_ledger.symbol),
                                         updated_at = NOW(),
                                         last_seen_batch_id = EXCLUDED.last_seen_batch_id
-                                """, (trade_id, be_mfe_val, no_be_mfe_val, mae_val, 
+                                """, (trade_id, triangle_time_ms, be_mfe_val, no_be_mfe_val, mae_val, 
                                       signal.get('direction'), signal.get('session'), symbol_val, batch_id))
                                 
                                 processed += 1
