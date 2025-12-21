@@ -1453,20 +1453,22 @@ def register_indicator_export_routes(app):
                                     mae_val = None
                                 
                                 # Upsert
+                                symbol_val = signal.get('symbol') or signal.get('exchange')
                                 cursor_import.execute("""
                                     INSERT INTO confirmed_signals_ledger 
-                                    (trade_id, be_mfe, no_be_mfe, mae, direction, session, updated_at, last_seen_batch_id)
-                                    VALUES (%s, %s, %s, %s, %s, %s, NOW(), %s)
+                                    (trade_id, be_mfe, no_be_mfe, mae, direction, session, symbol, updated_at, last_seen_batch_id)
+                                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), %s)
                                     ON CONFLICT (trade_id) DO UPDATE SET
                                         be_mfe = COALESCE(EXCLUDED.be_mfe, confirmed_signals_ledger.be_mfe),
                                         no_be_mfe = COALESCE(EXCLUDED.no_be_mfe, confirmed_signals_ledger.no_be_mfe),
                                         mae = COALESCE(EXCLUDED.mae, confirmed_signals_ledger.mae),
                                         direction = COALESCE(EXCLUDED.direction, confirmed_signals_ledger.direction),
                                         session = COALESCE(EXCLUDED.session, confirmed_signals_ledger.session),
+                                        symbol = COALESCE(EXCLUDED.symbol, confirmed_signals_ledger.symbol),
                                         updated_at = NOW(),
                                         last_seen_batch_id = EXCLUDED.last_seen_batch_id
                                 """, (trade_id, be_mfe_val, no_be_mfe_val, mae_val, 
-                                      signal.get('direction'), signal.get('session'), batch_id))
+                                      signal.get('direction'), signal.get('session'), symbol_val, batch_id))
                                 
                                 processed += 1
                                 upserted += 1
@@ -2862,10 +2864,11 @@ def register_indicator_export_routes(app):
                     mae_val = 0.0
                 
                 # Upsert into confirmed_signals_ledger
+                symbol_val = signal.get('symbol') or signal.get('exchange')
                 cursor.execute("""
                     INSERT INTO confirmed_signals_ledger 
-                    (trade_id, triangle_time_ms, direction, session, entry, stop, be_mfe, no_be_mfe, mae, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    (trade_id, triangle_time_ms, direction, session, entry, stop, be_mfe, no_be_mfe, mae, symbol, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                     ON CONFLICT (trade_id) DO UPDATE SET
                         triangle_time_ms = COALESCE(EXCLUDED.triangle_time_ms, confirmed_signals_ledger.triangle_time_ms),
                         direction = COALESCE(EXCLUDED.direction, confirmed_signals_ledger.direction),
@@ -2875,9 +2878,10 @@ def register_indicator_export_routes(app):
                         be_mfe = COALESCE(EXCLUDED.be_mfe, confirmed_signals_ledger.be_mfe),
                         no_be_mfe = COALESCE(EXCLUDED.no_be_mfe, confirmed_signals_ledger.no_be_mfe),
                         mae = COALESCE(EXCLUDED.mae, confirmed_signals_ledger.mae),
+                        symbol = COALESCE(EXCLUDED.symbol, confirmed_signals_ledger.symbol),
                         updated_at = NOW()
                 """, (trade_id, triangle_time_ms, signal.get('direction'), signal.get('session'), 
-                      entry, stop, be_mfe_val, no_be_mfe_val, mae_val))
+                      entry, stop, be_mfe_val, no_be_mfe_val, mae_val, symbol_val))
                 
                 processed += 1
                 upserted += 1

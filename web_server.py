@@ -16762,6 +16762,18 @@ def run_startup_migrations():
         """)
         logger.info("[PRICE_SNAPSHOT_MIGRATION] ✅ Ensured price_snapshots table")
         
+        # Add symbol column to confirmed_signals_ledger
+        logger.info("[CONFIRMED_LEDGER_MIGRATION] Adding symbol column...")
+        cur.execute("""
+            ALTER TABLE confirmed_signals_ledger 
+            ADD COLUMN IF NOT EXISTS symbol TEXT
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_confirmed_symbol_active 
+            ON confirmed_signals_ledger(symbol) WHERE completed = false
+        """)
+        logger.info("[CONFIRMED_LEDGER_MIGRATION] ✅ Symbol column ensured")
+        
         cur.close()
         conn.close()
     except Exception as e:

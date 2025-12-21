@@ -14,7 +14,8 @@ def get_confirmed_ledger_columns(cur) -> Set[str]:
     cur.execute("""
         SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_name = 'confirmed_signals_ledger'
+        WHERE table_schema = 'public'
+        AND table_name = 'confirmed_signals_ledger'
     """)
     return {row[0] for row in cur.fetchall()}
 

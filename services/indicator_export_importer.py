@@ -149,11 +149,12 @@ def import_indicator_export_v2(batch_id: int, conn=None) -> dict:
                     date_obj = None
             
             # Upsert into confirmed_signals_ledger
+            symbol_val = signal.get('symbol') or signal.get('exchange')
             cursor.execute("""
                 INSERT INTO confirmed_signals_ledger 
                 (trade_id, triangle_time_ms, confirmation_time_ms, date, session, direction, 
-                 entry, stop, be_mfe, no_be_mfe, mae, completed, last_seen_batch_id, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                 entry, stop, be_mfe, no_be_mfe, mae, completed, symbol, last_seen_batch_id, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                 ON CONFLICT (trade_id) DO UPDATE SET
                     direction = EXCLUDED.direction,
                     confirmation_time_ms = COALESCE(EXCLUDED.confirmation_time_ms, confirmed_signals_ledger.confirmation_time_ms),
@@ -165,9 +166,12 @@ def import_indicator_export_v2(batch_id: int, conn=None) -> dict:
                     no_be_mfe = COALESCE(EXCLUDED.no_be_mfe, confirmed_signals_ledger.no_be_mfe),
                     mae = COALESCE(EXCLUDED.mae, confirmed_signals_ledger.mae),
                     completed = COALESCE(EXCLUDED.completed, confirmed_signals_ledger.completed),
+                    symbol = COALESCE(EXCLUDED.symbol, confirmed_signals_ledger.symbol),
                     last_seen_batch_id = EXCLUDED.last_seen_batch_id,
                     updated_at = NOW()
                 RETURNING (xmax = 0) AS inserted
+            """, (trade_id, triangle_time, confirmation_time, date_obj, session, direction,
+                  entry, stop, be_mfe, no_be_mfe, mae, completed, symbol_val, batch_id))
             """, (trade_id, triangle_time, confirmation_time, date_obj, session, direction,
                   entry, stop, be_mfe, no_be_mfe, mae, completed, batch_id))
             
