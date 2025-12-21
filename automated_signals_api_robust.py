@@ -1272,6 +1272,31 @@ def register_indicator_export_routes(app):
     Called from register_automated_signals_api_robust().
     """
     from zoneinfo import ZoneInfo
+    
+    def extract_symbol(payload: dict) -> str:
+        """Extract symbol from payload with fallback priority"""
+        # Top-level keys
+        if payload.get('symbol'):
+            return payload['symbol']
+        if payload.get('ticker'):
+            return payload['ticker']
+        if payload.get('exchange'):
+            return payload['exchange']
+        
+        # First signal fallback
+        signals = payload.get('signals', [])
+        if isinstance(signals, list) and len(signals) > 0:
+            first = signals[0]
+            if isinstance(first, dict):
+                if first.get('symbol'):
+                    return first['symbol']
+                if first.get('ticker'):
+                    return first['ticker']
+                if first.get('exchange'):
+                    return first['exchange']
+        
+        return 'unknown'
+    
     @app.route('/api/indicator-export', methods=['POST'])
     def indicator_export_webhook():
         """
@@ -1346,9 +1371,7 @@ def register_indicator_export_routes(app):
         batch_size = len(signals) if event_type == "MFE_UPDATE_BATCH" else data.get('batch_size')
         
         # Determine symbol for logging
-        symbol_log = data.get('symbol', 'unknown')
-        if symbol_log == 'unknown' and isinstance(signals, list) and len(signals) > 0:
-            symbol_log = signals[0].get('symbol') or signals[0].get('exchange') or 'unknown'
+        symbol_log = extract_symbol(data)
         
         logger.info(f"[INDICATOR_EXPORT] event_type={event_type}, batch={batch_number}, size={batch_size}, hash={payload_hash[:8]}, symbol={symbol_log}")
         
@@ -1472,7 +1495,7 @@ def register_indicator_export_routes(app):
                                     mae_val = None
                                 
                                 # Upsert
-                                symbol_val = signal.get('symbol') or signal.get('exchange')
+                                symbol_val = signal.get('symbol') or data.get('symbol') or signal.get('exchange') or data.get('exchange') or 'unknown'
                                 cursor_import.execute("""
                                     INSERT INTO confirmed_signals_ledger 
                                     (trade_id, triangle_time_ms, be_mfe, no_be_mfe, mae, direction, session, symbol, updated_at, last_seen_batch_id)
@@ -2884,7 +2907,7 @@ def register_indicator_export_routes(app):
                     mae_val = 0.0
                 
                 # Upsert into confirmed_signals_ledger
-                symbol_val = signal.get('symbol') or signal.get('exchange')
+                symbol_val = signal.get('symbol') or payload.get('symbol') or signal.get('exchange') or payload.get('exchange') or 'unknown'
                 cursor.execute("""
                     INSERT INTO confirmed_signals_ledger 
                     (trade_id, triangle_time_ms, direction, session, entry, stop, be_mfe, no_be_mfe, mae, symbol, updated_at)
