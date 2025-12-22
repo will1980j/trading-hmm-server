@@ -17,6 +17,16 @@ def update_indicator_health_from_snapshot(symbol: str):
     cur = conn.cursor()
     
     try:
+        # Ensure table exists
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS indicator_health (
+                symbol TEXT PRIMARY KEY,
+                last_activity TIMESTAMPTZ NOT NULL,
+                status TEXT NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL
+            )
+        """)
+        
         # Update or insert indicator health record
         cur.execute("""
             INSERT INTO indicator_health (symbol, last_activity, status, updated_at)
