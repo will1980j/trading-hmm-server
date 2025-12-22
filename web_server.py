@@ -16912,6 +16912,19 @@ def run_startup_migrations():
         """)
         logger.info("[CONFIRMED_LEDGER_MIGRATION] ✅ Symbol column ensured")
         
+        # Add be_triggered column to confirmed_signals_ledger
+        logger.info("[CONFIRMED_LEDGER_MIGRATION] Adding be_triggered column...")
+        cur.execute("""
+            ALTER TABLE confirmed_signals_ledger 
+            ADD COLUMN IF NOT EXISTS be_triggered BOOLEAN DEFAULT FALSE
+        """)
+        cur.execute("""
+            UPDATE confirmed_signals_ledger 
+            SET be_triggered = FALSE 
+            WHERE be_triggered IS NULL
+        """)
+        logger.info("[CONFIRMED_LEDGER_MIGRATION] ✅ be_triggered column ensured")
+        
         cur.close()
         conn.close()
     except Exception as e:
