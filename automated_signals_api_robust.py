@@ -1072,15 +1072,6 @@ def register_indicator_export_routes(app):
                             'close': data['close']
                         })
                         
-                        if snapshot_result.get('status') == 'duplicate':
-                            cursor.close()
-                            conn.close()
-                            return jsonify({
-                                'event_type': 'UNIFIED_SNAPSHOT_V1',
-                                'status': 'duplicate_price_bar',
-                                'signals_count': len(signals)
-                            }), 200
-                        
                         stored_price_bar = True
                         logger.info(f"[UNIFIED_SNAPSHOT_V1] Price bar stored: {snapshot_result}")
                     except Exception as snap_err:

@@ -34,19 +34,16 @@ def process_price_snapshot(snapshot: Dict) -> Dict:
     cur = conn.cursor()
     
     try:
-        # Check for duplicate
+        # Upsert snapshot (update if exists)
         cur.execute("""
-            SELECT 1 FROM price_snapshots 
-            WHERE symbol = %s AND bar_ts = %s
-        """, (symbol, bar_ts))
-        if cur.fetchone():
-            conn.close()
-            return {"status": "duplicate", "updated": 0}
-        
-        # Store snapshot
-        cur.execute("""
-            INSERT INTO price_snapshots (symbol, timeframe, bar_ts, open, high, low, close)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO price_snapshots (symbol, timeframe, bar_ts, open, high, low, close, received_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+            ON CONFLICT (symbol, bar_ts) DO UPDATE SET
+                open = EXCLUDED.open,
+                high = EXCLUDED.high,
+                low = EXCLUDED.low,
+                close = EXCLUDED.close,
+                received_at = NOW()
         """, (symbol, snapshot.get('timeframe', '1m'), bar_ts, open_price, high, low, close))
         
         # Update indicator health
