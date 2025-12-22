@@ -1061,9 +1061,9 @@ def register_indicator_export_routes(app):
                 # Process OHLC if present
                 if all(k in data for k in ['bar_ts', 'open', 'high', 'low', 'close']):
                     try:
-                        from services.price_snapshot_processor import process_price_snapshot
+                        from services.price_snapshot_processor import process_price_snapshot, canonical_symbol
                         snapshot_result = process_price_snapshot({
-                            'symbol': extract_symbol(data),
+                            'symbol': canonical_symbol(extract_symbol(data)),
                             'timeframe': data.get('timeframe', '1m'),
                             'bar_ts': data['bar_ts'],
                             'open': data['open'],
@@ -1150,6 +1150,10 @@ def register_indicator_export_routes(app):
                             completed = None
                         
                         symbol_val = signal.get('symbol') or data.get('symbol') or signal.get('exchange') or data.get('exchange') or 'unknown'
+                        
+                        # Canonicalize symbol
+                        from services.price_snapshot_processor import canonical_symbol
+                        symbol_val = canonical_symbol(symbol_val)
                         
                         cursor.execute("""
                             INSERT INTO confirmed_signals_ledger 

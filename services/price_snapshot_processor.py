@@ -9,6 +9,15 @@ import os
 
 DATABASE_URL = os.getenv('DATABASE_URL')
 
+def canonical_symbol(sym: str) -> str:
+    """Normalize symbol for consistent matching"""
+    if not sym:
+        return ''
+    sym = sym.strip()
+    if ':' in sym:
+        return sym.split(':')[-1]
+    return sym
+
 def get_confirmed_ledger_columns(cur) -> Set[str]:
     """Get actual column names from confirmed_signals_ledger"""
     cur.execute("""
@@ -23,7 +32,7 @@ def process_price_snapshot(snapshot: Dict) -> Dict:
     """
     Process a single price snapshot and update all active trades
     """
-    symbol = snapshot['symbol']
+    symbol = canonical_symbol(snapshot['symbol'])
     bar_ts = snapshot['bar_ts']
     high = float(snapshot['high'])
     low = float(snapshot['low'])

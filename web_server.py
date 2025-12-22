@@ -15829,11 +15829,20 @@ def get_automated_signals_dashboard_data():
         """)
         latest_prices = {row[0]: {'close': float(row[1]), 'bar_ts': row[2], 'received_at': row[3]} for row in cursor.fetchall()}
         
+        # Canonical symbol helper
+        def canonical_symbol(sym):
+            if not sym:
+                return ''
+            sym = sym.strip()
+            if ':' in sym:
+                return sym.split(':')[-1]
+            return sym
+        
         matched_price_count = 0
         missing_price_count = 0
         
         for row in active_rows:
-            trade_symbol = row[11]
+            trade_symbol = canonical_symbol(row[11])
             entry = float(row[6]) if row[6] else None
             stop = float(row[7]) if row[7] else None
             direction = row[4]
