@@ -15914,11 +15914,16 @@ def get_automated_signals_dashboard_data():
         valid_timestamps = [ts for ts in timestamps if ts]
         last_activity_ts = max(valid_timestamps) if valid_timestamps else None
         
+        # Ensure timezone-aware
+        if last_activity_ts and last_activity_ts.tzinfo is None:
+            last_activity_ts = last_activity_ts.replace(tzinfo=timezone.utc)
+        
         # Webhook healthy check
         webhook_healthy = False
         if last_activity_ts:
-            age_minutes = (datetime.now() - last_activity_ts).total_seconds() / 60
-            webhook_healthy = age_minutes < 10
+            now_utc = datetime.now(timezone.utc)
+            lag_seconds = (now_utc - last_activity_ts).total_seconds()
+            webhook_healthy = lag_seconds <= 600
         
         win_rate = (stats_row[3] / stats_row[1] * 100) if stats_row and stats_row[1] > 0 else 0
         
