@@ -25,7 +25,7 @@ from markupsafe import escape as markup_escape, Markup
 from csrf_protection import csrf, csrf_protect
 from ai_prompts import get_ai_system_prompt, get_chart_analysis_prompt, get_strategy_summary_prompt, get_risk_assessment_prompt
 from news_api import NewsAPI, get_market_sentiment, extract_key_levels
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from auth import login_required, authenticate
 from ml_insights_endpoint import get_ml_insights_response
