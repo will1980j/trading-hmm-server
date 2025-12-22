@@ -43,10 +43,10 @@ def process_price_snapshot(snapshot: Dict) -> Dict:
     """
     symbol = canonical_symbol(snapshot['symbol'])
     bar_ts = snapshot['bar_ts']
-    high = float(snapshot['high'])
-    low = float(snapshot['low'])
-    open_price = float(snapshot['open'])
-    close = float(snapshot['close'])
+    high = f(snapshot['high'])
+    low = f(snapshot['low'])
+    open_price = f(snapshot['open'])
+    close = f(snapshot['close'])
     
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
