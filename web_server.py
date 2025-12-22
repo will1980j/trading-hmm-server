@@ -15787,14 +15787,149 @@ def debug_dump_trade(trade_id):
 
 @app.route('/api/automated-signals/dashboard-data', methods=['GET'])
 def get_automated_signals_dashboard_data():
-    """Get all signals for dashboard display. Optionally filter by date."""
+    """Get all signals for dashboard display from confirmed_signals_ledger"""
     try:
         database_url = os.environ.get('DATABASE_URL')
         if not database_url:
             return jsonify({"success": False, "error": "DATABASE_URL not configured"}), 500
         
-        # Optional date filter (format: YYYY-MM-DD)
         date_filter = request.args.get('date')
+        
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        
+        # Active trades from confirmed_signals_ledger
+        if date_filter:
+            cursor.execute("""
+                SELECT trade_id, triangle_time_ms, confirmation_time_ms, date, direction, session,
+                       entry, stop, be_mfe, no_be_mfe, mae, symbol, updated_at, be_triggered
+                FROM confirmed_signals_ledger
+                WHERE completed = false AND date = %s
+                ORDER BY triangle_time_ms DESC
+                LIMIT 100
+            """, (date_filter,))
+        else:
+            cursor.execute("""
+                SELECT trade_id, triangle_time_ms, confirmation_time_ms, date, direction, session,
+                       entry, stop, be_mfe, no_be_mfe, mae, symbol, updated_at, be_triggered
+                FROM confirmed_signals_ledger
+                WHERE completed = false
+                ORDER BY triangle_time_ms DESC
+                LIMIT 100
+            """)
+        
+        active_rows = cursor.fetchall()
+        active_trades = []
+        for row in active_rows:
+            active_trades.append({
+                "trade_id": row[0],
+                "direction": row[4],
+                "entry_price": float(row[6]) if row[6] else None,
+                "stop_loss": float(row[7]) if row[7] else None,
+                "session": row[5],
+                "signal_date": row[3].isoformat() if row[3] else None,
+                "signal_time": datetime.fromtimestamp(row[1]/1000).strftime('%H:%M:%S') if row[1] else None,
+                "event_ts": row[12].isoformat() if row[12] else None,
+                "entry_ts": datetime.fromtimestamp(row[2]/1000).isoformat() if row[2] else None,
+                "be_mfe": float(row[8] or 0.0),
+                "be_mfe_R": float(row[8] or 0.0),
+                "no_be_mfe": float(row[9] or 0.0),
+                "no_be_mfe_R": float(row[9] or 0.0),
+                "mae": float(row[10] or 0.0),
+                "mae_global_R": float(row[10] or 0.0),
+                "status": "ACTIVE",
+                "trade_status": "ACTIVE"
+            })
+        
+        # Completed trades from confirmed_signals_ledger
+        if date_filter:
+            cursor.execute("""
+                SELECT trade_id, triangle_time_ms, confirmation_time_ms, date, direction, session,
+                       entry, stop, be_mfe, no_be_mfe, mae, symbol, updated_at, be_triggered, completed_at
+                FROM confirmed_signals_ledger
+                WHERE completed = true AND date = %s
+                ORDER BY triangle_time_ms DESC
+                LIMIT 100
+            """, (date_filter,))
+        else:
+            cursor.execute("""
+                SELECT trade_id, triangle_time_ms, confirmation_time_ms, date, direction, session,
+                       entry, stop, be_mfe, no_be_mfe, mae, symbol, updated_at, be_triggered, completed_at
+                FROM confirmed_signals_ledger
+                WHERE completed = true
+                ORDER BY triangle_time_ms DESC
+                LIMIT 100
+            """)
+        
+        completed_rows = cursor.fetchall()
+        completed_trades = []
+        for row in completed_rows:
+            completed_trades.append({
+                "trade_id": row[0],
+                "direction": row[4],
+                "entry_price": float(row[6]) if row[6] else None,
+                "stop_loss": float(row[7]) if row[7] else None,
+                "session": row[5],
+                "signal_date": row[3].isoformat() if row[3] else None,
+                "signal_time": datetime.fromtimestamp(row[1]/1000).strftime('%H:%M:%S') if row[1] else None,
+                "entry_ts": datetime.fromtimestamp(row[2]/1000).isoformat() if row[2] else None,
+                "exit_ts": row[14].isoformat() if row[14] else None,
+                "event_ts": datetime.fromtimestamp(row[2]/1000).isoformat() if row[2] else None,
+                "be_mfe": float(row[8] or 0.0),
+                "be_mfe_R": float(row[8] or 0.0),
+                "no_be_mfe": float(row[9] or 0.0),
+                "no_be_mfe_R": float(row[9] or 0.0),
+                "final_mfe": float(row[9] or 0.0),
+                "final_mfe_R": float(row[9] or 0.0),
+                "mae": float(row[10] or 0.0),
+                "mae_global_R": float(row[10] or 0.0),
+                "status": "COMPLETED",
+                "trade_status": "COMPLETED"
+            })
+        
+        # Stats
+        cursor.execute("""
+            SELECT 
+                COUNT(*) FILTER (WHERE completed = false) as active_count,
+                COUNT(*) FILTER (WHERE completed = true) as completed_count,
+                AVG(no_be_mfe) FILTER (WHERE completed = true) as avg_mfe,
+                COUNT(*) FILTER (WHERE completed = true AND no_be_mfe >= 1.0) as win_count,
+                MAX(updated_at) as last_update
+            FROM confirmed_signals_ledger
+        """)
+        stats_row = cursor.fetchone()
+        
+        win_rate = (stats_row[3] / stats_row[1] * 100) if stats_row and stats_row[1] > 0 else 0
+        
+        stats = {
+            "total_signals": (stats_row[0] or 0) + (stats_row[1] or 0),
+            "active_count": stats_row[0] or 0,
+            "completed_count": stats_row[1] or 0,
+            "win_count": stats_row[3] or 0,
+            "win_rate": round(win_rate, 1),
+            "avg_mfe": round(float(stats_row[2] or 0.0), 2),
+            "last_webhook_timestamp": stats_row[4].isoformat() if stats_row[4] else None,
+            "today_count": len(active_trades) + len(completed_trades)
+        }
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "active_trades": active_trades,
+            "completed_trades": completed_trades,
+            "stats": stats
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Dashboard data error: {str(e)}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "active_trades": [],
+            "completed_trades": []
+        }), 500
         
         conn = psycopg2.connect(database_url)
         cursor = conn.cursor()

@@ -737,69 +737,45 @@ def register_automated_signals_api_robust(app, db):
 
     @app.route('/api/automated-signals/daily-calendar')
     def get_daily_calendar():
-        """Get daily trade data for calendar view with completed and active counts"""
+        """Get daily trade data from confirmed_signals_ledger"""
         try:
             import os
             import psycopg2
-            from psycopg2.extras import RealDictCursor
             
             database_url = os.environ.get('DATABASE_URL')
             if not database_url:
                 return jsonify({'success': False, 'error': 'no_database_url'}), 500
             
             conn = psycopg2.connect(database_url)
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor = conn.cursor()
             
-            # Get completed trades per day (last 90 days)
-            # JOIN EXIT with ENTRY to get signal_date
             cursor.execute("""
                 SELECT 
-                    e.signal_date as date,
-                    COUNT(DISTINCT x.trade_id) as completed_count,
-                    AVG(COALESCE(x.final_mfe, x.no_be_mfe, x.mfe, 0)) as avg_mfe
-                FROM automated_signals x
-                INNER JOIN automated_signals e ON x.trade_id = e.trade_id AND e.event_type = 'ENTRY'
-                WHERE x.event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
-                AND e.signal_date >= CURRENT_DATE - INTERVAL '90 days'
-                AND e.signal_date IS NOT NULL
-                GROUP BY e.signal_date
+                    date,
+                    COUNT(*) as trade_count,
+                    COUNT(*) FILTER (WHERE completed = false) as active_count,
+                    COUNT(*) FILTER (WHERE completed = true) as completed_count,
+                    AVG(no_be_mfe) FILTER (WHERE completed = true) as avg_mfe
+                FROM confirmed_signals_ledger
+                WHERE date IS NOT NULL
+                AND date >= CURRENT_DATE - INTERVAL '90 days'
+                GROUP BY date
+                ORDER BY date DESC
             """)
-            completed_by_date = {row['date'].isoformat() if hasattr(row['date'], 'isoformat') else str(row['date']): row for row in cursor.fetchall()}
             
-            # Get active trades per day (entry date, no EXIT_SL yet)
-            # Group by signal_date (actual signal time), not import timestamp
-            cursor.execute("""
-                SELECT 
-                    e.signal_date as date,
-                    COUNT(DISTINCT e.trade_id) as active_count
-                FROM automated_signals e
-                WHERE e.event_type = 'ENTRY'
-                AND e.signal_date >= CURRENT_DATE - INTERVAL '90 days'
-                AND e.signal_date IS NOT NULL
-                AND e.trade_id NOT IN (
-                    SELECT DISTINCT trade_id 
-                    FROM automated_signals 
-                    WHERE event_type IN ('EXIT_STOP_LOSS', 'EXIT_SL')
-                )
-                GROUP BY e.signal_date
-            """)
-            active_by_date = {row['date'].isoformat() if hasattr(row['date'], 'isoformat') else str(row['date']): row['active_count'] for row in cursor.fetchall()}
+            daily_data = {}
+            for row in cursor.fetchall():
+                date_str = row[0].isoformat() if row[0] else None
+                if date_str:
+                    daily_data[date_str] = {
+                        'trade_count': row[1],
+                        'active_count': row[2],
+                        'completed_count': row[3],
+                        'avg_mfe': float(row[4]) if row[4] else 0.0
+                    }
             
             cursor.close()
             conn.close()
-            
-            # Merge data
-            all_dates = set(completed_by_date.keys()) | set(active_by_date.keys())
-            daily_data = {}
-            
-            for date_str in all_dates:
-                completed_info = completed_by_date.get(date_str, {})
-                daily_data[date_str] = {
-                    'completed_count': completed_info.get('completed_count', 0) if completed_info else 0,
-                    'active_count': active_by_date.get(date_str, 0),
-                    'avg_mfe': float(completed_info.get('avg_mfe', 0)) if completed_info and completed_info.get('avg_mfe') else 0,
-                    'trade_count': (completed_info.get('completed_count', 0) if completed_info else 0) + active_by_date.get(date_str, 0)
-                }
             
             return jsonify({
                 'success': True,
@@ -2116,7 +2092,7 @@ def register_indicator_export_routes(app):
     
     @app.route('/api/data-quality/indicator-health', methods=['GET'])
     def get_indicator_health():
-        """Return indicator data flow health summary."""
+        """Return indicator data flow health summary with v2 ledgers + price snapshots"""
         import os
         import psycopg2
         from psycopg2.extras import RealDictCursor
@@ -2132,9 +2108,9 @@ def register_indicator_export_routes(app):
             now = datetime.now(timezone.utc)
             
             # Latest batch timestamps
-            cursor.execute("SELECT received_at FROM indicator_export_batches WHERE event_type='ALL_SIGNALS_EXPORT' AND is_valid=true ORDER BY received_at DESC LIMIT 1")
-            all_sig_row = cursor.fetchone()
-            latest_all_signals = all_sig_row['received_at'] if all_sig_row else None
+            cursor.execute("SELECT received_at FROM indicator_export_batches WHERE event_type='UNIFIED_SNAPSHOT_V1' AND is_valid=true ORDER BY received_at DESC LIMIT 1")
+            unified_row = cursor.fetchone()
+            latest_unified = unified_row['received_at'] if unified_row else None
             
             cursor.execute("SELECT received_at FROM indicator_export_batches WHERE event_type='MFE_UPDATE_BATCH' AND is_valid=true ORDER BY received_at DESC LIMIT 1")
             mfe_row = cursor.fetchone()
@@ -2144,20 +2120,22 @@ def register_indicator_export_routes(app):
             v2_row = cursor.fetchone()
             latest_v2 = v2_row['received_at'] if v2_row else None
             
+            # Price snapshots
+            cursor.execute("SELECT MAX(received_at) as max_ts, COUNT(*) as cnt FROM price_snapshots WHERE received_at >= NOW() - INTERVAL '60 minutes'")
+            price_row = cursor.fetchone()
+            latest_price = price_row['max_ts'] if price_row else None
+            count_price_60m = price_row['cnt'] if price_row else 0
+            
             # Recent counts (60 minutes)
-            cursor.execute("SELECT COUNT(*) as cnt FROM indicator_export_batches WHERE event_type='ALL_SIGNALS_EXPORT' AND is_valid=true AND received_at >= NOW() - INTERVAL '60 minutes'")
-            all_count_row = cursor.fetchone()
-            count_all_60m = all_count_row['cnt'] if all_count_row else 0
+            cursor.execute("SELECT COUNT(*) as cnt FROM indicator_export_batches WHERE event_type='UNIFIED_SNAPSHOT_V1' AND is_valid=true AND received_at >= NOW() - INTERVAL '60 minutes'")
+            unified_count_row = cursor.fetchone()
+            count_unified_60m = unified_count_row['cnt'] if unified_count_row else 0
             
             cursor.execute("SELECT COUNT(*) as cnt FROM indicator_export_batches WHERE event_type='MFE_UPDATE_BATCH' AND is_valid=true AND received_at >= NOW() - INTERVAL '60 minutes'")
             mfe_count_row = cursor.fetchone()
             count_mfe_60m = mfe_count_row['cnt'] if mfe_count_row else 0
             
             # Ledger freshness
-            cursor.execute("SELECT MAX(updated_at) as max_ts FROM all_signals_ledger")
-            all_ledger_row = cursor.fetchone()
-            max_all_ledger = all_ledger_row['max_ts'] if all_ledger_row else None
-            
             cursor.execute("SELECT MAX(updated_at) as max_ts FROM confirmed_signals_ledger")
             conf_ledger_row = cursor.fetchone()
             max_conf_ledger = conf_ledger_row['max_ts'] if conf_ledger_row else None
@@ -2173,14 +2151,20 @@ def register_indicator_export_routes(app):
                     ts = ts.replace(tzinfo=timezone.utc)
                 return int((now - ts).total_seconds())
             
-            all_sig_lag = compute_lag(latest_all_signals)
+            unified_lag = compute_lag(latest_unified)
             mfe_lag = compute_lag(latest_mfe)
             v2_lag = compute_lag(latest_v2)
+            price_lag = compute_lag(latest_price)
+            conf_lag = compute_lag(max_conf_ledger)
             
-            # Traffic light logic
-            if all_sig_lag is not None and all_sig_lag <= 180 and mfe_lag is not None and mfe_lag <= 180:
+            # Traffic light logic - GREEN if ANY stream is fresh
+            active_lags = [l for l in [unified_lag, mfe_lag, v2_lag, price_lag, conf_lag] if l is not None]
+            
+            if not active_lags:
+                traffic_light = "RED"
+            elif min(active_lags) <= 180:
                 traffic_light = "GREEN"
-            elif (all_sig_lag is not None and all_sig_lag <= 600) or (mfe_lag is not None and mfe_lag <= 600):
+            elif min(active_lags) <= 600:
                 traffic_light = "AMBER"
             else:
                 traffic_light = "RED"
@@ -2192,10 +2176,10 @@ def register_indicator_export_routes(app):
                 'now': now.isoformat(),
                 'traffic_light': traffic_light,
                 'streams': {
-                    'all_signals_export': {
-                        'last_received_at': latest_all_signals.isoformat() if latest_all_signals else None,
-                        'lag_seconds': all_sig_lag,
-                        'count_60m': count_all_60m
+                    'unified_snapshot_v1': {
+                        'last_received_at': latest_unified.isoformat() if latest_unified else None,
+                        'lag_seconds': unified_lag,
+                        'count_60m': count_unified_60m
                     },
                     'mfe_update_batch': {
                         'last_received_at': latest_mfe.isoformat() if latest_mfe else None,
@@ -2205,14 +2189,17 @@ def register_indicator_export_routes(app):
                     'indicator_export_v2': {
                         'last_received_at': latest_v2.isoformat() if latest_v2 else None,
                         'lag_seconds': v2_lag
+                    },
+                    'price_snapshots': {
+                        'last_received_at': latest_price.isoformat() if latest_price else None,
+                        'lag_seconds': price_lag,
+                        'count_60m': count_price_60m
                     }
                 },
                 'ledgers': {
-                    'all_signals_ledger': {
-                        'max_updated_at': max_all_ledger.isoformat() if max_all_ledger else None
-                    },
                     'confirmed_signals_ledger': {
-                        'max_updated_at': max_conf_ledger.isoformat() if max_conf_ledger else None
+                        'max_updated_at': max_conf_ledger.isoformat() if max_conf_ledger else None,
+                        'lag_seconds': conf_lag
                     }
                 }
             }), 200

@@ -49,6 +49,7 @@ RECALCULATE_MFE = input.bool(false, "🔄 Recalculate All MFE", group="Debug", t
 ENABLE_EXPORT = input.bool(false, "📤 Export Confirmed Signals", group="Export", tooltip="Export confirmed signals with entry/stop/MFE data. Turn ON, wait for completion, turn OFF.")
 ENABLE_ALL_SIGNALS_EXPORT = input.bool(false, "📤 Export All Signals", group="Export", tooltip="Export every triangle (pending, confirmed, cancelled). Run AFTER confirmed signals export.")
 ENABLE_LIVE_CONFIRMED_EXPORT = input.bool(true, "⚡ Live Confirmed Export (per trade)", group="Export", tooltip="Send ONE confirmed signal immediately when entry bar begins (realtime only)")
+ENABLE_UNIFIED_SNAPSHOT = input.bool(true, "🔄 Unified Snapshot V1 (OHLC + trades)", group="Export", tooltip="Single alert per bar with OHLC + active trades. Replaces separate MFE batch alerts.")
 EXPORT_DELAY_BARS = input.int(5, "Delay Between Batches (bars)", minval=0, maxval=10, group="Export", tooltip="5 = wait 5 minutes between batches (recommended), 0 = send immediately (may hit rate limits)")
 
 // AUTO-DETECT CONTRACT TYPE AND POINT VALUE
@@ -1014,7 +1015,8 @@ if array.size(signal_entries) > 0
                     
                     string confirmed_payload = '{"event_type":"INDICATOR_EXPORT_V2","symbol":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","batch_number":-1,"batch_size":1,"total_signals":1,"signals":[' + confirmed_signal + ']}'
                     
-                    alert(confirmed_payload, alert.freq_once_per_bar_close)
+                    if not ENABLE_UNIFIED_SNAPSHOT
+                        alert(confirmed_payload, alert.freq_once_per_bar_close)
                     
                     array.set(signal_confirmed_export_sent, i, true)
                     live_confirmed_sent_this_bar := true
@@ -2018,9 +2020,56 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
             break
     
     // Send MFE batch alert
-    if signals_in_batch > 0
+    if signals_in_batch > 0 and not ENABLE_UNIFIED_SNAPSHOT
         string batch_envelope = '{"event_type":"MFE_UPDATE_BATCH","symbol":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","batch_number":-1,"batch_size":' + str.tostring(signals_in_batch) + ',"total_signals":' + str.tostring(signals_in_batch) + ',"signals":[' + batch_payload + ']}'
         alert(batch_envelope, alert.freq_once_per_bar_close)
+
+// ============================================================================
+// UNIFIED SNAPSHOT V1 - OHLC + Active Trades (Single Alert)
+// ============================================================================
+if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
+    string unified_signals = ""
+    int unified_count = 0
+    int max_signals = 12
+    
+    for i = array.size(signal_entries) - 1 to 0
+        if unified_count >= max_signals
+            break
+        
+        bool is_active = i < array.size(signal_no_be_stopped) ? not array.get(signal_no_be_stopped, i) : false
+        if not is_active
+            continue
+        
+        int tri_time = i < array.size(signal_triangle_times) ? array.get(signal_triangle_times, i) : 0
+        if tri_time == 0
+            continue
+        int conf_time = i < array.size(signal_entry_times) ? array.get(signal_entry_times, i) : 0
+        string dir = i < array.size(signal_directions) ? array.get(signal_directions, i) : "Bullish"
+        float entry_val = array.get(signal_entries, i)
+        float stop_val = array.get(signal_stops, i)
+        float be_mfe_val = i < array.size(signal_be_mfes) ? array.get(signal_be_mfes, i) : 0.0
+        float no_be_mfe_val = i < array.size(signal_mfes) ? array.get(signal_mfes, i) : 0.0
+        float mae_val = i < array.size(signal_maes) ? math.min(array.get(signal_maes, i), 0.0) : 0.0
+        
+        string date_str = str.tostring(year(tri_time, "America/New_York")) + "-" + str.tostring(month(tri_time, "America/New_York"), "00") + "-" + str.tostring(dayofmonth(tri_time, "America/New_York"), "00")
+        int h = hour(tri_time, "America/New_York")
+        int m = minute(tri_time, "America/New_York")
+        string sess = h >= 20 ? "ASIA" : h < 6 ? "LONDON" : h < 8 or (h == 8 and m < 30) ? "NY PRE" : (h == 8 and m >= 30) or h < 12 ? "NY AM" : h == 12 ? "NY LUNCH" : h < 16 ? "NY PM" : "AFTER_HOURS"
+        string trade_id = f_buildTradeId(tri_time, dir)
+        
+        string sig_json = '{"trade_id":"' + trade_id + '","triangle_time":' + str.tostring(tri_time) + ',"confirmation_time":' + str.tostring(conf_time) + ',"date":"' + date_str + '","direction":"' + dir + '","session":"' + sess + '","entry":' + f_num(entry_val) + ',"stop":' + f_num(stop_val) + ',"symbol":"' + syminfo.ticker + '","be_mfe":' + f_num(be_mfe_val) + ',"no_be_mfe":' + f_num(no_be_mfe_val) + ',"mae":' + f_num(mae_val) + ',"completed":false}'
+        
+        string test_add = unified_count > 0 ? "," + sig_json : sig_json
+        int new_size = str.length(unified_signals) + str.length(test_add) + 300
+        
+        if new_size < 3900
+            unified_signals := unified_count > 0 ? unified_signals + "," + sig_json : sig_json
+            unified_count := unified_count + 1
+        else
+            break
+    
+    string unified_payload = '{"event_type":"UNIFIED_SNAPSHOT_V1","symbol":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","bar_ts":' + str.tostring(time) + ',"open":' + f_num(open) + ',"high":' + f_num(high) + ',"low":' + f_num(low) + ',"close":' + f_num(close) + ',"signals":[' + unified_signals + ']}'
+    alert(unified_payload, alert.freq_once_per_bar_close)
 
 // ============================================================================
 // TELEMETRY ENGINE — MFE_UPDATE SENDER (DISABLED - Using batch system instead)
