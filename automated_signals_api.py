@@ -14,10 +14,8 @@ logger = logging.getLogger(__name__)
 def register_automated_signals_api(app, db):
     """Register all API endpoints for automated signals dashboard"""
     
-    # DISABLED - Duplicate of web_server.py route
-    # @app.route('/api/automated-signals/dashboard-data')
-    # def get_dashboard_data():
-    #     """Get complete dashboard data - active trades, completed trades, stats"""
+    @app.route('/api/automated-signals/mfe-distribution')
+    def get_mfe_distribution():
         try:
             cursor = db.conn.cursor()
             
