@@ -15899,6 +15899,27 @@ def get_automated_signals_dashboard_data():
         """)
         stats_row = cursor.fetchone()
         
+        # Get price snapshots freshness
+        cursor.execute("SELECT MAX(received_at) FROM price_snapshots")
+        price_snap_row = cursor.fetchone()
+        last_price_snap = price_snap_row[0] if price_snap_row else None
+        
+        # Get unified snapshot freshness
+        cursor.execute("SELECT MAX(received_at) FROM indicator_export_batches WHERE event_type='UNIFIED_SNAPSHOT_V1'")
+        unified_row = cursor.fetchone()
+        last_unified = unified_row[0] if unified_row else None
+        
+        # Compute last activity from all sources
+        timestamps = [stats_row[4], last_price_snap, last_unified]
+        valid_timestamps = [ts for ts in timestamps if ts]
+        last_activity_ts = max(valid_timestamps) if valid_timestamps else None
+        
+        # Webhook healthy check
+        webhook_healthy = False
+        if last_activity_ts:
+            age_minutes = (datetime.now() - last_activity_ts).total_seconds() / 60
+            webhook_healthy = age_minutes < 10
+        
         win_rate = (stats_row[3] / stats_row[1] * 100) if stats_row and stats_row[1] > 0 else 0
         
         stats = {
@@ -15908,7 +15929,8 @@ def get_automated_signals_dashboard_data():
             "win_count": stats_row[3] or 0,
             "win_rate": round(win_rate, 1),
             "avg_mfe": round(float(stats_row[2] or 0.0), 2),
-            "last_webhook_timestamp": stats_row[4].isoformat() if stats_row[4] else None,
+            "last_webhook_timestamp": last_activity_ts.isoformat() if last_activity_ts else None,
+            "webhook_healthy": webhook_healthy,
             "today_count": len(active_trades) + len(completed_trades),
             "stats_marker": "STATS_FROM_CONFIRMED_SIGNALS_LEDGER"
         }
