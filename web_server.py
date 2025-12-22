@@ -16925,6 +16925,14 @@ def run_startup_migrations():
         """)
         logger.info("[CONFIRMED_LEDGER_MIGRATION] ✅ be_triggered column ensured")
         
+        # Add completed_at column to confirmed_signals_ledger
+        logger.info("[CONFIRMED_LEDGER_MIGRATION] Adding completed_at column...")
+        cur.execute("""
+            ALTER TABLE confirmed_signals_ledger 
+            ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ
+        """)
+        logger.info("[CONFIRMED_LEDGER_MIGRATION] ✅ completed_at column ensured")
+        
         cur.close()
         conn.close()
     except Exception as e:
