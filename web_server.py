@@ -15820,12 +15820,29 @@ def get_automated_signals_dashboard_data():
         
         active_rows = cursor.fetchall()
         active_trades = []
+        
+        # Get latest prices for all symbols
+        cursor.execute("""
+            SELECT DISTINCT ON (symbol) symbol, close, bar_ts, received_at
+            FROM price_snapshots
+            ORDER BY symbol, bar_ts DESC
+        """)
+        latest_prices = {row[0]: {'close': float(row[1]), 'bar_ts': row[2], 'received_at': row[3]} for row in cursor.fetchall()}
+        
+        matched_price_count = 0
+        missing_price_count = 0
+        
         for row in active_rows:
-            active_trades.append({
+            trade_symbol = row[11]
+            entry = float(row[6]) if row[6] else None
+            stop = float(row[7]) if row[7] else None
+            direction = row[4]
+            
+            trade_dict = {
                 "trade_id": row[0],
-                "direction": row[4],
-                "entry_price": float(row[6]) if row[6] else None,
-                "stop_loss": float(row[7]) if row[7] else None,
+                "direction": direction,
+                "entry_price": entry,
+                "stop_loss": stop,
                 "session": row[5],
                 "signal_date": row[3].isoformat() if row[3] else None,
                 "signal_time": datetime.fromtimestamp(row[1]/1000).strftime('%H:%M:%S') if row[1] else None,
@@ -15839,7 +15856,35 @@ def get_automated_signals_dashboard_data():
                 "mae_global_R": float(row[10] or 0.0),
                 "status": "ACTIVE",
                 "trade_status": "ACTIVE"
-            })
+            }
+            
+            # Add live metrics from price snapshots
+            if trade_symbol and trade_symbol in latest_prices and entry and stop:
+                price_data = latest_prices[trade_symbol]
+                last_price = price_data['close']
+                risk_points = abs(entry - stop)
+                
+                if risk_points > 0:
+                    if direction in ['Bullish', 'LONG']:
+                        live_mfe_points = max(0, last_price - entry)
+                        live_mae_points = min(0, last_price - entry)
+                    else:
+                        live_mfe_points = max(0, entry - last_price)
+                        live_mae_points = min(0, entry - last_price)
+                    
+                    trade_dict['last_price'] = last_price
+                    trade_dict['last_price_ts'] = price_data['received_at'].isoformat() if price_data['received_at'] else None
+                    trade_dict['live_mfe_R'] = round(live_mfe_points / risk_points, 2)
+                    trade_dict['live_mae_R'] = round(live_mae_points / risk_points, 2)
+                    trade_dict['live_mfe_points'] = round(live_mfe_points, 2)
+                    trade_dict['live_mae_points'] = round(live_mae_points, 2)
+                    matched_price_count += 1
+                else:
+                    missing_price_count += 1
+            else:
+                missing_price_count += 1
+            
+            active_trades.append(trade_dict)
         
         # Completed trades from confirmed_signals_ledger
         if date_filter:
@@ -15937,7 +15982,9 @@ def get_automated_signals_dashboard_data():
             "last_webhook_timestamp": last_activity_ts.isoformat() if last_activity_ts else None,
             "webhook_healthy": webhook_healthy,
             "today_count": len(active_trades) + len(completed_trades),
-            "stats_marker": "STATS_FROM_CONFIRMED_SIGNALS_LEDGER"
+            "stats_marker": "STATS_FROM_CONFIRMED_SIGNALS_LEDGER",
+            "matched_price_count": matched_price_count,
+            "missing_price_count": missing_price_count
         }
         
         cursor.close()
@@ -15946,6 +15993,7 @@ def get_automated_signals_dashboard_data():
         return jsonify({
             "success": True,
             "handler_marker": "DASHBOARD_DATA_V2_LEDGER_20251222_A",
+            "live_metrics_marker": "LIVE_METRICS_FROM_PRICE_SNAPSHOTS_20251222_A",
             "server_time_utc": datetime.utcnow().isoformat() + "Z",
             "active_trades": active_trades,
             "completed_trades": completed_trades,
