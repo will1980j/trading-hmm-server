@@ -15840,12 +15840,18 @@ def get_automated_signals_dashboard_data():
         
         matched_price_count = 0
         missing_price_count = 0
+        active_missing_symbol_count = 0
+        active_missing_timeframe_count = 0
         
         for row in active_rows:
-            trade_symbol = canonical_symbol(row[11])
+            raw_symbol = row[11]
+            trade_symbol = canonical_symbol(raw_symbol)
             entry = float(row[6]) if row[6] else None
             stop = float(row[7]) if row[7] else None
             direction = row[4]
+            
+            if not raw_symbol:
+                active_missing_symbol_count += 1
             
             trade_dict = {
                 "trade_id": row[0],
@@ -15853,6 +15859,8 @@ def get_automated_signals_dashboard_data():
                 "entry_price": entry,
                 "stop_loss": stop,
                 "session": row[5],
+                "symbol": row[11],
+                "timeframe": "1m",
                 "signal_date": row[3].isoformat() if row[3] else None,
                 "signal_time": datetime.fromtimestamp(row[1]/1000).strftime('%H:%M:%S') if row[1] else None,
                 "event_ts": row[12].isoformat() if row[12] else None,
@@ -15993,7 +16001,9 @@ def get_automated_signals_dashboard_data():
             "today_count": len(active_trades) + len(completed_trades),
             "stats_marker": "STATS_FROM_CONFIRMED_SIGNALS_LEDGER",
             "matched_price_count": matched_price_count,
-            "missing_price_count": missing_price_count
+            "missing_price_count": missing_price_count,
+            "active_missing_symbol_count": active_missing_symbol_count,
+            "active_missing_timeframe_count": active_missing_timeframe_count
         }
         
         cursor.close()
