@@ -15909,7 +15909,8 @@ def get_automated_signals_dashboard_data():
             "win_rate": round(win_rate, 1),
             "avg_mfe": round(float(stats_row[2] or 0.0), 2),
             "last_webhook_timestamp": stats_row[4].isoformat() if stats_row[4] else None,
-            "today_count": len(active_trades) + len(completed_trades)
+            "today_count": len(active_trades) + len(completed_trades),
+            "stats_marker": "STATS_FROM_CONFIRMED_SIGNALS_LEDGER"
         }
         
         cursor.close()
@@ -15917,6 +15918,8 @@ def get_automated_signals_dashboard_data():
         
         return jsonify({
             "success": True,
+            "handler_marker": "DASHBOARD_DATA_V2_LEDGER_20251222_A",
+            "server_time_utc": datetime.utcnow().isoformat() + "Z",
             "active_trades": active_trades,
             "completed_trades": completed_trades,
             "stats": stats

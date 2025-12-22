@@ -173,9 +173,10 @@ def register_automated_signals_api_robust(app, db):
     
     logger.warning("[ROBUST_API_REGISTRATION] ✅ Repair routes registered successfully")
     
-    @app.route('/api/automated-signals/dashboard-data')
-    def get_dashboard_data_robust():
-        """
+    # DISABLED - Duplicate of web_server.py route
+    # @app.route('/api/automated-signals/dashboard-data')
+    # def get_dashboard_data_robust():
+    #     """
         Get complete dashboard data from automated_signals table.
         
         STRICT PATCH:
