@@ -5,9 +5,18 @@ Processes OHLC snapshots to update trade metrics without Pine dependency
 import psycopg2
 from datetime import datetime
 from typing import Dict, List, Optional, Set
+from decimal import Decimal
 import os
 
 DATABASE_URL = os.getenv('DATABASE_URL')
+
+def f(x):
+    """Convert Decimal/numeric to float for arithmetic"""
+    if x is None:
+        return None
+    if isinstance(x, Decimal):
+        return float(x)
+    return float(x)
 
 def canonical_symbol(sym: str) -> str:
     """Normalize symbol for consistent matching"""
@@ -141,12 +150,12 @@ def process_price_snapshot(snapshot: Dict) -> Dict:
             
             trade_id = trade_dict['trade_id']
             direction = trade_dict['direction']
-            entry = trade_dict.get(entry_col)
-            stop = trade_dict.get(stop_col)
-            risk_r = trade_dict.get('risk') or trade_dict.get(risk_col) if risk_col else None
-            curr_no_be_mfe = trade_dict.get('no_be_mfe') or 0.0
-            curr_be_mfe = trade_dict.get('be_mfe') or 0.0
-            curr_mae = trade_dict.get('mae') or 0.0
+            entry = f(trade_dict.get(entry_col))
+            stop = f(trade_dict.get(stop_col))
+            risk_r = f(trade_dict.get('risk') or trade_dict.get(risk_col)) if risk_col else None
+            curr_no_be_mfe = f(trade_dict.get('no_be_mfe')) or 0.0
+            curr_be_mfe = f(trade_dict.get('be_mfe')) or 0.0
+            curr_mae = f(trade_dict.get('mae')) or 0.0
             be_triggered = trade_dict.get('be_triggered') or False
             
             # Compute risk if not stored
@@ -157,14 +166,18 @@ def process_price_snapshot(snapshot: Dict) -> Dict:
                 continue
             
             # Calculate MFE/MAE candidates
-            if direction in ['Bullish', 'LONG']:
-                mfe_candidate = (high - entry) / risk_r
-                mae_candidate = (low - entry) / risk_r
-                stop_hit = low <= stop
-            else:  # Bearish/SHORT
-                mfe_candidate = (entry - low) / risk_r
-                mae_candidate = (entry - high) / risk_r
-                stop_hit = high >= stop
+            try:
+                if direction in ['Bullish', 'LONG']:
+                    mfe_candidate = (high - entry) / risk_r
+                    mae_candidate = (low - entry) / risk_r
+                    stop_hit = low <= stop
+                else:  # Bearish/SHORT
+                    mfe_candidate = (entry - low) / risk_r
+                    mae_candidate = (entry - high) / risk_r
+                    stop_hit = high >= stop
+            except TypeError as e:
+                logger.error(f"[PRICE_SNAPSHOT] Type error in MFE calc: entry={type(entry)}, stop={type(stop)}, high={type(high)}, low={type(low)}, risk_r={type(risk_r)}")
+                continue
             
             # Update values
             new_no_be_mfe = max(curr_no_be_mfe, mfe_candidate)
