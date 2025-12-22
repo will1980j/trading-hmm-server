@@ -1078,6 +1078,9 @@ def register_indicator_export_routes(app):
                         logger.error(f"[UNIFIED_SNAPSHOT_V1] Price bar failed: {snap_err}")
                 
                 # Upsert signals directly into confirmed_signals_ledger
+                backfilled_symbol_count = 0
+                backfilled_symbol_trade_ids = []
+                
                 if isinstance(signals, list) and len(signals) > 0:
                     from datetime import datetime as dt
                     from zoneinfo import ZoneInfo
@@ -1149,11 +1152,11 @@ def register_indicator_export_routes(app):
                         else:
                             completed = None
                         
-                        symbol_val = signal.get('symbol') or data.get('symbol') or signal.get('exchange') or data.get('exchange') or 'unknown'
+                        symbol_val = signal.get('symbol') or data.get('symbol') or signal.get('exchange') or data.get('exchange') or ''
                         
                         # Canonicalize symbol
                         from services.price_snapshot_processor import canonical_symbol
-                        symbol_val = canonical_symbol(symbol_val)
+                        symbol_val = canonical_symbol(symbol_val) if symbol_val else ''
                         
                         cursor.execute("""
                             INSERT INTO confirmed_signals_ledger 
@@ -1172,10 +1175,17 @@ def register_indicator_export_routes(app):
                                 no_be_mfe = COALESCE(EXCLUDED.no_be_mfe, confirmed_signals_ledger.no_be_mfe),
                                 mae = COALESCE(EXCLUDED.mae, confirmed_signals_ledger.mae),
                                 completed = COALESCE(EXCLUDED.completed, confirmed_signals_ledger.completed),
-                                symbol = COALESCE(EXCLUDED.symbol, confirmed_signals_ledger.symbol),
+                                symbol = COALESCE(NULLIF(confirmed_signals_ledger.symbol,''), EXCLUDED.symbol),
                                 updated_at = NOW()
+                            RETURNING (confirmed_signals_ledger.symbol IS NULL OR confirmed_signals_ledger.symbol='') AS was_empty_symbol
                         """, (trade_id, triangle_time_ms, confirmation_time_ms, date_obj, session, direction,
                               entry, stop, be_mfe, no_be_mfe, mae, completed, symbol_val))
+                        
+                        result = cursor.fetchone()
+                        if result and result[0] and symbol_val:
+                            backfilled_symbol_count += 1
+                            if len(backfilled_symbol_trade_ids) < 10:
+                                backfilled_symbol_trade_ids.append(trade_id)
                         
                         signals_upserted += 1
                     
@@ -1190,7 +1200,9 @@ def register_indicator_export_routes(app):
                     'status': 'ok',
                     'stored_price_bar': stored_price_bar,
                     'signals_processed': len(signals) if isinstance(signals, list) else 0,
-                    'signals_upserted': signals_upserted
+                    'signals_upserted': signals_upserted,
+                    'backfilled_symbol_count': backfilled_symbol_count,
+                    'backfilled_symbol_trade_ids': backfilled_symbol_trade_ids
                 }), 200
             
             # Standard event types (existing logic)
