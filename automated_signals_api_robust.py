@@ -1056,7 +1056,7 @@ def register_indicator_export_routes(app):
             # UNIFIED_SNAPSHOT_V1 special handling (dedupe by bar_ts, not batch hash)
             if event_type == "UNIFIED_SNAPSHOT_V1":
                 stored_price_bar = False
-                signals_processed = 0
+                signals_upserted = 0
                 
                 # Process OHLC if present
                 if all(k in data for k in ['bar_ts', 'open', 'high', 'low', 'close']):
@@ -1082,34 +1082,110 @@ def register_indicator_export_routes(app):
                             }), 200
                         
                         stored_price_bar = True
-                        logger.info(f"[INDICATOR_EXPORT] UNIFIED price snapshot: {snapshot_result}")
+                        logger.info(f"[UNIFIED_SNAPSHOT_V1] Price bar stored: {snapshot_result}")
                     except Exception as snap_err:
-                        logger.error(f"[INDICATOR_EXPORT] UNIFIED price snapshot failed: {snap_err}")
+                        logger.error(f"[UNIFIED_SNAPSHOT_V1] Price bar failed: {snap_err}")
                 
-                # Process signals if present
-                if is_valid and len(signals) > 0:
-                    # Store batch for audit trail
-                    cursor.execute("""
-                        INSERT INTO indicator_export_batches 
-                        (event_type, batch_number, batch_size, total_signals, payload_json, payload_sha256, is_valid, validation_error)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                        RETURNING id
-                    """, (event_type, batch_number, batch_size, total_signals, Json(data), payload_hash, is_valid, validation_error))
+                # Upsert signals directly into confirmed_signals_ledger
+                if isinstance(signals, list) and len(signals) > 0:
+                    from datetime import datetime as dt
+                    from zoneinfo import ZoneInfo
                     
-                    batch_result = cursor.fetchone()
-                    if batch_result:
-                        batch_id = batch_result[0]
-                        conn.commit()
+                    for signal in signals:
+                        trade_id = signal.get('trade_id')
+                        if not trade_id:
+                            continue
                         
-                        # Auto-import signals
-                        auto_import_enabled = os.environ.get('AUTO_IMPORT_INDICATOR_EXPORT', '').lower() in ['1', 'true', 'yes']
-                        if auto_import_enabled:
+                        triangle_time_ms = signal.get('triangle_time_ms') or signal.get('triangle_time')
+                        if not triangle_time_ms:
+                            logger.warning(f"[UNIFIED_SNAPSHOT_V1] Missing triangle_time for {trade_id}")
+                            continue
+                        
+                        try:
+                            triangle_time_ms = int(triangle_time_ms)
+                        except (ValueError, TypeError):
+                            continue
+                        
+                        confirmation_time_ms = signal.get('confirmation_time_ms') or signal.get('confirmation_time')
+                        try:
+                            confirmation_time_ms = int(confirmation_time_ms) if confirmation_time_ms else None
+                        except (ValueError, TypeError):
+                            confirmation_time_ms = None
+                        
+                        date_str = signal.get('date')
+                        date_obj = None
+                        if date_str:
                             try:
-                                from services.indicator_export_importer import import_indicator_export_v2
-                                import_result = import_indicator_export_v2(batch_id)
-                                signals_processed = import_result.get('inserted', 0) + import_result.get('updated', 0)
-                            except Exception as imp_err:
-                                logger.error(f"[INDICATOR_EXPORT] UNIFIED signal import failed: {imp_err}")
+                                date_obj = dt.strptime(date_str, '%Y-%m-%d').date()
+                            except:
+                                pass
+                        
+                        session = signal.get('session')
+                        direction = signal.get('direction')
+                        
+                        try:
+                            entry = float(signal['entry']) if signal.get('entry') else None
+                        except (ValueError, TypeError):
+                            entry = None
+                        
+                        try:
+                            stop = float(signal['stop']) if signal.get('stop') else None
+                        except (ValueError, TypeError):
+                            stop = None
+                        
+                        try:
+                            be_mfe = float(signal['be_mfe']) if signal.get('be_mfe') else None
+                        except (ValueError, TypeError):
+                            be_mfe = None
+                        
+                        try:
+                            no_be_mfe = float(signal['no_be_mfe']) if signal.get('no_be_mfe') else None
+                        except (ValueError, TypeError):
+                            no_be_mfe = None
+                        
+                        try:
+                            mae = float(signal['mae']) if signal.get('mae') else None
+                            if mae and mae > 0.0:
+                                mae = 0.0
+                        except (ValueError, TypeError):
+                            mae = None
+                        
+                        completed_raw = signal.get('completed')
+                        if isinstance(completed_raw, str):
+                            completed = completed_raw.lower() == 'true'
+                        elif isinstance(completed_raw, bool):
+                            completed = completed_raw
+                        else:
+                            completed = None
+                        
+                        symbol_val = signal.get('symbol') or data.get('symbol') or signal.get('exchange') or data.get('exchange') or 'unknown'
+                        
+                        cursor.execute("""
+                            INSERT INTO confirmed_signals_ledger 
+                            (trade_id, triangle_time_ms, confirmation_time_ms, date, session, direction, 
+                             entry, stop, be_mfe, no_be_mfe, mae, completed, symbol, updated_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                            ON CONFLICT (trade_id) DO UPDATE SET
+                                triangle_time_ms = COALESCE(EXCLUDED.triangle_time_ms, confirmed_signals_ledger.triangle_time_ms),
+                                confirmation_time_ms = COALESCE(EXCLUDED.confirmation_time_ms, confirmed_signals_ledger.confirmation_time_ms),
+                                date = COALESCE(EXCLUDED.date, confirmed_signals_ledger.date),
+                                session = COALESCE(EXCLUDED.session, confirmed_signals_ledger.session),
+                                direction = COALESCE(EXCLUDED.direction, confirmed_signals_ledger.direction),
+                                entry = COALESCE(EXCLUDED.entry, confirmed_signals_ledger.entry),
+                                stop = COALESCE(EXCLUDED.stop, confirmed_signals_ledger.stop),
+                                be_mfe = COALESCE(EXCLUDED.be_mfe, confirmed_signals_ledger.be_mfe),
+                                no_be_mfe = COALESCE(EXCLUDED.no_be_mfe, confirmed_signals_ledger.no_be_mfe),
+                                mae = COALESCE(EXCLUDED.mae, confirmed_signals_ledger.mae),
+                                completed = COALESCE(EXCLUDED.completed, confirmed_signals_ledger.completed),
+                                symbol = COALESCE(EXCLUDED.symbol, confirmed_signals_ledger.symbol),
+                                updated_at = NOW()
+                        """, (trade_id, triangle_time_ms, confirmation_time_ms, date_obj, session, direction,
+                              entry, stop, be_mfe, no_be_mfe, mae, completed, symbol_val))
+                        
+                        signals_upserted += 1
+                    
+                    conn.commit()
+                    logger.info(f"[UNIFIED_SNAPSHOT_V1] signals_len={len(signals)}, upserted={signals_upserted}, symbol={extract_symbol(data)}, timeframe={data.get('timeframe')}")
                 
                 cursor.close()
                 conn.close()
@@ -1118,7 +1194,8 @@ def register_indicator_export_routes(app):
                     'event_type': 'UNIFIED_SNAPSHOT_V1',
                     'status': 'ok',
                     'stored_price_bar': stored_price_bar,
-                    'signals_processed': signals_processed
+                    'signals_processed': len(signals) if isinstance(signals, list) else 0,
+                    'signals_upserted': signals_upserted
                 }), 200
             
             # Standard event types (existing logic)
