@@ -3,7 +3,7 @@ Robust Automated Signals API
 Production-grade implementation with comprehensive error handling
 """
 # INTEGRITY_REPAIR_TIMESTAMPS_ACTIVE
-from flask import jsonify
+from flask import jsonify, request
 from datetime import datetime, timedelta
 import pytz
 import logging
