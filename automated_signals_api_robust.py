@@ -2915,12 +2915,16 @@ def register_indicator_export_routes(app):
         if not s.upper().startswith('SELECT'):
             return jsonify({'success': False, 'error': 'only SELECT allowed'}), 400
         
+        # Limit results
+        if 'LIMIT' not in s.upper():
+            s = s.rstrip(';') + ' LIMIT 100'
+        
         try:
             DATABASE_URL = os.environ.get('DATABASE_URL')
             conn = psycopg2.connect(DATABASE_URL)
             cur = conn.cursor(cursor_factory=RealDictCursor)
             
-            cur.execute(sql)
+            cur.execute(s)
             rows = cur.fetchall()
             
             columns = [desc.name for desc in cur.description] if cur.description else []
