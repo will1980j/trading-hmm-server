@@ -2950,3 +2950,51 @@ def register_indicator_export_routes(app):
                 'sql_preview': sql[:200]
             }), 500
 
+
+    @app.route('/api/admin/backfill/missing-symbols', methods=['POST'])
+    def backfill_missing_symbols():
+        """Backfill confirmed_signals_ledger.symbol for NULL/empty rows"""
+        import os
+        import psycopg2
+        
+        # Token auth
+        expected_token = os.environ.get('INDICATOR_EXPORT_TOKEN')
+        if expected_token:
+            query_token = request.args.get('token')
+            if query_token != expected_token:
+                return jsonify({'success': False, 'error': 'unauthorized'}), 401
+        
+        data = request.get_json() or {}
+        days = max(1, min(60, data.get('days', 7)))
+        symbol = data.get('symbol', 'MNQ1!')
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cur = conn.cursor()
+            
+            cur.execute("""
+                UPDATE confirmed_signals_ledger
+                SET symbol = %s
+                WHERE (symbol IS NULL OR symbol = '')
+                AND updated_at >= NOW() - INTERVAL '%s days'
+            """, (symbol, days))
+            
+            updated_rows = cur.rowcount
+            conn.commit()
+            
+            logger.info(f"[ADMIN_BACKFILL] Updated {updated_rows} rows with symbol={symbol}, days={days}")
+            
+            cur.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'updated_rows': updated_rows,
+                'days': days,
+                'symbol': symbol
+            }), 200
+            
+        except Exception as e:
+            logger.exception("[ADMIN_BACKFILL] Error")
+            return jsonify({'success': False, 'error': str(e)}), 500
