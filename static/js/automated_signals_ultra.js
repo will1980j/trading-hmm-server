@@ -2497,6 +2497,11 @@ document.addEventListener('DOMContentLoaded', function() {
         allSignalsTab.addEventListener('shown.bs.tab', function() {
             AutomatedSignalsUltra.renderAllSignalsTable();
         });
+        
+        // Load immediately if active on page load
+        if (allSignalsTab.classList.contains('active')) {
+            AutomatedSignalsUltra.renderAllSignalsTable();
+        }
     }
 });
 
