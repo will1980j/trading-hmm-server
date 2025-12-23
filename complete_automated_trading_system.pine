@@ -2057,7 +2057,7 @@ if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
         string sess = h >= 20 ? "ASIA" : h < 6 ? "LONDON" : h < 8 or (h == 8 and m < 30) ? "NY PRE" : (h == 8 and m >= 30) or h < 12 ? "NY AM" : h == 12 ? "NY LUNCH" : h < 16 ? "NY PM" : "AFTER_HOURS"
         string trade_id = f_buildTradeId(tri_time, dir)
         
-        string sig_json = '{"trade_id":"' + trade_id + '","triangle_time":' + str.tostring(tri_time) + ',"confirmation_time":' + str.tostring(conf_time) + ',"date":"' + date_str + '","direction":"' + dir + '","session":"' + sess + '","entry":' + f_num(entry_val) + ',"stop":' + f_num(stop_val) + ',"symbol":"' + syminfo.ticker + '","be_mfe":' + f_num(be_mfe_val) + ',"no_be_mfe":' + f_num(no_be_mfe_val) + ',"mae":' + f_num(mae_val) + ',"completed":false}'
+        string sig_json = '{"trade_id":"' + trade_id + '","triangle_time":' + str.tostring(tri_time) + ',"confirmation_time":' + str.tostring(conf_time) + ',"date":"' + date_str + '","direction":"' + dir + '","session":"' + sess + '","entry":' + f_num(entry_val) + ',"stop":' + f_num(stop_val) + ',"symbol":"' + syminfo.tickerid + '","be_mfe":' + f_num(be_mfe_val) + ',"no_be_mfe":' + f_num(no_be_mfe_val) + ',"mae":' + f_num(mae_val) + ',"completed":false}'
         
         string test_add = unified_count > 0 ? "," + sig_json : sig_json
         int new_size = str.length(unified_signals) + str.length(test_add) + 300
@@ -2068,7 +2068,7 @@ if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
         else
             break
     
-    string unified_payload = '{"event_type":"UNIFIED_SNAPSHOT_V1","symbol":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","bar_ts":' + str.tostring(time) + ',"open":' + f_num(open) + ',"high":' + f_num(high) + ',"low":' + f_num(low) + ',"close":' + f_num(close) + ',"signals":[' + unified_signals + ']}'
+    string unified_payload = '{"event_type":"UNIFIED_SNAPSHOT_V1","symbol":"' + syminfo.tickerid + '","timeframe":"' + timeframe.period + '","bar_ts":' + str.tostring(time) + ',"open":' + f_num(open) + ',"high":' + f_num(high) + ',"low":' + f_num(low) + ',"close":' + f_num(close) + ',"signals":[' + unified_signals + ']}'
     alert(unified_payload, alert.freq_once_per_bar_close)
 
 // ============================================================================
