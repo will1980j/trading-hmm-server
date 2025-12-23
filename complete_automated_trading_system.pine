@@ -1462,12 +1462,12 @@ if show_position_table
     int h = hour(time, "America/New_York")
     int m = minute(time, "America/New_York")
     string current_session_display = 
-         (h >= 20 and h <= 23) ? "ASIA" :
-         (h >= 0 and h <= 5) ? "LONDON" :
-         (h == 6 or (h == 8 and m <= 29)) ? "NY PRE" :
-         ((h == 8 and m >= 30) or (h >= 9 and h <= 11)) ? "NY AM" :
+         (h >= 20) ? "ASIA" :
+         (h < 6) ? "LONDON" :
+         (h < 8 or (h == 8 and m <= 29)) ? "NY PRE" :
+         ((h == 8 and m >= 30) or (h < 12)) ? "NY AM" :
          (h == 12) ? "NY LUNCH" :
-         (h >= 13 and h <= 15) ? "NY PM" : "AFTER_HOURS"
+         (h < 16) ? "NY PM" : "AFTER_HOURS"
     
     color session_color = current_session_display == "NY AM" or current_session_display == "NY PM" ? color.green : 
                          current_session_display == "LONDON" ? color.blue :
