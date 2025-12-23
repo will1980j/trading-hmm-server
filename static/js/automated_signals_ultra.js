@@ -2399,10 +2399,28 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
         
         const signals = data.signals || [];
         
-        // Update counter
+        // Update counter with stale detection
         if (counter) {
             const total = data.total ?? data.count ?? signals.length;
-            counter.textContent = data.total ? `Total: ${total}` : `Showing: ${signals.length}`;
+            const loaded = signals.length;
+            
+            // Check health
+            fetch('/api/data-quality/indicator-health', { cache: 'no-store' })
+                .then(r => r.json())
+                .then(health => {
+                    let isStale = false;
+                    if (health.success && health.streams) {
+                        const stream = health.streams.all_signals_export || health.streams.indicator_export_v2 || {};
+                        isStale = !stream.last_received_at || (stream.lag_seconds > 600);
+                    }
+                    
+                    let text = data.total ? `Total: ${total} (Loaded: ${loaded})` : `Showing: ${loaded}`;
+                    if (isStale) text += ' ⚠ STALE';
+                    counter.textContent = text;
+                })
+                .catch(() => {
+                    counter.textContent = data.total ? `Total: ${total} (Loaded: ${loaded})` : `Showing: ${loaded}`;
+                });
         }
         
         console.log("[ASE][ALL_SIGNALS] sample:", (data.signals && data.signals.length) ? data.signals[0] : null);
