@@ -677,3 +677,65 @@ REPORTING HUB STYLES (Ultra Theme)
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 20px;
 }
+
+/* All Signals Table Column Alignment */
+#ase-all-signals-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+#ase-all-signals-table th,
+#ase-all-signals-table td {
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* Center: checkbox, Dir, Status, Bars→Conf, HTF columns */
+#ase-all-signals-table th:nth-child(1),
+#ase-all-signals-table td:nth-child(1),
+#ase-all-signals-table th:nth-child(4),
+#ase-all-signals-table td:nth-child(4),
+#ase-all-signals-table th:nth-child(6),
+#ase-all-signals-table td:nth-child(6),
+#ase-all-signals-table th:nth-child(10),
+#ase-all-signals-table td:nth-child(10),
+#ase-all-signals-table th:nth-child(11),
+#ase-all-signals-table td:nth-child(11),
+#ase-all-signals-table th:nth-child(12),
+#ase-all-signals-table td:nth-child(12),
+#ase-all-signals-table th:nth-child(13),
+#ase-all-signals-table td:nth-child(13),
+#ase-all-signals-table th:nth-child(14),
+#ase-all-signals-table td:nth-child(14),
+#ase-all-signals-table th:nth-child(15),
+#ase-all-signals-table td:nth-child(15) {
+    text-align: center;
+}
+
+/* Right align: Entry, Stop, Risk */
+#ase-all-signals-table th:nth-child(7),
+#ase-all-signals-table td:nth-child(7),
+#ase-all-signals-table th:nth-child(8),
+#ase-all-signals-table td:nth-child(8),
+#ase-all-signals-table th:nth-child(9),
+#ase-all-signals-table td:nth-child(9) {
+    text-align: right;
+}
+
+/* Left align: Date, Time, Session, Trade ID */
+#ase-all-signals-table th:nth-child(2),
+#ase-all-signals-table td:nth-child(2),
+#ase-all-signals-table th:nth-child(3),
+#ase-all-signals-table td:nth-child(3),
+#ase-all-signals-table th:nth-child(5),
+#ase-all-signals-table td:nth-child(5),
+#ase-all-signals-table th:nth-child(16),
+#ase-all-signals-table td:nth-child(16) {
+    text-align: left;
+}
+
+/* Center badges and icons */
+#ase-all-signals-table td:nth-child(6) .badge {
+    display: inline-block;
+    margin: 0 auto;
+}
