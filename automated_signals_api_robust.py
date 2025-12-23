@@ -2872,3 +2872,64 @@ def register_indicator_export_routes(app):
         except Exception as e:
             logger.error(f"[ADMIN_BACKFILL] Error: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
+
+    # TEMP DEBUG - REMOVE LATER
+    @app.route('/api/debug/sql', methods=['GET'])
+    def debug_sql():
+        """Execute SELECT-only queries for debugging"""
+        import os
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        from decimal import Decimal
+        
+        # Token auth
+        expected_token = os.environ.get('INDICATOR_EXPORT_TOKEN')
+        if expected_token:
+            query_token = request.args.get('token')
+            if query_token != expected_token:
+                return jsonify({'success': False, 'error': 'unauthorized'}), 401
+        
+        sql = request.args.get('sql', '').strip()
+        if not sql:
+            return jsonify({'success': False, 'error': 'sql parameter required'}), 400
+        
+        # Security: only SELECT
+        if not sql.upper().startswith('SELECT'):
+            return jsonify({'success': False, 'error': 'only SELECT allowed'}), 400
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cur.execute(sql)
+            rows = cur.fetchall()
+            
+            columns = [desc.name for desc in cur.description] if cur.description else []
+            
+            # Convert to JSON-serializable
+            result_rows = []
+            for row in rows:
+                row_dict = {}
+                for key, value in row.items():
+                    if isinstance(value, Decimal):
+                        row_dict[key] = float(value)
+                    elif hasattr(value, 'isoformat'):
+                        row_dict[key] = value.isoformat()
+                    else:
+                        row_dict[key] = value
+                result_rows.append(row_dict)
+            
+            cur.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'row_count': len(result_rows),
+                'columns': columns,
+                'rows': result_rows
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[DEBUG_SQL] Error: {e}", exc_info=True)
+            return jsonify({'success': False, 'error': str(e)}), 500
