@@ -2810,3 +2810,65 @@ def register_indicator_export_routes(app):
             
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/api/admin/backfill-ledger-symbol', methods=['POST'])
+    def backfill_ledger_symbol():
+        """Backfill confirmed_signals_ledger.symbol for rows where symbol is NULL or empty"""
+        import os
+        import psycopg2
+        
+        # Token auth
+        expected_token = os.environ.get('INDICATOR_EXPORT_TOKEN')
+        if expected_token:
+            query_token = request.args.get('token')
+            if query_token != expected_token:
+                return jsonify({'error': 'unauthorized'}), 401
+        
+        data = request.get_json() or {}
+        lookback_hours = data.get('lookback_hours', 168)
+        limit_trade_ids = data.get('limit_trade_ids', 10)
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cur = conn.cursor()
+            
+            # Backfill symbol
+            cur.execute("""
+                WITH src AS (
+                    SELECT trade_id,
+                           MAX(symbol) FILTER (WHERE symbol IS NOT NULL AND symbol <> '') AS sym
+                    FROM confirmed_signals_ledger
+                    WHERE updated_at >= NOW() - INTERVAL '%s hours'
+                    GROUP BY trade_id
+                ),
+                upd AS (
+                    UPDATE confirmed_signals_ledger l
+                    SET symbol = COALESCE(NULLIF(l.symbol,''), src.sym)
+                    FROM src
+                    WHERE l.trade_id = src.trade_id
+                      AND (l.symbol IS NULL OR l.symbol = '')
+                      AND src.sym IS NOT NULL
+                    RETURNING l.trade_id
+                )
+                SELECT trade_id FROM upd
+            """, (lookback_hours,))
+            
+            updated_trade_ids = [row[0] for row in cur.fetchall()]
+            updated_symbol_count = len(updated_trade_ids)
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            return jsonify({
+                'status': 'ok',
+                'updated_symbol_count': updated_symbol_count,
+                'updated_timeframe_count': 0,
+                'sample_trade_ids': updated_trade_ids[:limit_trade_ids],
+                'lookback_hours': lookback_hours
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[ADMIN_BACKFILL] Error: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
