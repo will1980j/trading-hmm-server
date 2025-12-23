@@ -1157,6 +1157,8 @@ def register_indicator_export_routes(app):
                         # Canonicalize symbol
                         from services.price_snapshot_processor import canonical_symbol
                         symbol_val = canonical_symbol(symbol_val) if symbol_val else ''
+                        if symbol_val.lower() == 'unknown':
+                            symbol_val = ''
                         
                         cursor.execute("""
                             INSERT INTO confirmed_signals_ledger 
@@ -1311,7 +1313,14 @@ def register_indicator_export_routes(app):
                                     mae_val = None
                                 
                                 # Upsert
-                                symbol_val = signal.get('symbol') or data.get('symbol') or signal.get('exchange') or data.get('exchange') or 'unknown'
+                                symbol_val = signal.get('symbol') or data.get('symbol') or signal.get('exchange') or data.get('exchange') or ''
+                                
+                                # Canonicalize and reject 'unknown'
+                                from services.price_snapshot_processor import canonical_symbol
+                                symbol_val = canonical_symbol(symbol_val) if symbol_val else ''
+                                if symbol_val.lower() == 'unknown':
+                                    symbol_val = ''
+                                
                                 cursor_import.execute("""
                                     INSERT INTO confirmed_signals_ledger 
                                     (trade_id, triangle_time_ms, be_mfe, no_be_mfe, mae, direction, session, symbol, updated_at, last_seen_batch_id)
@@ -2977,10 +2986,23 @@ def register_indicator_export_routes(app):
             conn = psycopg2.connect(DATABASE_URL)
             cur = conn.cursor()
             
+            # Count before update
+            cur.execute("""
+                SELECT 
+                    COUNT(*) FILTER (WHERE symbol IS NULL) as null_count,
+                    COUNT(*) FILTER (WHERE symbol = '') as empty_count,
+                    COUNT(*) FILTER (WHERE symbol ILIKE 'unknown') as unknown_count
+                FROM confirmed_signals_ledger
+                WHERE (symbol IS NULL OR symbol = '' OR symbol ILIKE 'unknown')
+                AND updated_at >= NOW() - INTERVAL '%s days'
+            """, (days,))
+            counts = cur.fetchone()
+            
+            # Update
             cur.execute("""
                 UPDATE confirmed_signals_ledger
                 SET symbol = %s
-                WHERE (symbol IS NULL OR symbol = '')
+                WHERE (symbol IS NULL OR symbol = '' OR symbol ILIKE 'unknown')
                 AND updated_at >= NOW() - INTERVAL '%s days'
             """, (symbol, days))
             
@@ -2995,6 +3017,9 @@ def register_indicator_export_routes(app):
             return jsonify({
                 'success': True,
                 'updated_rows': updated_rows,
+                'updated_unknown_rows': counts[2] if counts else 0,
+                'updated_empty_rows': counts[1] if counts else 0,
+                'updated_null_rows': counts[0] if counts else 0,
                 'days': days,
                 'symbol': symbol
             }), 200
