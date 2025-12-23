@@ -2881,20 +2881,38 @@ def register_indicator_export_routes(app):
         import psycopg2
         from psycopg2.extras import RealDictCursor
         from decimal import Decimal
+        from datetime import datetime, date, time
+        from uuid import UUID
+        
+        def serialize_value(v):
+            """Safe serialization for any DB type"""
+            if v is None:
+                return None
+            if isinstance(v, Decimal):
+                return float(v)
+            if isinstance(v, (datetime, date, time)):
+                return v.isoformat()
+            if isinstance(v, UUID):
+                return str(v)
+            if isinstance(v, (bytes, bytearray)):
+                return v.hex()
+            return v
+        
+        # Parse params
+        token = request.args.get('token', '')
+        sql = request.args.get('sql', '')
+        
+        if not sql:
+            return jsonify({'success': False, 'error': 'missing sql'}), 400
         
         # Token auth
         expected_token = os.environ.get('INDICATOR_EXPORT_TOKEN')
-        if expected_token:
-            query_token = request.args.get('token')
-            if query_token != expected_token:
-                return jsonify({'success': False, 'error': 'unauthorized'}), 401
-        
-        sql = request.args.get('sql', '').strip()
-        if not sql:
-            return jsonify({'success': False, 'error': 'sql parameter required'}), 400
+        if expected_token and token != expected_token:
+            return jsonify({'success': False, 'error': 'unauthorized'}), 401
         
         # Security: only SELECT
-        if not sql.upper().startswith('SELECT'):
+        s = sql.lstrip()
+        if not s.upper().startswith('SELECT'):
             return jsonify({'success': False, 'error': 'only SELECT allowed'}), 400
         
         try:
@@ -2910,14 +2928,7 @@ def register_indicator_export_routes(app):
             # Convert to JSON-serializable
             result_rows = []
             for row in rows:
-                row_dict = {}
-                for key, value in row.items():
-                    if isinstance(value, Decimal):
-                        row_dict[key] = float(value)
-                    elif hasattr(value, 'isoformat'):
-                        row_dict[key] = value.isoformat()
-                    else:
-                        row_dict[key] = value
+                row_dict = {key: serialize_value(value) for key, value in row.items()}
                 result_rows.append(row_dict)
             
             cur.close()
@@ -2931,5 +2942,11 @@ def register_indicator_export_routes(app):
             }), 200
             
         except Exception as e:
-            logger.error(f"[DEBUG_SQL] Error: {e}", exc_info=True)
-            return jsonify({'success': False, 'error': str(e)}), 500
+            logger.exception("[DEBUG_SQL] failed sql=%s", sql[:200])
+            return jsonify({
+                'success': False,
+                'error': 'debug_sql_failed',
+                'message': str(e),
+                'sql_preview': sql[:200]
+            }), 500
+
