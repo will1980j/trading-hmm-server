@@ -2401,7 +2401,8 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
         
         // Update counter
         if (counter) {
-            counter.textContent = data.total ?? data.count ?? 0;
+            const total = data.total ?? data.count ?? signals.length;
+            counter.textContent = data.total ? `Total: ${total}` : `Showing: ${signals.length}`;
         }
         
         console.log("[ASE][ALL_SIGNALS] sample:", (data.signals && data.signals.length) ? data.signals[0] : null);
