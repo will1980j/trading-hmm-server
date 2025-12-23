@@ -1641,6 +1641,21 @@ def register_indicator_export_routes(app):
                 }
                 signals.append(signal)
             
+            # Get freshness metrics
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    MAX(triangle_time_ms) as max_triangle_time_ms,
+                    MAX(updated_at) as max_updated_at
+                FROM all_signals_ledger
+            """)
+            freshness = cursor.fetchone()
+            max_triangle_time_ms = freshness[0] if freshness else None
+            max_updated_at = freshness[1].isoformat() if freshness and freshness[1] else None
+            
+            cursor.close()
+            conn.close()
+            
             logger.info(f"[ALL_SIGNALS_DATA] ✅ Returned {len(signals)} signals (total={total}, limit={limit}, offset={offset})")
             
             return jsonify({
@@ -1649,7 +1664,10 @@ def register_indicator_export_routes(app):
                 'count': len(signals),
                 'total': total,
                 'limit': limit,
-                'offset': offset
+                'offset': offset,
+                'max_triangle_time_ms': max_triangle_time_ms,
+                'max_updated_at': max_updated_at,
+                'source_table': 'all_signals_ledger'
             }), 200
             
         except Exception as e:
