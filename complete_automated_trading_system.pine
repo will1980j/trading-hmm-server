@@ -2032,7 +2032,11 @@ if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
     string sym = syminfo.tickerid
     
     // Persistent state for triangles delta
-    var int last_triangle_sent_ms = 0
+    var int last_triangle_sent_ms = na
+    
+    // Initialize watermark on first run (set to 0 to include all historical triangles on first alert)
+    if na(last_triangle_sent_ms)
+        last_triangle_sent_ms := 0
     
     string unified_signals = ""
     int unified_count = 0
@@ -2078,7 +2082,11 @@ if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
     string triangles_delta = ""
     int delta_count = 0
     int max_delta = 50
-    int max_triangle_time_in_delta = last_triangle_sent_ms
+    int max_sent_ms = last_triangle_sent_ms
+    
+    // Telemetry to diagnose empty delta
+    int all_tri_total = array.size(all_signal_times)
+    int all_tri_last_ms = 0
     
     for i = 0 to array.size(all_signal_times) - 1
         if delta_count >= max_delta
@@ -2087,6 +2095,10 @@ if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
         int tri_raw = array.get(all_signal_times, i)
         // Normalize to milliseconds (handle both seconds and ms)
         int tri_ms = (tri_raw < 1000000000000) ? (tri_raw * 1000) : tri_raw
+        
+        // Track last triangle time for telemetry
+        if tri_ms > all_tri_last_ms
+            all_tri_last_ms := tri_ms
         
         if tri_ms <= last_triangle_sent_ms
             continue
@@ -2129,16 +2141,16 @@ if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
         if delta_size < 3900
             triangles_delta := delta_count > 0 ? triangles_delta + "," + tri_json : tri_json
             delta_count := delta_count + 1
-            if tri_ms > max_triangle_time_in_delta
-                max_triangle_time_in_delta := tri_ms
+            if tri_ms > max_sent_ms
+                max_sent_ms := tri_ms
         else
             break
     
-    string unified_payload = '{"event_type":"UNIFIED_SNAPSHOT_V1","symbol":"' + sym + '","timeframe":"' + timeframe.period + '","bar_ts":' + str.tostring(time) + ',"open":' + f_num(open) + ',"high":' + f_num(high) + ',"low":' + f_num(low) + ',"close":' + f_num(close) + ',"signals":[' + unified_signals + '],"triangles_delta_count":' + str.tostring(delta_count) + ',"triangles_delta_max_ts":' + str.tostring(max_triangle_time_in_delta) + ',"triangles_delta":[' + triangles_delta + ']}'
+    string unified_payload = '{"event_type":"UNIFIED_SNAPSHOT_V1","symbol":"' + sym + '","timeframe":"' + timeframe.period + '","bar_ts":' + str.tostring(time) + ',"open":' + f_num(open) + ',"high":' + f_num(high) + ',"low":' + f_num(low) + ',"close":' + f_num(close) + ',"signals":[' + unified_signals + '],"triangles_delta_count":' + str.tostring(delta_count) + ',"all_tri_total":' + str.tostring(all_tri_total) + ',"all_tri_last_ms":' + str.tostring(all_tri_last_ms) + ',"triangles_delta_max_ts":' + str.tostring(max_sent_ms) + ',"triangles_delta":[' + triangles_delta + ']}'
     
-    // Update last sent timestamp
-    if delta_count > 0
-        last_triangle_sent_ms := max_triangle_time_in_delta
+    // Update watermark to newest triangle sent
+    if max_sent_ms > last_triangle_sent_ms
+        last_triangle_sent_ms := max_sent_ms
     
     alert(unified_payload, alert.freq_once_per_bar_close)
 
