@@ -2029,7 +2029,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
 // ============================================================================
 if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
     // Hard enforce plain string symbol (prevent object concatenation)
-    string sym = syminfo.prefix + ":" + syminfo.ticker
+    string sym = syminfo.tickerid
     
     // Persistent state for triangles delta
     var int last_triangle_sent_ms = 0
@@ -2084,7 +2084,10 @@ if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
         if delta_count >= max_delta
             break
         
-        int tri_ms = array.get(all_signal_times, i)
+        int tri_raw = array.get(all_signal_times, i)
+        // Normalize to milliseconds (handle both seconds and ms)
+        int tri_ms = (tri_raw < 1000000000000) ? (tri_raw * 1000) : tri_raw
+        
         if tri_ms <= last_triangle_sent_ms
             continue
         
@@ -2131,7 +2134,7 @@ if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
         else
             break
     
-    string unified_payload = '{"event_type":"UNIFIED_SNAPSHOT_V1","symbol":"' + sym + '","timeframe":"' + timeframe.period + '","bar_ts":' + str.tostring(time) + ',"open":' + f_num(open) + ',"high":' + f_num(high) + ',"low":' + f_num(low) + ',"close":' + f_num(close) + ',"signals":[' + unified_signals + '],"triangles_delta":[' + triangles_delta + ']}'
+    string unified_payload = '{"event_type":"UNIFIED_SNAPSHOT_V1","symbol":"' + sym + '","timeframe":"' + timeframe.period + '","bar_ts":' + str.tostring(time) + ',"open":' + f_num(open) + ',"high":' + f_num(high) + ',"low":' + f_num(low) + ',"close":' + f_num(close) + ',"signals":[' + unified_signals + '],"triangles_delta_count":' + str.tostring(delta_count) + ',"triangles_delta_max_ts":' + str.tostring(max_triangle_time_in_delta) + ',"triangles_delta":[' + triangles_delta + ']}'
     
     // Update last sent timestamp
     if delta_count > 0
