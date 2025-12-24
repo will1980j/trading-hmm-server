@@ -1353,6 +1353,21 @@ def register_indicator_export_routes(app):
                     triangles_upserted = triangles_inserted + triangles_updated
                     logger.info(f"[UNIFIED_SNAPSHOT_V1] triangles_received={triangles_received} triangles_upserted={triangles_upserted}")
                 
+                # Write to indicator_export_batches for audit trail
+                cursor.execute("""
+                    INSERT INTO indicator_export_batches 
+                    (event_type, batch_number, batch_size, total_signals, payload_json, payload_sha256, is_valid, validation_error)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, ('UNIFIED_SNAPSHOT_V1', None, len(signals) if isinstance(signals, list) else 0, 
+                      len(signals) if isinstance(signals, list) else 0, Json(data), payload_hash, True, None))
+                
+                batch_result = cursor.fetchone()
+                batch_id = batch_result[0] if batch_result else None
+                
+                conn.commit()
+                logger.info("[BATCH_WRITE] event_type=%s batch_id=%s", 'UNIFIED_SNAPSHOT_V1', batch_id)
+                
                 cursor.close()
                 conn.close()
                 
