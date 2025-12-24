@@ -2027,7 +2027,7 @@ if barstate.isconfirmed and barstate.isrealtime and array.size(signal_entries) >
 // ============================================================================
 // UNIFIED SNAPSHOT V1 - OHLC + Active Trades (Single Alert)
 // ============================================================================
-if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
+if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed
     // Hard enforce plain string symbol (prevent object concatenation)
     string sym = syminfo.tickerid
     
@@ -2044,6 +2044,10 @@ if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
     
     for i = array.size(signal_entries) - 1 to 0
         if unified_count >= max_signals
+            break
+        
+        // Bounds check to prevent negative index
+        if i < 0 or i >= array.size(signal_entries)
             break
         
         bool is_active = i < array.size(signal_no_be_stopped) ? not array.get(signal_no_be_stopped, i) : false
@@ -2081,72 +2085,86 @@ if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
     // Build triangles_delta (NEW triangles since last send)
     string triangles_delta = ""
     int delta_count = 0
-    int max_delta = 50
+    int max_delta = 10  // Conservative cap to prevent payload overflow
     int max_sent_ms = last_triangle_sent_ms
     
     // Telemetry to diagnose empty delta
     int all_tri_total = array.size(all_signal_times)
     int all_tri_last_ms = 0
     
-    for i = 0 to array.size(all_signal_times) - 1
-        if delta_count >= max_delta
-            break
-        
-        int tri_raw = array.get(all_signal_times, i)
-        // Normalize to milliseconds (handle both seconds and ms)
-        int tri_ms = (tri_raw < 1000000000000) ? (tri_raw * 1000) : tri_raw
-        
-        // Track last triangle time for telemetry
-        if tri_ms > all_tri_last_ms
-            all_tri_last_ms := tri_ms
-        
-        if tri_ms <= last_triangle_sent_ms
-            continue
-        
-        string tri_dir = array.get(all_signal_directions, i)
-        string tri_status = array.get(all_signal_status, i)
-        int tri_conf_ms = array.get(all_signal_confirmation_times, i)
-        int tri_bars = array.get(all_signal_bars_to_confirm, i)
-        string tri_trade_id = f_buildTradeId(tri_ms, tri_dir)
-        
-        string tri_date = str.tostring(year(tri_ms, "America/New_York")) + "-" + str.tostring(month(tri_ms, "America/New_York"), "00") + "-" + str.tostring(dayofmonth(tri_ms, "America/New_York"), "00")
-        string tri_time = str.tostring(hour(tri_ms, "America/New_York"), "00") + ":" + str.tostring(minute(tri_ms, "America/New_York"), "00") + ":" + str.tostring(second(tri_ms, "America/New_York"), "00")
-        
-        int tri_h = hour(tri_ms, "America/New_York")
-        int tri_m = minute(tri_ms, "America/New_York")
-        string tri_sess = tri_h >= 20 ? "ASIA" : tri_h < 6 ? "LONDON" : tri_h < 8 or (tri_h == 8 and tri_m < 30) ? "NY PRE" : (tri_h == 8 and tri_m >= 30) or tri_h < 12 ? "NY AM" : tri_h == 12 ? "NY LUNCH" : tri_h < 16 ? "NY PM" : "AFTER_HOURS"
-        
-        string htf_daily = i < array.size(all_signal_htf_daily) ? array.get(all_signal_htf_daily, i) : "null"
-        string htf_4h = i < array.size(all_signal_htf_4h) ? array.get(all_signal_htf_4h, i) : "null"
-        string htf_1h = i < array.size(all_signal_htf_1h) ? array.get(all_signal_htf_1h, i) : "null"
-        string htf_15m = i < array.size(all_signal_htf_15m) ? array.get(all_signal_htf_15m, i) : "null"
-        string htf_5m = i < array.size(all_signal_htf_5m) ? array.get(all_signal_htf_5m, i) : "null"
-        
-        // Get entry/stop from confirmed signals if available
-        int conf_idx = array.get(all_signal_confirmed_index, i)
-        string entry_str = "null"
-        string stop_str = "null"
-        string risk_str = "null"
-        
-        if conf_idx >= 0 and conf_idx < array.size(signal_entries)
-            entry_str := f_num(array.get(signal_entries, conf_idx))
-            stop_str := f_num(array.get(signal_stops, conf_idx))
-            risk_str := f_num(math.abs(array.get(signal_entries, conf_idx) - array.get(signal_stops, conf_idx)))
-        
-        string tri_json = '{"trade_id":"' + tri_trade_id + '","triangle_time":' + str.tostring(tri_ms) + ',"confirmation_time":' + (tri_conf_ms > 0 ? str.tostring(tri_conf_ms) : 'null') + ',"date":"' + tri_date + '","time":"' + tri_time + '","direction":"' + tri_dir + '","session":"' + tri_sess + '","status":"' + tri_status + '","entry":' + entry_str + ',"stop":' + stop_str + ',"risk":' + risk_str + ',"bars_to_confirm":' + (tri_bars > 0 ? str.tostring(tri_bars) : 'null') + ',"htf_daily":"' + htf_daily + '","htf_4h":"' + htf_4h + '","htf_1h":"' + htf_1h + '","htf_15m":"' + htf_15m + '","htf_5m":"' + htf_5m + '"}'
-        
-        string test_delta = delta_count > 0 ? "," + tri_json : tri_json
-        int delta_size = str.length(triangles_delta) + str.length(test_delta) + str.length(unified_signals) + 500
-        
-        if delta_size < 3900
-            triangles_delta := delta_count > 0 ? triangles_delta + "," + tri_json : tri_json
-            delta_count := delta_count + 1
-            if tri_ms > max_sent_ms
-                max_sent_ms := tri_ms
-        else
-            break
+    // Only build delta if triangles exist
+    if all_tri_total > 0
+        for i = 0 to all_tri_total - 1
+            if delta_count >= max_delta
+                break
+            
+            int tri_raw = array.get(all_signal_times, i)
+            // Normalize to milliseconds (handle both seconds and ms)
+            int tri_ms = (tri_raw < 1000000000000) ? (tri_raw * 1000) : tri_raw
+            
+            // Track last triangle time for telemetry
+            if tri_ms > all_tri_last_ms
+                all_tri_last_ms := tri_ms
+            
+            if tri_ms <= last_triangle_sent_ms
+                continue
+            
+            string tri_dir = array.get(all_signal_directions, i)
+            string tri_status = array.get(all_signal_status, i)
+            int tri_conf_ms = array.get(all_signal_confirmation_times, i)
+            int tri_bars = array.get(all_signal_bars_to_confirm, i)
+            string tri_trade_id = f_buildTradeId(tri_ms, tri_dir)
+            
+            string tri_date = str.tostring(year(tri_ms, "America/New_York")) + "-" + str.tostring(month(tri_ms, "America/New_York"), "00") + "-" + str.tostring(dayofmonth(tri_ms, "America/New_York"), "00")
+            string tri_time = str.tostring(hour(tri_ms, "America/New_York"), "00") + ":" + str.tostring(minute(tri_ms, "America/New_York"), "00") + ":" + str.tostring(second(tri_ms, "America/New_York"), "00")
+            
+            int tri_h = hour(tri_ms, "America/New_York")
+            int tri_m = minute(tri_ms, "America/New_York")
+            string tri_sess = tri_h >= 20 ? "ASIA" : tri_h < 6 ? "LONDON" : tri_h < 8 or (tri_h == 8 and tri_m < 30) ? "NY PRE" : (tri_h == 8 and tri_m >= 30) or tri_h < 12 ? "NY AM" : tri_h == 12 ? "NY LUNCH" : tri_h < 16 ? "NY PM" : "AFTER_HOURS"
+            
+            string htf_daily = i < array.size(all_signal_htf_daily) ? array.get(all_signal_htf_daily, i) : "null"
+            string htf_4h = i < array.size(all_signal_htf_4h) ? array.get(all_signal_htf_4h, i) : "null"
+            string htf_1h = i < array.size(all_signal_htf_1h) ? array.get(all_signal_htf_1h, i) : "null"
+            string htf_15m = i < array.size(all_signal_htf_15m) ? array.get(all_signal_htf_15m, i) : "null"
+            string htf_5m = i < array.size(all_signal_htf_5m) ? array.get(all_signal_htf_5m, i) : "null"
+            
+            // Get entry/stop from confirmed signals if available
+            int conf_idx = array.get(all_signal_confirmed_index, i)
+            string entry_str = "null"
+            string stop_str = "null"
+            string risk_str = "null"
+            
+            if conf_idx >= 0 and conf_idx < array.size(signal_entries)
+                entry_str := f_num(array.get(signal_entries, conf_idx))
+                stop_str := f_num(array.get(signal_stops, conf_idx))
+                risk_str := f_num(math.abs(array.get(signal_entries, conf_idx) - array.get(signal_stops, conf_idx)))
+            
+            string tri_json = '{"trade_id":"' + tri_trade_id + '","triangle_time":' + str.tostring(tri_ms) + ',"confirmation_time":' + (tri_conf_ms > 0 ? str.tostring(tri_conf_ms) : 'null') + ',"date":"' + tri_date + '","time":"' + tri_time + '","direction":"' + tri_dir + '","session":"' + tri_sess + '","status":"' + tri_status + '","entry":' + entry_str + ',"stop":' + stop_str + ',"risk":' + risk_str + ',"bars_to_confirm":' + (tri_bars > 0 ? str.tostring(tri_bars) : 'null') + ',"htf_daily":"' + htf_daily + '","htf_4h":"' + htf_4h + '","htf_1h":"' + htf_1h + ',"htf_15m":"' + htf_15m + '","htf_5m":"' + htf_5m + '"}'
+            
+            string test_delta = delta_count > 0 ? "," + tri_json : tri_json
+            int delta_size = str.length(triangles_delta) + str.length(test_delta) + str.length(unified_signals) + 500
+            
+            if delta_size < 3900
+                triangles_delta := delta_count > 0 ? triangles_delta + "," + tri_json : tri_json
+                delta_count := delta_count + 1
+                if tri_ms > max_sent_ms
+                    max_sent_ms := tri_ms
+            else
+                break
     
-    string unified_payload = '{"event_type":"UNIFIED_SNAPSHOT_V1","debug_payload_version":"UNIFIED_SNAPSHOT_V1_DEBUG_BIND_1","debug_chart_symbol":"' + syminfo.tickerid + '","debug_chart_timeframe":"' + timeframe.period + '","debug_chart_is_realtime":' + str.tostring(barstate.isrealtime) + ',"debug_chart_is_confirmed":' + str.tostring(barstate.isconfirmed) + ',"symbol":"' + sym + '","timeframe":"' + timeframe.period + '","bar_ts":' + str.tostring(time_close) + ',"open":' + f_num(open) + ',"high":' + f_num(high) + ',"low":' + f_num(low) + ',"close":' + f_num(close) + ',"signals":[' + unified_signals + '],"triangles_delta_count":' + str.tostring(delta_count) + ',"all_tri_total":' + str.tostring(all_tri_total) + ',"all_tri_last_ms":' + str.tostring(all_tri_last_ms) + ',"triangles_delta_max_ts":' + str.tostring(max_sent_ms) + ',"triangles_delta":[' + triangles_delta + ']}'
+    // Build base payload (without arrays) - always safe
+    string unified_payload = '{"event_type":"UNIFIED_SNAPSHOT_V1","debug_payload_version":"TV_DELTA_DEBUG_2"' + ',"debug_bar_time_ms":' + str.tostring(time) + ',"debug_bar_time_close_ms":' + str.tostring(time_close) + ',"debug_last_triangle_sent_ms":' + str.tostring(last_triangle_sent_ms) + ',"debug_triangles_total_seen":' + str.tostring(all_tri_total) + ',"debug_latest_triangle_time_ms":' + str.tostring(all_tri_last_ms) + ',"debug_delta_count":' + str.tostring(delta_count) + ',"debug_chart_symbol":"' + syminfo.tickerid + '"' + ',"debug_chart_timeframe":"' + timeframe.period + '"' + ',"debug_chart_is_realtime":' + str.tostring(barstate.isrealtime) + ',"debug_chart_is_confirmed":' + str.tostring(barstate.isconfirmed) + ',"symbol":"' + sym + '"' + ',"timeframe":"' + timeframe.period + '"' + ',"bar_ts":' + str.tostring(time_close) + ',"open":' + f_num(open) + ',"high":' + f_num(high) + ',"low":' + f_num(low) + ',"close":' + f_num(close)
+    
+    // Append arrays safely (check length before concatenating)
+    int SAFE_MAX = 3600
+    string sig_part = ',"signals":[' + unified_signals + ']'
+    string tri_part = ',"triangles_delta":[' + triangles_delta + ']}'
+    
+    if str.length(unified_payload) + str.length(sig_part) + str.length(tri_part) <= SAFE_MAX
+        unified_payload := unified_payload + sig_part + tri_part
+    else
+        // Overflow: send minimal payload with debug info
+        unified_payload := unified_payload + ',"debug_overflow":true,"debug_payload_len":' + str.tostring(str.length(unified_payload) + str.length(sig_part) + str.length(tri_part)) + ',"signals":[],"triangles_delta":[]}'
     
     // Update watermark to newest triangle sent
     if max_sent_ms > last_triangle_sent_ms

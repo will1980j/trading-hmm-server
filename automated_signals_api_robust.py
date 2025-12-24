@@ -999,6 +999,13 @@ def register_indicator_export_routes(app):
         
         logger.info("[INDICATOR_EXPORT] Received request")
         
+        # === FINGERPRINT CAPTURE ===
+        # Capture request metadata for debugging fake OHLC sources
+        remote_ip = request.remote_addr or 'unknown'
+        user_agent = request.headers.get('User-Agent', 'unknown')
+        content_type = request.headers.get('Content-Type', 'unknown')
+        referer = request.headers.get('Referer', 'none')
+        
         # Shared secret check (header or query param)
         expected_token = os.environ.get('INDICATOR_EXPORT_TOKEN')
         if expected_token:
@@ -1038,6 +1045,27 @@ def register_indicator_export_routes(app):
         # Compute SHA256 hash (stable canonicalization)
         payload_str = json.dumps(data, sort_keys=True)
         payload_hash = hashlib.sha256(payload_str.encode()).hexdigest()
+        
+        # === FINGERPRINT LOGGING ===
+        # Extract key payload fields for fingerprinting
+        payload_keys = list(data.keys())
+        has_debug_payload_version = 'debug_payload_version' in data
+        symbol = extract_symbol(data)
+        bar_ts = data.get('bar_ts', 'none')
+        ohlc = {
+            'o': data.get('open', 'none'),
+            'h': data.get('high', 'none'),
+            'l': data.get('low', 'none'),
+            'c': data.get('close', 'none')
+        }
+        
+        # Log comprehensive fingerprint
+        logger.info(
+            f"[INGEST_FINGERPRINT] remote_ip={remote_ip} ua={user_agent[:50]} "
+            f"sha256={payload_hash[:16]} has_debug={has_debug_payload_version} "
+            f"symbol={symbol} bar_ts={bar_ts} ohlc={ohlc} "
+            f"keys={payload_keys[:10]} ct={content_type}"
+        )
         
         # Extract envelope fields
         event_type = data.get('event_type')
@@ -2411,6 +2439,101 @@ def register_indicator_export_routes(app):
             
         except Exception as e:
             logger.error(f"[INDICATOR_EXPORT_DEBUG_LATEST] ❌ Error: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'server_now': datetime.utcnow().isoformat() + 'Z'
+            }), 500
+    
+    @app.route('/api/indicator-export/debug/latest-fingerprint', methods=['GET'])
+    def debug_latest_fingerprint():
+        """
+        Get fingerprint of the latest UNIFIED_SNAPSHOT_V1 batch to identify alert source.
+        Returns payload hash, keys, OHLC values, and debug_payload_version presence.
+        """
+        import os
+        import psycopg2
+        import json
+        import hashlib
+        from psycopg2.extras import RealDictCursor
+        from datetime import datetime
+        
+        logger.info("[FINGERPRINT_DEBUG] Fetching latest UNIFIED_SNAPSHOT_V1 fingerprint")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PUBLIC_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute("""
+                SELECT id, received_at, event_type, payload_json
+                FROM indicator_export_batches
+                WHERE event_type = 'UNIFIED_SNAPSHOT_V1'
+                ORDER BY COALESCE(received_at, NOW()) DESC, id DESC
+                LIMIT 1
+            """)
+            
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if not row:
+                return jsonify({
+                    'success': False,
+                    'error': 'no_batches_found',
+                    'server_now': datetime.utcnow().isoformat() + 'Z'
+                }), 404
+            
+            payload = row['payload_json'] or {}
+            
+            # Compute payload fingerprint
+            payload_str = json.dumps(payload, sort_keys=True)
+            payload_sha256 = hashlib.sha256(payload_str.encode()).hexdigest()
+            
+            # Extract fingerprint fields
+            payload_keys = list(payload.keys())
+            has_debug_payload_version = 'debug_payload_version' in payload
+            debug_version = payload.get('debug_payload_version', None)
+            symbol = payload.get('symbol', 'unknown')
+            bar_ts = payload.get('bar_ts', None)
+            
+            ohlc = {
+                'o': payload.get('open', None),
+                'h': payload.get('high', None),
+                'l': payload.get('low', None),
+                'c': payload.get('close', None)
+            }
+            
+            # Check if OHLC looks fake (1/2/0.5/1.5 pattern)
+            is_fake_ohlc = (
+                ohlc['o'] == 1 and 
+                ohlc['h'] == 2 and 
+                ohlc['l'] == 0.5 and 
+                ohlc['c'] == 1.5
+            )
+            
+            logger.info(
+                f"[FINGERPRINT_DEBUG] batch_id={row['id']} sha256={payload_sha256[:16]} "
+                f"has_debug={has_debug_payload_version} is_fake_ohlc={is_fake_ohlc}"
+            )
+            
+            return jsonify({
+                'success': True,
+                'id': row['id'],
+                'received_at': row['received_at'].isoformat() if row['received_at'] else None,
+                'symbol': symbol,
+                'bar_ts': bar_ts,
+                'has_debug_payload_version': has_debug_payload_version,
+                'debug_payload_version': debug_version,
+                'payload_keys': payload_keys,
+                'payload_sha256': payload_sha256,
+                'ohlc': ohlc,
+                'is_fake_ohlc': is_fake_ohlc,
+                'server_now': datetime.utcnow().isoformat() + 'Z'
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[FINGERPRINT_DEBUG] ❌ Error: {e}")
             return jsonify({
                 'success': False,
                 'error': str(e),
