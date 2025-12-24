@@ -2312,6 +2312,46 @@ def register_indicator_export_routes(app):
             logger.error(f"[INDICATOR_BATCHES] ❌ Error: {e}")
             return jsonify({'success': False, 'error': str(e), 'batches': [], 'count': 0}), 500
     
+    @app.route('/api/indicator-export/debug/latest', methods=['GET'])
+    def debug_latest_batch():
+        """Get the most recent batch from indicator_export_batches."""
+        import os
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        
+        logger.info("[INDICATOR_EXPORT_DEBUG_LATEST] Fetching latest batch")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PUBLIC_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute("""
+                SELECT id, received_at, event_type, payload_json
+                FROM indicator_export_batches
+                ORDER BY received_at DESC
+                LIMIT 1
+            """)
+            
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if not row:
+                return jsonify({'success': False, 'error': 'no_batches_found'}), 404
+            
+            return jsonify({
+                'success': True,
+                'id': row['id'],
+                'received_at': row['received_at'].isoformat() if row['received_at'] else None,
+                'event_type': row['event_type'],
+                'payload_json': row['payload_json']
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[INDICATOR_EXPORT_DEBUG_LATEST] ❌ Error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
     @app.route('/api/indicator-export/debug/batch/<int:batch_id>', methods=['GET'])
     def debug_batch_payload(batch_id):
         """Inspect raw payload of a specific batch for debugging."""
