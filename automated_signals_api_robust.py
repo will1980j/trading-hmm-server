@@ -1679,6 +1679,57 @@ def register_indicator_export_routes(app):
                 'count': 0
             }), 500
     
+    @app.route('/api/all-signals/stats', methods=['GET'])
+    def get_all_signals_stats():
+        """
+        Get lightweight stats for all_signals_ledger.
+        Returns: total count, max triangle_time_ms, max updated_at.
+        """
+        import os
+        import psycopg2
+        
+        logger.info("[ALL_SIGNALS_STATS] Fetching stats")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total,
+                    MAX(triangle_time_ms) as max_triangle_time_ms,
+                    MAX(updated_at) as max_updated_at
+                FROM all_signals_ledger
+            """)
+            
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if row:
+                total, max_triangle_time_ms, max_updated_at = row
+                return jsonify({
+                    'success': True,
+                    'total': total or 0,
+                    'max_triangle_time_ms': max_triangle_time_ms,
+                    'max_updated_at': max_updated_at.isoformat() if max_updated_at else None
+                }), 200
+            else:
+                return jsonify({
+                    'success': True,
+                    'total': 0,
+                    'max_triangle_time_ms': None,
+                    'max_updated_at': None
+                }), 200
+                
+        except Exception as e:
+            logger.error(f"[ALL_SIGNALS_STATS] ❌ Error: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
     @app.route('/api/all-signals/cancelled', methods=['GET'])
     def get_cancelled_signals():
         """Get cancelled signals from all_signals_ledger."""

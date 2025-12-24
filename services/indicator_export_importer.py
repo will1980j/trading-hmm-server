@@ -251,6 +251,11 @@ def import_all_signals_export(batch_id: int) -> dict:
         
         signals = payload_json.get('signals', [])
         
+        # LOG: Received signals count and metadata
+        symbol = payload_json.get('symbol', 'UNKNOWN')
+        timeframe = payload_json.get('timeframe', 'UNKNOWN')
+        logger.info(f"[ALL_SIGNALS_EXPORT] received signals={len(signals)} symbol={symbol} timeframe={timeframe}")
+        
         logger.info(f"[ALL_SIGNALS_IMPORT] Loaded batch {batch_number}, event_type={event_type}, signals={len(signals)}")
         
         inserted = 0
@@ -376,6 +381,12 @@ def import_all_signals_export(batch_id: int) -> dict:
         
         conn.commit()
         
+        # LOG: Upsert results and max triangle time
+        max_triangle_time_ms = None
+        if signals:
+            max_triangle_time_ms = max((int(s.get('signal_time', 0)) for s in signals if s.get('signal_time')), default=None)
+        
+        logger.info(f"[ALL_SIGNALS_EXPORT] upserted={inserted + updated} max_triangle_ms={max_triangle_time_ms}")
         logger.info(f"[ALL_SIGNALS_IMPORT] ✅ Batch {batch_id} complete: inserted={inserted}, updated={updated}, skipped={skipped_invalid}")
         
         return {
