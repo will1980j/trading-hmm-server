@@ -2370,12 +2370,13 @@ def register_indicator_export_routes(app):
     
     @app.route('/api/indicator-export/debug/latest', methods=['GET'])
     def debug_latest_batch():
-        """Get the most recent batch from indicator_export_batches."""
+        """Get the most recent UNIFIED_SNAPSHOT_V1 batch from indicator_export_batches."""
         import os
         import psycopg2
         from psycopg2.extras import RealDictCursor
+        from datetime import datetime
         
-        logger.info("[INDICATOR_EXPORT_DEBUG_LATEST] Fetching latest batch")
+        logger.info("[INDICATOR_EXPORT_DEBUG_LATEST] Fetching latest UNIFIED_SNAPSHOT_V1 batch")
         
         try:
             DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PUBLIC_URL')
@@ -2385,7 +2386,8 @@ def register_indicator_export_routes(app):
             cursor.execute("""
                 SELECT id, received_at, event_type, payload_json
                 FROM indicator_export_batches
-                ORDER BY received_at DESC
+                WHERE event_type = 'UNIFIED_SNAPSHOT_V1'
+                ORDER BY COALESCE(received_at, NOW()) DESC, id DESC
                 LIMIT 1
             """)
             
@@ -2394,19 +2396,28 @@ def register_indicator_export_routes(app):
             conn.close()
             
             if not row:
-                return jsonify({'success': False, 'error': 'no_batches_found'}), 404
+                return jsonify({
+                    'success': False,
+                    'error': 'no_batches_found',
+                    'server_now': datetime.utcnow().isoformat() + 'Z'
+                }), 404
             
             return jsonify({
                 'success': True,
                 'id': row['id'],
                 'received_at': row['received_at'].isoformat() if row['received_at'] else None,
                 'event_type': row['event_type'],
-                'payload_json': row['payload_json']
+                'payload_json': row['payload_json'],
+                'server_now': datetime.utcnow().isoformat() + 'Z'
             }), 200
             
         except Exception as e:
             logger.error(f"[INDICATOR_EXPORT_DEBUG_LATEST] ❌ Error: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'server_now': datetime.utcnow().isoformat() + 'Z'
+            }), 500
     
     @app.route('/api/indicator-export/debug/batch/<int:batch_id>', methods=['GET'])
     def debug_batch_payload(batch_id):
