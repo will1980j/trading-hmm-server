@@ -1208,10 +1208,14 @@ def register_indicator_export_routes(app):
                     conn.commit()
                     logger.info(f"[UNIFIED_SNAPSHOT_V1] signals_len={len(signals)}, upserted={signals_upserted}, symbol={extract_symbol(data)}, timeframe={data.get('timeframe')}")
                 
-                # Process triangles_delta if present
-                triangles_delta = data.get('triangles_delta', [])
+                # Process triangles_delta if present (also accept "triangles" as alias)
+                triangles_delta = data.get('triangles_delta') or data.get('triangles') or []
+                triangles_received = 0
+                triangles_upserted = 0
+                
                 if isinstance(triangles_delta, list) and len(triangles_delta) > 0:
-                    logger.info(f"[UNIFIED_SNAPSHOT_V1] Processing triangles_delta, count={len(triangles_delta)}")
+                    triangles_received = len(triangles_delta)
+                    logger.info(f"[UNIFIED_SNAPSHOT_V1] Processing triangles_delta, count={triangles_received}")
                     
                     triangles_inserted = 0
                     triangles_updated = 0
@@ -1301,7 +1305,8 @@ def register_indicator_export_routes(app):
                             triangles_updated += 1
                     
                     conn.commit()
-                    logger.info(f"[UNIFIED_SNAPSHOT_V1] triangles_delta processed: inserted={triangles_inserted}, updated={triangles_updated}")
+                    triangles_upserted = triangles_inserted + triangles_updated
+                    logger.info(f"[UNIFIED_SNAPSHOT_V1] triangles_received={triangles_received} triangles_upserted={triangles_upserted}")
                 
                 cursor.close()
                 conn.close()
@@ -1312,9 +1317,8 @@ def register_indicator_export_routes(app):
                     'stored_price_bar': stored_price_bar,
                     'signals_processed': len(signals) if isinstance(signals, list) else 0,
                     'signals_upserted': signals_upserted,
-                    'triangles_delta_processed': len(triangles_delta) if isinstance(triangles_delta, list) else 0,
-                    'triangles_inserted': triangles_inserted if 'triangles_inserted' in locals() else 0,
-                    'triangles_updated': triangles_updated if 'triangles_updated' in locals() else 0,
+                    'triangles_received': triangles_received,
+                    'triangles_upserted': triangles_upserted,
                     'backfilled_symbol_count': backfilled_symbol_count,
                     'backfilled_symbol_trade_ids': backfilled_symbol_trade_ids
                 }), 200
