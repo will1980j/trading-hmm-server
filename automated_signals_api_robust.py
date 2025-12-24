@@ -1771,8 +1771,8 @@ def register_indicator_export_routes(app):
                 FROM all_signals_ledger
             """)
             freshness = cursor.fetchone()
-            max_triangle_time_ms = freshness[0] if freshness else None
-            max_updated_at = freshness[1].isoformat() if freshness and freshness[1] else None
+            max_triangle_time_ms = freshness.get('max_triangle_time_ms') if freshness else None
+            max_updated_at = freshness.get('max_updated_at').isoformat() if freshness and freshness.get('max_updated_at') else None
             
             logger.info(f"[ALL_SIGNALS_DATA] ✅ Returned {len(signals)} signals (total={total}, limit={limit}, offset={offset})")
             
