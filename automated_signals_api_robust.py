@@ -1208,6 +1208,101 @@ def register_indicator_export_routes(app):
                     conn.commit()
                     logger.info(f"[UNIFIED_SNAPSHOT_V1] signals_len={len(signals)}, upserted={signals_upserted}, symbol={extract_symbol(data)}, timeframe={data.get('timeframe')}")
                 
+                # Process triangles_delta if present
+                triangles_delta = data.get('triangles_delta', [])
+                if isinstance(triangles_delta, list) and len(triangles_delta) > 0:
+                    logger.info(f"[UNIFIED_SNAPSHOT_V1] Processing triangles_delta, count={len(triangles_delta)}")
+                    
+                    triangles_inserted = 0
+                    triangles_updated = 0
+                    
+                    for triangle in triangles_delta:
+                        trade_id = triangle.get('trade_id')
+                        if not trade_id:
+                            continue
+                        
+                        # Coerce triangle_time_ms
+                        try:
+                            triangle_time_ms = int(triangle.get('triangle_time'))
+                        except (ValueError, TypeError):
+                            logger.warning(f"[UNIFIED_SNAPSHOT_V1] Invalid triangle_time for {trade_id}")
+                            continue
+                        
+                        # Coerce confirmation_time_ms
+                        try:
+                            confirmation_time_ms = int(triangle['confirmation_time']) if triangle.get('confirmation_time') else None
+                        except (ValueError, TypeError):
+                            confirmation_time_ms = None
+                        
+                        # Coerce bars_to_confirm
+                        try:
+                            bars_to_confirm = int(triangle['bars_to_confirm']) if triangle.get('bars_to_confirm') else None
+                        except (ValueError, TypeError):
+                            bars_to_confirm = None
+                        
+                        direction = triangle.get('direction')
+                        status = triangle.get('status')
+                        session = triangle.get('session')
+                        
+                        # Coerce numeric fields
+                        try:
+                            entry_price = float(triangle['entry']) if triangle.get('entry') and triangle.get('entry') != 'null' else None
+                        except (ValueError, TypeError):
+                            entry_price = None
+                        
+                        try:
+                            stop_loss = float(triangle['stop']) if triangle.get('stop') and triangle.get('stop') != 'null' else None
+                        except (ValueError, TypeError):
+                            stop_loss = None
+                        
+                        try:
+                            risk_points = float(triangle['risk']) if triangle.get('risk') and triangle.get('risk') != 'null' else None
+                        except (ValueError, TypeError):
+                            risk_points = None
+                        
+                        # HTF fields
+                        htf_daily = triangle.get('htf_daily') if triangle.get('htf_daily') != 'null' else None
+                        htf_4h = triangle.get('htf_4h') if triangle.get('htf_4h') != 'null' else None
+                        htf_1h = triangle.get('htf_1h') if triangle.get('htf_1h') != 'null' else None
+                        htf_15m = triangle.get('htf_15m') if triangle.get('htf_15m') != 'null' else None
+                        htf_5m = triangle.get('htf_5m') if triangle.get('htf_5m') != 'null' else None
+                        
+                        # Upsert into all_signals_ledger
+                        cursor.execute("""
+                            INSERT INTO all_signals_ledger 
+                            (trade_id, triangle_time_ms, confirmation_time_ms, direction, status, 
+                             bars_to_confirm, session, entry_price, stop_loss, risk_points,
+                             htf_daily, htf_4h, htf_1h, htf_15m, htf_5m,
+                             updated_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                            ON CONFLICT (trade_id) DO UPDATE SET
+                                status = EXCLUDED.status,
+                                confirmation_time_ms = COALESCE(EXCLUDED.confirmation_time_ms, all_signals_ledger.confirmation_time_ms),
+                                bars_to_confirm = COALESCE(EXCLUDED.bars_to_confirm, all_signals_ledger.bars_to_confirm),
+                                session = COALESCE(EXCLUDED.session, all_signals_ledger.session),
+                                entry_price = COALESCE(EXCLUDED.entry_price, all_signals_ledger.entry_price),
+                                stop_loss = COALESCE(EXCLUDED.stop_loss, all_signals_ledger.stop_loss),
+                                risk_points = COALESCE(EXCLUDED.risk_points, all_signals_ledger.risk_points),
+                                htf_daily = COALESCE(EXCLUDED.htf_daily, all_signals_ledger.htf_daily),
+                                htf_4h = COALESCE(EXCLUDED.htf_4h, all_signals_ledger.htf_4h),
+                                htf_1h = COALESCE(EXCLUDED.htf_1h, all_signals_ledger.htf_1h),
+                                htf_15m = COALESCE(EXCLUDED.htf_15m, all_signals_ledger.htf_15m),
+                                htf_5m = COALESCE(EXCLUDED.htf_5m, all_signals_ledger.htf_5m),
+                                updated_at = NOW()
+                            RETURNING (xmax = 0) AS inserted
+                        """, (trade_id, triangle_time_ms, confirmation_time_ms, direction, status,
+                              bars_to_confirm, session, entry_price, stop_loss, risk_points,
+                              htf_daily, htf_4h, htf_1h, htf_15m, htf_5m))
+                        
+                        result = cursor.fetchone()
+                        if result and result[0]:
+                            triangles_inserted += 1
+                        else:
+                            triangles_updated += 1
+                    
+                    conn.commit()
+                    logger.info(f"[UNIFIED_SNAPSHOT_V1] triangles_delta processed: inserted={triangles_inserted}, updated={triangles_updated}")
+                
                 cursor.close()
                 conn.close()
                 
@@ -1217,6 +1312,9 @@ def register_indicator_export_routes(app):
                     'stored_price_bar': stored_price_bar,
                     'signals_processed': len(signals) if isinstance(signals, list) else 0,
                     'signals_upserted': signals_upserted,
+                    'triangles_delta_processed': len(triangles_delta) if isinstance(triangles_delta, list) else 0,
+                    'triangles_inserted': triangles_inserted if 'triangles_inserted' in locals() else 0,
+                    'triangles_updated': triangles_updated if 'triangles_updated' in locals() else 0,
                     'backfilled_symbol_count': backfilled_symbol_count,
                     'backfilled_symbol_trade_ids': backfilled_symbol_trade_ids
                 }), 200
