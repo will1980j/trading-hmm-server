@@ -2312,6 +2312,62 @@ def register_indicator_export_routes(app):
             logger.error(f"[INDICATOR_BATCHES] ❌ Error: {e}")
             return jsonify({'success': False, 'error': str(e), 'batches': [], 'count': 0}), 500
     
+    @app.route('/api/indicator-export/debug/recent', methods=['GET'])
+    def debug_recent_batches():
+        """Get recent UNIFIED_SNAPSHOT_V1 batches with triangles_delta metrics."""
+        import os
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        from flask import request
+        
+        limit = min(request.args.get('limit', 20, type=int), 100)
+        
+        logger.info(f"[INDICATOR_EXPORT_DEBUG_RECENT] Fetching last {limit} UNIFIED_SNAPSHOT_V1 batches")
+        
+        try:
+            DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PUBLIC_URL')
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute("""
+                SELECT 
+                    id,
+                    received_at,
+                    jsonb_array_length(payload_json->'triangles_delta') as triangles_delta_len,
+                    payload_json->>'triangles_delta_count' as triangles_delta_count_field,
+                    payload_json->>'all_tri_last_ms' as all_tri_last_ms,
+                    payload_json->>'bar_ts' as bar_ts
+                FROM indicator_export_batches
+                WHERE event_type = 'UNIFIED_SNAPSHOT_V1'
+                ORDER BY received_at DESC, id DESC
+                LIMIT %s
+            """, (limit,))
+            
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            batches = []
+            for row in rows:
+                batches.append({
+                    'id': row['id'],
+                    'received_at': row['received_at'].isoformat() if row['received_at'] else None,
+                    'triangles_delta_len': row['triangles_delta_len'],
+                    'triangles_delta_count_field': row['triangles_delta_count_field'],
+                    'all_tri_last_ms': row['all_tri_last_ms'],
+                    'bar_ts': row['bar_ts']
+                })
+            
+            return jsonify({
+                'success': True,
+                'batches': batches,
+                'count': len(batches)
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"[INDICATOR_EXPORT_DEBUG_RECENT] ❌ Error: {e}")
+            return jsonify({'success': False, 'error': str(e), 'batches': []}), 500
+    
     @app.route('/api/indicator-export/debug/latest', methods=['GET'])
     def debug_latest_batch():
         """Get the most recent batch from indicator_export_batches."""
