@@ -2146,7 +2146,7 @@ if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
         else
             break
     
-    string unified_payload = '{"event_type":"UNIFIED_SNAPSHOT_V1","symbol":"' + sym + '","timeframe":"' + timeframe.period + '","bar_ts":' + str.tostring(time) + ',"open":' + f_num(open) + ',"high":' + f_num(high) + ',"low":' + f_num(low) + ',"close":' + f_num(close) + ',"signals":[' + unified_signals + '],"triangles_delta_count":' + str.tostring(delta_count) + ',"all_tri_total":' + str.tostring(all_tri_total) + ',"all_tri_last_ms":' + str.tostring(all_tri_last_ms) + ',"triangles_delta_max_ts":' + str.tostring(max_sent_ms) + ',"triangles_delta":[' + triangles_delta + ']}'
+    string unified_payload = '{"event_type":"UNIFIED_SNAPSHOT_V1","debug_payload_version":"UNIFIED_SNAPSHOT_V1_DEBUG_BIND_1","debug_chart_symbol":"' + syminfo.tickerid + '","debug_chart_timeframe":"' + timeframe.period + '","debug_chart_is_realtime":' + str.tostring(barstate.isrealtime) + ',"debug_chart_is_confirmed":' + str.tostring(barstate.isconfirmed) + ',"symbol":"' + sym + '","timeframe":"' + timeframe.period + '","bar_ts":' + str.tostring(time_close) + ',"open":' + f_num(open) + ',"high":' + f_num(high) + ',"low":' + f_num(low) + ',"close":' + f_num(close) + ',"signals":[' + unified_signals + '],"triangles_delta_count":' + str.tostring(delta_count) + ',"all_tri_total":' + str.tostring(all_tri_total) + ',"all_tri_last_ms":' + str.tostring(all_tri_last_ms) + ',"triangles_delta_max_ts":' + str.tostring(max_sent_ms) + ',"triangles_delta":[' + triangles_delta + ']}'
     
     // Update watermark to newest triangle sent
     if max_sent_ms > last_triangle_sent_ms
