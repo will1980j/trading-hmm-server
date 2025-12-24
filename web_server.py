@@ -6835,6 +6835,26 @@ def test_twelvedata_api():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/api/debug/version', methods=['GET'])
+def debug_version():
+    """Return current git SHA and server time for deployment verification"""
+    import os
+    from datetime import datetime
+    
+    # Check for Railway git commit SHA environment variables
+    git_sha = (
+        os.environ.get('RAILWAY_GIT_COMMIT_SHA') or
+        os.environ.get('GIT_COMMIT_SHA') or
+        os.environ.get('RAILWAY_GIT_SHA') or
+        os.environ.get('COMMIT_SHA') or
+        'unknown'
+    )
+    
+    return jsonify({
+        'git_sha': git_sha,
+        'server_time_utc': datetime.utcnow().isoformat() + 'Z'
+    }), 200
+
 @app.route('/api/debug-spy-html', methods=['GET'])
 def debug_spy_html():
     """Debug SPY HTML to find volume pattern"""
