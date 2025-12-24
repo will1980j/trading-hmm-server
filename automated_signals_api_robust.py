@@ -10,6 +10,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Deployment marker for all-signals endpoints
+ALL_SIGNALS_MARKER = "ALL_SIGNALS_FIX_MARKER_20251224_B"
+
 def register_automated_signals_api_robust(app, db):
     """Register robust API endpoints with comprehensive error handling"""
     logger.warning("[ROBUST_API_REGISTRATION] Starting registration of all robust API endpoints including repair routes")
@@ -1668,6 +1671,7 @@ def register_indicator_export_routes(app):
         limit = min(request.args.get('limit', 1000, type=int), 5000)
         offset = request.args.get('offset', 0, type=int)
         
+        logger.info("[ALL_SIGNALS_DATA] marker=%s", ALL_SIGNALS_MARKER)
         logger.info("[ALL_SIGNALS_DATA] start limit=%s offset=%s", limit, offset)
         
         conn = None
@@ -1782,7 +1786,8 @@ def register_indicator_export_routes(app):
                 'max_triangle_time_ms': max_triangle_time_ms,
                 'max_updated_at': max_updated_at,
                 'source_table': 'all_signals_ledger',
-                'handler_marker': 'ALL_SIGNALS_DATA_FIX_20251224_A'
+                'handler_marker': 'ALL_SIGNALS_DATA_FIX_20251224_A',
+                'marker': ALL_SIGNALS_MARKER
             }), 200
             
         except Exception as e:
@@ -1790,8 +1795,10 @@ def register_indicator_export_routes(app):
             return jsonify({
                 'success': False,
                 'error': str(e),
+                'error_type': type(e).__name__,
                 'signals': [],
-                'count': 0
+                'count': 0,
+                'marker': ALL_SIGNALS_MARKER
             }), 500
             
         finally:
@@ -1835,21 +1842,24 @@ def register_indicator_export_routes(app):
                     'success': True,
                     'total': total or 0,
                     'max_triangle_time_ms': max_triangle_time_ms,
-                    'max_updated_at': max_updated_at.isoformat() if max_updated_at else None
+                    'max_updated_at': max_updated_at.isoformat() if max_updated_at else None,
+                    'marker': ALL_SIGNALS_MARKER
                 }), 200
             else:
                 return jsonify({
                     'success': True,
                     'total': 0,
                     'max_triangle_time_ms': None,
-                    'max_updated_at': None
+                    'max_updated_at': None,
+                    'marker': ALL_SIGNALS_MARKER
                 }), 200
                 
         except Exception as e:
             logger.error(f"[ALL_SIGNALS_STATS] ❌ Error: {e}")
             return jsonify({
                 'success': False,
-                'error': str(e)
+                'error': str(e),
+                'marker': ALL_SIGNALS_MARKER
             }), 500
     
     @app.route('/api/all-signals/cancelled', methods=['GET'])
