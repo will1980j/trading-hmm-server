@@ -1666,6 +1666,9 @@ def register_indicator_export_routes(app):
         
         logger.info(f"[ALL_SIGNALS_DATA] Fetching all signals from ledger (limit={limit}, offset={offset})")
         
+        conn = None
+        cursor = None
+        
         try:
             DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
             conn = psycopg2.connect(DATABASE_URL)
@@ -1710,8 +1713,6 @@ def register_indicator_export_routes(app):
             """, (limit, offset))
             
             rows = cursor.fetchall()
-            cursor.close()
-            conn.close()
             
             # Convert to JSON-serializable format
             signals = []
@@ -1753,8 +1754,7 @@ def register_indicator_export_routes(app):
                 }
                 signals.append(signal)
             
-            # Get freshness metrics
-            cursor = conn.cursor()
+            # Get freshness metrics (reuse same cursor, connection still open)
             cursor.execute("""
                 SELECT 
                     MAX(triangle_time_ms) as max_triangle_time_ms,
@@ -1764,9 +1764,6 @@ def register_indicator_export_routes(app):
             freshness = cursor.fetchone()
             max_triangle_time_ms = freshness[0] if freshness else None
             max_updated_at = freshness[1].isoformat() if freshness and freshness[1] else None
-            
-            cursor.close()
-            conn.close()
             
             logger.info(f"[ALL_SIGNALS_DATA] ✅ Returned {len(signals)} signals (total={total}, limit={limit}, offset={offset})")
             
@@ -1790,6 +1787,13 @@ def register_indicator_export_routes(app):
                 'signals': [],
                 'count': 0
             }), 500
+            
+        finally:
+            # Always close cursor and connection
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
     
     @app.route('/api/all-signals/stats', methods=['GET'])
     def get_all_signals_stats():
