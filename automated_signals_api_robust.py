@@ -969,12 +969,26 @@ def register_indicator_export_routes(app):
                 logger.warning("[INDICATOR_EXPORT] ⚠️  INDICATOR_EXPORT_TOKEN not set - running in dev mode (no auth)")
                 indicator_export_webhook._warned_no_token = True
         
+        # Capture raw request data BEFORE parsing
+        ct = request.headers.get("Content-Type", "")
+        raw = request.get_data(as_text=True) or ""
+        raw_len = len(raw)
+        
         # Parse JSON body
         try:
             data = request.get_json(force=True)
         except Exception as e:
-            logger.error(f"[INDICATOR_EXPORT] Invalid JSON: {e}")
-            return jsonify({'status': 'error', 'message': 'Invalid JSON'}), 400
+            # Log detailed error with raw payload info (truncated for safety)
+            logger.error("[INDICATOR_EXPORT] Invalid JSON ct=%s len=%d head=%s", ct, raw_len, raw[:1500])
+            
+            # Return detailed error response (without token)
+            return jsonify({
+                'success': False,
+                'error': 'invalid_json',
+                'content_type': ct,
+                'body_len': raw_len,
+                'body_head': raw[:500]
+            }), 400
         
         # Compute SHA256 hash (stable canonicalization)
         payload_str = json.dumps(data, sort_keys=True)
