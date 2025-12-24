@@ -1776,11 +1776,12 @@ def register_indicator_export_routes(app):
                 'offset': offset,
                 'max_triangle_time_ms': max_triangle_time_ms,
                 'max_updated_at': max_updated_at,
-                'source_table': 'all_signals_ledger'
+                'source_table': 'all_signals_ledger',
+                'handler_marker': 'ALL_SIGNALS_DATA_FIX_20251224_A'
             }), 200
             
         except Exception as e:
-            logger.error(f"[ALL_SIGNALS_DATA] ❌ Error: {e}")
+            logger.exception("[ALL_SIGNALS_DATA] ❌ Error")
             return jsonify({
                 'success': False,
                 'error': str(e),
