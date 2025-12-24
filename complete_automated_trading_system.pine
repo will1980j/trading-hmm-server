@@ -2137,13 +2137,6 @@ if ENABLE_UNIFIED_SNAPSHOT and barstate.isconfirmed and barstate.isrealtime
     if delta_count > 0
         last_triangle_sent_ms := max_triangle_time_in_delta
     
-    // DEBUG: Single updating label (no spam)
-    var label symDbg = na
-    if barstate.isrealtime and barstate.isconfirmed
-        if not na(symDbg)
-            label.delete(symDbg)
-        symDbg := label.new(bar_index, high, "DEBUG sym=" + sym + " Δ=" + str.tostring(delta_count), textcolor=color.white, style=label.style_label_down, size=size.small)
-    
     alert(unified_payload, alert.freq_once_per_bar_close)
 
 // ============================================================================
