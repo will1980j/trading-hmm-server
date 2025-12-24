@@ -1664,7 +1664,7 @@ def register_indicator_export_routes(app):
         limit = min(request.args.get('limit', 1000, type=int), 5000)
         offset = request.args.get('offset', 0, type=int)
         
-        logger.info(f"[ALL_SIGNALS_DATA] Fetching all signals from ledger (limit={limit}, offset={offset})")
+        logger.info("[ALL_SIGNALS_DATA] start limit=%s offset=%s", limit, offset)
         
         conn = None
         cursor = None
@@ -1713,6 +1713,7 @@ def register_indicator_export_routes(app):
             """, (limit, offset))
             
             rows = cursor.fetchall()
+            logger.info("[ALL_SIGNALS_DATA] rows=%d", len(rows))
             
             # Convert to JSON-serializable format
             signals = []
