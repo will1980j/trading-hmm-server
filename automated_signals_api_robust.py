@@ -13,9 +13,51 @@ logger = logging.getLogger(__name__)
 # Deployment marker for all-signals endpoints
 ALL_SIGNALS_MARKER = "ALL_SIGNALS_FIX_MARKER_20251224_B"
 
+def _migrate_all_signals_status_constraint():
+    """
+    Migrate all_signals_ledger status constraint to include 'TRIANGLE'.
+    Safe to run multiple times (idempotent).
+    """
+    import os
+    import psycopg2
+    
+    try:
+        DATABASE_URL = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+        if not DATABASE_URL:
+            logger.warning("[MIGRATION] No DATABASE_URL, skipping status constraint migration")
+            return
+        
+        conn = psycopg2.connect(DATABASE_URL)
+        cursor = conn.cursor()
+        
+        # Drop existing constraint if it exists
+        cursor.execute("""
+            ALTER TABLE all_signals_ledger 
+            DROP CONSTRAINT IF EXISTS all_signals_ledger_status_check
+        """)
+        
+        # Recreate with TRIANGLE added
+        cursor.execute("""
+            ALTER TABLE all_signals_ledger 
+            ADD CONSTRAINT all_signals_ledger_status_check
+            CHECK (status IN ('PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'TRIANGLE'))
+        """)
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        logger.info("[MIGRATION] Updated all_signals_ledger_status_check to include TRIANGLE")
+        
+    except Exception as e:
+        logger.error(f"[MIGRATION] Failed to update status constraint: {e}")
+
 def register_automated_signals_api_robust(app, db):
     """Register robust API endpoints with comprehensive error handling"""
     logger.warning("[ROBUST_API_REGISTRATION] Starting registration of all robust API endpoints including repair routes")
+    
+    # Run migration on startup
+    _migrate_all_signals_status_constraint()
     
     # Register repair endpoints FIRST to ensure they're always available
     @app.route('/api/automated-signals/integrity-repair/lifecycle', methods=['POST'])
