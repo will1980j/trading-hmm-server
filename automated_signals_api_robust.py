@@ -2333,10 +2333,9 @@ def register_indicator_export_routes(app):
                 SELECT 
                     id,
                     received_at,
-                    jsonb_array_length(payload_json->'triangles_delta') as triangles_delta_len,
-                    payload_json->>'triangles_delta_count' as triangles_delta_count_field,
-                    payload_json->>'all_tri_last_ms' as all_tri_last_ms,
-                    payload_json->>'bar_ts' as bar_ts
+                    payload_json->>'bar_ts' as bar_ts,
+                    COALESCE(jsonb_array_length(payload_json->'triangles_delta'), 0) as delta_len,
+                    payload_json->>'symbol' as symbol
                 FROM indicator_export_batches
                 WHERE event_type = 'UNIFIED_SNAPSHOT_V1'
                 ORDER BY received_at DESC, id DESC
@@ -2352,10 +2351,9 @@ def register_indicator_export_routes(app):
                 batches.append({
                     'id': row['id'],
                     'received_at': row['received_at'].isoformat() if row['received_at'] else None,
-                    'triangles_delta_len': row['triangles_delta_len'],
-                    'triangles_delta_count_field': row['triangles_delta_count_field'],
-                    'all_tri_last_ms': row['all_tri_last_ms'],
-                    'bar_ts': row['bar_ts']
+                    'bar_ts': row['bar_ts'],
+                    'delta_len': row['delta_len'],
+                    'symbol': row['symbol']
                 })
             
             return jsonify({
