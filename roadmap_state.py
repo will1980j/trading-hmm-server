@@ -92,6 +92,36 @@ _add_phase(
             "done": True,
             "desc": "Kiro + strict patch workflow, repo guardrails.",
         },
+        "databento_foundation": {
+            "done": False,  # Set to True after full ingestion
+            "desc": "15-year historical MNQ OHLCV-1m data ingestion from Databento.",
+        },
+    },
+)
+
+# Level 0.5 — Databento Historical Data (Phase 1A)
+_add_phase(
+    "0.5",
+    level=0,
+    name="Databento Foundation",
+    description="Historical market data ingestion pipeline for 15 years of MNQ 1-minute bars.",
+    modules={
+        "databento_download": {
+            "done": True,
+            "desc": "Downloaded 15-year MNQ OHLCV-1m dataset from Databento.",
+        },
+        "schema_migration": {
+            "done": True,
+            "desc": "Created market_bars_ohlcv_1m and data_ingest_runs tables.",
+        },
+        "ingestion_pipeline": {
+            "done": False,  # Set to True after full ingestion
+            "desc": "Ingested full 15-year dataset (1M+ bars) with idempotency.",
+        },
+        "stats_endpoint": {
+            "done": True,
+            "desc": "Deployed /api/market-data/mnq/ohlcv-1m/stats endpoint.",
+        },
     },
 )
 
