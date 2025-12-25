@@ -1874,6 +1874,7 @@ def homepage():
     return render_template('homepage_video_background.html', 
                          video_file=video_file, 
                          roadmap_v3=roadmap_v3,
+                         roadmap_snapshot=roadmap_v3,  # Alias for template compatibility
                          databento_stats=databento_stats,
                          roadmap_error=roadmap_error,
                          stats_error=stats_error)

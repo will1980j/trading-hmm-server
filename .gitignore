@@ -29,3 +29,9 @@ data/databento/mnq/ohlcv_1m/raw/glbx-mdp3-20190414-20251222.ohlcv-1m.dbn.zst
 data/databento/mnq/ohlcv_1m/raw/manifest.json
 data/databento/mnq/ohlcv_1m/raw/metadata.json
 data/databento/mnq/ohlcv_1m/raw/symbology.json
+data/databento/nq/ohlcv_1m/raw/GLBX-20251225-CAH8Q73R7C.zip
+data/databento/nq/ohlcv_1m/raw/condition.json
+data/databento/nq/ohlcv_1m/raw/glbx-mdp3-20100606-20251224.ohlcv-1m.dbn.zst
+data/databento/nq/ohlcv_1m/raw/manifest.json
+data/databento/nq/ohlcv_1m/raw/metadata.json
+data/databento/nq/ohlcv_1m/raw/symbology.json
