@@ -1,0 +1,2445 @@
+# ============================================================================
+# UNIFIED ROADMAP V3 - DATABENTO-FIRST TRADING RESEARCH & EXECUTION PLATFORM
+# ============================================================================
+# Version: 3.0.0
+# Created: 2025-12-25
+# Last Updated: 2025-12-25
+# Purpose: Complete roadmap for Databento-powered trading intelligence platform
+# ============================================================================
+
+roadmap_version: "3.0.0"
+created_date: "2025-12-25"
+last_updated: "2025-12-25"
+
+# ============================================================================
+# SOURCE OF TRUTH DECLARATION
+# ============================================================================
+source_of_truth:
+  market_data: "Databento"
+  historical_ohlcv: "databento_ohlcv_1m table (PostgreSQL)"
+  live_data: "Databento WebSocket (future)"
+  tradingview_role: "VISUAL ONLY - not data source"
+  legacy_webhooks: "DEPRECATED - kept for reference only"
+  signal_generation: "Python-based indicator parity (future)"
+
+# ============================================================================
+# CURRENT DATA STATE
+# ============================================================================
+current_data_state:
+  databento_ohlcv_1m:
+    status: "INGESTED"
+    symbol: "MNQ"
+    date_range:
+      start: "2019-05-05"
+      end: "2025-12-22"
+    row_count: 2340000
+    granularity: "1-minute"
+    table_name: "databento_ohlcv_1m"
+    columns:
+      - ts_event
+      - symbol
+      - open
+      - high
+      - low
+      - close
+      - volume
+
+  automated_signals:
+    current_state: "TradingView webhook-based (LEGACY)"
+    target_state: "Databento historical-first, then live"
+    migration_status: "PLANNED"
+
+# ============================================================================
+# FEATURE FLAG POLICY
+# ============================================================================
+feature_flag_policy:
+  default_state: "OFF"
+  activation_rule: "Module must pass all acceptance criteria before flag ON"
+  dashboard_behavior: "Show placeholder/disabled state when flag OFF"
+  flag_location: "config/feature_flags.py"
+  
+feature_flags:
+  # Phase 0-1: Foundation
+  FEATURE_DATABENTO_HISTORICAL: "ON"
+  FEATURE_DATA_QUALITY_MONITORING: "OFF"
+  
+  # Phase 2: Indicator Parity
+  FEATURE_PYTHON_FVG_DETECTOR: "OFF"
+  FEATURE_PYTHON_PIVOT_DETECTOR: "OFF"
+  FEATURE_PYTHON_SIGNAL_GENERATOR: "OFF"
+  
+  # Phase 3: Automated Signals Historical
+  FEATURE_AUTOMATED_SIGNALS_HISTORICAL: "OFF"
+  FEATURE_HISTORICAL_BACKFILL: "OFF"
+  
+  # Phase 4: Strategy
+  FEATURE_STRATEGY_DISCOVERY: "OFF"
+  FEATURE_STRATEGY_SELECTION: "OFF"
+  FEATURE_STRATEGY_COMPARISON: "OFF"
+  
+  # Phase 5: Analytics
+  FEATURE_MFE_MAE_ANALYTICS: "OFF"
+  FEATURE_TEMPORAL_ANALYSIS: "OFF"
+  FEATURE_REGIME_DETECTION: "OFF"
+  
+  # Phase 6: Backtesting
+  FEATURE_BACKTESTING_ENGINE: "OFF"
+  FEATURE_PORTFOLIO_RISK: "OFF"
+  FEATURE_MONTE_CARLO: "OFF"
+  
+  # Phase 7: Live
+  FEATURE_LIVE_MARKET_DATA: "OFF"
+  FEATURE_LIVE_SIGNALS: "OFF"
+  FEATURE_REALTIME_MFE: "OFF"
+  
+  # Phase 8: Execution
+  FEATURE_EXECUTION_ROUTER: "OFF"
+  FEATURE_PROP_FIRM_INTEGRATION: "OFF"
+  FEATURE_PAPER_TRADING: "OFF"
+  
+  # Phase 9: Operations
+  FEATURE_COPY_TRADING: "OFF"
+  FEATURE_MULTI_ACCOUNT: "OFF"
+  FEATURE_ALERTING_SYSTEM: "OFF"
+  
+  # Phase 10: ML/AI
+  FEATURE_ML_LABELING: "OFF"
+  FEATURE_ML_TRAINING: "OFF"
+  FEATURE_ML_INFERENCE: "OFF"
+  FEATURE_MLOPS_PIPELINE: "OFF"
+
+# ============================================================================
+# PHASES
+# ============================================================================
+phases:
+
+  # ==========================================================================
+  # PHASE 0: DATABENTO DATA FOUNDATION
+  # ==========================================================================
+  - phase_id: "P0"
+    name: "Databento Data Foundation"
+    objective: "Establish Databento as the single source of truth for all market data"
+    entry_criteria:
+      - "Railway PostgreSQL database accessible"
+      - "Databento API credentials configured"
+    exit_criteria:
+      - "All historical OHLCV data ingested (2019-2025)"
+      - "Data validation passes 100%"
+      - "Homepage displays Databento stats correctly"
+    status: "COMPLETE"
+    
+    modules:
+      # ------------------------------------------------------------------------
+      - module_id: "P0-M1"
+        title: "Databento Schema & Migration"
+        description: "Create database schema for Databento OHLCV data storage"
+        dashboards_affected:
+          - "Homepage"
+          - "Main Dashboard"
+        feature_flag: "FEATURE_DATABENTO_HISTORICAL"
+        status: "COMPLETE"
+        dependencies: []
+        acceptance_criteria:
+          - "databento_ohlcv_1m table created with correct schema"
+          - "Indexes on ts_event and symbol columns"
+          - "Migration script runs without errors"
+        tasks:
+          - task_id: "P0-M1-T1"
+            title: "Create OHLCV schema SQL"
+            description: "Define table structure for 1-minute OHLCV data"
+            acceptance_criteria:
+              - "Schema includes ts_event, symbol, open, high, low, close, volume"
+              - "Primary key on (ts_event, symbol)"
+            outputs:
+              - "database/databento_ohlcv_schema.sql"
+            status: "COMPLETE"
+            
+          - task_id: "P0-M1-T2"
+            title: "Create migration runner"
+            description: "Python script to execute schema migration"
+            acceptance_criteria:
+              - "Connects to Railway PostgreSQL"
+              - "Creates table if not exists"
+              - "Handles errors gracefully"
+            outputs:
+              - "database/run_databento_migration.py"
+            status: "COMPLETE"
+            
+          - task_id: "P0-M1-T3"
+            title: "Run migration on production"
+            description: "Execute migration against Railway database"
+            acceptance_criteria:
+              - "Table exists in production"
+              - "Schema matches specification"
+            outputs:
+              - "Migration log"
+            status: "COMPLETE"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P0-M2"
+        title: "Historical Data Ingestion"
+        description: "Ingest all historical MNQ OHLCV data from Databento files"
+        dashboards_affected:
+          - "Homepage"
+          - "Time Analysis"
+        feature_flag: "FEATURE_DATABENTO_HISTORICAL"
+        status: "COMPLETE"
+        dependencies:
+          - "P0-M1"
+        acceptance_criteria:
+          - "All CSV files from 2019-2025 ingested"
+          - "Row count approximately 2.34M"
+          - "No duplicate records"
+          - "Date range verified: 2019-05-05 to 2025-12-22"
+        tasks:
+          - task_id: "P0-M2-T1"
+            title: "Create ingestion script"
+            description: "Python script to parse and insert Databento CSV files"
+            acceptance_criteria:
+              - "Handles multiple CSV files"
+              - "Batch inserts for performance"
+              - "Progress logging"
+              - "Duplicate detection"
+            outputs:
+              - "scripts/ingest_databento_ohlcv_1m.py"
+            status: "COMPLETE"
+            
+          - task_id: "P0-M2-T2"
+            title: "Organize data files"
+            description: "Structure Databento CSV files in data directory"
+            acceptance_criteria:
+              - "Files organized by symbol and timeframe"
+              - "README documenting file structure"
+            outputs:
+              - "data/databento/mnq/ohlcv_1m/"
+              - "data/databento/mnq/ohlcv_1m/README.md"
+            status: "COMPLETE"
+            
+          - task_id: "P0-M2-T3"
+            title: "Execute full ingestion"
+            description: "Run ingestion for all historical data"
+            acceptance_criteria:
+              - "All files processed"
+              - "Row count verified"
+              - "No errors in logs"
+            outputs:
+              - "Ingestion completion log"
+            status: "COMPLETE"
+            
+          - task_id: "P0-M2-T4"
+            title: "Verify data integrity"
+            description: "Run verification queries on ingested data"
+            acceptance_criteria:
+              - "Date range correct"
+              - "No gaps in trading hours"
+              - "OHLC values valid (high >= low, etc.)"
+            outputs:
+              - "verify_databento_migration.py"
+            status: "COMPLETE"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P0-M3"
+        title: "Homepage Databento Integration"
+        description: "Display Databento data statistics on homepage"
+        dashboards_affected:
+          - "Homepage"
+        feature_flag: "FEATURE_DATABENTO_HISTORICAL"
+        status: "COMPLETE"
+        dependencies:
+          - "P0-M2"
+        acceptance_criteria:
+          - "Homepage shows Databento row count"
+          - "Homepage shows date range"
+          - "Stats update dynamically"
+        tasks:
+          - task_id: "P0-M3-T1"
+            title: "Create Databento stats API endpoint"
+            description: "API endpoint returning Databento data statistics"
+            acceptance_criteria:
+              - "Returns row count"
+              - "Returns date range"
+              - "Returns last update timestamp"
+            outputs:
+              - "/api/databento/stats endpoint"
+            status: "COMPLETE"
+            
+          - task_id: "P0-M3-T2"
+            title: "Update homepage template"
+            description: "Add Databento stats display to homepage"
+            acceptance_criteria:
+              - "Stats displayed in roadmap section"
+              - "Proper formatting of numbers"
+              - "Loading state handled"
+            outputs:
+              - "templates/homepage_video_background.html updates"
+            status: "COMPLETE"
+            
+          - task_id: "P0-M3-T3"
+            title: "Update homepage JavaScript"
+            description: "Fetch and display Databento stats"
+            acceptance_criteria:
+              - "Fetches from API on page load"
+              - "Updates DOM with stats"
+              - "Error handling for API failures"
+            outputs:
+              - "static/js/homepage.js updates"
+            status: "COMPLETE"
+
+  # ==========================================================================
+  # PHASE 1: MARKET DATA PLUMBING & QUALITY
+  # ==========================================================================
+  - phase_id: "P1"
+    name: "Market Data Plumbing & Quality"
+    objective: "Build robust data pipeline with quality monitoring and validation"
+    entry_criteria:
+      - "Phase 0 complete"
+      - "Databento data ingested"
+    exit_criteria:
+      - "Data quality monitoring active"
+      - "Gap detection working"
+      - "Anomaly detection implemented"
+    status: "IN_PROGRESS"
+
+    modules:
+      # ------------------------------------------------------------------------
+      - module_id: "P1-M1"
+        title: "Data Quality Monitoring System"
+        description: "Automated monitoring for data completeness and accuracy"
+        dashboards_affected:
+          - "Homepage"
+          - "Main Dashboard"
+        feature_flag: "FEATURE_DATA_QUALITY_MONITORING"
+        status: "PLANNED"
+        dependencies:
+          - "P0-M2"
+        acceptance_criteria:
+          - "Quality metrics calculated hourly"
+          - "Alerts on quality degradation"
+          - "Dashboard shows quality score"
+        tasks:
+          - task_id: "P1-M1-T1"
+            title: "Create data quality schema"
+            description: "Database tables for quality metrics storage"
+            acceptance_criteria:
+              - "Table for quality scores"
+              - "Table for detected issues"
+              - "Historical tracking enabled"
+            outputs:
+              - "database/data_quality_schema.sql"
+            status: "COMPLETE"
+            
+          - task_id: "P1-M1-T2"
+            title: "Implement quality calculator"
+            description: "Service to calculate data quality metrics"
+            acceptance_criteria:
+              - "Completeness score (% of expected bars)"
+              - "Validity score (OHLC logic checks)"
+              - "Freshness score (time since last update)"
+            outputs:
+              - "services/data_quality_calculator.py"
+            status: "PLANNED"
+            
+          - task_id: "P1-M1-T3"
+            title: "Create quality API endpoints"
+            description: "REST API for quality metrics"
+            acceptance_criteria:
+              - "GET /api/data-quality/score"
+              - "GET /api/data-quality/issues"
+              - "GET /api/data-quality/history"
+            outputs:
+              - "data_quality_api.py"
+            status: "PLANNED"
+            
+          - task_id: "P1-M1-T4"
+            title: "Add quality dashboard widget"
+            description: "Visual display of data quality on dashboards"
+            acceptance_criteria:
+              - "Quality score gauge"
+              - "Issue list with severity"
+              - "Trend chart"
+            outputs:
+              - "Dashboard widget component"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P1-M2"
+        title: "Gap Detection & Healing"
+        description: "Detect and optionally fill gaps in market data"
+        dashboards_affected:
+          - "Main Dashboard"
+          - "Time Analysis"
+        feature_flag: "FEATURE_DATA_QUALITY_MONITORING"
+        status: "PLANNED"
+        dependencies:
+          - "P1-M1"
+        acceptance_criteria:
+          - "Gaps detected within 1 minute of occurrence"
+          - "Gap report available via API"
+          - "Optional gap filling from backup source"
+        tasks:
+          - task_id: "P1-M2-T1"
+            title: "Implement gap detector"
+            description: "Service to identify missing bars in OHLCV data"
+            acceptance_criteria:
+              - "Detects gaps > 1 minute during trading hours"
+              - "Excludes expected gaps (weekends, holidays)"
+              - "Logs all detected gaps"
+            outputs:
+              - "services/gap_detector.py"
+            status: "PLANNED"
+            
+          - task_id: "P1-M2-T2"
+            title: "Create trading calendar"
+            description: "Define expected trading hours and holidays"
+            acceptance_criteria:
+              - "CME futures trading hours defined"
+              - "US market holidays included"
+              - "DST transitions handled"
+            outputs:
+              - "config/trading_calendar.py"
+            status: "PLANNED"
+            
+          - task_id: "P1-M2-T3"
+            title: "Implement gap healer"
+            description: "Optional service to fill gaps from backup source"
+            acceptance_criteria:
+              - "Can fetch missing bars from Databento API"
+              - "Validates filled data before insert"
+              - "Logs all healing operations"
+            outputs:
+              - "services/gap_healer.py"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P1-M3"
+        title: "Anomaly Detection"
+        description: "Detect unusual price movements and data anomalies"
+        dashboards_affected:
+          - "Main Dashboard"
+        feature_flag: "FEATURE_DATA_QUALITY_MONITORING"
+        status: "PLANNED"
+        dependencies:
+          - "P1-M1"
+        acceptance_criteria:
+          - "Spike detection working"
+          - "Volume anomaly detection working"
+          - "Alerts generated for anomalies"
+        tasks:
+          - task_id: "P1-M3-T1"
+            title: "Implement price spike detector"
+            description: "Detect abnormal price movements"
+            acceptance_criteria:
+              - "Configurable threshold (default 3 std dev)"
+              - "Per-session thresholds supported"
+              - "Historical anomaly backfill"
+            outputs:
+              - "services/anomaly_detector.py"
+            status: "PLANNED"
+            
+          - task_id: "P1-M3-T2"
+            title: "Implement volume anomaly detector"
+            description: "Detect unusual volume patterns"
+            acceptance_criteria:
+              - "Detects volume spikes"
+              - "Detects zero-volume bars"
+              - "Session-aware thresholds"
+            outputs:
+              - "services/volume_anomaly_detector.py"
+            status: "PLANNED"
+
+  # ==========================================================================
+  # PHASE 2: INDICATOR PARITY (PINE → PYTHON)
+  # ==========================================================================
+  - phase_id: "P2"
+    name: "Indicator Parity (Pine → Python)"
+    objective: "Replicate TradingView Pine Script indicators in Python for Databento data"
+    entry_criteria:
+      - "Phase 1 complete"
+      - "Databento data quality verified"
+    exit_criteria:
+      - "All core indicators ported to Python"
+      - "Signal parity verified against Pine Script"
+      - "Performance benchmarks met"
+    status: "PLANNED"
+    
+    modules:
+      # ------------------------------------------------------------------------
+      - module_id: "P2-M1"
+        title: "FVG/IFVG Detector"
+        description: "Port Fair Value Gap detection logic to Python"
+        dashboards_affected:
+          - "Automated Signals"
+          - "Signal Lab"
+        feature_flag: "FEATURE_PYTHON_FVG_DETECTOR"
+        status: "PLANNED"
+        dependencies:
+          - "P1-M1"
+        acceptance_criteria:
+          - "Detects bullish FVGs correctly"
+          - "Detects bearish FVGs correctly"
+          - "Detects IFVGs (inverse FVGs)"
+          - "100% parity with Pine Script on test dataset"
+        tasks:
+          - task_id: "P2-M1-T1"
+            title: "Document Pine Script FVG logic"
+            description: "Extract and document exact FVG detection rules"
+            acceptance_criteria:
+              - "All conditions documented"
+              - "Edge cases identified"
+              - "Test cases defined"
+            outputs:
+              - "docs/indicators/fvg_specification.md"
+            status: "PLANNED"
+            
+          - task_id: "P2-M1-T2"
+            title: "Implement Python FVG detector"
+            description: "Python class for FVG detection on OHLCV data"
+            acceptance_criteria:
+              - "Vectorized implementation for performance"
+              - "Handles edge cases"
+              - "Returns FVG objects with all metadata"
+            outputs:
+              - "indicators/fvg_detector.py"
+            status: "PLANNED"
+            
+          - task_id: "P2-M1-T3"
+            title: "Create FVG unit tests"
+            description: "Comprehensive test suite for FVG detector"
+            acceptance_criteria:
+              - "Tests for bullish FVGs"
+              - "Tests for bearish FVGs"
+              - "Tests for IFVGs"
+              - "Edge case tests"
+            outputs:
+              - "tests/test_fvg_detector.py"
+            status: "PLANNED"
+            
+          - task_id: "P2-M1-T4"
+            title: "Validate against Pine Script"
+            description: "Compare Python output to Pine Script on historical data"
+            acceptance_criteria:
+              - "Run on 1000+ bars"
+              - "Document any discrepancies"
+              - "Achieve 99%+ match rate"
+            outputs:
+              - "Validation report"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P2-M2"
+        title: "Pivot Point Detector"
+        description: "Port pivot point detection (3-candle and 4-candle) to Python"
+        dashboards_affected:
+          - "Automated Signals"
+          - "Signal Lab"
+        feature_flag: "FEATURE_PYTHON_PIVOT_DETECTOR"
+        status: "PLANNED"
+        dependencies:
+          - "P1-M1"
+        acceptance_criteria:
+          - "3-candle pivot detection working"
+          - "4-candle double-bottom/top detection working"
+          - "100% parity with Pine Script"
+        tasks:
+          - task_id: "P2-M2-T1"
+            title: "Document pivot detection rules"
+            description: "Extract exact pivot detection methodology"
+            acceptance_criteria:
+              - "3-candle pivot rules documented"
+              - "4-candle pivot rules documented"
+              - "Stop loss placement rules documented"
+            outputs:
+              - "docs/indicators/pivot_specification.md"
+            status: "PLANNED"
+            
+          - task_id: "P2-M2-T2"
+            title: "Implement Python pivot detector"
+            description: "Python class for pivot detection"
+            acceptance_criteria:
+              - "Detects swing highs"
+              - "Detects swing lows"
+              - "Handles double-bottom/top patterns"
+            outputs:
+              - "indicators/pivot_detector.py"
+            status: "PLANNED"
+            
+          - task_id: "P2-M2-T3"
+            title: "Create pivot unit tests"
+            description: "Test suite for pivot detector"
+            acceptance_criteria:
+              - "Tests for 3-candle pivots"
+              - "Tests for 4-candle pivots"
+              - "Edge case coverage"
+            outputs:
+              - "tests/test_pivot_detector.py"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P2-M3"
+        title: "HTF Bias Calculator"
+        description: "Port higher timeframe bias calculation to Python"
+        dashboards_affected:
+          - "Automated Signals"
+          - "Time Analysis"
+        feature_flag: "FEATURE_PYTHON_SIGNAL_GENERATOR"
+        status: "PLANNED"
+        dependencies:
+          - "P2-M1"
+        acceptance_criteria:
+          - "Daily bias calculation working"
+          - "4H bias calculation working"
+          - "1H, 15M, 5M bias calculations working"
+          - "Bias alignment logic correct"
+        tasks:
+          - task_id: "P2-M3-T1"
+            title: "Implement timeframe aggregator"
+            description: "Aggregate 1-minute bars to higher timeframes"
+            acceptance_criteria:
+              - "Correct OHLCV aggregation"
+              - "Handles partial bars"
+              - "Timezone-aware"
+            outputs:
+              - "indicators/timeframe_aggregator.py"
+            status: "PLANNED"
+            
+          - task_id: "P2-M3-T2"
+            title: "Implement HTF bias calculator"
+            description: "Calculate bias for each timeframe"
+            acceptance_criteria:
+              - "Uses FVG detector on each timeframe"
+              - "Returns bias state (Bullish/Bearish/Neutral)"
+              - "Caches results for performance"
+            outputs:
+              - "indicators/htf_bias_calculator.py"
+            status: "PLANNED"
+            
+          - task_id: "P2-M3-T3"
+            title: "Implement bias alignment checker"
+            description: "Check alignment across multiple timeframes"
+            acceptance_criteria:
+              - "Configurable timeframe selection"
+              - "Returns alignment score"
+              - "Matches Pine Script logic"
+            outputs:
+              - "indicators/bias_alignment.py"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P2-M4"
+        title: "Signal Generator"
+        description: "Complete signal generation pipeline combining all indicators"
+        dashboards_affected:
+          - "Automated Signals"
+          - "Signal Lab"
+          - "Main Dashboard"
+        feature_flag: "FEATURE_PYTHON_SIGNAL_GENERATOR"
+        status: "PLANNED"
+        dependencies:
+          - "P2-M1"
+          - "P2-M2"
+          - "P2-M3"
+        acceptance_criteria:
+          - "Generates signals matching Pine Script"
+          - "Includes confirmation logic"
+          - "Calculates entry, stop loss, targets"
+          - "Session filtering working"
+        tasks:
+          - task_id: "P2-M4-T1"
+            title: "Implement signal generator"
+            description: "Main signal generation class"
+            acceptance_criteria:
+              - "Combines FVG, pivot, and HTF bias"
+              - "Implements confirmation candle logic"
+              - "Calculates exact entry price"
+              - "Calculates stop loss per methodology"
+            outputs:
+              - "indicators/signal_generator.py"
+            status: "PLANNED"
+            
+          - task_id: "P2-M4-T2"
+            title: "Implement session filter"
+            description: "Filter signals by trading session"
+            acceptance_criteria:
+              - "All 6 sessions defined"
+              - "DST handling correct"
+              - "Invalid time rejection"
+            outputs:
+              - "indicators/session_filter.py"
+            status: "PLANNED"
+            
+          - task_id: "P2-M4-T3"
+            title: "Implement cancellation logic"
+            description: "Handle signal cancellation rules"
+            acceptance_criteria:
+              - "Opposing signal cancels pending"
+              - "Timeout cancellation (if applicable)"
+              - "State machine for signal lifecycle"
+            outputs:
+              - "indicators/signal_state_machine.py"
+            status: "PLANNED"
+            
+          - task_id: "P2-M4-T4"
+            title: "Create integration tests"
+            description: "End-to-end signal generation tests"
+            acceptance_criteria:
+              - "Test full signal lifecycle"
+              - "Compare to known Pine Script outputs"
+              - "Performance benchmarks"
+            outputs:
+              - "tests/test_signal_generator.py"
+            status: "PLANNED"
+
+  # ==========================================================================
+  # PHASE 3: AUTOMATED SIGNALS (HISTORICAL)
+  # ==========================================================================
+  - phase_id: "P3"
+    name: "Automated Signals (Historical)"
+    objective: "Generate and store signals from historical Databento data"
+    entry_criteria:
+      - "Phase 2 complete"
+      - "Signal generator validated"
+    exit_criteria:
+      - "Historical signals generated for full date range"
+      - "Signals stored in database"
+      - "Dashboard displays historical signals"
+    status: "PLANNED"
+
+    modules:
+      # ------------------------------------------------------------------------
+      - module_id: "P3-M1"
+        title: "Historical Signal Schema"
+        description: "Database schema for storing generated signals"
+        dashboards_affected:
+          - "Automated Signals"
+        feature_flag: "FEATURE_AUTOMATED_SIGNALS_HISTORICAL"
+        status: "PLANNED"
+        dependencies:
+          - "P2-M4"
+        acceptance_criteria:
+          - "Schema supports all signal fields"
+          - "Indexes for efficient querying"
+          - "Partitioning for large datasets"
+        tasks:
+          - task_id: "P3-M1-T1"
+            title: "Design signal schema"
+            description: "Define database schema for historical signals"
+            acceptance_criteria:
+              - "All signal fields included"
+              - "MFE/MAE fields included"
+              - "Lifecycle state tracking"
+              - "Source tracking (historical vs live)"
+            outputs:
+              - "database/historical_signals_schema.sql"
+            status: "PLANNED"
+            
+          - task_id: "P3-M1-T2"
+            title: "Create migration script"
+            description: "Migration to create historical signals table"
+            acceptance_criteria:
+              - "Creates table with all columns"
+              - "Creates indexes"
+              - "Handles existing data"
+            outputs:
+              - "database/run_historical_signals_migration.py"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P3-M2"
+        title: "Historical Backfill Engine"
+        description: "Process historical data to generate signals"
+        dashboards_affected:
+          - "Automated Signals"
+        feature_flag: "FEATURE_HISTORICAL_BACKFILL"
+        status: "PLANNED"
+        dependencies:
+          - "P3-M1"
+        acceptance_criteria:
+          - "Can process full date range"
+          - "Resumable on failure"
+          - "Progress tracking"
+          - "Performance: 1 year in < 1 hour"
+        tasks:
+          - task_id: "P3-M2-T1"
+            title: "Implement backfill engine"
+            description: "Service to generate signals from historical data"
+            acceptance_criteria:
+              - "Processes data in chunks"
+              - "Tracks progress in database"
+              - "Handles restarts gracefully"
+            outputs:
+              - "services/historical_backfill_engine.py"
+            status: "PLANNED"
+            
+          - task_id: "P3-M2-T2"
+            title: "Implement MFE/MAE calculator"
+            description: "Calculate MFE and MAE for historical signals"
+            acceptance_criteria:
+              - "Calculates MFE from entry to exit"
+              - "Calculates MAE from entry to exit"
+              - "Handles both BE=1 and No BE strategies"
+            outputs:
+              - "services/mfe_mae_calculator.py"
+            status: "PLANNED"
+            
+          - task_id: "P3-M2-T3"
+            title: "Create backfill CLI"
+            description: "Command-line interface for backfill operations"
+            acceptance_criteria:
+              - "Start/stop/resume commands"
+              - "Date range selection"
+              - "Progress display"
+            outputs:
+              - "scripts/run_historical_backfill.py"
+            status: "PLANNED"
+            
+          - task_id: "P3-M2-T4"
+            title: "Run full historical backfill"
+            description: "Execute backfill for 2019-2025 data"
+            acceptance_criteria:
+              - "All signals generated"
+              - "MFE/MAE calculated"
+              - "No errors in logs"
+            outputs:
+              - "Backfill completion report"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P3-M3"
+        title: "Automated Signals Dashboard Refactor"
+        description: "Refactor dashboard to display historical signals from Databento"
+        dashboards_affected:
+          - "Automated Signals"
+        feature_flag: "FEATURE_AUTOMATED_SIGNALS_HISTORICAL"
+        status: "PLANNED"
+        dependencies:
+          - "P3-M2"
+        acceptance_criteria:
+          - "Dashboard shows historical signals"
+          - "Filtering by date range"
+          - "Filtering by session"
+          - "MFE/MAE display"
+          - "Legacy webhook data deprecated"
+        tasks:
+          - task_id: "P3-M3-T1"
+            title: "Create historical signals API"
+            description: "API endpoints for historical signal data"
+            acceptance_criteria:
+              - "GET /api/signals/historical"
+              - "Pagination support"
+              - "Filter parameters"
+              - "Aggregation endpoints"
+            outputs:
+              - "api/historical_signals_api.py"
+            status: "PLANNED"
+            
+          - task_id: "P3-M3-T2"
+            title: "Refactor dashboard template"
+            description: "Update automated_signals_ultra.html for historical data"
+            acceptance_criteria:
+              - "Date range picker"
+              - "Session filter"
+              - "Signal table with all fields"
+              - "Placeholder when flag OFF"
+            outputs:
+              - "templates/automated_signals_ultra.html updates"
+            status: "PLANNED"
+            
+          - task_id: "P3-M3-T3"
+            title: "Refactor dashboard JavaScript"
+            description: "Update JS to fetch from historical API"
+            acceptance_criteria:
+              - "Fetches from new API"
+              - "Handles pagination"
+              - "Updates charts"
+            outputs:
+              - "static/js/automated_signals_ultra.js updates"
+            status: "PLANNED"
+            
+          - task_id: "P3-M3-T4"
+            title: "Add signal detail modal"
+            description: "Modal showing full signal details"
+            acceptance_criteria:
+              - "Shows all signal fields"
+              - "Shows MFE/MAE chart"
+              - "Shows price chart context"
+            outputs:
+              - "Signal detail modal component"
+            status: "PLANNED"
+
+  # ==========================================================================
+  # PHASE 4: STRATEGY DISCOVERY & SELECTION
+  # ==========================================================================
+  - phase_id: "P4"
+    name: "Strategy Discovery & Selection"
+    objective: "Tools for discovering and selecting optimal trading strategies"
+    entry_criteria:
+      - "Phase 3 complete"
+      - "Historical signals available"
+    exit_criteria:
+      - "Strategy discovery tools working"
+      - "Strategy comparison functional"
+      - "Strategy selection criteria defined"
+    status: "PLANNED"
+
+    modules:
+      # ------------------------------------------------------------------------
+      - module_id: "P4-M1"
+        title: "Strategy Parameter Space"
+        description: "Define and explore strategy parameter combinations"
+        dashboards_affected:
+          - "Strategy Optimizer"
+        feature_flag: "FEATURE_STRATEGY_DISCOVERY"
+        status: "PLANNED"
+        dependencies:
+          - "P3-M2"
+        acceptance_criteria:
+          - "Parameter space defined"
+          - "Grid search implemented"
+          - "Results stored for analysis"
+        tasks:
+          - task_id: "P4-M1-T1"
+            title: "Define parameter space"
+            description: "Document all tunable strategy parameters"
+            acceptance_criteria:
+              - "HTF filter combinations"
+              - "Session filters"
+              - "Entry/exit variations"
+              - "Risk parameters"
+            outputs:
+              - "config/strategy_parameters.py"
+            status: "PLANNED"
+            
+          - task_id: "P4-M1-T2"
+            title: "Implement grid search"
+            description: "Systematic exploration of parameter space"
+            acceptance_criteria:
+              - "Generates all combinations"
+              - "Runs backtest for each"
+              - "Stores results"
+            outputs:
+              - "services/strategy_grid_search.py"
+            status: "PLANNED"
+            
+          - task_id: "P4-M1-T3"
+            title: "Create parameter results schema"
+            description: "Database schema for strategy results"
+            acceptance_criteria:
+              - "Stores parameter combinations"
+              - "Stores performance metrics"
+              - "Supports querying"
+            outputs:
+              - "database/strategy_results_schema.sql"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P4-M2"
+        title: "Strategy Comparison Engine"
+        description: "Compare multiple strategies side-by-side"
+        dashboards_affected:
+          - "Strategy Comparison"
+        feature_flag: "FEATURE_STRATEGY_COMPARISON"
+        status: "PLANNED"
+        dependencies:
+          - "P4-M1"
+        acceptance_criteria:
+          - "Compare up to 10 strategies"
+          - "Multiple metrics displayed"
+          - "Statistical significance tests"
+        tasks:
+          - task_id: "P4-M2-T1"
+            title: "Implement comparison engine"
+            description: "Service to compare strategy performance"
+            acceptance_criteria:
+              - "Calculates all metrics for each strategy"
+              - "Normalizes for comparison"
+              - "Ranks strategies"
+            outputs:
+              - "services/strategy_comparison_engine.py"
+            status: "PLANNED"
+            
+          - task_id: "P4-M2-T2"
+            title: "Implement statistical tests"
+            description: "Statistical significance testing"
+            acceptance_criteria:
+              - "T-test for mean comparison"
+              - "Bootstrap confidence intervals"
+              - "Out-of-sample validation"
+            outputs:
+              - "services/strategy_statistics.py"
+            status: "PLANNED"
+            
+          - task_id: "P4-M2-T3"
+            title: "Create comparison dashboard"
+            description: "Visual comparison interface"
+            acceptance_criteria:
+              - "Side-by-side metrics table"
+              - "Equity curve overlay"
+              - "Drawdown comparison"
+            outputs:
+              - "templates/strategy_comparison.html updates"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P4-M3"
+        title: "Strategy Selection Framework"
+        description: "Framework for selecting optimal strategies"
+        dashboards_affected:
+          - "Strategy Optimizer"
+          - "Main Dashboard"
+        feature_flag: "FEATURE_STRATEGY_SELECTION"
+        status: "PLANNED"
+        dependencies:
+          - "P4-M2"
+        acceptance_criteria:
+          - "Selection criteria configurable"
+          - "Multi-objective optimization"
+          - "Robustness checks"
+        tasks:
+          - task_id: "P4-M3-T1"
+            title: "Define selection criteria"
+            description: "Document strategy selection methodology"
+            acceptance_criteria:
+              - "Minimum trade count"
+              - "Profit factor threshold"
+              - "Max drawdown limit"
+              - "Win rate requirements"
+            outputs:
+              - "docs/strategy_selection_criteria.md"
+            status: "PLANNED"
+            
+          - task_id: "P4-M3-T2"
+            title: "Implement selection algorithm"
+            description: "Algorithm to rank and select strategies"
+            acceptance_criteria:
+              - "Weighted scoring system"
+              - "Pareto frontier identification"
+              - "Robustness filtering"
+            outputs:
+              - "services/strategy_selector.py"
+            status: "PLANNED"
+            
+          - task_id: "P4-M3-T3"
+            title: "Create selection dashboard"
+            description: "UI for strategy selection"
+            acceptance_criteria:
+              - "Criteria configuration"
+              - "Ranked strategy list"
+              - "Selection rationale display"
+            outputs:
+              - "Strategy selection UI component"
+            status: "PLANNED"
+
+  # ==========================================================================
+  # PHASE 5: TEMPORAL & REGIME ANALYSIS
+  # ==========================================================================
+  - phase_id: "P5"
+    name: "Temporal & Regime Analysis"
+    objective: "Advanced time-based and market regime analytics"
+    entry_criteria:
+      - "Phase 3 complete"
+      - "Historical signals available"
+    exit_criteria:
+      - "Temporal analysis dashboard complete"
+      - "Regime detection working"
+      - "Session performance analytics"
+    status: "PLANNED"
+
+    modules:
+      # ------------------------------------------------------------------------
+      - module_id: "P5-M1"
+        title: "MFE/MAE Analytics"
+        description: "Deep analysis of Maximum Favorable/Adverse Excursion"
+        dashboards_affected:
+          - "Automated Signals"
+          - "Time Analysis"
+        feature_flag: "FEATURE_MFE_MAE_ANALYTICS"
+        status: "PLANNED"
+        dependencies:
+          - "P3-M2"
+        acceptance_criteria:
+          - "MFE distribution analysis"
+          - "MAE distribution analysis"
+          - "Optimal target identification"
+        tasks:
+          - task_id: "P5-M1-T1"
+            title: "Implement MFE distribution analyzer"
+            description: "Statistical analysis of MFE values"
+            acceptance_criteria:
+              - "Histogram generation"
+              - "Percentile calculations"
+              - "By-session breakdown"
+            outputs:
+              - "services/mfe_analyzer.py"
+            status: "PLANNED"
+            
+          - task_id: "P5-M1-T2"
+            title: "Implement MAE distribution analyzer"
+            description: "Statistical analysis of MAE values"
+            acceptance_criteria:
+              - "Histogram generation"
+              - "Stop loss optimization"
+              - "Risk analysis"
+            outputs:
+              - "services/mae_analyzer.py"
+            status: "PLANNED"
+            
+          - task_id: "P5-M1-T3"
+            title: "Create MFE/MAE dashboard"
+            description: "Visual analytics for MFE/MAE"
+            acceptance_criteria:
+              - "Distribution charts"
+              - "Heatmaps by session/day"
+              - "Optimal target calculator"
+            outputs:
+              - "MFE/MAE dashboard component"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P5-M2"
+        title: "Temporal Analysis Engine"
+        description: "Time-based performance analysis"
+        dashboards_affected:
+          - "Time Analysis"
+        feature_flag: "FEATURE_TEMPORAL_ANALYSIS"
+        status: "PLANNED"
+        dependencies:
+          - "P3-M2"
+        acceptance_criteria:
+          - "Session performance breakdown"
+          - "Day-of-week analysis"
+          - "Intraday patterns"
+        tasks:
+          - task_id: "P5-M2-T1"
+            title: "Implement session analyzer"
+            description: "Performance analysis by trading session"
+            acceptance_criteria:
+              - "Win rate by session"
+              - "Average MFE by session"
+              - "Best/worst sessions"
+            outputs:
+              - "services/session_analyzer.py"
+            status: "PLANNED"
+            
+          - task_id: "P5-M2-T2"
+            title: "Implement day-of-week analyzer"
+            description: "Performance analysis by day"
+            acceptance_criteria:
+              - "Monday through Friday breakdown"
+              - "Statistical significance"
+              - "Trend identification"
+            outputs:
+              - "services/dow_analyzer.py"
+            status: "PLANNED"
+            
+          - task_id: "P5-M2-T3"
+            title: "Implement intraday pattern detector"
+            description: "Identify recurring intraday patterns"
+            acceptance_criteria:
+              - "Hourly performance heatmap"
+              - "Pattern clustering"
+              - "Actionable insights"
+            outputs:
+              - "services/intraday_pattern_detector.py"
+            status: "PLANNED"
+            
+          - task_id: "P5-M2-T4"
+            title: "Update Time Analysis dashboard"
+            description: "Integrate temporal analytics into dashboard"
+            acceptance_criteria:
+              - "Session performance cards"
+              - "Day-of-week chart"
+              - "Intraday heatmap"
+            outputs:
+              - "templates/time_analysis.html updates"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P5-M3"
+        title: "Market Regime Detection"
+        description: "Identify and classify market regimes"
+        dashboards_affected:
+          - "Main Dashboard"
+          - "Time Analysis"
+        feature_flag: "FEATURE_REGIME_DETECTION"
+        status: "PLANNED"
+        dependencies:
+          - "P3-M2"
+        acceptance_criteria:
+          - "Regime classification working"
+          - "Regime-specific performance"
+          - "Regime transition detection"
+        tasks:
+          - task_id: "P5-M3-T1"
+            title: "Define regime types"
+            description: "Document market regime classifications"
+            acceptance_criteria:
+              - "Trending vs ranging"
+              - "High vs low volatility"
+              - "Expansion vs contraction"
+            outputs:
+              - "docs/market_regimes.md"
+            status: "PLANNED"
+            
+          - task_id: "P5-M3-T2"
+            title: "Implement regime classifier"
+            description: "Algorithm to classify current regime"
+            acceptance_criteria:
+              - "Uses volatility metrics"
+              - "Uses trend indicators"
+              - "Lookback period configurable"
+            outputs:
+              - "services/regime_classifier.py"
+            status: "PLANNED"
+            
+          - task_id: "P5-M3-T3"
+            title: "Implement regime performance analyzer"
+            description: "Analyze strategy performance by regime"
+            acceptance_criteria:
+              - "Performance metrics per regime"
+              - "Best strategies per regime"
+              - "Regime duration analysis"
+            outputs:
+              - "services/regime_performance_analyzer.py"
+            status: "PLANNED"
+            
+          - task_id: "P5-M3-T4"
+            title: "Create regime dashboard"
+            description: "Visual regime analysis"
+            acceptance_criteria:
+              - "Current regime indicator"
+              - "Regime history chart"
+              - "Performance by regime table"
+            outputs:
+              - "Regime dashboard component"
+            status: "PLANNED"
+
+  # ==========================================================================
+  # PHASE 6: BACKTESTING & PORTFOLIO RISK
+  # ==========================================================================
+  - phase_id: "P6"
+    name: "Backtesting & Portfolio Risk"
+    objective: "Comprehensive backtesting engine and risk management"
+    entry_criteria:
+      - "Phase 4 complete"
+      - "Strategy comparison working"
+    exit_criteria:
+      - "Backtesting engine complete"
+      - "Monte Carlo simulation working"
+      - "Portfolio risk metrics"
+    status: "PLANNED"
+
+    modules:
+      # ------------------------------------------------------------------------
+      - module_id: "P6-M1"
+        title: "Backtesting Engine"
+        description: "Event-driven backtesting framework"
+        dashboards_affected:
+          - "Strategy Optimizer"
+        feature_flag: "FEATURE_BACKTESTING_ENGINE"
+        status: "PLANNED"
+        dependencies:
+          - "P4-M1"
+        acceptance_criteria:
+          - "Event-driven architecture"
+          - "Realistic execution simulation"
+          - "Commission and slippage modeling"
+        tasks:
+          - task_id: "P6-M1-T1"
+            title: "Design backtesting architecture"
+            description: "Document backtesting engine design"
+            acceptance_criteria:
+              - "Event-driven design"
+              - "Modular components"
+              - "Extensibility for new strategies"
+            outputs:
+              - "docs/backtesting_architecture.md"
+            status: "PLANNED"
+            
+          - task_id: "P6-M1-T2"
+            title: "Implement event engine"
+            description: "Core event processing engine"
+            acceptance_criteria:
+              - "Market data events"
+              - "Signal events"
+              - "Order events"
+              - "Fill events"
+            outputs:
+              - "backtesting/event_engine.py"
+            status: "PLANNED"
+            
+          - task_id: "P6-M1-T3"
+            title: "Implement execution simulator"
+            description: "Simulate order execution"
+            acceptance_criteria:
+              - "Slippage modeling"
+              - "Commission calculation"
+              - "Partial fills (optional)"
+            outputs:
+              - "backtesting/execution_simulator.py"
+            status: "PLANNED"
+            
+          - task_id: "P6-M1-T4"
+            title: "Implement performance calculator"
+            description: "Calculate backtest performance metrics"
+            acceptance_criteria:
+              - "All standard metrics"
+              - "Equity curve generation"
+              - "Trade-by-trade log"
+            outputs:
+              - "backtesting/performance_calculator.py"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P6-M2"
+        title: "Monte Carlo Simulation"
+        description: "Monte Carlo analysis for strategy robustness"
+        dashboards_affected:
+          - "Strategy Optimizer"
+        feature_flag: "FEATURE_MONTE_CARLO"
+        status: "PLANNED"
+        dependencies:
+          - "P6-M1"
+        acceptance_criteria:
+          - "Trade sequence randomization"
+          - "Confidence intervals"
+          - "Worst-case scenarios"
+        tasks:
+          - task_id: "P6-M2-T1"
+            title: "Implement Monte Carlo engine"
+            description: "Core Monte Carlo simulation"
+            acceptance_criteria:
+              - "Configurable iterations (1000+)"
+              - "Trade sequence shuffling"
+              - "Starting equity variations"
+            outputs:
+              - "backtesting/monte_carlo_engine.py"
+            status: "PLANNED"
+            
+          - task_id: "P6-M2-T2"
+            title: "Implement confidence interval calculator"
+            description: "Calculate confidence intervals from simulations"
+            acceptance_criteria:
+              - "95% confidence intervals"
+              - "Percentile calculations"
+              - "Distribution fitting"
+            outputs:
+              - "backtesting/confidence_intervals.py"
+            status: "PLANNED"
+            
+          - task_id: "P6-M2-T3"
+            title: "Create Monte Carlo dashboard"
+            description: "Visual Monte Carlo results"
+            acceptance_criteria:
+              - "Equity curve fan chart"
+              - "Drawdown distribution"
+              - "Ruin probability"
+            outputs:
+              - "Monte Carlo dashboard component"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P6-M3"
+        title: "Portfolio Risk Management"
+        description: "Portfolio-level risk metrics and controls"
+        dashboards_affected:
+          - "Prop Portfolio"
+          - "Main Dashboard"
+        feature_flag: "FEATURE_PORTFOLIO_RISK"
+        status: "PLANNED"
+        dependencies:
+          - "P6-M1"
+        acceptance_criteria:
+          - "Position sizing algorithms"
+          - "Correlation analysis"
+          - "Risk budgeting"
+        tasks:
+          - task_id: "P6-M3-T1"
+            title: "Implement position sizer"
+            description: "Position sizing algorithms"
+            acceptance_criteria:
+              - "Fixed fractional"
+              - "Kelly criterion"
+              - "Volatility-adjusted"
+            outputs:
+              - "risk/position_sizer.py"
+            status: "PLANNED"
+            
+          - task_id: "P6-M3-T2"
+            title: "Implement correlation analyzer"
+            description: "Analyze strategy correlations"
+            acceptance_criteria:
+              - "Pairwise correlations"
+              - "Rolling correlations"
+              - "Diversification score"
+            outputs:
+              - "risk/correlation_analyzer.py"
+            status: "PLANNED"
+            
+          - task_id: "P6-M3-T3"
+            title: "Implement risk budgeting"
+            description: "Allocate risk across strategies"
+            acceptance_criteria:
+              - "Risk parity allocation"
+              - "Maximum allocation limits"
+              - "Dynamic rebalancing"
+            outputs:
+              - "risk/risk_budgeting.py"
+            status: "PLANNED"
+            
+          - task_id: "P6-M3-T4"
+            title: "Create risk dashboard"
+            description: "Portfolio risk visualization"
+            acceptance_criteria:
+              - "Current risk exposure"
+              - "Correlation matrix"
+              - "Risk contribution chart"
+            outputs:
+              - "Risk dashboard component"
+            status: "PLANNED"
+
+  # ==========================================================================
+  # PHASE 7: LIVE MARKET DATA & LIVE SIGNALS
+  # ==========================================================================
+  - phase_id: "P7"
+    name: "Live Market Data & Live Signals"
+    objective: "Real-time market data and live signal generation"
+    entry_criteria:
+      - "Phase 3 complete"
+      - "Historical signals validated"
+    exit_criteria:
+      - "Live Databento feed working"
+      - "Real-time signal generation"
+      - "Live MFE tracking"
+    status: "PLANNED"
+
+    modules:
+      # ------------------------------------------------------------------------
+      - module_id: "P7-M1"
+        title: "Databento Live WebSocket"
+        description: "Real-time market data via Databento WebSocket"
+        dashboards_affected:
+          - "All dashboards"
+        feature_flag: "FEATURE_LIVE_MARKET_DATA"
+        status: "PLANNED"
+        dependencies:
+          - "P0-M2"
+        acceptance_criteria:
+          - "WebSocket connection stable"
+          - "Tick data processing"
+          - "1-minute bar aggregation"
+          - "Reconnection handling"
+        tasks:
+          - task_id: "P7-M1-T1"
+            title: "Implement Databento WebSocket client"
+            description: "WebSocket client for live data"
+            acceptance_criteria:
+              - "Connects to Databento"
+              - "Handles authentication"
+              - "Processes tick data"
+            outputs:
+              - "services/databento_websocket_client.py"
+            status: "PLANNED"
+            
+          - task_id: "P7-M1-T2"
+            title: "Implement bar aggregator"
+            description: "Aggregate ticks to 1-minute bars"
+            acceptance_criteria:
+              - "Correct OHLCV calculation"
+              - "Handles partial bars"
+              - "Emits bar events"
+            outputs:
+              - "services/bar_aggregator.py"
+            status: "PLANNED"
+            
+          - task_id: "P7-M1-T3"
+            title: "Implement reconnection handler"
+            description: "Handle disconnections gracefully"
+            acceptance_criteria:
+              - "Automatic reconnection"
+              - "Gap detection on reconnect"
+              - "State recovery"
+            outputs:
+              - "services/websocket_reconnection.py"
+            status: "PLANNED"
+            
+          - task_id: "P7-M1-T4"
+            title: "Create live data status widget"
+            description: "Display live data connection status"
+            acceptance_criteria:
+              - "Connection status indicator"
+              - "Last tick timestamp"
+              - "Latency display"
+            outputs:
+              - "Live data status widget"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P7-M2"
+        title: "Live Signal Generation"
+        description: "Real-time signal generation from live data"
+        dashboards_affected:
+          - "Automated Signals"
+          - "Main Dashboard"
+        feature_flag: "FEATURE_LIVE_SIGNALS"
+        status: "PLANNED"
+        dependencies:
+          - "P7-M1"
+          - "P2-M4"
+        acceptance_criteria:
+          - "Signals generated in real-time"
+          - "Latency < 100ms"
+          - "Matches historical signal logic"
+        tasks:
+          - task_id: "P7-M2-T1"
+            title: "Implement live signal generator"
+            description: "Real-time signal generation service"
+            acceptance_criteria:
+              - "Processes live bars"
+              - "Maintains indicator state"
+              - "Emits signal events"
+            outputs:
+              - "services/live_signal_generator.py"
+            status: "PLANNED"
+            
+          - task_id: "P7-M2-T2"
+            title: "Implement signal broadcaster"
+            description: "Broadcast signals to connected clients"
+            acceptance_criteria:
+              - "WebSocket broadcast"
+              - "Signal persistence"
+              - "Client subscription management"
+            outputs:
+              - "services/signal_broadcaster.py"
+            status: "PLANNED"
+            
+          - task_id: "P7-M2-T3"
+            title: "Update dashboard for live signals"
+            description: "Real-time signal display"
+            acceptance_criteria:
+              - "Live signal feed"
+              - "Sound/visual alerts"
+              - "Signal detail popup"
+            outputs:
+              - "Live signal dashboard updates"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P7-M3"
+        title: "Real-Time MFE Tracking"
+        description: "Track MFE in real-time for active signals"
+        dashboards_affected:
+          - "Automated Signals"
+          - "Trade Manager"
+        feature_flag: "FEATURE_REALTIME_MFE"
+        status: "PLANNED"
+        dependencies:
+          - "P7-M2"
+        acceptance_criteria:
+          - "MFE updates every tick"
+          - "Visual MFE progress"
+          - "BE trigger detection"
+        tasks:
+          - task_id: "P7-M3-T1"
+            title: "Implement real-time MFE tracker"
+            description: "Track MFE for active signals"
+            acceptance_criteria:
+              - "Updates on every tick"
+              - "Tracks both BE=1 and No BE"
+              - "Persists to database"
+            outputs:
+              - "services/realtime_mfe_tracker.py"
+            status: "PLANNED"
+            
+          - task_id: "P7-M3-T2"
+            title: "Implement BE trigger detector"
+            description: "Detect when +1R achieved"
+            acceptance_criteria:
+              - "Accurate trigger detection"
+              - "Emits BE event"
+              - "Updates signal state"
+            outputs:
+              - "services/be_trigger_detector.py"
+            status: "PLANNED"
+            
+          - task_id: "P7-M3-T3"
+            title: "Create MFE progress widget"
+            description: "Visual MFE progress display"
+            acceptance_criteria:
+              - "Progress bar to targets"
+              - "Current R-multiple display"
+              - "Color coding by status"
+            outputs:
+              - "MFE progress widget"
+            status: "PLANNED"
+
+  # ==========================================================================
+  # PHASE 8: EXECUTION & PROP FIRM SCALING
+  # ==========================================================================
+  - phase_id: "P8"
+    name: "Execution & Prop Firm Scaling"
+    objective: "Trade execution and prop firm integration"
+    entry_criteria:
+      - "Phase 7 complete"
+      - "Live signals working"
+    exit_criteria:
+      - "Paper trading functional"
+      - "Prop firm rules enforced"
+      - "Execution router working"
+    status: "PLANNED"
+
+    modules:
+      # ------------------------------------------------------------------------
+      - module_id: "P8-M1"
+        title: "Paper Trading Simulator"
+        description: "Simulated trading for strategy validation"
+        dashboards_affected:
+          - "Trade Manager"
+        feature_flag: "FEATURE_PAPER_TRADING"
+        status: "PLANNED"
+        dependencies:
+          - "P7-M2"
+        acceptance_criteria:
+          - "Simulates order execution"
+          - "Tracks P&L in real-time"
+          - "Matches live execution behavior"
+        tasks:
+          - task_id: "P8-M1-T1"
+            title: "Implement paper trading engine"
+            description: "Core paper trading simulation"
+            acceptance_criteria:
+              - "Order submission"
+              - "Fill simulation"
+              - "Position tracking"
+            outputs:
+              - "execution/paper_trading_engine.py"
+            status: "PLANNED"
+            
+          - task_id: "P8-M1-T2"
+            title: "Implement paper P&L tracker"
+            description: "Track paper trading performance"
+            acceptance_criteria:
+              - "Real-time P&L"
+              - "Trade history"
+              - "Performance metrics"
+            outputs:
+              - "execution/paper_pnl_tracker.py"
+            status: "PLANNED"
+            
+          - task_id: "P8-M1-T3"
+            title: "Create paper trading dashboard"
+            description: "UI for paper trading"
+            acceptance_criteria:
+              - "Order entry"
+              - "Position display"
+              - "P&L chart"
+            outputs:
+              - "Paper trading dashboard"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P8-M2"
+        title: "Prop Firm Rule Engine"
+        description: "Enforce prop firm trading rules"
+        dashboards_affected:
+          - "Prop Portfolio"
+          - "Trade Manager"
+        feature_flag: "FEATURE_PROP_FIRM_INTEGRATION"
+        status: "PLANNED"
+        dependencies:
+          - "P8-M1"
+        acceptance_criteria:
+          - "Daily loss limits enforced"
+          - "Max position size enforced"
+          - "Trading hour restrictions"
+        tasks:
+          - task_id: "P8-M2-T1"
+            title: "Define prop firm rule schema"
+            description: "Database schema for prop firm rules"
+            acceptance_criteria:
+              - "Firm-specific rules"
+              - "Account-level rules"
+              - "Rule versioning"
+            outputs:
+              - "database/prop_firm_rules_schema.sql"
+            status: "PLANNED"
+            
+          - task_id: "P8-M2-T2"
+            title: "Implement rule engine"
+            description: "Engine to evaluate trading rules"
+            acceptance_criteria:
+              - "Pre-trade checks"
+              - "Real-time monitoring"
+              - "Rule violation alerts"
+            outputs:
+              - "execution/prop_firm_rule_engine.py"
+            status: "PLANNED"
+            
+          - task_id: "P8-M2-T3"
+            title: "Implement common prop firm rules"
+            description: "Rules for major prop firms"
+            acceptance_criteria:
+              - "Apex rules"
+              - "Topstep rules"
+              - "FTMO rules"
+              - "Custom rule support"
+            outputs:
+              - "execution/prop_firm_rules/"
+            status: "PLANNED"
+            
+          - task_id: "P8-M2-T4"
+            title: "Create rule monitoring dashboard"
+            description: "Display rule compliance status"
+            acceptance_criteria:
+              - "Current rule status"
+              - "Violation history"
+              - "Remaining limits"
+            outputs:
+              - "Rule monitoring dashboard"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P8-M3"
+        title: "Execution Router"
+        description: "Route orders to appropriate execution venue"
+        dashboards_affected:
+          - "Trade Manager"
+        feature_flag: "FEATURE_EXECUTION_ROUTER"
+        status: "PLANNED"
+        dependencies:
+          - "P8-M2"
+        acceptance_criteria:
+          - "Routes to paper or live"
+          - "Broker API integration"
+          - "Order state management"
+        tasks:
+          - task_id: "P8-M3-T1"
+            title: "Design execution router architecture"
+            description: "Document router design"
+            acceptance_criteria:
+              - "Pluggable broker adapters"
+              - "Order state machine"
+              - "Failover handling"
+            outputs:
+              - "docs/execution_router_architecture.md"
+            status: "PLANNED"
+            
+          - task_id: "P8-M3-T2"
+            title: "Implement execution router"
+            description: "Core routing logic"
+            acceptance_criteria:
+              - "Route selection logic"
+              - "Order transformation"
+              - "Response handling"
+            outputs:
+              - "execution/execution_router.py"
+            status: "PLANNED"
+            
+          - task_id: "P8-M3-T3"
+            title: "Implement broker adapters"
+            description: "Adapters for different brokers"
+            acceptance_criteria:
+              - "Paper trading adapter"
+              - "Tradovate adapter (future)"
+              - "NinjaTrader adapter (future)"
+            outputs:
+              - "execution/adapters/"
+            status: "PLANNED"
+            
+          - task_id: "P8-M3-T4"
+            title: "Implement order state manager"
+            description: "Track order lifecycle"
+            acceptance_criteria:
+              - "Order state transitions"
+              - "Persistence"
+              - "Recovery on restart"
+            outputs:
+              - "execution/order_state_manager.py"
+            status: "PLANNED"
+
+  # ==========================================================================
+  # PHASE 9: COPY TRADING & OPERATIONS
+  # ==========================================================================
+  - phase_id: "P9"
+    name: "Copy Trading & Operations"
+    objective: "Multi-account management and operational tools"
+    entry_criteria:
+      - "Phase 8 complete"
+      - "Execution router working"
+    exit_criteria:
+      - "Copy trading functional"
+      - "Multi-account support"
+      - "Alerting system working"
+    status: "PLANNED"
+
+    modules:
+      # ------------------------------------------------------------------------
+      - module_id: "P9-M1"
+        title: "Copy Trading Engine"
+        description: "Replicate trades across multiple accounts"
+        dashboards_affected:
+          - "Trade Manager"
+          - "Prop Portfolio"
+        feature_flag: "FEATURE_COPY_TRADING"
+        status: "PLANNED"
+        dependencies:
+          - "P8-M3"
+        acceptance_criteria:
+          - "Master-follower architecture"
+          - "Position sizing per account"
+          - "Latency < 500ms"
+        tasks:
+          - task_id: "P9-M1-T1"
+            title: "Design copy trading architecture"
+            description: "Document copy trading design"
+            acceptance_criteria:
+              - "Master account concept"
+              - "Follower account management"
+              - "Scaling rules"
+            outputs:
+              - "docs/copy_trading_architecture.md"
+            status: "PLANNED"
+            
+          - task_id: "P9-M1-T2"
+            title: "Implement copy trading engine"
+            description: "Core copy trading logic"
+            acceptance_criteria:
+              - "Trade replication"
+              - "Position sizing"
+              - "Error handling"
+            outputs:
+              - "execution/copy_trading_engine.py"
+            status: "PLANNED"
+            
+          - task_id: "P9-M1-T3"
+            title: "Implement account manager"
+            description: "Manage multiple trading accounts"
+            acceptance_criteria:
+              - "Account registration"
+              - "Credential management"
+              - "Account status tracking"
+            outputs:
+              - "execution/account_manager.py"
+            status: "PLANNED"
+            
+          - task_id: "P9-M1-T4"
+            title: "Create copy trading dashboard"
+            description: "UI for copy trading management"
+            acceptance_criteria:
+              - "Account list"
+              - "Copy status"
+              - "Performance by account"
+            outputs:
+              - "Copy trading dashboard"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P9-M2"
+        title: "Multi-Account Management"
+        description: "Manage multiple prop firm accounts"
+        dashboards_affected:
+          - "Prop Portfolio"
+        feature_flag: "FEATURE_MULTI_ACCOUNT"
+        status: "PLANNED"
+        dependencies:
+          - "P9-M1"
+        acceptance_criteria:
+          - "Account aggregation"
+          - "Cross-account analytics"
+          - "Unified P&L view"
+        tasks:
+          - task_id: "P9-M2-T1"
+            title: "Implement account aggregator"
+            description: "Aggregate data across accounts"
+            acceptance_criteria:
+              - "Position aggregation"
+              - "P&L aggregation"
+              - "Risk aggregation"
+            outputs:
+              - "services/account_aggregator.py"
+            status: "PLANNED"
+            
+          - task_id: "P9-M2-T2"
+            title: "Implement cross-account analytics"
+            description: "Analytics across all accounts"
+            acceptance_criteria:
+              - "Total P&L"
+              - "Account comparison"
+              - "Best/worst performers"
+            outputs:
+              - "services/cross_account_analytics.py"
+            status: "PLANNED"
+            
+          - task_id: "P9-M2-T3"
+            title: "Create multi-account dashboard"
+            description: "Unified account view"
+            acceptance_criteria:
+              - "Account summary cards"
+              - "Aggregated metrics"
+              - "Account drill-down"
+            outputs:
+              - "Multi-account dashboard"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P9-M3"
+        title: "Alerting & Notification System"
+        description: "Comprehensive alerting for trading events and system health"
+        dashboards_affected:
+          - "All dashboards"
+        feature_flag: "FEATURE_ALERTING_SYSTEM"
+        status: "PLANNED"
+        dependencies:
+          - "P7-M2"
+        acceptance_criteria:
+          - "Signal alerts working"
+          - "Risk alerts working"
+          - "System health alerts"
+          - "Multiple notification channels"
+        tasks:
+          - task_id: "P9-M3-T1"
+            title: "Design alerting architecture"
+            description: "Document alerting system design"
+            acceptance_criteria:
+              - "Event-driven architecture"
+              - "Alert routing rules"
+              - "Notification channel abstraction"
+            outputs:
+              - "docs/alerting_architecture.md"
+            status: "PLANNED"
+            
+          - task_id: "P9-M3-T2"
+            title: "Implement alert engine"
+            description: "Core alerting logic"
+            acceptance_criteria:
+              - "Alert rule evaluation"
+              - "Alert deduplication"
+              - "Alert escalation"
+            outputs:
+              - "services/alert_engine.py"
+            status: "PLANNED"
+            
+          - task_id: "P9-M3-T3"
+            title: "Implement notification channels"
+            description: "Multiple notification delivery methods"
+            acceptance_criteria:
+              - "Email notifications"
+              - "Discord webhook"
+              - "Telegram bot"
+              - "Browser push notifications"
+            outputs:
+              - "services/notification_channels/"
+            status: "PLANNED"
+            
+          - task_id: "P9-M3-T4"
+            title: "Implement trading alerts"
+            description: "Alerts for trading events"
+            acceptance_criteria:
+              - "New signal alerts"
+              - "BE trigger alerts"
+              - "Stop loss alerts"
+              - "Target hit alerts"
+            outputs:
+              - "services/trading_alerts.py"
+            status: "PLANNED"
+            
+          - task_id: "P9-M3-T5"
+            title: "Implement risk alerts"
+            description: "Alerts for risk events"
+            acceptance_criteria:
+              - "Daily loss limit approaching"
+              - "Max position size reached"
+              - "Drawdown threshold alerts"
+            outputs:
+              - "services/risk_alerts.py"
+            status: "PLANNED"
+            
+          - task_id: "P9-M3-T6"
+            title: "Implement system health alerts"
+            description: "Alerts for system issues"
+            acceptance_criteria:
+              - "Data feed disconnection"
+              - "Database connection issues"
+              - "High latency alerts"
+            outputs:
+              - "services/system_health_alerts.py"
+            status: "PLANNED"
+            
+          - task_id: "P9-M3-T7"
+            title: "Create alert management dashboard"
+            description: "UI for managing alerts"
+            acceptance_criteria:
+              - "Alert configuration"
+              - "Alert history"
+              - "Notification preferences"
+            outputs:
+              - "Alert management dashboard"
+            status: "PLANNED"
+
+  # ==========================================================================
+  # PHASE 10: ML/AI & MLOps (ADVANCED)
+  # ==========================================================================
+  - phase_id: "P10"
+    name: "ML/AI & MLOps (Advanced)"
+    objective: "Machine learning for signal enhancement and prediction"
+    entry_criteria:
+      - "Phase 3 complete"
+      - "Sufficient historical signals (1000+)"
+    exit_criteria:
+      - "ML labeling pipeline working"
+      - "Model training automated"
+      - "Inference in production"
+      - "MLOps monitoring active"
+    status: "PLANNED"
+
+    modules:
+      # ------------------------------------------------------------------------
+      - module_id: "P10-M1"
+        title: "ML Data Labeling Pipeline"
+        description: "Automated labeling of historical signals for ML training"
+        dashboards_affected:
+          - "ML Dashboard"
+        feature_flag: "FEATURE_ML_LABELING"
+        status: "PLANNED"
+        dependencies:
+          - "P3-M2"
+        acceptance_criteria:
+          - "Automated outcome labeling"
+          - "Feature extraction pipeline"
+          - "Label quality validation"
+        tasks:
+          - task_id: "P10-M1-T1"
+            title: "Design labeling schema"
+            description: "Define ML labels and features"
+            acceptance_criteria:
+              - "Outcome labels (win/loss/BE)"
+              - "MFE-based labels (1R, 2R, 3R achieved)"
+              - "Multi-class labels"
+            outputs:
+              - "docs/ml_labeling_schema.md"
+            status: "PLANNED"
+            
+          - task_id: "P10-M1-T2"
+            title: "Implement outcome labeler"
+            description: "Automatically label signal outcomes"
+            acceptance_criteria:
+              - "Labels based on actual MFE/MAE"
+              - "Handles both BE=1 and No BE"
+              - "Configurable label thresholds"
+            outputs:
+              - "ml/outcome_labeler.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M1-T3"
+            title: "Implement feature extractor"
+            description: "Extract ML features from signals"
+            acceptance_criteria:
+              - "Price-based features"
+              - "Time-based features"
+              - "Indicator-based features"
+              - "Market context features"
+            outputs:
+              - "ml/feature_extractor.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M1-T4"
+            title: "Create labeled dataset generator"
+            description: "Generate training datasets"
+            acceptance_criteria:
+              - "Train/validation/test splits"
+              - "Temporal splits (no lookahead)"
+              - "Class balancing options"
+            outputs:
+              - "ml/dataset_generator.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M1-T5"
+            title: "Implement label quality checker"
+            description: "Validate label quality"
+            acceptance_criteria:
+              - "Label distribution analysis"
+              - "Anomaly detection in labels"
+              - "Label consistency checks"
+            outputs:
+              - "ml/label_quality_checker.py"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P10-M2"
+        title: "ML Model Training Pipeline"
+        description: "Automated model training and evaluation"
+        dashboards_affected:
+          - "ML Dashboard"
+        feature_flag: "FEATURE_ML_TRAINING"
+        status: "PLANNED"
+        dependencies:
+          - "P10-M1"
+        acceptance_criteria:
+          - "Automated training pipeline"
+          - "Hyperparameter optimization"
+          - "Model versioning"
+          - "Evaluation metrics tracking"
+        tasks:
+          - task_id: "P10-M2-T1"
+            title: "Design training pipeline architecture"
+            description: "Document ML training pipeline"
+            acceptance_criteria:
+              - "Pipeline stages defined"
+              - "Model registry design"
+              - "Experiment tracking"
+            outputs:
+              - "docs/ml_training_architecture.md"
+            status: "PLANNED"
+            
+          - task_id: "P10-M2-T2"
+            title: "Implement model trainer"
+            description: "Core model training logic"
+            acceptance_criteria:
+              - "Multiple model types (RF, XGBoost, etc.)"
+              - "Cross-validation"
+              - "Early stopping"
+            outputs:
+              - "ml/model_trainer.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M2-T3"
+            title: "Implement hyperparameter optimizer"
+            description: "Automated hyperparameter tuning"
+            acceptance_criteria:
+              - "Grid search"
+              - "Random search"
+              - "Bayesian optimization (optional)"
+            outputs:
+              - "ml/hyperparameter_optimizer.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M2-T4"
+            title: "Implement model registry"
+            description: "Version and store trained models"
+            acceptance_criteria:
+              - "Model versioning"
+              - "Metadata storage"
+              - "Model retrieval"
+            outputs:
+              - "ml/model_registry.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M2-T5"
+            title: "Implement evaluation framework"
+            description: "Comprehensive model evaluation"
+            acceptance_criteria:
+              - "Classification metrics"
+              - "Trading-specific metrics"
+              - "Out-of-sample validation"
+            outputs:
+              - "ml/evaluation_framework.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M2-T6"
+            title: "Create training dashboard"
+            description: "UI for training management"
+            acceptance_criteria:
+              - "Training job status"
+              - "Experiment comparison"
+              - "Model performance charts"
+            outputs:
+              - "ML training dashboard"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P10-M3"
+        title: "ML Inference Pipeline"
+        description: "Real-time model inference for signal scoring"
+        dashboards_affected:
+          - "Automated Signals"
+          - "ML Dashboard"
+        feature_flag: "FEATURE_ML_INFERENCE"
+        status: "PLANNED"
+        dependencies:
+          - "P10-M2"
+          - "P7-M2"
+        acceptance_criteria:
+          - "Real-time inference < 50ms"
+          - "Confidence scores on signals"
+          - "Model A/B testing"
+        tasks:
+          - task_id: "P10-M3-T1"
+            title: "Implement inference service"
+            description: "Real-time model inference"
+            acceptance_criteria:
+              - "Low latency inference"
+              - "Model loading/caching"
+              - "Batch inference support"
+            outputs:
+              - "ml/inference_service.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M3-T2"
+            title: "Implement signal scorer"
+            description: "Score signals with ML model"
+            acceptance_criteria:
+              - "Confidence score (0-100)"
+              - "Probability distribution"
+              - "Feature importance for signal"
+            outputs:
+              - "ml/signal_scorer.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M3-T3"
+            title: "Implement A/B testing framework"
+            description: "Compare model versions in production"
+            acceptance_criteria:
+              - "Traffic splitting"
+              - "Performance comparison"
+              - "Statistical significance"
+            outputs:
+              - "ml/ab_testing_framework.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M3-T4"
+            title: "Integrate ML scores into dashboard"
+            description: "Display ML confidence on signals"
+            acceptance_criteria:
+              - "Confidence badge on signals"
+              - "Filter by confidence"
+              - "Confidence distribution chart"
+            outputs:
+              - "ML score dashboard integration"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P10-M4"
+        title: "MLOps & Model Monitoring"
+        description: "Production ML operations and monitoring"
+        dashboards_affected:
+          - "ML Dashboard"
+        feature_flag: "FEATURE_MLOPS_PIPELINE"
+        status: "PLANNED"
+        dependencies:
+          - "P10-M3"
+        acceptance_criteria:
+          - "Model drift detection"
+          - "Automated retraining triggers"
+          - "Performance monitoring"
+          - "Alert on degradation"
+        tasks:
+          - task_id: "P10-M4-T1"
+            title: "Implement drift detector"
+            description: "Detect model and data drift"
+            acceptance_criteria:
+              - "Feature drift detection"
+              - "Prediction drift detection"
+              - "Concept drift detection"
+            outputs:
+              - "ml/drift_detector.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M4-T2"
+            title: "Implement performance monitor"
+            description: "Track model performance over time"
+            acceptance_criteria:
+              - "Accuracy tracking"
+              - "Calibration monitoring"
+              - "Performance degradation alerts"
+            outputs:
+              - "ml/performance_monitor.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M4-T3"
+            title: "Implement retraining scheduler"
+            description: "Automated model retraining"
+            acceptance_criteria:
+              - "Scheduled retraining"
+              - "Triggered retraining (on drift)"
+              - "Retraining pipeline"
+            outputs:
+              - "ml/retraining_scheduler.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M4-T4"
+            title: "Implement model rollback"
+            description: "Rollback to previous model version"
+            acceptance_criteria:
+              - "One-click rollback"
+              - "Automatic rollback on degradation"
+              - "Rollback history"
+            outputs:
+              - "ml/model_rollback.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M4-T5"
+            title: "Create MLOps dashboard"
+            description: "Comprehensive ML operations view"
+            acceptance_criteria:
+              - "Model health status"
+              - "Drift indicators"
+              - "Retraining history"
+              - "Performance trends"
+            outputs:
+              - "MLOps dashboard"
+            status: "PLANNED"
+
+      # ------------------------------------------------------------------------
+      - module_id: "P10-M5"
+        title: "Advanced ML Features"
+        description: "Advanced ML capabilities for trading enhancement"
+        dashboards_affected:
+          - "ML Dashboard"
+          - "Automated Signals"
+        feature_flag: "FEATURE_ML_INFERENCE"
+        status: "PLANNED"
+        dependencies:
+          - "P10-M3"
+        acceptance_criteria:
+          - "Regime-aware predictions"
+          - "Ensemble models"
+          - "Explainable AI"
+        tasks:
+          - task_id: "P10-M5-T1"
+            title: "Implement regime-aware models"
+            description: "Models that adapt to market regime"
+            acceptance_criteria:
+              - "Regime detection integration"
+              - "Regime-specific models"
+              - "Dynamic model selection"
+            outputs:
+              - "ml/regime_aware_models.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M5-T2"
+            title: "Implement model ensemble"
+            description: "Combine multiple models"
+            acceptance_criteria:
+              - "Voting ensemble"
+              - "Stacking ensemble"
+              - "Weighted averaging"
+            outputs:
+              - "ml/model_ensemble.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M5-T3"
+            title: "Implement explainable AI"
+            description: "Explain model predictions"
+            acceptance_criteria:
+              - "SHAP values"
+              - "Feature importance per prediction"
+              - "Decision path visualization"
+            outputs:
+              - "ml/explainable_ai.py"
+            status: "PLANNED"
+            
+          - task_id: "P10-M5-T4"
+            title: "Create explanation dashboard"
+            description: "UI for model explanations"
+            acceptance_criteria:
+              - "Per-signal explanation"
+              - "Feature contribution chart"
+              - "Similar historical signals"
+            outputs:
+              - "ML explanation dashboard"
+            status: "PLANNED"
+
+# ============================================================================
+# OBSERVABILITY & DATA QUALITY (CROSS-CUTTING)
+# ============================================================================
+observability:
+  description: "Cross-cutting observability concerns"
+  
+  logging:
+    standard: "Structured JSON logging"
+    levels:
+      - "DEBUG: Development only"
+      - "INFO: Normal operations"
+      - "WARNING: Potential issues"
+      - "ERROR: Failures requiring attention"
+      - "CRITICAL: System failures"
+    retention: "30 days"
+    
+  metrics:
+    types:
+      - "Counter: Request counts, error counts"
+      - "Gauge: Active connections, queue depth"
+      - "Histogram: Latency distributions"
+    export: "Prometheus format (future)"
+    
+  tracing:
+    standard: "OpenTelemetry (future)"
+    scope: "Request-level tracing"
+    
+  dashboards:
+    - "System health dashboard"
+    - "Data quality dashboard"
+    - "Performance dashboard"
+
+# ============================================================================
+# APPENDIX: GLOSSARY
+# ============================================================================
+glossary:
+  FVG: "Fair Value Gap - price imbalance between candles"
+  IFVG: "Inverse Fair Value Gap - filled FVG"
+  MFE: "Maximum Favorable Excursion - best price reached"
+  MAE: "Maximum Adverse Excursion - worst price reached"
+  HTF: "Higher Time Frame"
+  BE: "Break Even - moving stop to entry"
+  R: "Risk unit - distance from entry to stop loss"
+  Pivot: "Swing high or low point"
+  Session: "Trading time period (ASIA, LONDON, NY, etc.)"
+  Regime: "Market condition (trending, ranging, etc.)"
+
+# ============================================================================
+# APPENDIX: FILE STRUCTURE
+# ============================================================================
+file_structure:
+  indicators:
+    - "indicators/fvg_detector.py"
+    - "indicators/pivot_detector.py"
+    - "indicators/htf_bias_calculator.py"
+    - "indicators/signal_generator.py"
+    - "indicators/session_filter.py"
+    
+  services:
+    - "services/databento_websocket_client.py"
+    - "services/bar_aggregator.py"
+    - "services/historical_backfill_engine.py"
+    - "services/mfe_mae_calculator.py"
+    - "services/live_signal_generator.py"
+    - "services/signal_broadcaster.py"
+    - "services/realtime_mfe_tracker.py"
+    
+  execution:
+    - "execution/paper_trading_engine.py"
+    - "execution/prop_firm_rule_engine.py"
+    - "execution/execution_router.py"
+    - "execution/copy_trading_engine.py"
+    - "execution/account_manager.py"
+    
+  ml:
+    - "ml/feature_extractor.py"
+    - "ml/outcome_labeler.py"
+    - "ml/model_trainer.py"
+    - "ml/inference_service.py"
+    - "ml/drift_detector.py"
+    
+  risk:
+    - "risk/position_sizer.py"
+    - "risk/correlation_analyzer.py"
+    - "risk/risk_budgeting.py"
+    
+  backtesting:
+    - "backtesting/event_engine.py"
+    - "backtesting/execution_simulator.py"
+    - "backtesting/monte_carlo_engine.py"
+    
+  api:
+    - "api/historical_signals_api.py"
+    - "api/strategy_api.py"
+    - "api/ml_api.py"
+    
+  database:
+    - "database/databento_ohlcv_schema.sql"
+    - "database/historical_signals_schema.sql"
+    - "database/strategy_results_schema.sql"
+    - "database/prop_firm_rules_schema.sql"
+
+# ============================================================================
+# END OF ROADMAP
+# ============================================================================

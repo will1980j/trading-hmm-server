@@ -1,0 +1,170 @@
+# ============================================================================
+# UNIFIED ROADMAP V3 - DATABENTO-FIRST TRADING RESEARCH + EXECUTION PLATFORM
+# ============================================================================
+# Last Updated: 2025-12-25
+# Architecture: Databento OHLCV-1m as source of truth
+# TradingView: Charting only (legacy/optional)
+#
+# This roadmap defines the complete development path from historical research
+# to live execution and prop firm scaling.
+# ============================================================================
+
+metadata:
+  version: "3.0.0"
+  created: "2025-12-25"
+  architecture: "databento-first"
+  source_of_truth: "Databento OHLCV-1m (2019-2025, 2.34M bars)"
+  current_phase: "phase_0"  # First incomplete phase
+  
+# ============================================================================
+# PHASE 0 — DATABENTO FOUNDATION
+# ============================================================================
+phases:
+  - phase_id: "phase_0"
+    name: "Databento Foundation"
+    objective: "Establish Databento OHLCV-1m as the source of truth for all research and backtesting"
+    description: "Download, ingest, and validate historical market data. Build data quality checks and stats endpoints."
+    status: "in_progress"  # 4/5 modules complete
+    feature_flag: "FEATURE_DATABENTO_FOUNDATION"
+    dependencies: []
+    
+    modules:
+      - module_id: "phase_0_m1"
+        title: "Dataset Download & Storage"
+        description: "Download Databento MNQ OHLCV-1m dataset (2019-2025) and store locally"
+        status: "done"
+        feature_flag: null
+        dependencies: []
+        acceptance_criteria:
+          - "Databento dataset downloaded for CME_MINI:MNQ1! (2019-05-05 to 2025-12-22)"
+          - "Data stored in data/databento/mnq/ohlcv_1m/ directory"
+          - "README.md documents dataset details and source"
+          - "File integrity verified (checksums or row counts)"
+        
+        tasks:
+          - task_id: "phase_0_m1_t1"
+            title: "Download Databento historical data"
+            status: "done"
+            acceptance_criteria:
+              - "Downloaded 2.34M+ bars for MNQ 1m"
+              - "Date range: 2019-05-05 to 2025-12-22"
+          
+          - task_id: "phase_0_m1_t2"
+            title: "Organize data storage structure"
+            status: "done"
+            acceptance_criteria:
+              - "data/databento/mnq/ohlcv_1m/ directory created"
+              - "Files organized by date or single consolidated file"
+      
+      - module_id: "phase_0_m2"
+        title: "Database Schema Migration"
+        description: "Create market_bars_ohlcv_1m table and data_ingest_runs tracking table"
+        status: "done"
+        feature_flag: null
+        dependencies: ["phase_0_m1"]
+        acceptance_criteria:
+          - "market_bars_ohlcv_1m table created with proper indexes"
+          - "data_ingest_runs table tracks ingestion history"
+          - "Schema supports idempotent ingestion (upsert logic)"
+          - "Indexes on (symbol, ts) for fast queries"
+        
+        tasks:
+          - task_id: "phase_0_m2_t1"
+            title: "Create market_bars_ohlcv_1m schema"
+            status: "done"
+            acceptance_criteria:
+              - "Table includes: symbol, ts, open, high, low, close, volume"
+              - "Primary key or unique constraint on (symbol, ts)"
+              - "Indexes for query performance"
+          
+          - task_id: "phase_0_m2_t2"
+            title: "Create data_ingest_runs tracking"
+            status: "done"
+            acceptance_criteria:
+              - "Tracks: run_id, start_time, end_time, rows_inserted, status"
+              - "Enables audit trail of all ingestions"
+      
+      - module_id: "phase_0_m3"
+        title: "Data Ingestion Pipeline"
+        description: "Ingest Databento data into PostgreSQL with idempotent logic"
+        status: "done"
+        feature_flag: null
+        dependencies: ["phase_0_m2"]
+        acceptance_criteria:
+          - "Ingestion script: scripts/ingest_databento_ohlcv_1m.py"
+          - "2.34M+ bars ingested successfully"
+          - "Idempotent: re-running doesn't create duplicates"
+          - "Ingestion time logged in data_ingest_runs"
+          - "Error handling for malformed data"
+        
+        tasks:
+          - task_id: "phase_0_m3_t1"
+            title: "Build ingestion script"
+            status: "done"
+            acceptance_criteria:
+              - "Reads Databento CSV/Parquet files"
+              - "Batch inserts with UPSERT logic"
+              - "Progress logging every 100k rows"
+          
+          - task_id: "phase_0_m3_t2"
+            title: "Run full ingestion"
+            status: "done"
+            acceptance_criteria:
+              - "All 2.34M bars ingested"
+              - "No duplicate timestamps"
+              - "Verification query confirms row count"
+      
+      - module_id: "phase_0_m4"
+        title: "Stats Endpoint & Data Quality"
+        description: "Create API endpoint to query dataset stats and validate data quality"
+        status: "done"
+        feature_flag: null
+        dependencies: ["phase_0_m3"]
+        acceptance_criteria:
+          - "Endpoint: GET /api/market-data/mnq/ohlcv-1m/stats"
+          - "Returns: row_count, min_ts, max_ts, latest_close, latest_ts"
+          - "Response time < 500ms"
+          - "Data quality checks: no gaps, no duplicates, no null prices"
+        
+        tasks:
+          - task_id: "phase_0_m4_t1"
+            title: "Create stats API endpoint"
+            status: "done"
+            acceptance_criteria:
+              - "Endpoint returns JSON with dataset stats"
+              - "Includes row count, date range, latest bar"
+          
+          - task_id: "phase_0_m4_t2"
+            title: "Add data quality checks"
+            status: "done"
+            acceptance_criteria:
+              - "Check for missing minutes (gaps)"
+              - "Check for duplicate timestamps"
+              - "Check for null/invalid prices"
+      
+      - module_id: "phase_0_m5"
+        title: "Optional Backfill (2010-2019)"
+        description: "Backfill historical data from 2010-2019 for extended research"
+        status: "planned"
+        feature_flag: "FEATURE_DATABENTO_BACKFILL"
+        dependencies: ["phase_0_m4"]
+        acceptance_criteria:
+          - "Databento data downloaded for 2010-2019"
+          - "Ingested into market_bars_ohlcv_1m table"
+          - "Stats endpoint reflects extended date range"
+          - "Total bars: 5M+ (estimated)"
+        
+        tasks:
+          - task_id: "phase_0_m5_t1"
+            title: "Download 2010-2019 dataset"
+            status: "planned"
+            acceptance_criteria:
+              - "Databento historical data purchased/downloaded"
+              - "Files stored in data/databento/mnq/ohlcv_1m/"
+          
+          - task_id: "phase_0_m5_t2"
+            title: "Ingest backfill data"
+            status: "planned"
+            acceptance_criteria:
+              - "Ingestion script handles extended date range"
+              - "No conflicts with existing 2019-2025 data"
