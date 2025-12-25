@@ -5,55 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Second Skies Trading - Homepage</title>
 <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}?v=2">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}?v=3">
 </head>
 <body>
-<!-- ========== FORCE DEBUG BANNER (z-index 999999) ========== -->
-<div id="roadmap_force_debug" style="position:fixed;top:0;left:0;right:0;z-index:999999;background:#000;color:#fff;padding:10px 14px;font-size:13px">
-HOMEPAGE_DEBUG: template=homepage_video_background.html |
-roadmap_present={{ 'YES' if roadmap_snapshot else 'NO' }} |
-phases={{ roadmap_snapshot|length if roadmap_snapshot else 0 }} |
-stats_present={{ 'YES' if databento_stats else 'NO' }}
-</div>
-
-<!-- ========== FORCE ROADMAP CARD (z-index 999998) ========== -->
-<div id="roadmap_force_card" style="position:relative;z-index:999998;margin-top:60px;margin-left:16px;max-width:860px;background:rgba(0,0,0,0.92);color:#fff;padding:16px;border-radius:14px;border:2px solid #4ade80;">
-<h2 style="margin:0 0 10px 0;color:#4ade80;">Roadmap</h2>
-{% if databento_stats %}
-<div style="opacity:0.9;margin-bottom:10px;padding:8px;background:rgba(74,222,128,0.1);border-radius:8px;">
-Databento MNQ 1m: <strong>{{ databento_stats.row_count }}</strong> bars |
-{{ databento_stats.min_ts }} to {{ databento_stats.max_ts }} |
-Latest: {{ databento_stats.latest_close }} @ {{ databento_stats.latest_ts }}
-</div>
-{% else %}
-<div style="opacity:0.8;margin-bottom:10px;padding:8px;background:rgba(248,113,113,0.1);border-radius:8px;">
-Databento stats unavailable
-</div>
-{% endif %}
-{% if roadmap_snapshot %}
-{% for pid, phase in roadmap_snapshot|dictsort %}
-<div style="margin:12px 0;padding:10px;border:1px solid rgba(255,255,255,0.18);border-radius:12px;background:rgba(255,255,255,0.03);">
-<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-<strong style="color:#60a5fa;">{{ phase.name }}</strong>
-<span style="color:#4ade80;">{{ phase.percent }}% ({{ phase.completed }}/{{ phase.modules }})</span>
-</div>
-<div style="opacity:0.85;margin:6px 0 8px 0;font-size:12px;">{{ phase.description }}</div>
-<ul style="margin:0;padding-left:18px;font-size:12px;">
-{% for m in phase.module_list %}
-<li style="margin:2px 0;">{% if m.done %}DONE{% else %}TODO{% endif %} {{ m.title }}</li>
-{% endfor %}
-</ul>
-</div>
-{% endfor %}
-{% else %}
-<div style="color:#f87171;padding:10px;">Roadmap unavailable.</div>
-{% if roadmap_error %}
-<pre style="white-space:pre-wrap;opacity:0.9;margin-top:10px;padding:10px;background:rgba(248,113,113,0.1);border-radius:8px;">{{ roadmap_error }}</pre>
-{% endif %}
-{% endif %}
-</div>
-<!-- ========== END FORCE ROADMAP ========== -->
-
+<!-- ROADMAP_RENDERED phases={{ roadmap_snapshot|length if roadmap_snapshot else 0 }} stats={{ 'YES' if databento_stats else 'NO' }} -->
 
 <!-- Background Video -->
 <div id="videoContainer" class="video-container">
@@ -87,59 +42,71 @@ Databento stats unavailable
 <main class="layout-grid">
 
 <!-- LEFT COLUMN: ROADMAP -->
-<aside class="roadmap-section">
+<aside class="roadmap-section" style="max-height:calc(100vh - 140px);overflow-y:auto;">
 <div class="roadmap-header">
 <h2>Development Roadmap</h2>
-<p>Platform evolution and feature development timeline</p>
+<p>Databento-first trading research platform</p>
 </div>
 
-<div class="roadmap-phases">
-{% for phase_id, phase in roadmap %}
-{# derive a status class based on percent complete #}
-{% set status_class = 'active' if phase.percent > 0 else 'future' %}
-{% set complete_class = 'phase-complete' if phase.percent == 100 else '' %}
-<div class="roadmap-phase {{ status_class }} {{ complete_class }}">
-<button class="phase-toggle" type="button">
-<div class="phase-header condensed-phase-header">
-<span class="condensed-phase-number">{{ phase_id }}</span>
-<span class="condensed-phase-title">{{ phase.name }}</span>
-<span class="condensed-phase-meta">({{ phase.modules }} modules • {{ phase.percent }}%)</span>
-</div>
-</button>
-<div class="phase-details">
-<p class="phase-details-text">{{ phase.description }}</p>
-<div class="phase-modules">
-{% for module in phase.module_list %}
-<div class="phase-module-row">
-<span class="phase-module-dot {% if module.done %}complete{% else %}incomplete{% endif %}"></span>
-<span class="phase-module-name">{{ module.title }}</span>
-</div>
-{% endfor %}
-</div>
-
-{# Show Databento stats for Phase 0 #}
-{% if phase_id == '0' and databento_stats %}
-<div class="databento-stats-box" style="margin-top: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 0.85rem;">
-<div style="font-weight: 600; margin-bottom: 0.5rem; color: #4ade80;">📊 Live Dataset Stats</div>
-<div style="display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.75rem; color: rgba(255,255,255,0.8);">
-<span>Bars:</span><span style="font-family: 'Courier New', monospace;">{{ "{:,}".format(databento_stats.row_count) }}</span>
-<span>Range:</span><span style="font-family: 'Courier New', monospace;">{{ databento_stats.min_ts }} → {{ databento_stats.max_ts }}</span>
-<span>Latest:</span><span style="font-family: 'Courier New', monospace;">{{ databento_stats.latest_ts }} @ ${{ "{:,.2f}".format(databento_stats.latest_close) }}</span>
+<!-- Databento Stats Banner -->
+{% if databento_stats %}
+<div style="background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(16,185,129,0.1));border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:0.75rem;margin-bottom:1rem;font-size:0.8rem;">
+<div style="font-weight:600;color:#4ade80;margin-bottom:0.4rem;"> Databento MNQ 1m Data</div>
+<div style="color:rgba(255,255,255,0.85);font-family:monospace;">
+<strong>{{ "{:,}".format(databento_stats.row_count) }}</strong> bars |
+{{ databento_stats.min_ts }}  {{ databento_stats.max_ts }} |
+Latest: ${{ "{:,.2f}".format(databento_stats.latest_close) }}
 </div>
 </div>
-{% elif phase_id == '0' and not databento_stats %}
-<div class="databento-stats-box" style="margin-top: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 0.85rem; color: rgba(255,255,255,0.6);">
-<div style="font-weight: 600; margin-bottom: 0.5rem;">📊 Dataset Stats</div>
-<div>Stats unavailable (check API endpoint)</div>
+{% else %}
+<div style="background:rgba(100,116,139,0.2);border:1px solid rgba(100,116,139,0.3);border-radius:8px;padding:0.75rem;margin-bottom:1rem;font-size:0.8rem;color:rgba(255,255,255,0.6);">
+ Databento stats unavailable
 </div>
 {% endif %}
 
-<div class="phase-progress-line">
-<div class="phase-progress-line-fill" style="width: {{ phase.percent }}%;"></div>
+<!-- Phase List -->
+<div class="roadmap-phases" style="display:flex;flex-direction:column;gap:0.6rem;">
+{% if roadmap_snapshot %}
+{% for pid, phase in roadmap_snapshot|dictsort %}
+{% set is_complete = phase.percent == 100 %}
+{% set is_active = phase.percent > 0 and phase.percent < 100 %}
+<div class="roadmap-phase {% if is_complete %}phase-complete{% elif is_active %}phase-active{% endif %}" style="background:rgba(255,255,255,0.03);border:1px solid {% if is_complete %}rgba(34,197,94,0.3){% elif is_active %}rgba(59,130,246,0.4){% else %}rgba(255,255,255,0.08){% endif %};border-radius:8px;overflow:hidden;">
+<button class="phase-toggle" type="button" onclick="this.parentElement.classList.toggle('expanded')" style="width:100%;background:none;border:none;padding:0.7rem 0.8rem;cursor:pointer;text-align:left;">
+<div style="display:flex;align-items:center;gap:0.6rem;">
+<div style="width:28px;height:28px;background:{% if is_complete %}rgba(34,197,94,0.2){% elif is_active %}rgba(59,130,246,0.2){% else %}rgba(255,255,255,0.1){% endif %};border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:{% if is_complete %}#4ade80{% elif is_active %}#60a5fa{% else %}rgba(255,255,255,0.8){% endif %};">{{ pid }}</div>
+<div style="flex:1;">
+<div style="font-size:0.8rem;font-weight:600;color:#fff;">{{ phase.name }}</div>
+<div style="display:flex;gap:0.5rem;font-size:0.7rem;color:rgba(255,255,255,0.5);margin-top:2px;">
+<span style="padding:1px 6px;border-radius:3px;font-size:0.6rem;font-weight:600;background:{% if is_complete %}rgba(34,197,94,0.2);color:#4ade80{% elif is_active %}rgba(59,130,246,0.2);color:#60a5fa{% else %}rgba(100,116,139,0.2);color:rgba(255,255,255,0.5){% endif %};">{% if is_complete %} Complete{% elif is_active %} Active{% else %} Planned{% endif %}</span>
+<span>{{ phase.completed }}/{{ phase.modules }}</span>
+<span>{{ phase.percent }}%</span>
+</div>
+</div>
+<span style="color:rgba(255,255,255,0.4);transition:transform 0.2s;"></span>
+</div>
+</button>
+<div class="phase-details" style="display:none;padding:0 0.8rem 0.8rem;border-top:1px solid rgba(255,255,255,0.05);">
+<p style="font-size:0.75rem;color:rgba(255,255,255,0.6);margin:0.6rem 0;">{{ phase.description }}</p>
+<div style="display:flex;flex-direction:column;gap:0.3rem;">
+{% for m in phase.module_list %}
+<div style="display:flex;gap:0.5rem;padding:0.35rem 0.5rem;background:rgba(255,255,255,0.03);border-radius:4px;font-size:0.75rem;">
+<span style="width:14px;height:14px;border-radius:3px;{% if m.done %}background:#22c55e;{% else %}border:2px solid rgba(255,255,255,0.2);{% endif %}display:flex;align-items:center;justify-content:center;flex-shrink:0;">{% if m.done %}<span style="color:#fff;font-size:9px;"></span>{% endif %}</span>
+<span style="color:{% if m.done %}rgba(255,255,255,0.9){% else %}rgba(255,255,255,0.5){% endif %};">{{ m.title }}</span>
+</div>
+{% endfor %}
+</div>
+<div style="margin-top:0.6rem;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
+<div style="height:100%;background:{% if is_complete %}linear-gradient(90deg,#22c55e,#4ade80){% else %}linear-gradient(90deg,#3b82f6,#60a5fa){% endif %};width:{{ phase.percent }}%;border-radius:2px;"></div>
 </div>
 </div>
 </div>
 {% endfor %}
+{% else %}
+<div style="padding:1rem;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#f87171;">
+Roadmap data unavailable
+{% if roadmap_error %}<div style="margin-top:0.5rem;font-size:0.75rem;opacity:0.8;">{{ roadmap_error }}</div>{% endif %}
+</div>
+{% endif %}
 </div>
 </aside>
 
@@ -153,17 +120,17 @@ Databento stats unavailable
 
 <section class="workspace-grid">
 {% for module in [
-('🎯', 'Main Dashboard', 'H1.2 — Central command center for system monitoring and navigation', '/main-dashboard', 'H1.2', 'active', 'H1-2'),
-('📊', 'Automated Signals Engine', 'H1.1 — Core automated signals engine and lifecycle dashboard', '/automated-signals', 'H1.1 CORE', 'active', 'H1-1A'),
-('⏰', 'Time Analysis', 'H1.3 — Completed temporal pattern and session performance analytics', '/time-analysis', 'H1.3 COMPLETE', 'active', 'H1-3'),
-('💰', 'Financial Summary', 'H1.5 — Performance and financial reporting', '/financial-summary', 'H1.5', 'active', 'H1-5'),
-('📊', 'Reporting Hub', 'H1.6 — Advanced reporting and business intelligence', '/reporting-hub', 'H1.6', 'active', 'H1-6'),
-('⚡', 'Strategy Optimizer', 'H2 — Advanced optimization and backtesting engine', '/strategy-optimizer', 'H2', 'active', 'H2-18'),
-('📈', 'Strategy Compare', 'H2 — Compare and analyze multiple trading strategies', '/strategy-comparison', 'H2', 'active', 'H2-19'),
-('🧠', 'ML Intelligence Hub', 'H5 — Machine learning insights and predictive analytics (future ML layer)', '/ml-dashboard', 'H5 FUTURE', 'future', 'H5-ML'),
-('📋', 'Trade Manager', 'H2 — Trade execution and position management', '/trade-manager', 'H2', 'active', 'H2-TRADE'),
-('💼', 'Prop Portfolio', 'H8 — Prop firm portfolio management and compliance', '/prop-portfolio', 'H8', 'active', 'H8-PROP'),
-('🧭', 'AI Business Advisor', 'H9 — AI-driven capital allocation & business intelligence (coming soon)', '/ai-business-advisor', 'H9 FUTURE', 'future', 'H9-25')
+('', 'Main Dashboard', 'H1.2  Central command center for system monitoring', '/main-dashboard', 'H1.2', 'active', 'H1-2'),
+('', 'Automated Signals', 'H1.1  Core automated signals engine and lifecycle', '/automated-signals', 'H1.1 CORE', 'active', 'H1-1A'),
+('', 'Time Analysis', 'H1.3  Temporal pattern and session analytics', '/time-analysis', 'H1.3', 'active', 'H1-3'),
+('', 'Financial Summary', 'H1.5  Performance and financial reporting', '/financial-summary', 'H1.5', 'active', 'H1-5'),
+('', 'Reporting Hub', 'H1.6  Advanced reporting and business intelligence', '/reporting-hub', 'H1.6', 'active', 'H1-6'),
+('', 'Strategy Optimizer', 'H2  Advanced optimization and backtesting', '/strategy-optimizer', 'H2', 'active', 'H2-18'),
+('', 'Strategy Compare', 'H2  Compare multiple trading strategies', '/strategy-comparison', 'H2', 'active', 'H2-19'),
+('', 'ML Intelligence', 'H5  Machine learning insights (future)', '/ml-dashboard', 'H5 FUTURE', 'future', 'H5-ML'),
+('', 'Trade Manager', 'H2  Trade execution and position management', '/trade-manager', 'H2', 'active', 'H2-TRADE'),
+('', 'Prop Portfolio', 'H8  Prop firm portfolio management', '/prop-portfolio', 'H8', 'active', 'H8-PROP'),
+('', 'AI Advisor', 'H9  AI-driven business intelligence (coming soon)', '/ai-business-advisor', 'H9 FUTURE', 'future', 'H9-25')
 ] %}
 <div class="workspace-card workspace-card--{{ module[5] }}" data-module-code="{{ module[6] }}">
 <div class="card-header">
@@ -187,7 +154,23 @@ Databento stats unavailable
 
 </main>
 
-<!-- *** DO NOT MODIFY THE EXISTING VIDEO ROTATION JAVASCRIPT BELOW THIS COMMENT *** -->
+<script>
+// Phase toggle expand/collapse
+document.querySelectorAll('.roadmap-phase.phase-active').forEach(function(el) {
+  el.classList.add('expanded');
+});
+document.querySelectorAll('.roadmap-phase.expanded .phase-details').forEach(function(el) {
+  el.style.display = 'block';
+});
+document.querySelectorAll('.phase-toggle').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var details = this.parentElement.querySelector('.phase-details');
+    if (details) {
+      details.style.display = details.style.display === 'none' ? 'block' : 'none';
+    }
+  });
+});
+</script>
 <script src="{{ url_for('static', filename='js/homepage.js') }}"></script>
 
 </body>
