@@ -1779,54 +1779,67 @@ def homepage():
     roadmap_error = None
     
     try:
-        from roadmap.roadmap_loader import get_homepage_roadmap_data
+        from roadmap.roadmap_loader import get_homepage_roadmap_data, ROADMAP_V3_PATH
+        
+        # Log the exact path being used
+        logger.info(f"[HOMEPAGE_V3] Loading from path: {ROADMAP_V3_PATH}")
+        logger.info(f"[HOMEPAGE_V3] Path exists: {ROADMAP_V3_PATH.exists()}")
+        
         roadmap_v3 = get_homepage_roadmap_data()
         
         logger.info(f"[HOMEPAGE_V3] Loaded: version={roadmap_v3.get('version')}, phases={len(roadmap_v3.get('phases', []))}, is_fallback={roadmap_v3.get('_is_fallback', False)}")
         
         if roadmap_v3.get('_is_fallback'):
-            roadmap_error = roadmap_v3.get('_error', 'Unknown fallback reason')
+            roadmap_error = f"Fallback active. Path: {ROADMAP_V3_PATH}. Error: {roadmap_v3.get('_error', 'Unknown')}"
             logger.warning(f"[HOMEPAGE_V3] Using fallback: {roadmap_error}")
         
     except Exception as e:
-        roadmap_error = f"{type(e).__name__}: {e}"
-        logger.error(f"[HOMEPAGE_V3] FAILED: {roadmap_error}", exc_info=True)
+        roadmap_error = f"{type(e).__name__}: {e}\nTraceback: {traceback.format_exc()}"
+        logger.exception(f"[ROADMAP_V3_LOAD_ERROR] path=roadmap/unified_roadmap_v3.yaml")
     
-    # Fetch Databento stats directly from database
+    # Fetch Databento stats directly from database with proper error capture
     databento_stats = None
+    stats_error = None
     try:
-        conn = psycopg2.connect(DATABASE_URL)
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT 
-                COUNT(*) as row_count,
-                MIN(ts) as min_ts,
-                MAX(ts) as max_ts,
-                (SELECT close FROM market_bars_ohlcv_1m 
-                 WHERE symbol = 'CME_MINI:MNQ1!' 
-                 ORDER BY ts DESC LIMIT 1) as latest_close,
-                (SELECT ts FROM market_bars_ohlcv_1m 
-                 WHERE symbol = 'CME_MINI:MNQ1!' 
-                 ORDER BY ts DESC LIMIT 1) as latest_ts
-            FROM market_bars_ohlcv_1m
-            WHERE symbol = 'CME_MINI:MNQ1!'
-        """)
-        result = cursor.fetchone()
-        if result and result[0] > 0:
-            databento_stats = {
-                'row_count': result[0],
-                'min_ts': result[1].strftime('%Y-%m-%d') if result[1] else None,
-                'max_ts': result[2].strftime('%Y-%m-%d') if result[2] else None,
-                'latest_close': float(result[3]) if result[3] else None,
-                'latest_ts': result[4].strftime('%Y-%m-%d %H:%M') if result[4] else None
-            }
-            logger.info(f"[HOMEPAGE] Databento stats loaded: {databento_stats['row_count']} bars")
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            stats_error = "DATABASE_URL environment variable not configured"
+            logger.error(f"[HOMEPAGE_DATABENTO_STATS_ERROR] {stats_error}")
         else:
-            logger.warning("[HOMEPAGE] Databento query returned no data")
-        cursor.close()
-        conn.close()
+            conn = psycopg2.connect(database_url)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as row_count,
+                    MIN(ts) as min_ts,
+                    MAX(ts) as max_ts,
+                    (SELECT close FROM market_bars_ohlcv_1m 
+                     WHERE symbol = 'CME_MINI:MNQ1!' 
+                     ORDER BY ts DESC LIMIT 1) as latest_close,
+                    (SELECT ts FROM market_bars_ohlcv_1m 
+                     WHERE symbol = 'CME_MINI:MNQ1!' 
+                     ORDER BY ts DESC LIMIT 1) as latest_ts
+                FROM market_bars_ohlcv_1m
+                WHERE symbol = 'CME_MINI:MNQ1!'
+            """)
+            result = cursor.fetchone()
+            if result and result[0] > 0:
+                databento_stats = {
+                    'row_count': result[0],
+                    'min_ts': result[1].strftime('%Y-%m-%d') if result[1] else None,
+                    'max_ts': result[2].strftime('%Y-%m-%d') if result[2] else None,
+                    'latest_close': float(result[3]) if result[3] else None,
+                    'latest_ts': result[4].strftime('%Y-%m-%d %H:%M') if result[4] else None
+                }
+                logger.info(f"[HOMEPAGE] Databento stats loaded: {databento_stats['row_count']} bars")
+            else:
+                stats_error = "Query returned no data (table may be empty or symbol not found)"
+                logger.warning(f"[HOMEPAGE_DATABENTO_STATS_ERROR] {stats_error}")
+            cursor.close()
+            conn.close()
     except Exception as e:
-        logger.warning(f"[HOMEPAGE] Failed to fetch Databento stats: {e}")
+        stats_error = f"{type(e).__name__}: {e}"
+        logger.exception("[HOMEPAGE_DATABENTO_STATS_ERROR]")
     
     logger.info(f"[HOMEPAGE] Rendering with: roadmap_v3={roadmap_v3.get('version') if roadmap_v3 else 'NONE'}, phases={len(roadmap_v3.get('phases', [])) if roadmap_v3 else 0}, databento={'YES' if databento_stats else 'NO'}")
     
@@ -1834,7 +1847,8 @@ def homepage():
                          video_file=video_file, 
                          roadmap_v3=roadmap_v3,
                          databento_stats=databento_stats,
-                         roadmap_error=roadmap_error)
+                         roadmap_error=roadmap_error,
+                         stats_error=stats_error)
 
 
 @app.route('/main-dashboard')
