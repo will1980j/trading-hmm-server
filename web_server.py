@@ -69,6 +69,9 @@ from collections import defaultdict, deque
 TRADE_LOGS = defaultdict(lambda: deque(maxlen=200))
 MAX_TRACKED_TRADES = 1000
 
+# Homepage error capture for debugging (prevents 500, exposes traceback via debug endpoint)
+LAST_HOMEPAGE_ERROR = None
+
 def append_trade_log(trade_id, message):
     if not trade_id:
         return
@@ -1830,54 +1833,75 @@ def get_databento_stats():
 @login_required
 def homepage():
     """Professional homepage - main landing page after login with nature videos"""
+    global LAST_HOMEPAGE_ERROR
+    
+    # Get video file first (safe operation)
     video_file = get_random_video('homepage')
     
-    # Use V3 roadmap from unified_roadmap_v3.yaml (SINGLE SOURCE OF TRUTH)
-    # Note: build_v3_snapshot, load_v3_yaml, ROADMAP_V3_PATH imported at top of file
-    roadmap_v3 = None
-    roadmap_error = None
-    
     try:
-        # Log the exact path being used
-        logger.info(f"[HOMEPAGE_V3] Loading from path: {ROADMAP_V3_PATH}")
-        logger.info(f"[HOMEPAGE_V3] Path exists: {ROADMAP_V3_PATH.exists()}")
+        # Use V3 roadmap from unified_roadmap_v3.yaml (SINGLE SOURCE OF TRUTH)
+        # Note: build_v3_snapshot, load_v3_yaml, ROADMAP_V3_PATH imported at top of file
+        roadmap_v3 = None
+        roadmap_error = None
         
-        # Use build_v3_snapshot for comprehensive error capture
-        snapshot, error_str, resolved_path, exists, yaml_importable = build_v3_snapshot()
-        
-        logger.info(f"[ROADMAP_V3] loaded={snapshot is not None} phases={len(snapshot.get('phases', [])) if snapshot else 0} path={resolved_path}")
-        
-        if snapshot:
-            roadmap_v3 = snapshot
-            logger.info(f"[HOMEPAGE_V3] Loaded: version={roadmap_v3.get('version')}, phases={len(roadmap_v3.get('phases', []))}")
-        else:
-            roadmap_error = error_str or "Unknown error loading roadmap"
-            logger.warning(f"[HOMEPAGE_V3] Failed to load: {roadmap_error}")
-            # Use fallback data from get_homepage_roadmap_data
+        try:
+            # Log the exact path being used
+            logger.info(f"[HOMEPAGE_V3] Loading from path: {ROADMAP_V3_PATH}")
+            logger.info(f"[HOMEPAGE_V3] Path exists: {ROADMAP_V3_PATH.exists()}")
+            
+            # Use build_v3_snapshot for comprehensive error capture
+            snapshot, error_str, resolved_path, exists, yaml_importable = build_v3_snapshot()
+            
+            logger.info(f"[ROADMAP_V3] loaded={snapshot is not None} phases={len(snapshot.get('phases', [])) if snapshot else 0} path={resolved_path}")
+            
+            if snapshot:
+                roadmap_v3 = snapshot
+                logger.info(f"[HOMEPAGE_V3] Loaded: version={roadmap_v3.get('version')}, phases={len(roadmap_v3.get('phases', []))}")
+            else:
+                roadmap_error = error_str or "Unknown error loading roadmap"
+                logger.warning(f"[HOMEPAGE_V3] Failed to load: {roadmap_error}")
+                # Use fallback data from get_homepage_roadmap_data
+                roadmap_v3 = get_homepage_roadmap_data()
+            
+        except Exception as e:
+            roadmap_error = f"{type(e).__name__}: {e}\nTraceback: {traceback.format_exc()}"
+            logger.exception(f"[ROADMAP_V3_LOAD_ERROR] path=roadmap/unified_roadmap_v3.yaml")
+            # Use fallback
             roadmap_v3 = get_homepage_roadmap_data()
         
+        # Fetch Databento stats using helper function
+        databento_stats, stats_error = get_databento_stats()
+        if databento_stats:
+            logger.info(f"[HOMEPAGE] Databento stats loaded: {databento_stats['row_count']} bars")
+        elif stats_error:
+            logger.warning(f"[HOMEPAGE_DATABENTO_STATS_ERROR] {stats_error}")
+        
+        logger.info(f"[HOMEPAGE] Rendering with: roadmap_v3={roadmap_v3.get('version') if roadmap_v3 else 'NONE'}, phases={len(roadmap_v3.get('phases', [])) if roadmap_v3 else 0}, databento={'YES' if databento_stats else 'NO'}")
+        
+        # Clear any previous error on successful render
+        LAST_HOMEPAGE_ERROR = None
+        
+        return render_template('homepage_video_background.html', 
+                             video_file=video_file, 
+                             roadmap_v3=roadmap_v3,
+                             roadmap_snapshot=roadmap_v3,  # Alias for template compatibility
+                             databento_stats=databento_stats,
+                             roadmap_error=roadmap_error,
+                             stats_error=stats_error)
+    
     except Exception as e:
-        roadmap_error = f"{type(e).__name__}: {e}\nTraceback: {traceback.format_exc()}"
-        logger.exception(f"[ROADMAP_V3_LOAD_ERROR] path=roadmap/unified_roadmap_v3.yaml")
-        # Use fallback
-        roadmap_v3 = get_homepage_roadmap_data()
-    
-    # Fetch Databento stats using helper function
-    databento_stats, stats_error = get_databento_stats()
-    if databento_stats:
-        logger.info(f"[HOMEPAGE] Databento stats loaded: {databento_stats['row_count']} bars")
-    elif stats_error:
-        logger.warning(f"[HOMEPAGE_DATABENTO_STATS_ERROR] {stats_error}")
-    
-    logger.info(f"[HOMEPAGE] Rendering with: roadmap_v3={roadmap_v3.get('version') if roadmap_v3 else 'NONE'}, phases={len(roadmap_v3.get('phases', [])) if roadmap_v3 else 0}, databento={'YES' if databento_stats else 'NO'}")
-    
-    return render_template('homepage_video_background.html', 
-                         video_file=video_file, 
-                         roadmap_v3=roadmap_v3,
-                         roadmap_snapshot=roadmap_v3,  # Alias for template compatibility
-                         databento_stats=databento_stats,
-                         roadmap_error=roadmap_error,
-                         stats_error=stats_error)
+        # FATAL ERROR HANDLER - Capture full traceback and return safe HTTP 200
+        LAST_HOMEPAGE_ERROR = traceback.format_exc()
+        logger.exception("[HOMEPAGE_FATAL] Unhandled exception in /homepage route")
+        
+        # Return a safe response that won't crash - HTTP 200 guaranteed
+        return render_template('homepage_video_background.html',
+                             video_file=video_file,
+                             roadmap_v3=None,
+                             roadmap_snapshot=None,
+                             databento_stats=None,
+                             roadmap_error="Homepage failed (see /api/debug/homepage-last-error)",
+                             stats_error=None)
 
 
 @app.route('/main-dashboard')
@@ -7047,6 +7071,35 @@ def debug_homepage_v3():
         result['databento_stats']['error'] = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
     
     return jsonify(result), 200
+
+
+@app.route('/api/debug/homepage-last-error', methods=['GET'])
+def debug_homepage_last_error():
+    """
+    Token-authenticated endpoint to retrieve the last fatal error from /homepage.
+    Returns the full stack trace that caused the 500 (now prevented).
+    
+    Auth: X-Auth-Token header required (same pattern as other debug endpoints)
+    """
+    # Token authentication
+    expected_token = os.environ.get('DEBUG_AUTH_TOKEN', 'debug-token-2025')
+    provided_token = request.headers.get('X-Auth-Token', '')
+    
+    if provided_token != expected_token:
+        return jsonify({
+            'success': False,
+            'error': 'Unauthorized - X-Auth-Token header required'
+        }), 401
+    
+    from datetime import datetime, timezone
+    
+    return jsonify({
+        'success': True,
+        'has_error': LAST_HOMEPAGE_ERROR is not None,
+        'error': LAST_HOMEPAGE_ERROR,
+        'server_time_utc': datetime.now(timezone.utc).isoformat()
+    }), 200
+
 
 @app.route('/api/debug-spy-html', methods=['GET'])
 def debug_spy_html():
