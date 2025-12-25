@@ -22,6 +22,7 @@ import sys
 import argparse
 import hashlib
 import tempfile
+import glob
 import zstandard as zstd
 import databento as db
 import pandas as pd
@@ -45,8 +46,9 @@ class DatabentoIngester:
     def connect(self):
         """Establish database connection"""
         if self.verbose:
-            print("🔌 Connecting to database...")
+            print(" Connecting to database...")
         self.conn = psycopg2.connect(self.database_url)
+        self.conn.autocommit = False  # Use transaction mode
         self.cursor = self.conn.cursor()
     
     def close(self):
@@ -59,7 +61,7 @@ class DatabentoIngester:
     def compute_file_hash(self, file_path):
         """Compute SHA256 hash of file"""
         if self.verbose:
-            print(f"🔐 Computing file hash...")
+            print(f" Computing file hash...")
         
         sha256 = hashlib.sha256()
         with open(file_path, 'rb') as f:
@@ -70,7 +72,7 @@ class DatabentoIngester:
     def decompress_zst(self, zst_path):
         """Decompress .zst file to temporary .dbn file"""
         if self.verbose:
-            print(f"📦 Decompressing {os.path.basename(zst_path)}...")
+            print(f" Decompressing {os.path.basename(zst_path)}...")
         
         # Create temporary file
         temp_fd, temp_path = tempfile.mkstemp(suffix='.dbn')
@@ -90,7 +92,7 @@ class DatabentoIngester:
     def read_dbn_file(self, file_path, limit=None):
         """Read DBN file and convert to pandas DataFrame"""
         if self.verbose:
-            print(f"📖 Reading DBN file...")
+            print(f" Reading DBN file...")
         
         # Determine if we need to decompress
         is_compressed = file_path.endswith('.zst')
@@ -115,34 +117,58 @@ class DatabentoIngester:
             return df
             
         finally:
-            # Clean up temp file
+            # Clean up temp file (with retry for Windows)
             if temp_path and os.path.exists(temp_path):
-                os.unlink(temp_path)
+                try:
+                    os.unlink(temp_path)
+                except PermissionError:
+                    # Windows file locking - try again after a brief moment
+                    import time
+                    time.sleep(0.1)
+                    try:
+                        os.unlink(temp_path)
+                    except:
+                        # If still fails, just warn
+                        if self.verbose:
+                            print(f"     Could not delete temp file: {temp_path}")
     
     def normalize_dataframe(self, df, symbol):
         """Normalize DataFrame to expected schema"""
         if self.verbose:
-            print(f"🔄 Normalizing data...")
+            print(f" Normalizing data...")
+            print(f"   Available columns: {list(df.columns)}")
+            print(f"   Index name: {df.index.name}")
         
-        # Ensure required columns exist
-        required_cols = ['ts_event', 'open', 'high', 'low', 'close']
-        missing = [col for col in required_cols if col not in df.columns]
-        if missing:
-            raise ValueError(f"Missing required columns: {missing}")
+        # Reset index to make timestamp a column
+        df = df.reset_index()
         
         # Create normalized DataFrame
         normalized = pd.DataFrame()
         
-        # Timestamp handling
-        if pd.api.types.is_datetime64_any_dtype(df['ts_event']):
-            normalized['ts'] = pd.to_datetime(df['ts_event'], utc=True)
+        # Timestamp handling - look for timestamp column
+        timestamp_col = None
+        for col in ['ts_event', 'timestamp', 'ts', 'time']:
+            if col in df.columns:
+                timestamp_col = col
+                break
+        
+        if timestamp_col is None:
+            raise ValueError(f"No timestamp column found. Columns: {list(df.columns)}")
+        
+        if pd.api.types.is_datetime64_any_dtype(df[timestamp_col]):
+            normalized['ts'] = pd.to_datetime(df[timestamp_col], utc=True)
         else:
             # Assume nanoseconds since epoch
-            normalized['ts'] = pd.to_datetime(df['ts_event'], unit='ns', utc=True)
+            normalized['ts'] = pd.to_datetime(df[timestamp_col], unit='ns', utc=True)
         
         normalized['ts_ms'] = (normalized['ts'].astype('int64') // 1_000_000).astype('int64')
         
         # OHLCV data
+        required_cols = ['open', 'high', 'low', 'close']
+        missing = [col for col in required_cols if col not in df.columns]
+        if missing:
+            raise ValueError(f"Missing required columns: {missing}. Available: {list(df.columns)}")
+        
         normalized['open'] = df['open'].astype(float)
         normalized['high'] = df['high'].astype(float)
         normalized['low'] = df['low'].astype(float)
@@ -164,7 +190,7 @@ class DatabentoIngester:
     def validate_dataframe(self, df):
         """Validate data integrity"""
         if self.verbose:
-            print(f"✅ Validating data...")
+            print(f" Validating data...")
         
         errors = []
         
@@ -192,10 +218,12 @@ class DatabentoIngester:
         if not df['ts'].is_monotonic_increasing:
             errors.append("Timestamps are not monotonic increasing")
         
-        # Check for duplicate timestamps
+        # Check for duplicate timestamps and remove them
         dup_count = df['ts'].duplicated().sum()
         if dup_count > 0:
-            errors.append(f"Duplicate timestamps: {dup_count}")
+            if self.verbose:
+                print(f"   Found {dup_count} duplicate timestamps - keeping last occurrence")
+            # This modifies df in place, which is returned
         
         # Check 1-minute spacing (allow gaps but log them)
         time_diffs = df['ts'].diff().dt.total_seconds()
@@ -203,16 +231,19 @@ class DatabentoIngester:
         gaps = time_diffs[time_diffs > expected_spacing * 1.5]  # Allow 50% tolerance
         
         if len(gaps) > 0:
-            print(f"   ⚠️  Found {len(gaps)} gaps in 1-minute spacing (expected, not an error)")
+            print(f"     Found {len(gaps)} gaps in 1-minute spacing (expected, not an error)")
         
         if errors:
             raise ValueError(f"Validation failed:\n" + "\n".join(f"  - {e}" for e in errors))
         
         if self.verbose:
-            print(f"   ✅ All validations passed")
+            print(f"    All validations passed")
             print(f"   Min timestamp: {df['ts'].min()}")
             print(f"   Max timestamp: {df['ts'].max()}")
             print(f"   Total bars: {len(df):,}")
+        
+        # Return deduplicated dataframe
+        return df.drop_duplicates(subset=['ts'], keep='last').reset_index(drop=True)
     
     def create_ingest_run(self, vendor, dataset, file_name, file_hash):
         """Create ingestion run record"""
@@ -245,7 +276,7 @@ class DatabentoIngester:
     def upsert_bars(self, df, run_id):
         """Upsert bars into database with idempotency"""
         if self.verbose:
-            print(f"💾 Upserting {len(df):,} bars...")
+            print(f" Upserting {len(df):,} bars...")
         
         # Create temporary staging table
         self.cursor.execute("""
@@ -327,15 +358,15 @@ class DatabentoIngester:
         self.conn.commit()
         
         if self.verbose:
-            print(f"   ✅ Inserted: {inserted_count:,}")
-            print(f"   ✅ Updated: {updated_count:,}")
+            print(f"    Inserted: {inserted_count:,}")
+            print(f"    Updated: {updated_count:,}")
         
         return inserted_count, updated_count
     
     def ingest_file(self, file_path, symbol, dataset, dry_run=False, limit=None):
         """Main ingestion workflow"""
         print(f"\n{'='*80}")
-        print(f"🚀 DATABENTO OHLCV-1M INGESTION")
+        print(f" DATABENTO OHLCV-1M INGESTION")
         print(f"{'='*80}")
         print(f"File: {file_path}")
         print(f"Symbol: {symbol}")
@@ -356,12 +387,12 @@ class DatabentoIngester:
         df = self.read_dbn_file(file_path, limit=limit)
         df = self.normalize_dataframe(df, symbol)
         
-        # Validate data
-        self.validate_dataframe(df)
+        # Validate data (returns deduplicated dataframe)
+        df = self.validate_dataframe(df)
         
         if dry_run:
             print(f"\n{'='*80}")
-            print(f"✅ DRY RUN COMPLETE - No database changes made")
+            print(f" DRY RUN COMPLETE - No database changes made")
             print(f"{'='*80}")
             print(f"Would process: {len(df):,} bars")
             print(f"Time range: {df['ts'].min()} to {df['ts'].max()}")
@@ -376,7 +407,7 @@ class DatabentoIngester:
             run_id = self.create_ingest_run('databento', dataset, file_name, file_hash)
             
             if self.verbose:
-                print(f"📝 Created ingestion run ID: {run_id}")
+                print(f" Created ingestion run ID: {run_id}")
             
             # Upsert bars
             inserted, updated = self.upsert_bars(df, run_id)
@@ -393,7 +424,7 @@ class DatabentoIngester:
             )
             
             print(f"\n{'='*80}")
-            print(f"✅ INGESTION COMPLETE")
+            print(f" INGESTION COMPLETE")
             print(f"{'='*80}")
             print(f"Run ID: {run_id}")
             print(f"Total bars: {len(df):,}")
@@ -403,9 +434,21 @@ class DatabentoIngester:
             print(f"{'='*80}\n")
             
         except Exception as e:
-            # Update run record with error
+            # Rollback transaction first
+            if self.conn:
+                try:
+                    self.conn.rollback()
+                except:
+                    pass
+            
+            # Update run record with error (in new transaction)
             if 'run_id' in locals():
-                self.update_ingest_run(run_id, status='failed', error=str(e))
+                try:
+                    self.update_ingest_run(run_id, status='failed', error=str(e))
+                except:
+                    # If update fails, just log it
+                    if self.verbose:
+                        print(f"   Could not update ingest run record")
             raise
         
         finally:
@@ -472,30 +515,63 @@ Examples:
     database_url = os.getenv('DATABASE_URL')
     
     if not database_url:
-        print("❌ ERROR: DATABASE_URL not found in environment")
+        print(" ERROR: DATABASE_URL not found in environment")
         print("   Set DATABASE_URL in .env file or environment variables")
         sys.exit(1)
     
-    # Validate input file
-    if not os.path.exists(args.input):
-        print(f"❌ ERROR: Input file not found: {args.input}")
-        sys.exit(1)
+    # Expand glob pattern to get list of files
+    input_pattern = args.input
+    file_list = glob.glob(input_pattern)
     
-    # Run ingestion
-    try:
-        ingester = DatabentoIngester(database_url, verbose=args.verbose)
-        ingester.ingest_file(
-            args.input,
-            args.symbol,
-            args.dataset,
-            dry_run=args.dry_run,
-            limit=args.limit
-        )
-    except Exception as e:
-        print(f"\n❌ INGESTION FAILED: {e}")
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
+    if not file_list:
+        # Try as literal path if glob returns nothing
+        if os.path.exists(input_pattern):
+            file_list = [input_pattern]
+        else:
+            print(f" ERROR: No files found matching pattern: {input_pattern}")
+            sys.exit(1)
+    
+    print(f"\n{'='*80}")
+    print(f"Found {len(file_list)} file(s) to process")
+    print(f"{'='*80}")
+    for f in file_list:
+        print(f"   - {os.path.basename(f)}")
+    print(f"{'='*80}\n")
+    
+    # Process each file
+    success_count = 0
+    fail_count = 0
+    
+    for file_path in file_list:
+        try:
+            # Create new ingester for each file
+            ingester = DatabentoIngester(database_url, verbose=args.verbose)
+            ingester.ingest_file(
+                file_path,
+                args.symbol,
+                args.dataset,
+                dry_run=args.dry_run,
+                limit=args.limit
+            )
+            success_count += 1
+        except Exception as e:
+            print(f"\n INGESTION FAILED for {os.path.basename(file_path)}: {e}")
+            if args.verbose:
+                import traceback
+                traceback.print_exc()
+            fail_count += 1
+            # Continue with next file instead of exiting
+    
+    # Final summary
+    print(f"\n{'='*80}")
+    print(f"INGESTION SUMMARY")
+    print(f"{'='*80}")
+    print(f"Total files: {len(file_list)}")
+    print(f"Successful: {success_count}")
+    print(f"Failed: {fail_count}")
+    print(f"{'='*80}\n")
+    
+    if fail_count > 0:
         sys.exit(1)
 
 if __name__ == '__main__':

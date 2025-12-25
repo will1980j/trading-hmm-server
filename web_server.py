@@ -17077,7 +17077,14 @@ def get_mnq_ohlcv_stats():
         JSON with row count, time range, and latest bar info
     """
     try:
-        conn = psycopg2.connect(DATABASE_URL)
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({
+                'error': 'DATABASE_URL not configured',
+                'message': 'Database connection not available'
+            }), 500
+        
+        conn = psycopg2.connect(database_url)
         cursor = conn.cursor()
         
         # Get comprehensive stats
