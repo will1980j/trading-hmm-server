@@ -1768,6 +1768,64 @@ def logout():
     session.pop('authenticated', None)
     return redirect('/login')
 
+
+# ============================================================================
+# HOMEPAGE HELPERS - Databento stats and roadmap loading
+# ============================================================================
+def get_databento_stats():
+    """
+    Fetch Databento stats from database with comprehensive error capture.
+    Never raises - always returns a tuple.
+    
+    Returns:
+        tuple: (stats_dict_or_none, error_string_or_none)
+    """
+    stats = None
+    error_str = None
+    
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return (None, "DATABASE_URL environment variable not configured")
+        
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as row_count,
+                MIN(ts) as min_ts,
+                MAX(ts) as max_ts,
+                (SELECT close FROM market_bars_ohlcv_1m 
+                 WHERE symbol = 'CME_MINI:MNQ1!' 
+                 ORDER BY ts DESC LIMIT 1) as latest_close,
+                (SELECT ts FROM market_bars_ohlcv_1m 
+                 WHERE symbol = 'CME_MINI:MNQ1!' 
+                 ORDER BY ts DESC LIMIT 1) as latest_ts
+            FROM market_bars_ohlcv_1m
+            WHERE symbol = 'CME_MINI:MNQ1!'
+        """)
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if result and result[0] > 0:
+            stats = {
+                'row_count': result[0],
+                'min_ts': result[1].strftime('%Y-%m-%d') if result[1] else None,
+                'max_ts': result[2].strftime('%Y-%m-%d') if result[2] else None,
+                'latest_close': float(result[3]) if result[3] else None,
+                'latest_ts': result[4].strftime('%Y-%m-%d %H:%M') if result[4] else None
+            }
+            return (stats, None)
+        else:
+            return (None, "Query returned no data (table may be empty or symbol 'CME_MINI:MNQ1!' not found)")
+            
+    except Exception as e:
+        import traceback
+        error_str = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+        logger.exception("[HOMEPAGE_DATABENTO_STATS_ERROR]")
+        return (None, error_str)
+
 @app.route('/homepage')
 @login_required
 def homepage():
@@ -1797,49 +1855,12 @@ def homepage():
         roadmap_error = f"{type(e).__name__}: {e}\nTraceback: {traceback.format_exc()}"
         logger.exception(f"[ROADMAP_V3_LOAD_ERROR] path=roadmap/unified_roadmap_v3.yaml")
     
-    # Fetch Databento stats directly from database with proper error capture
-    databento_stats = None
-    stats_error = None
-    try:
-        database_url = os.environ.get('DATABASE_URL')
-        if not database_url:
-            stats_error = "DATABASE_URL environment variable not configured"
-            logger.error(f"[HOMEPAGE_DATABENTO_STATS_ERROR] {stats_error}")
-        else:
-            conn = psycopg2.connect(database_url)
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT 
-                    COUNT(*) as row_count,
-                    MIN(ts) as min_ts,
-                    MAX(ts) as max_ts,
-                    (SELECT close FROM market_bars_ohlcv_1m 
-                     WHERE symbol = 'CME_MINI:MNQ1!' 
-                     ORDER BY ts DESC LIMIT 1) as latest_close,
-                    (SELECT ts FROM market_bars_ohlcv_1m 
-                     WHERE symbol = 'CME_MINI:MNQ1!' 
-                     ORDER BY ts DESC LIMIT 1) as latest_ts
-                FROM market_bars_ohlcv_1m
-                WHERE symbol = 'CME_MINI:MNQ1!'
-            """)
-            result = cursor.fetchone()
-            if result and result[0] > 0:
-                databento_stats = {
-                    'row_count': result[0],
-                    'min_ts': result[1].strftime('%Y-%m-%d') if result[1] else None,
-                    'max_ts': result[2].strftime('%Y-%m-%d') if result[2] else None,
-                    'latest_close': float(result[3]) if result[3] else None,
-                    'latest_ts': result[4].strftime('%Y-%m-%d %H:%M') if result[4] else None
-                }
-                logger.info(f"[HOMEPAGE] Databento stats loaded: {databento_stats['row_count']} bars")
-            else:
-                stats_error = "Query returned no data (table may be empty or symbol not found)"
-                logger.warning(f"[HOMEPAGE_DATABENTO_STATS_ERROR] {stats_error}")
-            cursor.close()
-            conn.close()
-    except Exception as e:
-        stats_error = f"{type(e).__name__}: {e}"
-        logger.exception("[HOMEPAGE_DATABENTO_STATS_ERROR]")
+    # Fetch Databento stats using helper function
+    databento_stats, stats_error = get_databento_stats()
+    if databento_stats:
+        logger.info(f"[HOMEPAGE] Databento stats loaded: {databento_stats['row_count']} bars")
+    elif stats_error:
+        logger.warning(f"[HOMEPAGE_DATABENTO_STATS_ERROR] {stats_error}")
     
     logger.info(f"[HOMEPAGE] Rendering with: roadmap_v3={roadmap_v3.get('version') if roadmap_v3 else 'NONE'}, phases={len(roadmap_v3.get('phases', [])) if roadmap_v3 else 0}, databento={'YES' if databento_stats else 'NO'}")
     
@@ -6931,6 +6952,93 @@ def debug_version():
         'git_sha': git_sha,
         'server_time_utc': datetime.utcnow().isoformat() + 'Z'
     }), 200
+
+
+@app.route('/api/debug/homepage-v3', methods=['GET'])
+def debug_homepage_v3():
+    """
+    Token-authenticated debug endpoint for homepage V3 roadmap and Databento stats.
+    Returns detailed error information without requiring session cookies.
+    
+    Auth: X-Auth-Token header with value 'nQ-EXPORT-9f3a2c71a9e44d0c'
+    
+    Usage:
+        Invoke-RestMethod -Method GET -Uri "https://web-production-f8c3.up.railway.app/api/debug/homepage-v3" -Headers @{ "X-Auth-Token" = "nQ-EXPORT-9f3a2c71a9e44d0c" }
+    """
+    # Token authentication
+    expected_token = "nQ-EXPORT-9f3a2c71a9e44d0c"
+    header_token = request.headers.get('X-Auth-Token')
+    query_token = request.args.get('token')
+    
+    if not (header_token == expected_token or query_token == expected_token):
+        return jsonify({
+            'success': False,
+            'error': 'Unauthorized - provide X-Auth-Token header or token query param'
+        }), 401
+    
+    result = {
+        'success': True,
+        'server_time_utc': datetime.utcnow().isoformat() + 'Z',
+        'roadmap_v3': {
+            'loaded': False,
+            'path': None,
+            'exists': False,
+            'yaml_importable': False,
+            'error': None,
+            'phase_count': 0,
+            'version': None
+        },
+        'databento_stats': {
+            'loaded': False,
+            'error': None,
+            'row_count': None,
+            'min_ts': None,
+            'max_ts': None,
+            'latest_ts': None,
+            'latest_close': None
+        }
+    }
+    
+    # Test roadmap V3 loading
+    try:
+        from roadmap.roadmap_loader import build_v3_snapshot, ROADMAP_V3_PATH
+        
+        snapshot, error_str, resolved_path, exists, yaml_importable = build_v3_snapshot()
+        
+        result['roadmap_v3']['path'] = resolved_path
+        result['roadmap_v3']['exists'] = exists
+        result['roadmap_v3']['yaml_importable'] = yaml_importable
+        result['roadmap_v3']['error'] = error_str
+        
+        if snapshot:
+            result['roadmap_v3']['loaded'] = True
+            result['roadmap_v3']['phase_count'] = len(snapshot.get('phases', []))
+            result['roadmap_v3']['version'] = snapshot.get('version', 'unknown')
+            result['roadmap_v3']['is_fallback'] = snapshot.get('_is_fallback', False)
+        
+    except Exception as e:
+        import traceback
+        result['roadmap_v3']['error'] = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+    
+    # Test Databento stats loading
+    try:
+        stats, stats_error = get_databento_stats()
+        
+        if stats:
+            result['databento_stats']['loaded'] = True
+            result['databento_stats']['row_count'] = stats.get('row_count')
+            result['databento_stats']['min_ts'] = stats.get('min_ts')
+            result['databento_stats']['max_ts'] = stats.get('max_ts')
+            result['databento_stats']['latest_ts'] = stats.get('latest_ts')
+            result['databento_stats']['latest_close'] = stats.get('latest_close')
+        else:
+            result['databento_stats']['error'] = stats_error
+            
+    except Exception as e:
+        import traceback
+        result['databento_stats']['error'] = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+    
+    return jsonify(result), 200
 
 @app.route('/api/debug-spy-html', methods=['GET'])
 def debug_spy_html():
