@@ -23,3 +23,9 @@ coverage.xml
 .env
 .DS_Store
 aws-free-tier-setup.md
+data/databento/mnq/ohlcv_1m/raw/condition.json
+data/databento/mnq/ohlcv_1m/raw/GLBX-20251225-6W4SERCBRW.zip
+data/databento/mnq/ohlcv_1m/raw/glbx-mdp3-20190414-20251222.ohlcv-1m.dbn.zst
+data/databento/mnq/ohlcv_1m/raw/manifest.json
+data/databento/mnq/ohlcv_1m/raw/metadata.json
+data/databento/mnq/ohlcv_1m/raw/symbology.json
