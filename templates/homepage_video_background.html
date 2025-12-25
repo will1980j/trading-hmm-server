@@ -8,6 +8,52 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}?v=2">
 </head>
 <body>
+<!-- ========== FORCE DEBUG BANNER (z-index 999999) ========== -->
+<div id="roadmap_force_debug" style="position:fixed;top:0;left:0;right:0;z-index:999999;background:#000;color:#fff;padding:10px 14px;font-size:13px">
+HOMEPAGE_DEBUG: template=homepage_video_background.html |
+roadmap_present={{ 'YES' if roadmap_snapshot else 'NO' }} |
+phases={{ roadmap_snapshot|length if roadmap_snapshot else 0 }} |
+stats_present={{ 'YES' if databento_stats else 'NO' }}
+</div>
+
+<!-- ========== FORCE ROADMAP CARD (z-index 999998) ========== -->
+<div id="roadmap_force_card" style="position:relative;z-index:999998;margin-top:60px;margin-left:16px;max-width:860px;background:rgba(0,0,0,0.92);color:#fff;padding:16px;border-radius:14px;border:2px solid #4ade80;">
+<h2 style="margin:0 0 10px 0;color:#4ade80;">Roadmap</h2>
+{% if databento_stats %}
+<div style="opacity:0.9;margin-bottom:10px;padding:8px;background:rgba(74,222,128,0.1);border-radius:8px;">
+Databento MNQ 1m: <strong>{{ databento_stats.row_count }}</strong> bars |
+{{ databento_stats.min_ts }} to {{ databento_stats.max_ts }} |
+Latest: {{ databento_stats.latest_close }} @ {{ databento_stats.latest_ts }}
+</div>
+{% else %}
+<div style="opacity:0.8;margin-bottom:10px;padding:8px;background:rgba(248,113,113,0.1);border-radius:8px;">
+Databento stats unavailable
+</div>
+{% endif %}
+{% if roadmap_snapshot %}
+{% for pid, phase in roadmap_snapshot|dictsort %}
+<div style="margin:12px 0;padding:10px;border:1px solid rgba(255,255,255,0.18);border-radius:12px;background:rgba(255,255,255,0.03);">
+<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+<strong style="color:#60a5fa;">{{ phase.name }}</strong>
+<span style="color:#4ade80;">{{ phase.percent }}% ({{ phase.completed }}/{{ phase.modules }})</span>
+</div>
+<div style="opacity:0.85;margin:6px 0 8px 0;font-size:12px;">{{ phase.description }}</div>
+<ul style="margin:0;padding-left:18px;font-size:12px;">
+{% for m in phase.module_list %}
+<li style="margin:2px 0;">{% if m.done %}DONE{% else %}TODO{% endif %} {{ m.title }}</li>
+{% endfor %}
+</ul>
+</div>
+{% endfor %}
+{% else %}
+<div style="color:#f87171;padding:10px;">Roadmap unavailable.</div>
+{% if roadmap_error %}
+<pre style="white-space:pre-wrap;opacity:0.9;margin-top:10px;padding:10px;background:rgba(248,113,113,0.1);border-radius:8px;">{{ roadmap_error }}</pre>
+{% endif %}
+{% endif %}
+</div>
+<!-- ========== END FORCE ROADMAP ========== -->
+
 
 <!-- Background Video -->
 <div id="videoContainer" class="video-container">
