@@ -50,7 +50,7 @@ import pytz
 import traceback
 from prop_firm_registry import PropFirmRegistry
 from roadmap_state import phase_progress_snapshot, ROADMAP
-from roadmap.roadmap_loader import get_homepage_roadmap_data, get_phase_progress, get_overall_progress
+from roadmap.roadmap_loader import get_homepage_roadmap_data, get_phase_progress, get_overall_progress, build_v3_snapshot, load_v3_yaml, ROADMAP_V3_PATH
 
 try:
     from full_automation_webhook_handlers import register_automation_routes
@@ -1833,27 +1833,34 @@ def homepage():
     video_file = get_random_video('homepage')
     
     # Use V3 roadmap from unified_roadmap_v3.yaml (SINGLE SOURCE OF TRUTH)
+    # Note: build_v3_snapshot, load_v3_yaml, ROADMAP_V3_PATH imported at top of file
     roadmap_v3 = None
     roadmap_error = None
     
     try:
-        from roadmap.roadmap_loader import get_homepage_roadmap_data, ROADMAP_V3_PATH
-        
         # Log the exact path being used
         logger.info(f"[HOMEPAGE_V3] Loading from path: {ROADMAP_V3_PATH}")
         logger.info(f"[HOMEPAGE_V3] Path exists: {ROADMAP_V3_PATH.exists()}")
         
-        roadmap_v3 = get_homepage_roadmap_data()
+        # Use build_v3_snapshot for comprehensive error capture
+        snapshot, error_str, resolved_path, exists, yaml_importable = build_v3_snapshot()
         
-        logger.info(f"[HOMEPAGE_V3] Loaded: version={roadmap_v3.get('version')}, phases={len(roadmap_v3.get('phases', []))}, is_fallback={roadmap_v3.get('_is_fallback', False)}")
+        logger.info(f"[ROADMAP_V3] loaded={snapshot is not None} phases={len(snapshot.get('phases', [])) if snapshot else 0} path={resolved_path}")
         
-        if roadmap_v3.get('_is_fallback'):
-            roadmap_error = f"Fallback active. Path: {ROADMAP_V3_PATH}. Error: {roadmap_v3.get('_error', 'Unknown')}"
-            logger.warning(f"[HOMEPAGE_V3] Using fallback: {roadmap_error}")
+        if snapshot:
+            roadmap_v3 = snapshot
+            logger.info(f"[HOMEPAGE_V3] Loaded: version={roadmap_v3.get('version')}, phases={len(roadmap_v3.get('phases', []))}")
+        else:
+            roadmap_error = error_str or "Unknown error loading roadmap"
+            logger.warning(f"[HOMEPAGE_V3] Failed to load: {roadmap_error}")
+            # Use fallback data from get_homepage_roadmap_data
+            roadmap_v3 = get_homepage_roadmap_data()
         
     except Exception as e:
         roadmap_error = f"{type(e).__name__}: {e}\nTraceback: {traceback.format_exc()}"
         logger.exception(f"[ROADMAP_V3_LOAD_ERROR] path=roadmap/unified_roadmap_v3.yaml")
+        # Use fallback
+        roadmap_v3 = get_homepage_roadmap_data()
     
     # Fetch Databento stats using helper function
     databento_stats, stats_error = get_databento_stats()
