@@ -99,28 +99,32 @@ _add_phase(
     },
 )
 
-# Level 0.5 — Databento Historical Data (Phase 1A)
+# Level 0.5 — Databento Foundation (Phase 1A) ✅ COMPLETE
 _add_phase(
     "0.5",
     level=0,
-    name="Databento Foundation",
-    description="Historical market data ingestion pipeline for 15 years of MNQ 1-minute bars.",
+    name="Databento Foundation (Phase 1A)",
+    description="Market data source of truth: Databento (OHLCV-1m). TradingView: charting only. Dataset: 2019-05-05 → 2025-12-22 (~2.34M bars).",
     modules={
         "databento_download": {
             "done": True,
-            "desc": "Downloaded 15-year MNQ OHLCV-1m dataset from Databento.",
+            "desc": "Databento dataset downloaded (MNQ OHLCV-1m)",
         },
         "schema_migration": {
             "done": True,
-            "desc": "Created market_bars_ohlcv_1m and data_ingest_runs tables.",
+            "desc": "DB schema migrated (market_bars_ohlcv_1m + data_ingest_runs)",
         },
-        "ingestion_pipeline": {
-            "done": False,  # Set to True after full ingestion
-            "desc": "Ingested full 15-year dataset (1M+ bars) with idempotency.",
+        "ingestion_complete": {
+            "done": True,
+            "desc": "Full ingestion complete (2019–2025) — 2.34M bars",
         },
         "stats_endpoint": {
             "done": True,
-            "desc": "Deployed /api/market-data/mnq/ohlcv-1m/stats endpoint.",
+            "desc": "Stats endpoint live (/api/market-data/mnq/ohlcv-1m/stats)",
+        },
+        "backfill_optional": {
+            "done": False,
+            "desc": "Optional backfill: 2010–2019 (run additional Databento job)",
         },
     },
 )

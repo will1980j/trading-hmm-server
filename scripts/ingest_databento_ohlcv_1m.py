@@ -43,6 +43,44 @@ class DatabentoIngester:
         self.conn = None
         self.cursor = None
     
+    def cleanup_stale_runs(self):
+        """Mark stale 'running' ingestion runs as failed (older than 2 hours)"""
+        if self.verbose:
+            print("🧹 Cleaning up stale ingestion runs...")
+        
+        try:
+            # Use separate connection for cleanup (won't be affected by failed transactions)
+            cleanup_conn = psycopg2.connect(self.database_url)
+            cleanup_cursor = cleanup_conn.cursor()
+            
+            # Mark runs older than 2 hours as failed
+            cleanup_cursor.execute("""
+                UPDATE data_ingest_runs
+                SET status = 'failed',
+                    error = 'stale run (auto-marked failed)',
+                    finished_at = now()
+                WHERE status = 'running'
+                  AND started_at < now() - interval '2 hours'
+                RETURNING id, started_at
+            """)
+            
+            stale_runs = cleanup_cursor.fetchall()
+            cleanup_conn.commit()
+            
+            if stale_runs:
+                print(f"   ⚠️  Marked {len(stale_runs)} stale runs as failed:")
+                for run_id, started_at in stale_runs:
+                    print(f"      Run {run_id} (started {started_at})")
+            elif self.verbose:
+                print(f"   ✅ No stale runs found")
+            
+            cleanup_cursor.close()
+            cleanup_conn.close()
+            
+        except Exception as e:
+            print(f"   ⚠️  Cleanup warning: {e}")
+            # Don't fail ingestion if cleanup fails
+    
     def connect(self):
         """Establish database connection"""
         if self.verbose:
@@ -258,20 +296,32 @@ class DatabentoIngester:
     
     def update_ingest_run(self, run_id, status, row_count=0, inserted=0, updated=0, 
                          min_ts=None, max_ts=None, error=None):
-        """Update ingestion run record"""
-        self.cursor.execute("""
-            UPDATE data_ingest_runs
-            SET finished_at = now(),
-                status = %s,
-                row_count = %s,
-                inserted_count = %s,
-                updated_count = %s,
-                min_ts = %s,
-                max_ts = %s,
-                error = %s
-            WHERE id = %s
-        """, (status, row_count, inserted, updated, min_ts, max_ts, error, run_id))
-        self.conn.commit()
+        """Update ingestion run record using separate connection (safe for error handling)"""
+        try:
+            # Use separate connection to avoid being blocked by failed transaction
+            update_conn = psycopg2.connect(self.database_url)
+            update_cursor = update_conn.cursor()
+            
+            update_cursor.execute("""
+                UPDATE data_ingest_runs
+                SET finished_at = now(),
+                    status = %s,
+                    row_count = %s,
+                    inserted_count = %s,
+                    updated_count = %s,
+                    min_ts = %s,
+                    max_ts = %s,
+                    error = %s
+                WHERE id = %s
+            """, (status, row_count, inserted, updated, min_ts, max_ts, error, run_id))
+            
+            update_conn.commit()
+            update_cursor.close()
+            update_conn.close()
+            
+        except Exception as e:
+            print(f"   ⚠️  Failed to update ingestion run {run_id}: {e}")
+            # Don't re-raise - we want to report the original error, not this one
     
     def upsert_bars(self, df, run_id):
         """Upsert bars into database with idempotency"""
@@ -438,17 +488,16 @@ class DatabentoIngester:
             if self.conn:
                 try:
                     self.conn.rollback()
-                except:
-                    pass
-            
-            # Update run record with error (in new transaction)
-            if 'run_id' in locals():
-                try:
-                    self.update_ingest_run(run_id, status='failed', error=str(e))
-                except:
-                    # If update fails, just log it
                     if self.verbose:
-                        print(f"   Could not update ingest run record")
+                        print(f"   🔄 Transaction rolled back")
+                except Exception as rollback_error:
+                    if self.verbose:
+                        print(f"   ⚠️  Rollback warning: {rollback_error}")
+            
+            # Update run record with error (using separate connection)
+            if 'run_id' in locals():
+                self.update_ingest_run(run_id, status='failed', error=str(e))
+            
             raise
         
         finally:
@@ -537,6 +586,11 @@ Examples:
     for f in file_list:
         print(f"   - {os.path.basename(f)}")
     print(f"{'='*80}\n")
+    
+    # Clean up stale runs before starting (only once, not per file)
+    if not args.dry_run:
+        cleanup_ingester = DatabentoIngester(database_url, verbose=args.verbose)
+        cleanup_ingester.cleanup_stale_runs()
     
     # Process each file
     success_count = 0

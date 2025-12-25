@@ -1798,7 +1798,45 @@ def homepage():
         roadmap[phase_id]["module_list"] = module_lists.get(phase_id, [])
     
     roadmap_sorted = sorted(roadmap.items(), key=lambda item: item[1].get("level", 999))
-    return render_template('homepage_video_background.html', video_file=video_file, roadmap=roadmap_sorted)
+    
+    # Fetch Databento stats for Phase 1A display
+    databento_stats = None
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as row_count,
+                MIN(ts) as min_ts,
+                MAX(ts) as max_ts,
+                (SELECT close FROM market_bars_ohlcv_1m 
+                 WHERE symbol = 'CME_MINI:MNQ1!' 
+                 ORDER BY ts DESC LIMIT 1) as latest_close,
+                (SELECT ts FROM market_bars_ohlcv_1m 
+                 WHERE symbol = 'CME_MINI:MNQ1!' 
+                 ORDER BY ts DESC LIMIT 1) as latest_ts
+            FROM market_bars_ohlcv_1m
+            WHERE symbol = 'CME_MINI:MNQ1!'
+        """)
+        result = cursor.fetchone()
+        if result and result[0] > 0:
+            databento_stats = {
+                'row_count': result[0],
+                'min_ts': result[1].strftime('%Y-%m-%d') if result[1] else None,
+                'max_ts': result[2].strftime('%Y-%m-%d') if result[2] else None,
+                'latest_close': float(result[3]) if result[3] else None,
+                'latest_ts': result[4].strftime('%Y-%m-%d %H:%M') if result[4] else None
+            }
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"Failed to fetch Databento stats for homepage: {e}")
+        # Don't break the page if stats fail
+    
+    return render_template('homepage_video_background.html', 
+                         video_file=video_file, 
+                         roadmap=roadmap_sorted,
+                         databento_stats=databento_stats)
 
 
 @app.route('/main-dashboard')
