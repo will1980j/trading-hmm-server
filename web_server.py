@@ -1774,18 +1774,30 @@ def homepage():
     """Professional homepage - main landing page after login with nature videos"""
     video_file = get_random_video('homepage')
     
-    # Load V3 roadmap data with caching
+    # Load V3 roadmap data with defensive error handling
+    phases = []
+    overall = {"phases_total": 0, "phases_done": 0, "phase_percent": 0, 
+               "modules_total": 0, "modules_done": 0, "module_percent": 0,
+               "active_phase": None}
+    feature_flags = {}
+    roadmap_error = None
+    
     try:
         roadmap_data = get_homepage_roadmap_data()
         phases = roadmap_data.get("phases", [])
-        overall = roadmap_data.get("overall", {})
+        overall = roadmap_data.get("overall", overall)
         feature_flags = roadmap_data.get("feature_flags", {})
+        
+        # Check for fallback/error state
+        if roadmap_data.get("_is_fallback"):
+            roadmap_error = roadmap_data.get("_error", "Unknown error loading roadmap")
+            logger.warning(f"[HOMEPAGE] Roadmap loaded with fallback: {roadmap_error}")
+        else:
+            logger.info(f"[HOMEPAGE] Roadmap loaded: {len(phases)} phases, {overall.get('module_percent', 0)}% complete")
+            
     except Exception as e:
-        logger.error(f"Failed to load V3 roadmap: {e}")
-        # Fallback to empty data
-        phases = []
-        overall = {"phases_total": 0, "phases_done": 0, "phase_percent": 0}
-        feature_flags = {}
+        roadmap_error = f"{type(e).__name__}: {e}"
+        logger.error(f"[HOMEPAGE] Failed to load V3 roadmap: {roadmap_error}", exc_info=True)
     
     # Fetch Databento stats directly from database
     databento_stats = None
@@ -1818,14 +1830,15 @@ def homepage():
         cursor.close()
         conn.close()
     except Exception as e:
-        logger.warning(f"Failed to fetch Databento stats for homepage: {e}")
+        logger.warning(f"[HOMEPAGE] Failed to fetch Databento stats: {e}")
     
     return render_template('homepage_video_background.html', 
                          video_file=video_file, 
                          roadmap_phases=phases,
                          roadmap_overall=overall,
                          feature_flags=feature_flags,
-                         databento_stats=databento_stats)
+                         databento_stats=databento_stats,
+                         roadmap_error=roadmap_error)
 
 
 @app.route('/main-dashboard')
@@ -6736,6 +6749,48 @@ def api_roadmap():
         
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/roadmap-v3-diagnostic')
+def api_roadmap_v3_diagnostic():
+    """Diagnostic endpoint for V3 roadmap loading - helps debug production issues"""
+    from roadmap.roadmap_loader import (
+        load_roadmap_v3, get_homepage_roadmap_data, get_last_error,
+        ROADMAP_V3_PATH, _roadmap_cache, _cache_mtime
+    )
+    
+    result = {
+        "yaml_path": str(ROADMAP_V3_PATH),
+        "yaml_exists": ROADMAP_V3_PATH.exists(),
+        "cache_populated": _roadmap_cache is not None,
+        "cache_mtime": _cache_mtime,
+        "last_error": get_last_error()
+    }
+    
+    try:
+        # Try loading the roadmap
+        roadmap = load_roadmap_v3(force_reload=True)
+        result["load_success"] = True
+        result["version"] = roadmap.get("roadmap_version", "unknown")
+        result["phases_count"] = len(roadmap.get("phases", []))
+        result["is_fallback"] = roadmap.get("_fallback", False)
+        
+        # Try getting homepage data
+        homepage_data = get_homepage_roadmap_data()
+        result["homepage_data_success"] = True
+        result["homepage_phases_count"] = len(homepage_data.get("phases", []))
+        result["homepage_overall"] = homepage_data.get("overall", {})
+        result["homepage_is_fallback"] = homepage_data.get("_is_fallback", False)
+        result["homepage_error"] = homepage_data.get("_error")
+        
+    except Exception as e:
+        import traceback
+        result["load_success"] = False
+        result["exception"] = f"{type(e).__name__}: {e}"
+        result["traceback"] = traceback.format_exc()
+    
+    return jsonify(result)
+
 
 @app.route('/api/test')
 def test_endpoint():
