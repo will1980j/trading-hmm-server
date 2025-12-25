@@ -73,301 +73,139 @@ def _add_phase(
     )
 
 
-# Level 0 — Foundations
+# Level 0 — Databento Foundation (Phase 0–1A) ✅ 4/5 COMPLETE
 _add_phase(
     "0",
     level=0,
-    name="Foundations",
-    description="Core platform infrastructure, methodology and strict-mode pipeline.",
-    modules={
-        "architecture_foundation": {
-            "done": True,
-            "desc": "Core system architecture and deployment to Railway.",
-        },
-        "trading_methodology": {
-            "done": True,
-            "desc": "NQ strategy definition and constraints.",
-        },
-        "strict_mode_tooling": {
-            "done": True,
-            "desc": "Kiro + strict patch workflow, repo guardrails.",
-        },
-        "databento_foundation": {
-            "done": False,  # Set to True after full ingestion
-            "desc": "15-year historical MNQ OHLCV-1m data ingestion from Databento.",
-        },
-    },
-)
-
-# Level 0.5 — Databento Foundation (Phase 1A) ✅ COMPLETE
-_add_phase(
-    "0.5",
-    level=0,
-    name="Databento Foundation (Phase 1A)",
-    description="Market data source of truth: Databento (OHLCV-1m). TradingView: charting only. Dataset: 2019-05-05 → 2025-12-22 (~2.34M bars).",
+    name="Databento Foundation (Phase 0–1A)",
+    description="Source of truth: Databento OHLCV-1m. TradingView: charting only.",
     modules={
         "databento_download": {
             "done": True,
-            "desc": "Databento dataset downloaded (MNQ OHLCV-1m)",
+            "desc": "✅ Databento dataset downloaded (MNQ OHLCV-1m)",
         },
         "schema_migration": {
             "done": True,
-            "desc": "DB schema migrated (market_bars_ohlcv_1m + data_ingest_runs)",
+            "desc": "✅ DB schema migrated (market_bars_ohlcv_1m + data_ingest_runs)",
         },
         "ingestion_complete": {
             "done": True,
-            "desc": "Full ingestion complete (2019–2025) — 2.34M bars",
+            "desc": "✅ Ingestion complete (2019–2025) — 2.34M bars (row_count 2338262)",
         },
         "stats_endpoint": {
             "done": True,
-            "desc": "Stats endpoint live (/api/market-data/mnq/ohlcv-1m/stats)",
+            "desc": "✅ Stats endpoint live (/api/market-data/mnq/ohlcv-1m/stats)",
         },
         "backfill_optional": {
             "done": False,
-            "desc": "Optional backfill: 2010–2019 (run additional Databento job)",
+            "desc": "⬜ Optional backfill: 2010–2019",
         },
     },
 )
 
-# Level 1 — Core Platform & Data Collection
+# Level 1 — Indicator Parity (Phase 1B) ⬜ 0/3 PLANNED
 _add_phase(
     "1",
     level=1,
-    name="Core Platform & Data Collection",
-    description="Automated data collection engine + professional platform foundation.",
+    name="Indicator Parity (Phase 1B)",
+    description="Python signal engine reproduces Pine outputs on Databento 1m bars.",
     modules={
-        "h1_1_homepage_command_center": {"done": True, "desc": "H1.1 Homepage Command Center ⭐ H1"},
-        "h1_1_automated_signals_engine": {"done": True, "desc": "H1.1 Automated Signals Engine ⭐ H1 (DATA COLLECTION AUTOMATION)"},
-        "h1_1_automated_signals_dashboard": {"done": True, "desc": "H1.1 Automated Signals Dashboard ⭐ H1"},
-        "h1_1_realtime_event_processor": {"done": True, "desc": "H1.1 Real-Time Event Processor ⭐ H1"},
-        "h1_1_automated_signals_storage": {"done": True, "desc": "H1.1 Automated Signals Storage ⭐ H1"},
-        "h1_1_webhook_pipeline": {"done": True, "desc": "H1.1 Webhook Pipeline ⭐ H1"},
-        "h1_1_data_integrity_checker": {"done": True, "desc": "H1.1 Data Integrity Checker ⭐ H1"},
-        "h1_1_hybrid_sync_system": {"done": True, "desc": "H1.1 Hybrid Signal Synchronization System ⭐ H1"},
-        "h1_2_main_dashboard": {"done": True, "desc": "H1.2 Main Dashboard ⭐ H1"},
-        "h1_3_time_analysis": {"done": True, "desc": "H1.3 Time Analysis ⭐ H1"},
-        "h1_4_automated_signals_dashboard_redesign": {"done": False, "desc": "H1.4 Dashboard Redesign ⭐ H1 (LOW - Cosmetic)"},
-        "h1_5_ml_intelligence_hub": {"done": False, "desc": "H1.5 ML Intelligence Hub ⭐ H1 (HIGH - Months 10-12)"},
-        "h1_6_financial_summary": {"done": False, "desc": "H1.6 Financial Summary ⭐ H1 (CRITICAL - Months 13-15)"},
-        "h1_7_reporting_center": {"done": False, "desc": "H1.7 Reporting Center ⭐ H1 (HIGH - Months 15-17)"},
+        "python_signal_engine": {
+            "done": False,
+            "desc": "⬜ Python signal engine reproduces Pine outputs on 1m bars",
+        },
+        "bar_by_bar_parity": {
+            "done": False,
+            "desc": "⬜ Bar-by-bar parity tests pass",
+        },
+        "parity_dashboard": {
+            "done": False,
+            "desc": "⬜ Parity report visible on dashboard/homepage",
+        },
     },
 )
 
-# Level 2 — Automated Signals Engine (80% Complete - Built in H1.1)
+# Level 2 — Strategy Discovery (Phase 2) ⬜ 0/2 PLANNED
 _add_phase(
     "2",
     level=2,
-    name="Automated Signals Engine",
-    description="Signal ingestion, lifecycle, MFE and automation-ready state. (MOSTLY COMPLETE)",
+    name="Strategy Discovery (Phase 2)",
+    description="Feature store + labeling (MFE/MAE, sessions, regimes) + candidate strategy selection.",
     modules={
-        "h1_7_signal_noise_filter": {"done": True, "desc": "H1.7 Signal Noise Filter ✅ (Lifecycle enforcement)"},
-        "h1_8_webhook_ingestion": {"done": True, "desc": "H1.8 Webhook Ingestion ✅ (Built in H1.1)"},
-        "h1_9_timestamp_normalization": {"done": True, "desc": "H1.9 Timestamp Normalization ✅ (Built in H1.1)"},
-        "h2_6_duplicate_filtering": {"done": True, "desc": "H2.6 Duplicate Filtering ✅ (Lifecycle enforcement)"},
-        "h2_7_session_tagging": {"done": True, "desc": "H2.7 Session Tagging ✅ (Built in H1.1)"},
-        "h1_10_validation_rules": {"done": True, "desc": "H1.10 Validation Rules ✅ (Lifecycle enforcement)"},
-        "h1_11_outlier_detection": {"done": True, "desc": "H1.11 Outlier Detection ✅ (Data validation)"},
-        "h2_8_guardrails": {"done": True, "desc": "H2.8 Guardrails ✅ (Strict mode)"},
-        "h2_9_missing_field_repair": {"done": True, "desc": "H2.9 Missing-Field Repair ✅ (Hybrid Sync)"},
-        "h1_12_signal_lifecycle_model": {"done": True, "desc": "H1.12 Signal Lifecycle Model ✅ (Built in H1.1)"},
-        "h1_13_mfe_engine_dual": {"done": True, "desc": "H1.13 MFE Engine (Dual) ✅ (be_mfe, no_be_mfe)"},
-        "h1_14_be_logic": {"done": True, "desc": "H1.14 BE Logic ✅ (BE_TRIGGERED events)"},
-        "h1_15_exit_consolidation": {"done": True, "desc": "H1.15 Exit Consolidation ✅ (EXIT_SL, EXIT_BE)"},
-        "h2_10_multi_event_reconciliation": {"done": True, "desc": "H2.10 Multi-Event Reconciliation ✅ (Hybrid Sync)"},
-        "h2_11_data_accumulation_window": {"done": True, "desc": "H2.11 Data Accumulation Window ✅ (Continuous)"},
-        "h2_12_signal_schema_governance": {"done": True, "desc": "H2.12 Signal Schema Governance ✅ (Database schema)"},
-        "h3_3_data_integrity_watchdog": {"done": True, "desc": "H3.3 Data Integrity Watchdog ✅ (Hybrid Sync)"},
-        "h3_4_signal_replay_engine": {"done": False, "desc": "H3.4 Signal Replay Engine ⭐ H3 (Deferred)"},
+        "feature_store": {
+            "done": False,
+            "desc": "⬜ Feature store + labeling (MFE/MAE, sessions, regimes)",
+        },
+        "candidate_strategy_selection": {
+            "done": False,
+            "desc": "⬜ Candidate strategy selection pipeline",
+        },
     },
 )
 
-_add_phase(
-    "2.5",
-    level=2,
-    name="Prop Guardrails & Evaluation",
-    description="Evaluation rules, consistency windows and prop-firm readiness. (CRITICAL - Months 10-12)",
-    modules={
-        "h1_16_drawdown_limits": {"done": False, "desc": "H1.16 Drawdown Limits ⭐ H1 (CRITICAL - Month 10)"},
-        "h1_17_daily_loss_limits": {"done": False, "desc": "H1.17 Daily Loss Limits ⭐ H1 (CRITICAL - Month 10)"},
-        "h2_13_consistency_metrics": {"done": False, "desc": "H2.13 Consistency Metrics ⭐ H2 (HIGH - Month 11)"},
-        "h2_14_evaluation_reporting": {"done": False, "desc": "H2.14 Evaluation Reporting ⭐ H2 (HIGH - Month 12)"},
-    },
-)
-
-# Level 3 — Real-Time Data Layer
+# Level 3 — Dashboards (Phase 2–3) ⬜ 0/3 PLANNED
 _add_phase(
     "3",
     level=3,
-    name="Real-Time Data Layer",
-    description="Streaming market data, tick/bar synthesis and session metrics.",
+    name="Dashboards (Phase 2–3)",
+    description="Dashboards re-based on Databento truth layer.",
     modules={
-        "h1_18_realtime_price_stream": {"done": False, "desc": "H1.18 Real-Time Price Stream ⭐ H1"},
-        "h1_19_atr_volatility_model": {"done": False, "desc": "H1.19 ATR/Volatility Model ⭐ H1"},
-        "h1_20_tick_to_bar_converter": {"done": False, "desc": "H1.20 Tick-to-Bar Converter ⭐ H1"},
-        "h2_15_session_heatmaps": {"done": False, "desc": "H2.15 Session Heatmaps ⭐ H2"},
-        "h2_16_regime_classifier": {"done": False, "desc": "H2.16 Regime Classifier ⭐ H2"},
-        "h2_17_bar_aggregation": {"done": False, "desc": "H2.17 Bar Aggregation ⭐ H2"},
-        "h2_18_session_metrics": {"done": False, "desc": "H2.18 Session Metrics ⭐ H2"},
-        "h3_5_tick_data_warehouse": {"done": False, "desc": "H3.5 Tick Data Warehouse ⭐ H3"},
-        "h3_6_market_replay_engine": {"done": False, "desc": "H3.6 Market Replay Engine ⭐ H3"},
-        "h3_7_dom_orderbook_capture": {"done": False, "desc": "H3.7 DOM / Orderbook Capture Layer ⭐ H3"},
-        "h3_8_latency_monitoring": {"done": False, "desc": "H3.8 Latency Monitoring ⭐ H3"},
+        "automated_signals_dashboard_rebase": {
+            "done": False,
+            "desc": "⬜ Automated Signals Dashboard re-based on Databento truth layer",
+        },
+        "trades_mfe_mae_dashboards": {
+            "done": False,
+            "desc": "⬜ Trades / MFE / MAE dashboards re-based on Databento truth layer",
+        },
+        "data_quality_dashboard": {
+            "done": False,
+            "desc": "⬜ Data Quality dashboard updated for Databento pipeline",
+        },
     },
 )
 
-# Level 4 — Execution & Automation Engine
+# Level 4 — Automation & Execution (later) ⬜ 0/3 PLANNED
 _add_phase(
     "4",
     level=4,
-    name="Execution & Automation Engine",
-    description="Multi-account routing, pre-trade checks and auto-execution.",
+    name="Automation & Execution (later)",
+    description="Live bars ingestion (Databento live) + execution router + prop firm scaling.",
     modules={
-        "h1_21_multi_account_router": {"done": False, "desc": "H1.21 Multi-Account Router ⭐ H1"},
-        "h1_22_order_queue": {"done": False, "desc": "H1.22 Order Queue ⭐ H1"},
-        "h1_23_dry_run_mode": {"done": False, "desc": "H1.23 Dry-Run Mode ⭐ H1"},
-        "h1_24_state_reconciliation": {"done": False, "desc": "H1.24 State Reconciliation ⭐ H1"},
-        "h2_19_program_sizing": {"done": False, "desc": "H2.19 Program Sizing ⭐ H2"},
-        "h2_20_risk_engine_integration": {"done": False, "desc": "H2.20 Risk Engine Integration ⭐ H2"},
-        "h2_21_account_state_manager": {"done": False, "desc": "H2.21 Account State Manager ⭐ H2"},
-        "h2_22_position_state_manager": {"done": False, "desc": "H2.22 Position State Manager ⭐ H2"},
-        "h3_9_execution_safety_sandbox": {"done": False, "desc": "H3.9 Execution Safety Sandbox ⭐ H3"},
-        "h3_10_circuit_breakers": {"done": False, "desc": "H3.10 Circuit Breakers ⭐ H3"},
-        "h3_11_execution_decision_engine": {"done": False, "desc": "H3.11 Execution Decision Engine (ML → action logic) ⭐ H3"},
-        "h3_12_pre_trade_checks": {"done": False, "desc": "H3.12 Pre-Trade Checks ⭐ H3"},
-        "h1_25_automated_entry_logic": {"done": False, "desc": "H1.25 Automated Entry Logic ⭐ H1"},
-        "h1_26_automated_exit_logic": {"done": False, "desc": "H1.26 Automated Exit Logic ⭐ H1"},
-        "h1_27_position_sizing_automation": {"done": False, "desc": "H1.27 Position Sizing Automation ⭐ H1"},
-        "h2_23_strategy_signal_compatibility": {"done": False, "desc": "H2.23 Strategy–Signal Compatibility Engine ⭐ H2"},
+        "live_bars_ingestion": {
+            "done": False,
+            "desc": "⬜ Live bars ingestion (Databento live) using same schema",
+        },
+        "execution_router": {
+            "done": False,
+            "desc": "⬜ Execution router + prop firm scaling",
+        },
+        "copy_trading_framework": {
+            "done": False,
+            "desc": "⬜ Copy trading framework",
+        },
     },
 )
 
-# Level 5 — ML Intelligence Layer
+# Level 5 — Legacy / Optional (TradingView Alerts) ✅ 3/3 COMPLETE (DEPRECATED)
 _add_phase(
     "5",
     level=5,
-    name="ML Intelligence",
-    description="Predictive models, feature engineering, regime detection.",
+    name="Legacy / Optional (TradingView Alerts)",
+    description="TradingView alert/webhook ingestion (deprecated for core analytics, kept as optional legacy).",
     modules={
-        "h1_4_ml_intelligence_hub": {"done": False, "desc": "H1.4 ML Intelligence Hub ⭐ H1"},
-        "h1_28_early_stage_strategy_discovery": {"done": False, "desc": "H1.28 Early-Stage Strategy Discovery Engine ⭐ H1"},
-        "h1_29_ml_dataset_builder": {"done": False, "desc": "H1.29 ML Dataset Builder ⭐ H1"},
-        "h1_30_feature_engineering": {"done": False, "desc": "H1.30 Feature Engineering ⭐ H1"},
-        "h1_31_expectancy_model": {"done": False, "desc": "H1.31 Expectancy Model ⭐ H1"},
-        "h1_32_r_multiple_predictor": {"done": False, "desc": "H1.32 R-Multiple Distribution Predictor ⭐ H1"},
-        "h2_24_regime_classifier": {"done": False, "desc": "H2.24 Regime Classifier ⭐ H2"},
-        "h2_25_ml_dashboard": {"done": False, "desc": "H2.25 ML Dashboard (Module 20 baseline) ⭐ H2"},
-        "h3_13_feature_store": {"done": False, "desc": "H3.13 Feature Store ⭐ H3"},
-        "h3_14_model_registry": {"done": False, "desc": "H3.14 Model Registry ⭐ H3"},
-        "h3_15_model_drift_detection": {"done": False, "desc": "H3.15 Model Drift Detection ⭐ H3"},
-    },
-)
-
-# Level 6 — Strategy Research & Analytics
-_add_phase(
-    "6",
-    level=6,
-    name="Strategy Research & Analytics",
-    description="Optimisation, comparison and research tooling.",
-    modules={
-        "h1_33_signal_strategy_attribution": {"done": False, "desc": "H1.33 Signal–Strategy Attribution Engine ⭐ H1"},
-        "h1_34_strategy_optimizer": {"done": False, "desc": "H1.34 Strategy Optimizer (Module 18) ⭐ H1"},
-        "h1_35_strategy_compare": {"done": False, "desc": "H1.35 Strategy Compare (Module 19) ⭐ H1"},
-        "h1_36_expectancy_analysis": {"done": False, "desc": "H1.36 Expectancy Analysis ⭐ H1"},
-        "h2_26_session_analytics": {"done": False, "desc": "H2.26 Session Analytics ⭐ H2"},
-        "h2_27_multi_strategy_portfolio": {"done": False, "desc": "H2.27 Multi-Strategy Portfolio Analysis ⭐ H2"},
-        "h2_28_what_if_scenarios": {"done": False, "desc": "H2.28 What-If Scenarios ⭐ H2"},
-        "h2_29_backtesting_engine": {"done": False, "desc": "H2.29 Backtesting Engine (institutional-grade) ⭐ H2"},
-        "h2_30_strategy_library": {"done": False, "desc": "H2.30 Strategy Library ⭐ H2"},
-        "h2_31_r_multiple_expectation_designer": {"done": False, "desc": "H2.31 R-Multiple Expectation Designer ⭐ H2"},
-        "h3_16_automated_reporting_engine": {"done": False, "desc": "H3.16 Automated Reporting Engine ⭐ H3"},
-        "h3_17_slide_document_generation": {"done": False, "desc": "H3.17 Slide/Document Generation Layer (vendor-agnostic) ⭐ H3"},
-        "h3_18_report_scheduler_delivery": {"done": False, "desc": "H3.18 Report Scheduler & Delivery System ⭐ H3"},
-        "h3_19_narrative_ai_summarization": {"done": False, "desc": "H3.19 Narrative AI Summarization Engine ⭐ H3"},
-    },
-)
-
-# Level 7 — Signal Quality & Integrity
-_add_phase(
-    "7",
-    level=7,
-    name="Signal Quality & Integrity",
-    description="Telemetry, validation, anomaly detection and data hygiene.",
-    modules={
-        "h1_37_signal_integrity_api": {"done": False, "desc": "H1.37 Signal Integrity API ⭐ H1"},
-        "h1_38_telemetry_pipeline": {"done": False, "desc": "H1.38 Telemetry Pipeline (PATCH 7A–7M) ⭐ H1"},
-        "h1_39_validation_checks": {"done": False, "desc": "H1.39 Validation Checks ⭐ H1"},
-        "h2_32_signal_validator": {"done": False, "desc": "H2.32 Signal Validator ⭐ H2"},
-        "h2_33_anomaly_detection": {"done": False, "desc": "H2.33 Anomaly Detection ⭐ H2"},
-        "h2_34_repair_engine": {"done": False, "desc": "H2.34 Repair Engine ⭐ H2"},
-        "h3_20_integrity_dashboard": {"done": False, "desc": "H3.20 Integrity Dashboard ⭐ H3"},
-        "h3_21_statistical_integrity_engine": {"done": False, "desc": "H3.21 Statistical Integrity Engine ⭐ H3"},
-        "h3_22_quality_scoring_engine": {"done": False, "desc": "H3.22 Quality Scoring Engine ⭐ H3"},
-        "h3_23_alerting_engine": {"done": False, "desc": "H3.23 Alerting Engine ⭐ H3"},
-    },
-)
-
-# Level 8 — Prop Portfolio & Compliance
-_add_phase(
-    "8",
-    level=8,
-    name="Prop Portfolio & Compliance",
-    description="Prop account registry, rule tracking and payout governance.",
-    modules={
-        "h1_40_prop_firm_challenge_simulator": {"done": False, "desc": "H1.40 Prop Firm Challenge Simulator ⭐ H1"},
-        "h1_41_drawdown_stress_tester": {"done": False, "desc": "H1.41 Drawdown Stress Tester (Risk-Only Simulator) ⭐ H1"},
-        "h1_42_prop_portfolio_management": {"done": False, "desc": "H1.42 Prop Portfolio Management ⭐ H1"},
-        "h1_43_prop_account_registry": {"done": False, "desc": "H1.43 Prop Account Registry ⭐ H1"},
-        "h2_35_risk_rule_logic": {"done": False, "desc": "H2.35 Risk Rule Logic ⭐ H2"},
-        "h2_36_rule_library": {"done": False, "desc": "H2.36 Rule Library ⭐ H2"},
-        "h2_37_violation_detection": {"done": False, "desc": "H2.37 Violation Detection ⭐ H2"},
-        "h2_38_account_breach_detection": {"done": False, "desc": "H2.38 Account Breach Detection ⭐ H2"},
-        "h2_39_payout_schedule": {"done": False, "desc": "H2.39 Payout Schedule ⭐ H2"},
-        "h2_40_programme_sizing": {"done": False, "desc": "H2.40 Programme Sizing ⭐ H2"},
-        "h3_24_payout_engine": {"done": False, "desc": "H3.24 Payout Engine ⭐ H3"},
-        "h3_25_compliance_dashboard": {"done": False, "desc": "H3.25 Compliance Dashboard ⭐ H3"},
-        "h3_26_scaling_ladder": {"done": False, "desc": "H3.26 Scaling Ladder ⭐ H3"},
-        "h3_27_exposure_monitoring": {"done": False, "desc": "H3.27 Exposure Monitoring ⭐ H3"},
-    },
-)
-
-# Level 9 — Infrastructure & Scaling
-_add_phase(
-    "9",
-    level=9,
-    name="Infrastructure & Scaling",
-    description="Resilience, scaling, monitoring and deployment automation.",
-    modules={
-        "h2_41_worker_scaling": {"done": False, "desc": "H2.41 Worker Scaling ⭐ H2"},
-        "h2_42_db_scaling": {"done": False, "desc": "H2.42 DB Scaling ⭐ H2"},
-        "h2_43_multi_region_support": {"done": False, "desc": "H2.43 Multi-Region Support ⭐ H2"},
-        "h2_44_load_balancing": {"done": False, "desc": "H2.44 Load Balancing ⭐ H2"},
-        "h2_45_caching_layer": {"done": False, "desc": "H2.45 Caching Layer ⭐ H2"},
-        "h2_46_performance_tuning": {"done": False, "desc": "H2.46 Performance Tuning ⭐ H2"},
-        "h3_28_observability_stack": {"done": False, "desc": "H3.28 Observability Stack ⭐ H3"},
-        "h3_29_observability_layer": {"done": False, "desc": "H3.29 Observability Layer (metrics/logs/traces) ⭐ H3"},
-        "h3_30_distributed_worker_queue": {"done": False, "desc": "H3.30 Distributed Worker Queue ⭐ H3"},
-        "h3_31_disaster_recovery": {"done": False, "desc": "H3.31 Disaster Recovery ⭐ H3"},
-    },
-)
-
-# Level 10 — Autonomous Trader Engine
-_add_phase(
-    "10",
-    level=10,
-    name="Autonomous Trader Engine",
-    description="Self-optimising AI trader, including AI Business Advisor.",
-    modules={
-        "h2_47_automated_challenge_planner": {"done": False, "desc": "H2.47 Automated Challenge Execution Planner ⭐ H2"},
-        "h2_48_strategy_selector": {"done": False, "desc": "H2.48 Strategy Selector ⭐ H2"},
-        "h2_49_autonomous_executor": {"done": False, "desc": "H2.49 Autonomous Executor ⭐ H2"},
-        "h2_50_auto_risk_manager": {"done": False, "desc": "H2.50 Auto Risk Manager ⭐ H2"},
-        "h2_51_ai_business_advisor": {"done": False, "desc": "H2.51 AI Business Advisor ⭐ H2"},
-        "h2_52_auto_tilt_detection": {"done": False, "desc": "H2.52 Auto Tilt Detection ⭐ H2"},
-        "h2_53_regime_aware_execution": {"done": False, "desc": "H2.53 Regime-Aware Execution ⭐ H2"},
-        "h2_54_auto_scale_up_down": {"done": False, "desc": "H2.54 Auto Scale Up/Down ⭐ H2"},
-        "h3_32_safety_aware_strategy_selector": {"done": False, "desc": "H3.32 Safety-Aware Strategy Selector ⭐ H3"},
-        "h3_33_autonomous_execution_simulator": {"done": False, "desc": "H3.33 Autonomous Execution Simulator (shadow mode) ⭐ H3"},
-        "h3_34_fund_automation_bridge": {"done": False, "desc": "H3.34 Fund Automation Bridge ⭐ H3"},
+        "tradingview_webhook_ingestion": {
+            "done": True,
+            "desc": "✅ TradingView webhook ingestion (legacy - optional)",
+        },
+        "hybrid_sync_system": {
+            "done": True,
+            "desc": "✅ Hybrid Signal Synchronization System (legacy - optional)",
+        },
+        "automated_signals_dashboard_legacy": {
+            "done": True,
+            "desc": "✅ Automated Signals Dashboard (legacy TradingView alerts)",
+        },
     },
 )
 

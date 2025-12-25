@@ -71,8 +71,8 @@
 {% endfor %}
 </div>
 
-{# Show Databento stats for Phase 0.5 #}
-{% if phase_id == '0.5' and databento_stats %}
+{# Show Databento stats for Phase 0 #}
+{% if phase_id == '0' and databento_stats %}
 <div class="databento-stats-box" style="margin-top: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 0.85rem;">
 <div style="font-weight: 600; margin-bottom: 0.5rem; color: #4ade80;">📊 Live Dataset Stats</div>
 <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.75rem; color: rgba(255,255,255,0.8);">
@@ -81,7 +81,7 @@
 <span>Latest:</span><span style="font-family: 'Courier New', monospace;">{{ databento_stats.latest_ts }} @ ${{ "{:,.2f}".format(databento_stats.latest_close) }}</span>
 </div>
 </div>
-{% elif phase_id == '0.5' and not databento_stats %}
+{% elif phase_id == '0' and not databento_stats %}
 <div class="databento-stats-box" style="margin-top: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 0.85rem; color: rgba(255,255,255,0.6);">
 <div style="font-weight: 600; margin-bottom: 0.5rem;">📊 Dataset Stats</div>
 <div>Stats unavailable (check API endpoint)</div>
