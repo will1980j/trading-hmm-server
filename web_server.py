@@ -17064,6 +17064,77 @@ register_weekly_reports_routes(app)
 logger.info("✅ Weekly reports API routes registered")
 
 
+# ============================================================================
+# DATABENTO MARKET DATA API
+# ============================================================================
+
+@app.route('/api/market-data/mnq/ohlcv-1m/stats', methods=['GET'])
+def get_mnq_ohlcv_stats():
+    """
+    Get statistics for MNQ OHLCV-1M data
+    
+    Returns:
+        JSON with row count, time range, and latest bar info
+    """
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        cursor = conn.cursor()
+        
+        # Get comprehensive stats
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as row_count,
+                MIN(ts) as min_ts,
+                MAX(ts) as max_ts,
+                (SELECT close FROM market_bars_ohlcv_1m 
+                 WHERE symbol = 'CME_MINI:MNQ1!' 
+                 ORDER BY ts DESC LIMIT 1) as latest_close,
+                (SELECT ts FROM market_bars_ohlcv_1m 
+                 WHERE symbol = 'CME_MINI:MNQ1!' 
+                 ORDER BY ts DESC LIMIT 1) as latest_ts
+            FROM market_bars_ohlcv_1m
+            WHERE symbol = 'CME_MINI:MNQ1!'
+        """)
+        
+        result = cursor.fetchone()
+        
+        if result and result[0] > 0:
+            stats = {
+                'row_count': result[0],
+                'min_ts': result[1].isoformat() if result[1] else None,
+                'max_ts': result[2].isoformat() if result[2] else None,
+                'latest_close': float(result[3]) if result[3] else None,
+                'latest_ts': result[4].isoformat() if result[4] else None,
+                'symbol': 'CME_MINI:MNQ1!',
+                'timeframe': '1m',
+                'vendor': 'databento'
+            }
+        else:
+            stats = {
+                'row_count': 0,
+                'min_ts': None,
+                'max_ts': None,
+                'latest_close': None,
+                'latest_ts': None,
+                'symbol': 'CME_MINI:MNQ1!',
+                'timeframe': '1m',
+                'vendor': 'databento',
+                'message': 'No data ingested yet'
+            }
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(stats), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Error fetching MNQ OHLCV stats: {e}")
+        return jsonify({
+            'error': str(e),
+            'message': 'Failed to fetch market data statistics'
+        }), 500
+
+
 if __name__ == '__main__':
     # Start real-time price handler for 1-second TradingView data
     try:
