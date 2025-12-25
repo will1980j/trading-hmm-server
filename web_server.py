@@ -1780,7 +1780,8 @@ def homepage():
     
     try:
         snapshot = phase_progress_snapshot()
-        logger.info(f"[HOMEPAGE] Raw snapshot from phase_progress_snapshot: {list(snapshot.keys())}")
+        logger.info(f"[HOMEPAGE_ROADMAP_DEBUG] phases={len(snapshot)}")
+        logger.info(f"[HOMEPAGE] Raw snapshot keys: {list(snapshot.keys())}")
         
         # Build human-readable module lists (same logic as /api/roadmap)
         for phase_id, pdata in snapshot.items():
@@ -1803,17 +1804,11 @@ def homepage():
                 "module_list": module_list
             }
         
-        logger.info(f"[HOMEPAGE] Roadmap loaded successfully: {len(roadmap_snapshot)} phases, keys={list(roadmap_snapshot.keys())}")
-        
-        # Log first phase details for debugging
-        if roadmap_snapshot:
-            first_key = list(roadmap_snapshot.keys())[0]
-            first_phase = roadmap_snapshot[first_key]
-            logger.info(f"[HOMEPAGE] First phase '{first_key}': name={first_phase.get('name')}, percent={first_phase.get('percent')}")
+        logger.info(f"[HOMEPAGE_ROADMAP_DEBUG] roadmap_snapshot built with {len(roadmap_snapshot)} phases")
         
     except Exception as e:
         roadmap_error = f"{type(e).__name__}: {e}"
-        logger.error(f"[HOMEPAGE] Failed to load roadmap: {roadmap_error}", exc_info=True)
+        logger.error(f"[HOMEPAGE_ROADMAP_DEBUG] FAILED: {roadmap_error}", exc_info=True)
     
     # Fetch Databento stats directly from database
     databento_stats = None
