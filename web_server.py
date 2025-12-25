@@ -1780,6 +1780,7 @@ def homepage():
     
     try:
         snapshot = phase_progress_snapshot()
+        logger.info(f"[HOMEPAGE] Raw snapshot from phase_progress_snapshot: {list(snapshot.keys())}")
         
         # Build human-readable module lists (same logic as /api/roadmap)
         for phase_id, pdata in snapshot.items():
@@ -1802,7 +1803,13 @@ def homepage():
                 "module_list": module_list
             }
         
-        logger.info(f"[HOMEPAGE] Roadmap loaded: {len(roadmap_snapshot)} phases")
+        logger.info(f"[HOMEPAGE] Roadmap loaded successfully: {len(roadmap_snapshot)} phases, keys={list(roadmap_snapshot.keys())}")
+        
+        # Log first phase details for debugging
+        if roadmap_snapshot:
+            first_key = list(roadmap_snapshot.keys())[0]
+            first_phase = roadmap_snapshot[first_key]
+            logger.info(f"[HOMEPAGE] First phase '{first_key}': name={first_phase.get('name')}, percent={first_phase.get('percent')}")
         
     except Exception as e:
         roadmap_error = f"{type(e).__name__}: {e}"
@@ -1836,10 +1843,15 @@ def homepage():
                 'latest_close': float(result[3]) if result[3] else None,
                 'latest_ts': result[4].strftime('%Y-%m-%d %H:%M') if result[4] else None
             }
+            logger.info(f"[HOMEPAGE] Databento stats loaded: {databento_stats['row_count']} bars")
+        else:
+            logger.warning("[HOMEPAGE] Databento query returned no data")
         cursor.close()
         conn.close()
     except Exception as e:
         logger.warning(f"[HOMEPAGE] Failed to fetch Databento stats: {e}")
+    
+    logger.info(f"[HOMEPAGE] Rendering template with: roadmap_snapshot={len(roadmap_snapshot)} phases, databento_stats={'YES' if databento_stats else 'NO'}, roadmap_error={roadmap_error}")
     
     return render_template('homepage_video_background.html', 
                          video_file=video_file, 
