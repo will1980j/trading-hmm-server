@@ -50,6 +50,7 @@ import pytz
 import traceback
 from prop_firm_registry import PropFirmRegistry
 from roadmap_state import phase_progress_snapshot, ROADMAP
+from roadmap.roadmap_loader import get_homepage_roadmap_data, get_phase_progress, get_overall_progress
 
 try:
     from full_automation_webhook_handlers import register_automation_routes
@@ -1772,34 +1773,21 @@ def logout():
 def homepage():
     """Professional homepage - main landing page after login with nature videos"""
     video_file = get_random_video('homepage')
-    snapshot = phase_progress_snapshot()
     
-    # Build human-readable module lists (same logic as /api/roadmap)
-    module_lists = {}
-    for phase_id, pdata in snapshot.items():
-        raw_phase = ROADMAP.get(phase_id)
-        raw_modules = getattr(raw_phase, "modules", {}) or {}
-        cleaned = []
-        for key, status in raw_modules.items():
-            # status may be a ModuleStatus dataclass or a simple bool
-            done = getattr(status, "completed", status)
-            title = key.replace("_", " ").title()
-            cleaned.append({
-                "key": key,
-                "title": title,
-                "done": bool(done)
-            })
-        module_lists[phase_id] = cleaned
+    # Load V3 roadmap data with caching
+    try:
+        roadmap_data = get_homepage_roadmap_data()
+        phases = roadmap_data.get("phases", [])
+        overall = roadmap_data.get("overall", {})
+        feature_flags = roadmap_data.get("feature_flags", {})
+    except Exception as e:
+        logger.error(f"Failed to load V3 roadmap: {e}")
+        # Fallback to empty data
+        phases = []
+        overall = {"phases_total": 0, "phases_done": 0, "phase_percent": 0}
+        feature_flags = {}
     
-    # Combine snapshot with module lists
-    roadmap = {}
-    for phase_id in snapshot:
-        roadmap[phase_id] = dict(snapshot[phase_id])
-        roadmap[phase_id]["module_list"] = module_lists.get(phase_id, [])
-    
-    roadmap_sorted = sorted(roadmap.items(), key=lambda item: item[1].get("level", 999))
-    
-    # Fetch Databento stats for Phase 1A display
+    # Fetch Databento stats directly from database
     databento_stats = None
     try:
         conn = psycopg2.connect(DATABASE_URL)
@@ -1831,11 +1819,12 @@ def homepage():
         conn.close()
     except Exception as e:
         logger.warning(f"Failed to fetch Databento stats for homepage: {e}")
-        # Don't break the page if stats fail
     
     return render_template('homepage_video_background.html', 
                          video_file=video_file, 
-                         roadmap=roadmap_sorted,
+                         roadmap_phases=phases,
+                         roadmap_overall=overall,
+                         feature_flags=feature_flags,
                          databento_stats=databento_stats)
 
 
