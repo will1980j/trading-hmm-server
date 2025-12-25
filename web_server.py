@@ -1774,30 +1774,39 @@ def homepage():
     """Professional homepage - main landing page after login with nature videos"""
     video_file = get_random_video('homepage')
     
-    # Load V3 roadmap data with defensive error handling
-    phases = []
-    overall = {"phases_total": 0, "phases_done": 0, "phase_percent": 0, 
-               "modules_total": 0, "modules_done": 0, "module_percent": 0,
-               "active_phase": None}
-    feature_flags = {}
+    # Use the SAME roadmap data source as /api/roadmap (phase_progress_snapshot)
+    roadmap_snapshot = {}
     roadmap_error = None
     
     try:
-        roadmap_data = get_homepage_roadmap_data()
-        phases = roadmap_data.get("phases", [])
-        overall = roadmap_data.get("overall", overall)
-        feature_flags = roadmap_data.get("feature_flags", {})
+        snapshot = phase_progress_snapshot()
         
-        # Check for fallback/error state
-        if roadmap_data.get("_is_fallback"):
-            roadmap_error = roadmap_data.get("_error", "Unknown error loading roadmap")
-            logger.warning(f"[HOMEPAGE] Roadmap loaded with fallback: {roadmap_error}")
-        else:
-            logger.info(f"[HOMEPAGE] Roadmap loaded: {len(phases)} phases, {overall.get('module_percent', 0)}% complete")
+        # Build human-readable module lists (same logic as /api/roadmap)
+        for phase_id, pdata in snapshot.items():
+            raw_phase = ROADMAP.get(phase_id)
+            raw_modules = getattr(raw_phase, "modules", {}) or {}
+            module_list = []
+            for key, status in raw_modules.items():
+                done = getattr(status, "completed", status)
+                title = key.replace("_", " ").title()
+                desc = getattr(status, "description", "") or ""
+                module_list.append({
+                    "key": key,
+                    "title": title,
+                    "done": bool(done),
+                    "description": desc
+                })
             
+            roadmap_snapshot[phase_id] = {
+                **pdata,
+                "module_list": module_list
+            }
+        
+        logger.info(f"[HOMEPAGE] Roadmap loaded: {len(roadmap_snapshot)} phases")
+        
     except Exception as e:
         roadmap_error = f"{type(e).__name__}: {e}"
-        logger.error(f"[HOMEPAGE] Failed to load V3 roadmap: {roadmap_error}", exc_info=True)
+        logger.error(f"[HOMEPAGE] Failed to load roadmap: {roadmap_error}", exc_info=True)
     
     # Fetch Databento stats directly from database
     databento_stats = None
@@ -1834,9 +1843,7 @@ def homepage():
     
     return render_template('homepage_video_background.html', 
                          video_file=video_file, 
-                         roadmap_phases=phases,
-                         roadmap_overall=overall,
-                         feature_flags=feature_flags,
+                         roadmap_snapshot=roadmap_snapshot,
                          databento_stats=databento_stats,
                          roadmap_error=roadmap_error)
 
