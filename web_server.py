@@ -1774,41 +1774,23 @@ def homepage():
     """Professional homepage - main landing page after login with nature videos"""
     video_file = get_random_video('homepage')
     
-    # Use the SAME roadmap data source as /api/roadmap (phase_progress_snapshot)
-    roadmap_snapshot = {}
+    # Use V3 roadmap from unified_roadmap_v3.yaml (SINGLE SOURCE OF TRUTH)
+    roadmap_v3 = None
     roadmap_error = None
     
     try:
-        snapshot = phase_progress_snapshot()
-        logger.info(f"[HOMEPAGE_ROADMAP_DEBUG] phases={len(snapshot)}")
-        logger.info(f"[HOMEPAGE] Raw snapshot keys: {list(snapshot.keys())}")
+        from roadmap.roadmap_loader import get_homepage_roadmap_data
+        roadmap_v3 = get_homepage_roadmap_data()
         
-        # Build human-readable module lists (same logic as /api/roadmap)
-        for phase_id, pdata in snapshot.items():
-            raw_phase = ROADMAP.get(phase_id)
-            raw_modules = getattr(raw_phase, "modules", {}) or {}
-            module_list = []
-            for key, status in raw_modules.items():
-                done = getattr(status, "completed", status)
-                title = key.replace("_", " ").title()
-                desc = getattr(status, "description", "") or ""
-                module_list.append({
-                    "key": key,
-                    "title": title,
-                    "done": bool(done),
-                    "description": desc
-                })
-            
-            roadmap_snapshot[phase_id] = {
-                **pdata,
-                "module_list": module_list
-            }
+        logger.info(f"[HOMEPAGE_V3] Loaded: version={roadmap_v3.get('version')}, phases={len(roadmap_v3.get('phases', []))}, is_fallback={roadmap_v3.get('_is_fallback', False)}")
         
-        logger.info(f"[HOMEPAGE_ROADMAP_DEBUG] roadmap_snapshot built with {len(roadmap_snapshot)} phases")
+        if roadmap_v3.get('_is_fallback'):
+            roadmap_error = roadmap_v3.get('_error', 'Unknown fallback reason')
+            logger.warning(f"[HOMEPAGE_V3] Using fallback: {roadmap_error}")
         
     except Exception as e:
         roadmap_error = f"{type(e).__name__}: {e}"
-        logger.error(f"[HOMEPAGE_ROADMAP_DEBUG] FAILED: {roadmap_error}", exc_info=True)
+        logger.error(f"[HOMEPAGE_V3] FAILED: {roadmap_error}", exc_info=True)
     
     # Fetch Databento stats directly from database
     databento_stats = None
@@ -1846,11 +1828,11 @@ def homepage():
     except Exception as e:
         logger.warning(f"[HOMEPAGE] Failed to fetch Databento stats: {e}")
     
-    logger.info(f"[HOMEPAGE] Rendering template with: roadmap_snapshot={len(roadmap_snapshot)} phases, databento_stats={'YES' if databento_stats else 'NO'}, roadmap_error={roadmap_error}")
+    logger.info(f"[HOMEPAGE] Rendering with: roadmap_v3={roadmap_v3.get('version') if roadmap_v3 else 'NONE'}, phases={len(roadmap_v3.get('phases', [])) if roadmap_v3 else 0}, databento={'YES' if databento_stats else 'NO'}")
     
     return render_template('homepage_video_background.html', 
                          video_file=video_file, 
-                         roadmap_snapshot=roadmap_snapshot,
+                         roadmap_v3=roadmap_v3,
                          databento_stats=databento_stats,
                          roadmap_error=roadmap_error)
 
@@ -6731,37 +6713,22 @@ def api_health_check():
 
 @app.route('/api/roadmap', methods=['GET'])
 def api_roadmap():
-    """Get roadmap data with human-readable module lists"""
+    """Get roadmap data from unified_roadmap_v3.yaml (V3 ONLY)"""
     try:
-        snapshot = phase_progress_snapshot()
+        from roadmap.roadmap_loader import get_homepage_roadmap_data
         
-        # Build human-readable module lists
-        module_lists = {}
-        for phase_id, pdata in snapshot.items():
-            raw_phase = ROADMAP.get(phase_id)
-            raw_modules = getattr(raw_phase, "modules", {}) or {}
-            cleaned = []
-            for key, status in raw_modules.items():
-                # status may be a ModuleStatus dataclass or a simple bool
-                done = getattr(status, "completed", status)
-                # Convert internal key: "signal_ingestion" -> "Signal Ingestion"
-                title = key.replace("_", " ").title()
-                cleaned.append({
-                    "key": key,
-                    "title": title,
-                    "done": bool(done)
-                })
-            module_lists[phase_id] = cleaned
+        roadmap_v3 = get_homepage_roadmap_data()
         
-        # Combine snapshot with module lists
-        combined = {}
-        for phase_id in snapshot:
-            combined[phase_id] = dict(snapshot[phase_id])
-            combined[phase_id]["module_list"] = module_lists.get(phase_id, [])
+        logger.info(f"[API_ROADMAP] V3 loaded: version={roadmap_v3.get('version')}, phases={len(roadmap_v3.get('phases', []))}")
         
-        return jsonify({"success": True, "roadmap": combined})
+        return jsonify({
+            "success": True, 
+            "roadmap_v3": roadmap_v3,
+            "source": "unified_roadmap_v3.yaml"
+        })
         
     except Exception as e:
+        logger.error(f"[API_ROADMAP] Failed: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 
