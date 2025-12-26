@@ -1,4 +1,7 @@
-<!DOCTYPE html>
+#!/usr/bin/env python3
+"""Force write the homepage template with V3 roadmap block"""
+
+template_content = '''<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -145,3 +148,10 @@ Unified Roadmap v3 unavailable.
 
 </body>
 </html>
+'''
+
+with open('templates/homepage_video_background.html', 'w', encoding='utf-8') as f:
+    f.write(template_content)
+
+print("✅ Template written to disk")
+print("Now commit and push this file")
