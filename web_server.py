@@ -1901,8 +1901,8 @@ def homepage():
                              roadmap_v3=None,
                              roadmap_snapshot=None,
                              databento_stats=None,
-                             roadmap_error="Homepage failed (see /api/debug/homepage-last-error)",
-                             roadmap_v3_error=LAST_HOMEPAGE_ERROR,  # Full traceback for template
+                             roadmap_error="Homepage failed (see /api/debug/homepage-traceback)",
+                             roadmap_v3_error="Homepage failed (see /api/debug/homepage-traceback)",
                              stats_error=None)
 
 
@@ -7073,6 +7073,37 @@ def debug_homepage_v3():
         result['databento_stats']['error'] = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
     
     return jsonify(result), 200
+
+
+@app.route('/api/debug/homepage-traceback', methods=['GET'])
+def debug_homepage_traceback():
+    """
+    Token-authenticated endpoint to retrieve the last fatal error from /homepage.
+    Returns the full stack trace that caused the 500 (now prevented).
+    
+    Auth: X-Auth-Token header with value 'nQ-EXPORT-9f3a2c71a9e44d0c'
+    
+    Usage:
+        Invoke-RestMethod -Method GET -Uri "https://web-production-f8c3.up.railway.app/api/debug/homepage-traceback" -Headers @{ "X-Auth-Token" = "nQ-EXPORT-9f3a2c71a9e44d0c" }
+    """
+    # Token authentication (same pattern as /api/debug/homepage-v3)
+    expected_token = "nQ-EXPORT-9f3a2c71a9e44d0c"
+    header_token = request.headers.get('X-Auth-Token')
+    
+    if header_token != expected_token:
+        return jsonify({
+            'success': False,
+            'error': 'Unauthorized - provide X-Auth-Token header'
+        }), 401
+    
+    from datetime import datetime, timezone
+    
+    return jsonify({
+        'success': True,
+        'has_traceback': LAST_HOMEPAGE_ERROR is not None,
+        'traceback': LAST_HOMEPAGE_ERROR,
+        'server_time_utc': datetime.now(timezone.utc).isoformat()
+    }), 200
 
 
 @app.route('/api/debug/homepage-last-error', methods=['GET'])
