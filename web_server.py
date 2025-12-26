@@ -1955,43 +1955,48 @@ def build_homepage_context():
 @app.route('/homepage')
 @login_required
 def homepage():
-    """Professional homepage - main landing page after login (NO VIDEO BACKGROUND)"""
-    global LAST_HOMEPAGE_ERROR
+    """Professional homepage - main landing page after login with nature videos"""
+    video_file = get_random_video('homepage')
     
+    # Load Unified Roadmap V3 (safe - never raises)
+    roadmap_v3 = None
     try:
-        # Build homepage context using refactored helper (video disabled)
-        context = build_homepage_context()
-        
-        # Context building always succeeds now (video removed)
-        # Clear any previous error
-        LAST_HOMEPAGE_ERROR = None
-        
-        # Render template with context (video_file=None, video_disabled=True)
-        return render_template('homepage_video_background.html',
-                             video_file=None,
-                             video_disabled=True,
-                             roadmap_v3=context['roadmap_v3'],
-                             roadmap_snapshot=context['roadmap_v3'],
-                             databento_stats=context['databento_stats'],
-                             roadmap_error=context['roadmap_error'],
-                             roadmap_v3_error=context['roadmap_error'],
-                             stats_error=context['stats_error'])
-    
+        from roadmap.roadmap_loader import build_v3_snapshot
+        snapshot, error_str, resolved_path, exists, yaml_importable = build_v3_snapshot()
+        if snapshot:
+            roadmap_v3 = snapshot
     except Exception as e:
-        # FATAL ERROR HANDLER - Capture full traceback and return safe HTTP 200
-        LAST_HOMEPAGE_ERROR = traceback.format_exc()
-        logger.exception("[HOMEPAGE_FATAL] Unhandled exception in /homepage route")
-        
-        # Return a safe response that won't crash - HTTP 200 guaranteed
-        return render_template('homepage_video_background.html',
-                             video_file=None,
-                             video_disabled=True,
-                             roadmap_v3=None,
-                             roadmap_snapshot=None,
-                             databento_stats=None,
-                             roadmap_error="Homepage failed (see /api/debug/homepage-traceback)",
-                             roadmap_v3_error="Homepage failed (see /api/debug/homepage-traceback)",
-                             stats_error=None)
+        logger.warning(f"[HOMEPAGE] Failed to load roadmap v3: {e}")
+        roadmap_v3 = None
+    
+    # Legacy roadmap (keep for backward compatibility)
+    snapshot = phase_progress_snapshot()
+    module_lists = {}
+    for phase_id, pdata in snapshot.items():
+        raw_phase = ROADMAP.get(phase_id)
+        raw_modules = getattr(raw_phase, "modules", {}) or {}
+        cleaned = []
+        for key, status in raw_modules.items():
+            done = getattr(status, "completed", status)
+            title = key.replace("_", " ").title()
+            cleaned.append({
+                "key": key,
+                "title": title,
+                "done": bool(done)
+            })
+        module_lists[phase_id] = cleaned
+    
+    roadmap = {}
+    for phase_id in snapshot:
+        roadmap[phase_id] = dict(snapshot[phase_id])
+        roadmap[phase_id]["module_list"] = module_lists.get(phase_id, [])
+    
+    roadmap_sorted = sorted(roadmap.items(), key=lambda item: item[1].get("level", 999))
+    
+    return render_template('homepage_video_background.html', 
+                         video_file=video_file,
+                         roadmap=roadmap_sorted,
+                         roadmap_v3=roadmap_v3)
 
 
 @app.route('/main-dashboard')
