@@ -1835,6 +1835,8 @@ def build_homepage_context():
     Build all homepage context variables in explicit stages.
     Returns detailed stage-by-stage results for debugging.
     
+    VIDEO BACKGROUND ABANDONED - video_file always None, video_disabled always True.
+    
     Returns:
         dict: {
             'success': bool,
@@ -1847,7 +1849,8 @@ def build_homepage_context():
             'databento_stats_loaded': bool,
             'databento_row_count': int or None,
             'stats_error': str or None,
-            'video_file': str,
+            'video_file': None (always),
+            'video_disabled': True (always),
             'error': str or None,
             'traceback': str or None
         }
@@ -1863,21 +1866,13 @@ def build_homepage_context():
         'databento_stats_loaded': False,
         'databento_row_count': None,
         'stats_error': None,
-        'video_file': None,
+        'video_file': None,  # VIDEO DISABLED - always None
+        'video_disabled': True,  # VIDEO DISABLED - always True
         'error': None,
         'traceback': None
     }
     
-    # STAGE 1: Get video file (safe operation)
-    try:
-        result['stage'] = 'video_file'
-        result['video_file'] = get_random_video('homepage')
-    except Exception as e:
-        result['error'] = f"Stage 1 (video_file): {type(e).__name__}: {e}"
-        result['traceback'] = traceback.format_exc()
-        return result
-    
-    # STAGE 2: Load roadmap V3
+    # STAGE 1: Load roadmap V3 (video stage removed)
     try:
         result['stage'] = 'roadmap_v3'
         
@@ -1899,24 +1894,28 @@ def build_homepage_context():
             result['roadmap_error'] = error_str or "Unknown error loading roadmap"
             logger.warning(f"[HOMEPAGE_V3] Failed to load: {result['roadmap_error']}")
             # Use fallback data from get_homepage_roadmap_data
-            result['roadmap_v3'] = get_homepage_roadmap_data()
-            result['roadmap_v3_loaded'] = False
-            result['roadmap_v3_phase_count'] = len(result['roadmap_v3'].get('phases', [])) if result['roadmap_v3'] else 0
+            try:
+                result['roadmap_v3'] = get_homepage_roadmap_data()
+                result['roadmap_v3_loaded'] = False
+                result['roadmap_v3_phase_count'] = len(result['roadmap_v3'].get('phases', [])) if result['roadmap_v3'] else 0
+            except Exception as fallback_err:
+                logger.error(f"[HOMEPAGE_V3] Fallback also failed: {fallback_err}")
+                result['roadmap_v3'] = None
+                result['roadmap_v3_phase_count'] = 0
             
     except Exception as e:
         result['roadmap_error'] = f"{type(e).__name__}: {e}\nTraceback: {traceback.format_exc()}"
-        result['error'] = f"Stage 2 (roadmap_v3): {type(e).__name__}: {e}"
-        result['traceback'] = traceback.format_exc()
         logger.exception(f"[ROADMAP_V3_LOAD_ERROR] path=roadmap/unified_roadmap_v3.yaml")
-        # Use fallback
+        # Use fallback - but don't fail the entire homepage
         try:
             result['roadmap_v3'] = get_homepage_roadmap_data()
             result['roadmap_v3_phase_count'] = len(result['roadmap_v3'].get('phases', [])) if result['roadmap_v3'] else 0
         except:
-            pass
-        return result
+            result['roadmap_v3'] = None
+            result['roadmap_v3_phase_count'] = 0
+        # Continue to next stage instead of returning
     
-    # STAGE 3: Fetch Databento stats
+    # STAGE 2: Fetch Databento stats
     try:
         result['stage'] = 'databento_stats'
         databento_stats, stats_error = get_databento_stats()
@@ -1934,39 +1933,21 @@ def build_homepage_context():
             
     except Exception as e:
         result['stats_error'] = f"{type(e).__name__}: {e}"
-        result['error'] = f"Stage 3 (databento_stats): {type(e).__name__}: {e}"
-        result['traceback'] = traceback.format_exc()
         logger.exception("[HOMEPAGE_DATABENTO_STATS_EXCEPTION]")
-        return result
+        # Continue instead of returning - databento stats are optional
     
-    # STAGE 4: Prepare template context (validation stage)
+    # STAGE 3: Prepare template context (validation stage)
     try:
         result['stage'] = 'template_context'
         
-        # Validate all required context variables exist
-        context = {
-            'video_file': result['video_file'],
-            'roadmap_v3': result['roadmap_v3'],
-            'roadmap_snapshot': result['roadmap_v3'],
-            'databento_stats': result['databento_stats'],
-            'roadmap_error': result['roadmap_error'],
-            'roadmap_v3_error': result['roadmap_error'],
-            'stats_error': result['stats_error']
-        }
-        
-        # Ensure no None values that would break template
-        if context['video_file'] is None:
-            raise ValueError("video_file is None")
-        
-        logger.info(f"[HOMEPAGE] Context prepared: roadmap_v3={result['roadmap_v3'].get('version') if result['roadmap_v3'] else 'NONE'}, phases={result['roadmap_v3_phase_count']}, databento={'YES' if result['databento_stats'] else 'NO'}")
+        # Validate context - NO video_file validation (it's always None)
+        logger.info(f"[HOMEPAGE] Context prepared: roadmap_v3={result['roadmap_v3'].get('version') if result['roadmap_v3'] else 'NONE'}, phases={result['roadmap_v3_phase_count']}, databento={'YES' if result['databento_stats'] else 'NO'}, video_disabled=True")
         
     except Exception as e:
-        result['error'] = f"Stage 4 (template_context): {type(e).__name__}: {e}"
-        result['traceback'] = traceback.format_exc()
         logger.exception("[HOMEPAGE_CONTEXT_VALIDATION_ERROR]")
-        return result
+        # Even validation errors shouldn't break homepage
     
-    # All stages complete
+    # All stages complete - always succeed
     result['stage'] = 'complete'
     result['success'] = True
     return result
@@ -1974,33 +1955,21 @@ def build_homepage_context():
 @app.route('/homepage')
 @login_required
 def homepage():
-    """Professional homepage - main landing page after login with nature videos"""
+    """Professional homepage - main landing page after login (NO VIDEO BACKGROUND)"""
     global LAST_HOMEPAGE_ERROR
     
     try:
-        # Build homepage context using refactored helper
+        # Build homepage context using refactored helper (video disabled)
         context = build_homepage_context()
         
-        if not context['success']:
-            # Context building failed - capture error and return safe response
-            LAST_HOMEPAGE_ERROR = context.get('traceback') or context.get('error')
-            logger.error(f"[HOMEPAGE_CONTEXT_FAILED] stage={context['stage']} error={context.get('error')}")
-            
-            return render_template('homepage_video_background.html',
-                                 video_file=context.get('video_file') or get_random_video('homepage'),
-                                 roadmap_v3=None,
-                                 roadmap_snapshot=None,
-                                 databento_stats=None,
-                                 roadmap_error="Homepage failed (see /api/debug/homepage-traceback)",
-                                 roadmap_v3_error="Homepage failed (see /api/debug/homepage-traceback)",
-                                 stats_error=None)
-        
-        # Clear any previous error on successful context build
+        # Context building always succeeds now (video removed)
+        # Clear any previous error
         LAST_HOMEPAGE_ERROR = None
         
-        # Render template with context
+        # Render template with context (video_file=None, video_disabled=True)
         return render_template('homepage_video_background.html',
-                             video_file=context['video_file'],
+                             video_file=None,
+                             video_disabled=True,
                              roadmap_v3=context['roadmap_v3'],
                              roadmap_snapshot=context['roadmap_v3'],
                              databento_stats=context['databento_stats'],
@@ -2015,7 +1984,8 @@ def homepage():
         
         # Return a safe response that won't crash - HTTP 200 guaranteed
         return render_template('homepage_video_background.html',
-                             video_file=get_random_video('homepage'),
+                             video_file=None,
+                             video_disabled=True,
                              roadmap_v3=None,
                              roadmap_snapshot=None,
                              databento_stats=None,
@@ -2091,8 +2061,8 @@ def login_interactive():
 @app.route('/homepage-video')
 @login_required
 def homepage_video():
-    """Homepage with video background"""
-    return read_html_file('homepage_video_background.html')
+    """Redirect to main homepage (video background abandoned)"""
+    return redirect('/homepage')
 
 @app.route('/homepage-css')
 @login_required
