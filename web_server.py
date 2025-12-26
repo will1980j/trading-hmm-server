@@ -1956,47 +1956,56 @@ def build_homepage_context():
 @login_required
 def homepage():
     """Professional homepage - main landing page after login with nature videos"""
-    video_file = get_random_video('homepage')
+    global LAST_HOMEPAGE_ERROR
     
-    # Load Unified Roadmap V3 (safe - never raises)
-    roadmap_v3 = None
     try:
-        from roadmap.roadmap_loader import build_v3_snapshot
-        snapshot, error_str, resolved_path, exists, yaml_importable = build_v3_snapshot()
-        if snapshot:
-            roadmap_v3 = snapshot
-    except Exception as e:
-        logger.warning(f"[HOMEPAGE] Failed to load roadmap v3: {e}")
+        video_file = get_random_video('homepage')
+        
+        # Load Unified Roadmap V3 (safe - never raises)
         roadmap_v3 = None
-    
-    # Legacy roadmap (keep for backward compatibility)
-    snapshot = phase_progress_snapshot()
-    module_lists = {}
-    for phase_id, pdata in snapshot.items():
-        raw_phase = ROADMAP.get(phase_id)
-        raw_modules = getattr(raw_phase, "modules", {}) or {}
-        cleaned = []
-        for key, status in raw_modules.items():
-            done = getattr(status, "completed", status)
-            title = key.replace("_", " ").title()
-            cleaned.append({
-                "key": key,
-                "title": title,
-                "done": bool(done)
-            })
-        module_lists[phase_id] = cleaned
-    
-    roadmap = {}
-    for phase_id in snapshot:
-        roadmap[phase_id] = dict(snapshot[phase_id])
-        roadmap[phase_id]["module_list"] = module_lists.get(phase_id, [])
-    
-    roadmap_sorted = sorted(roadmap.items(), key=lambda item: item[1].get("level", 999))
-    
-    return render_template('homepage_video_background.html', 
-                         video_file=video_file,
-                         roadmap=roadmap_sorted,
-                         roadmap_v3=roadmap_v3)
+        try:
+            from roadmap.roadmap_loader import build_v3_snapshot
+            snapshot, error_str, resolved_path, exists, yaml_importable = build_v3_snapshot()
+            if snapshot:
+                roadmap_v3 = snapshot
+        except Exception as e:
+            logger.warning(f"[HOMEPAGE] Failed to load roadmap v3: {e}")
+            roadmap_v3 = None
+        
+        # Legacy roadmap (keep for backward compatibility)
+        snapshot = phase_progress_snapshot()
+        module_lists = {}
+        for phase_id, pdata in snapshot.items():
+            raw_phase = ROADMAP.get(phase_id)
+            raw_modules = getattr(raw_phase, "modules", {}) or {}
+            cleaned = []
+            for key, status in raw_modules.items():
+                done = getattr(status, "completed", status)
+                title = key.replace("_", " ").title()
+                cleaned.append({
+                    "key": key,
+                    "title": title,
+                    "done": bool(done)
+                })
+            module_lists[phase_id] = cleaned
+        
+        roadmap = {}
+        for phase_id in snapshot:
+            roadmap[phase_id] = dict(snapshot[phase_id])
+            roadmap[phase_id]["module_list"] = module_lists.get(phase_id, [])
+        
+        roadmap_sorted = sorted(roadmap.items(), key=lambda item: item[1].get("level", 999))
+        
+        return render_template('homepage_video_background.html', 
+                             video_file=video_file,
+                             roadmap=roadmap_sorted,
+                             roadmap_v3=roadmap_v3)
+    except Exception as e:
+        # Capture error for debugging
+        LAST_HOMEPAGE_ERROR = traceback.format_exc()
+        logger.exception("[HOMEPAGE_FATAL] Unhandled exception")
+        # Return error page instead of 500
+        return f"<h1>Homepage Error</h1><pre>{traceback.format_exc()}</pre>", 500
 
 
 @app.route('/main-dashboard')
