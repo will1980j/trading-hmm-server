@@ -1829,66 +1829,184 @@ def get_databento_stats():
         logger.exception("[HOMEPAGE_DATABENTO_STATS_ERROR]")
         return (None, error_str)
 
+
+def build_homepage_context():
+    """
+    Build all homepage context variables in explicit stages.
+    Returns detailed stage-by-stage results for debugging.
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'stage': str (which stage failed, or 'complete'),
+            'roadmap_v3': dict or None,
+            'roadmap_v3_loaded': bool,
+            'roadmap_v3_phase_count': int,
+            'roadmap_error': str or None,
+            'databento_stats': dict or None,
+            'databento_stats_loaded': bool,
+            'databento_row_count': int or None,
+            'stats_error': str or None,
+            'video_file': str,
+            'error': str or None,
+            'traceback': str or None
+        }
+    """
+    result = {
+        'success': False,
+        'stage': 'init',
+        'roadmap_v3': None,
+        'roadmap_v3_loaded': False,
+        'roadmap_v3_phase_count': 0,
+        'roadmap_error': None,
+        'databento_stats': None,
+        'databento_stats_loaded': False,
+        'databento_row_count': None,
+        'stats_error': None,
+        'video_file': None,
+        'error': None,
+        'traceback': None
+    }
+    
+    # STAGE 1: Get video file (safe operation)
+    try:
+        result['stage'] = 'video_file'
+        result['video_file'] = get_random_video('homepage')
+    except Exception as e:
+        result['error'] = f"Stage 1 (video_file): {type(e).__name__}: {e}"
+        result['traceback'] = traceback.format_exc()
+        return result
+    
+    # STAGE 2: Load roadmap V3
+    try:
+        result['stage'] = 'roadmap_v3'
+        
+        # Log the exact path being used
+        logger.info(f"[HOMEPAGE_V3] Loading from path: {ROADMAP_V3_PATH}")
+        logger.info(f"[HOMEPAGE_V3] Path exists: {ROADMAP_V3_PATH.exists()}")
+        
+        # Use build_v3_snapshot for comprehensive error capture
+        snapshot, error_str, resolved_path, exists, yaml_importable = build_v3_snapshot()
+        
+        logger.info(f"[ROADMAP_V3] loaded={snapshot is not None} phases={len(snapshot.get('phases', [])) if snapshot else 0} path={resolved_path}")
+        
+        if snapshot:
+            result['roadmap_v3'] = snapshot
+            result['roadmap_v3_loaded'] = True
+            result['roadmap_v3_phase_count'] = len(snapshot.get('phases', []))
+            logger.info(f"[HOMEPAGE_V3] Loaded: version={snapshot.get('version')}, phases={result['roadmap_v3_phase_count']}")
+        else:
+            result['roadmap_error'] = error_str or "Unknown error loading roadmap"
+            logger.warning(f"[HOMEPAGE_V3] Failed to load: {result['roadmap_error']}")
+            # Use fallback data from get_homepage_roadmap_data
+            result['roadmap_v3'] = get_homepage_roadmap_data()
+            result['roadmap_v3_loaded'] = False
+            result['roadmap_v3_phase_count'] = len(result['roadmap_v3'].get('phases', [])) if result['roadmap_v3'] else 0
+            
+    except Exception as e:
+        result['roadmap_error'] = f"{type(e).__name__}: {e}\nTraceback: {traceback.format_exc()}"
+        result['error'] = f"Stage 2 (roadmap_v3): {type(e).__name__}: {e}"
+        result['traceback'] = traceback.format_exc()
+        logger.exception(f"[ROADMAP_V3_LOAD_ERROR] path=roadmap/unified_roadmap_v3.yaml")
+        # Use fallback
+        try:
+            result['roadmap_v3'] = get_homepage_roadmap_data()
+            result['roadmap_v3_phase_count'] = len(result['roadmap_v3'].get('phases', [])) if result['roadmap_v3'] else 0
+        except:
+            pass
+        return result
+    
+    # STAGE 3: Fetch Databento stats
+    try:
+        result['stage'] = 'databento_stats'
+        databento_stats, stats_error = get_databento_stats()
+        
+        result['databento_stats'] = databento_stats
+        result['stats_error'] = stats_error
+        
+        if databento_stats:
+            result['databento_stats_loaded'] = True
+            result['databento_row_count'] = databento_stats.get('row_count')
+            logger.info(f"[HOMEPAGE] Databento stats loaded: {result['databento_row_count']} bars")
+        elif stats_error:
+            result['databento_stats_loaded'] = False
+            logger.warning(f"[HOMEPAGE_DATABENTO_STATS_ERROR] {stats_error}")
+            
+    except Exception as e:
+        result['stats_error'] = f"{type(e).__name__}: {e}"
+        result['error'] = f"Stage 3 (databento_stats): {type(e).__name__}: {e}"
+        result['traceback'] = traceback.format_exc()
+        logger.exception("[HOMEPAGE_DATABENTO_STATS_EXCEPTION]")
+        return result
+    
+    # STAGE 4: Prepare template context (validation stage)
+    try:
+        result['stage'] = 'template_context'
+        
+        # Validate all required context variables exist
+        context = {
+            'video_file': result['video_file'],
+            'roadmap_v3': result['roadmap_v3'],
+            'roadmap_snapshot': result['roadmap_v3'],
+            'databento_stats': result['databento_stats'],
+            'roadmap_error': result['roadmap_error'],
+            'roadmap_v3_error': result['roadmap_error'],
+            'stats_error': result['stats_error']
+        }
+        
+        # Ensure no None values that would break template
+        if context['video_file'] is None:
+            raise ValueError("video_file is None")
+        
+        logger.info(f"[HOMEPAGE] Context prepared: roadmap_v3={result['roadmap_v3'].get('version') if result['roadmap_v3'] else 'NONE'}, phases={result['roadmap_v3_phase_count']}, databento={'YES' if result['databento_stats'] else 'NO'}")
+        
+    except Exception as e:
+        result['error'] = f"Stage 4 (template_context): {type(e).__name__}: {e}"
+        result['traceback'] = traceback.format_exc()
+        logger.exception("[HOMEPAGE_CONTEXT_VALIDATION_ERROR]")
+        return result
+    
+    # All stages complete
+    result['stage'] = 'complete'
+    result['success'] = True
+    return result
+
 @app.route('/homepage')
 @login_required
 def homepage():
     """Professional homepage - main landing page after login with nature videos"""
     global LAST_HOMEPAGE_ERROR
     
-    # Get video file first (safe operation)
-    video_file = get_random_video('homepage')
-    
     try:
-        # Use V3 roadmap from unified_roadmap_v3.yaml (SINGLE SOURCE OF TRUTH)
-        # Note: build_v3_snapshot, load_v3_yaml, ROADMAP_V3_PATH imported at top of file
-        roadmap_v3 = None
-        roadmap_error = None
+        # Build homepage context using refactored helper
+        context = build_homepage_context()
         
-        try:
-            # Log the exact path being used
-            logger.info(f"[HOMEPAGE_V3] Loading from path: {ROADMAP_V3_PATH}")
-            logger.info(f"[HOMEPAGE_V3] Path exists: {ROADMAP_V3_PATH.exists()}")
+        if not context['success']:
+            # Context building failed - capture error and return safe response
+            LAST_HOMEPAGE_ERROR = context.get('traceback') or context.get('error')
+            logger.error(f"[HOMEPAGE_CONTEXT_FAILED] stage={context['stage']} error={context.get('error')}")
             
-            # Use build_v3_snapshot for comprehensive error capture
-            snapshot, error_str, resolved_path, exists, yaml_importable = build_v3_snapshot()
-            
-            logger.info(f"[ROADMAP_V3] loaded={snapshot is not None} phases={len(snapshot.get('phases', [])) if snapshot else 0} path={resolved_path}")
-            
-            if snapshot:
-                roadmap_v3 = snapshot
-                logger.info(f"[HOMEPAGE_V3] Loaded: version={roadmap_v3.get('version')}, phases={len(roadmap_v3.get('phases', []))}")
-            else:
-                roadmap_error = error_str or "Unknown error loading roadmap"
-                logger.warning(f"[HOMEPAGE_V3] Failed to load: {roadmap_error}")
-                # Use fallback data from get_homepage_roadmap_data
-                roadmap_v3 = get_homepage_roadmap_data()
-            
-        except Exception as e:
-            roadmap_error = f"{type(e).__name__}: {e}\nTraceback: {traceback.format_exc()}"
-            logger.exception(f"[ROADMAP_V3_LOAD_ERROR] path=roadmap/unified_roadmap_v3.yaml")
-            # Use fallback
-            roadmap_v3 = get_homepage_roadmap_data()
+            return render_template('homepage_video_background.html',
+                                 video_file=context.get('video_file') or get_random_video('homepage'),
+                                 roadmap_v3=None,
+                                 roadmap_snapshot=None,
+                                 databento_stats=None,
+                                 roadmap_error="Homepage failed (see /api/debug/homepage-traceback)",
+                                 roadmap_v3_error="Homepage failed (see /api/debug/homepage-traceback)",
+                                 stats_error=None)
         
-        # Fetch Databento stats using helper function
-        databento_stats, stats_error = get_databento_stats()
-        if databento_stats:
-            logger.info(f"[HOMEPAGE] Databento stats loaded: {databento_stats['row_count']} bars")
-        elif stats_error:
-            logger.warning(f"[HOMEPAGE_DATABENTO_STATS_ERROR] {stats_error}")
-        
-        logger.info(f"[HOMEPAGE] Rendering with: roadmap_v3={roadmap_v3.get('version') if roadmap_v3 else 'NONE'}, phases={len(roadmap_v3.get('phases', [])) if roadmap_v3 else 0}, databento={'YES' if databento_stats else 'NO'}")
-        
-        # Clear any previous error on successful render
+        # Clear any previous error on successful context build
         LAST_HOMEPAGE_ERROR = None
         
-        return render_template('homepage_video_background.html', 
-                             video_file=video_file, 
-                             roadmap_v3=roadmap_v3,
-                             roadmap_snapshot=roadmap_v3,  # Alias for template compatibility
-                             databento_stats=databento_stats,
-                             roadmap_error=roadmap_error,
-                             roadmap_v3_error=roadmap_error,  # Alias for template compatibility
-                             stats_error=stats_error)
+        # Render template with context
+        return render_template('homepage_video_background.html',
+                             video_file=context['video_file'],
+                             roadmap_v3=context['roadmap_v3'],
+                             roadmap_snapshot=context['roadmap_v3'],
+                             databento_stats=context['databento_stats'],
+                             roadmap_error=context['roadmap_error'],
+                             roadmap_v3_error=context['roadmap_error'],
+                             stats_error=context['stats_error'])
     
     except Exception as e:
         # FATAL ERROR HANDLER - Capture full traceback and return safe HTTP 200
@@ -1897,7 +2015,7 @@ def homepage():
         
         # Return a safe response that won't crash - HTTP 200 guaranteed
         return render_template('homepage_video_background.html',
-                             video_file=video_file,
+                             video_file=get_random_video('homepage'),
                              roadmap_v3=None,
                              roadmap_snapshot=None,
                              databento_stats=None,
@@ -7104,6 +7222,66 @@ def debug_homepage_traceback():
         'traceback': LAST_HOMEPAGE_ERROR,
         'server_time_utc': datetime.now(timezone.utc).isoformat()
     }), 200
+
+
+@app.route('/api/debug/run-homepage', methods=['GET'])
+def debug_run_homepage():
+    """
+    Token-authenticated endpoint that executes homepage context building logic
+    and returns detailed stage-by-stage results with any exceptions.
+    
+    This endpoint runs the SAME logic as /homepage but returns JSON instead of HTML,
+    allowing deterministic debugging of homepage failures.
+    
+    Auth: X-Auth-Token header with value 'nQ-EXPORT-9f3a2c71a9e44d0c'
+    
+    Usage:
+        Invoke-RestMethod -Method GET -Uri "https://web-production-f8c3.up.railway.app/api/debug/run-homepage" -Headers @{ "X-Auth-Token" = "nQ-EXPORT-9f3a2c71a9e44d0c" }
+    
+    Returns:
+        JSON with stage-by-stage execution results:
+        {
+            "success": true/false,
+            "stage": "which stage failed or 'complete'",
+            "roadmap_v3_loaded": true/false,
+            "roadmap_v3_phase_count": int,
+            "databento_stats_loaded": true/false,
+            "databento_row_count": int or null,
+            "error": "exception string or null",
+            "traceback": "full traceback or null"
+        }
+    """
+    # Token authentication
+    expected_token = "nQ-EXPORT-9f3a2c71a9e44d0c"
+    header_token = request.headers.get('X-Auth-Token')
+    
+    if header_token != expected_token:
+        return jsonify({
+            'success': False,
+            'error': 'Unauthorized - provide X-Auth-Token header'
+        }), 401
+    
+    from datetime import datetime, timezone
+    
+    # Execute homepage context building
+    result = build_homepage_context()
+    
+    # Add server timestamp
+    result['server_time_utc'] = datetime.now(timezone.utc).isoformat()
+    
+    # Remove large objects from response (keep only metadata)
+    if result.get('roadmap_v3'):
+        # Keep only version and phase count, not full roadmap data
+        result['roadmap_v3'] = {
+            'version': result['roadmap_v3'].get('version'),
+            'phase_count': len(result['roadmap_v3'].get('phases', []))
+        }
+    
+    if result.get('databento_stats'):
+        # Keep databento stats (already small)
+        pass
+    
+    return jsonify(result), 200
 
 
 @app.route('/api/debug/homepage-last-error', methods=['GET'])
