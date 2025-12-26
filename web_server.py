@@ -7079,16 +7079,26 @@ def debug_homepage_last_error():
     Token-authenticated endpoint to retrieve the last fatal error from /homepage.
     Returns the full stack trace that caused the 500 (now prevented).
     
-    Auth: X-Auth-Token header required (same pattern as other debug endpoints)
-    """
-    # Token authentication
-    expected_token = os.environ.get('DEBUG_AUTH_TOKEN', 'debug-token-2025')
-    provided_token = request.headers.get('X-Auth-Token', '')
+    Auth: X-Auth-Token header with value 'nQ-EXPORT-9f3a2c71a9e44d0c'
+         OR token query param (temporary fallback for debugging)
     
-    if provided_token != expected_token:
+    Usage:
+        Invoke-RestMethod -Method GET -Uri "https://web-production-f8c3.up.railway.app/api/debug/homepage-last-error" -Headers @{ "X-Auth-Token" = "nQ-EXPORT-9f3a2c71a9e44d0c" }
+        OR
+        https://web-production-f8c3.up.railway.app/api/debug/homepage-last-error?token=nQ-EXPORT-9f3a2c71a9e44d0c
+    """
+    # Token authentication (same pattern as /api/debug/homepage-v3)
+    expected_token = "nQ-EXPORT-9f3a2c71a9e44d0c"
+    header_token = request.headers.get('X-Auth-Token')
+    query_token = request.args.get('token')
+    
+    if not (header_token == expected_token or query_token == expected_token):
+        # Include headers seen for debugging
+        headers_seen = list(request.headers.keys())
         return jsonify({
             'success': False,
-            'error': 'Unauthorized - X-Auth-Token header required'
+            'error': 'Unauthorized - provide X-Auth-Token header or token query param',
+            'headers_seen': headers_seen
         }), 401
     
     from datetime import datetime, timezone
