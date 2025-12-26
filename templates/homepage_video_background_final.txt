@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -57,7 +57,7 @@
 <div class="phase-header condensed-phase-header">
 <span class="condensed-phase-number">{{ phase_id }}</span>
 <span class="condensed-phase-title">{{ phase.name }}</span>
-<span class="condensed-phase-meta">({{ phase.modules }} modules • {{ phase.percent }}%)</span>
+<span class="condensed-phase-meta">({{ phase.modules }} modules ΓÇó {{ phase.percent }}%)</span>
 </div>
 </button>
 <div class="phase-details">
@@ -89,17 +89,17 @@
 
 <section class="workspace-grid">
 {% for module in [
-('🎯', 'Main Dashboard', 'H1.2 — Central command center for system monitoring and navigation', '/main-dashboard', 'H1.2', 'active', 'H1-2'),
-('📊', 'Automated Signals Engine', 'H1.1 — Core automated signals engine and lifecycle dashboard', '/automated-signals', 'H1.1 CORE', 'active', 'H1-1A'),
-('⏰', 'Time Analysis', 'H1.3 — Completed temporal pattern and session performance analytics', '/time-analysis', 'H1.3 COMPLETE', 'active', 'H1-3'),
-('💰', 'Financial Summary', 'H1.5 — Performance and financial reporting', '/financial-summary', 'H1.5', 'active', 'H1-5'),
-('📊', 'Reporting Hub', 'H1.6 — Advanced reporting and business intelligence', '/reporting-hub', 'H1.6', 'active', 'H1-6'),
-('⚡', 'Strategy Optimizer', 'H2 — Advanced optimization and backtesting engine', '/strategy-optimizer', 'H2', 'active', 'H2-18'),
-('📈', 'Strategy Compare', 'H2 — Compare and analyze multiple trading strategies', '/strategy-comparison', 'H2', 'active', 'H2-19'),
-('🧠', 'ML Intelligence Hub', 'H5 — Machine learning insights and predictive analytics (future ML layer)', '/ml-dashboard', 'H5 FUTURE', 'future', 'H5-ML'),
-('📋', 'Trade Manager', 'H2 — Trade execution and position management', '/trade-manager', 'H2', 'active', 'H2-TRADE'),
-('💼', 'Prop Portfolio', 'H8 — Prop firm portfolio management and compliance', '/prop-portfolio', 'H8', 'active', 'H8-PROP'),
-('🧭', 'AI Business Advisor', 'H9 — AI-driven capital allocation & business intelligence (coming soon)', '/ai-business-advisor', 'H9 FUTURE', 'future', 'H9-25')
+('≡ƒÄ»', 'Main Dashboard', 'H1.2 ΓÇö Central command center for system monitoring and navigation', '/main-dashboard', 'H1.2', 'active', 'H1-2'),
+('≡ƒôè', 'Automated Signals Engine', 'H1.1 ΓÇö Core automated signals engine and lifecycle dashboard', '/automated-signals', 'H1.1 CORE', 'active', 'H1-1A'),
+('ΓÅ░', 'Time Analysis', 'H1.3 ΓÇö Completed temporal pattern and session performance analytics', '/time-analysis', 'H1.3 COMPLETE', 'active', 'H1-3'),
+('≡ƒÆ░', 'Financial Summary', 'H1.5 ΓÇö Performance and financial reporting', '/financial-summary', 'H1.5', 'active', 'H1-5'),
+('≡ƒôè', 'Reporting Hub', 'H1.6 ΓÇö Advanced reporting and business intelligence', '/reporting-hub', 'H1.6', 'active', 'H1-6'),
+('ΓÜí', 'Strategy Optimizer', 'H2 ΓÇö Advanced optimization and backtesting engine', '/strategy-optimizer', 'H2', 'active', 'H2-18'),
+('≡ƒôê', 'Strategy Compare', 'H2 ΓÇö Compare and analyze multiple trading strategies', '/strategy-comparison', 'H2', 'active', 'H2-19'),
+('≡ƒºá', 'ML Intelligence Hub', 'H5 ΓÇö Machine learning insights and predictive analytics (future ML layer)', '/ml-dashboard', 'H5 FUTURE', 'future', 'H5-ML'),
+('≡ƒôï', 'Trade Manager', 'H2 ΓÇö Trade execution and position management', '/trade-manager', 'H2', 'active', 'H2-TRADE'),
+('≡ƒÆ╝', 'Prop Portfolio', 'H8 ΓÇö Prop firm portfolio management and compliance', '/prop-portfolio', 'H8', 'active', 'H8-PROP'),
+('≡ƒº¡', 'AI Business Advisor', 'H9 ΓÇö AI-driven capital allocation & business intelligence (coming soon)', '/ai-business-advisor', 'H9 FUTURE', 'future', 'H9-25')
 ] %}
 <div class="workspace-card workspace-card--{{ module[5] }}" data-module-code="{{ module[6] }}">
 <div class="card-header">
@@ -128,3 +128,4 @@
 
 </body>
 </html>
+
