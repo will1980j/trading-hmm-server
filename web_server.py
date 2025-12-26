@@ -1887,6 +1887,7 @@ def homepage():
                              roadmap_snapshot=roadmap_v3,  # Alias for template compatibility
                              databento_stats=databento_stats,
                              roadmap_error=roadmap_error,
+                             roadmap_v3_error=roadmap_error,  # Alias for template compatibility
                              stats_error=stats_error)
     
     except Exception as e:
@@ -1901,6 +1902,7 @@ def homepage():
                              roadmap_snapshot=None,
                              databento_stats=None,
                              roadmap_error="Homepage failed (see /api/debug/homepage-last-error)",
+                             roadmap_v3_error=LAST_HOMEPAGE_ERROR,  # Full traceback for template
                              stats_error=None)
 
 
