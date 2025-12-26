@@ -1,4 +1,4 @@
-ï»¿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -8,7 +8,13 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}?v=3">
 </head>
 <body>
-<!-- ROADMAP_RENDERED phases={{ roadmap_snapshot|length if roadmap_snapshot else 0 }} stats={{ 'YES' if databento_stats else 'NO' }} -->
+
+{% set rm = roadmap_v3 if roadmap_v3 else roadmap_snapshot %}
+{% set version = rm.get('roadmap_version', rm.get('version', 'NONE')) if rm else 'NONE' %}
+{% set phases = rm.get('phases', []) if rm else [] %}
+{% set overall = rm.get('overall', {}) if rm else {} %}
+<!-- ROADMAP_V3_ON_HOMEPAGE version={{ version }} phases={{ phases|length }} -->
+<!-- DATABENTO_STATS_STATUS loaded={{ 'YES' if databento_stats else 'NO' }} -->
 
 <!-- Background Video -->
 <div id="videoContainer" class="video-container">
@@ -20,110 +26,115 @@
 
 <!-- System Status Ribbon -->
 <section class="status-ribbon">
-<div class="status-item">
-<span class="status-label">Session:</span>
-<span class="status-value" id="statusSession">--</span>
-</div>
-<div class="status-item">
-<span class="status-label">Signals Today:</span>
-<span class="status-value" id="statusSignals">0</span>
-</div>
-<div class="status-item">
-<span class="status-label">Last Signal:</span>
-<span class="status-value" id="statusLastSignal">--</span>
-</div>
-<div class="status-item">
-<span class="status-label">Webhook:</span>
-<span class="status-value" id="statusWebhook">--</span>
-</div>
+<div class="status-item"><span class="status-label">Session:</span><span class="status-value" id="statusSession">--</span></div>
+<div class="status-item"><span class="status-label">Signals Today:</span><span class="status-value" id="statusSignals">0</span></div>
+<div class="status-item"><span class="status-label">Last Signal:</span><span class="status-value" id="statusLastSignal">--</span></div>
+<div class="status-item"><span class="status-label">Webhook:</span><span class="status-value" id="statusWebhook">--</span></div>
 </section>
 
 <!-- Main 2-Column Layout -->
 <main class="layout-grid">
 
-<!-- LEFT COLUMN: ROADMAP -->
-<aside class="roadmap-section" style="max-height:calc(100vh - 140px);overflow-y:auto;">
-<div class="roadmap-header">
-<h2>Development Roadmap</h2>
-<p>Databento-first trading research platform</p>
+<!-- LEFT COLUMN: ROADMAP (V3 SAFE DICT ACCESS) -->
+<aside class="roadmap-section" style="max-height:calc(100vh - 140px);overflow-y:auto;background:rgba(15,23,42,0.85);backdrop-filter:blur(12px);border-radius:16px;border:1px solid rgba(255,255,255,0.1);padding:1.5rem;">
+<div style="margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.1);">
+<h2 style="font-size:1.5rem;font-weight:700;color:#fff;margin:0 0 0.5rem 0;">Unified Roadmap v3</h2>
+<p style="font-size:0.875rem;color:rgba(255,255,255,0.6);margin:0;">Databento-first trading research platform</p>
+<div style="font-size:12px;opacity:0.85;margin-top:8px;font-family:monospace;color:#60a5fa;">Unified Roadmap v3  version={{ version }}  phases={{ phases|length }}</div>
 </div>
-
 <!-- Databento Stats Banner -->
 {% if databento_stats %}
-<div style="background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(16,185,129,0.1));border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:0.75rem;margin-bottom:1rem;font-size:0.8rem;">
-<div style="font-weight:600;color:#4ade80;margin-bottom:0.4rem;"> Databento MNQ 1m Data</div>
-<div style="color:rgba(255,255,255,0.85);font-family:monospace;">
-<strong>{{ "{:,}".format(databento_stats.row_count) }}</strong> bars |
-{{ databento_stats.min_ts }}  {{ databento_stats.max_ts }} |
-Latest: ${{ "{:,.2f}".format(databento_stats.latest_close) }}
-</div>
+{% set db_row_count = databento_stats.get('row_count', 0) %}
+{% set db_min_ts = databento_stats.get('min_ts', 'N/A') %}
+{% set db_max_ts = databento_stats.get('max_ts', 'N/A') %}
+{% set db_latest_close = databento_stats.get('latest_close', 0) %}
+{% set db_latest_ts = databento_stats.get('latest_ts', 'N/A') %}
+<div style="background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(16,185,129,0.1));border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:0.875rem 1rem;margin-bottom:1.25rem;font-size:0.8rem;">
+<div style="font-weight:600;color:#4ade80;margin-bottom:0.5rem;">?? Databento MNQ 1m Data (Source of Truth)</div>
+<div style="color:rgba(255,255,255,0.85);font-family:monospace;"><strong>{{ "{:,}".format(db_row_count) }}</strong> bars | {{ db_min_ts }} ? {{ db_max_ts }} | Latest: <strong>${{ "{:,.2f}".format(db_latest_close) }}</strong> @ {{ db_latest_ts }}</div>
 </div>
 {% else %}
-<div style="background:rgba(100,116,139,0.2);border:1px solid rgba(100,116,139,0.3);border-radius:8px;padding:0.75rem;margin-bottom:1rem;font-size:0.8rem;color:rgba(255,255,255,0.6);">
- Databento stats unavailable
-</div>
+<div style="background:rgba(100,116,139,0.2);border:1px solid rgba(100,116,139,0.3);border-radius:10px;padding:0.875rem 1rem;margin-bottom:1.25rem;font-size:0.8rem;color:rgba(255,255,255,0.5);">?? Databento Stats Unavailable{% if stats_error %}<details style="margin-top:8px;font-size:0.75rem;"><summary style="cursor:pointer;color:#f87171;">Show error</summary><pre style="white-space:pre-wrap;margin-top:4px;padding:8px;background:rgba(0,0,0,0.3);border-radius:4px;color:#fca5a5;">{{ stats_error }}</pre></details>{% endif %}</div>
 {% endif %}
 
-<!-- Phase List -->
-<div class="roadmap-phases" style="display:flex;flex-direction:column;gap:0.6rem;">
-{% if roadmap_snapshot %}
-{% for pid, phase in roadmap_snapshot|dictsort %}
-{% set is_complete = phase.percent == 100 %}
-{% set is_active = phase.percent > 0 and phase.percent < 100 %}
-<div class="roadmap-phase {% if is_complete %}phase-complete{% elif is_active %}phase-active{% endif %}" style="background:rgba(255,255,255,0.03);border:1px solid {% if is_complete %}rgba(34,197,94,0.3){% elif is_active %}rgba(59,130,246,0.4){% else %}rgba(255,255,255,0.08){% endif %};border-radius:8px;overflow:hidden;">
-<button class="phase-toggle" type="button" onclick="this.parentElement.classList.toggle('expanded')" style="width:100%;background:none;border:none;padding:0.7rem 0.8rem;cursor:pointer;text-align:left;">
-<div style="display:flex;align-items:center;gap:0.6rem;">
-<div style="width:28px;height:28px;background:{% if is_complete %}rgba(34,197,94,0.2){% elif is_active %}rgba(59,130,246,0.2){% else %}rgba(255,255,255,0.1){% endif %};border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:{% if is_complete %}#4ade80{% elif is_active %}#60a5fa{% else %}rgba(255,255,255,0.8){% endif %};">{{ pid }}</div>
+<!-- Overall Progress -->
+{% if overall %}
+{% set ov_module_pct = overall.get('module_percent', 0) %}
+{% set ov_phases_done = overall.get('phases_done', 0) %}
+{% set ov_phases_total = overall.get('phases_total', 0) %}
+{% set ov_modules_done = overall.get('modules_done', 0) %}
+{% set ov_modules_total = overall.get('modules_total', 0) %}
+<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.875rem 1rem;margin-bottom:1.25rem;">
+<div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;"><span style="font-size:0.8rem;font-weight:600;color:rgba(255,255,255,0.8);">Overall Progress</span><span style="font-size:0.8rem;font-weight:700;color:#60a5fa;">{{ ov_module_pct }}%</span></div>
+<div style="height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;"><div style="height:100%;background:linear-gradient(90deg,#3b82f6,#60a5fa);width:{{ ov_module_pct }}%;border-radius:3px;"></div></div>
+<div style="display:flex;gap:1.5rem;margin-top:0.75rem;font-size:0.75rem;color:rgba(255,255,255,0.6);"><span>{{ ov_phases_done }}/{{ ov_phases_total }} phases</span><span>{{ ov_modules_done }}/{{ ov_modules_total }} modules</span></div>
+</div>
+{% endif %}
+<!-- Phase List (V3 safe dict access) -->
+<div style="display:flex;flex-direction:column;gap:0.75rem;">
+{% if phases|length > 0 %}
+{% for ph in phases %}
+{% set ph_id = ph.get('phase_id', '??') %}
+{% set ph_name = ph.get('name', '(no name)') %}
+{% set ph_objective = ph.get('objective', '') %}
+{% set ph_is_complete = ph.get('is_complete', false) %}
+{% set ph_is_active = ph.get('is_active', false) %}
+{% set ph_modules_done = ph.get('modules_done', 0) %}
+{% set ph_modules_total = ph.get('modules_total', 0) %}
+{% set ph_module_percent = ph.get('module_percent', 0) %}
+{% set ph_module_list = ph.get('module_list', []) %}
+<div style="background:rgba(255,255,255,0.03);border:1px solid {% if ph_is_complete %}rgba(34,197,94,0.3){% elif ph_is_active %}rgba(59,130,246,0.4){% else %}rgba(255,255,255,0.08){% endif %};border-radius:10px;overflow:hidden;">
+<button type="button" onclick="this.parentElement.classList.toggle('expanded')" style="width:100%;background:none;border:none;padding:0.875rem 1rem;cursor:pointer;text-align:left;">
+<div style="display:flex;align-items:center;gap:0.75rem;">
+<div style="width:32px;height:32px;background:{% if ph_is_complete %}rgba(34,197,94,0.2){% elif ph_is_active %}rgba(59,130,246,0.2){% else %}rgba(255,255,255,0.1){% endif %};border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:{% if ph_is_complete %}#4ade80{% elif ph_is_active %}#60a5fa{% else %}rgba(255,255,255,0.8){% endif %};">{{ ph_id }}</div>
 <div style="flex:1;">
-<div style="font-size:0.8rem;font-weight:600;color:#fff;">{{ phase.name }}</div>
-<div style="display:flex;gap:0.5rem;font-size:0.7rem;color:rgba(255,255,255,0.5);margin-top:2px;">
-<span style="padding:1px 6px;border-radius:3px;font-size:0.6rem;font-weight:600;background:{% if is_complete %}rgba(34,197,94,0.2);color:#4ade80{% elif is_active %}rgba(59,130,246,0.2);color:#60a5fa{% else %}rgba(100,116,139,0.2);color:rgba(255,255,255,0.5){% endif %};">{% if is_complete %} Complete{% elif is_active %} Active{% else %} Planned{% endif %}</span>
-<span>{{ phase.completed }}/{{ phase.modules }}</span>
-<span>{{ phase.percent }}%</span>
+<div style="font-size:0.875rem;font-weight:600;color:#fff;">{{ ph_name }}</div>
+<div style="display:flex;gap:0.75rem;font-size:0.75rem;color:rgba(255,255,255,0.5);margin-top:2px;">
+<span style="padding:0.125rem 0.5rem;border-radius:4px;font-size:0.65rem;font-weight:600;background:{% if ph_is_complete %}rgba(34,197,94,0.2);color:#4ade80{% elif ph_is_active %}rgba(59,130,246,0.2);color:#60a5fa{% else %}rgba(100,116,139,0.2);color:rgba(255,255,255,0.5){% endif %};">{% if ph_is_complete %} Complete{% elif ph_is_active %} Active{% else %} Planned{% endif %}</span>
+<span>{{ ph_modules_done }}/{{ ph_modules_total }} modules</span>
+<span>{{ ph_module_percent }}%</span>
 </div>
 </div>
-<span style="color:rgba(255,255,255,0.4);transition:transform 0.2s;"></span>
+<span style="color:rgba(255,255,255,0.4);"></span>
 </div>
 </button>
-<div class="phase-details" style="display:none;padding:0 0.8rem 0.8rem;border-top:1px solid rgba(255,255,255,0.05);">
-<p style="font-size:0.75rem;color:rgba(255,255,255,0.6);margin:0.6rem 0;">{{ phase.description }}</p>
-<div style="display:flex;flex-direction:column;gap:0.3rem;">
-{% for m in phase.module_list %}
-<div style="display:flex;gap:0.5rem;padding:0.35rem 0.5rem;background:rgba(255,255,255,0.03);border-radius:4px;font-size:0.75rem;">
-<span style="width:14px;height:14px;border-radius:3px;{% if m.done %}background:#22c55e;{% else %}border:2px solid rgba(255,255,255,0.2);{% endif %}display:flex;align-items:center;justify-content:center;flex-shrink:0;">{% if m.done %}<span style="color:#fff;font-size:9px;"></span>{% endif %}</span>
-<span style="color:{% if m.done %}rgba(255,255,255,0.9){% else %}rgba(255,255,255,0.5){% endif %};">{{ m.title }}</span>
+<div class="phase-details" style="display:none;padding:0 1rem 1rem;border-top:1px solid rgba(255,255,255,0.05);">
+{% if ph_objective %}<p style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin:0.75rem 0;">{{ ph_objective }}</p>{% endif %}
+<div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.75rem;">
+{% for mod in ph_module_list %}
+{% set mod_title = mod.get('title', mod.get('id', 'module')) %}
+{% set mod_status = mod.get('status', 'PLANNED') %}
+{% set mod_done = mod.get('done', false) %}
+<div style="display:flex;gap:0.625rem;padding:0.5rem 0.625rem;background:rgba(255,255,255,0.03);border-radius:6px;font-size:0.8rem;">
+<div style="width:16px;height:16px;border-radius:4px;{% if mod_done %}background:#22c55e;{% else %}border:2px solid rgba(255,255,255,0.3);{% endif %}display:flex;align-items:center;justify-content:center;flex-shrink:0;">{% if mod_done %}<span style="color:#fff;font-size:10px;"></span>{% endif %}</div>
+<span style="color:{% if mod_done %}rgba(255,255,255,0.9){% else %}rgba(255,255,255,0.5){% endif %};">{{ mod_title }}{% if not mod_done %} <span style="margin-left:0.5rem;padding:0.125rem 0.375rem;background:rgba(251,191,36,0.2);color:#fbbf24;border-radius:3px;font-size:0.6rem;font-weight:600;">{{ mod_status }}</span>{% endif %}</span>
 </div>
 {% endfor %}
 </div>
-<div style="margin-top:0.6rem;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
-<div style="height:100%;background:{% if is_complete %}linear-gradient(90deg,#22c55e,#4ade80){% else %}linear-gradient(90deg,#3b82f6,#60a5fa){% endif %};width:{{ phase.percent }}%;border-radius:2px;"></div>
-</div>
+<div style="margin-top:0.75rem;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;"><div style="height:100%;background:{% if ph_is_complete %}linear-gradient(90deg,#22c55e,#4ade80){% else %}linear-gradient(90deg,#3b82f6,#60a5fa){% endif %};width:{{ ph_module_percent }}%;border-radius:2px;"></div></div>
 </div>
 </div>
 {% endfor %}
 {% else %}
-<div style="padding:1rem;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#f87171;">
-Roadmap data unavailable
-{% if roadmap_error %}<div style="margin-top:0.5rem;font-size:0.75rem;opacity:0.8;">{{ roadmap_error }}</div>{% endif %}
+<div style="padding:1rem;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#f87171;">
+<strong>Roadmap data unavailable (this is a bug)</strong>
+{% if roadmap_v3_error or roadmap_error %}<div style="font-size:0.75rem;opacity:0.85;margin-top:0.5rem;white-space:pre-wrap;">{{ roadmap_v3_error if roadmap_v3_error else roadmap_error }}</div>{% else %}<div style="font-size:0.75rem;opacity:0.85;margin-top:0.5rem;">Check unified_roadmap_v3.yaml exists in roadmap/ folder</div>{% endif %}
 </div>
 {% endif %}
 </div>
 </aside>
-
 <!-- RIGHT COLUMN: WORKSPACE -->
 <section class="workspace-column">
-
 <section class="hero-section">
 <h1 class="hero-title">Second Skies Trading</h1>
 <p class="hero-subtitle">Advanced algorithmic trading with real-time signal processing</p>
 </section>
-
 <section class="workspace-grid">
 {% for module in [
-('', 'Main Dashboard', 'H1.2  Central command center for system monitoring', '/main-dashboard', 'H1.2', 'active', 'H1-2'),
-('', 'Automated Signals', 'H1.1  Core automated signals engine and lifecycle', '/automated-signals', 'H1.1 CORE', 'active', 'H1-1A'),
-('', 'Time Analysis', 'H1.3  Temporal pattern and session analytics', '/time-analysis', 'H1.3', 'active', 'H1-3'),
-('', 'Financial Summary', 'H1.5  Performance and financial reporting', '/financial-summary', 'H1.5', 'active', 'H1-5'),
+('??', 'Main Dashboard', 'H1.2 — Central command center for system monitoring', '/main-dashboard', 'H1.2', 'active', 'H1-2'),
+('??', 'Automated Signals', 'H1.1 — Core automated signals engine and lifecycle', '/automated-signals', 'H1.1 CORE', 'active', 'H1-1A'),
+('?', 'Time Analysis', 'H1.3 — Temporal pattern and session analytics', '/time-analysis', 'H1.3', 'active', 'H1-3'),
+('??', 'Financial Summary', 'H1.5 — Performance and financial reporting', '/financial-summary', 'H1.5', 'active', 'H1-5'),
 ('', 'Reporting Hub', 'H1.6  Advanced reporting and business intelligence', '/reporting-hub', 'H1.6', 'active', 'H1-6'),
 ('', 'Strategy Optimizer', 'H2  Advanced optimization and backtesting', '/strategy-optimizer', 'H2', 'active', 'H2-18'),
 ('', 'Strategy Compare', 'H2  Compare multiple trading strategies', '/strategy-comparison', 'H2', 'active', 'H2-19'),
@@ -133,45 +144,15 @@ Roadmap data unavailable
 ('', 'AI Advisor', 'H9  AI-driven business intelligence (coming soon)', '/ai-business-advisor', 'H9 FUTURE', 'future', 'H9-25')
 ] %}
 <div class="workspace-card workspace-card--{{ module[5] }}" data-module-code="{{ module[6] }}">
-<div class="card-header">
-<div class="card-icon">{{ module[0] }}</div>
-<h3>{{ module[1] }}</h3>
-<span class="card-status">{{ module[4] }}</span>
-</div>
+<div class="card-header"><div class="card-icon">{{ module[0] }}</div><h3>{{ module[1] }}</h3><span class="card-status">{{ module[4] }}</span></div>
 <p class="card-description">{{ module[2] }}</p>
-{% if module[5] == 'active' %}
-<a href="{{ module[3] }}" class="card-link">Launch</a>
-{% elif module[5] == 'future' %}
-<button type="button" class="card-link card-link--ghost" onclick="window.location.href='/roadmap'">View Roadmap</button>
-{% else %}
-<span class="card-link card-link--disabled">In Development</span>
-{% endif %}
+{% if module[5] == 'active' %}<a href="{{ module[3] }}" class="card-link">Launch</a>{% elif module[5] == 'future' %}<button type="button" class="card-link card-link--ghost" onclick="window.location.href='/roadmap'">View Roadmap</button>{% else %}<span class="card-link card-link--disabled">In Development</span>{% endif %}
 </div>
 {% endfor %}
 </section>
-
 </section>
-
 </main>
-
-<script>
-// Phase toggle expand/collapse
-document.querySelectorAll('.roadmap-phase.phase-active').forEach(function(el) {
-  el.classList.add('expanded');
-});
-document.querySelectorAll('.roadmap-phase.expanded .phase-details').forEach(function(el) {
-  el.style.display = 'block';
-});
-document.querySelectorAll('.phase-toggle').forEach(function(btn) {
-  btn.addEventListener('click', function() {
-    var details = this.parentElement.querySelector('.phase-details');
-    if (details) {
-      details.style.display = details.style.display === 'none' ? 'block' : 'none';
-    }
-  });
-});
-</script>
+<script>document.querySelectorAll('.phase-details').forEach(function(d){d.style.display='none';});</script>
 <script src="{{ url_for('static', filename='js/homepage.js') }}"></script>
-
 </body>
 </html>
