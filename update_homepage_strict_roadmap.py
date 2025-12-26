@@ -1,46 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Second Skies Trading - Homepage</title>
-<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}?v=2">
-</head>
-<body>
+#!/usr/bin/env python3
+"""
+Update homepage with authoritative steering roadmap - STRICT MODE
+No invention, no expansion, exact rendering only
+"""
 
-<!-- Background Video -->
-<div id="videoContainer" class="video-container">
-<video id="backgroundVideo" autoplay muted loop playsinline>
-<source src="" type="video/mp4">
-</video>
-<div class="video-overlay"></div>
-</div>
+# Read current template
+with open('templates/homepage_video_background.html', 'r', encoding='utf-8') as f:
+    content = f.read()
 
-<!-- System Status Ribbon -->
-<section class="status-ribbon">
-<div class="status-item">
-<span class="status-label">Session:</span>
-<span class="status-value" id="statusSession">--</span>
-</div>
-<div class="status-item">
-<span class="status-label">Signals Today:</span>
-<span class="status-value" id="statusSignals">0</span>
-</div>
-<div class="status-item">
-<span class="status-label">Last Signal:</span>
-<span class="status-value" id="statusLastSignal">--</span>
-</div>
-<div class="status-item">
-<span class="status-label">Webhook:</span>
-<span class="status-value" id="statusWebhook">--</span>
-</div>
-</section>
-
-<!-- Main 2-Column Layout -->
-<main class="layout-grid">
-
-<!-- LEFT COLUMN: ROADMAP -->
+# Exact roadmap HTML (verbatim from authoritative source)
+roadmap_html = '''<!-- LEFT COLUMN: ROADMAP -->
 <aside class="roadmap-section">
 <div class="roadmap-header">
 <h2>Databento-First Professional Trading System Roadmap (NQ-Centric) — 2025–2026</h2>
@@ -156,54 +125,33 @@ Purpose: Assist discovery — never replace judgment.
 <strong style="color:#fbbf24;">Current Active Phase:</strong> Phase A<br>
 No work may proceed beyond Phase A until Phase A is explicitly locked.
 </div>
-</aside>
+</aside>'''
 
-<!-- RIGHT COLUMN: WORKSPACE -->
-<section class="workspace-column">
+# Find and replace the roadmap section
+start_marker = '<!-- LEFT COLUMN: ROADMAP -->'
+next_section_marker = '<!-- RIGHT COLUMN:'
 
-<section class="hero-section">
-<h1 class="hero-title">Second Skies Trading</h1>
-<p class="hero-subtitle">Advanced algorithmic trading with real-time signal processing</p>
-</section>
+start_idx = content.find(start_marker)
+if start_idx == -1:
+    print("❌ Could not find roadmap section")
+    exit(1)
 
-<section class="workspace-grid">
-{% for module in [
-('🏠', 'Main Dashboard', 'H1.2 — Central command center for system monitoring and navigation', '/main-dashboard', 'H1.2', 'active', 'H1-2'),
-('🤖', 'Automated Signals Engine', 'H1.1 — Core automated signals engine and lifecycle dashboard', '/automated-signals', 'H1.1 CORE', 'active', 'H1-1A'),
-('⏰', 'Time Analysis', 'H1.3 — Completed temporal pattern and session performance analytics', '/time-analysis', 'H1.3 COMPLETE', 'active', 'H1-3'),
-('💰', 'Financial Summary', 'H1.5 — Performance and financial reporting', '/financial-summary', 'H1.5', 'active', 'H1-5'),
-('📊', 'Reporting Hub', 'H1.6 — Advanced reporting and business intelligence', '/reporting-hub', 'H1.6', 'active', 'H1-6'),
-('🎯', 'Strategy Optimizer', 'H2 — Advanced optimization and backtesting engine', '/strategy-optimizer', 'H2', 'active', 'H2-18'),
-('🏆', 'Strategy Compare', 'H2 — Compare and analyze multiple trading strategies', '/strategy-comparison', 'H2', 'active', 'H2-19'),
-('🧠', 'ML Intelligence Hub', 'H5 — Machine learning insights and predictive analytics (future ML layer)', '/ml-dashboard', 'H5 FUTURE', 'future', 'H5-ML'),
-('📋', 'Trade Manager', 'H2 — Trade execution and position management', '/trade-manager', 'H2', 'active', 'H2-TRADE'),
-('💼', 'Prop Portfolio', 'H8 — Prop firm portfolio management and compliance', '/prop-portfolio', 'H8', 'active', 'H8-PROP'),
-('🧭', 'AI Business Advisor', 'H9 — AI-driven capital allocation & business intelligence (coming soon)', '/ai-business-advisor', 'H9 FUTURE', 'future', 'H9-25')
-] %}
-<div class="workspace-card workspace-card--{{ module[5] }}" data-module-code="{{ module[6] }}">
-<div class="card-header">
-<div class="card-icon">{{ module[0] }}</div>
-<h3>{{ module[1] }}</h3>
-<span class="card-status">{{ module[4] }}</span>
-</div>
-<p class="card-description">{{ module[2] }}</p>
-{% if module[5] == 'active' %}
-<a href="{{ module[3] }}" class="card-link">Launch</a>
-{% elif module[5] == 'future' %}
-<button type="button" class="card-link card-link--ghost" onclick="window.location.href='/roadmap'">View Roadmap</button>
-{% else %}
-<span class="card-link card-link--disabled">In Development</span>
-{% endif %}
-</div>
-{% endfor %}
-</section>
+next_idx = content.find(next_section_marker, start_idx)
+if next_idx == -1:
+    print("❌ Could not find next section")
+    exit(1)
 
-</section>
+# Replace roadmap section
+new_content = content[:start_idx] + roadmap_html + '\n\n' + content[next_idx:]
 
-</main>
+# Write to file
+with open('templates/homepage_video_background.html', 'w', encoding='utf-8') as f:
+    f.write(new_content)
 
-<!-- *** DO NOT MODIFY THE EXISTING VIDEO ROTATION JAVASCRIPT BELOW THIS COMMENT *** -->
-<script src="{{ url_for('static', filename='js/homepage.js') }}"></script>
-
-</body>
-</html>
+print("✅ Homepage updated with authoritative steering roadmap (strict mode)")
+print("   - Title: Databento-First Professional Trading System Roadmap (NQ-Centric) — 2025–2026")
+print("   - Phases A-J rendered verbatim")
+print("   - Phase A: ACTIVE")
+print("   - Phases B-J: NOT YET ENABLED")
+print("   - Global Non-Negotiable Rules included")
+print("\nVerify: git diff templates/homepage_video_background.html")
