@@ -1,0 +1,24 @@
+﻿//@version=5
+// Phase B â€” Module 1: Engulfing Detection (Databento parity)
+// Visual parity only â€” no trading logic
+
+indicator("Engulfing Parity Module 1", overlay=true)
+
+// Bearish engulfing
+bearish_engulfing = close < open and close[1] > open[1] and open >= close[1] and close < open[1]
+
+// Bullish engulfing
+bullish_engulfing = close > open and close[1] < open[1] and open <= close[1] and close > open[1]
+
+// Bearish sweep engulfing
+bearish_sweep_engulfing = bearish_engulfing and high > high[1] and close < close[1]
+
+// Bullish sweep engulfing
+bullish_sweep_engulfing = bullish_engulfing and low < low[1] and close > close[1]
+
+// Visual output (sweep overrides basic)
+plotshape(bullish_sweep_engulfing, "Bullish Sweep", shape.triangleup, location.belowbar, color.green, size=size.large)
+plotshape(bearish_sweep_engulfing, "Bearish Sweep", shape.triangledown, location.abovebar, color.red, size=size.large)
+plotshape(bullish_engulfing and not bullish_sweep_engulfing, "Bullish", shape.triangleup, location.belowbar, color.green, size=size.small)
+plotshape(bearish_engulfing and not bearish_sweep_engulfing, "Bearish", shape.triangledown, location.abovebar, color.red, size=size.small)
+

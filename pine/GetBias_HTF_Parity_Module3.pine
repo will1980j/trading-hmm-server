@@ -1,0 +1,95 @@
+//@version=5
+// Phase B — Module 3: HTF Bias (Databento parity)
+// Visual parity only — no signals, no trading logic
+
+indicator("GetBias HTF Parity Module 3", overlay=true)
+
+get_bias() =>
+    var string bias = "Neutral"
+    var float ath = na
+    var float atl = na
+    var bull_fvg_highs = array.new<float>()
+    var bull_fvg_lows = array.new<float>()
+    var bear_fvg_highs = array.new<float>()
+    var bear_fvg_lows = array.new<float>()
+    var bull_ifvg_highs = array.new<float>()
+    var bull_ifvg_lows = array.new<float>()
+    var bear_ifvg_highs = array.new<float>()
+    var bear_ifvg_lows = array.new<float>()
+
+    if barstate.isconfirmed
+        ath := na(ath) ? high : math.max(ath, high)
+        atl := na(atl) ? low : math.min(atl, low)
+
+        if close > ath[1] and bias != "Bullish"
+            bias := "Bullish"
+        else if close < atl[1] and bias != "Bearish"
+            bias := "Bearish"
+
+        c2_high = high[2]
+        c2_low = low[2]
+        c0_high = high
+        c0_low = low
+
+        bullish_fvg = c2_high < c0_low
+        bearish_fvg = c2_low > c0_high
+
+        if bullish_fvg
+            array.push(bull_fvg_highs, c0_low)
+            array.push(bull_fvg_lows, c2_high)
+
+        if bearish_fvg
+            array.push(bear_fvg_highs, c2_low)
+            array.push(bear_fvg_lows, c0_high)
+
+        if array.size(bull_fvg_highs) > 0
+            for i = array.size(bull_fvg_highs) - 1 to 0
+                if close < array.get(bull_fvg_lows, i)
+                    array.push(bear_ifvg_highs, array.get(bull_fvg_highs, i))
+                    array.push(bear_ifvg_lows, array.get(bull_fvg_lows, i))
+                    array.remove(bull_fvg_highs, i)
+                    array.remove(bull_fvg_lows, i)
+                    bias := "Bearish"
+
+        if array.size(bear_fvg_highs) > 0
+            for i = array.size(bear_fvg_highs) - 1 to 0
+                if close > array.get(bear_fvg_highs, i)
+                    array.push(bull_ifvg_highs, array.get(bear_fvg_highs, i))
+                    array.push(bull_ifvg_lows, array.get(bear_fvg_lows, i))
+                    array.remove(bear_fvg_highs, i)
+                    array.remove(bear_fvg_lows, i)
+                    bias := "Bullish"
+
+        if array.size(bear_ifvg_highs) > 0
+            for i = array.size(bear_ifvg_highs) - 1 to 0
+                if close > array.get(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_highs, i)
+                    array.remove(bear_ifvg_lows, i)
+                    bias := "Bullish"
+
+        if array.size(bull_ifvg_highs) > 0
+            for i = array.size(bull_ifvg_highs) - 1 to 0
+                if close < array.get(bull_ifvg_lows, i)
+                    array.remove(bull_ifvg_highs, i)
+                    array.remove(bull_ifvg_lows, i)
+                    bias := "Bearish"
+
+    bias
+
+// Calculate HTF biases
+bias_1m = get_bias()
+bias_5m = request.security(syminfo.tickerid, "5", get_bias())
+bias_15m = request.security(syminfo.tickerid, "15", get_bias())
+bias_1h = request.security(syminfo.tickerid, "60", get_bias())
+bias_4h = request.security(syminfo.tickerid, "240", get_bias())
+bias_daily = request.security(syminfo.tickerid, "1D", get_bias())
+
+// Visual output
+bgcolor(bias_1m == "Bullish" ? color.new(color.green, 95) : bias_1m == "Bearish" ? color.new(color.red, 95) : na, title="1M Bias")
+
+// Plot HTF biases as text
+var label lbl = na
+if barstate.islast
+    label.delete(lbl)
+    text = "1M: " + bias_1m + "\\n5M: " + bias_5m + "\\n15M: " + bias_15m + "\\n1H: " + bias_1h + "\\n4H: " + bias_4h + "\\nDaily: " + bias_daily
+    lbl := label.new(bar_index, high, text, style=label.style_label_down, color=color.blue, textcolor=color.white, size=size.normal)

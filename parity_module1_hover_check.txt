@@ -1,0 +1,7 @@
+﻿Engulfing signals (Databento 1m, warmup=5) for visual hover-check on TradingView:
+- 2025-12-02 01:20:00+00:00  BULL_SWEEP
+- 2025-12-02 01:26:00+00:00  BULL_SWEEP
+- 2025-12-02 01:34:00+00:00  BEAR
+- 2025-12-02 01:41:00+00:00  BULL
+- 2025-12-02 02:12:00+00:00  BEAR
+- 2025-12-02 02:29:00+00:00  BEAR
