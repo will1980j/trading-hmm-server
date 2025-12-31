@@ -396,6 +396,24 @@ python tests/test_historical_v1_api.py
 
 **Prerequisites Completed:**
 - ✅ HTF bias series persisted (`bias_series_1m_v1`) - COMPLETE
+- ✅ Signal Contract V1 Wave 1 - COMPLETE
+
+**Wave 1 Artifacts:**
+- `database/signal_contract_v1_wave1_migration.sql` - Schema migration
+- `database/run_signal_contract_v1_wave1_migration.py` - Migration runner
+- `services/signal_contract_v1_mapper.py` - Field mapping logic
+- `api/signals_debug_v1.py` - Debug endpoints
+- `web_server.py` - Updated webhook handler with Wave 1 fields
+
+**Wave 1 Verification:**
+```bash
+# Run migration
+python database/run_signal_contract_v1_wave1_migration.py
+
+# Test debug endpoints
+curl "http://localhost:5000/api/signals/v1/debug/last?limit=5"
+curl "http://localhost:5000/api/signals/v1/debug/trade/TRADE_ID_HERE"
+```
 
 **Artifacts:**
 - `database/phase_e_htf_bias_series_schema.sql`

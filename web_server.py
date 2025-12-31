@@ -477,7 +477,19 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
         
         # UNIFIED INSERT - all fields populated
         # Uses event_timestamp from payload (not NOW()) for accurate timing
-        insert_sql = """
+        # Import Wave 1 mapper
+        from services.signal_contract_v1_mapper import map_wave1_fields, build_wave1_insert_columns, build_wave1_insert_values
+        
+        # Map Wave 1 fields
+        wave1_fields = map_wave1_fields(payload, event_type)
+        wave1_cols = build_wave1_insert_columns()
+        wave1_vals = build_wave1_insert_values(wave1_fields)
+        
+        # Build INSERT with Wave 1 columns
+        wave1_col_str = ', '.join(wave1_cols)
+        wave1_placeholders = ', '.join(['%s'] * len(wave1_cols))
+        
+        insert_sql = f"""
             INSERT INTO automated_signals (
                 trade_id,
                 event_type,
@@ -498,10 +510,12 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
                 signal_date,
                 signal_time,
                 timestamp,
-                raw_payload
+                raw_payload,
+                {wave1_col_str}
             ) VALUES (
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                {wave1_placeholders}
             )
             RETURNING id
         """
@@ -525,9 +539,9 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
             final_mfe,
             signal_date,
             signal_time,
-            event_ts_clean,   # payload event_timestamp goes straight into `timestamp`
+            event_ts_clean,
             raw_payload_str
-        )
+        ) + wave1_vals
         
         cursor.execute(insert_sql, params)
         result = cursor.fetchone()
@@ -1294,6 +1308,10 @@ csrf.init_app(app)
 # Register Phase D.3 Historical API v1 Blueprint
 from api.historical_v1 import hist_v1_bp
 app.register_blueprint(hist_v1_bp)
+
+# Register Signal Contract V1 Debug Endpoints
+from api.signals_debug_v1 import signals_debug_v1_bp
+app.register_blueprint(signals_debug_v1_bp)
 
 # Global error handler for database transaction errors
 @app.before_request
