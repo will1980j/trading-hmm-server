@@ -1291,6 +1291,10 @@ app.secret_key = environ.get('SECRET_KEY', 'dev-key-change-in-production')
 CORS(app, origins=['chrome-extension://abndgpgodnhhkchaoiiopnondcpmnanc', 'https://www.tradingview.com'], supports_credentials=True)
 csrf.init_app(app)
 
+# Register Phase D.3 Historical API v1 Blueprint
+from api.historical_v1 import hist_v1_bp
+app.register_blueprint(hist_v1_bp)
+
 # Global error handler for database transaction errors
 @app.before_request
 def reset_db_transaction():
