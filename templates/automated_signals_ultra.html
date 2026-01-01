@@ -469,59 +469,192 @@ No stream analysis yet.
 
             <!-- TAB 3: SIGNAL ANALYTICS -->
             <div class="tab-pane fade" id="tab-analytics" role="tabpanel" aria-labelledby="analytics-tab">
+                
+                <!-- Filter Notice -->
+                <div class="alert alert-info mb-4" style="font-size: 12px;">
+                    <strong>📊 Analytics Filters Applied:</strong> Valid market window only (excludes weekends/holidays) + Metrics required (excludes missing data). 
+                    This ensures trustworthy analytics based on computable signals only.
+                </div>
+                
                 <div class="row">
-                    <div class="col-lg-6 mb-4">
-                        <div class="dashboard-card ultra-card">
-                            <div class="card-header">
-                                <h3 class="card-title mb-0 ultra-section-header">Signal Efficiency</h3>
+                    
+                    <!-- BLOCK 1: Overview -->
+                    <div class="col-lg-12 mb-4">
+                        <div class="ultra-card">
+                            <div class="ultra-card-header">
+                                <h5 class="ultra-card-title">📊 Overview (Computable Signals Only)</h5>
                             </div>
-                            <div class="card-body">
-                                <div id="ase-signal-efficiency-container" class="ultra-muted small">
-                                    Analytics will appear here once the stats integration is wired.
+                            <div class="ultra-card-body">
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-2">
+                                        <div class="ultra-stat-card">
+                                            <div class="ultra-stat-label">Total Valid</div>
+                                            <div id="sa-total-valid" class="ultra-stat-value">--</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="ultra-stat-card">
+                                            <div class="ultra-stat-label">Computable</div>
+                                            <div id="sa-computable" class="ultra-stat-value text-success">--</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="ultra-stat-card">
+                                            <div class="ultra-stat-label">Avg NoBE MFE</div>
+                                            <div id="sa-avg-nobe-mfe" class="ultra-stat-value">--</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="ultra-stat-card">
+                                            <div class="ultra-stat-label">Avg BE MFE</div>
+                                            <div id="sa-avg-be-mfe" class="ultra-stat-value">--</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="ultra-stat-card">
+                                            <div class="ultra-stat-label">Avg MAE</div>
+                                            <div id="sa-avg-mae" class="ultra-stat-value">--</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="ultra-stat-card">
+                                            <div class="ultra-stat-label">Win Proxy (≥1R)</div>
+                                            <div id="sa-win-proxy" class="ultra-stat-value">--%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <div class="ultra-stat-card">
+                                            <div class="ultra-stat-label">CONFIRMED</div>
+                                            <div id="sa-status-confirmed" class="ultra-stat-value small">--</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="ultra-stat-card">
+                                            <div class="ultra-stat-label">EXITED</div>
+                                            <div id="sa-status-exited" class="ultra-stat-value small">--</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="ultra-stat-card">
+                                            <div class="ultra-stat-label">CANCELLED</div>
+                                            <div id="sa-status-cancelled" class="ultra-stat-value small">--</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="ultra-stat-card">
+                                            <div class="ultra-stat-label">PENDING</div>
+                                            <div id="sa-status-pending" class="ultra-stat-value small">--</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- BLOCK 2: Distribution -->
                     <div class="col-lg-6 mb-4">
-                        <div class="dashboard-card ultra-card">
-                            <div class="card-header">
-                                <h3 class="card-title mb-0 ultra-section-header">Session Performance</h3>
+                        <div class="ultra-card">
+                            <div class="ultra-card-header">
+                                <h5 class="ultra-card-title">📈 MFE Distribution (Computable Only)</h5>
                             </div>
-                            <div class="card-body">
-                                <div id="ase-session-performance-container" class="ultra-muted small">
-                                    Session-wise signal and trade performance will be rendered here.
+                            <div class="ultra-card-body">
+                                <h6 class="ultra-muted small mb-2">NoBE MFE Buckets</h6>
+                                <table class="table table-sm table-dark mb-3">
+                                    <thead>
+                                        <tr>
+                                            <th>Bucket</th>
+                                            <th class="text-end">Count</th>
+                                            <th class="text-end">%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sa-nobe-buckets">
+                                        <tr><td colspan="3" class="text-center ultra-muted">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                                
+                                <h6 class="ultra-muted small mb-2">BE MFE Buckets</h6>
+                                <table class="table table-sm table-dark mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Bucket</th>
+                                            <th class="text-end">Count</th>
+                                            <th class="text-end">%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sa-be-buckets">
+                                        <tr><td colspan="3" class="text-center ultra-muted">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- BLOCK 3: Direction Breakdown -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="ultra-card">
+                            <div class="ultra-card-header">
+                                <h5 class="ultra-card-title">🔵🔴 Direction Breakdown (Computable Only)</h5>
+                            </div>
+                            <div class="ultra-card-body">
+                                <table class="table table-sm table-dark mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Direction</th>
+                                            <th class="text-end">Count</th>
+                                            <th class="text-end">Avg NoBE MFE</th>
+                                            <th class="text-end">Avg BE MFE</th>
+                                            <th class="text-end">Avg MAE</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sa-direction-breakdown">
+                                        <tr><td colspan="5" class="text-center ultra-muted">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- BLOCK 4: Data Exclusions Transparency -->
+                    <div class="col-lg-12 mb-4">
+                        <div class="ultra-card">
+                            <div class="ultra-card-header">
+                                <h5 class="ultra-card-title">🔍 Data Exclusions Transparency</h5>
+                            </div>
+                            <div class="ultra-card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <h6 class="ultra-muted small mb-2">Invalid Signals Excluded (by reason)</h6>
+                                        <table class="table table-sm table-dark mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Reason</th>
+                                                    <th class="text-end">Count</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="sa-invalid-excluded">
+                                                <tr><td colspan="2" class="text-center ultra-muted">Loading...</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="ultra-muted small mb-2">Metrics Missing Excluded</h6>
+                                        <div class="ultra-stat-card">
+                                            <div class="ultra-stat-label">Valid Signals Without Metrics</div>
+                                            <div id="sa-metrics-missing" class="ultra-stat-value text-warning">--</div>
+                                            <div class="ultra-stat-sublabel">Excluded from analytics</div>
+                                        </div>
+                                        <div class="alert alert-warning mt-3 mb-0" style="font-size: 11px;">
+                                            <strong>Why exclude?</strong> Signals without metrics can't be analyzed for MFE/MAE. Including them would skew averages and distributions.
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-lg-6 mb-4">
-                        <div class="dashboard-card ultra-card">
-                            <div class="card-header">
-                                <h3 class="card-title mb-0 ultra-section-header">R-Multiple Distribution</h3>
-                            </div>
-                            <div class="card-body">
-                                <div id="ase-rdist-container" class="ultra-muted small">
-                                    Future chart panel for R-multiple distributions.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-6 mb-4">
-                        <div class="dashboard-card ultra-card">
-                            <div class="card-header">
-                                <h3 class="card-title mb-0 ultra-section-header">Roadmap-Locked Intelligence</h3>
-                            </div>
-                            <div class="card-body">
-                                <div class="ultra-muted small mb-2">These analytics will unlock when the corresponding H2/H3 modules are completed in the roadmap.</div>
-                                <ul class="small mb-0 ultra-locked">
-                                    <li><span class="ultra-lock-icon">🔒</span> Regime Classifier</li>
-                                    <li><span class="ultra-lock-icon">🔒</span> Entry Confidence Model</li>
-                                    <li><span class="ultra-lock-icon">🔒</span> ML-Enhanced Signal Validation</li>
-                                    <li><span class="ultra-lock-icon">🔒</span> Execution Quality Benchmarks</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
+                    
                 </div>
             </div>
         </div>

@@ -2917,6 +2917,196 @@ async function loadDataQualityTab() {
     }
 }
 
+// ============================================================================
+// SIGNAL ANALYTICS TAB - TRUSTWORTHY ANALYTICS
+// ============================================================================
+
+async function loadSignalAnalyticsTab() {
+    try {
+        console.log('[SA] Loading Signal Analytics tab...');
+        
+        // Fetch all signals from canonical endpoint
+        const resp = await fetch('/api/signals/v1/all?symbol=GLBX.MDP3:NQ&limit=2000', { cache: 'no-store' });
+        const data = await resp.json();
+        const allSignals = data.rows || [];
+        
+        console.log(`[SA] Loaded ${allSignals.length} total signals`);
+        
+        // ========================================
+        // CRITICAL FILTERING: Valid + Metrics Present
+        // ========================================
+        const validSignals = allSignals.filter(s => s.valid_market_window === true);
+        const computableSignals = validSignals.filter(s => 
+            s.metrics_source === 'event' || s.metrics_source === 'computed'
+        );
+        
+        console.log(`[SA] Valid: ${validSignals.length}, Computable: ${computableSignals.length}`);
+        
+        // ========================================
+        // BLOCK 1: Overview
+        // ========================================
+        document.getElementById('sa-total-valid').textContent = validSignals.length;
+        document.getElementById('sa-computable').textContent = computableSignals.length;
+        
+        // Status breakdown (valid only)
+        const statusCounts = {
+            CONFIRMED: validSignals.filter(s => s.status === 'CONFIRMED').length,
+            EXITED: validSignals.filter(s => s.status === 'EXITED').length,
+            CANCELLED: validSignals.filter(s => s.status === 'CANCELLED').length,
+            PENDING: validSignals.filter(s => s.status === 'PENDING').length
+        };
+        
+        document.getElementById('sa-status-confirmed').textContent = statusCounts.CONFIRMED;
+        document.getElementById('sa-status-exited').textContent = statusCounts.EXITED;
+        document.getElementById('sa-status-cancelled').textContent = statusCounts.CANCELLED;
+        document.getElementById('sa-status-pending').textContent = statusCounts.PENDING;
+        
+        // Averages (computable only)
+        if (computableSignals.length > 0) {
+            const noBeMfes = computableSignals.map(s => parseFloat(s.no_be_mfe)).filter(v => !isNaN(v));
+            const beMfes = computableSignals.map(s => parseFloat(s.be_mfe)).filter(v => !isNaN(v));
+            const maes = computableSignals.map(s => parseFloat(s.mae_global_r)).filter(v => !isNaN(v));
+            
+            const avgNoBeMfe = noBeMfes.length > 0 ? (noBeMfes.reduce((a,b) => a+b, 0) / noBeMfes.length).toFixed(2) + 'R' : '--';
+            const avgBeMfe = beMfes.length > 0 ? (beMfes.reduce((a,b) => a+b, 0) / beMfes.length).toFixed(2) + 'R' : '--';
+            const avgMae = maes.length > 0 ? (maes.reduce((a,b) => a+b, 0) / maes.length).toFixed(2) + 'R' : '--';
+            
+            document.getElementById('sa-avg-nobe-mfe').textContent = avgNoBeMfe;
+            document.getElementById('sa-avg-be-mfe').textContent = avgBeMfe;
+            document.getElementById('sa-avg-mae').textContent = avgMae;
+            
+            // Win proxy: % with no_be_mfe >= 1.0R
+            const winCount = noBeMfes.filter(v => v >= 1.0).length;
+            const winPct = noBeMfes.length > 0 ? ((winCount / noBeMfes.length) * 100).toFixed(1) : '0.0';
+            document.getElementById('sa-win-proxy').textContent = winPct + '%';
+        } else {
+            document.getElementById('sa-avg-nobe-mfe').textContent = '--';
+            document.getElementById('sa-avg-be-mfe').textContent = '--';
+            document.getElementById('sa-avg-mae').textContent = '--';
+            document.getElementById('sa-win-proxy').textContent = '--%';
+        }
+        
+        // ========================================
+        // BLOCK 2: Distribution
+        // ========================================
+        const bucketize = (value) => {
+            if (value < 0) return '<0';
+            if (value < 1) return '0-1';
+            if (value < 2) return '1-2';
+            if (value < 3) return '2-3';
+            if (value < 5) return '3-5';
+            return '5+';
+        };
+        
+        // NoBE MFE buckets
+        const noBeMfes = computableSignals.map(s => parseFloat(s.no_be_mfe)).filter(v => !isNaN(v));
+        const noBeBuckets = {'<0': 0, '0-1': 0, '1-2': 0, '2-3': 0, '3-5': 0, '5+': 0};
+        noBeMfes.forEach(v => {
+            const bucket = bucketize(v);
+            noBeBuckets[bucket]++;
+        });
+        
+        let noBeBucketsHtml = '';
+        const noBeTotal = noBeMfes.length;
+        for (const [bucket, count] of Object.entries(noBeBuckets)) {
+            const pct = noBeTotal > 0 ? ((count / noBeTotal) * 100).toFixed(1) : '0.0';
+            noBeBucketsHtml += `<tr>
+                <td>${bucket}R</td>
+                <td class="text-end">${count}</td>
+                <td class="text-end">${pct}%</td>
+            </tr>`;
+        }
+        document.getElementById('sa-nobe-buckets').innerHTML = noBeBucketsHtml || '<tr><td colspan="3" class="text-center ultra-muted">No data</td></tr>';
+        
+        // BE MFE buckets
+        const beMfes = computableSignals.map(s => parseFloat(s.be_mfe)).filter(v => !isNaN(v));
+        const beBuckets = {'<0': 0, '0-1': 0, '1-2': 0, '2-3': 0, '3-5': 0, '5+': 0};
+        beMfes.forEach(v => {
+            const bucket = bucketize(v);
+            beBuckets[bucket]++;
+        });
+        
+        let beBucketsHtml = '';
+        const beTotal = beMfes.length;
+        for (const [bucket, count] of Object.entries(beBuckets)) {
+            const pct = beTotal > 0 ? ((count / beTotal) * 100).toFixed(1) : '0.0';
+            beBucketsHtml += `<tr>
+                <td>${bucket}R</td>
+                <td class="text-end">${count}</td>
+                <td class="text-end">${pct}%</td>
+            </tr>`;
+        }
+        document.getElementById('sa-be-buckets').innerHTML = beBucketsHtml || '<tr><td colspan="3" class="text-center ultra-muted">No data</td></tr>';
+        
+        // ========================================
+        // BLOCK 3: Direction Breakdown
+        // ========================================
+        const bullish = computableSignals.filter(s => s.direction_norm === 'Bullish');
+        const bearish = computableSignals.filter(s => s.direction_norm === 'Bearish');
+        
+        const calcAvg = (signals, field) => {
+            const values = signals.map(s => parseFloat(s[field])).filter(v => !isNaN(v));
+            return values.length > 0 ? (values.reduce((a,b) => a+b, 0) / values.length).toFixed(2) + 'R' : '--';
+        };
+        
+        let directionHtml = '';
+        if (bullish.length > 0) {
+            directionHtml += `<tr>
+                <td>🔵 Bullish</td>
+                <td class="text-end">${bullish.length}</td>
+                <td class="text-end">${calcAvg(bullish, 'no_be_mfe')}</td>
+                <td class="text-end">${calcAvg(bullish, 'be_mfe')}</td>
+                <td class="text-end">${calcAvg(bullish, 'mae_global_r')}</td>
+            </tr>`;
+        }
+        if (bearish.length > 0) {
+            directionHtml += `<tr>
+                <td>🔴 Bearish</td>
+                <td class="text-end">${bearish.length}</td>
+                <td class="text-end">${calcAvg(bearish, 'no_be_mfe')}</td>
+                <td class="text-end">${calcAvg(bearish, 'be_mfe')}</td>
+                <td class="text-end">${calcAvg(bearish, 'mae_global_r')}</td>
+            </tr>`;
+        }
+        document.getElementById('sa-direction-breakdown').innerHTML = directionHtml || '<tr><td colspan="5" class="text-center ultra-muted">No data</td></tr>';
+        
+        // ========================================
+        // BLOCK 4: Data Exclusions Transparency
+        // ========================================
+        const invalidSignals = allSignals.filter(s => s.valid_market_window === false);
+        const invalidReasons = {};
+        invalidSignals.forEach(s => {
+            const reason = s.invalid_reason || 'UNKNOWN';
+            invalidReasons[reason] = (invalidReasons[reason] || 0) + 1;
+        });
+        
+        let invalidHtml = '';
+        if (Object.keys(invalidReasons).length === 0) {
+            invalidHtml = '<tr><td colspan="2" class="text-center ultra-muted">None</td></tr>';
+        } else {
+            for (const [reason, count] of Object.entries(invalidReasons)) {
+                invalidHtml += `<tr>
+                    <td>${reason}</td>
+                    <td class="text-end">${count}</td>
+                </tr>`;
+            }
+        }
+        document.getElementById('sa-invalid-excluded').innerHTML = invalidHtml;
+        
+        // Metrics missing count
+        const metricsMissing = validSignals.filter(s => 
+            s.metrics_source === 'missing' || !s.metrics_source
+        ).length;
+        document.getElementById('sa-metrics-missing').textContent = metricsMissing;
+        
+        console.log('[SA] Signal Analytics tab loaded successfully');
+        
+    } catch (error) {
+        console.error('[SA] Error loading Signal Analytics tab:', error);
+        document.getElementById('sa-total-valid').textContent = 'Error';
+    }
+}
+
 async function resolveConflict(conflictId, resolution) {
     try {
         const response = await fetch('/api/data-quality/resolve', {
@@ -3297,6 +3487,32 @@ document.addEventListener('DOMContentLoaded', () => {
             if (dqHealthInterval) {
                 clearInterval(dqHealthInterval);
                 dqHealthInterval = null;
+            }
+        });
+    }
+    
+    // Signal Analytics tab - Load trustworthy analytics
+    let saInterval = null;
+    const analyticsTab = document.getElementById('analytics-tab');
+    if (analyticsTab) {
+        analyticsTab.addEventListener('shown.bs.tab', () => {
+            const pane = document.getElementById('tab-analytics');
+            if (pane) pane.scrollIntoView({behavior:'instant', block:'start'});
+            window.scrollTo({top: 0, behavior: 'instant'});
+            
+            // Load Signal Analytics
+            loadSignalAnalyticsTab();
+            
+            // Auto-refresh every 30 seconds
+            if (saInterval) clearInterval(saInterval);
+            saInterval = setInterval(() => {
+                loadSignalAnalyticsTab();
+            }, 30000);
+        });
+        analyticsTab.addEventListener('hidden.bs.tab', () => {
+            if (saInterval) {
+                clearInterval(saInterval);
+                saInterval = null;
             }
         });
     }
