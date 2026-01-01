@@ -2421,7 +2421,7 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
         console.log("[ASE][ALL_SIGNALS] sample:", (data.signals && data.signals.length) ? data.signals[0] : null);
         
         if (signals.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="16" class="text-center ultra-muted py-4">No signals yet</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="14" class="text-center ultra-muted py-4">No signals yet</td></tr>';
             return;
         }
         
@@ -2460,17 +2460,19 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
             html += `
                 <tr>
                     <td><input type="checkbox" class="form-check-input" data-trade-id="${signal.trade_id}" onchange="updateAllSignalsDeleteButton()"></td>
+                    <td class="ultra-muted small">${signal.trade_id || '—'}</td>
+                    <td class="ultra-muted small">${signal.symbol || '—'}</td>
+                    <td class="text-center">${statusBadge}</td>
+                    <td class="text-center">${directionIcon}</td>
                     <td class="ultra-muted small">${signalTs}</td>
                     <td class="ultra-muted small">${entryTs}</td>
-                    <td class="text-center">${directionIcon}</td>
-                    <td class="text-center">${statusBadge}</td>
+                    <td class="ultra-muted small">${signal.exit_bar_open_ts ? new Date(signal.exit_bar_open_ts).toLocaleString() : '—'}</td>
                     <td class="ultra-muted">${entry}</td>
                     <td class="ultra-muted">${stop}</td>
                     <td class="ultra-muted">${mfeNoBe}</td>
                     <td class="ultra-muted">${mfeBe}</td>
                     <td class="ultra-muted">${mae}</td>
-                    <td class="ultra-muted small">${signal.event_type || '--'}</td>
-                    <td class="ultra-muted small">${signal.trade_id}</td>
+                    <td class="ultra-muted small">${signal.event_type || '—'}</td>
                 </tr>
             `;
         }
