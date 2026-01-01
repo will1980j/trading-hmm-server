@@ -3002,7 +3002,7 @@ async function loadConfirmedTabFromCanonical() {
         console.log("[ASE][CONFIRMED_TAB] rows=", count);
         
         if (signals.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="14" class="text-center ultra-muted py-3">No confirmed signals</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="13" class="text-center ultra-muted py-3">No confirmed signals</td></tr>';
             return;
         }
         
@@ -3010,6 +3010,22 @@ async function loadConfirmedTabFromCanonical() {
         for (const signal of signals) {
             const direction = signal.direction_norm || signal.direction || '—';
             const dirIcon = direction === 'Bullish' ? '🔵' : direction === 'Bearish' ? '🔴' : '⚪';
+            
+            // Status badge - match All Signals exactly
+            let statusBadge = '';
+            if (signal.status === 'EXITED') {
+                statusBadge = '<span class="badge bg-secondary" style="font-size: 10px; padding: 3px 8px;">✓ EXIT</span>';
+            } else if (signal.status === 'CONFIRMED') {
+                statusBadge = '<span class="badge bg-success" style="font-size: 10px; padding: 3px 8px;">✓ CONF</span>';
+            } else if (signal.status === 'CANCELLED') {
+                statusBadge = '<span class="badge bg-danger" style="font-size: 10px; padding: 3px 8px;">✗ CANC</span>';
+            } else if (signal.status === 'PENDING') {
+                statusBadge = '<span class="badge bg-warning text-dark" style="font-size: 10px; padding: 3px 8px;">⏳ PEND</span>';
+            } else {
+                statusBadge = '<span class="badge bg-secondary" style="font-size: 10px; padding: 3px 8px;">' + (signal.status || '?') + '</span>';
+            }
+            
+            // Canonical fields - match All Signals exactly
             const signalTs = signal.signal_bar_open_ts ? new Date(signal.signal_bar_open_ts).toLocaleString() : '—';
             const entryTs = signal.entry_bar_open_ts ? new Date(signal.entry_bar_open_ts).toLocaleString() : '—';
             const exitTs = signal.exit_bar_open_ts ? new Date(signal.exit_bar_open_ts).toLocaleString() : '—';
@@ -3019,12 +3035,8 @@ async function loadConfirmedTabFromCanonical() {
             const beMfe = signal.be_mfe != null ? Number(signal.be_mfe).toFixed(2) + 'R' : '—';
             const mae = signal.mae_global_r != null ? Number(signal.mae_global_r).toFixed(2) + 'R' : '—';
             
-            const statusBadge = signal.status === 'EXITED' ? '<span class="badge bg-secondary">EXIT</span>' : 
-                               signal.status === 'CONFIRMED' ? '<span class="badge bg-success">CONF</span>' : 
-                               '<span class="badge bg-secondary">' + (signal.status || '?') + '</span>';
-            
             html += `<tr>
-                <td class="ultra-muted small">${signal.trade_id}</td>
+                <td class="ultra-muted small">${signal.trade_id || '—'}</td>
                 <td class="ultra-muted small">${signal.symbol || '—'}</td>
                 <td class="text-center">${statusBadge}</td>
                 <td class="text-center">${dirIcon}</td>
