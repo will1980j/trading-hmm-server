@@ -43,7 +43,7 @@ def get_all_signals():
                 (ARRAY_AGG(direction ORDER BY id DESC) FILTER (WHERE direction IS NOT NULL))[1] as direction,
                 MIN(signal_bar_open_ts) FILTER (WHERE event_type='SIGNAL_CREATED' AND signal_bar_open_ts IS NOT NULL) as signal_bar_open_ts,
                 MIN(entry_bar_open_ts) FILTER (WHERE event_type='ENTRY' AND entry_bar_open_ts IS NOT NULL) as entry_bar_open_ts,
-                MAX(exit_bar_open_ts) FILTER (WHERE event_type LIKE 'EXIT%' AND exit_bar_open_ts IS NOT NULL) as exit_bar_open_ts,
+                MAX(exit_bar_open_ts) FILTER (WHERE event_type LIKE 'EXIT%%' AND exit_bar_open_ts IS NOT NULL) as exit_bar_open_ts,
                 (ARRAY_AGG(entry_price ORDER BY id DESC) FILTER (WHERE entry_price IS NOT NULL))[1] as entry_price,
                 (ARRAY_AGG(stop_loss ORDER BY id DESC) FILTER (WHERE stop_loss IS NOT NULL))[1] as stop_loss,
                 (ARRAY_AGG(no_be_mfe ORDER BY id DESC) FILTER (WHERE no_be_mfe IS NOT NULL))[1] as no_be_mfe,
@@ -52,7 +52,7 @@ def get_all_signals():
                 MAX(timestamp) as latest_timestamp,
                 CASE 
                     WHEN BOOL_OR(event_type = 'CANCELLED') THEN 'CANCELLED'
-                    WHEN BOOL_OR(event_type LIKE 'EXIT%') THEN 'EXITED'
+                    WHEN BOOL_OR(event_type LIKE 'EXIT%%') THEN 'EXITED'
                     WHEN BOOL_OR(event_type IN ('ENTRY', 'MFE_UPDATE', 'BE_TRIGGERED')) THEN 'CONFIRMED'
                     ELSE 'PENDING'
                 END as status
@@ -60,21 +60,20 @@ def get_all_signals():
             GROUP BY trade_id
         )
         SELECT * FROM lifecycle_summary
-        WHERE symbol = %s
+        WHERE symbol = %(symbol)s
     """
     
-    params = [symbol]
+    params = {"symbol": symbol, "limit": limit, "offset": offset}
     
     if status_list:
-        base_query += " AND status = ANY(%s)"
-        params.append(status_list)
+        base_query += " AND status = ANY(%(status_list)s)"
+        params["status_list"] = status_list
     
-    base_query += " ORDER BY COALESCE(signal_bar_open_ts, entry_bar_open_ts, exit_bar_open_ts, latest_timestamp) DESC NULLS LAST LIMIT %s OFFSET %s"
-    params.extend([limit, offset])
+    base_query += " ORDER BY COALESCE(signal_bar_open_ts, entry_bar_open_ts, exit_bar_open_ts, latest_timestamp) DESC NULLS LAST LIMIT %(limit)s OFFSET %(offset)s"
     
-    logger.info("[signals_v1] placeholders=%d params=%d", base_query.count('%s'), len(params))
+    logger.info("[signals_v1] params keys: %s", list(params.keys()))
     
-    cursor.execute(base_query, tuple(params))
+    cursor.execute(base_query, params)
     
     rows = cursor.fetchall()
     
