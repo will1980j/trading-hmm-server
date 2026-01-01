@@ -2384,13 +2384,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
 AutomatedSignalsUltra.renderAllSignalsTable = async function() {
     try {
-        const resp = await fetch('/api/all-signals/data', { cache: 'no-store' });
+        const resp = await fetch('/api/signals/v1/all?symbol=GLBX.MDP3:NQ&limit=2000', { cache: 'no-store' });
         const data = await resp.json();
         
-        if (!data.success) {
-            console.error('All Signals API error:', data.error);
-            return;
-        }
+        const signals = data.rows || [];
         
         const tbody = document.getElementById('ase-all-signals-tbody');
         const counter = document.getElementById('ase-all-signals-count');
@@ -2433,8 +2430,8 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
         // Render table
         let html = '';
         for (const signal of signals) {
-            const direction = signal.direction || '--';
-            const directionIcon = direction === 'Bullish' ? '🔵' : direction === 'Bearish' ? '🔴' : '--';
+            const direction = signal.direction_norm || signal.direction || '--';
+            const directionIcon = direction === 'Bullish' ? '🔵' : direction === 'Bearish' ? '🔴' : '⚪';
             
             // Status badge
             let statusBadge = '';
@@ -2453,31 +2450,28 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
                                         '<span style="color: #ef4444; font-size: 18px; font-weight: 900;">▼</span>';
             };
             
-            // Canonical fields
-            const dateStr = signal.date || '--';
-            const timeStr = signal.time || '--';
-            const entry = signal.entry != null ? Number(signal.entry).toFixed(2) : '--';
-            const stop = signal.stop != null ? Number(signal.stop).toFixed(2) : '--';
-            const risk = signal.risk != null ? Number(signal.risk).toFixed(2) : '--';
-            const bars = signal.bars_to_confirm != null ? signal.bars_to_confirm : '--';
+            // Canonical fields from /api/signals/v1/all
+            const signalTs = signal.signal_bar_open_ts ? new Date(signal.signal_bar_open_ts).toLocaleString() : '--';
+            const entryTs = signal.entry_bar_open_ts ? new Date(signal.entry_bar_open_ts).toLocaleString() : '--';
+            const entry = signal.entry_price != null ? Number(signal.entry_price).toFixed(2) : '--';
+            const stop = signal.stop_loss != null ? Number(signal.stop_loss).toFixed(2) : '--';
+            const mfeNoBe = signal.no_be_mfe != null ? Number(signal.no_be_mfe).toFixed(2) + 'R' : '--';
+            const mfeBe = signal.be_mfe != null ? Number(signal.be_mfe).toFixed(2) + 'R' : '--';
+            const mae = signal.mae_global_r != null ? Number(signal.mae_global_r).toFixed(2) + 'R' : '--';
             
             html += `
                 <tr>
                     <td><input type="checkbox" class="form-check-input" data-trade-id="${signal.trade_id}" onchange="updateAllSignalsDeleteButton()"></td>
-                    <td class="ultra-muted small">${dateStr}</td>
-                    <td class="ultra-muted">${timeStr}</td>
+                    <td class="ultra-muted small">${signalTs}</td>
+                    <td class="ultra-muted small">${entryTs}</td>
                     <td class="text-center">${directionIcon}</td>
-                    <td class="ultra-muted small">${signal.session || '--'}</td>
                     <td class="text-center">${statusBadge}</td>
                     <td class="ultra-muted">${entry}</td>
                     <td class="ultra-muted">${stop}</td>
-                    <td class="ultra-muted text-center">${risk}</td>
-                    <td class="ultra-muted text-center">${bars}</td>
-                    <td class="text-center">${htfBadge(signal.htf_daily || '--')}</td>
-                    <td class="text-center">${htfBadge(signal.htf_4h || '--')}</td>
-                    <td class="text-center">${htfBadge(signal.htf_1h || '--')}</td>
-                    <td class="text-center">${htfBadge(signal.htf_15m || '--')}</td>
-                    <td class="text-center">${htfBadge(signal.htf_5m || '--')}</td>
+                    <td class="ultra-muted">${mfeNoBe}</td>
+                    <td class="ultra-muted">${mfeBe}</td>
+                    <td class="ultra-muted">${mae}</td>
+                    <td class="ultra-muted small">${signal.event_type || '--'}</td>
                     <td class="ultra-muted small">${signal.trade_id}</td>
                 </tr>
             `;
