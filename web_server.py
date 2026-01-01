@@ -478,10 +478,18 @@ def handle_automated_event(event_type, data, raw_payload_str=None):
         # UNIFIED INSERT - all fields populated
         # Uses event_timestamp from payload (not NOW()) for accurate timing
         # Import Wave 1 mapper
-        from services.signal_contract_v1_mapper import map_wave1_fields, build_wave1_insert_columns, build_wave1_insert_values
+        from services.signal_contract_v1_mapper import map_wave1_fields, build_wave1_insert_columns, build_wave1_insert_values, get_prior_event
         
-        # Map Wave 1 fields
-        wave1_fields = map_wave1_fields(payload, event_type)
+        # Get prior event for carry-forward
+        prior_event = get_prior_event(trade_id, conn)
+        
+        # Map Wave 1 fields with carry-forward
+        wave1_fields = map_wave1_fields(payload, event_type, trade_id, prior_event)
+        
+        # Override direction if we have it from payload or prior
+        if wave1_fields.get('direction') and not direction:
+            direction = wave1_fields['direction']
+        
         wave1_cols = build_wave1_insert_columns()
         wave1_vals = build_wave1_insert_values(wave1_fields)
         
