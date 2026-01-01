@@ -3061,47 +3061,89 @@ async function loadConfirmedTabFromCanonical() {
 // Load Cancelled Signals from canonical endpoint
 async function loadCancelledTabFromCanonical() {
     try {
-        const resp = await fetch('/api/all-signals/cancelled', { cache: 'no-store' });
+        const resp = await fetch('/api/signals/v1/all?symbol=GLBX.MDP3:NQ&status=CANCELLED&limit=2000', { cache: 'no-store' });
         const data = await resp.json();
         
         const tbody = document.getElementById('ase-cancelled-tbody');
+        const counter = document.getElementById('ase-cancelled-count');
+        
         if (!tbody) return;
         
-        if (!data.success || !data.signals) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-3">Error loading cancelled signals</td></tr>';
-            return;
-        }
+        // DO NOT filter valid_market_window - show all cancelled signals
+        const signals = data.rows || [];
         
-        const count = data.count || data.signals.length || 0;
+        const count = signals.length;
         console.log("[ASE][CANCELLED_TAB] rows=", count);
         
-        if (data.signals.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center ultra-muted py-3">No cancelled signals</td></tr>';
+        // Update counter
+        if (counter) {
+            counter.textContent = count;
+        }
+        
+        if (signals.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="13" class="text-center ultra-muted py-3">No cancelled signals</td></tr>';
             return;
         }
         
         let html = '';
-        for (const signal of data.signals) {
-            const dateStr = signal.date || '--';
-            const timeStr = signal.time || '--';
-            const session = signal.session || '--';
-            const direction = signal.direction || '--';
-            const dirIcon = direction === 'Bullish' ? 'BULL' : direction === 'Bearish' ? 'BEAR' : '--';
+        for (const signal of signals) {
+            const direction = signal.direction_norm || signal.direction || '—';
+            const dirIcon = direction === 'Bullish' ? '🔵' : direction === 'Bearish' ? '🔴' : '⚪';
+            
+            // Status badge - match All Signals exactly
+            let statusBadge = '';
+            if (signal.status === 'EXITED') {
+                statusBadge = '<span class="badge bg-secondary" style="font-size: 10px; padding: 3px 8px;">✓ EXIT</span>';
+            } else if (signal.status === 'CONFIRMED') {
+                statusBadge = '<span class="badge bg-success" style="font-size: 10px; padding: 3px 8px;">✓ CONF</span>';
+            } else if (signal.status === 'CANCELLED') {
+                statusBadge = '<span class="badge bg-danger" style="font-size: 10px; padding: 3px 8px;">✗ CANC</span>';
+            } else if (signal.status === 'PENDING') {
+                statusBadge = '<span class="badge bg-warning text-dark" style="font-size: 10px; padding: 3px 8px;">⏳ PEND</span>';
+            } else {
+                statusBadge = '<span class="badge bg-secondary" style="font-size: 10px; padding: 3px 8px;">' + (signal.status || '?') + '</span>';
+            }
+            
+            // Canonical fields - match All Signals exactly
+            const signalTs = signal.signal_bar_open_ts ? new Date(signal.signal_bar_open_ts).toLocaleString() : '—';
+            const entryTs = signal.entry_bar_open_ts ? new Date(signal.entry_bar_open_ts).toLocaleString() : '—';
+            const exitTs = signal.exit_bar_open_ts ? new Date(signal.exit_bar_open_ts).toLocaleString() : '—';
+            const entry = signal.entry_price != null ? Number(signal.entry_price).toFixed(2) : '—';
+            const stop = signal.stop_loss != null ? Number(signal.stop_loss).toFixed(2) : '—';
+            const noBeMfe = signal.no_be_mfe != null ? Number(signal.no_be_mfe).toFixed(2) + 'R' : '—';
+            const beMfe = signal.be_mfe != null ? Number(signal.be_mfe).toFixed(2) + 'R' : '—';
+            const mae = signal.mae_global_r != null ? Number(signal.mae_global_r).toFixed(2) + 'R' : '—';
+            
+            // Add "NO MARKET DATA" badge if valid_market_window is false
+            let latestEvent = signal.event_type || '—';
+            if (signal.valid_market_window === false) {
+                latestEvent += ' <span class="badge bg-warning text-dark" style="font-size: 9px; padding: 2px 6px;">NO MARKET DATA</span>';
+            }
             
             html += `<tr>
-                <td class="ultra-muted small">${dateStr}</td>
-                <td class="ultra-muted">${timeStr}</td>
-                <td class="ultra-muted small">${session}</td>
+                <td class="ultra-muted small">${signal.trade_id || '—'}</td>
+                <td class="ultra-muted small">${signal.symbol || '—'}</td>
+                <td class="text-center">${statusBadge}</td>
                 <td class="text-center">${dirIcon}</td>
-                <td class="ultra-muted small">${signal.htf_daily || '--'}</td>
-                <td class="ultra-muted small">${signal.htf_1h || '--'}</td>
-                <td class="ultra-muted small">${signal.trade_id}</td>
+                <td class="ultra-muted small">${signalTs}</td>
+                <td class="ultra-muted small">${entryTs}</td>
+                <td class="ultra-muted small">${exitTs}</td>
+                <td class="ultra-muted">${entry}</td>
+                <td class="ultra-muted">${stop}</td>
+                <td class="ultra-muted">${noBeMfe}</td>
+                <td class="ultra-muted">${beMfe}</td>
+                <td class="ultra-muted">${mae}</td>
+                <td class="ultra-muted small">${latestEvent}</td>
             </tr>`;
         }
         
         tbody.innerHTML = html;
     } catch (error) {
         console.error('[ASE][CANCELLED_TAB] Error:', error);
+        const tbody = document.getElementById('ase-cancelled-tbody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="13" class="text-center text-danger py-3">Error loading cancelled signals</td></tr>';
+        }
     }
 }
 

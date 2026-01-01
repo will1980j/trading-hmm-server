@@ -436,21 +436,27 @@ No stream analysis yet.
                             </div>
                             <div class="card-body p-0">
                                 <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
-                                    <table class="table table-sm table-dark mb-0 ultra-table" id="ase-cancelled-table">
-                                        <thead class="position-sticky top-0">
+                                    <table class="table table-sm table-dark mb-0 ultra-table" id="ase-cancelled-table" style="font-size: 11px;">
+                                        <thead class="position-sticky top-0" style="background: rgba(25,30,60,0.95);">
                                             <tr>
-                                                <th style="width: 30px;"><input type="checkbox" class="cancelled-checkbox" id="ase-select-all-cancelled" title="Select all"></th>
-                                                <th scope="col">Time</th>
-                                                <th scope="col">Dir</th>
-                                                <th scope="col">Session</th>
-                                                <th scope="col">Reason</th>
-                                                <th scope="col">Age Before Cancel</th>
-                                                <th scope="col">ID</th>
+                                                <th>Trade ID</th>
+                                                <th>Symbol</th>
+                                                <th>Status</th>
+                                                <th>Dir</th>
+                                                <th>Signal Time</th>
+                                                <th>Entry Time</th>
+                                                <th>Exit Time</th>
+                                                <th>Entry</th>
+                                                <th>Stop</th>
+                                                <th>NoBE MFE</th>
+                                                <th>BE MFE</th>
+                                                <th>MAE</th>
+                                                <th>Latest Event</th>
                                             </tr>
                                         </thead>
                                         <tbody id="ase-cancelled-tbody">
                                             <tr>
-                                                <td colspan="7" class="text-center text-muted small py-3">No cancelled signals loaded yet.</td>
+                                                <td colspan="13" class="text-center ultra-muted py-3">Loading cancelled signals...</td>
                                             </tr>
                                         </tbody>
                                     </table>
