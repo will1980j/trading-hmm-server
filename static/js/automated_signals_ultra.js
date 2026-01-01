@@ -2428,25 +2428,27 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
         // Render table
         let html = '';
         for (const signal of signals) {
-            const direction = signal.direction_norm || signal.direction || '--';
+            // Debug log for specific trade
+            if (signal.trade_id === "20251227_181318000_BULLISH") {
+                console.log("DEBUG_STATUS_ROW", signal);
+            }
+            
+            const direction = signal.direction_norm || signal.direction || '—';
             const directionIcon = direction === 'Bullish' ? '🔵' : direction === 'Bearish' ? '🔴' : '⚪';
             
-            // Status badge
+            // Status badge - use signal.status directly from API
             let statusBadge = '';
-            if (signal.status === 'CONFIRMED') {
+            if (signal.status === 'EXITED') {
+                statusBadge = '<span class="badge bg-secondary" style="font-size: 10px; padding: 3px 8px;">✓ EXIT</span>';
+            } else if (signal.status === 'CONFIRMED') {
                 statusBadge = '<span class="badge bg-success" style="font-size: 10px; padding: 3px 8px;">✓ CONF</span>';
             } else if (signal.status === 'CANCELLED') {
                 statusBadge = '<span class="badge bg-danger" style="font-size: 10px; padding: 3px 8px;">✗ CANC</span>';
-            } else {
+            } else if (signal.status === 'PENDING') {
                 statusBadge = '<span class="badge bg-warning text-dark" style="font-size: 10px; padding: 3px 8px;">⏳ PEND</span>';
+            } else {
+                statusBadge = '<span class="badge bg-secondary" style="font-size: 10px; padding: 3px 8px;">' + (signal.status || '?') + '</span>';
             }
-            
-            // HTF badges
-            const htfBadge = (bias) => {
-                if (!bias || bias === 'NEUT') return '<span style="color: #6b7280; font-size: 18px; font-weight: 900;">—</span>';
-                return bias === 'BULL' ? '<span style="color: #3b82f6; font-size: 18px; font-weight: 900;">▲</span>' : 
-                                        '<span style="color: #ef4444; font-size: 18px; font-weight: 900;">▼</span>';
-            };
             
             // Canonical fields from /api/signals/v1/all
             const signalTs = signal.signal_bar_open_ts ? new Date(signal.signal_bar_open_ts).toLocaleString() : '--';
