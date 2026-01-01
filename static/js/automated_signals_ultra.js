@@ -3007,7 +3007,6 @@ async function loadConfirmedTabFromCanonical() {
         }
         
         let html = '';
-        let html = '';
         for (const signal of signals) {
             const direction = signal.direction_norm || signal.direction || '—';
             const dirIcon = direction === 'Bullish' ? '🔵' : direction === 'Bearish' ? '🔴' : '⚪';
