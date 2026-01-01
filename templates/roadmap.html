@@ -332,23 +332,36 @@
                 const resp = await fetch('/api/roadmap', { cache: 'no-store' });
                 const data = await resp.json();
                 
-                // TASK 1: Update current focus from YAML fields (not by searching for IN_PROGRESS)
-                const currentFocusText = data.current_focus_name || 
-                                        data.current_focus_phase || 
-                                        'Phase C — Historical Signal Generation (NEXT)';
+                console.log('[ROADMAP] API response:', data);
+                
+                // Extract phases from correct path: data.phases (not data.roadmap_v3.phases)
+                // The API returns phases directly at top level
+                const phases = data.phases || [];
+                
+                // TASK 1: Current focus from overall.active_phase_name
+                const currentFocusText = data.overall?.active_phase_name || 
+                                        'Phase C — Historical Signal Generation (RAW)';
                 document.getElementById('current-focus-text').textContent = currentFocusText;
                 
-                // Update data state
-                const dataState = data.current_data_state?.databento_ohlcv_1m || {};
-                document.getElementById('data-symbol').textContent = dataState.symbol || 'NQ';
-                document.getElementById('data-range').textContent = dataState.date_range || '2010-2025';
-                document.getElementById('data-bars').textContent = (dataState.row_count || 5250000).toLocaleString();
+                // Data foundation from source_of_truth
+                const sourceOfTruth = data.source_of_truth || {};
+                document.getElementById('data-symbol').textContent = sourceOfTruth.symbol || 'NQ';
+                document.getElementById('data-range').textContent = sourceOfTruth.date_range || '2010-2025';
+                document.getElementById('data-bars').textContent = sourceOfTruth.total_bars || '~5.25M';
+                
+                // IMPORTANT: Sort phases into A→J order (PA, P1, P2, P3, P4, P4.5, P5, P6, P7, P8, P9)
+                const phaseOrder = ['PA', 'P1', 'P2', 'P3', 'P4', 'P4.5', 'P5', 'P6', 'P7', 'P8', 'P9'];
+                const sortedPhases = phases.sort((a, b) => {
+                    const indexA = phaseOrder.indexOf(a.phase_id);
+                    const indexB = phaseOrder.indexOf(b.phase_id);
+                    return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+                });
                 
                 // Render phases
                 const container = document.getElementById('phases-container');
                 container.innerHTML = '';
                 
-                data.phases.forEach(phase => {
+                sortedPhases.forEach(phase => {
                     // TASK 2: Map CSS class based on status prefix/content
                     let cardClass = 'not-enabled';
                     let statusClass = 'status-not-enabled';
@@ -412,10 +425,13 @@
                     container.appendChild(card);
                 });
                 
+                console.log(`[ROADMAP] Rendered ${sortedPhases.length} phases`);
+                
             } catch (error) {
-                console.error('Error loading roadmap:', error);
+                console.error('[ROADMAP] Error loading roadmap:', error);
                 document.getElementById('phases-container').innerHTML = 
                     '<div class="alert alert-danger">Failed to load roadmap. Check console for details.</div>';
+                document.getElementById('current-focus-text').textContent = 'Error loading roadmap';
             }
         }
         
