@@ -2751,59 +2751,169 @@ async function loadAllSignals() {
 
 
 // ============================================================================
-// DATA QUALITY TAB
+// DATA QUALITY TAB - DATABENTO-FIRST IMPLEMENTATION
 // ============================================================================
 
 async function loadDataQualityTab() {
     try {
-        // Load overview
-        const overview = await fetch('/api/data-quality/overview').then(r => r.json());
-        if (overview.success) {
-            document.getElementById('dq-last-sync').textContent = overview.last_sync ? new Date(overview.last_sync).toLocaleString() : 'Never';
-            document.getElementById('dq-status').textContent = overview.status === 'healthy' ? '✅ Healthy' : '⚠️ Issues';
-            document.getElementById('dq-success-rate').textContent = overview.webhook_success_rate.toFixed(1) + '%';
-            document.getElementById('dq-conflicts').textContent = overview.conflicts_pending;
+        console.log('[DQ] Loading Data Quality tab...');
+        
+        // Fetch all signals from canonical endpoint
+        const resp = await fetch('/api/signals/v1/all?symbol=GLBX.MDP3:NQ&limit=2000', { cache: 'no-store' });
+        const data = await resp.json();
+        const signals = data.rows || [];
+        
+        console.log(`[DQ] Loaded ${signals.length} signals`);
+        
+        // ========================================
+        // BLOCK 1: Signal Validity Summary
+        // ========================================
+        const totalSignals = signals.length;
+        const validSignals = signals.filter(s => s.valid_market_window === true);
+        const invalidSignals = signals.filter(s => s.valid_market_window === false);
+        const validPct = totalSignals > 0 ? ((validSignals.length / totalSignals) * 100).toFixed(1) : '0.0';
+        
+        document.getElementById('dq-total-signals').textContent = totalSignals;
+        document.getElementById('dq-valid-signals').textContent = validSignals.length;
+        document.getElementById('dq-invalid-signals').textContent = invalidSignals.length;
+        document.getElementById('dq-valid-pct').textContent = validPct + '%';
+        
+        // Invalid reason breakdown
+        const invalidReasons = {};
+        invalidSignals.forEach(s => {
+            const reason = s.invalid_reason || 'UNKNOWN';
+            invalidReasons[reason] = (invalidReasons[reason] || 0) + 1;
+        });
+        
+        let reasonsHtml = '';
+        if (Object.keys(invalidReasons).length === 0) {
+            reasonsHtml = '<tr><td colspan="2" class="text-center ultra-muted">No invalid signals</td></tr>';
+        } else {
+            for (const [reason, count] of Object.entries(invalidReasons)) {
+                reasonsHtml += `<tr>
+                    <td>${reason}</td>
+                    <td class="text-end">${count}</td>
+                </tr>`;
+            }
         }
-
-        // Load health status
-        const health = await fetch('/api/data-quality/health').then(r => r.json());
-        if (health.success) {
-            const webhookBadge = document.getElementById('dq-webhook-status');
-            webhookBadge.textContent = health.webhooks.status === 'active' ? '✅ Active' : '❌ Inactive';
-            webhookBadge.className = 'badge ' + (health.webhooks.status === 'active' ? 'bg-success' : 'bg-danger');
-            document.getElementById('dq-webhook-last').textContent = 'Last received: ' + health.webhooks.last_received;
+        document.getElementById('dq-invalid-reasons').innerHTML = reasonsHtml;
+        
+        // ========================================
+        // BLOCK 2: Metrics Availability (Valid Signals Only)
+        // ========================================
+        const eventMetrics = validSignals.filter(s => s.metrics_source === 'event').length;
+        const computedMetrics = validSignals.filter(s => s.metrics_source === 'computed').length;
+        const missingMetrics = validSignals.filter(s => s.metrics_source === 'missing' || !s.metrics_source).length;
+        
+        document.getElementById('dq-event-metrics').textContent = eventMetrics;
+        document.getElementById('dq-computed-metrics').textContent = computedMetrics;
+        document.getElementById('dq-missing-metrics').textContent = missingMetrics;
+        
+        // Progress bar percentages
+        const validTotal = validSignals.length;
+        const eventPct = validTotal > 0 ? ((eventMetrics / validTotal) * 100).toFixed(1) : 0;
+        const computedPct = validTotal > 0 ? ((computedMetrics / validTotal) * 100).toFixed(1) : 0;
+        const missingPct = validTotal > 0 ? ((missingMetrics / validTotal) * 100).toFixed(1) : 0;
+        
+        document.getElementById('dq-event-bar').style.width = eventPct + '%';
+        document.getElementById('dq-event-bar-label').textContent = eventPct + '%';
+        document.getElementById('dq-computed-bar').style.width = computedPct + '%';
+        document.getElementById('dq-computed-bar-label').textContent = computedPct + '%';
+        document.getElementById('dq-missing-bar').style.width = missingPct + '%';
+        document.getElementById('dq-missing-bar-label').textContent = missingPct + '%';
+        
+        // ========================================
+        // BLOCK 3: Lifecycle Completeness Checks (Valid Signals Only)
+        // ========================================
+        const exitedNoExit = validSignals.filter(s => 
+            s.status === 'EXITED' && !s.exit_bar_open_ts
+        ).length;
+        
+        const confirmedNoEntry = validSignals.filter(s => 
+            s.status === 'CONFIRMED' && (!s.entry_price || !s.stop_loss)
+        ).length;
+        
+        const pendingWithEntry = validSignals.filter(s => 
+            s.status === 'PENDING' && s.entry_price != null
+        ).length;
+        
+        const cancelledWithEntry = validSignals.filter(s => 
+            s.status === 'CANCELLED' && s.entry_price != null
+        ).length;
+        
+        document.getElementById('dq-exited-no-exit').textContent = exitedNoExit;
+        document.getElementById('dq-confirmed-no-entry').textContent = confirmedNoEntry;
+        document.getElementById('dq-pending-with-entry').textContent = pendingWithEntry;
+        document.getElementById('dq-cancelled-with-entry').textContent = cancelledWithEntry;
+        
+        // Color-code the check cards
+        const colorCard = (id, value) => {
+            const card = document.getElementById(id);
+            if (!card) return;
+            if (value === 0) {
+                card.style.borderLeft = '4px solid #10b981'; // green
+            } else if (value <= 2) {
+                card.style.borderLeft = '4px solid #f59e0b'; // yellow
+            } else {
+                card.style.borderLeft = '4px solid #ef4444'; // red
+            }
+        };
+        
+        colorCard('dq-check-1', exitedNoExit);
+        colorCard('dq-check-2', confirmedNoEntry);
+        colorCard('dq-check-3', pendingWithEntry);
+        colorCard('dq-check-4', cancelledWithEntry);
+        
+        // Lifecycle status message
+        const totalIssues = exitedNoExit + confirmedNoEntry + pendingWithEntry + cancelledWithEntry;
+        const statusEl = document.getElementById('dq-lifecycle-status');
+        if (totalIssues === 0) {
+            statusEl.className = 'alert alert-success mb-0';
+            statusEl.innerHTML = '<strong>✅ All lifecycle checks passed!</strong> No integrity issues detected.';
+        } else if (totalIssues <= 5) {
+            statusEl.className = 'alert alert-warning mb-0';
+            statusEl.innerHTML = `<strong>⚠️ ${totalIssues} minor issue(s) detected.</strong> Review the checks above.`;
+        } else {
+            statusEl.className = 'alert alert-danger mb-0';
+            statusEl.innerHTML = `<strong>❌ ${totalIssues} issue(s) detected!</strong> Lifecycle integrity compromised.`;
+        }
+        
+        // ========================================
+        // BLOCK 4: Market Coverage Spot Check
+        // ========================================
+        const signalsWithTime = signals.filter(s => s.signal_bar_open_ts);
+        const signalsMissingTime = signals.length - signalsWithTime.length;
+        
+        let earliestSignal = '--';
+        let latestSignal = '--';
+        let coverageDays = '--';
+        
+        if (signalsWithTime.length > 0) {
+            const timestamps = signalsWithTime.map(s => new Date(s.signal_bar_open_ts).getTime());
+            const minTs = Math.min(...timestamps);
+            const maxTs = Math.max(...timestamps);
             
-            document.getElementById('dq-export-next').textContent = 'Next run: ' + health.daily_export.next_run;
-            document.getElementById('dq-recon-last').textContent = 'Last run: ' + health.reconciliation.last_run;
+            earliestSignal = new Date(minTs).toLocaleDateString();
+            latestSignal = new Date(maxTs).toLocaleDateString();
+            
+            const daysDiff = Math.ceil((maxTs - minTs) / (1000 * 60 * 60 * 24));
+            coverageDays = daysDiff;
         }
-
-        // Load conflicts
-        const conflicts = await fetch('/api/data-quality/conflicts?status=pending').then(r => r.json());
-        if (conflicts.success && conflicts.conflicts.length > 0) {
-            const html = conflicts.conflicts.map(c => `
-                <div class="ultra-card mb-2" style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3);">
-                    <div class="ultra-card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <div class="fw-semibold">${c.trade_id}</div>
-                                <div class="small ultra-muted">${c.conflict_type}: ${c.field_name}</div>
-                                <div class="mt-2">
-                                    <span class="badge bg-warning">Webhook: ${c.webhook_value}</span>
-                                    <span class="badge bg-info">Indicator: ${c.indicator_value}</span>
-                                </div>
-                            </div>
-                            <div class="btn-group-vertical btn-group-sm">
-                                <button class="btn btn-success btn-sm" onclick="resolveConflict(${c.id}, 'trust_indicator')">Trust Indicator</button>
-                                <button class="btn btn-warning btn-sm" onclick="resolveConflict(${c.id}, 'trust_webhook')">Trust Webhook</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-            document.getElementById('dq-conflicts-list').innerHTML = html;
-        }
+        
+        document.getElementById('dq-earliest-signal').textContent = earliestSignal;
+        document.getElementById('dq-latest-signal').textContent = latestSignal;
+        document.getElementById('dq-missing-time').textContent = signalsMissingTime;
+        document.getElementById('dq-coverage-days').textContent = coverageDays;
+        
+        console.log('[DQ] Data Quality tab loaded successfully');
+        
     } catch (error) {
-        console.error('Error loading Data Quality tab:', error);
+        console.error('[DQ] Error loading Data Quality tab:', error);
+        
+        // Show error state
+        document.getElementById('dq-total-signals').textContent = 'Error';
+        document.getElementById('dq-lifecycle-status').innerHTML = 
+            '<div class="alert alert-danger mb-0">❌ Failed to load data quality metrics. Check console for details.</div>';
     }
 }
 
@@ -3165,7 +3275,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Data Quality tab - Indicator Health Panel
+    // Data Quality tab - Load new Databento-first metrics
     let dqHealthInterval = null;
     const dataQualityTab = document.getElementById('data-quality-tab');
     if (dataQualityTab) {
@@ -3173,11 +3283,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const pane = document.getElementById('tab-data-quality');
             if (pane) pane.scrollIntoView({behavior:'instant', block:'start'});
             window.scrollTo({top: 0, behavior: 'instant'});
-            AutomatedSignalsUltra.loadIndicatorHealthPanel();
+            
+            // Load new Data Quality metrics
+            loadDataQualityTab();
+            
+            // Auto-refresh every 30 seconds
             if (dqHealthInterval) clearInterval(dqHealthInterval);
             dqHealthInterval = setInterval(() => {
-                AutomatedSignalsUltra.loadIndicatorHealthPanel();
-            }, 10000);
+                loadDataQualityTab();
+            }, 30000);
         });
         dataQualityTab.addEventListener('hidden.bs.tab', () => {
             if (dqHealthInterval) {
