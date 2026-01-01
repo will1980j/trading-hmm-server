@@ -420,6 +420,8 @@ curl "http://localhost:5000/api/signals/v1/debug/trade/TRADE_ID_HERE"
 
 **Wave 1 Backfill:** Completed for last 10,000 rows (symbol, status, timestamps, BE fields populated)
 
+**Signal Metrics Computed Backfill:** Implemented (Databento-derived MFE/MAE for historical trades)
+
 **Debug Endpoints Available:**
 - `GET /api/signals/v1/debug/last?limit=20` - Last N events with Wave 1 fields
 - `GET /api/signals/v1/debug/trade/{trade_id}` - Event timeline for specific trade
