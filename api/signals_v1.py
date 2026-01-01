@@ -1,8 +1,9 @@
 ﻿from flask import Blueprint, request, jsonify
-import psycopg2, os
+import psycopg2, os, logging
 
 signals_v1_bp = Blueprint("signals_v1_bp", __name__, url_prefix="/api/signals/v1")
 print("[BOOT] api.signals_v1 loaded OK")
+logger = logging.getLogger(__name__)
 
 def get_db_conn():
     return psycopg2.connect(os.environ.get('DATABASE_URL'))
@@ -14,9 +15,9 @@ def normalize_direction(direction):
         return 'Bullish'
     if direction == 'SHORT':
         return 'Bearish'
-    if direction and '_BULLISH' in direction.upper():
+    if direction and '_BULLISH' in str(direction).upper():
         return 'Bullish'
-    if direction and '_BEARISH' in direction.upper():
+    if direction and '_BEARISH' in str(direction).upper():
         return 'Bearish'
     return direction
 
@@ -32,7 +33,7 @@ def get_all_signals():
     
     status_list = [s.strip().upper() for s in status_filter.split(',') if s.strip()] if status_filter else []
     
-    lifecycle_query = """
+    base_query = """
         WITH lifecycle_summary AS (
             SELECT 
                 trade_id,
@@ -62,13 +63,18 @@ def get_all_signals():
         WHERE symbol = %s
     """
     
+    params = [symbol]
+    
     if status_list:
-        lifecycle_query += " AND status = ANY(%s)"
-        lifecycle_query += " ORDER BY COALESCE(signal_bar_open_ts, entry_bar_open_ts, exit_bar_open_ts, latest_timestamp) DESC NULLS LAST LIMIT %s OFFSET %s"
-        cursor.execute(lifecycle_query, (symbol, status_list, limit, offset))
-    else:
-        lifecycle_query += " ORDER BY COALESCE(signal_bar_open_ts, entry_bar_open_ts, exit_bar_open_ts, latest_timestamp) DESC NULLS LAST LIMIT %s OFFSET %s"
-        cursor.execute(lifecycle_query, (symbol, limit, offset))
+        base_query += " AND status = ANY(%s)"
+        params.append(status_list)
+    
+    base_query += " ORDER BY COALESCE(signal_bar_open_ts, entry_bar_open_ts, exit_bar_open_ts, latest_timestamp) DESC NULLS LAST LIMIT %s OFFSET %s"
+    params.extend([limit, offset])
+    
+    logger.info("[signals_v1] placeholders=%d params=%d", base_query.count('%s'), len(params))
+    
+    cursor.execute(base_query, tuple(params))
     
     rows = cursor.fetchall()
     
