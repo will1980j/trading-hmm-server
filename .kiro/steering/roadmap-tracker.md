@@ -410,9 +410,31 @@ python tests/test_historical_v1_api.py
 # Run migration
 python database/run_signal_contract_v1_wave1_migration.py
 
+# Run backfill for existing rows
+python database/backfill_signal_contract_v1_wave1.py --limit 10000
+
 # Test debug endpoints
 curl "http://localhost:5000/api/signals/v1/debug/last?limit=5"
 curl "http://localhost:5000/api/signals/v1/debug/trade/TRADE_ID_HERE"
+```
+
+**Wave 1 Backfill:** Completed for last 10,000 rows (symbol, status, timestamps, BE fields populated)
+
+**Debug Endpoints Available:**
+- `GET /api/signals/v1/debug/last?limit=20` - Last N events with Wave 1 fields
+- `GET /api/signals/v1/debug/trade/{trade_id}` - Event timeline for specific trade
+- `GET /api/signals/v1/all` - All signals (one row per trade_id, latest state)
+
+**Example Usage:**
+```bash
+# All signals for NQ
+curl "http://localhost:5000/api/signals/v1/all?symbol=GLBX.MDP3:NQ&limit=100"
+
+# Filter by status
+curl "http://localhost:5000/api/signals/v1/all?symbol=GLBX.MDP3:NQ&status=EXITED,CONFIRMED&limit=50"
+
+# PowerShell
+Invoke-RestMethod "http://localhost:5000/api/signals/v1/all?symbol=GLBX.MDP3:NQ&limit=10" | ConvertTo-Json -Depth 5
 ```
 
 **Artifacts:**

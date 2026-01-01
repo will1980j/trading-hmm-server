@@ -1321,6 +1321,10 @@ app.register_blueprint(hist_v1_bp)
 from api.signals_debug_v1 import signals_debug_v1_bp
 app.register_blueprint(signals_debug_v1_bp)
 
+# Register Signal Contract V1 All Signals Endpoint
+from api.signals_v1 import signals_v1_bp
+app.register_blueprint(signals_v1_bp)
+
 # Global error handler for database transaction errors
 @app.before_request
 def reset_db_transaction():
