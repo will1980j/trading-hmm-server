@@ -2989,53 +2989,55 @@ document.getElementById('data-quality-tab')?.addEventListener('shown.bs.tab', fu
 // Load Confirmed Signals from canonical endpoint
 async function loadConfirmedTabFromCanonical() {
     try {
-        const resp = await fetch('/api/all-signals/confirmed', { cache: 'no-store' });
+        const resp = await fetch('/api/signals/v1/all?symbol=GLBX.MDP3:NQ&status=CONFIRMED,EXITED&limit=2000', { cache: 'no-store' });
         const data = await resp.json();
         
         const tbody = document.getElementById('ase-confirmed-tbody');
         if (!tbody) return;
         
-        if (!data.success || !data.signals) {
-            tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-3">Error loading confirmed signals</td></tr>';
-            return;
-        }
+        // Filter valid only
+        const signals = (data.rows || []).filter(s => s.valid_market_window === true);
         
-        const count = data.count || data.signals.length || 0;
+        const count = signals.length;
         console.log("[ASE][CONFIRMED_TAB] rows=", count);
         
-        if (data.signals.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="12" class="text-center ultra-muted py-3">No confirmed signals</td></tr>';
+        if (signals.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="14" class="text-center ultra-muted py-3">No confirmed signals</td></tr>';
             return;
         }
         
         let html = '';
-        for (const signal of data.signals) {
-            const dateStr = signal.date || '--';
-            const timeStr = signal.time || '--';
-            const session = signal.session || '--';
-            const direction = signal.direction || '--';
-            const dirIcon = direction === 'Bullish' ? 'BULL' : direction === 'Bearish' ? 'BEAR' : '--';
-            const entry = signal.entry != null ? Number(signal.entry).toFixed(2) : '--';
-            const stop = signal.stop != null ? Number(signal.stop).toFixed(2) : '--';
-            const risk = signal.risk != null ? Number(signal.risk).toFixed(2) : '--';
-            const beMfe = signal.be_mfe != null ? Number(signal.be_mfe).toFixed(2) : '--';
-            const noBeMfe = signal.no_be_mfe != null ? Number(signal.no_be_mfe).toFixed(2) : '--';
-            const mae = signal.mae != null ? Number(signal.mae).toFixed(2) : '--';
-            const completed = signal.completed === true ? 'YES' : signal.completed === false ? 'NO' : '--';
+        let html = '';
+        for (const signal of signals) {
+            const direction = signal.direction_norm || signal.direction || '—';
+            const dirIcon = direction === 'Bullish' ? '🔵' : direction === 'Bearish' ? '🔴' : '⚪';
+            const signalTs = signal.signal_bar_open_ts ? new Date(signal.signal_bar_open_ts).toLocaleString() : '—';
+            const entryTs = signal.entry_bar_open_ts ? new Date(signal.entry_bar_open_ts).toLocaleString() : '—';
+            const exitTs = signal.exit_bar_open_ts ? new Date(signal.exit_bar_open_ts).toLocaleString() : '—';
+            const entry = signal.entry_price != null ? Number(signal.entry_price).toFixed(2) : '—';
+            const stop = signal.stop_loss != null ? Number(signal.stop_loss).toFixed(2) : '—';
+            const noBeMfe = signal.no_be_mfe != null ? Number(signal.no_be_mfe).toFixed(2) + 'R' : '—';
+            const beMfe = signal.be_mfe != null ? Number(signal.be_mfe).toFixed(2) + 'R' : '—';
+            const mae = signal.mae_global_r != null ? Number(signal.mae_global_r).toFixed(2) + 'R' : '—';
+            
+            const statusBadge = signal.status === 'EXITED' ? '<span class="badge bg-secondary">EXIT</span>' : 
+                               signal.status === 'CONFIRMED' ? '<span class="badge bg-success">CONF</span>' : 
+                               '<span class="badge bg-secondary">' + (signal.status || '?') + '</span>';
             
             html += `<tr>
-                <td class="ultra-muted small">${dateStr}</td>
-                <td class="ultra-muted">${timeStr}</td>
-                <td class="ultra-muted small">${session}</td>
+                <td class="ultra-muted small">${signal.trade_id}</td>
+                <td class="ultra-muted small">${signal.symbol || '—'}</td>
+                <td class="text-center">${statusBadge}</td>
                 <td class="text-center">${dirIcon}</td>
+                <td class="ultra-muted small">${signalTs}</td>
+                <td class="ultra-muted small">${entryTs}</td>
+                <td class="ultra-muted small">${exitTs}</td>
                 <td class="ultra-muted">${entry}</td>
                 <td class="ultra-muted">${stop}</td>
-                <td class="ultra-muted">${risk}</td>
-                <td class="ultra-muted">${beMfe}</td>
                 <td class="ultra-muted">${noBeMfe}</td>
+                <td class="ultra-muted">${beMfe}</td>
                 <td class="ultra-muted">${mae}</td>
-                <td class="ultra-muted small">${completed}</td>
-                <td class="ultra-muted small">${signal.trade_id}</td>
+                <td class="ultra-muted small">${signal.event_type || '—'}</td>
             </tr>`;
         }
         
