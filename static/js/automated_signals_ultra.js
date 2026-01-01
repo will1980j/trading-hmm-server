@@ -2394,11 +2394,9 @@ AutomatedSignalsUltra.renderAllSignalsTable = async function() {
         
         if (!tbody) return;
         
-        const signals = data.signals || [];
-        
         // Update counter with stale detection
         if (counter) {
-            const total = data.total ?? data.count ?? signals.length;
+            const total = data.count ?? signals.length;
             const loaded = signals.length;
             
             // Check health
