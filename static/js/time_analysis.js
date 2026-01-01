@@ -604,9 +604,311 @@ class TimeAnalysis {
     }
 }
 
+// ============================================================================
+// TEMPORAL EDGE V1 - TRUSTED SIGNALS ONLY
+// Uses /api/signals/v1/all with strict filtering
+// ============================================================================
+
+async function loadTemporalEdgeV1() {
+    try {
+        console.log('[TE-V1] Loading Temporal Edge V1...');
+        
+        // Fetch canonical signals
+        const resp = await fetch('/api/signals/v1/all?symbol=GLBX.MDP3:NQ&limit=2000', { cache: 'no-store' });
+        const data = await resp.json();
+        const allSignals = data.rows || [];
+        
+        // CRITICAL FILTERING: Valid + Metrics Present
+        const validSignals = allSignals.filter(s => s.valid_market_window === true);
+        const computableSignals = validSignals.filter(s => 
+            s.metrics_source === 'event' || s.metrics_source === 'computed'
+        );
+        
+        console.log(`[TE-V1] Total: ${allSignals.length}, Valid: ${validSignals.length}, Computable: ${computableSignals.length}`);
+        
+        // ========================================
+        // BLOCK A: Session Transition Sensitivity
+        // ========================================
+        renderSessionTransitions(computableSignals);
+        
+        // ========================================
+        // BLOCK B: Time-to-1R / Time-in-Trade
+        // ========================================
+        renderTimeTo1R(computableSignals);
+        
+        // ========================================
+        // BLOCK C: Signal Age Decay
+        // ========================================
+        renderSignalAgeDecay(computableSignals);
+        
+        console.log('[TE-V1] Temporal Edge V1 loaded successfully');
+        
+    } catch (error) {
+        console.error('[TE-V1] Error loading Temporal Edge V1:', error);
+    }
+}
+
+function renderSessionTransitions(signals) {
+    // Session classification based on signal_bar_open_ts
+    const classifySession = (signal) => {
+        if (!signal.signal_bar_open_ts) return 'UNKNOWN';
+        
+        const dt = new Date(signal.signal_bar_open_ts);
+        const hour = dt.getUTCHours();
+        const minute = dt.getUTCMinutes();
+        const dayOfWeek = dt.getUTCDay(); // 0=Sunday, 5=Friday
+        
+        // NY Open is 14:30 UTC (9:30 AM ET)
+        const totalMinutes = hour * 60 + minute;
+        const nyOpenMinutes = 14 * 60 + 30; // 14:30 UTC
+        
+        // NY Open -30 to 0 minutes (14:00-14:30 UTC)
+        if (totalMinutes >= nyOpenMinutes - 30 && totalMinutes < nyOpenMinutes) {
+            return 'NY Open -30 to 0';
+        }
+        
+        // NY Open 0 to +30 minutes (14:30-15:00 UTC)
+        if (totalMinutes >= nyOpenMinutes && totalMinutes < nyOpenMinutes + 30) {
+            return 'NY Open 0 to +30';
+        }
+        
+        // NY AM after +30 minutes (15:00-17:00 UTC)
+        if (totalMinutes >= nyOpenMinutes + 30 && totalMinutes < 17 * 60) {
+            return 'NY AM after +30';
+        }
+        
+        // London→NY overlap (12:00-14:30 UTC)
+        if (totalMinutes >= 12 * 60 && totalMinutes < nyOpenMinutes) {
+            return 'London→NY overlap';
+        }
+        
+        // Friday PM (17:00-20:00 UTC on Friday)
+        if (dayOfWeek === 5 && totalMinutes >= 17 * 60 && totalMinutes < 20 * 60) {
+            return 'Friday PM';
+        }
+        
+        return 'Other';
+    };
+    
+    // Bucket signals
+    const buckets = {};
+    signals.forEach(s => {
+        const session = classifySession(s);
+        if (!buckets[session]) {
+            buckets[session] = [];
+        }
+        buckets[session].push(s);
+    });
+    
+    // Calculate metrics per bucket
+    const calcMetrics = (signals) => {
+        const noBeMfes = signals.map(s => parseFloat(s.no_be_mfe)).filter(v => !isNaN(v));
+        const beMfes = signals.map(s => parseFloat(s.be_mfe)).filter(v => !isNaN(v));
+        
+        const avgNoBeMfe = noBeMfes.length > 0 ? (noBeMfes.reduce((a,b) => a+b, 0) / noBeMfes.length).toFixed(2) + 'R' : '--';
+        const avgBeMfe = beMfes.length > 0 ? (beMfes.reduce((a,b) => a+b, 0) / beMfes.length).toFixed(2) + 'R' : '--';
+        const winCount = noBeMfes.filter(v => v >= 1.0).length;
+        const winPct = noBeMfes.length > 0 ? ((winCount / noBeMfes.length) * 100).toFixed(1) + '%' : '--%';
+        
+        return { count: signals.length, avgNoBeMfe, avgBeMfe, winPct };
+    };
+    
+    // Render table
+    const bucketOrder = ['NY Open -30 to 0', 'NY Open 0 to +30', 'NY AM after +30', 'London→NY overlap', 'Friday PM', 'Other'];
+    let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <thead>
+                <tr style="border-bottom: 1px solid rgba(148,163,184,0.2);">
+                    <th style="text-align: left; padding: 8px; color: #94a3b8;">Session Bucket</th>
+                    <th style="text-align: right; padding: 8px; color: #94a3b8;">Count</th>
+                    <th style="text-align: right; padding: 8px; color: #94a3b8;">Avg NoBE MFE</th>
+                    <th style="text-align: right; padding: 8px; color: #94a3b8;">Avg BE MFE</th>
+                    <th style="text-align: right; padding: 8px; color: #94a3b8;">Win Proxy (≥1R)</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    bucketOrder.forEach(bucket => {
+        if (buckets[bucket] && buckets[bucket].length > 0) {
+            const metrics = calcMetrics(buckets[bucket]);
+            html += `
+                <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
+                    <td style="padding: 8px; color: #e2e8f0;">${bucket}</td>
+                    <td style="padding: 8px; text-align: right; color: #e2e8f0;">${metrics.count}</td>
+                    <td style="padding: 8px; text-align: right; color: #e2e8f0;">${metrics.avgNoBeMfe}</td>
+                    <td style="padding: 8px; text-align: right; color: #e2e8f0;">${metrics.avgBeMfe}</td>
+                    <td style="padding: 8px; text-align: right; color: #e2e8f0;">${metrics.winPct}</td>
+                </tr>
+            `;
+        }
+    });
+    
+    html += '</tbody></table>';
+    document.getElementById('te-session-transitions-table').innerHTML = html;
+}
+
+function renderTimeTo1R(signals) {
+    // Best-effort time-to-1R calculation
+    const timeTo1RData = [];
+    const timeInTradeData = [];
+    
+    signals.forEach(s => {
+        // Time to 1R (if BE triggered)
+        if (s.entry_bar_open_ts && s.be_trigger_bar_open_ts) {
+            const entryTime = new Date(s.entry_bar_open_ts).getTime();
+            const beTime = new Date(s.be_trigger_bar_open_ts).getTime();
+            const minutes = Math.round((beTime - entryTime) / (1000 * 60));
+            if (minutes >= 0) {
+                timeTo1RData.push(minutes);
+            }
+        }
+        
+        // Time in trade (if exited)
+        if (s.entry_bar_open_ts && s.exit_bar_open_ts) {
+            const entryTime = new Date(s.entry_bar_open_ts).getTime();
+            const exitTime = new Date(s.exit_bar_open_ts).getTime();
+            const minutes = Math.round((exitTime - entryTime) / (1000 * 60));
+            if (minutes >= 0) {
+                timeInTradeData.push(minutes);
+            }
+        }
+    });
+    
+    const bucketize = (minutes) => {
+        if (minutes <= 5) return '≤5';
+        if (minutes <= 15) return '5-15';
+        if (minutes <= 30) return '15-30';
+        return '30+';
+    };
+    
+    const createDistribution = (data, label) => {
+        if (data.length === 0) {
+            return `<div style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
+                <strong>${label}:</strong> N/A (requires ${label === 'Time-to-1R' ? 'be_trigger_bar_open_ts' : 'exit_bar_open_ts'})
+            </div>`;
+        }
+        
+        const buckets = {'≤5': 0, '5-15': 0, '15-30': 0, '30+': 0};
+        data.forEach(m => {
+            const bucket = bucketize(m);
+            buckets[bucket]++;
+        });
+        
+        let html = `<div style="margin-bottom: 20px;">
+            <div style="color: #e2e8f0; font-size: 14px; margin-bottom: 8px;"><strong>${label}</strong> (${data.length} signals)</div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                <thead>
+                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.2);">
+                        <th style="text-align: left; padding: 6px; color: #94a3b8;">Minutes</th>
+                        <th style="text-align: right; padding: 6px; color: #94a3b8;">Count</th>
+                        <th style="text-align: right; padding: 6px; color: #94a3b8;">%</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        for (const [bucket, count] of Object.entries(buckets)) {
+            const pct = ((count / data.length) * 100).toFixed(1);
+            html += `
+                <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
+                    <td style="padding: 6px; color: #e2e8f0;">${bucket} min</td>
+                    <td style="padding: 6px; text-align: right; color: #e2e8f0;">${count}</td>
+                    <td style="padding: 6px; text-align: right; color: #e2e8f0;">${pct}%</td>
+                </tr>
+            `;
+        }
+        
+        html += '</tbody></table></div>';
+        return html;
+    };
+    
+    const html = createDistribution(timeTo1RData, 'Time-to-1R') + createDistribution(timeInTradeData, 'Time-in-Trade');
+    document.getElementById('te-time-to-1r-content').innerHTML = html;
+}
+
+function renderSignalAgeDecay(signals) {
+    // Calculate minutes between signal and entry
+    const ageData = [];
+    
+    signals.forEach(s => {
+        if (s.signal_bar_open_ts && s.entry_bar_open_ts) {
+            const signalTime = new Date(s.signal_bar_open_ts).getTime();
+            const entryTime = new Date(s.entry_bar_open_ts).getTime();
+            const minutes = Math.round((entryTime - signalTime) / (1000 * 60));
+            if (minutes >= 0) {
+                ageData.push({ minutes, signal: s });
+            }
+        }
+    });
+    
+    const bucketize = (minutes) => {
+        if (minutes <= 5) return '0-5';
+        if (minutes <= 15) return '5-15';
+        if (minutes <= 30) return '15-30';
+        return '30+';
+    };
+    
+    // Bucket signals by age
+    const buckets = {'0-5': [], '5-15': [], '15-30': [], '30+': []};
+    ageData.forEach(item => {
+        const bucket = bucketize(item.minutes);
+        buckets[bucket].push(item.signal);
+    });
+    
+    // Calculate metrics per bucket
+    const calcMetrics = (signals) => {
+        const noBeMfes = signals.map(s => parseFloat(s.no_be_mfe)).filter(v => !isNaN(v));
+        const avgNoBeMfe = noBeMfes.length > 0 ? (noBeMfes.reduce((a,b) => a+b, 0) / noBeMfes.length).toFixed(2) + 'R' : '--';
+        const winCount = noBeMfes.filter(v => v >= 1.0).length;
+        const winPct = noBeMfes.length > 0 ? ((winCount / noBeMfes.length) * 100).toFixed(1) + '%' : '--%';
+        return { count: signals.length, avgNoBeMfe, winPct };
+    };
+    
+    // Render table
+    let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <thead>
+                <tr style="border-bottom: 1px solid rgba(148,163,184,0.2);">
+                    <th style="text-align: left; padding: 8px; color: #94a3b8;">Signal Age (minutes)</th>
+                    <th style="text-align: right; padding: 8px; color: #94a3b8;">Count</th>
+                    <th style="text-align: right; padding: 8px; color: #94a3b8;">Avg NoBE MFE</th>
+                    <th style="text-align: right; padding: 8px; color: #94a3b8;">Win Proxy (≥1R)</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    const bucketOrder = ['0-5', '5-15', '15-30', '30+'];
+    bucketOrder.forEach(bucket => {
+        if (buckets[bucket].length > 0) {
+            const metrics = calcMetrics(buckets[bucket]);
+            html += `
+                <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
+                    <td style="padding: 8px; color: #e2e8f0;">${bucket} min</td>
+                    <td style="padding: 8px; text-align: right; color: #e2e8f0;">${metrics.count}</td>
+                    <td style="padding: 8px; text-align: right; color: #e2e8f0;">${metrics.avgNoBeMfe}</td>
+                    <td style="padding: 8px; text-align: right; color: #e2e8f0;">${metrics.winPct}</td>
+                </tr>
+            `;
+        }
+    });
+    
+    html += '</tbody></table>';
+    
+    if (ageData.length === 0) {
+        html = '<div style="color: #94a3b8; font-size: 12px;">N/A (requires signal_bar_open_ts and entry_bar_open_ts)</div>';
+    }
+    
+    document.getElementById('te-signal-age-table').innerHTML = html;
+}
+
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', function() {
     window.timeAnalysis = new TimeAnalysis();
+    
+    // Load Temporal Edge V1
+    loadTemporalEdgeV1();
 });
 
 console.log('✅ Time Analysis JS Module loaded (H1.3 - Canonical API)');

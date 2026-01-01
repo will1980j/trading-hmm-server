@@ -132,6 +132,36 @@
         </div>
     </section>
 
+    <!-- ========================================== -->
+    <!-- TEMPORAL EDGE V1 - TRUSTED SIGNALS ONLY -->
+    <!-- ========================================== -->
+    <section class="ta-section" id="temporalEdgeV1Section" style="border-top: 3px solid #3b82f6; margin-top: 40px; padding-top: 30px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 class="ta-section-title">⏱️ Temporal Edge V1</h2>
+            <div style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 8px 16px; font-size: 12px; color: #93c5fd;">
+                Using valid_market_window=true and metrics present only
+            </div>
+        </div>
+        
+        <!-- BLOCK A: Session Transition Sensitivity -->
+        <div style="background: rgba(15,23,42,0.6); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <h3 style="color: #e2e8f0; font-size: 16px; margin-bottom: 16px;">📊 Session Transition Sensitivity</h3>
+            <div id="te-session-transitions-table"></div>
+        </div>
+        
+        <!-- BLOCK B: Time-to-1R / Time-to-Failure -->
+        <div style="background: rgba(15,23,42,0.6); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <h3 style="color: #e2e8f0; font-size: 16px; margin-bottom: 16px;">⏰ Time-to-1R / Time-in-Trade</h3>
+            <div id="te-time-to-1r-content"></div>
+        </div>
+        
+        <!-- BLOCK C: Signal Age Decay -->
+        <div style="background: rgba(15,23,42,0.6); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <h3 style="color: #e2e8f0; font-size: 16px; margin-bottom: 16px;">⏳ Signal Age Decay</h3>
+            <div id="te-signal-age-table"></div>
+        </div>
+    </section>
+
     <!-- REGION J: ADVANCED LIFECYCLE ANALYTICS (ROADMAP-LOCKED) -->
     <section class="ta-section" id="lifecycleAdvancedSection">
         <h2 class="ta-section-title">Advanced Lifecycle Analytics</h2>
