@@ -71,17 +71,35 @@ function renderSystemStatus() {
     const sessionLabel = document.getElementById('statusSession');
     const signalsToday = document.getElementById('statusSignals');
     const lastSignalTime = document.getElementById('statusLastSignal');
-    const webhookHealth = document.getElementById('statusWebhook');
+    const dataQuality = document.getElementById('statusDataQuality');
     const queueDepth = document.getElementById('queueDepth');
     const latencyMs = document.getElementById('latencyMs');
     
     if (sessionLabel) sessionLabel.textContent = systemStatus.current_session || '--';
     if (signalsToday) signalsToday.textContent = systemStatus.signals_today || '0';
     if (lastSignalTime) lastSignalTime.textContent = systemStatus.last_signal || '--';
-    if (webhookHealth) {
-        webhookHealth.textContent = systemStatus.webhook_health || '--';
-        webhookHealth.className = `status-value ${systemStatus.webhook_health === 'healthy' ? 'status-healthy' : 'status-warning'}`;
+    
+    // Fetch data quality from signals API
+    if (dataQuality) {
+        fetch('/api/signals/v1/all?symbol=GLBX.MDP3:NQ&limit=100', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(data => {
+                const signals = data.rows || [];
+                const valid = signals.filter(s => s.valid_market_window === true).length;
+                const total = signals.length;
+                if (total > 0) {
+                    const pct = Math.round((valid / total) * 100);
+                    dataQuality.textContent = `${pct}%`;
+                    dataQuality.className = `status-value ${pct >= 90 ? 'status-healthy' : 'status-warning'}`;
+                } else {
+                    dataQuality.textContent = '--';
+                }
+            })
+            .catch(() => {
+                dataQuality.textContent = '--';
+            });
     }
+    
     if (queueDepth) queueDepth.textContent = systemStatus.queue_depth || '0';
     if (latencyMs) latencyMs.textContent = systemStatus.latency_ms ? `${systemStatus.latency_ms}ms` : '--';
 }

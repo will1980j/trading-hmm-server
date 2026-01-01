@@ -2042,6 +2042,13 @@ def homepage():
         return f"<h1>Homepage Error</h1><pre>{traceback.format_exc()}</pre>", 500
 
 
+@app.route('/roadmap')
+@login_required
+def roadmap_page():
+    """Dedicated full roadmap page - canonical roadmap view"""
+    return render_template('roadmap.html')
+
+
 @app.route('/main-dashboard')
 @login_required
 def main_dashboard():
