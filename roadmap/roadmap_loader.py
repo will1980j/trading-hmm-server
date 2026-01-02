@@ -217,6 +217,7 @@ def build_v3_snapshot():
                 "description": phase.get("description", ""),
                 "deliverables": phase.get("deliverables", []),
                 "rules": phase.get("rules", []),
+                "_debug": "deliverables_enabled",
                 "is_complete": is_complete,
                 "is_active": status == "IN_PROGRESS",
                 "modules_total": modules_total,
