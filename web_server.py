@@ -6929,6 +6929,58 @@ def api_health_check():
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
 
+
+@app.route('/api/version')
+def api_version():
+    """
+    Permanent version endpoint for deterministic deployment verification.
+    
+    Returns:
+        - git_commit: Git commit hash (from env var or "unknown")
+        - build_time: Hardcoded build timestamp
+        - app_version: Application version string
+        - roadmap_version: Roadmap version from YAML
+    
+    Usage:
+        Invoke-RestMethod "https://web-production-f8c3.up.railway.app/api/version"
+    """
+    import os
+    
+    # Git commit from environment variable (Railway sets this)
+    git_commit = os.environ.get('RAILWAY_GIT_COMMIT_SHA', 
+                                os.environ.get('GIT_COMMIT', 'unknown'))
+    
+    # Build time - hardcoded at patch time
+    build_time = "2025-01-02 23:30 UTC"
+    
+    # App version - semantic version for this deployment
+    app_version = "homepage-hardening-2025-01-02"
+    
+    # Roadmap version - read from YAML
+    roadmap_version = "unknown"
+    try:
+        from roadmap.roadmap_loader import load_roadmap_v3
+        roadmap_data = load_roadmap_v3()
+        roadmap_version = roadmap_data.get('roadmap_version', 'unknown')
+    except Exception as e:
+        logger.warning(f"[VERSION] Failed to load roadmap version: {e}")
+    
+    response_data = {
+        'git_commit': git_commit[:8] if len(git_commit) > 8 else git_commit,
+        'build_time': build_time,
+        'app_version': app_version,
+        'roadmap_version': roadmap_version,
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    response = jsonify(response_data)
+    response.headers['X-App-Version'] = app_version
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    
+    return response
+
+
 @app.route('/api/roadmap', methods=['GET'])
 def api_roadmap():
     """Get roadmap data from unified_roadmap_v3.yaml (V3 ONLY)"""
