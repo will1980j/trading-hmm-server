@@ -2031,10 +2031,17 @@ def homepage():
         roadmap_sorted = sorted(roadmap.items(), key=lambda item: item[1].get("level", 999))
         
         # CANONICAL TEMPLATE: homepage.html (NOT homepage_video_background.html)
-        return render_template('homepage.html', 
-                             video_file=video_file,
-                             roadmap=roadmap_sorted,
-                             roadmap_v3=roadmap_v3)
+        response = make_response(render_template('homepage.html', 
+                                                video_file=video_file,
+                                                roadmap=roadmap_sorted,
+                                                roadmap_v3=roadmap_v3))
+        
+        # Hard guard: Response header proves which template is serving
+        response.headers['X-Served-Template'] = 'homepage.html'
+        response.headers['X-Template-Version'] = '2025-01-02'
+        
+        return response
+        
     except Exception as e:
         LAST_HOMEPAGE_ERROR = traceback.format_exc()
         logger.exception("[HOMEPAGE_FATAL] Unhandled exception")
