@@ -27,6 +27,7 @@ def parse_args():
     parser.add_argument('--batch-days', type=int, default=7, help='Batch size in days (default: 7)')
     parser.add_argument('--warmup', type=int, default=5, help='Warmup days (default: 5)')
     parser.add_argument('--preload-start-ts', help='Preload start timestamp ISO format (default: start_date - warmup days at 23:00Z)')
+    parser.add_argument('--resume-run-id', help='Resume existing run ID instead of creating new run')
     return parser.parse_args()
 
 
@@ -91,6 +92,72 @@ def create_batches(conn, run_id, start_ts, end_ts, batch_days):
         conn.commit()
     
     return batches
+
+
+def load_existing_run(conn, run_id, symbol, start_ts, end_ts, logic_version):
+    """Load and verify existing run for resume"""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT symbol, start_ts, end_ts, logic_version, status
+            FROM signal_corpus_runs
+            WHERE run_id = %s
+        """, (run_id,))
+        row = cur.fetchone()
+        if not row:
+            raise ValueError(f'Run {run_id} does not exist')
+        
+        run_symbol, run_start_ts, run_end_ts, run_logic_version, run_status = row
+        
+        if run_status == 'LOCKED':
+            raise ValueError(f'Run {run_id} is LOCKED - cannot resume')
+        
+        if run_symbol != symbol:
+            raise ValueError(f'Symbol mismatch: run has {run_symbol}, provided {symbol}')
+        
+        if run_start_ts != start_ts:
+            raise ValueError(f'start_ts mismatch: run has {run_start_ts}, provided {start_ts}')
+        
+        if run_end_ts != end_ts:
+            raise ValueError(f'end_ts mismatch: run has {run_end_ts}, provided {end_ts}')
+        
+        if run_logic_version != logic_version:
+            raise ValueError(f'logic_version mismatch: run has {run_logic_version}, provided {logic_version}')
+        
+        return run_id
+
+
+def get_pending_batches(conn, run_id):
+    """Get pending batches for resume"""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT batch_start, batch_end
+            FROM signal_corpus_batches
+            WHERE run_id = %s AND status = 'PENDING'
+            ORDER BY batch_start ASC
+        """, (run_id,))
+        return cur.fetchall()
+
+
+def mark_batch_failed(conn, run_id, batch_start, batch_end, error_msg):
+    """Mark batch as failed"""
+    with conn.cursor() as cur:
+        cur.execute("""
+            UPDATE signal_corpus_batches
+            SET status = 'FAILED', error = %s, finished_at = NOW()
+            WHERE run_id = %s AND batch_start = %s AND batch_end = %s
+        """, (error_msg, run_id, batch_start, batch_end))
+        conn.commit()
+
+
+def mark_run_failed(conn, run_id):
+    """Mark run as failed"""
+    with conn.cursor() as cur:
+        cur.execute("""
+            UPDATE signal_corpus_runs
+            SET status = 'FAILED'
+            WHERE run_id = %s
+        """, (run_id,))
+        conn.commit()
 
 
 def fetch_bars(conn, symbol, start_ts, end_ts):
@@ -261,32 +328,47 @@ def main():
         bars_fingerprint = compute_sha256(args.symbol, 'market_bars_ohlcv_1m_clean', 
                                          bars_min_ts.isoformat(), bars_max_ts.isoformat(), bars_rowcount)
         
-        run_id = create_run(conn, args.symbol, '1m', start_ts, end_ts, bars_min_ts, bars_max_ts, 
-                           bars_rowcount, bars_fingerprint, args.logic_version, git_sha, config_fingerprint)
-        
-        print(f'Created run_id: {run_id}')
-        
-        batches = create_batches(conn, run_id, start_ts, end_ts, args.batch_days)
-        print(f'Created {len(batches)} batches')
+        if args.resume_run_id:
+            run_id = load_existing_run(conn, args.resume_run_id, args.symbol, start_ts, end_ts, args.logic_version)
+            print(f'Resuming run_id: {run_id}')
+            batches = get_pending_batches(conn, run_id)
+            print(f'Found {len(batches)} pending batches')
+        else:
+            run_id = create_run(conn, args.symbol, '1m', start_ts, end_ts, bars_min_ts, bars_max_ts, 
+                               bars_rowcount, bars_fingerprint, args.logic_version, git_sha, config_fingerprint)
+            print(f'Created run_id: {run_id}')
+            batches = create_batches(conn, run_id, start_ts, end_ts, args.batch_days)
+            print(f'Created {len(batches)} batches')
         
         cumulative = 0
         for batch_start, batch_end in batches:
-            retry = False
-            try:
-                inserted = process_batch(conn, run_id, args.symbol, batch_start, batch_end, 
-                                       args.warmup, args.logic_version)
-            except psycopg2.OperationalError:
-                print(f'Connection error, reconnecting...')
-                conn.close()
-                conn = get_connection()
-                retry = True
+            max_retries = 5
+            inserted = None
             
-            if retry:
-                inserted = process_batch(conn, run_id, args.symbol, batch_start, batch_end,
-                                       args.warmup, args.logic_version)
+            for attempt in range(max_retries):
+                try:
+                    inserted = process_batch(conn, run_id, args.symbol, batch_start, batch_end, 
+                                           args.warmup, args.logic_version)
+                    break
+                except psycopg2.OperationalError as e:
+                    if attempt < max_retries - 1:
+                        print(f'Connection error (attempt {attempt + 1}/{max_retries}), reconnecting...')
+                        try:
+                            conn.close()
+                        except:
+                            pass
+                        conn = get_connection()
+                    else:
+                        error_msg = f'Max retries exceeded: {str(e)}'
+                        print(f'FAILED batch {batch_start} to {batch_end}: {error_msg}')
+                        mark_batch_failed(conn, run_id, batch_start, batch_end, error_msg)
+                        mark_run_failed(conn, run_id)
+                        print(f'Run {run_id} marked FAILED')
+                        sys.exit(1)
             
-            cumulative += inserted
-            print(f'Batch {batch_start} to {batch_end}: inserted {inserted}, cumulative {cumulative}')
+            if inserted is not None:
+                cumulative += inserted
+                print(f'Batch {batch_start} to {batch_end}: inserted {inserted}, cumulative {cumulative}')
         
         complete_run(conn, run_id)
         print(f'Run {run_id} COMPLETE with {cumulative} total triangles')
