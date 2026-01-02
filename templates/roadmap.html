@@ -400,12 +400,27 @@
                         <div class="phase-objective">${phase.objective}</div>
                     `;
                     
+                    // 1) Progress line (always visible)
+                    const modulesDone = phase.modules_done || 0;
+                    const modulesTotal = phase.modules_total || 0;
+                    const modulePercent = phase.module_percent || 0;
+                    const tasksDone = phase.tasks_done || 0;
+                    const tasksTotal = phase.tasks_total || 0;
+                    const taskPercent = phase.task_percent || 0;
+                    const phaseId = phase.phase_id || '?';
+                    
+                    html += `
+                        <div style="color:#94a3b8;font-size:0.85rem;margin:12px 0;padding:10px;background:rgba(0,0,0,0.2);border-radius:6px;">
+                            Phase ID: ${phaseId} • Modules: ${modulesDone}/${modulesTotal} (${modulePercent}%) • Tasks: ${tasksDone}/${tasksTotal} (${taskPercent}%)
+                        </div>
+                    `;
+                    
                     // Add description if present
                     if (phase.description) {
                         html += `<div class="phase-description">${phase.description}</div>`;
                     }
                     
-                    // Add deliverables
+                    // 2) Deliverables bullets (if present)
                     const deliverables = phase.deliverables || [];
                     if (deliverables.length > 0) {
                         html += '<div class="deliverables-title">Deliverables</div>';
@@ -414,9 +429,39 @@
                             html += `<li>${d}</li>`;
                         });
                         html += '</ul>';
+                    } else {
+                        html += '<div style="color:#94a3b8;font-size:0.85rem;font-style:italic;margin:10px 0;">Deliverables not yet defined for this phase in YAML.</div>';
                     }
                     
-                    // Add rules if present
+                    // 3) Modules list (expandable)
+                    const moduleList = phase.module_list || [];
+                    if (moduleList.length > 0) {
+                        const moduleId = `modules-${phaseId}`;
+                        html += `
+                            <div style="margin-top:15px;">
+                                <div style="cursor:pointer;color:#3b82f6;font-size:0.9rem;font-weight:600;margin-bottom:8px;" onclick="document.getElementById('${moduleId}').style.display = document.getElementById('${moduleId}').style.display === 'none' ? 'block' : 'none'">
+                                    ▼ Modules (${moduleList.length})
+                                </div>
+                                <div id="${moduleId}" style="display:none;padding-left:15px;">
+                        `;
+                        
+                        moduleList.forEach(mod => {
+                            const modTitle = mod.title || mod.id || 'Unknown';
+                            const modStatus = mod.status || '?';
+                            const modDone = mod.done ? '✓' : '○';
+                            const modTasks = mod.tasks_total ? ` (${mod.tasks_done || 0}/${mod.tasks_total} tasks)` : '';
+                            
+                            html += `
+                                <div style="padding:6px 0;color:#cbd5e1;font-size:0.85rem;">
+                                    ${modDone} ${modTitle} - ${modStatus}${modTasks}
+                                </div>
+                            `;
+                        });
+                        
+                        html += '</div></div>';
+                    }
+                    
+                    // 4) Rules section (if phase.rules present)
                     const rules = phase.rules || [];
                     if (rules.length > 0) {
                         html += '<div class="rules-section">';
