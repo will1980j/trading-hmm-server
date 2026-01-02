@@ -425,3 +425,5 @@ def get_roadmap_version():
     """Get the current roadmap version."""
     roadmap = load_roadmap_v3()
     return roadmap.get("roadmap_version", "unknown")
+
+# Force git detection - 2025-01-02
