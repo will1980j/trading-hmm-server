@@ -6945,9 +6945,23 @@ def api_version():
 def api_roadmap():
     """Get roadmap data from unified_roadmap_v3.yaml (V3 ONLY)"""
     try:
-        from roadmap.roadmap_loader import get_homepage_roadmap_data
+        from roadmap.roadmap_loader import get_homepage_roadmap_data, load_roadmap_v3
         
         roadmap_v3 = get_homepage_roadmap_data()
+        
+        # Force-inject deliverables/rules/_debug into each phase
+        yaml_data = load_roadmap_v3()
+        yaml_phases_map = {p.get("phase_id"): p for p in yaml_data.get("phases", [])}
+        
+        for phase in roadmap_v3.get("phases", []):
+            phase_id = phase.get("phase_id")
+            yaml_phase = yaml_phases_map.get(phase_id, {})
+            
+            # Force-inject missing keys
+            phase["deliverables"] = phase.get("deliverables") or yaml_phase.get("deliverables", [])
+            phase["rules"] = phase.get("rules") or yaml_phase.get("rules", [])
+            phase["description"] = phase.get("description") or yaml_phase.get("description", "")
+            phase["_debug"] = "deliverables_enabled"
         
         logger.info(f"[API_ROADMAP] V3 loaded: version={roadmap_v3.get('version')}, phases={len(roadmap_v3.get('phases', []))}")
         
