@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Second Skies Trading - Homepage</title>
+<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}?v=4">
+<style>
+/* Static gradient background (NO VIDEO) */
+body {
+    background: linear-gradient(135deg, #0a1628 0%, #0d2240 50%, #0a1628 100%);
+    background-attachment: fixed;
+}
+</style>
+</head>
+<body>
+<!-- SERVED_TEMPLATE: homepage.html | version: 2025-01-02 -->
+
+<!-- System Status Ribbon -->
+<section class="status-ribbon">
+<div class="status-item">
+<span class="status-label">Session:</span>
+<span class="status-value" id="statusSession">--</span>
+</div>
+<div class="status-item">
+<span class="status-label">Signals Today:</span>
+<span class="status-value" id="statusSignals">0</span>
+</div>
+<div class="status-item">
+<span class="status-label">Last Signal:</span>
+<span class="status-value" id="statusLastSignal">--</span>
+</div>
+<div class="status-item">
+<span class="status-label">Webhook:</span>
+<span class="status-value" id="statusWebhook">--</span>
+</div>
+</section>
+
+<!-- Main 2-Column Layout -->
+<main class="layout-grid">
+
+<!-- LEFT COLUMN: ROADMAP -->
+<aside class="roadmap-section">
+<div class="roadmap-header">
+<h2>Databento-First Professional Trading System Roadmap (NQ-Centric) — 2025–2026</h2>
+<p style="font-size:0.85rem;color:rgba(255,255,255,0.7);margin-top:8px;">
+NQ is the primary research instrument. MNQ is execution sizing only.
+</p>
+</div>
+
+<!-- PHASE A: ACTIVE -->
+<div style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);border-radius:8px;padding:14px;margin-bottom:12px;">
+<div style="font-weight:700;color:#4ade80;font-size:0.95rem;margin-bottom:6px;">PHASE A — Market Truth & Determinism (LOCK FIRST)</div>
+<div style="display:inline-block;background:rgba(34,197,94,0.3);color:#4ade80;padding:3px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">ACTIVE</div>
+<div style="color:rgba(255,255,255,0.75);font-size:0.85rem;">
+Purpose: Establish an unquestionable historical market truth layer.
+</div>
+</div>
+
+<!-- PHASE B: NOT YET ENABLED -->
+<div style="background:rgba(100,116,139,0.08);border:1px solid rgba(100,116,139,0.25);border-radius:8px;padding:14px;margin-bottom:12px;">
+<div style="font-weight:700;color:rgba(255,255,255,0.4);font-size:0.95rem;margin-bottom:6px;">PHASE B — Indicator Parity (BLOCKER PHASE)</div>
+<div style="display:inline-block;background:rgba(100,116,139,0.15);color:rgba(255,255,255,0.4);padding:3px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">NOT YET ENABLED</div>
+<div style="color:rgba(255,255,255,0.4);font-size:0.85rem;">
+Purpose: Exact Pine → Python translation with zero interpretation.
+</div>
+</div>
+
+<!-- PHASE C: NOT YET ENABLED -->
+<div style="background:rgba(100,116,139,0.08);border:1px solid rgba(100,116,139,0.25);border-radius:8px;padding:14px;margin-bottom:12px;">
+<div style="font-weight:700;color:rgba(255,255,255,0.4);font-size:0.95rem;margin-bottom:6px;">PHASE C — Historical Signal Generation (RAW)</div>
+<div style="display:inline-block;background:rgba(100,116,139,0.15);color:rgba(255,255,255,0.4);padding:3px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">NOT YET ENABLED</div>
+<div style="color:rgba(255,255,255,0.4);font-size:0.85rem;">
+Purpose: Generate non-opinionated historical signals.
+</div>
+</div>
+
+<!-- PHASE D: NOT YET ENABLED -->
+<div style="background:rgba(100,116,139,0.08);border:1px solid rgba(100,116,139,0.25);border-radius:8px;padding:14px;margin-bottom:12px;">
+<div style="font-weight:700;color:rgba(255,255,255,0.4);font-size:0.95rem;margin-bottom:6px;">PHASE D — Signal Quality & Expectancy (EDGE DISCOVERY)</div>
+<div style="display:inline-block;background:rgba(100,116,139,0.15);color:rgba(255,255,255,0.4);padding:3px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">NOT YET ENABLED</div>
+<div style="color:rgba(255,255,255,0.4);font-size:0.85rem;">
+Purpose: Determine which signals deserve to exist.
+</div>
+</div>
+
+<!-- PHASE E: NOT YET ENABLED -->
+<div style="background:rgba(100,116,139,0.08);border:1px solid rgba(100,116,139,0.25);border-radius:8px;padding:14px;margin-bottom:12px;">
+<div style="font-weight:700;color:rgba(255,255,255,0.4);font-size:0.95rem;margin-bottom:6px;">PHASE E — Regime & Temporal Intelligence</div>
+<div style="display:inline-block;background:rgba(100,116,139,0.15);color:rgba(255,255,255,0.4);padding:3px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">NOT YET ENABLED</div>
+<div style="color:rgba(255,255,255,0.4);font-size:0.85rem;">
+Purpose: Explain why signals work or fail.
+</div>
+</div>
+
+<!-- PHASE F: NOT YET ENABLED -->
+<div style="background:rgba(100,116,139,0.08);border:1px solid rgba(100,116,139,0.25);border-radius:8px;padding:14px;margin-bottom:12px;">
+<div style="font-weight:700;color:rgba(255,255,255,0.4);font-size:0.95rem;margin-bottom:6px;">PHASE F — Strategy Construction (HUMAN-LED)</div>
+<div style="display:inline-block;background:rgba(100,116,139,0.15);color:rgba(255,255,255,0.4);padding:3px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">NOT YET ENABLED</div>
+<div style="color:rgba(255,255,255,0.4);font-size:0.85rem;">
+Purpose: Assemble rule-based strategies from validated components.
+</div>
+</div>
+
+<!-- PHASE G: NOT YET ENABLED -->
+<div style="background:rgba(100,116,139,0.08);border:1px solid rgba(100,116,139,0.25);border-radius:8px;padding:14px;margin-bottom:12px;">
+<div style="font-weight:700;color:rgba(255,255,255,0.4);font-size:0.95rem;margin-bottom:6px;">PHASE G — Backtesting & Portfolio Risk</div>
+<div style="display:inline-block;background:rgba(100,116,139,0.15);color:rgba(255,255,255,0.4);padding:3px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">NOT YET ENABLED</div>
+<div style="color:rgba(255,255,255,0.4);font-size:0.85rem;">
+Purpose: Stress-test strategies, not invent them.
+</div>
+</div>
+
+<!-- PHASE H: NOT YET ENABLED -->
+<div style="background:rgba(100,116,139,0.08);border:1px solid rgba(100,116,139,0.25);border-radius:8px;padding:14px;margin-bottom:12px;">
+<div style="font-weight:700;color:rgba(255,255,255,0.4);font-size:0.95rem;margin-bottom:6px;">PHASE H — Live Data & Paper Trading</div>
+<div style="display:inline-block;background:rgba(100,116,139,0.15);color:rgba(255,255,255,0.4);padding:3px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">NOT YET ENABLED</div>
+<div style="color:rgba(255,255,255,0.4);font-size:0.85rem;">
+Purpose: Validate assumptions in real-time.
+</div>
+</div>
+
+<!-- PHASE I: NOT YET ENABLED -->
+<div style="background:rgba(100,116,139,0.08);border:1px solid rgba(100,116,139,0.25);border-radius:8px;padding:14px;margin-bottom:12px;">
+<div style="font-weight:700;color:rgba(255,255,255,0.4);font-size:0.95rem;margin-bottom:6px;">PHASE I — Prop Firm Scaling</div>
+<div style="display:inline-block;background:rgba(100,116,139,0.15);color:rgba(255,255,255,0.4);padding:3px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">NOT YET ENABLED</div>
+<div style="color:rgba(255,255,255,0.4);font-size:0.85rem;">
+Purpose: Operationalise proven strategies.
+</div>
+</div>
+
+<!-- PHASE J: NOT YET ENABLED -->
+<div style="background:rgba(100,116,139,0.08);border:1px solid rgba(100,116,139,0.25);border-radius:8px;padding:14px;margin-bottom:12px;">
+<div style="font-weight:700;color:rgba(255,255,255,0.4);font-size:0.95rem;margin-bottom:6px;">PHASE J — ML (OPTIONAL, CONTROLLED, LATE)</div>
+<div style="display:inline-block;background:rgba(100,116,139,0.15);color:rgba(255,255,255,0.4);padding:3px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">NOT YET ENABLED</div>
+<div style="color:rgba(255,255,255,0.4);font-size:0.85rem;">
+Purpose: Assist discovery — never replace judgment.
+</div>
+</div>
+
+<!-- GLOBAL NON-NEGOTIABLE RULES -->
+<div style="margin-top:16px;padding:14px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:8px;">
+<div style="font-weight:700;color:#60a5fa;font-size:0.9rem;margin-bottom:8px;">Global Non-Negotiable Rules</div>
+<ul style="margin:0;padding-left:20px;color:rgba(255,255,255,0.7);font-size:0.8rem;line-height:1.6;">
+<li>Databento is the single source of truth</li>
+<li>NQ is the research instrument</li>
+<li>MNQ is execution sizing only</li>
+<li>No live systems before historical understanding</li>
+<li>No ML before structure</li>
+<li>Every phase must be independently disable-able</li>
+</ul>
+</div>
+
+<div style="margin-top:12px;padding:10px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:6px;font-size:0.75rem;color:rgba(255,255,255,0.6);">
+<strong style="color:#fbbf24;">Current Active Phase:</strong> Phase A<br>
+No work may proceed beyond Phase A until Phase A is explicitly locked.
+</div>
+</aside>
+
+<!-- RIGHT COLUMN: WORKSPACE -->
+<section class="workspace-column">
+
+<section class="hero-section">
+<h1 class="hero-title">Second Skies Trading</h1>
+<p class="hero-subtitle">Advanced algorithmic trading with real-time signal processing</p>
+</section>
+
+<section class="workspace-grid">
+{% for module in [
+('🏠', 'Main Dashboard', 'H1.2 — Central command center for system monitoring and navigation', '/main-dashboard', 'H1.2', 'active', 'H1-2'),
+('🤖', 'Automated Signals Engine', 'H1.1 — Core automated signals engine and lifecycle dashboard', '/automated-signals', 'H1.1 CORE', 'active', 'H1-1A'),
+('⏰', 'Time Analysis', 'H1.3 — Completed temporal pattern and session performance analytics', '/time-analysis', 'H1.3 COMPLETE', 'active', 'H1-3'),
+('💰', 'Financial Summary', 'H1.5 — Performance and financial reporting', '/financial-summary', 'H1.5', 'active', 'H1-5'),
+('📊', 'Reporting Hub', 'H1.6 — Advanced reporting and business intelligence', '/reporting-hub', 'H1.6', 'active', 'H1-6'),
+('🎯', 'Strategy Optimizer', 'H2 — Advanced optimization and backtesting engine', '/strategy-optimizer', 'H2', 'active', 'H2-18'),
+('🏆', 'Strategy Compare', 'H2 — Compare and analyze multiple trading strategies', '/strategy-comparison', 'H2', 'active', 'H2-19'),
+('🧠', 'ML Intelligence Hub', 'H5 — Machine learning insights and predictive analytics (future ML layer)', '/ml-dashboard', 'H5 FUTURE', 'future', 'H5-ML'),
+('📋', 'Trade Manager', 'H2 — Trade execution and position management', '/trade-manager', 'H2', 'active', 'H2-TRADE'),
+('💼', 'Prop Portfolio', 'H8 — Prop firm portfolio management and compliance', '/prop-portfolio', 'H8', 'active', 'H8-PROP'),
+('🧭', 'AI Business Advisor', 'H9 — AI-driven capital allocation & business intelligence (coming soon)', '/ai-business-advisor', 'H9 FUTURE', 'future', 'H9-25')
+] %}
+<div class="workspace-card workspace-card--{{ module[5] }}" data-module-code="{{ module[6] }}">
+<div class="card-header">
+<div class="card-icon">{{ module[0] }}</div>
+<h3>{{ module[1] }}</h3>
+<span class="card-status">{{ module[4] }}</span>
+</div>
+<p class="card-description">{{ module[2] }}</p>
+{% if module[5] == 'active' %}
+<a href="{{ module[3] }}" class="card-link">Launch</a>
+{% elif module[5] == 'future' %}
+<button type="button" class="card-link card-link--ghost" onclick="window.location.href='/roadmap'">View Roadmap</button>
+{% else %}
+<span class="card-link card-link--disabled">In Development</span>
+{% endif %}
+</div>
+{% endfor %}
+</section>
+
+</section>
+
+</main>
+
+<!-- *** DO NOT MODIFY THE EXISTING VIDEO ROTATION JAVASCRIPT BELOW THIS COMMENT *** -->
+<script src="{{ url_for('static', filename='js/homepage.js') }}"></script>
+
+</body>
+</html>

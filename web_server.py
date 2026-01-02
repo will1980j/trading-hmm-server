@@ -1989,13 +1989,13 @@ def build_homepage_context():
 @app.route('/homepage')
 @login_required
 def homepage():
-    """Professional homepage - main landing page after login with nature videos"""
+    """Professional homepage - CANONICAL TEMPLATE: homepage.html"""
     global LAST_HOMEPAGE_ERROR
     
     try:
-        video_file = get_random_video('homepage')
+        video_file = get_random_video('homepage')  # Keep for backward compatibility but unused
         
-        # Load Unified Roadmap V3 (safe - never raises)
+        # Load Unified Roadmap V3
         roadmap_v3 = None
         try:
             from roadmap.roadmap_loader import build_v3_snapshot
@@ -2030,15 +2030,14 @@ def homepage():
         
         roadmap_sorted = sorted(roadmap.items(), key=lambda item: item[1].get("level", 999))
         
-        return render_template('homepage_video_background.html', 
+        # CANONICAL TEMPLATE: homepage.html (NOT homepage_video_background.html)
+        return render_template('homepage.html', 
                              video_file=video_file,
                              roadmap=roadmap_sorted,
                              roadmap_v3=roadmap_v3)
     except Exception as e:
-        # Capture error for debugging
         LAST_HOMEPAGE_ERROR = traceback.format_exc()
         logger.exception("[HOMEPAGE_FATAL] Unhandled exception")
-        # Return error page instead of 500
         return f"<h1>Homepage Error</h1><pre>{traceback.format_exc()}</pre>", 500
 
 
