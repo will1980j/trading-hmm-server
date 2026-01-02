@@ -334,9 +334,17 @@
                 
                 console.log('[ROADMAP] API response:', data);
                 
-                // Extract phases from correct path: data.phases (not data.roadmap_v3.phases)
-                // The API returns phases directly at top level
-                const phases = data.phases || [];
+                // Extract phases from roadmap_v3
+                const roadmap = data.roadmap_v3;
+                if (!roadmap || !Array.isArray(roadmap.phases)) {
+                    console.error('[ROADMAP] Phases missing', data);
+                    document.getElementById('phases-container').innerHTML = 
+                        '<div class="alert alert-danger">Roadmap phases not found in API response</div>';
+                    return;
+                }
+                
+                const phases = roadmap.phases;
+                console.log('[ROADMAP] Rendering phases:', phases.length);
                 
                 // TASK 1: Current focus from overall.active_phase_name
                 const currentFocusText = data.overall?.active_phase_name || 
@@ -361,7 +369,7 @@
                 const container = document.getElementById('phases-container');
                 container.innerHTML = '';
                 
-                sortedPhases.forEach(phase => {
+                phases.forEach(phase => {
                     // TASK 2: Map CSS class based on status prefix/content
                     let cardClass = 'not-enabled';
                     let statusClass = 'status-not-enabled';
