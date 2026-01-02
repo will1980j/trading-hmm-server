@@ -10,7 +10,7 @@ FORCE_REBUILD_MARKER_2025_12_08 = "TIMESTAMP_FIX_E2_COMPLETE"
 # Updated to support new unified layout system on all internal pages (except login/homepage which use video templates)
 FORCE_REBUILD_MARKER_C3 = "C3-DEPLOY-FORCE-REBUILD"
 import os
-from flask import Flask, render_template, render_template_string, send_from_directory, send_file, request, jsonify, session, redirect, url_for, Response
+from flask import Flask, render_template, render_template_string, send_from_directory, send_file, request, jsonify, session, redirect, url_for, Response, make_response
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from os import environ, path
