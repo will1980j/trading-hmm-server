@@ -1993,50 +1993,10 @@ def homepage():
     global LAST_HOMEPAGE_ERROR
     
     try:
-        video_file = get_random_video('homepage')  # Keep for backward compatibility but unused
+        # Render canonical template with NO variables
+        response = make_response(render_template('homepage.html'))
         
-        # Load Unified Roadmap V3
-        roadmap_v3 = None
-        try:
-            from roadmap.roadmap_loader import build_v3_snapshot
-            snapshot, error_str, resolved_path, exists, yaml_importable = build_v3_snapshot()
-            if snapshot:
-                roadmap_v3 = snapshot
-        except Exception as e:
-            logger.warning(f"[HOMEPAGE] Failed to load roadmap v3: {e}")
-            roadmap_v3 = None
-        
-        # Legacy roadmap (keep for backward compatibility)
-        snapshot = phase_progress_snapshot()
-        module_lists = {}
-        for phase_id, pdata in snapshot.items():
-            raw_phase = ROADMAP.get(phase_id)
-            raw_modules = getattr(raw_phase, "modules", {}) or {}
-            cleaned = []
-            for key, status in raw_modules.items():
-                done = getattr(status, "completed", status)
-                title = key.replace("_", " ").title()
-                cleaned.append({
-                    "key": key,
-                    "title": title,
-                    "done": bool(done)
-                })
-            module_lists[phase_id] = cleaned
-        
-        roadmap = {}
-        for phase_id in snapshot:
-            roadmap[phase_id] = dict(snapshot[phase_id])
-            roadmap[phase_id]["module_list"] = module_lists.get(phase_id, [])
-        
-        roadmap_sorted = sorted(roadmap.items(), key=lambda item: item[1].get("level", 999))
-        
-        # CANONICAL TEMPLATE: homepage.html (NOT homepage_video_background.html)
-        response = make_response(render_template('homepage.html', 
-                                                video_file=video_file,
-                                                roadmap=roadmap_sorted,
-                                                roadmap_v3=roadmap_v3))
-        
-        # Hard guard: Response header proves which template is serving
+        # Response headers for verification
         response.headers['X-Served-Template'] = 'homepage.html'
         response.headers['X-Template-Version'] = '2025-01-02'
         
