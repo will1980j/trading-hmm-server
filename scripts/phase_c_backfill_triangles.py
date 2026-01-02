@@ -47,7 +47,6 @@ symbol = sys.argv[1]
 start_date = sys.argv[2]
 end_date = sys.argv[3]
 warmup = max(0, int(sys.argv[4])) if len(sys.argv) > 4 else 5
-preload_start_ts_arg = sys.argv[5] if len(sys.argv) > 5 else "2025-11-30T23:00:00Z"
 
 # Parse dates to UTC
 utc_tz = ZoneInfo('UTC')
@@ -66,8 +65,14 @@ else:
 # Compute fetch window (need CLOSE bars to generate OPEN timestamps)
 insert_close_end = insert_open_end + BAR_INTERVAL
 
-# Parse preload start timestamp
-preload_start_ts = datetime.fromisoformat(preload_start_ts_arg.replace("Z", "+00:00"))
+# Compute preload start timestamp (default: start_date - warmup days at 23:00Z)
+if len(sys.argv) > 5:
+    preload_start_ts_arg = sys.argv[5]
+    preload_start_ts = datetime.fromisoformat(preload_start_ts_arg.replace("Z", "+00:00"))
+else:
+    preload_date = (insert_open_start.date() - timedelta(days=warmup))
+    preload_start_ts = datetime.combine(preload_date, datetime.min.time()).replace(hour=23, minute=0, second=0, tzinfo=utc_tz)
+    preload_start_ts_arg = preload_start_ts.isoformat().replace('+00:00', 'Z')
 
 print(f"Phase C Stage 1: Triangle Backfill")
 print(f"Symbol: {symbol}")
