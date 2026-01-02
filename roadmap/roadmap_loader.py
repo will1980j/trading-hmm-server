@@ -1,4 +1,4 @@
-﻿"""
+"""
 Roadmap V3 Loader and Progress Tracker
 
 Loads the unified roadmap YAML (v3) and computes progress metrics.
@@ -426,4 +426,5 @@ def get_roadmap_version():
     roadmap = load_roadmap_v3()
     return roadmap.get("roadmap_version", "unknown")
 
-# Force git detection - 2025-01-02
+# Deliverables/rules enabled - 2025-01-02
+
